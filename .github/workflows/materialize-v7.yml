@@ -1,0 +1,45 @@
+name: Materialize Recon Monitor v7
+
+on:
+  push:
+    branches:
+      - agent/upload-v7-source
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.head_commit.message != 'Materialize Recon Monitor v7.0.0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decode and verify payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d payload.tar.xz.b64 > /tmp/recon-monitor-v7.tar.xz
+          xz -t /tmp/recon-monitor-v7.tar.xz
+          rm -rf /tmp/reconv7
+          mkdir -p /tmp/reconv7
+          tar -xJf /tmp/recon-monitor-v7.tar.xz -C /tmp/reconv7
+          test -d /tmp/reconv7/recon-monitor-v7.0.0
+          test -f /tmp/reconv7/recon-monitor-v7.0.0/README.md
+          test -f /tmp/reconv7/recon-monitor-v7.0.0/app/recon_monitor.py
+      - name: Materialize source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude='.git/' /tmp/reconv7/recon-monitor-v7.0.0/ ./
+          rm -f payload.tar.xz.b64
+          rm -f .github/workflows/materialize-v7.yml
+          rmdir .github/workflows 2>/dev/null || true
+          rmdir .github 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -f backups/.gitkeep logs/.gitkeep output/.gitkeep reports/.gitkeep runs/.gitkeep state/.gitkeep || true
+          git add -A
+          git commit -m 'Materialize Recon Monitor v7.0.0'
+          git push origin HEAD:agent/upload-v7-source
