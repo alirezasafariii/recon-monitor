@@ -1,0 +1,62 @@
+name: Verify Recon Monitor v7 final main
+
+on:
+  push:
+    branches:
+      - agent/verify-v7-final
+    paths:
+      - .github/workflows/verify-v7-final.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact source and safety state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f app/recon_monitor.py
+          test -f MANIFEST.sha256
+          test -d tests
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test ! -d state
+          test ! -d output
+          test ! -d reports
+          test ! -d .staging
+
+          COUNT=$(find . -type f ! -path './.git/*' ! -path './.github/*' | wc -l | tr -d ' ')
+          test "$COUNT" = "126"
+
+          python3 - <<'PY'
+          import re, unittest
+          s=open('app/recon_monitor.py', encoding='utf-8').read()
+          m=re.search(r'APP_VERSION\s*=\s*["\x27]([^"\x27]+)', s)
+          assert m and m.group(1) == '7.0.0', m.group(1) if m else 'missing APP_VERSION'
+          suite=unittest.defaultTestLoader.discover('tests', pattern='test_*.py')
+          n=suite.countTestCases()
+          assert n == 161, f'expected 161 tests, got {n}'
+          result=unittest.TextTestRunner(verbosity=1).run(suite)
+          assert result.wasSuccessful()
+          PY
+
+          sha256sum -c MANIFEST.sha256
+
+      - name: Tag verified main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          TARGET=$(git rev-parse origin/main)
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git tag -f v7.0.0 "$TARGET"
+          git push --force origin refs/tags/v7.0.0
