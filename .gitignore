@@ -1,0 +1,10 @@
+config.env
+policies/targets.json
+state/
+output/
+reports/
+logs/*.log
+logs/*.jsonl
+*.db
+*.db-*
+.DS_Store
