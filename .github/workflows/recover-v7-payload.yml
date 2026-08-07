@@ -1,0 +1,81 @@
+name: Recover Recon Monitor v7 payload
+
+on:
+  push:
+    branches:
+      - agent/recover-v7-payload
+    paths:
+      - .github/workflows/recover-v7-payload.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recover truncated XZ stream
+        shell: bash
+        run: |
+          set -u
+          test -f payload.tar.xz.b64
+          base64 -d payload.tar.xz.b64 > /tmp/recon-monitor-v7.tar.xz
+          rm -f /tmp/recon-monitor-v7.tar
+          xz -dc --single-stream /tmp/recon-monitor-v7.tar.xz > /tmp/recon-monitor-v7.tar || true
+          test -s /tmp/recon-monitor-v7.tar
+          rm -rf /tmp/recovered-v7
+          mkdir -p /tmp/recovered-v7
+          tar -xf /tmp/recon-monitor-v7.tar -C /tmp/recovered-v7 || true
+          test -f /tmp/recovered-v7/recon-monitor-v7.0.0/README.md
+          test -f /tmp/recovered-v7/recon-monitor-v7.0.0/app/recon_monitor.py
+
+      - name: Validate recovered source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/recovered-v7/recon-monitor-v7.0.0
+          cd "$SRC"
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          test "$(python3 - <<'PY'
+          import re
+          p='app/recon_monitor.py'
+          s=open(p,encoding='utf-8').read()
+          m=re.search(r'APP_VERSION\s*=\s*["\x27]([^"\x27]+)',s)
+          print(m.group(1) if m else '')
+          PY
+          )" = "7.0.0"
+          if [ -f MANIFEST.sha256 ]; then sha256sum -c MANIFEST.sha256; fi
+
+      - name: Commit clean recovered source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/recovered-v7/recon-monitor-v7.0.0
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$SRC"/. .
+          rm -rf __MACOSX .staging .github
+          rm -f .DS_Store config.env policies/targets.json
+          rm -rf state output reports
+          find logs -type f \( -name '*.log' -o -name '*.jsonl' \) -delete 2>/dev/null || true
+          find . -type f \( -name '*.db' -o -name '*.db-*' \) -delete
+          cat > .gitignore <<'EOF'
+          config.env
+          policies/targets.json
+          state/
+          output/
+          reports/
+          logs/*.log
+          logs/*.jsonl
+          *.db
+          *.db-*
+          .DS_Store
+          EOF
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add -A
+          git commit -m 'Import Recon Monitor v7.0.0 source'
+          git push origin HEAD:agent/recover-v7-payload
