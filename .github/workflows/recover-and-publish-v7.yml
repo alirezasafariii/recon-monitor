@@ -1,0 +1,99 @@
+name: Recover and publish Recon Monitor v7
+
+on:
+  push:
+    branches:
+      - agent/recover-v7-publish
+    paths:
+      - .github/workflows/recover-and-publish-v7.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recover source from staged XZ payload
+        shell: bash
+        run: |
+          set -u
+          test -f payload.tar.xz.b64
+          base64 -d payload.tar.xz.b64 > /tmp/recon-monitor-v7.tar.xz
+          rm -f /tmp/recon-monitor-v7.tar
+          xz -dc --single-stream /tmp/recon-monitor-v7.tar.xz > /tmp/recon-monitor-v7.tar || true
+          test -s /tmp/recon-monitor-v7.tar
+          rm -rf /tmp/recovered-v7
+          mkdir -p /tmp/recovered-v7
+          tar -xf /tmp/recon-monitor-v7.tar -C /tmp/recovered-v7 || true
+          SRC=/tmp/recovered-v7/recon-monitor-v7.0.0
+          test -f "$SRC/README.md"
+          test -f "$SRC/app/recon_monitor.py"
+          test -d "$SRC/tests"
+
+      - name: Validate recovered v7 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/recovered-v7/recon-monitor-v7.0.0
+          cd "$SRC"
+          python3 - <<'PY'
+          import re
+          s=open('app/recon_monitor.py', encoding='utf-8').read()
+          m=re.search(r'APP_VERSION\s*=\s*["\x27]([^"\x27]+)', s)
+          assert m and m.group(1) == '7.0.0', m.group(1) if m else 'missing APP_VERSION'
+          PY
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          if [ -f MANIFEST.sha256 ]; then
+            sha256sum -c MANIFEST.sha256
+          fi
+
+      - name: Build clean tree and publish to main
+        shell: bash
+        env:
+          GIT_AUTHOR_NAME: Alireza Safari
+          GIT_AUTHOR_EMAIL: 88625680+alirezasafariii@users.noreply.github.com
+          GIT_COMMITTER_NAME: Alireza Safari
+          GIT_COMMITTER_EMAIL: 88625680+alirezasafariii@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          SRC=/tmp/recovered-v7/recon-monitor-v7.0.0
+
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$SRC"/. .
+
+          rm -rf __MACOSX .staging .github state output reports
+          rm -f .DS_Store config.env policies/targets.json
+          find logs -type f \( -name '*.log' -o -name '*.jsonl' \) -delete 2>/dev/null || true
+          find . -type f \( -name '*.db' -o -name '*.db-*' \) -delete
+
+          cat > .gitignore <<'EOF'
+          config.env
+          policies/targets.json
+          state/
+          output/
+          reports/
+          logs/*.log
+          logs/*.jsonl
+          *.db
+          *.db-*
+          .DS_Store
+          EOF
+
+          test -f README.md
+          test -f app/recon_monitor.py
+          test ! -e payload.tar.xz.b64
+          test ! -d .staging
+          test ! -d .github
+
+          git add -A
+          TREE=$(git write-tree)
+          git fetch origin main
+          PARENT=$(git rev-parse origin/main)
+          NEW=$(printf '%s\n' 'Import Recon Monitor v7.0.0 source' | git commit-tree "$TREE" -p "$PARENT")
+          git push origin "$NEW:refs/heads/main"
+          echo "published_commit=$NEW" >> "$GITHUB_STEP_SUMMARY"
