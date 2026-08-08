@@ -1,0 +1,77 @@
+name: Finalize v8.0.2 release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove one-time release workflow from final source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/release-v802.yml
+          git commit -m 'Finalize Recon Monitor 8.0.2 release'
+          git push origin HEAD:main
+
+      - name: Move release tag to final commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git tag -fa v8.0.2 -m 'Recon Monitor 8.0.2'
+          git push origin refs/tags/v8.0.2 --force
+
+      - name: Build clean release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=zip --prefix=recon-monitor-v8.0.2/ -o recon-monitor-v8.0.2.zip HEAD
+          sha256sum recon-monitor-v8.0.2.zip > recon-monitor-v8.0.2.zip.sha256
+          cat > RELEASE_NOTES.md <<'EOF'
+          # Recon Monitor 8.0.2
+
+          Stable v8 release with the four-workspace research console:
+          Recon, Analysis, Potential Findings, and Alerts.
+
+          Highlights:
+          - baseline-aware change alerts
+          - explainable Potential Findings confidence
+          - actionable-first findings and attention-focused alerts
+          - improved dashboard process and port-conflict diagnostics
+          - Python 3.10/3.11 compatibility fix for dashboard rendering
+          - clean repository hygiene and automated CI validation
+          - schema remains 16; no destructive database migration
+
+          Validation:
+          - 167 unit tests
+          - integration test
+          - source hygiene checks
+          - manifest verification
+          - version consistency checks
+          - CI coverage on Python 3.11 and Python 3.13
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v8.0.2 >/dev/null 2>&1; then
+            gh release upload v8.0.2 recon-monitor-v8.0.2.zip recon-monitor-v8.0.2.zip.sha256 --clobber
+            gh release edit v8.0.2 --title 'Recon Monitor v8.0.2' --notes-file RELEASE_NOTES.md
+          else
+            gh release create v8.0.2 recon-monitor-v8.0.2.zip recon-monitor-v8.0.2.zip.sha256 --verify-tag --title 'Recon Monitor v8.0.2' --notes-file RELEASE_NOTES.md
+          fi
