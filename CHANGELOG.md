@@ -1,3 +1,11 @@
+# Recon Monitor 8.5.0
+
+- Added BOLA/IDOR Intelligence 2.0 with recall-preserving object-authorization admission.
+- Object IDs and object operations now remain hidden hypotheses until stored target evidence establishes an authorization-boundary mismatch.
+- Added cross-owner, cross-tenant, parent-child scope, authorization-differential, and secondary-guard evidence models derived from OWASP/CWE and public GitHub Security Lab advisories.
+- External write-ups are knowledge references only and never count as target evidence.
+- Schema remains 18.
+
 ## 8.4.1 - Dashboard readiness hotfix
 
 - Fix false Dashboard startup timeouts caused by probing the full diagnostics `/health` page during readiness.

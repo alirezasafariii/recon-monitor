@@ -23,7 +23,9 @@ class BugCandidateV41Tests(unittest.TestCase):
             (now, now, 'example.com'),
         )
         details = {
-            "status_code": 401,
+            "status_code": 200,
+            "identity_id": "fixture-user-a",
+            "object_owner_id": "fixture-user-b",
             "method": "PATCH",
             "body_fields": ["displayName", "role", "isAdmin", "accountId"],
             "endpoint_classification": {"primary_category": "admin", "confidence": 95},

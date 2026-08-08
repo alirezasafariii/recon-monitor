@@ -8,9 +8,10 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
 from hypothesis_admission import mark_promoted, record_hypothesis
+from bola_intelligence import analyze_bola_signal
 
-CANDIDATE_ENGINE_VERSION = "5.1.0"
-CANDIDATE_RULE_VERSION = "2026.08.8.3"
+CANDIDATE_ENGINE_VERSION = "5.2.0"
+CANDIDATE_RULE_VERSION = "2026.08.8.5"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -20,7 +21,7 @@ FEEDBACK_REASON_CODES = (
     "unexpected_response_shape", "role_boundary_failure", "sensitive_data_exposure", "needs_contract_context",
 )
 FAMILY_EVIDENCE_SCHEMAS: dict[str, dict[str, Any]] = {
-    "broken_object_authorization": {"required_any": (("object_identifier", "graphql_identifier"), ("object_operation", "graphql_operation")), "label": "object identifier plus object-specific operation"},
+    "broken_object_authorization": {"required_any": (("object_identifier", "graphql_identifier"), ("object_operation", "graphql_operation"), ("cross_identity_object_access", "cross_tenant_object_access", "ownership_mismatch", "parent_child_scope_mismatch", "authorization_response_differential", "object_access_without_secondary_guard", "identity_object_relation_conflict", "unauthorized_object_response")), "label": "object identifier plus object operation plus object-level authorization-boundary evidence"},
     "broken_function_authorization": {"required_any": (("privileged_function", "privileged_classification"), ("state_change", "role_property")), "label": "privileged function plus role or state-changing context"},
     "mass_assignment": {"required_any": (("privileged_fields",), ("write_method", "body_schema")), "label": "privileged property plus writable request contract"},
     "dom_xss": {"required_any": (("source_sink",),), "label": "static source-to-DOM-sink relation"},
@@ -303,29 +304,32 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
         count += 1
 
-    # BOLA / IDOR
+    # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
+    # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
-    typed_object_ids = [value for value in object_ids if value.lower() != "id"]
-    generic_id_is_structural = any(field.lower() == "id" for field in structural_fields)
-    known_object_operation = method in {"GET", "POST", "PUT", "PATCH", "DELETE"}
-    if known_object_operation and (typed_object_ids or generic_id_is_structural):
-        ids_for_text = typed_object_ids or ["id"]
-        support = [
-            {"type": "object_identifier", "source": "endpoint_schema", "weight": 18, "text": f"Structured object identifier observed: {', '.join(ids_for_text[:5])}"},
-            {"type": "object_operation", "source": "endpoint", "weight": 10, "text": f"Object-specific {method} operation is exposed by the client"},
-        ]
-        if context in SENSITIVE_CONTEXTS:
-            support.append({"type": "business_context", "source": "context", "weight": 12, "text": f"Endpoint is associated with {context.replace('_',' ')} data or workflow"})
-        if any(token in haystack for token in ("export", "invoice", "order", "profile", "customer", "account")):
-            support.append({"type": "sensitive_object", "source": "semantic", "weight": 8, "text": "Endpoint semantics indicate user, account, order or export data"})
-        contradict = []
-        status = details.get("status_code") or (_loads(details.get("new"), {}).get("status_code") if isinstance(details.get("new"), Mapping) else None)
-        if status in {401, 403}:
-            contradict.append({"type": "anonymous_boundary", "source": "http", "weight": -8, "text": f"Anonymous access returned {status}; object-level authorization remains untested"})
-        emit("broken_object_authorization", "object_boundary", 18, support, contradict,
-             ["Expected object ownership or tenant boundary", "Server-side binding between identity and object", "Behavior with a different authorized test object"],
-             ["candidate-object-identifier", "candidate-sensitive-object-context"],
-             "The endpoint may contain an object-level authorization boundary; the current evidence does not establish unauthorized access.")
+    bola = analyze_bola_signal(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        endpoint=endpoint,
+        method=method,
+        object_ids=object_ids,
+        structural_fields=structural_fields,
+        details=details,
+        business_context=context,
+    )
+    if bola:
+        emit(
+            "broken_object_authorization",
+            str(bola["variant"]),
+            int(bola["base"]),
+            list(bola["support"]),
+            list(bola["contradict"]),
+            list(bola["missing"]),
+            list(bola["rule_ids"]),
+            str(bola["summary"]),
+            direct=bool(bola["direct"]),
+        )
 
     # Function / role authorization
     admin_markers = _contains_any(haystack, ("/admin", "admin/", "backoffice", "staff", "role", "permission", "privilege", "management"))

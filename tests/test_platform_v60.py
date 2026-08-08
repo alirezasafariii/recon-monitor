@@ -75,7 +75,7 @@ class PlatformV60Tests(unittest.TestCase):
     def test_schema_and_new_tables(self):
         temp, paths, db = self.project()
         try:
-            self.assertEqual((APP_VERSION, SCHEMA_VERSION, db.meta_get("schema_version")), ("8.4.5", 18, "18"))
+            self.assertEqual((APP_VERSION, SCHEMA_VERSION, db.meta_get("schema_version")), ("8.5.0", 18, "18"))
             names={row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
             for name in ("validation_intelligence","revalidation_policies","data_quality_snapshots","review_rankings","burp_roundtrip_packages","notification_events","retention_policies","performance_samples","report_quality_snapshots","audit_integrity"):
                 self.assertIn(name,names)

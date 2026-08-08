@@ -30,6 +30,8 @@ class SecurityReasoningV46Tests(unittest.TestCase):
         )
         details = {
             "status_code": 200,
+            "request_tenant_id": "tenant-a",
+            "object_tenant_id": "tenant-b",
             "method": "PATCH",
             "authentication": "bearer",
             "body_fields": ["displayName", "role", "isAdmin", "tenantId", "userId"],
@@ -37,7 +39,7 @@ class SecurityReasoningV46Tests(unittest.TestCase):
             "endpoint_classification": {"primary_category": "admin", "confidence": 96},
             "response_json": {"user": {"email": "redacted", "role": "admin"}, "tenantId": "t1", "accountBalance": 1},
             "context_observations": {
-                "anonymous": {"status_code": 200, "auth_state": "anonymous", "confidence": 82},
+                "anonymous": {"status_code": 200, "auth_state": "anonymous", "expected_access": False, "confidence": 82},
                 "authenticated": {"status_code": 200, "auth_state": "authenticated", "confidence": 88},
             },
         }

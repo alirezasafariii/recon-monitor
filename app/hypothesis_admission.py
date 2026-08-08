@@ -7,23 +7,53 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
 
-ADMISSION_ENGINE_VERSION = "1.0.0"
-ADMISSION_RULE_VERSION = "2026.08.8.3"
+ADMISSION_ENGINE_VERSION = "1.1.0"
+ADMISSION_RULE_VERSION = "2026.08.8.5"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
     "broken_object_authorization": [
         {
+            "source": "OWASP API Security Top 10",
+            "ref": "API1:2023 Broken Object Level Authorization",
+            "url": "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+            "principle": "An object identifier is only the attack surface; object-level authorization must verify that the logged-in identity may perform the requested action on the requested object.",
+        },
+        {
             "source": "OWASP WSTG",
-            "ref": "WSTG-ATHZ-04 / API BOLA",
-            "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References",
-            "principle": "A user-controlled object reference is only a security issue when authorization for the referenced object is not correctly enforced.",
+            "ref": "WSTG-APIT-02 / WSTG-ATHZ-04",
+            "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/02-API_Broken_Object_Level_Authorization",
+            "principle": "BOLA evidence requires an object reference plus an authorization-boundary comparison; IDs alone do not establish unauthorized access.",
         },
         {
             "source": "MITRE CWE",
             "ref": "CWE-639",
             "url": "https://cwe.mitre.org/data/definitions/639.html",
-            "principle": "The weakness requires an authorization decision to depend on a user-controlled key without adequate access-control verification.",
+            "principle": "The weakness requires a user-controlled key to select a record while the authorization decision fails to enforce the caller's entitlement to that record.",
+        },
+        {
+            "source": "GitHub Security Lab",
+            "ref": "GHSL-2026-029 / Spree",
+            "url": "https://securitylab.github.com/advisories/GHSL-2026-029_Spree/",
+            "principle": "A real IDOR may involve a valid object key being accepted without a secondary ownership or access guard that should bind the request to the object.",
+        },
+        {
+            "source": "GitHub Security Lab",
+            "ref": "GHSL-2026-049 / Zammad",
+            "url": "https://securitylab.github.com/advisories/GHSL-2026-049_Zammad/",
+            "principle": "Fetching an object by ID becomes security-relevant when the resulting operation bypasses the role or group boundary that should authorize access to that object.",
+        },
+        {
+            "source": "GitHub Security Lab",
+            "ref": "GHSL-2026-044 / Wekan",
+            "url": "https://securitylab.github.com/advisories/GHSL-2026-044_Wekan/",
+            "principle": "Authorizing a parent object is insufficient when a separately supplied child object identifier is not verified to belong to that parent.",
+        },
+        {
+            "source": "GitHub Security Lab",
+            "ref": "GHSL-2025-130 / Sentry",
+            "url": "https://securitylab.github.com/advisories/GHSL-2025-130_Sentry/",
+            "principle": "A tenant or organization context must be bound to the referenced object; a valid scope on one tenant does not authorize an object belonging to another tenant.",
         },
     ],
     "file_upload": [
@@ -71,6 +101,40 @@ KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
 # Admission is intentionally stricter than hypothesis generation. Signals that fail
 # admission remain persisted in analysis_hypotheses so recall is preserved.
 FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
+    "broken_object_authorization": {
+        "required": [
+            {"object_identifier", "graphql_identifier"},
+            {"object_operation", "graphql_operation"},
+            {
+                "cross_identity_object_access",
+                "cross_tenant_object_access",
+                "ownership_mismatch",
+                "parent_child_scope_mismatch",
+                "authorization_response_differential",
+                "object_access_without_secondary_guard",
+                "identity_object_relation_conflict",
+                "unauthorized_object_response",
+            },
+        ],
+        "min_independent_sources": 2,
+        "label": "object reference plus object operation plus object-level authorization-boundary evidence",
+        "blocking_contradictions": {
+            "ownership_enforcement_observed",
+            "cross_context_denied",
+            "scope_binding_observed",
+            "secondary_guard_enforced",
+        },
+        "override_signals": {
+            "cross_identity_object_access",
+            "cross_tenant_object_access",
+            "ownership_mismatch",
+            "parent_child_scope_mismatch",
+            "authorization_response_differential",
+            "object_access_without_secondary_guard",
+            "identity_object_relation_conflict",
+            "unauthorized_object_response",
+        },
+    },
     "file_upload": {
         "required": [
             {"file_input"},
@@ -123,10 +187,19 @@ def knowledge_for_family(family: str) -> list[dict[str, str]]:
     return [dict(item) for item in KNOWLEDGE_REFERENCES.get(family, [])]
 
 
-def assess_admission(family: str, support: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def assess_admission(
+    family: str,
+    support: Iterable[Mapping[str, Any]],
+    contradict: Iterable[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
     support_items = [dict(item) for item in support]
+    contradict_items = [dict(item) for item in (contradict or [])]
     types = {str(item.get("type") or "") for item in support_items}
-    sources = {str(item.get("source") or item.get("source_group") or item.get("type") or "unknown") for item in support_items}
+    contradiction_types = {str(item.get("type") or "") for item in contradict_items}
+    sources = {
+        str(item.get("source_group") or item.get("source") or item.get("type") or "unknown")
+        for item in support_items
+    }
     policy = FAMILY_ADMISSION_POLICIES.get(family)
     if not policy:
         return {
@@ -137,7 +210,8 @@ def assess_admission(family: str, support: Iterable[Mapping[str, Any]]) -> dict[
             "required_missing": [],
             "independent_sources": len(sources),
             "decisive_signals": sorted(types),
-            "reason": "No additional v8.4.3 admission policy is defined; existing family-specific reasoning gates remain authoritative.",
+            "blocking_contradictions": [],
+            "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
             "knowledge_references": knowledge_for_family(family),
         }
 
@@ -153,10 +227,17 @@ def assess_admission(family: str, support: Iterable[Mapping[str, Any]]) -> dict[
             missing.append(sorted(group))
 
     source_ok = len(sources) >= int(policy.get("min_independent_sources", 1))
-    complete = not missing and source_ok
+    blocking = sorted(set(policy.get("blocking_contradictions", set())) & contradiction_types)
+    override = bool(set(policy.get("override_signals", set())) & types)
+    blocked = bool(blocking) and not override
+    complete = not missing and source_ok and not blocked
+
     if complete:
         state = "admitted"
         reason = f"Admission complete: {policy.get('label')}."
+    elif blocked:
+        state = "shadow_contradicted"
+        reason = f"Retained as a hidden hypothesis because stored target evidence supports enforcement: {', '.join(blocking)}."
     elif satisfied:
         state = "shadow_partial"
         reason = f"Retained as a hidden hypothesis: partial evidence for {policy.get('label')}."
@@ -174,6 +255,7 @@ def assess_admission(family: str, support: Iterable[Mapping[str, Any]]) -> dict[
         "required_missing": missing,
         "independent_sources": len(sources),
         "decisive_signals": sorted(decisive),
+        "blocking_contradictions": blocking,
         "reason": reason,
         "knowledge_references": knowledge_for_family(family),
     }
@@ -216,7 +298,7 @@ def record_hypothesis(
         alert_id = existing["alert_id"] if existing["alert_id"] is not None else alert_id
         source_ref = str(existing["source_ref"] or source_ref)
 
-    assessment = assess_admission(family, support)
+    assessment = assess_admission(family, support, contradict)
     state = "promoted" if promoted_candidate_id else assessment["state"]
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
     now = utc_now()
