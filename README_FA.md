@@ -1,5 +1,20 @@
-# راهنمای Recon Monitor 8.0.2
+# راهنمای Recon Monitor 8.1.0
 
+
+
+## آپدیت خودکار از GitHub Private در نسخه 8.1.0
+
+در نسخه 8.1.0 دیگر برای ارتقا لازم نیست ZIP نسخه جدید را دستی جابه‌جا کنی. Recon Monitor با استفاده از GitHub CLI احراز هویت‌شده (`gh`) آخرین Release خصوصی ریپوی `alirezasafariii/recon-monitor` را پیدا می‌کند و ZIP و فایل SHA-256 متناظر را دانلود می‌کند. توکن GitHub داخل `config.env` ذخیره نمی‌شود و مدیریت credential به خود `gh`/سیستم‌عامل سپرده می‌شود.
+
+```bash
+./recon-monitor.sh update check
+./recon-monitor.sh update install
+./recon-monitor.sh update rollback
+```
+
+قبل از نصب، Backup داده و Backup برنامه ساخته می‌شود. بعد از نصب نیز init، compile، کل Unit Testها و Integration Test اجرا می‌شوند. اگر Validation شکست بخورد، کد و دیتابیس به وضعیت قبل از آپدیت برمی‌گردند. نصب دستی با `--package` و مسیر قدیمی `RECON_UPDATE_MANIFEST` نیز همچنان پشتیبانی می‌شوند. Schema دیتابیس همچنان **16** است.
+
+راهنمای ارتقا: `MIGRATION-v8.1.md`.
 
 ## کنسول تحقیق چهار-بخشی در نسخه 8.0
 

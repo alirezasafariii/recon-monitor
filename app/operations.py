@@ -4,6 +4,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sqlite3
@@ -12,6 +13,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 import uuid
 import zipfile
@@ -297,104 +299,348 @@ def benchmark(paths: AppPaths, db: Database) -> dict[str, Any]:
 
 
 class UpdateManager:
-    """Checksum-verified local/remote release updater with rollback catalog.
+    """Checksum-verified updater with private GitHub Release support and rollback.
 
-    Automatic network updates are disabled unless RECON_UPDATE_MANIFEST is set.
-    The manifest is JSON with version, url and sha256 fields.
+    Update sources, in priority order:
+    1. RECON_UPDATE_MANIFEST when explicitly configured (legacy/trusted manifest mode).
+    2. An authenticated GitHub repository, using the ``gh`` CLI.
+
+    The GitHub path is intentionally delegated to ``gh`` so private-repository
+    credentials remain in the user's GitHub CLI/keychain instead of Recon
+    Monitor configuration files.
     """
-    def __init__(self, paths: AppPaths, config: Config, db: Database, logger: Logger):
-        self.paths=paths; self.config=config; self.db=db; self.logger=logger
 
-    def check(self) -> dict[str, Any]:
-        source=self.config.get("RECON_UPDATE_MANIFEST","")
-        if not source: return {"configured":False,"current":APP_VERSION,"message":"Set RECON_UPDATE_MANIFEST to a trusted HTTPS or file URL"}
+    DEFAULT_UPDATE_REPO = "alirezasafariii/recon-monitor"
+
+    def __init__(self, paths: AppPaths, config: Config, db: Database, logger: Logger):
+        self.paths = paths
+        self.config = config
+        self.db = db
+        self.logger = logger
+
+    @staticmethod
+    def _version_key(value: Any) -> tuple[int, int, int] | None:
+        match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$", str(value or "").strip())
+        return tuple(int(part) for part in match.groups()) if match else None
+
+    @classmethod
+    def _is_newer(cls, available: Any, current: Any = APP_VERSION) -> bool:
+        available_key = cls._version_key(available)
+        current_key = cls._version_key(current)
+        if available_key is not None and current_key is not None:
+            return available_key > current_key
+        return bool(available) and str(available).lstrip("v") != str(current).lstrip("v")
+
+    def _repo(self, override: str = "") -> str:
+        return (override or self.config.get("RECON_UPDATE_REPO", "") or self.DEFAULT_UPDATE_REPO).strip()
+
+    def _manifest_check(self, source: str) -> dict[str, Any]:
         if source.startswith("https://"):
-            with urllib.request.urlopen(source,timeout=10) as response: data=json.load(response)
+            with urllib.request.urlopen(source, timeout=10) as response:
+                data = json.load(response)
         elif source.startswith("file://"):
-            data=json.loads(Path(source[7:]).read_text())
+            data = json.loads(Path(source[7:]).read_text(encoding="utf-8"))
         else:
-            data=json.loads(Path(source).read_text())
-        return {"configured":True,"current":APP_VERSION,"available":data.get("version"),"update_available":str(data.get("version"))!=APP_VERSION,"manifest":data}
+            data = json.loads(Path(source).read_text(encoding="utf-8"))
+        available = str(data.get("version") or "").lstrip("v")
+        return {
+            "configured": True,
+            "source": "manifest",
+            "current": APP_VERSION,
+            "available": available,
+            "update_available": self._is_newer(available),
+            "manifest": data,
+        }
+
+    def _github_release(self, repo: str) -> dict[str, Any]:
+        gh = shutil.which("gh")
+        if not gh:
+            raise ReconError("GitHub CLI (gh) is required for private GitHub updates. Install it with: brew install gh")
+        command = [gh, "release", "view", "--repo", repo, "--json", "tagName,name,publishedAt,url,assets"]
+        result = subprocess.run(command, text=True, capture_output=True, timeout=30, check=False)
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip()
+            hint = " Run 'gh auth login' first." if "auth" in detail.lower() or "login" in detail.lower() else ""
+            raise ReconError(f"Could not read latest GitHub Release from {repo}: {detail or 'gh release view failed'}.{hint}")
+        data = safe_json_loads(result.stdout, {}, expected_type=dict)
+        if not data:
+            raise ReconError(f"GitHub returned an empty release response for {repo}")
+        return data
+
+    def check(self, repo: str = "") -> dict[str, Any]:
+        manifest_source = self.config.get("RECON_UPDATE_MANIFEST", "").strip()
+        if manifest_source:
+            return self._manifest_check(manifest_source)
+        repository = self._repo(repo)
+        try:
+            release = self._github_release(repository)
+        except ReconError as exc:
+            return {
+                "configured": True,
+                "source": "github",
+                "repo": repository,
+                "current": APP_VERSION,
+                "reachable": False,
+                "update_available": False,
+                "message": str(exc),
+            }
+        tag = str(release.get("tagName") or "")
+        available = tag.lstrip("v")
+        assets = release.get("assets") if isinstance(release.get("assets"), list) else []
+        asset_names = [str(item.get("name")) for item in assets if isinstance(item, dict) and item.get("name")]
+        return {
+            "configured": True,
+            "source": "github",
+            "repo": repository,
+            "reachable": True,
+            "current": APP_VERSION,
+            "available": available,
+            "tag": tag,
+            "update_available": self._is_newer(available),
+            "release_name": release.get("name"),
+            "published_at": release.get("publishedAt"),
+            "release_url": release.get("url"),
+            "assets": asset_names,
+        }
+
+    @staticmethod
+    def _expected_release_assets(version: str) -> tuple[str, str]:
+        clean = str(version).lstrip("v")
+        return f"recon-monitor-v{clean}.zip", f"recon-monitor-v{clean}.zip.sha256"
+
+    def install_latest(self, repo: str = "", *, force: bool = False) -> dict[str, Any]:
+        status = self.check(repo)
+        if not status.get("reachable", status.get("source") == "manifest"):
+            raise ReconError(str(status.get("message") or "Update source is not reachable"))
+        if status.get("source") != "github":
+            manifest = status.get("manifest") if isinstance(status.get("manifest"), dict) else {}
+            url = str(manifest.get("url") or "")
+            expected = str(manifest.get("sha256") or "")
+            if not url:
+                raise ReconError("Configured update manifest is missing url")
+            if not status.get("update_available") and not force:
+                return {"updated": False, "reason": "already-current", **status}
+            with tempfile.TemporaryDirectory(prefix="recon-update-download-") as temp:
+                target = Path(temp) / Path(urllib.parse.urlparse(url).path).name
+                if url.startswith("https://"):
+                    urllib.request.urlretrieve(url, target)
+                elif url.startswith("file://"):
+                    shutil.copy2(Path(url[7:]), target)
+                else:
+                    shutil.copy2(Path(url), target)
+                result = self.install(target, expected)
+                result.update({"source": "manifest", "target_version": status.get("available")})
+                return result
+
+        if not status.get("update_available") and not force:
+            return {"updated": False, "reason": "already-current", **status}
+        repository = str(status["repo"])
+        tag = str(status.get("tag") or f"v{status.get('available')}")
+        version = str(status.get("available") or "")
+        zip_name, sha_name = self._expected_release_assets(version)
+        assets = set(str(item) for item in status.get("assets", []))
+        missing = [name for name in (zip_name, sha_name) if name not in assets]
+        if missing:
+            raise ReconError(f"Release {tag} is missing required asset(s): {', '.join(missing)}")
+        gh = shutil.which("gh")
+        if not gh:
+            raise ReconError("GitHub CLI (gh) is required for private GitHub updates")
+        with tempfile.TemporaryDirectory(prefix="recon-github-update-") as temp:
+            download = subprocess.run(
+                [gh, "release", "download", tag, "--repo", repository, "--dir", temp, "--pattern", zip_name, "--pattern", sha_name],
+                text=True, capture_output=True, timeout=120, check=False,
+            )
+            if download.returncode != 0:
+                raise ReconError(f"GitHub Release download failed: {(download.stderr or download.stdout).strip()}")
+            package = Path(temp) / zip_name
+            checksum_file = Path(temp) / sha_name
+            if not package.is_file() or not checksum_file.is_file():
+                raise ReconError("GitHub Release download completed without the expected ZIP/checksum pair")
+            fields = checksum_file.read_text(encoding="utf-8", errors="replace").strip().split()
+            if not fields or not re.fullmatch(r"[0-9a-fA-F]{64}", fields[0]):
+                raise ReconError("Release checksum file is malformed")
+            expected = fields[0].lower()
+            result = self.install(package, expected)
+            result.update({
+                "updated": True,
+                "source": "github",
+                "repo": repository,
+                "release": tag,
+                "target_version": version,
+                "dashboard_restart_required": True,
+            })
+            return result
+
+    @staticmethod
+    def _program_items(root: Path) -> tuple[str, ...]:
+        fixed = [
+            "app", "docs", "tests", "fixtures", "plugins",
+            "recon-monitor.sh", "install.sh", "upgrade-v2.sh", "upgrade-v3.sh",
+            "README.md", "README_FA.md", "CHANGELOG.md", "MANIFEST.sha256",
+            "config.env.example", "tool-compatibility.json",
+            "release-public-key.pem", "release-public-key.sha256",
+        ]
+        migrations = sorted(path.name for path in root.glob("MIGRATION-*.md") if path.is_file())
+        return tuple(dict.fromkeys([*fixed, *migrations]))
+
+    @staticmethod
+    def _validate_zip_members(zf: zipfile.ZipFile, destination: Path) -> None:
+        destination = destination.resolve()
+        for member in zf.infolist():
+            member_path = Path(member.filename)
+            output = (destination / member.filename).resolve()
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise ReconError(f"Unsafe release package path: {member.filename}")
+            if destination != output and destination not in output.parents:
+                raise ReconError(f"Unsafe release package path: {member.filename}")
+            unix_mode = (member.external_attr >> 16) & 0o170000
+            if unix_mode == 0o120000:
+                raise ReconError(f"Release package symlinks are not allowed: {member.filename}")
+
+    @staticmethod
+    def _package_version(source: Path) -> str:
+        core = source / "app" / "core.py"
+        if not core.is_file():
+            raise ReconError("Invalid release package: app/core.py is missing")
+        match = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)["\']', core.read_text(encoding="utf-8"), re.MULTILINE)
+        if not match:
+            raise ReconError("Invalid release package: APP_VERSION was not found")
+        return match.group(1)
 
     def install(self, package: Path, expected_sha256: str = "", signature: Path | None = None, public_key: Path | None = None) -> dict[str, Any]:
-        if not package.exists(): raise ReconError(f"Package not found: {package}")
-        actual=sha256_file(package)
-        if expected_sha256 and actual.lower()!=expected_sha256.lower(): raise ReconError("Package checksum mismatch")
-        signature_verified=False
+        if not package.exists():
+            raise ReconError(f"Package not found: {package}")
+        actual = sha256_file(package)
+        if expected_sha256 and actual.lower() != expected_sha256.lower():
+            raise ReconError("Package checksum mismatch")
+        signature_verified = False
         if signature or public_key:
-            if not signature or not public_key: raise ReconError("Both signature and public key are required")
-            if not signature.exists() or not public_key.exists(): raise ReconError("Release signature or public key not found")
-            openssl=shutil.which("openssl")
-            if not openssl: raise ReconError("OpenSSL is required for release-signature verification")
-            verification=subprocess.run([openssl,"dgst","-sha256","-verify",str(public_key),"-signature",str(signature),str(package)],text=True,capture_output=True,check=False)
-            if verification.returncode != 0: raise ReconError("Release signature verification failed")
-            signature_verified=True
-        backup=BackupManager(self.paths,self.db,self.logger).create()
-        release_backup=self.paths.releases/f"program-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
-        program_items=("app","docs","tests","fixtures","plugins","recon-monitor.sh","install.sh","upgrade-v2.sh","upgrade-v3.sh","README.md","README_FA.md","CHANGELOG.md","MIGRATION-v2.md","MIGRATION-v3.md","config.env.example","tool-compatibility.json","release-public-key.pem","release-public-key.sha256")
-        with tarfile.open(release_backup,"w:gz") as tar:
-            for item in program_items:
-                path=self.paths.root/item
-                if path.exists(): tar.add(path,arcname=item)
+            if not signature or not public_key:
+                raise ReconError("Both signature and public key are required")
+            if not signature.exists() or not public_key.exists():
+                raise ReconError("Release signature or public key not found")
+            openssl = shutil.which("openssl")
+            if not openssl:
+                raise ReconError("OpenSSL is required for release-signature verification")
+            verification = subprocess.run(
+                [openssl, "dgst", "-sha256", "-verify", str(public_key), "-signature", str(signature), str(package)],
+                text=True, capture_output=True, check=False,
+            )
+            if verification.returncode != 0:
+                raise ReconError("Release signature verification failed")
+            signature_verified = True
+
+        backup = BackupManager(self.paths, self.db, self.logger).create()
+        release_backup = self.paths.releases / f"program-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
+        current_items = self._program_items(self.paths.root)
+        with tarfile.open(release_backup, "w:gz") as tar:
+            for item in current_items:
+                path = self.paths.root / item
+                if path.exists():
+                    tar.add(path, arcname=item)
+
+        target_version = ""
         with tempfile.TemporaryDirectory(prefix="recon-update-") as temp:
-            temp_root=Path(temp).resolve()
-            with zipfile.ZipFile(package) as zf:
-                for member in zf.infolist():
-                    destination=(temp_root/member.filename).resolve()
-                    if temp_root != destination and temp_root not in destination.parents: raise ReconError("Unsafe release package path")
-                zf.extractall(temp_root)
-            candidates=[p for p in Path(temp).iterdir() if p.is_dir()]
-            source=candidates[0] if len(candidates)==1 else Path(temp)
-            version_file=source/"app/core.py"
-            if not version_file.exists(): raise ReconError("Invalid release package")
+            temp_root = Path(temp).resolve()
+            try:
+                with zipfile.ZipFile(package) as zf:
+                    self._validate_zip_members(zf, temp_root)
+                    zf.extractall(temp_root)
+            except zipfile.BadZipFile as exc:
+                raise ReconError("Release package is not a valid ZIP archive") from exc
+            candidates = [p for p in Path(temp).iterdir() if p.is_dir()]
+            source = candidates[0] if len(candidates) == 1 else Path(temp)
+            target_version = self._package_version(source)
+            if self._version_key(target_version) is None:
+                raise ReconError(f"Invalid release version: {target_version}")
+            program_items = self._program_items(source)
             for item in program_items:
-                src=source/item
-                if not src.exists(): continue
-                dst=self.paths.root/item
-                if item=="plugins" and dst.exists():
-                    shutil.copytree(src,dst,dirs_exist_ok=True)
+                src = source / item
+                if not src.exists():
                     continue
-                if dst.is_dir(): shutil.rmtree(dst)
-                elif dst.exists(): dst.unlink()
-                if src.is_dir(): shutil.copytree(src,dst)
-                else: shutil.copy2(src,dst)
-        for rel in ("recon-monitor.sh","install.sh","upgrade-v2.sh","upgrade-v3.sh","app/recon_monitor.py"):
-            executable=self.paths.root/rel
-            if executable.exists(): executable.chmod(executable.stat().st_mode | 0o111)
+                dst = self.paths.root / item
+                if item == "plugins" and dst.exists():
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                    continue
+                if dst.is_dir():
+                    shutil.rmtree(dst)
+                elif dst.exists():
+                    dst.unlink()
+                if src.is_dir():
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+
+        for rel in ("recon-monitor.sh", "install.sh", "upgrade-v2.sh", "upgrade-v3.sh", "app/recon_monitor.py"):
+            executable = self.paths.root / rel
+            if executable.exists():
+                executable.chmod(executable.stat().st_mode | 0o111)
+
         try:
-            checks=(
-                [str(self.paths.root/"recon-monitor.sh"),"init","--no-wizard"],
-                [sys.executable,"-m","compileall","-q",str(self.paths.app),str(self.paths.root/"tests")],
-                [str(self.paths.root/"recon-monitor.sh"),"test"],
+            checks = (
+                [str(self.paths.root / "recon-monitor.sh"), "init", "--no-wizard"],
+                [sys.executable, "-m", "compileall", "-q", str(self.paths.app), str(self.paths.root / "tests")],
+                [str(self.paths.root / "recon-monitor.sh"), "test"],
+                [str(self.paths.root / "recon-monitor.sh"), "test", "--integration"],
             )
             for command in checks:
-                result=subprocess.run(command,cwd=self.paths.root,text=True,capture_output=True,timeout=180,check=False)
+                result = subprocess.run(command, cwd=self.paths.root, text=True, capture_output=True, timeout=240, check=False)
                 if result.returncode != 0:
-                    raise ReconError(f"Post-update validation failed: {' '.join(command)}\n{result.stderr[-2000:]}")
+                    output = (result.stderr or result.stdout)[-3000:]
+                    raise ReconError(f"Post-update validation failed: {' '.join(command)}\n{output}")
         except Exception as exc:
-            # Restore program files and the consistent pre-update database snapshot.
-            with tarfile.open(release_backup,"r:gz") as tar:
-                tar.extractall(self.paths.root)
+            with tarfile.open(release_backup, "r:gz") as tar:
+                self._safe_tar_restore(tar, self.paths.root)
             try:
                 self.db.close()
             except Exception:
                 pass
-            backup_archive=Path(str(backup["path"]))
+            backup_archive = Path(str(backup["path"]))
             with tempfile.TemporaryDirectory(prefix="recon-update-rollback-") as temp:
-                with tarfile.open(backup_archive,"r:gz") as tar:
-                    member=tar.getmember("state/recon-v2.db")
-                    tar.extract(member,temp)
-                shutil.copy2(Path(temp)/"state/recon-v2.db",self.paths.db)
+                with tarfile.open(backup_archive, "r:gz") as tar:
+                    members = BackupManager._safe_members(tar)
+                    BackupManager._extract_members(tar, Path(temp), members)
+                shutil.copy2(Path(temp) / "state/recon-v2.db", self.paths.db)
             raise ReconError(f"Update rolled back after validation failure: {exc}") from exc
-        self.db.audit("update_installed", entity_type="release", entity_value=actual, details={"program_backup":str(release_backup),"data_backup":backup["backup_id"],"signature_verified":signature_verified})
-        atomic_write_text(self.paths.releases/"last-program-backup.txt",str(release_backup)+"\n")
-        return {"installed":str(package),"sha256":actual,"signature_verified":signature_verified,"validation":"passed","program_backup":str(release_backup),"data_backup":backup["backup_id"]}
+
+        self.db.audit(
+            "update_installed",
+            entity_type="release",
+            entity_value=actual,
+            details={
+                "from_version": APP_VERSION,
+                "to_version": target_version,
+                "program_backup": str(release_backup),
+                "data_backup": backup["backup_id"],
+                "signature_verified": signature_verified,
+            },
+        )
+        atomic_write_text(self.paths.releases / "last-program-backup.txt", str(release_backup) + "\n")
+        return {
+            "installed": str(package),
+            "from_version": APP_VERSION,
+            "to_version": target_version,
+            "sha256": actual,
+            "signature_verified": signature_verified,
+            "validation": "passed",
+            "program_backup": str(release_backup),
+            "data_backup": backup["backup_id"],
+        }
+
+    @staticmethod
+    def _safe_tar_restore(tar: tarfile.TarFile, destination: Path) -> None:
+        members = BackupManager._safe_members(tar)
+        BackupManager._extract_members(tar, destination, members)
 
     def rollback(self) -> dict[str, Any]:
-        marker=self.paths.releases/"last-program-backup.txt"
-        if not marker.exists(): raise ReconError("No program rollback is available")
-        archive=Path(marker.read_text().strip())
-        if not archive.exists(): raise ReconError("Rollback archive is missing")
-        with tarfile.open(archive,"r:gz") as tar: tar.extractall(self.paths.root)
+        marker = self.paths.releases / "last-program-backup.txt"
+        if not marker.exists():
+            raise ReconError("No program rollback is available")
+        archive = Path(marker.read_text(encoding="utf-8").strip())
+        if not archive.exists():
+            raise ReconError("Rollback archive is missing")
+        with tarfile.open(archive, "r:gz") as tar:
+            self._safe_tar_restore(tar, self.paths.root)
         self.db.audit("update_rolled_back", entity_type="release", entity_value=str(archive))
-        return {"rolled_back":str(archive)}
+        return {"rolled_back": str(archive), "dashboard_restart_required": True}
+

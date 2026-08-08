@@ -560,6 +560,8 @@ def build_parser() -> argparse.ArgumentParser:
     update = sub.add_parser("update", help="Check, install, or rollback signed/checksummed releases")
     update.add_argument("action", choices=["check","install","rollback"])
     update.add_argument("--package")
+    update.add_argument("--repo", default="", help="GitHub repository owner/name for automatic private-release updates")
+    update.add_argument("--force", action="store_true", help="Install the latest release even when the version matches")
     update.add_argument("--sha256", default="")
     update.add_argument("--signature", default="")
     update.add_argument("--public-key", default="")
@@ -1277,11 +1279,16 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "update":
             manager=UpdateManager(paths,config,db,logger)
-            if args.action=="check": print(json_dumps(manager.check(),pretty=True))
+            if args.action=="check":
+                print(json_dumps(manager.check(args.repo),pretty=True))
             elif args.action=="install":
-                if not args.package: raise ReconError("update install requires --package")
-                print(json_dumps(manager.install(Path(args.package).expanduser(),args.sha256,Path(args.signature).expanduser() if args.signature else None,Path(args.public_key).expanduser() if args.public_key else None),pretty=True))
-            else: print(json_dumps(manager.rollback(),pretty=True))
+                if args.package:
+                    result=manager.install(Path(args.package).expanduser(),args.sha256,Path(args.signature).expanduser() if args.signature else None,Path(args.public_key).expanduser() if args.public_key else None)
+                else:
+                    result=manager.install_latest(args.repo,force=args.force)
+                print(json_dumps(result,pretty=True))
+            else:
+                print(json_dumps(manager.rollback(),pretty=True))
             return 0
 
         if args.command == "postgres":

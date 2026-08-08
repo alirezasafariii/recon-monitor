@@ -1,5 +1,20 @@
-# Recon Monitor 8.0.2
+# Recon Monitor 8.1.0
 
+
+
+## Automatic Private GitHub Updates in 8.1.0
+
+Recon Monitor 8.1.0 adds a private-release update path built around the authenticated GitHub CLI. The default repository is `alirezasafariii/recon-monitor`; credentials stay with `gh`/the operating-system credential store rather than being copied into Recon Monitor configuration.
+
+```bash
+./recon-monitor.sh update check
+./recon-monitor.sh update install
+./recon-monitor.sh update rollback
+```
+
+`update install` now downloads the matching release ZIP and SHA-256 sidecar automatically, verifies the checksum, creates a data backup and a program backup, installs the release, then runs initialization, Python compilation, the full unit suite, and the integration test. If validation fails, the updater restores both the program files and the pre-update database backup. Manual `--package` installs and the legacy `RECON_UPDATE_MANIFEST` path remain supported. Database schema remains **16**.
+
+See `MIGRATION-v8.1.md` for the 8.0.x → 8.1 transition.
 
 ## Four-Workspace Research Console in 8.0.2
 

@@ -1,3 +1,18 @@
+# 8.1.0 — Private GitHub Updates & Safer Upgrade Lifecycle
+
+- Added automatic update discovery from authenticated private GitHub Releases using the `gh` CLI.
+- `update check` now reports the latest private release, version, assets, and whether an upgrade is available.
+- `update install` can download the release ZIP and SHA-256 sidecar automatically; `--package` remains available for manual/offline installs.
+- GitHub credentials remain managed by `gh`/the OS credential store instead of Recon Monitor configuration.
+- Added semantic version comparison so older or equal releases are never presented as newer.
+- Hardened release ZIP validation against path traversal and symlink members.
+- Expanded program backup/install coverage to current docs, manifests, migrations, tests, plugins, and release metadata.
+- Post-update validation now runs initialization, Python compilation, the complete unit suite, and the integration test.
+- Failed upgrades automatically restore program files and the pre-update database backup.
+- Existing backup create/verify/drill/restore and update rollback workflows remain available.
+- Added CLI `--repo` and `--force` options for controlled update selection.
+- Database schema remains 16; no destructive migration is required from 8.0.x.
+
 # 8.0.2 — Dashboard Port Preflight Reliability Fix
 
 - Fixed a race/reliability issue in Dashboard occupied-port preflight discovered by the v8.0.1 regression suite on macOS.
