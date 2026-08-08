@@ -1519,7 +1519,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         header=_page_header("Correlated incidents", "Related changes grouped into analyst-sized events instead of isolated notifications.", "<a class='button' href='/workbench'>Open workbench</a>", "Change correlation")
         cards=[]
         for r in rows:
-            details=_json(r['details_json'],{}); cards.append(f"<article class='card'><div style='display:flex;justify-content:space-between;gap:10px'><div>{_pill(r['severity'])} {_pill(r['status'])}</div><strong class='tone-{_tone(r['severity'])}'>{r['risk_score']}</strong></div><h3 style='margin-top:14px'>{_esc(r['title'])}</h3><div class='queue-meta'><span>{_esc(r['target'])}</span><span>{r['event_count']} events</span><span>{_esc(r['last_seen'])}</span></div>{f'<p class=muted>{_esc(details.get("summary", ""))}</p>' if details.get('summary') else ''}</article>")
+            details = _json(r['details_json'], {})
+            summary = details.get("summary", "")
+            summary_html = f"<p class='muted'>{_esc(summary)}</p>" if summary else ""
+            cards.append(f"<article class='card'><div style='display:flex;justify-content:space-between;gap:10px'><div>{_pill(r['severity'])} {_pill(r['status'])}</div><strong class='tone-{_tone(r['severity'])}'>{r['risk_score']}</strong></div><h3 style='margin-top:14px'>{_esc(r['title'])}</h3><div class='queue-meta'><span>{_esc(r['target'])}</span><span>{r['event_count']} events</span><span>{_esc(r['last_seen'])}</span></div>{summary_html}</article>")
         self.send_html("Incidents",header+("<div class='three-col'>"+''.join(cards)+"</div>" if cards else _empty('No correlated incidents','Changes will appear here when correlation rules group related observations.')))
 
     def lifecycle(self) -> None:
