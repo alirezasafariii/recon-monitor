@@ -86,6 +86,11 @@ replace_once(
     '            "status_code": 200,\n            "method": "PATCH",',
     '            "status_code": 200,\n            "request_tenant_id": "tenant-a",\n            "object_tenant_id": "tenant-b",\n            "method": "PATCH",',
 )
+replace_once(
+    "tests/test_bola_intelligence_v850.py",
+    '        self.assertTrue(any("authorization-boundary" in " ".join(group) for group in admission["required_missing"]))',
+    '        self.assertTrue(any("unauthorized_object_response" in group or "cross_identity_object_access" in group for group in admission["required_missing"]))',
+)
 
 # The updater test must continue to model a release newer than the running application.
 update_test = ROOT / "tests/test_update_v810.py"
