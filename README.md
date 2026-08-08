@@ -1,4 +1,9 @@
-# Recon Monitor 8.1.1
+# Recon Monitor 8.2.0
+
+## Command Center 2.0 in 8.2.0
+
+The landing workspace is now decision-first. It ranks run failures, high-value potential findings, open cases, evidence gaps, and material re-check changes into one **Decision Inbox**, then surfaces a single **Next Best Action**. Workspace Pulse and Recent Research Activity provide context without turning the landing page back into an inventory dashboard.
+
 ## Automatic Private GitHub Updates in 8.1.0
 
 Recon Monitor 8.1.0 adds a private-release update path built around the authenticated GitHub CLI. The default repository is `alirezasafariii/recon-monitor`; credentials stay with `gh`/the operating-system credential store rather than being copied into Recon Monitor configuration.

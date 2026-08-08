@@ -1,3 +1,13 @@
+# 8.2.0 — Command Center 2.0
+
+- Rebuilt the landing workspace around a ranked Decision Inbox instead of passive dashboard cards.
+- Added a single Next Best Action derived from run health, potential findings, evidence gaps and material surface changes.
+- Added high-interest change, high-value finding and evidence-gap KPIs with target focus.
+- Added compact Workspace Pulse and Recent Research Activity panels.
+- Kept Recon, Analysis, Potential Findings and Alerts as the four primary workspaces.
+- Preserved the permanent Command Center navigation entry introduced in 8.1.1.
+- Database schema remains 16; no destructive migration is required.
+
 ## 8.1.1 — Command Center Navigation Hotfix
 
 - Restores a permanent **Command Center** entry at the top of the Dashboard sidebar.

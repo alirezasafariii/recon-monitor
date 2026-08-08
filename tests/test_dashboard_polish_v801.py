@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from core import AppPaths, Config, Logger, ReconError
-from dashboard import _candidate_confidence_story, _layout
+from dashboard import _candidate_confidence_story, _command_decision_item, _layout
 from dashboard_service import _port_listener_details, start_dashboard
 
 
@@ -68,6 +68,18 @@ class DashboardPolishV801Tests(unittest.TestCase):
         self.assertIn("class='nav-item active' href='/' data-command-center='1'", page)
         self.assertIn("<strong>Command Center</strong>", page)
         self.assertIn("<small>Overview and decision inbox</small>", page)
+
+
+    def test_command_center_v2_decision_item_is_actionable(self) -> None:
+        html = _command_decision_item({
+            "kind": "candidate", "eyebrow": "Potential finding", "title": "Review authorization boundary",
+            "detail": "Compare two authorized test identities.", "href": "/bug-candidate?id=BC-1",
+            "score": 91, "tone": "danger", "meta": "example.com · BOLA",
+        }, 1)
+        self.assertIn("data-decision-kind='candidate'", html)
+        self.assertIn("Review authorization boundary", html)
+        self.assertIn("91", html)
+        self.assertIn("/bug-candidate?id=BC-1", html)
 
 
 

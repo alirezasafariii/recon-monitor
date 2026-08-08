@@ -346,6 +346,104 @@ def _attention_item(label: str, value: Any, detail: str, href: str, tone: str = 
     return f"<a class='attention-item' href='{_esc(href)}'><span class='attention-icon tone-{_esc(tone)}'>●</span><div><strong>{_esc(label)}</strong><small>{_esc(detail)}</small></div><b>{_esc(value)}</b><i>→</i></a>"
 
 
+def _command_decision_item(item: Mapping[str, Any], rank: int) -> str:
+    tone = str(item.get('tone') or _tone(item.get('priority')))
+    score = max(0, min(100, parse_int(item.get('score'), 0)))
+    meta = str(item.get('meta') or '')
+    return (
+        f"<a class='command-decision' href='{_esc(item.get('href') or '/')}' data-decision-kind='{_esc(item.get('kind') or 'item')}'>"
+        f"<span class='decision-rank'>{rank:02d}</span>"
+        f"<span class='decision-copy'><small>{_esc(item.get('eyebrow') or 'Review')}</small><strong>{_esc(item.get('title') or 'Review item')}</strong>"
+        f"<span>{_esc(item.get('detail') or '')}</span>{f'<em>{_esc(meta)}</em>' if meta else ''}</span>"
+        f"<span class='decision-score tone-{_esc(tone)}'><b>{score}</b><small>priority</small></span><i>→</i></a>"
+    )
+
+
+def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
+    data = cockpit(db, target=target)
+    latest_run = db.one("SELECT id,status,started_at,finished_at,error,target_count FROM runs ORDER BY started_at DESC LIMIT 1")
+    latest_analysis = db.one("SELECT id,status,target,started_at,finished_at FROM analysis_runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+    analysis_id = str(latest_analysis['id']) if latest_analysis else ''
+    candidate_args: list[Any] = [analysis_id]
+    candidate_where = ["analysis_id=?", "analyst_decision='unreviewed'", "candidate_state IN ('strong_candidate','plausible')"]
+    if target:
+        candidate_where.append("target=?"); candidate_args.append(target)
+    candidates = [dict(r) for r in db.all(
+        f"SELECT candidate_id,target,title,bug_family,candidate_state,investigation_value,calibrated_likelihood,evidence_strength,impact_potential,endpoint,safe_next_action FROM bug_candidates WHERE {' AND '.join(candidate_where)} ORDER BY investigation_value DESC,calibrated_likelihood DESC LIMIT 8",
+        tuple(candidate_args),
+    )] if analysis_id else []
+    case_args: list[Any] = []
+    case_where = ["state NOT IN ('reported','closed','rejected')"]
+    if target:
+        case_where.append("target=?"); case_args.append(target)
+    cases = [dict(r) for r in db.all(
+        f"SELECT case_id,target,title,state,priority_score,evidence_gap_score,autopilot_score,updated_at FROM security_cases WHERE {' AND '.join(case_where)} ORDER BY priority_score DESC,updated_at DESC LIMIT 8",
+        tuple(case_args),
+    )]
+    changes = _change_alert_events(db, target)
+    recent_runs = [dict(r) for r in db.all(
+        "SELECT id,status,started_at,finished_at,error,target_count FROM runs ORDER BY started_at DESC LIMIT 5"
+    )]
+    decisions: list[dict[str, Any]] = []
+    if latest_run and str(latest_run['status']) == 'failed':
+        decisions.append({
+            'kind':'run','eyebrow':'Run failure','title':'Repair the latest recon run','detail':str(latest_run['error'] or 'The latest recon did not complete successfully.'),
+            'href':'/runs','score':98,'tone':'danger','meta':str(latest_run['id']),
+        })
+    for row in candidates:
+        score=parse_int(row.get('investigation_value'),0)
+        decisions.append({
+            'kind':'candidate','eyebrow':'Potential finding','title':str(row.get('title') or 'Review potential finding'),
+            'detail':str(row.get('safe_next_action') or 'Review evidence and decide whether more bounded validation is justified.'),
+            'href':f"/bug-candidate?id={urllib.parse.quote(str(row.get('candidate_id') or ''))}",
+            'score':score,'tone':'danger' if score>=85 else 'orange',
+            'meta':f"{row.get('target','')} · {str(row.get('bug_family') or '').replace('_',' ')} · likelihood {parse_int(row.get('calibrated_likelihood'),0)}%",
+        })
+    for row in cases:
+        state=str(row.get('state') or '')
+        base=parse_int(row.get('priority_score'),0)
+        if state=='needs_evidence':
+            eyebrow='Evidence gap'; detail=f"Evidence gap {parse_int(row.get('evidence_gap_score'),0)}% · collect the missing observation before stronger claims."; score=max(base,76); tone='amber'
+        elif state=='ready_for_validation':
+            eyebrow='Validation ready'; detail='Review the bounded validation plan before any approved execution.'; score=max(base,82); tone='purple'
+        else:
+            eyebrow='Open investigation'; detail=f"Case state: {state.replace('_',' ')} · continue the highest-value investigation step."; score=base; tone='info'
+        decisions.append({
+            'kind':'case','eyebrow':eyebrow,'title':str(row.get('title') or 'Continue investigation'),'detail':detail,
+            'href':f"/case?id={urllib.parse.quote(str(row.get('case_id') or ''))}",'score':score,'tone':tone,
+            'meta':f"{row.get('target','')} · {row.get('case_id','')}",
+        })
+    for event in changes[:12]:
+        if str(event.get('priority')) not in {'high','medium'}:
+            continue
+        score=parse_int(event.get('score'),0)
+        decisions.append({
+            'kind':'change','eyebrow':f"{str(event.get('priority') or 'medium').title()}-interest change",
+            'title':f"{str(event.get('kind') or 'surface').replace('_',' ').title()} {str(event.get('change') or 'changed')}",
+            'detail':str(event.get('details') or event.get('value') or ''),
+            'href':_query_link('/alerts',target=str(event.get('target') or target)),
+            'score':score,'tone':'danger' if str(event.get('priority'))=='high' else 'amber',
+            'meta':f"{event.get('target','')} · {event.get('value','')}",
+        })
+    kind_order={'run':0,'candidate':1,'case':2,'change':3}
+    decisions.sort(key=lambda x:(-parse_int(x.get('score'),0),kind_order.get(str(x.get('kind')),9),str(x.get('title') or '')) )
+    high_changes=sum(1 for e in changes if str(e.get('priority'))=='high')
+    medium_changes=sum(1 for e in changes if str(e.get('priority'))=='medium')
+    if decisions:
+        next_action={**decisions[0]}
+    elif not latest_run:
+        next_action={'kind':'recon','eyebrow':'Start here','title':'Run the first authorized recon','detail':'Create the initial baseline before analysis or change detection.','href':'/runs','score':0,'tone':'info','meta':''}
+    elif data.get('needs_evidence'):
+        next_action={'kind':'evidence','eyebrow':'Next best action','title':'Close the highest-value evidence gap','detail':'Improve evidence coverage before attempting stronger conclusions.','href':'/evidence-gaps','score':0,'tone':'amber','meta':''}
+    else:
+        next_action={'kind':'refresh','eyebrow':'Next best action','title':'Refresh workspace intelligence','detail':'Recalculate target memory, change intelligence, coverage and investigation guidance.','href':'/smart-recon','score':0,'tone':'success','meta':''}
+    return {
+        'cockpit':data,'latest_run':dict(latest_run) if latest_run else None,'latest_analysis':dict(latest_analysis) if latest_analysis else None,
+        'candidates':candidates,'cases':cases,'changes':changes,'recent_runs':recent_runs,'decisions':decisions[:8],'next_action':next_action,
+        'high_changes':high_changes,'medium_changes':medium_changes,
+    }
+
+
 def _page_header(title: str, subtitle: str = "", actions: str = "", eyebrow: str = "") -> str:
     copy = f"<div>{f'<div class=eyebrow>{_esc(eyebrow)}</div>' if eyebrow else ''}<h1>{_esc(title)}</h1>{f'<p class=page-subtitle>{_esc(subtitle)}</p>' if subtitle else ''}</div>"
     return f"<div class='page-header'>{copy}{f'<div class=page-actions>{actions}</div>' if actions else ''}</div>"
@@ -649,6 +747,7 @@ pre{{white-space:pre-wrap;word-break:break-word;color:#cbd7f5;background:#080d18
 
 .attention-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}}.attention-item{{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:13px 14px;border:1px solid var(--border);border-radius:13px;background:var(--surface);transition:.15s}}.attention-item:hover{{border-color:var(--border-strong);transform:translateY(-1px)}}.attention-item div{{min-width:0}}.attention-item strong,.attention-item small{{display:block}}.attention-item small{{color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.attention-item b{{font-size:22px}}.attention-item i{{font-style:normal;color:var(--faint)}}.attention-icon{{font-size:10px}}
 .command-grid{{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(310px,.8fr);gap:16px}}.decision-stack{{display:grid;gap:10px}}.decision-summary{{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;padding:18px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(140deg,var(--surface),var(--surface-2))}}.decision-summary h2{{margin:3px 0 6px;font-size:20px}}.decision-summary p{{margin:0;color:var(--muted)}}.decision-number{{font-size:42px;font-weight:900;letter-spacing:-.06em}}
+.command-v2-grid{{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.75fr);gap:16px;align-items:start}}.command-decision-list{{display:grid;gap:9px}}.command-decision{{display:grid;grid-template-columns:38px minmax(0,1fr) 64px 18px;gap:12px;align-items:center;padding:14px 15px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,var(--surface-raised),var(--surface));transition:.16s ease}}.command-decision:hover{{transform:translateY(-1px);border-color:color-mix(in srgb,var(--brand-2) 28%,var(--border));box-shadow:var(--shadow-soft)}}.decision-rank{{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid var(--border);background:var(--surface-2);color:var(--faint);font-size:10px;font-weight:900}}.decision-copy{{min-width:0}}.decision-copy small,.decision-copy strong,.decision-copy span,.decision-copy em{{display:block}}.decision-copy small{{color:var(--brand-2);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.12em}}.decision-copy strong{{margin-top:2px;font-size:13px}}.decision-copy span{{margin-top:2px;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.decision-copy em{{margin-top:4px;color:var(--faint);font-size:9px;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.decision-score{{text-align:right}}.decision-score b,.decision-score small{{display:block}}.decision-score b{{font-size:22px;line-height:1;letter-spacing:-.04em}}.decision-score small{{margin-top:3px;color:var(--faint);font-size:8px;text-transform:uppercase;letter-spacing:.08em}}.command-primary-action{{padding:18px;border:1px solid color-mix(in srgb,var(--brand-2) 25%,var(--border));border-radius:16px;background:radial-gradient(circle at 100% 0,rgba(70,199,255,.12),transparent 40%),linear-gradient(145deg,var(--surface-raised),var(--surface));box-shadow:var(--shadow-soft)}}.command-primary-action small{{display:block;color:var(--brand-2);font-weight:850;text-transform:uppercase;letter-spacing:.12em;font-size:9px}}.command-primary-action h2{{margin:6px 0 6px;font-size:20px}}.command-primary-action p{{margin:0 0 14px;color:var(--muted)}}.command-pulse{{display:grid;gap:0}}.pulse-row{{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}}.pulse-row:last-child{{border-bottom:0}}.pulse-row span,.pulse-row small{{display:block}}.pulse-row span{{font-weight:700}}.pulse-row small{{color:var(--faint);font-size:10px}}.pulse-row b{{align-self:center;font-size:12px}}.change-stream{{display:grid;gap:8px}}.change-event{{display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}}.change-event>i{{width:8px;height:8px;border-radius:50%;margin-top:5px;background:currentColor;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 10%,transparent)}}.change-event strong,.change-event span,.change-event small{{display:block}}.change-event span{{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}}.change-event small{{color:var(--faint);font-size:9px;margin-top:2px}}.change-event b{{font-size:11px}}.command-kpi-row{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 16px}}
 .candidate-card{{position:relative;display:grid;grid-template-columns:4px minmax(0,1fr) auto;border-bottom:1px solid var(--border);background:var(--surface)}}.candidate-card:last-child{{border-bottom:0}}.candidate-accent{{background:currentColor}}.candidate-main{{padding:15px 16px}}.candidate-heading{{display:flex;justify-content:space-between;gap:18px}}.candidate-heading h3{{font-size:15px;margin:6px 0 3px}}.candidate-kicker{{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--faint);font-size:11px}}.candidate-open{{display:grid;place-items:center;padding:15px;color:var(--brand-2);font-size:11px;border-left:1px solid var(--border)}}.investigation-score{{text-align:right;min-width:70px}}.investigation-score span{{display:block;color:var(--faint);font-size:9px;text-transform:uppercase;letter-spacing:.08em}}.investigation-score strong{{font-size:27px}}.score-triad{{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:7px;margin:12px 0}}.score-triad>div{{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px}}.score-triad span{{color:var(--faint);font-size:9px;text-transform:uppercase}}.candidate-reasoning{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}}.candidate-reasoning>div{{padding:10px;background:color-mix(in srgb,var(--surface-2) 72%,transparent);border-radius:10px}}.candidate-reasoning strong{{font-size:10px;text-transform:uppercase;color:var(--muted)}}.candidate-reasoning ul{{margin:6px 0 0;padding-left:16px;color:var(--muted);font-size:11px}}.next-step{{margin-top:10px;padding:9px 11px;border-left:2px solid var(--brand);background:rgba(124,156,255,.06)}}.next-step span{{font-size:9px;text-transform:uppercase;color:var(--brand-2);font-weight:800}}.next-step p{{margin:2px 0 0;color:var(--muted);font-size:11px}}
 .segmented{{display:flex;gap:4px;padding:4px;border:1px solid var(--border);background:var(--surface);border-radius:11px;overflow:auto}}.pager{{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--border)}}.pager>:last-child{{justify-self:end}}.pager>span{{color:var(--muted);font-size:12px;text-align:center}}.segmented a{{padding:7px 10px;border-radius:8px;color:var(--muted);white-space:nowrap;font-size:11px;font-weight:700}}.segmented a.active{{background:var(--surface-3);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}}.queue-health{{display:grid;grid-template-columns:1fr 1fr;gap:8px}}.queue-health div{{padding:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px}}.queue-health span{{display:block;color:var(--faint);font-size:9px;text-transform:uppercase}}.queue-health strong{{font-size:22px}}
 .coverage-strip{{display:grid;grid-template-columns:repeat(4,1fr);gap:0}}.coverage-strip a{{padding:14px;border-right:1px solid var(--border)}}.coverage-strip a:last-child{{border-right:0}}.coverage-strip span,.coverage-strip strong{{display:block}}.coverage-strip span{{color:var(--faint);font-size:10px}}.coverage-strip strong{{font-size:20px;margin-top:3px}}
@@ -680,8 +779,8 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 @media(max-width:820px){{.confidence-factors{{grid-template-columns:1fr}}.confidence-verdict{{align-items:flex-start;flex-direction:column}}}}
 @media(max-width:1120px){{.workspace-strip{{grid-template-columns:1fr 1fr}}.workspace-hero{{grid-template-columns:1fr;align-items:start}}.workspace-hero-status{{justify-self:start}}}}
 @media(max-width:820px){{.workspace-strip{{grid-template-columns:1fr}}.workspace-hero{{padding:18px}}}}
-@media(max-width:1120px){{.attention-grid{{grid-template-columns:1fr 1fr}} .command-grid{{grid-template-columns:1fr}} .candidate-reasoning{{grid-template-columns:1fr}} .three-col{{grid-template-columns:1fr 1fr}} .two-col{{grid-template-columns:1fr}} .sticky-rail{{position:static}} .pipeline{{grid-template-columns:repeat(3,1fr)}}}}
-@media(max-width:820px){{.filter-grid{{grid-template-columns:1fr 1fr}} .attention-grid{{grid-template-columns:1fr}} .score-triad{{grid-template-columns:1fr 1fr}} .view-context,.focus-chip,.primary-work{{display:none}} :root{{--sidebar:274px}} .sidebar{{transform:translateX(-100%);transition:.2s}} body.nav-open .sidebar{{transform:none;box-shadow:var(--shadow)}} .main-shell{{margin-left:0}} .mobile-toggle{{display:inline-flex}} .content{{padding:22px 16px 44px}} .topbar{{padding:0 15px}} .global-search{{width:100%}} .top-actions .user-mini{{display:none}} .page-header{{display:block}} .page-actions{{margin-top:14px}} .three-col{{grid-template-columns:1fr}} .pipeline{{grid-template-columns:repeat(2,1fr)}} .graph-panel{{position:static;width:auto;max-height:none;margin:10px}} .graph-wrap{{height:auto;min-height:620px}} .filter-actions{{grid-column:1/-1}}}}
+@media(max-width:1120px){{.attention-grid{{grid-template-columns:1fr 1fr}} .command-grid,.command-v2-grid{{grid-template-columns:1fr}} .command-kpi-row{{grid-template-columns:1fr 1fr}} .candidate-reasoning{{grid-template-columns:1fr}} .three-col{{grid-template-columns:1fr 1fr}} .two-col{{grid-template-columns:1fr}} .sticky-rail{{position:static}} .pipeline{{grid-template-columns:repeat(3,1fr)}}}}
+@media(max-width:820px){{.filter-grid{{grid-template-columns:1fr 1fr}} .attention-grid,.command-kpi-row{{grid-template-columns:1fr}} .command-decision{{grid-template-columns:34px minmax(0,1fr) 52px}} .command-decision>i{{display:none}} .score-triad{{grid-template-columns:1fr 1fr}} .view-context,.focus-chip,.primary-work{{display:none}} :root{{--sidebar:274px}} .sidebar{{transform:translateX(-100%);transition:.2s}} body.nav-open .sidebar{{transform:none;box-shadow:var(--shadow)}} .main-shell{{margin-left:0}} .mobile-toggle{{display:inline-flex}} .content{{padding:22px 16px 44px}} .topbar{{padding:0 15px}} .global-search{{width:100%}} .top-actions .user-mini{{display:none}} .page-header{{display:block}} .page-actions{{margin-top:14px}} .three-col{{grid-template-columns:1fr}} .pipeline{{grid-template-columns:repeat(2,1fr)}} .graph-panel{{position:static;width:auto;max-height:none;margin:10px}} .graph-wrap{{height:auto;min-height:620px}} .filter-actions{{grid-column:1/-1}}}}
 </style></head><body class='{'login-mode' if login_mode else ''}'>
 <div class='app-shell'><aside class='sidebar'><div class='brand'><div class='brand-mark' aria-label='Recon Monitor'>R</div><div class='brand-copy'><strong>Recon Monitor</strong><small>Decision Console · {APP_VERSION}</small></div></div>{''.join(nav)}{advanced_nav}{legacy_nav_contract}<div class='sidebar-footer'><div class='user-card'><div class='avatar'>{_esc((username or 'L')[:1].upper())}</div><div class='user-meta'><strong>{user}</strong><small>{user_role}</small></div><a href='/logout' title='Sign out' class='button ghost icon-button'>↪</a></div></div></aside>
 <div class='main-shell'><header class='topbar'><button class='secondary icon-button mobile-toggle' id='navToggle' aria-label='Open navigation'>☰</button><div class='view-context'><small>{_esc(section_name)}</small><strong>{_esc(title)}</strong></div>{focus_chip}<form class='global-search' action='/search' method='get'><span class='search-icon'>⌕</span><input id='globalSearch' name='q' placeholder='Search assets, endpoints, candidates, evidence…' required><span class='shortcut'>⌘ K</span></form><div class='top-actions'><span class='workspace-hero-status' title='Local-first workspace'><span class='status-dot'></span><strong>Local</strong></span><a class='button secondary primary-work' href='/potential-findings'>Potential findings</a><button class='secondary icon-button' type='button' id='densityToggle' title='Toggle compact density'>≡</button><button class='secondary icon-button' type='button' id='focusToggle' title='Toggle focus mode'>◧</button><button class='secondary icon-button' type='button' id='themeToggle' title='Toggle theme'>◐</button></div></header>
@@ -1552,31 +1651,37 @@ class DashboardHandler(BaseHTTPRequestHandler):
         db=self.db()
         try:
             targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
-            data=cockpit(db,target=target)
-            latest_run=db.one("SELECT id,status,started_at,finished_at,error,target_count FROM runs ORDER BY started_at DESC LIMIT 1")
+            snapshot=_command_center_snapshot(db,target)
             diag=operator_diagnostics(runtime_paths,runtime_config,db,persist=False)
             safety=safety_center(runtime_paths,runtime_config,db)
             coverage=recon_coverage(db,target=target,persist=False) if target else None
             memory=target_memory(db,target=target,persist=False) if target else None
         finally: db.close()
+        data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
         controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
-        header=_breadcrumb('Workspace','Command center')+_page_header('Command center','One workflow in four steps: discover the surface, analyze the findings, review probable bugs, and watch what changes over time.',"<form method='post' action='/workspace/sync' style='display:inline'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='/'><button>Refresh workspace intelligence</button></form><a class='button secondary' href='/case-autopilot'>Open autopilot</a>",f'Recon Monitor {APP_VERSION} · Unified Security Research Workspace')
-        attention="<div class='attention-grid'>"+_attention_item('Open investigations',data['open_cases'],'Active security cases','/cases','info')+_attention_item('High-value findings',data['high_value_candidates'],'Priority ≥70 and still unreviewed','/potential-findings','danger')+_attention_item('Cases need evidence',data['needs_evidence'],'Blocked by missing observations','/evidence-gaps','amber')+_attention_item('Validation ready',data['validation_ready'],'Cases ready for bounded validation review','/safe-validation','purple')+'</div>'
-        case_html=''.join(f"<a class='queue-card' href='{_esc(item['href'])}'><div class='risk-badge tone-info'>{idx}</div><div class='queue-main'><div class='queue-meta'><span>{_esc(item['target'])}</span><span>{_esc(item['id'])}</span></div><strong>{_esc(item['title'])}</strong><div class='muted'>{_esc(item['detail'])}</div></div><span class='queue-action'>Open →</span></a>" for idx,item in enumerate(data['attention'],1))
-        changed=data.get('change') or {}
-        change_html=''.join(f"<div class='evidence-item'><div class='evidence-icon'>Δ</div><div><strong>{_esc(c.get('type'))} · {_esc(c.get('change'))}</strong><div class='muted'>{c.get('count',0)} item(s) · {_esc(', '.join(c.get('examples',[])[:3]))}</div></div></div>" for c in changed.get('changes',[])[:8]) if changed else ''
-        system_cards=_metric_card('Safety',safety['status'],'Scope, auth and audit gates','success' if safety['status']=='SAFE TO RUN' else 'danger')+_metric_card('Platform health',diag['overall'],'Subsystem self-check','success' if diag['overall']=='ok' else 'amber')+_metric_card('Latest run',str(latest_run['status']) if latest_run else 'none',str(latest_run['id']) if latest_run else 'No run','info')
-        if coverage:
-            system_cards+=_metric_card('Recon confidence',str(coverage['overall'])+'%','Coverage, not security','success' if coverage['overall']>=75 else 'amber')
-        if memory:
-            system_cards+=_metric_card('Target memory',str(memory['confidence'])+'%','Persistent context','purple')
-        primary=f"<section class='panel'><div class='panel-head'><h3>What needs your attention?</h3><a class='small' href='/case-autopilot'>Investigation guidance</a></div>{case_html or _empty('No active case needs immediate attention','Run or replay analysis, then refresh workspace intelligence.')}</section>"
-        side=f"<aside class='stack'><section class='panel'><div class='panel-head'><h3>Platform readiness</h3><a class='small' href='/diagnostics'>Diagnostics</a></div><div class='panel-body'><div class='metrics-grid' style='grid-template-columns:1fr 1fr'>{system_cards}</div></div></section><section class='panel'><div class='panel-head'><h3>Next best workspace</h3></div><div class='panel-body evidence-feed'><a class='evidence-item' href='/evidence-gaps'><div class='evidence-icon'>EG</div><div><strong>Evidence gaps</strong><div class='muted'>See what is missing before validation.</div></div></a><a class='evidence-item' href='/recon-coverage'><div class='evidence-icon'>CV</div><div><strong>Recon coverage</strong><div class='muted'>Find blind spots before drawing conclusions.</div></div></a><a class='evidence-item' href='/smart-recon'><div class='evidence-icon'>SP</div><div><strong>Smart recon plan</strong><div class='muted'>Prioritize changed and weak areas.</div></div></a></div></section></aside>"
-        change_panel=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>What changed?</h3><a class='small' href='{_query_link('/change-intelligence',target=target)}'>Change intelligence</a></div><div class='panel-body evidence-feed'>{change_html or _empty('Choose a target to see run-to-run change','Target focus makes change intelligence concrete.')}</div></section>"
-        hero=f"<section class='workspace-hero'><div class='workspace-hero-copy'><small>Decision inbox · Security stories · Coverage snapshot</small><strong>{_esc(target) if target else 'All authorized targets'}</strong><p>Discover → Analyze → Investigate → Watch changes. The complex engines stay behind a simple research workflow.</p></div><div class='workspace-hero-status'><span class='status-dot'></span><span>Workspace</span><strong>{_esc(safety['status'])}</strong></div></section>"
-        workspace_strip="<div class='workspace-strip'><a class='workspace-tile' href='/recon'><span class='workspace-tile-icon'>01</span><span><strong>Recon</strong><small>Discover and map the surface</small></span></a><a class='workspace-tile' href='/analysis'><span class='workspace-tile-icon'>02</span><span><strong>Analysis</strong><small>Interpret all collected findings</small></span></a><a class='workspace-tile' href='/potential-findings'><span class='workspace-tile-icon'>03</span><span><strong>Potential Findings</strong><small>Review probable security issues</small></span></a><a class='workspace-tile' href='/alerts'><span class='workspace-tile-icon'>04</span><span><strong>Alerts</strong><small>See new and changed surface</small></span></a></div>"
-        attention_label="<div class='section-label'><div><strong>Requires attention</strong><small>Highest-value decisions across the current workspace.</small></div><a class='small' href='/case-autopilot'>Open investigation guidance →</a></div>"
-        body=header+hero+controls+workspace_strip+attention_label+attention+f"<div class='command-grid' style='margin-top:16px'>{primary}{side}</div>"+change_panel
+        header=_breadcrumb('Workspace','Command Center')+_page_header('Command Center','A decision-first view of what changed, what deserves attention, and the single best next action.',"<form method='post' action='/workspace/sync' style='display:inline'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='/'><button>Refresh intelligence</button></form><a class='button secondary' href='/search?q=*'>Search workspace</a>",f'Recon Monitor {APP_VERSION} · Decision workspace')
+        focus_name=_esc(target) if target else 'All authorized targets'
+        hero=f"<section class='workspace-hero'><div class='workspace-hero-copy'><small>Command Center 2.0 · Decision inbox · Security stories · Coverage snapshot</small><strong>{focus_name}</strong><p>Start with the highest-value decision. Recon, analysis, findings and change intelligence stay connected, while low-value inventory stays out of the way.</p></div><div class='workspace-hero-status'><span class='status-dot'></span><span>Workspace</span><strong>{_esc(safety['status'])}</strong></div></section>"
+        kpis="<div class='command-kpi-row'>"+_attention_item('Decisions now',len(decisions),'Ranked actions worth analyst attention','/workbench','info')+_attention_item('High-interest changes',snapshot['high_changes'],'Material changes since the latest baseline',_query_link('/alerts',target=target),'danger')+_attention_item('High-value findings',data['high_value_candidates'],'Unreviewed candidates with priority ≥70',_query_link('/potential-findings',target=target),'orange')+_attention_item('Evidence gaps',data['needs_evidence'],'Cases blocked by missing observations',_query_link('/evidence-gaps',target=target),'amber')+'</div>'
+        decision_html=''.join(_command_decision_item(item,idx) for idx,item in enumerate(decisions,1))
+        inbox=f"<section class='panel'><div class='panel-head'><div><h3>What needs your attention?</h3><span class='muted small'>Decision inbox · ranked across run health, potential findings, open cases and material surface changes.</span></div><a class='small' href='/workbench'>Full review queue →</a></div><div class='panel-body command-decision-list'>{decision_html or _empty('Nothing urgent is competing for attention','Refresh workspace intelligence or run the next authorized recon.')}</div></section>"
+        action=f"<section class='command-primary-action'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><h2>{_esc(next_action.get('title'))}</h2><p>{_esc(next_action.get('detail'))}</p><a class='button' href='{_esc(next_action.get('href') or '/')}'>Open next action →</a></section>"
+        latest_run_label=str(latest_run.get('status')) if latest_run else 'No run yet'; latest_run_meta=(str(latest_run.get('finished_at') or latest_run.get('started_at') or '') if latest_run else 'Create a baseline to unlock change intelligence')
+        latest_analysis_label=str(latest_analysis.get('id')) if latest_analysis else 'No analysis'; latest_analysis_meta=(str(latest_analysis.get('finished_at') or latest_analysis.get('started_at') or '') if latest_analysis else 'Analysis will appear after collected evidence is processed')
+        pulse_rows=[('Latest recon',latest_run_label,latest_run_meta),('Latest analysis',latest_analysis_label,latest_analysis_meta),('Platform health',str(diag['overall']).upper(),'Subsystem diagnostics'),('Safety gate',str(safety['status']),'Authorization, scope and audit integrity')]
+        if coverage: pulse_rows.append(('Recon confidence',str(coverage['overall'])+'%','Coverage / blind-spot estimate, not a security conclusion'))
+        if memory: pulse_rows.append(('Target memory',str(memory['confidence'])+'%','Persistent target context confidence'))
+        pulse=''.join(f"<div class='pulse-row'><div><span>{_esc(label)}</span><small>{_esc(detail)}</small></div><b>{_esc(value)}</b></div>" for label,value,detail in pulse_rows)
+        side=f"<aside class='stack'>{action}<section class='panel'><div class='panel-head'><h3>Workspace pulse</h3><a class='small' href='/diagnostics'>Diagnostics</a></div><div class='panel-body command-pulse'>{pulse}</div></section></aside>"
+        change_cards=[]
+        for event in changes[:6]:
+            tone='danger' if event.get('priority')=='high' else 'amber' if event.get('priority')=='medium' else 'neutral'
+            change_cards.append(f"<a class='change-event' href='{_query_link('/alerts',target=str(event.get('target') or target))}'><i class='tone-{tone}'></i><div><strong>{_esc(str(event.get('kind') or 'surface').replace('_',' ').title())} · {_esc(event.get('change'))}</strong><span>{_esc(event.get('value'))}</span><small>{_esc(event.get('details'))}</small></div><b class='tone-{tone}'>{_esc(event.get('priority'))}</b></a>")
+        change_panel=f"<section class='panel'><div class='panel-head'><div><h3>What changed?</h3><span class='muted small'>Newest material changes from the latest successful re-check.</span></div><a class='small' href='{_query_link('/change-intelligence',target=target)}'>Open change intelligence →</a></div><div class='panel-body change-stream'>{''.join(change_cards) or _empty('No material re-check delta yet','Choose a target with at least two successful recon runs to compare baselines.')}</div></section>"
+        recent_rows=''.join(f"<tr><td><a class='row-link' href='/runs'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
+        recent_panel=f"<section class='panel'><div class='panel-head'><div><h3>Recent research activity</h3><span class='muted small'>A compact operational trail — details stay in Run history.</span></div><a class='small' href='/runs'>Run history →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></section>"
+        workspace_strip="<div class='workspace-strip'><a class='workspace-tile' href='/recon'><span class='workspace-tile-icon'>01</span><span><strong>Recon</strong><small>Discover and map the surface</small></span></a><a class='workspace-tile' href='/analysis'><span class='workspace-tile-icon'>02</span><span><strong>Analysis</strong><small>Understand collected evidence</small></span></a><a class='workspace-tile' href='/potential-findings'><span class='workspace-tile-icon'>03</span><span><strong>Potential Findings</strong><small>Review probable security issues</small></span></a><a class='workspace-tile' href='/alerts'><span class='workspace-tile-icon'>04</span><span><strong>Alerts</strong><small>Investigate meaningful change</small></span></a></div>"
+        body=header+hero+controls+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
         self.send_html('Command center',body)
 
     def workbench(self) -> None:

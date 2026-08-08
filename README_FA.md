@@ -1,4 +1,4 @@
-# راهنمای Recon Monitor 8.1.0
+# راهنمای Recon Monitor 8.2.0
 
 
 

@@ -48,13 +48,13 @@ class UpdateV810Tests(unittest.TestCase):
         temp, paths, db, manager = self.manager()
         try:
             release = {
-                "tagName": "v8.2.0",
-                "name": "Recon Monitor v8.2.0",
+                "tagName": "v8.3.0",
+                "name": "Recon Monitor v8.3.0",
                 "publishedAt": "2026-08-08T00:00:00Z",
-                "url": "https://github.com/alirezasafariii/recon-monitor/releases/tag/v8.2.0",
+                "url": "https://github.com/alirezasafariii/recon-monitor/releases/tag/v8.3.0",
                 "assets": [
-                    {"name": "recon-monitor-v8.2.0.zip"},
-                    {"name": "recon-monitor-v8.2.0.zip.sha256"},
+                    {"name": "recon-monitor-v8.3.0.zip"},
+                    {"name": "recon-monitor-v8.3.0.zip.sha256"},
                 ],
             }
             completed = mock.Mock(returncode=0, stdout=json.dumps(release), stderr="")
@@ -62,9 +62,9 @@ class UpdateV810Tests(unittest.TestCase):
                 result = manager.check()
             self.assertEqual(result["source"], "github")
             self.assertEqual(result["repo"], "alirezasafariii/recon-monitor")
-            self.assertEqual(result["available"], "8.2.0")
+            self.assertEqual(result["available"], "8.3.0")
             self.assertTrue(result["update_available"])
-            self.assertIn("recon-monitor-v8.2.0.zip", result["assets"])
+            self.assertIn("recon-monitor-v8.3.0.zip", result["assets"])
             self.assertIn("--repo", run.call_args.args[0])
         finally:
             db.close(); temp.cleanup()

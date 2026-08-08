@@ -68,7 +68,7 @@ class SafeValidationV51Tests(unittest.TestCase):
     def test_version_schema_and_validation_tables(self):
         temp, paths, db = self.project()
         try:
-            self.assertEqual(APP_VERSION, "8.1.1"); self.assertEqual(SCHEMA_VERSION, 16); self.assertEqual(db.meta_get("schema_version"), "16")
+            self.assertEqual(APP_VERSION, "8.2.0"); self.assertEqual(SCHEMA_VERSION, 16); self.assertEqual(db.meta_get("schema_version"), "16")
             names = {row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
             for name in ("validation_plans", "validation_approvals", "validation_runs", "validation_observations", "validation_feedback", "imported_http_evidence"):
                 self.assertIn(name, names)
