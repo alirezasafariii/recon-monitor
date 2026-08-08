@@ -1,0 +1,21 @@
+--- a/app/dashboard.py
++++ b/app/dashboard.py
+@@ -365,6 +365,9 @@
+         str(item.get("directness") or ""),
+     ] if x)
+     lineage = f"{item.get('source_run_id','')} → {item.get('source_group','')} → {item.get('root_fingerprint','')}"
++    document_body = ''.join(doc_html)
++    if not document_body:
++        document_body = '<p class="muted small">No structured source document snapshot was available for this evidence record.</p>'
+     return (
+         f"<article class='evidence-item'><div class='evidence-icon tone-{tone}'>{icon}</div><div style='min-width:0;flex:1'>"
+         f"<div class='split'><strong>{_esc(item.get('evidence_type') or 'evidence')}</strong>{_pill('snapshot verified' if verified else 'snapshot unavailable','success' if verified else 'amber')}</div>"
+@@ -372,7 +375,7 @@
+         f"<details style='margin-top:8px'><summary>Source, lineage & raw snapshot</summary><div class='kv' style='margin-top:10px'>"
+         f"<strong>Evidence ID</strong><code>{_esc(item.get('evidence_id'))}</code><strong>Root</strong><code>{_esc(item.get('root_fingerprint'))}</code>"
+         f"<strong>Run lineage</strong><code>{_esc(lineage)}</code><strong>Integrity</strong><code>{_esc(item.get('integrity_hash'))}</code>"
+-        f"<strong>Raw reference</strong><code>{_esc(item.get('raw_reference'))}</code></div>{''.join(doc_html) or '<p class="muted small">No structured source document snapshot was available for this evidence record.</p>'}</details>"
++        f"<strong>Raw reference</strong><code>{_esc(item.get('raw_reference'))}</code></div>{document_body}</details>"
+         f"</div></article>"
+     )
+ 
