@@ -80,7 +80,7 @@ class BehavioralV45Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             paths = AppPaths.from_root(Path(td)); paths.ensure(); db = Database(paths.db)
             try:
-                self.assertEqual(db.meta_get("schema_version"), "17")
+                self.assertEqual(db.meta_get("schema_version"), "18")
                 names = {row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
                 for name in (
                     "behavioral_observations", "authentication_boundary_diffs", "response_shape_diffs",

@@ -62,7 +62,7 @@ class SecurityReasoningV46Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             paths = AppPaths.from_root(Path(td)); paths.ensure(); db = Database(paths.db)
             try:
-                self.assertEqual(db.meta_get("schema_version"), "17")
+                self.assertEqual(db.meta_get("schema_version"), "18")
                 names = {row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
                 for name in ("evidence_records", "candidate_evidence_links", "candidate_evidence_snapshots", "candidate_evidence_exclusions", "candidate_analysis_versions", "family_rankings", "candidate_reasoning_traces", "shadow_rule_results", "family_calibration", "reasoning_evaluations", "reasoning_regression_gates"):
                     self.assertIn(name, names)
@@ -83,7 +83,7 @@ class SecurityReasoningV46Tests(unittest.TestCase):
             db.close()
             upgraded = Database(paths.db)
             try:
-                self.assertEqual(upgraded.meta_get('schema_version'),'17')
+                self.assertEqual(upgraded.meta_get('schema_version'),'18')
                 self.assertIsNotNone(upgraded.one("SELECT id FROM runs WHERE id='legacy-run'"))
                 names={row[0] for row in upgraded.all("SELECT name FROM sqlite_master WHERE type='table'")}
                 self.assertIn('candidate_evidence_snapshots',names)

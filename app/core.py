@@ -25,8 +25,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
-APP_VERSION = "8.4.2"
-SCHEMA_VERSION = 17
+APP_VERSION = "8.4.3"
+SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 
 
@@ -1010,6 +1010,16 @@ class Database:
               affected_items_json TEXT NOT NULL DEFAULT '[]', change_summary_json TEXT NOT NULL DEFAULT '{}', confidence INTEGER NOT NULL, created_at TEXT NOT NULL,
               PRIMARY KEY(analysis_id,incident_id)
             );
+            CREATE TABLE IF NOT EXISTS analysis_hypotheses (
+              hypothesis_id TEXT PRIMARY KEY, hypothesis_fingerprint TEXT NOT NULL, analysis_id TEXT NOT NULL, source_run_id TEXT NOT NULL,
+              alert_id INTEGER, target TEXT NOT NULL, asset TEXT NOT NULL DEFAULT '', endpoint TEXT NOT NULL DEFAULT '', source_ref TEXT NOT NULL DEFAULT '',
+              bug_family TEXT NOT NULL, bug_variant TEXT NOT NULL, state TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '',
+              supporting_evidence_json TEXT NOT NULL DEFAULT '[]', contradicting_evidence_json TEXT NOT NULL DEFAULT '[]', missing_evidence_json TEXT NOT NULL DEFAULT '[]',
+              decisive_signals_json TEXT NOT NULL DEFAULT '[]', admission_json TEXT NOT NULL DEFAULT '{}', knowledge_references_json TEXT NOT NULL DEFAULT '[]',
+              rule_ids_json TEXT NOT NULL DEFAULT '[]', rule_version TEXT NOT NULL, seen_count INTEGER NOT NULL DEFAULT 1,
+              first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, promoted_candidate_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+              UNIQUE(analysis_id,hypothesis_fingerprint), FOREIGN KEY(analysis_id) REFERENCES analysis_runs(id) ON DELETE CASCADE
+            );
             CREATE TABLE IF NOT EXISTS bug_candidates (
               candidate_id TEXT PRIMARY KEY, candidate_fingerprint TEXT NOT NULL, analysis_id TEXT NOT NULL, source_run_id TEXT NOT NULL,
               alert_id INTEGER, target TEXT NOT NULL, asset TEXT NOT NULL DEFAULT '', endpoint TEXT NOT NULL DEFAULT '', source_ref TEXT NOT NULL DEFAULT '',
@@ -1455,6 +1465,8 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_lifecycle_state ON asset_lifecycle(target,state,last_seen);
             CREATE INDEX IF NOT EXISTS idx_endpoint_validation ON endpoint_validations(target,reachable,status_code);
             CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at,action);
+            CREATE INDEX IF NOT EXISTS idx_analysis_hypotheses_state ON analysis_hypotheses(analysis_id,state,bug_family,target);
+            CREATE INDEX IF NOT EXISTS idx_analysis_hypotheses_endpoint ON analysis_hypotheses(target,bug_family,endpoint,last_seen_at);
             CREATE INDEX IF NOT EXISTS idx_bug_candidates_analysis ON bug_candidates(analysis_id,priority_score,candidate_state);
             CREATE INDEX IF NOT EXISTS idx_bug_candidates_target ON bug_candidates(target,bug_family,candidate_state);
             CREATE INDEX IF NOT EXISTS idx_bug_candidates_alert ON bug_candidates(alert_id,analysis_id);

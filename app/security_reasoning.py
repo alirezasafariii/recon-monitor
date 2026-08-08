@@ -10,9 +10,10 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
+from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "5.1.1"
-REASONING_RULE_VERSION = "2026.08.8.1"
+REASONING_ENGINE_VERSION = "5.2.0"
+REASONING_RULE_VERSION = "2026.08.8.3"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -163,7 +164,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "file_upload": {
         "label": "Unsafe File Upload or Import",
-        "required": [{"file_input", "upload_operation", "import_operation"}, {"state_change", "write_method", "endpoint_contract"}],
+        "required": [{"file_input"}, {"upload_operation", "import_operation"}],
         "support": {"filename_field", "content_type_field", "remote_import", "storage_path"},
         "contradict": {"strict_type_allowlist", "inert_storage", "read_only_contract"},
         "unknowns": ["Accepted file types and content validation", "Storage and serving behavior", "Filename and path normalization"],
@@ -171,7 +172,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "path_traversal": {
         "label": "Path Traversal Candidate",
-        "required": [{"path_parameter", "filename_field", "storage_path"}, {"file_operation", "download_operation", "import_operation"}],
+        "required": [{"path_parameter", "filename_field", "storage_path"}, {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"}],
         "support": {"client_controlled", "path_join", "archive_operation"},
         "contradict": {"canonicalization", "fixed_directory", "opaque_file_id"},
         "unknowns": ["Server-side path canonicalization", "Base-directory enforcement", "Whether client input reaches a filesystem operation"],
@@ -753,6 +754,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             "causal_chain": causal,
             "evidence_lineage": evidence_meta,
             "maturity_limiter": maturity_limiter,
+            "knowledge_context": {"role": "detection_guidance_only_not_target_evidence", "references": knowledge_for_family(family)},
             "scores": {
                 "raw_likelihood": raw_likelihood,
                 "calibrated_likelihood": calibrated,
@@ -778,7 +780,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         db.execute("INSERT OR REPLACE INTO incremental_reasoning_cache(candidate_fingerprint,evidence_fingerprint,rule_version,result_json,updated_at) VALUES(?,?,?,?,?)", (str(candidate.get("candidate_fingerprint") or ""), evidence_fingerprint, REASONING_RULE_VERSION, json_dumps({"candidate_state": candidate_state, "reachability_state": reachability, "unknowns": unknowns, "scores": reasoning["scores"], "reasoning": reasoning}), utc_now()))
         updated += 1
     evaluation = evaluate_reasoning(db, analysis_id, persist=True)
-    return {"updated": updated, "strong_candidates": strong, "insufficient_evidence": insufficient, "evidence_records": int((db.one("SELECT COUNT(*) count FROM evidence_records WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"]), "shadow_rule_matches": shadow_matches, "evaluation": evaluation, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
+    return {"updated": updated, "strong_candidates": strong, "insufficient_evidence": insufficient, "evidence_records": int((db.one("SELECT COUNT(*) count FROM evidence_records WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"]), "shadow_rule_matches": shadow_matches, "hypotheses": hypothesis_summary(db, analysis_id), "evaluation": evaluation, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
 
 
 def evidence_trace(db: Database, candidate_id: str) -> dict[str, Any]:

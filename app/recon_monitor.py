@@ -601,7 +601,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--profile", choices=sorted(PROFILES), default="balanced")
 
     analysis_cmd = sub.add_parser("analysis", help="Replay and inspect analysis-engine quality and bug candidates")
-    analysis_cmd.add_argument("action", choices=["replay", "quality", "calibration", "feedback", "list", "show", "candidates", "candidate-show", "candidate-set", "candidate-calibration", "candidate-evaluate", "candidate-label", "bundles", "semantic", "behavioral", "boundary-diffs", "response-diffs", "protocols", "identity-graph", "reasoning", "evidence-trace", "reasoning-evaluate", "family-calibration", "shadow-rules", "regression-gate"])
+    analysis_cmd.add_argument("action", choices=["replay", "quality", "calibration", "feedback", "list", "show", "candidates", "hypotheses", "candidate-show", "candidate-set", "candidate-calibration", "candidate-evaluate", "candidate-label", "bundles", "semantic", "behavioral", "boundary-diffs", "response-diffs", "protocols", "identity-graph", "reasoning", "evidence-trace", "reasoning-evaluate", "family-calibration", "shadow-rules", "regression-gate"])
     analysis_cmd.add_argument("--run", dest="run_id", default="")
     analysis_cmd.add_argument("--target", default=None)
     analysis_cmd.add_argument("--id", dest="analysis_id", default="")
@@ -875,6 +875,23 @@ def main(argv: list[str] | None = None) -> int:
                 result = [dict(row) for row in db.all("SELECT id,source_run_id,target,engine_version,rule_version,mode,status,started_at,finished_at,summary_json FROM analysis_runs ORDER BY started_at DESC LIMIT ?", (max(1,min(200,args.limit)),))]
             elif args.action == "candidates":
                 result = list_bug_candidates(db, analysis_id=args.analysis_id, target=args.target or "", family=args.family, state=args.state, limit=args.limit)
+            elif args.action == "hypotheses":
+                analysis_id = args.analysis_id
+                if not analysis_id:
+                    latest = db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
+                    analysis_id = str(latest["id"]) if latest else ""
+                if not analysis_id:
+                    result = []
+                else:
+                    clauses = ["analysis_id=?"]; params: list[Any] = [analysis_id]
+                    if args.target:
+                        clauses.append("target=?"); params.append(args.target)
+                    if args.family:
+                        clauses.append("bug_family=?"); params.append(args.family)
+                    if args.state:
+                        clauses.append("state=?"); params.append(args.state)
+                    params.append(max(1, min(1000, args.limit)))
+                    result = [dict(row) for row in db.all("SELECT * FROM analysis_hypotheses WHERE " + " AND ".join(clauses) + " ORDER BY state='promoted' DESC,last_seen_at DESC LIMIT ?", tuple(params))]
             elif args.action == "candidate-show":
                 if not args.candidate_id: raise ReconError("analysis candidate-show requires --candidate-id ID")
                 result = get_bug_candidate(db, args.candidate_id)

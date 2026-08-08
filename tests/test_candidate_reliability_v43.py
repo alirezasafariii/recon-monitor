@@ -61,7 +61,7 @@ class CandidateReliabilityV43Tests(unittest.TestCase):
             paths, db, alert_id = self.fixture(td)
             try:
                 result = run_analysis(paths, db, "run43", "example.com", profile="balanced")
-                self.assertEqual(db.meta_get("schema_version"), "17")
+                self.assertEqual(db.meta_get("schema_version"), "18")
                 row = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND alert_id=? ORDER BY investigation_value DESC LIMIT 1", (result["analysis_id"], alert_id))
                 self.assertIsNotNone(row)
                 self.assertGreater(int(row["observation_quality"]), 0)

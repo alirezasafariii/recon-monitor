@@ -7,9 +7,10 @@ from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
+from hypothesis_admission import mark_promoted, record_hypothesis
 
-CANDIDATE_ENGINE_VERSION = "5.0.1"
-CANDIDATE_RULE_VERSION = "2026.08.8.1"
+CANDIDATE_ENGINE_VERSION = "5.1.0"
+CANDIDATE_RULE_VERSION = "2026.08.8.3"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -26,6 +27,7 @@ FAMILY_EVIDENCE_SCHEMAS: dict[str, dict[str, Any]] = {
     "open_redirect": {"required_any": (("source_sink", "redirect_parameter"),), "label": "user-influenced navigation target"},
     "ssrf": {"required_any": (("url_parameter",), ("server_fetch_semantic", "server_request_function")), "label": "URL input plus server-side fetch semantics"},
     "file_upload": {"required_any": (("file_input",), ("upload_operation", "import_operation")), "label": "file input plus upload or import operation"},
+    "path_traversal": {"required_any": (("path_parameter", "filename_field", "storage_path"), ("file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation")), "label": "user-influenced path or filename plus a file operation"},
     "graphql_authorization": {"required_any": (("graphql_identifier",), ("graphql_operation",)), "label": "GraphQL object identifier and operation"},
 }
 
@@ -272,19 +274,33 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
 
     def emit(family: str, variant: str, base: int, support: list[dict[str, Any]], contradict: list[dict[str, Any]], missing: list[str], rules: list[str], summary: str, *, direct: bool = False, impact: int | None = None) -> None:
         nonlocal count
-        # Two independent signals are required unless the evidence is a direct static relation.
-        independent = {str(x.get("source") or x.get("type") or "rule") for x in support}
+        hypothesis = record_hypothesis(
+            db, analysis_id=analysis_id, source_run_id=run_id, target=target, alert_id=alert_id, asset=asset,
+            endpoint=endpoint, source_ref=source_ref, family=family, variant=variant, support=support,
+            contradict=contradict, missing=missing, rule_ids=rules, summary=summary,
+        )
+        support = hypothesis["support"]
+        contradict = hypothesis["contradict"]
+        missing = hypothesis["missing"]
+        rules = hypothesis["rule_ids"]
+        if not hypothesis["assessment"]["admitted"]:
+            return
+        # Admission decides family-specific sufficiency. This generic quality guard still
+        # protects against a single duplicated source while retaining all weaker signals
+        # in analysis_hypotheses for future correlation.
+        independent = {str(x.get("source") or x.get("source_group") or x.get("type") or "rule") for x in support}
         if len(support) < 2 or (len(independent) < 2 and not direct):
             return
         likelihood = base + sum(parse_int(x.get("weight"), 0) for x in support) + sum(parse_int(x.get("weight"), 0) for x in contradict)
         strength = _evidence_strength(confidence, support, contradict, direct=direct)
-        _insert_candidate(
+        candidate_id = _insert_candidate(
             db, analysis_id=analysis_id, source_run_id=run_id, target=target, alert_id=alert_id, asset=asset,
             endpoint=endpoint, source_ref=source_ref, family=family, variant=variant,
             likelihood=likelihood, evidence_strength=strength,
             impact_potential=_impact(impact if impact is not None else BUG_FAMILIES[family]["impact"], context, method),
             support=support, contradict=contradict, missing=missing, rule_ids=rules, summary=summary,
         )
+        mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
         count += 1
 
     # BOLA / IDOR
@@ -393,26 +409,79 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              ["candidate-remote-destination", "candidate-server-fetch"],
              "A remote-destination input may trigger server-side fetching, but execution location and destination controls are unknown.")
 
-    # File handling
-    upload_tokens = _contains_any(haystack, ("upload", "attachment", "avatar", "document", "multipart", "filename", "file_name", "contenttype", "content_type", "import"))
-    if upload_tokens:
-        support = [
-            {"type": "file_surface", "source": "semantic", "weight": 17, "text": f"File-handling markers observed: {', '.join(upload_tokens[:6])}"},
-            {"type": "client_operation", "source": "endpoint", "weight": 9, "text": "The file operation is visible in a client endpoint or schema"},
-        ]
-        if method in {"POST", "PUT", "PATCH"}:
-            support.append({"type": "write_method", "source": "method", "weight": 8, "text": f"The operation uses upload-capable method {method}"})
-        emit("file_upload", "file_validation", 20, support, [],
+    # File handling. Hypothesis generation is deliberately recall-oriented, while
+    # admission is based only on structural file/path evidence. Generic metadata such
+    # as Content-Type is retained in the hidden hypothesis ledger but cannot promote.
+    structured_fields = [str(value) for value in body_fields + query_fields + path_fields]
+    normalized_fields = {re.sub(r"[^a-z0-9]", "", value.lower()): value for value in structured_fields}
+    file_input_names = {"file", "files", "filename", "file_name", "attachment", "attachments", "avatar", "document", "documents", "upload", "uploadfile", "upload_file"}
+    file_input_norm = {re.sub(r"[^a-z0-9]", "", value) for value in file_input_names}
+    path_names = {"path", "filepath", "file_path", "filename", "file_name", "directory", "dir", "folder", "storage_path", "storagepath"}
+    path_norm = {re.sub(r"[^a-z0-9]", "", value) for value in path_names}
+    filename_norm = {"filename", "file_name"}
+    filename_norm = {re.sub(r"[^a-z0-9]", "", value) for value in filename_norm}
+    endpoint_lower = endpoint.lower()
+    write_method = method in {"POST", "PUT", "PATCH"}
+    upload_route = any(token in endpoint_lower for token in ("/upload", "/uploads", "/attachment", "/attachments", "/avatar", "/document", "/documents"))
+    import_route = "/import" in endpoint_lower or endpoint_lower.rstrip("/").endswith("import")
+    download_route = any(token in endpoint_lower for token in ("/download", "/downloads", "/file", "/files", "/attachment", "/export"))
+    archive_route = any(token in endpoint_lower for token in ("/archive", "/zip", "/tar", "/extract", "/unpack"))
+    multipart = "multipart/form-data" in haystack or "multipart/form-data" in str(details.get("content_type") or "").lower()
+    generic_file_markers = _contains_any(haystack, ("upload", "attachment", "avatar", "document", "multipart", "filename", "file_name", "contenttype", "content_type", "import"))
+    file_fields = [original for normalized, original in normalized_fields.items() if normalized in file_input_norm]
+    path_fields_structured = [original for normalized, original in normalized_fields.items() if normalized in path_norm]
+    filename_fields = [original for normalized, original in normalized_fields.items() if normalized in filename_norm]
+
+    if generic_file_markers or file_fields or multipart or upload_route or import_route:
+        support: list[dict[str, Any]] = []
+        if generic_file_markers:
+            support.append({"type": "file_surface", "source": "semantic", "weight": 7, "text": f"File-related markers observed: {', '.join(generic_file_markers[:6])}"})
+        if file_fields:
+            support.append({"type": "file_input", "source": "schema", "weight": 20, "text": f"Structured file input observed: {', '.join(file_fields[:6])}"})
+        elif multipart and upload_route:
+            support.append({"type": "file_input", "source": "http_contract", "weight": 18, "text": "Multipart request semantics are tied to an explicit upload route"})
+        if multipart:
+            support.append({"type": "content_type_field", "source": "http_contract", "weight": 7, "text": "multipart/form-data semantics are present"})
+        elif "content_type" in haystack or "contenttype" in haystack:
+            support.append({"type": "content_type_field", "source": "semantic", "weight": 3, "text": "Content-Type metadata is present; this does not by itself establish file upload"})
+        if write_method and (upload_route or file_fields or multipart):
+            support.append({"type": "upload_operation", "source": "endpoint", "weight": 18, "text": f"{method} operation is tied to an upload-capable route or structured file input"})
+        if write_method and import_route:
+            support.append({"type": "import_operation", "source": "endpoint", "weight": 18, "text": f"{method} operation is tied to an import route"})
+        if write_method:
+            support.append({"type": "write_method", "source": "method", "weight": 5, "text": f"State-changing method observed: {method}"})
+        emit("file_upload", "file_validation", 18, support, [],
              ["Allowed file types and size", "Storage and serving behavior", "Server-generated filenames and content disposition"],
-             ["candidate-file-surface", "candidate-file-validation"],
-             "A file upload or import surface is present; server-side validation and storage behavior are unknown.")
-        path_markers = _contains_any(haystack, ("filepath", "file_path", "path", "directory", "folder", "download"))
-        if path_markers:
-            support2 = support[:2] + [{"type": "path_input", "source": "schema", "weight": 16, "text": f"Path-like input markers observed: {', '.join(path_markers[:5])}"}]
-            emit("path_traversal", "path_construction", 18, support2, [],
-                 ["Path canonicalization", "Base-directory enforcement", "Whether user input reaches filesystem APIs"],
-                 ["candidate-path-input", "candidate-file-path"],
-                 "A file-related operation accepts path-like input; filesystem reachability and canonicalization are unknown.")
+             ["candidate-file-surface", "candidate-file-validation", "admission-file-input-operation"],
+             "File-handling evidence is retained for correlation; promotion requires an actual file input plus upload/import operation.")
+
+    generic_path_markers = _contains_any(haystack, ("filepath", "file_path", "path", "directory", "folder", "download", "archive", "extract"))
+    if generic_path_markers or path_fields_structured or download_route or archive_route:
+        path_support: list[dict[str, Any]] = []
+        if generic_path_markers:
+            path_support.append({"type": "path_surface", "source": "semantic", "weight": 5, "text": f"Path/file markers observed: {', '.join(generic_path_markers[:6])}"})
+        if filename_fields:
+            path_support.append({"type": "filename_field", "source": "schema", "weight": 20, "text": f"Structured filename input observed: {', '.join(filename_fields[:5])}"})
+        structured_nonfilename = [value for value in path_fields_structured if value not in filename_fields]
+        if structured_nonfilename:
+            path_support.append({"type": "path_parameter", "source": "schema", "weight": 20, "text": f"Structured path input observed: {', '.join(structured_nonfilename[:5])}"})
+        if any(re.sub(r"[^a-z0-9]", "", value.lower()) == "storagepath" for value in path_fields_structured):
+            path_support.append({"type": "storage_path", "source": "schema", "weight": 18, "text": "Structured storage path field is client-visible"})
+        if method == "GET" and download_route:
+            path_support.append({"type": "download_operation", "source": "endpoint", "weight": 18, "text": "GET operation is tied to an explicit download/file route"})
+        if archive_route:
+            path_support.append({"type": "archive_operation", "source": "endpoint", "weight": 17, "text": "Archive/extract operation is visible in the endpoint"})
+        if write_method and import_route:
+            path_support.append({"type": "import_operation", "source": "endpoint", "weight": 16, "text": f"{method} import operation may consume a path or archive entry"})
+        if write_method and (upload_route or file_fields or multipart):
+            path_support.append({"type": "upload_operation", "source": "endpoint", "weight": 15, "text": f"{method} upload operation may consume a client-controlled filename"})
+        explicit_file_operation = download_route or archive_route or upload_route or import_route
+        if explicit_file_operation and method in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+            path_support.append({"type": "file_operation", "source": "endpoint_contract", "weight": 10, "text": "Endpoint semantics identify an explicit file-related operation"})
+        emit("path_traversal", "path_construction", 16, path_support, [],
+             ["Path canonicalization", "Base-directory enforcement", "Whether user-controlled path data reaches filesystem APIs"],
+             ["candidate-path-input", "candidate-file-path", "admission-path-input-operation"],
+             "Path/file clues are retained for correlation; promotion requires structured path/filename control plus a file-relevant operation.")
 
     # Information exposure / headers
     disclosure_markers = _contains_any(haystack, ("debug", "internal", "stacktrace", "stack_trace", "exception", "sourceMappingURL", "apikey", "api_key", "secret", "token"))
