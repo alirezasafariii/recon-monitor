@@ -1,0 +1,173 @@
+name: Publish Recon Monitor v8.1.1 Command Center hotfix
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v811-command-center.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply Command Center navigation hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          dashboard = Path('app/dashboard.py')
+          text = dashboard.read_text(encoding='utf-8')
+
+          old = '''    nav = []\n    primary_hrefs={"recon":"/recon","analysis":"/analysis","findings":"/potential-findings","alerts":"/alerts"}\n'''
+          new = '''    nav = []\n    command_active = active_path == "/"\n    nav.append(\n        f"<a class='nav-item{' active' if command_active else ''}' href='/' data-command-center='1'>"\n        f"<span class='nav-icon'>CC</span><span class='nav-group-copy'><strong>Command Center</strong><small>Overview and decision inbox</small></span><b>→</b></a>"\n    )\n    primary_hrefs={"recon":"/recon","analysis":"/analysis","findings":"/potential-findings","alerts":"/alerts"}\n'''
+          if old not in text:
+              raise SystemExit('Expected navigation anchor not found')
+          text = text.replace(old, new, 1)
+
+          old_section = "    section_name='Workspace'\n"
+          new_section = "    section_name='Command Center' if active_path == '/' else 'Workspace'\n"
+          if old_section not in text:
+              raise SystemExit('Expected section_name anchor not found')
+          text = text.replace(old_section, new_section, 1)
+          dashboard.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/test_dashboard_polish_v801.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          marker = '\n\nif __name__ == "__main__":\n'
+          regression = '''\n    def test_command_center_remains_reachable_from_sidebar(self) -> None:\n        page = _layout("Command Center", "<p>body</p>", current_path="/")\n        self.assertIn("class='nav-item active' href='/' data-command-center='1'", page)\n        self.assertIn("<strong>Command Center</strong>", page)\n        self.assertIn("<small>Overview and decision inbox</small>", page)\n\n'''
+          if 'test_command_center_remains_reachable_from_sidebar' not in test_text:
+              if marker not in test_text:
+                  raise SystemExit('Test insertion marker not found')
+              test_text = test_text.replace(marker, regression + marker, 1)
+              test_path.write_text(test_text, encoding='utf-8')
+
+          core = Path('app/core.py')
+          core_text = core.read_text(encoding='utf-8')
+          core_text, count = re.subn(r'APP_VERSION = "8\.1\.0"', 'APP_VERSION = "8.1.1"', core_text, count=1)
+          if count != 1:
+              raise SystemExit('APP_VERSION 8.1.0 anchor not found')
+          core.write_text(core_text, encoding='utf-8')
+
+          for name in ['README.md', 'README_FA.md']:
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              s = re.sub(r'^# Recon Monitor 8\.1\.0\s*$', '# Recon Monitor 8.1.1', s, count=1, flags=re.M)
+              p.write_text(s, encoding='utf-8')
+
+          cfg = Path('config.env.example')
+          cfg.write_text(cfg.read_text(encoding='utf-8').replace('8.1.0', '8.1.1'), encoding='utf-8')
+
+          for name in [
+              'tests/test_stability_v451.py',
+              'tests/test_platform_v60.py',
+              'tests/test_workspace_v70.py',
+              'tests/test_safe_validation_v51.py',
+              'tests/test_product_platform_v50.py',
+          ]:
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              if '8.1.0' in s:
+                  p.write_text(s.replace('8.1.0', '8.1.1'), encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          ch = changelog.read_text(encoding='utf-8')
+          entry = '''## 8.1.1 — Command Center Navigation Hotfix\n\n- Restores a permanent **Command Center** entry at the top of the Dashboard sidebar.\n- Keeps `/` reachable after navigating into Recon, Analysis, Potential Findings, Alerts, or advanced tools.\n- Adds a clear active state and section label for Command Center.\n- Adds a regression test so the primary landing workspace cannot silently disappear from navigation again.\n- Database schema remains 16; no migration is required.\n\n'''
+          if '## 8.1.1 — Command Center Navigation Hotfix' not in ch:
+              if ch.startswith('# Changelog\n'):
+                  ch = '# Changelog\n\n' + entry + ch[len('# Changelog\n'):].lstrip('\n')
+              else:
+                  ch = entry + ch
+              changelog.write_text(ch, encoding='utf-8')
+          PY
+
+      - name: Remove one-time publisher and rebuild manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/publish-v811-command-center.yml
+          find . -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find . -type f -name '*.pyc' -delete
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          root = Path('.')
+          excluded_exact = {
+              Path('MANIFEST.sha256'), Path('config.env'), Path('policies/targets.json')
+          }
+          excluded_parts = {'.git', '__pycache__'}
+          excluded_suffixes = ('.pyc', '.db', '.db-wal', '.db-shm', '.log', '.jsonl')
+          rows = []
+          for p in sorted(root.rglob('*')):
+              if not p.is_file():
+                  continue
+              rel = p.relative_to(root)
+              if rel in excluded_exact or any(part in excluded_parts for part in rel.parts):
+                  continue
+              if p.name.startswith('targets.json.backup-') or p.name == '.DS_Store':
+                  continue
+              if any(p.name.endswith(s) for s in excluded_suffixes):
+                  continue
+              digest = hashlib.sha256(p.read_bytes()).hexdigest()
+              rows.append(f'{digest}  {rel.as_posix()}')
+          Path('MANIFEST.sha256').write_text('\n'.join(rows) + '\n', encoding='utf-8')
+          print(f'Manifest entries: {len(rows)}')
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Validate Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test Python 3.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          python tests/integration_runner.py
+
+      - name: Validate Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Test Python 3.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          python tests/integration_runner.py
+
+      - name: Commit clean v8.1.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Release Recon Monitor 8.1.1'
+          git push origin HEAD:main
+
+      - name: Tag and release v8.1.1
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git tag -a v8.1.1 -m 'Recon Monitor 8.1.1'
+          git push origin v8.1.1
+          git archive --format=zip --prefix=recon-monitor-v8.1.1/ HEAD -o recon-monitor-v8.1.1.zip
+          sha256sum recon-monitor-v8.1.1.zip > recon-monitor-v8.1.1.zip.sha256
+          gh release create v8.1.1 recon-monitor-v8.1.1.zip recon-monitor-v8.1.1.zip.sha256 \
+            --repo alirezasafariii/recon-monitor \
+            --title 'Recon Monitor v8.1.1' \
+            --notes 'Command Center navigation hotfix. Restores a permanent Command Center entry in the Dashboard sidebar, adds correct active-state labeling, and includes a regression test. Schema remains 16; no database migration is required.'
