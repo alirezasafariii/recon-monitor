@@ -1,7 +1,4 @@
-# Recon Monitor 8.1.0
-
-
-
+# Recon Monitor 8.1.1
 ## Automatic Private GitHub Updates in 8.1.0
 
 Recon Monitor 8.1.0 adds a private-release update path built around the authenticated GitHub CLI. The default repository is `alirezasafariii/recon-monitor`; credentials stay with `gh`/the operating-system credential store rather than being copied into Recon Monitor configuration.

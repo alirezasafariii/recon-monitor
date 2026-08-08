@@ -63,6 +63,13 @@ class DashboardPolishV801Tests(unittest.TestCase):
             finally:
                 listener.close()
 
+    def test_command_center_remains_reachable_from_sidebar(self) -> None:
+        page = _layout("Command Center", "<p>body</p>", current_path="/")
+        self.assertIn("class='nav-item active' href='/' data-command-center='1'", page)
+        self.assertIn("<strong>Command Center</strong>", page)
+        self.assertIn("<small>Overview and decision inbox</small>", page)
+
+
 
 if __name__ == "__main__":
     unittest.main()

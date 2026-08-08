@@ -581,6 +581,11 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     active_path = {'/alert':'/potential-findings','/asset':'/recon','/js-diff':'/recon','/bug-candidate':'/potential-findings','/bug-candidates':'/potential-findings','/case':'/potential-findings','/signal-alerts':'/alerts'}.get(path_only, path_only)
     login_mode = path_only == '/login'
     nav = []
+    command_active = active_path == "/"
+    nav.append(
+        f"<a class='nav-item{' active' if command_active else ''}' href='/' data-command-center='1'>"
+        f"<span class='nav-icon'>CC</span><span class='nav-group-copy'><strong>Command Center</strong><small>Overview and decision inbox</small></span><b>→</b></a>"
+    )
     primary_hrefs={"recon":"/recon","analysis":"/analysis","findings":"/potential-findings","alerts":"/alerts"}
     for section_id, section, group_icon, hint, links in NAV_SECTIONS:
         href=primary_hrefs[section_id]
@@ -605,7 +610,7 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     parsed_path=urllib.parse.urlsplit(current_path or '/')
     focus_target=str((urllib.parse.parse_qs(parsed_path.query).get('target') or [''])[0])
     focus_chip=f"<span class='focus-chip'><small>Focus</small><strong>{_esc(focus_target)}</strong></span>" if focus_target else ""
-    section_name='Workspace'
+    section_name='Command Center' if active_path == '/' else 'Workspace'
     for _,section,_,_,links in NAV_SECTIONS:
         if any(active_path == href or (href != '/' and active_path.startswith(href)) for href,_,_ in links):
             section_name=section; break

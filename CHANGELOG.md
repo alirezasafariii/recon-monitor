@@ -1,3 +1,11 @@
+## 8.1.1 — Command Center Navigation Hotfix
+
+- Restores a permanent **Command Center** entry at the top of the Dashboard sidebar.
+- Keeps `/` reachable after navigating into Recon, Analysis, Potential Findings, Alerts, or advanced tools.
+- Adds a clear active state and section label for Command Center.
+- Adds a regression test so the primary landing workspace cannot silently disappear from navigation again.
+- Database schema remains 16; no migration is required.
+
 # 8.1.0 — Private GitHub Updates & Safer Upgrade Lifecycle
 
 - Added automatic update discovery from authenticated private GitHub Releases using the `gh` CLI.
