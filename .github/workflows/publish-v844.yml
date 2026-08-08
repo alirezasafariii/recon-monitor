@@ -22,6 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/v844_abstention_consistency_patch.py
+          python scripts/v844_test_contract_fix.py
           grep -q 'APP_VERSION = "8.4.4"' app/core.py
           grep -q 'SCHEMA_VERSION = 18' app/core.py
           grep -q 'REASONING_ENGINE_VERSION = "5.2.1"' app/security_reasoning.py
@@ -81,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           git clean -fdX
-          git rm .github/workflows/publish-v844.yml scripts/v844_abstention_consistency_patch.py
+          git rm .github/workflows/publish-v844.yml scripts/v844_abstention_consistency_patch.py scripts/v844_test_contract_fix.py
           rmdir scripts 2>/dev/null || true
           git add -A
           git ls-files | grep -v '^MANIFEST.sha256$' | LC_ALL=C sort | while IFS= read -r f; do
