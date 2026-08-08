@@ -40,7 +40,7 @@ class BugCandidateV41Tests(unittest.TestCase):
             paths, db, alert_id = self.make_db(td)
             try:
                 result = run_analysis(paths, db, 'run-candidate', 'example.com')
-                self.assertEqual(db.meta_get('schema_version'), '16')
+                self.assertEqual(db.meta_get('schema_version'), '17')
                 rows = db.all("SELECT * FROM bug_candidates WHERE analysis_id=? AND alert_id=?", (result['analysis_id'], alert_id))
                 families = {str(row['bug_family']) for row in rows}
                 self.assertIn('broken_object_authorization', families)

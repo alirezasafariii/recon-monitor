@@ -18,6 +18,7 @@ from bug_candidates import ANALYST_DECISIONS, FEEDBACK_REASON_CODES, BUG_FAMILIE
 from candidate_intelligence import candidate_calibration, candidate_evaluation
 from behavioral_intelligence import behavioral_summary
 from security_reasoning import evidence_trace, family_calibration_report, reasoning_summary
+from analysis_audit import build_evidence_dossier
 from safe_validation import (
     FEEDBACK_DECISIONS as VALIDATION_FEEDBACK_DECISIONS, FEEDBACK_REASONS as VALIDATION_FEEDBACK_REASONS,
     VALIDATION_LEVELS, approve_validation_plan, create_validation_plan, execute_validation_plan,
@@ -340,6 +341,53 @@ def _candidate_card(candidate: Mapping[str, Any], compact: bool = False) -> str:
     details='' if compact else f"<div class='candidate-reasoning'><div><strong>Why it matters</strong><ul>{why}</ul></div><div><strong>Why it may be wrong</strong><ul>{caveat or '<li>No contradicting evidence recorded.</li>'}</ul></div><div><strong>What is missing</strong><ul>{missing_text or '<li>No missing evidence recorded.</li>'}</ul></div></div>"
     next_action=str(row.get('safe_next_action') or 'Review the evidence and confirm the expected security boundary.')
     return f"<article class='candidate-card'><div class='candidate-accent tone-{_tone(row.get('candidate_state'))}'></div><div class='candidate-main'><div class='candidate-heading'><div><div class='candidate-kicker'>{_pill(row.get('candidate_state'))}{_pill(row.get('analyst_decision'))}<span>{_esc(row.get('target'))}</span></div><h3><a href='{link}'>{_esc(row.get('title'))}</a></h3><code>{_esc(source)}</code></div><div class='investigation-score'><span>Investigation</span><strong>{parse_int(row.get('investigation_value',row.get('priority_score')),0)}</strong></div></div>{_score_triad(row.get('calibrated_likelihood',row.get('likelihood_score')),row.get('evidence_strength'),row.get('impact_potential'),row.get('observation_quality'),row.get('exploitability_confidence'))}{details}<div class='next-step'><span>Next best action</span><p>{_esc(next_action)}</p></div></div><a class='candidate-open' href='{link}'>Review →</a></article>"
+
+
+def _audit_evidence_item(item: Mapping[str, Any], polarity: str) -> str:
+    snapshot = item.get("snapshot") if isinstance(item.get("snapshot"), Mapping) else {}
+    documents = snapshot.get("documents") if isinstance(snapshot, Mapping) and isinstance(snapshot.get("documents"), Mapping) else {}
+    doc_html = []
+    for name, wrapped in documents.items():
+        wrapped = wrapped if isinstance(wrapped, Mapping) else {}
+        digest = str(wrapped.get("sha256") or "")
+        data = wrapped.get("data", {})
+        doc_html.append(
+            f"<details class='audit-document'><summary>{_esc(str(name).replace('_',' ').title())}<span class='faint'>sha256 { _esc(digest[:12]) }</span></summary>"
+            f"<pre>{_esc(json_dumps(data,pretty=True))}</pre></details>"
+        )
+    verified = bool(item.get("snapshot_verified"))
+    icon = "+" if polarity == "support" else "−"
+    tone = "success" if polarity == "support" else "danger"
+    meta = " · ".join(x for x in [
+        str(item.get("source_kind") or "unknown source"),
+        str(item.get("source_tool") or ""),
+        f"trust {parse_int(item.get('trust_score'),0)}",
+        str(item.get("directness") or ""),
+    ] if x)
+    lineage = f"{item.get('source_run_id','')} → {item.get('source_group','')} → {item.get('root_fingerprint','')}"
+    document_body = ''.join(doc_html)
+    if not document_body:
+        document_body = '<p class="muted small">No structured source document snapshot was available for this evidence record.</p>'
+    return (
+        f"<article class='evidence-item'><div class='evidence-icon tone-{tone}'>{icon}</div><div style='min-width:0;flex:1'>"
+        f"<div class='split'><strong>{_esc(item.get('evidence_type') or 'evidence')}</strong>{_pill('snapshot verified' if verified else 'snapshot unavailable','success' if verified else 'amber')}</div>"
+        f"<div>{_esc(item.get('summary') or '')}</div><small class='faint'>{_esc(meta)}</small>"
+        f"<details style='margin-top:8px'><summary>Source, lineage & raw snapshot</summary><div class='kv' style='margin-top:10px'>"
+        f"<strong>Evidence ID</strong><code>{_esc(item.get('evidence_id'))}</code><strong>Root</strong><code>{_esc(item.get('root_fingerprint'))}</code>"
+        f"<strong>Run lineage</strong><code>{_esc(lineage)}</code><strong>Integrity</strong><code>{_esc(item.get('integrity_hash'))}</code>"
+        f"<strong>Raw reference</strong><code>{_esc(item.get('raw_reference'))}</code></div>{document_body}</details>"
+        f"</div></article>"
+    )
+
+
+def _audit_exclusion_item(item: Mapping[str, Any]) -> str:
+    signal = item.get("signal") if isinstance(item.get("signal"), Mapping) else {}
+    return (
+        "<article class='evidence-item'><div class='evidence-icon tone-amber'>×</div><div style='min-width:0;flex:1'>"
+        f"<strong>{_esc(item.get('reason_code','excluded').replace('_',' '))}</strong><div>{_esc(item.get('reason') or '')}</div>"
+        f"<small class='faint'>root {_esc(item.get('root_fingerprint'))} · {_esc(item.get('polarity'))}</small>"
+        f"<details style='margin-top:8px'><summary>Excluded signal</summary><pre>{_esc(json_dumps(signal,pretty=True))}</pre></details></div></article>"
+    )
 
 
 def _attention_item(label: str, value: Any, detail: str, href: str, tone: str = 'info') -> str:
@@ -738,13 +786,8 @@ NAV_SECTIONS = [
         ("/smart-recon", "Smart recon planner", "SP"), ("/browser-capture", "Browser capture", "BC"),
         ("/lifecycle", "Lifecycle", "LC"),
     ]),
-    ("analysis", "02 · Analysis", "02", "Understand the findings", [
-        ("/analysis", "Analysis workspace", "AN"), ("/behavioral-intelligence", "Behavior changes", "BI"),
-        ("/differential-intelligence", "Differential analysis", "DI"), ("/evidence-gaps", "Evidence gaps", "EG"),
-        ("/security-reasoning", "Security reasoning", "SR"), ("/semantic-intelligence", "Semantic intelligence", "SI"),
-        ("/auth-contexts", "Authentication contexts", "AC"), ("/hypotheses", "Hypotheses", "HY"),
-        ("/clusters", "Similarity clusters", "CL"), ("/dataflows", "JS data flows", "DF"),
-        ("/analysis-quality", "Analysis quality", "AQ"), ("/security-stories", "Security stories", "SS"),
+    ("analysis", "02 · Analysis", "02", "Understand what the evidence means", [
+        ("/analysis", "Analysis", "AN"),
     ]),
     ("findings", "03 · Potential Findings", "03", "Review probable bugs", [
         ("/potential-findings", "Potential findings", "PF"), ("/bug-candidates", "Potential findings", "PF"),
@@ -787,7 +830,7 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     body = _inject_csrf_inputs(body, csrf)
     csrf_json = json.dumps(csrf)
     path_only = urllib.parse.urlsplit(current_path or "/").path
-    active_path = {'/alert':'/potential-findings','/asset':'/recon','/js-diff':'/recon','/bug-candidate':'/potential-findings','/bug-candidates':'/potential-findings','/case':'/potential-findings','/signal-alerts':'/alerts'}.get(path_only, path_only)
+    active_path = {'/alert':'/potential-findings','/asset':'/recon','/js-diff':'/recon','/bug-candidate':'/potential-findings','/bug-candidates':'/potential-findings','/case':'/potential-findings','/signal-alerts':'/alerts','/behavioral-intelligence':'/analysis','/differential-intelligence':'/analysis','/evidence-gaps':'/analysis','/security-reasoning':'/analysis','/semantic-intelligence':'/analysis','/auth-contexts':'/analysis','/hypotheses':'/analysis','/clusters':'/analysis','/dataflows':'/analysis','/analysis-quality':'/analysis','/security-stories':'/analysis'}.get(path_only, path_only)
     login_mode = path_only == '/login'
     nav = []
     command_active = active_path == "/"
@@ -846,7 +889,7 @@ input,select,textarea{{background:var(--surface-2);color:var(--text);border:1px 
 .pill{{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:830;text-transform:uppercase;letter-spacing:.045em;border:1px solid currentColor;white-space:nowrap}} .pill-dot{{width:5px;height:5px;border-radius:50%;background:currentColor}} .pill-danger{{color:var(--danger);background:rgba(255,100,124,.09)}} .pill-orange{{color:var(--orange);background:rgba(255,152,89,.08)}} .pill-amber{{color:var(--amber);background:rgba(245,196,81,.08)}} .pill-success{{color:var(--success);background:rgba(85,217,138,.08)}} .pill-info,.pill-blue{{color:var(--info);background:rgba(97,184,255,.08)}} .pill-purple{{color:var(--purple);background:rgba(189,140,255,.08)}} .pill-neutral{{color:var(--muted);background:rgba(141,154,184,.07)}} .tag,.badge{{display:inline-flex;padding:3px 8px;border:1px solid var(--border);border-radius:999px;color:var(--muted);background:var(--surface-2);font-size:11px;margin:2px}}
 .tone-danger{{color:var(--danger)!important}} .tone-orange{{color:var(--orange)!important}} .tone-amber{{color:var(--amber)!important}} .tone-success{{color:var(--success)!important}} .tone-info,.tone-blue{{color:var(--info)!important}} .tone-purple{{color:var(--purple)!important}} .sev{{font-weight:800}} .critical{{color:var(--danger)}} .high{{color:var(--orange)}} .medium{{color:var(--amber)}} .low{{color:var(--success)}} .info{{color:var(--info)}}
 .queue-card{{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;padding:13px;border-bottom:1px solid var(--border);align-items:start}} .queue-card:last-child{{border-bottom:0}} .risk-badge{{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--border);font-weight:850;font-size:16px}} .queue-main strong{{display:block;margin-bottom:3px}} .queue-meta{{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--faint);font-size:11px;margin-top:7px}} .queue-action{{font-size:11px;color:var(--brand-2);white-space:nowrap}}
-.pipeline{{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}} .pipeline-step{{padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px}} .pipeline-step span{{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em}} .pipeline-step strong{{display:block;font-size:22px;margin-top:4px}} .evidence-feed{{display:grid;gap:8px}} .evidence-item{{display:grid;grid-template-columns:36px 1fr;gap:10px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px}} .evidence-icon{{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--surface-3);font-size:10px;font-weight:850;color:var(--brand-2)}}
+.pipeline{{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}} .pipeline-step{{padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px}} .pipeline-step span{{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em}} .pipeline-step strong{{display:block;font-size:22px;margin-top:4px}} .evidence-feed{{display:grid;gap:8px}} .evidence-item{{display:grid;grid-template-columns:36px 1fr;gap:10px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px}} .evidence-icon{{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--surface-3);font-size:10px;font-weight:850;color:var(--brand-2)}} .audit-document{{margin-top:8px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.015);overflow:hidden}} .audit-document summary{{display:flex;justify-content:space-between;gap:12px;padding:9px 11px;font-size:12px}} .audit-document pre{{margin:0;border:0;border-top:1px solid var(--border);border-radius:0;max-height:420px}}
 .risk-meter{{padding:15px;border-radius:13px;background:var(--surface-2);border:1px solid var(--border)}} .risk-score{{font-size:36px;font-weight:900;letter-spacing:-.06em}} .risk-track{{height:7px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:9px}} .risk-track span{{display:block;height:100%;background:currentColor;border-radius:inherit}} .risk-scale{{display:flex;justify-content:space-between;color:var(--faint);font-size:10px;margin-top:6px}} .confidence{{display:flex;align-items:center;gap:9px;min-width:115px}} .confidence>span{{width:36px;font-weight:750}} .confidence>div{{height:5px;flex:1;background:var(--border);border-radius:99px;overflow:hidden}} .confidence i{{display:block;height:100%;background:currentColor}}
 .workflow-steps{{display:flex;align-items:flex-start;overflow:auto;padding:4px 0 10px}} .flow-step{{position:relative;flex:1;min-width:90px;text-align:center;color:var(--faint)}} .flow-step:not(:last-child)::after{{content:'';position:absolute;top:13px;left:58%;right:-42%;height:2px;background:var(--border)}} .flow-step span{{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;margin:auto;background:var(--surface-3);border:2px solid var(--border);font-size:10px;font-weight:800}} .flow-step small{{display:block;margin-top:6px;text-transform:capitalize}} .flow-step.done span{{border-color:var(--success);color:var(--success)}} .flow-step.done:not(:last-child)::after{{background:var(--success)}} .flow-step.current span{{border-color:var(--brand);color:var(--brand);box-shadow:0 0 0 4px rgba(124,156,255,.1)}}
 .kv{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:9px 14px}} .kv strong{{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}} .section-tabs{{display:flex;gap:6px;overflow:auto;border-bottom:1px solid var(--border);margin:22px 0 14px}} .section-tabs a{{padding:8px 10px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}} .section-tabs a:hover{{color:var(--text);border-color:var(--brand)}} details{{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden}} summary{{cursor:pointer;padding:12px 14px;font-weight:750}} details>pre,details>.details-body{{border-top:1px solid var(--border);margin:0;padding:14px}}
@@ -1518,32 +1561,37 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_html('Recon raw data',common+raw_tiles+controls+table)
 
     def analysis_engine(self) -> None:
-        p=self.query();q=str((p.get('q')or[''])[0]).strip();target=str((p.get('target')or[''])[0]);severity=str((p.get('severity')or[''])[0]);sort=str((p.get('sort')or['score'])[0]);min_conf=parse_int((p.get('min_confidence')or[0])[0],0,0,100);min_score=parse_int((p.get('min_score')or[0])[0],0,0,100)
         db=self.db()
         try:
-            latest=db.one("SELECT * FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
-            runs=db.all("SELECT * FROM analysis_runs ORDER BY started_at DESC LIMIT 30")
-            where=['r.analysis_id=?'];args:list[Any]=[latest['id']] if latest else ['']
-            if target:where.append('a.target=?');args.append(target)
-            if severity:where.append('a.severity=?');args.append(severity)
-            if min_conf:where.append('r.confidence>=?');args.append(min_conf)
-            if min_score:where.append('r.adjusted_score>=?');args.append(min_score)
-            if q:where.append('(a.title LIKE ? OR a.item LIKE ? OR r.hypothesis LIKE ? OR r.business_context LIKE ? OR r.next_action LIKE ?)');args.extend([f'%{q}%']*5)
-            order={'score':'r.adjusted_score DESC,r.confidence DESC','confidence':'r.confidence DESC,r.adjusted_score DESC','recent':'a.last_seen DESC,r.adjusted_score DESC','severity':"CASE a.severity WHEN 'CRITICAL' THEN 5 WHEN 'HIGH' THEN 4 WHEN 'MEDIUM' THEN 3 WHEN 'LOW' THEN 2 ELSE 1 END DESC,r.adjusted_score DESC"}.get(sort,'r.adjusted_score DESC,r.confidence DESC')
-            results=db.all(f"SELECT r.*,a.title,a.item,a.status,a.severity,a.target,a.last_seen FROM analysis_results r JOIN alerts a ON a.id=r.alert_id WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 500",tuple(args)) if latest else []
-            targets=[str(r[0]) for r in db.all("SELECT DISTINCT a.target FROM analysis_results r JOIN alerts a ON a.id=r.alert_id WHERE r.analysis_id=? ORDER BY a.target",(latest['id'],))] if latest else []
-        finally: db.close()
-        summary=_json(latest['summary_json'],{}) if latest else {}
-        cards=''.join([_metric_card('Analyzed signals',summary.get('alerts',0),'Latest analysis run','blue','/hypotheses'),_metric_card('Potential findings',summary.get('bug_candidates',{}).get('total',0),f"{summary.get('bug_candidates',{}).get('strong_candidates',0)} high-confidence",'danger','/potential-findings'),_metric_card('Similarity clusters',summary.get('clusters',0),f"{summary.get('duplicate_members',0)} duplicate members",'purple','/clusters'),_metric_card('Evidence gaps',summary.get('evidence_gaps',summary.get('missing_evidence',0)),'Items requiring more observations','amber','/evidence-gaps'),_metric_card('Adjusted score',summary.get('average_adjusted_score',0),f"Original average {summary.get('average_original_score',0)}",'orange','/analysis-quality')])
-        sort_pairs=[('score','Analysis score'),('confidence','Confidence'),('severity','Severity'),('recent','Recently seen')]
-        fields=f"<label class='filter-wide'>Search analyzed findings<input name='q' value='{_esc(q)}' placeholder='Signal, endpoint, hypothesis, context, next action…'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Severity{_select('severity',['CRITICAL','HIGH','MEDIUM','LOW','INFO'],severity,'Any severity')}</label><label>Confidence ≥<input type='number' name='min_confidence' min='0' max='100' value='{min_conf or ''}'></label><label>Score ≥<input type='number' name='min_score' min='0' max='100' value='{min_score or ''}'></label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Analysis score')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Severity':severity,'Confidence ≥':min_conf,'Score ≥':min_score,'Sort':dict(sort_pairs).get(sort,'') if sort!='score' else ''},'/analysis',title='Analysis search & filters',result_count=len(results))
-        rows=''.join(f"<tr><td><a href='/alert?id={int(r['alert_id'])}'>#{int(r['alert_id'])}</a></td><td>{_esc(r['target'])}</td><td>{_pill(r['severity'])}</td><td>{int(r['original_score'])} → <strong>{int(r['adjusted_score'])}</strong></td><td>{_confidence(r['confidence'])}</td><td>{_esc(r['hypothesis'])}</td><td>{_esc(r['business_context'])}</td><td>{_esc(r['next_action'])}</td></tr>" for r in results)
-        run_rows=''.join(f"<tr><td><code>{_esc(r['id'])}</code></td><td><code>{_esc(r['source_run_id'])}</code></td><td>{_esc(r['mode'])}</td><td>{_esc(r['engine_version'])} / {_esc(r['rule_version'])}</td><td>{_pill(r['status'])}</td><td>{_esc(r['finished_at'] or r['started_at'])}</td></tr>" for r in runs)
-        header=_page_header('Analysis','All recon observations are interpreted here. Engines stay behind the scenes; you filter the resulting signals, evidence and hypotheses.',"<a class='button secondary' href='/analysis-quality'>Quality & calibration</a><a class='button' href='/potential-findings'>Potential findings</a>",'02 · Understand')
-        presets=_quick_views([('All analyzed','/analysis',not any([q,target,severity,min_conf,min_score]) and sort=='score'),('High confidence','/analysis?min_confidence=80&sort=confidence',min_conf>=80),('High score','/analysis?min_score=70&sort=score',min_score>=70),('High severity','/analysis?severity=HIGH&sort=severity',severity=='HIGH'),('Recent','/analysis?sort=recent',sort=='recent')])
-        body=header+f"<div class='metrics-grid'>{cards}</div>"+presets+controls+f"<section class='panel'><div class='panel-head'><h3>Analyzed findings</h3><span class='muted small'>{len(results)} shown</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Signal</th><th>Target</th><th>Severity</th><th>Score</th><th>Confidence</th><th>Hypothesis</th><th>Context</th><th>Next action</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No analysis results match the current filters</td></tr>'}</tbody></table></div></section><details style='margin-top:16px'><summary>Analysis run history</summary><div class='table-wrap' style='margin-top:10px'><table><thead><tr><th>Analysis ID</th><th>Source run</th><th>Mode</th><th>Versions</th><th>Status</th><th>Finished</th></tr></thead><tbody>{run_rows or '<tr><td colspan=6>No analysis runs</td></tr>'}</tbody></table></div></details>"
-        self.send_html('Analysis',body)
+            latest=db.one("SELECT * FROM analysis_runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+            runs=db.all("SELECT id,source_run_id,target,engine_version,rule_version,status,started_at,finished_at FROM analysis_runs ORDER BY started_at DESC LIMIT 12")
+            analysis_id=str(latest['id']) if latest else ''
+            summary=_json(latest['summary_json'],{}) if latest else {}
+            evidence_count=int((db.one("SELECT COUNT(*) count FROM evidence_records WHERE analysis_id=?",(analysis_id,)) or {'count':0})['count']) if analysis_id else 0
+            candidate_counts=db.one("SELECT COUNT(*) total,SUM(candidate_state='strong_candidate') strong,SUM(candidate_state='insufficient_evidence') insufficient,ROUND(AVG(observation_quality),1) observation,ROUND(AVG(evidence_coverage),1) coverage FROM bug_candidates WHERE analysis_id=?",(analysis_id,)) if analysis_id else None
+            quality_row=db.one("SELECT health_score,metrics_json,created_at FROM engine_quality_snapshots WHERE analysis_id=? ORDER BY id DESC LIMIT 1",(analysis_id,)) if analysis_id else None
+        finally:
+            db.close()
+        total=int(candidate_counts['total'] or 0) if candidate_counts else 0
+        strong=int(candidate_counts['strong'] or 0) if candidate_counts else 0
+        insufficient=int(candidate_counts['insufficient'] or 0) if candidate_counts else 0
+        observation=float(candidate_counts['observation'] or 0) if candidate_counts else 0
+        coverage=float(candidate_counts['coverage'] or 0) if candidate_counts else 0
+        health=int(quality_row['health_score'] or 0) if quality_row else round((observation+coverage)/2) if candidate_counts else 0
+        analyzed=parse_int(summary.get('alerts'),0) if latest else 0
+        header=_page_header('Analysis','The intelligence engine works behind the scenes. This page shows health only; evidence and reasoning are revealed on-demand inside each Potential Finding.',"<a class='button' href='/potential-findings'>Review Potential Findings</a>",'02 · Understand')
+        state=_pill('healthy' if latest and health>=70 else 'limited evidence' if latest else 'not run','success' if latest and health>=70 else 'amber')
+        cards="<div class='metrics-grid'>"+''.join([
+            _metric_card('Analyzed observations',analyzed,'Latest completed analysis','blue'),
+            _metric_card('Evidence records',evidence_count,'Provenance-linked evidence used by reasoning','purple'),
+            _metric_card('Potential findings',total,f'{strong} mature enough for priority review','orange','/potential-findings'),
+            _metric_card('Insufficient evidence',insufficient,'Held back rather than over-claimed','amber'),
+            _metric_card('Analysis health',f'{health}%',f'Observation quality {observation:.0f}% · coverage {coverage:.0f}%','success' if health>=70 else 'amber'),
+        ])+"</div>"
+        status=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Invisible Security Intelligence Core</h3>{state}</div><div class='panel-body'><div class='callout'><strong>Evidence-first, audit-on-demand</strong><span>Correlation, hypothesis competition, falsification, calibration, evidence deduplication and quality gates remain internal. Every promoted conclusion must retain traceable source evidence and an immutable audit snapshot.</span></div></div></section>"
+        run_rows=''.join(f"<tr><td><code>{_esc(r['id'])}</code></td><td><code>{_esc(r['source_run_id'])}</code></td><td>{_esc(r['target'])}</td><td>{_esc(r['engine_version'])} / {_esc(r['rule_version'])}</td><td>{_pill(r['status'])}</td><td>{_esc(r['finished_at'] or r['started_at'])}</td></tr>" for r in runs)
+        history=f"<details style='margin-top:16px'><summary>Analysis run history</summary><div class='table-wrap' style='margin-top:10px'><table><thead><tr><th>Analysis</th><th>Source run</th><th>Target</th><th>Engine / rules</th><th>Status</th><th>Finished</th></tr></thead><tbody>{run_rows or '<tr><td colspan=6>No analysis runs</td></tr>'}</tbody></table></div></details>"
+        self.send_html('Analysis',header+cards+status+history)
 
     def bug_candidates(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); family=str((p.get('family') or [''])[0]); state=str((p.get('state') or [''])[0]); decision=str((p.get('decision') or [''])[0]); display=str((p.get('display') or ['cards'])[0]); view=str((p.get('view') or ['actionable'])[0])
@@ -1608,30 +1656,54 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if not row: self.send_html('Not found',_empty('Bug candidate not found'),404); return
             candidate=dict(row)
             alert=db.one("SELECT id,title,item,severity,status,risk_score FROM alerts WHERE id=?",(candidate['alert_id'],)) if candidate['alert_id'] is not None else None
-            analysis=db.one("SELECT * FROM analysis_runs WHERE id=?",(candidate['analysis_id'],))
-            boundary_row=db.one("SELECT * FROM authentication_boundary_diffs WHERE analysis_id=? AND endpoint=? ORDER BY confidence DESC LIMIT 1",(candidate['analysis_id'],candidate['endpoint'])) if candidate.get('endpoint') else None
-            shape_row=db.one("SELECT * FROM response_shape_diffs WHERE analysis_id=? AND endpoint=? ORDER BY confidence DESC LIMIT 1",(candidate['analysis_id'],candidate['endpoint'])) if candidate.get('endpoint') else None
-            boundary_diff=dict(boundary_row) if boundary_row else {}
-            shape_diff=dict(shape_row) if shape_row else {}
-            protocol_findings=[dict(r) for r in db.all("SELECT * FROM protocol_findings WHERE analysis_id=? AND entity=? ORDER BY confidence DESC",(candidate['analysis_id'],candidate['endpoint']))] if candidate.get('endpoint') else []
-            identity_relations=[dict(r) for r in db.all("SELECT * FROM identity_relations WHERE analysis_id=? AND (source_value=? OR destination_value=?) ORDER BY confidence DESC LIMIT 100",(candidate['analysis_id'],candidate['endpoint'],candidate['endpoint']))] if candidate.get('endpoint') else []
-            reasoning_bundle=evidence_trace(db,candidate_id)
+            dossier=build_evidence_dossier(db,candidate_id)
         finally: db.close()
-        supporting=_json(candidate['supporting_evidence_json'],[]); contradicting=_json(candidate['contradicting_evidence_json'],[]); missing=_json(candidate['missing_evidence_json'],[]); rules=_json(candidate['rule_ids_json'],[]); quality=_json(candidate.get('quality_explanation_json','{}'),{}); groups=_json(candidate.get('evidence_groups_json','{}'),{}); reasoning=reasoning_bundle.get('reasoning',{}); ranked_families=reasoning_bundle.get('family_rankings',[]); evidence_records=reasoning_bundle.get('evidence',[]); shadow_rules=reasoning_bundle.get('shadow_rules',[])
-        actions="<a class='button ghost' href='/bug-candidates'>← All candidates</a>"+(f"<a class='button secondary' href='/alert?id={int(candidate['alert_id'])}'>Open alert</a>" if candidate['alert_id'] is not None else '')
-        header=_breadcrumb(('Workspace','/workbench'),('Bug candidates','/bug-candidates'),'Candidate detail')+_page_header(candidate['title'],candidate['summary'],actions,f"{candidate['target']} · {candidate['bug_family']}")
-        scores="<div class='metrics-grid'>"+_metric_card('Calibrated likelihood',f"{candidate.get('calibrated_likelihood',candidate['likelihood_score'])}%",'Family ranking plus historical calibration','orange')+_metric_card('Evidence strength',f"{candidate['evidence_strength']}%",'Independent provenance-linked evidence','blue')+_metric_card('Exploitability confidence',f"{candidate.get('exploitability_confidence',0)}%",'Evidence that the pattern is reachable and practically relevant','amber')+_metric_card('Evidence coverage',f"{candidate.get('evidence_coverage',0)}%",'Required, supporting and falsification coverage','purple')+_metric_card('Observation quality',f"{candidate.get('observation_quality',0)}%",'Reliability and completeness of the underlying observation','success')+_metric_card('Impact potential',f"{candidate['impact_potential']}%",'Potential severity if confirmed','danger')+_metric_card('Investigation value',candidate.get('investigation_value',candidate['priority_score']),'Review value after calibration and coverage','purple')+"</div>"
-        support_html=''.join(f"<div class='evidence-item'><div class='evidence-icon'>+</div><div><strong>{_esc(x.get('type','evidence'))}</strong><div>{_esc(x.get('text',''))}</div><small class='faint'>{_esc(x.get('source',''))} · weight {_esc(x.get('weight',0))}</small></div></div>" for x in supporting) or _empty('No supporting evidence')
-        against_html=''.join(f"<div class='evidence-item'><div class='evidence-icon'>−</div><div><strong>{_esc(x.get('type','evidence'))}</strong><div>{_esc(x.get('text',''))}</div><small class='faint'>{_esc(x.get('source',''))} · weight {_esc(x.get('weight',0))}</small></div></div>" for x in contradicting) or _empty('No contradicting evidence','Absence of contradicting evidence does not confirm the candidate.')
-        missing_html=''.join(f"<li>{_esc(x)}</li>" for x in missing) or '<li>No missing-evidence checklist recorded</li>'
+        supporting=dossier['supporting']; contradicting=dossier['contradicting']; excluded=dossier['excluded']; groups=dossier['groups']; reasoning=dossier['reasoning']; ranked_families=dossier['family_rankings']; confidence=dossier['confidence']; integrity=dossier['integrity']; timeline=dossier['timeline']; history=dossier['history']; versions=dossier['versions']
+        missing=_json(candidate['missing_evidence_json'],[]) or [str(x.get('fact')) for x in _json(candidate.get('unknowns_json','[]'),[]) if isinstance(x,Mapping) and x.get('fact')]
+        actions="<a class='button ghost' href='/potential-findings'>← Potential Findings</a>"+(f"<a class='button secondary' href='/alert?id={int(candidate['alert_id'])}'>Open source alert</a>" if candidate['alert_id'] is not None else '')
+        header=_breadcrumb(('Potential Findings','/potential-findings'),'Evidence dossier')+_page_header(candidate['title'],candidate['summary'],actions,f"{candidate['target']} · {candidate['bug_family']} · UNVERIFIED")
+        analysis_quality=parse_int(confidence.get('analysis_quality'),0)
+        scores="<div class='metrics-grid'>"+''.join([
+            _metric_card('Likelihood',f"{candidate.get('calibrated_likelihood',candidate['likelihood_score'])}%",'Calibrated hypothesis likelihood — not confirmation','orange'),
+            _metric_card('Evidence strength',f"{candidate['evidence_strength']}%",f"{len(groups)} independent source group(s)",'blue'),
+            _metric_card('Analysis quality',f"{analysis_quality}%",'Observation quality plus evidence coverage','success' if analysis_quality>=70 else 'amber'),
+            _metric_card('Investigation value',candidate.get('investigation_value',candidate['priority_score']),'Priority for analyst review','purple'),
+        ])+"</div>"
+        audit_tone='success' if integrity.get('status')=='verified' else 'amber'
+        audit_summary=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Evidence Dossier</h3>{_pill('audit '+str(integrity.get('status')),audit_tone)}</div><div class='panel-body'><div class='attention-grid'>"+''.join([
+            f"<div class='attention-card'><span>Evidence used</span><strong>{len(supporting)+len(contradicting)}</strong><small>{len(supporting)} supporting · {len(contradicting)} contradicting</small></div>",
+            f"<div class='attention-card'><span>Independent groups</span><strong>{len(groups)}</strong><small>correlated signals are not double-counted</small></div>",
+            f"<div class='attention-card'><span>Suppressed signals</span><strong>{len(excluded)}</strong><small>excluded with a recorded reason</small></div>",
+            f"<div class='attention-card'><span>Snapshot integrity</span><strong>{integrity.get('verified',0)}/{integrity.get('snapshots',0)}</strong><small>source snapshots verified</small></div>",
+        ])+"</div><div class='callout' style='margin-top:14px'><strong>No conclusion without traceable evidence</strong><span>Every assertion promoted here must resolve to a stored evidence record and, where available, an immutable source snapshot. Internal chain-of-thought is never exposed; only audit-grade facts, provenance, alternatives, contradictions and uncertainty are shown.</span></div></div></section>"
+        support_html=''.join(_audit_evidence_item(x,'support') for x in supporting) or _empty('No supporting evidence')
+        against_html=''.join(_audit_evidence_item(x,'contradict') for x in contradicting) or _empty('No contradicting evidence','No contradiction recorded does not confirm the hypothesis.')
+        missing_html=''.join(f"<li>{_esc(x.get('fact') if isinstance(x,Mapping) else x)}</li>" for x in missing) or '<li>No missing-evidence checklist recorded.</li>'
+        evidence_section=f"<div class='two-col' style='margin-top:16px'><section class='panel'><div class='panel-head'><h3>Supporting evidence</h3><span class='muted small'>{len(supporting)} independent records</span></div><div class='panel-body evidence-feed'>{support_html}</div></section><section class='panel'><div class='panel-head'><h3>Contradicting evidence</h3><span class='muted small'>{len(contradicting)} independent records</span></div><div class='panel-body evidence-feed'>{against_html}</div></section></div>"
+        gaps=f"<div class='two-col' style='margin-top:16px'><section class='panel'><div class='panel-head'><h3>Critical missing evidence</h3></div><div class='panel-body'><ul>{missing_html}</ul><p class='muted small'>Unknown is not negative evidence. Missing server-side facts limit confidence and may cause the engine to abstain.</p></div></section><section class='panel'><div class='panel-head'><h3>Safe next investigation</h3></div><div class='panel-body'><div class='callout'><strong>Authorized review only</strong><span>{_esc(candidate['safe_next_action'])}</span></div></div></section></div>"
+        exclusion_html=''.join(_audit_exclusion_item(x) for x in excluded) or _empty('No evidence was suppressed','The current evidence set contains no correlated duplicates that were discarded.')
+        group_rows=''.join(f"<tr><td>{_esc(group)}</td><td>{len(ids)}</td><td>{' '.join(f'<code>{_esc(i[:8])}</code>' for i in ids)}</td></tr>" for group,ids in sorted(groups.items()))
+        groups_section=f"<details style='margin-top:16px'><summary>Evidence independence & excluded signals</summary><section class='panel' style='margin-top:10px'><div class='panel-head'><h3>Independent evidence groups</h3><span class='muted small'>Multiple signals from one root count once</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Source group</th><th>Evidence</th><th>Records</th></tr></thead><tbody>{group_rows or '<tr><td colspan=3>No groups</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:10px'><div class='panel-head'><h3>Excluded / suppressed evidence</h3><span class='muted small'>{len(excluded)} signal(s)</span></div><div class='panel-body evidence-feed'>{exclusion_html}</div></section></details>"
+        falsification=reasoning.get('falsification',{}) if isinstance(reasoning,Mapping) else {}
+        alternatives=[r for r in ranked_families if parse_int(r.get('rank'),0)>1]
+        alt_html=''.join(f"<li><strong>{_esc(r.get('bug_family'))}</strong> — score {_esc(r.get('score'))}</li>" for r in alternatives) or '<li>No material alternative family outranked the current hypothesis.</li>'
+        wrong_html=''.join(f"<li>{_esc(x)}</li>" for x in (falsification.get('why_it_may_be_wrong') or [])) or '<li>No structured contradiction explanation recorded.</li>'
+        reject_html=''.join(f"<li>{_esc(x)}</li>" for x in (falsification.get('would_reject') or [])) or '<li>No formal rejection condition recorded.</li>'
+        confidence_rows=''.join(f"<tr><td>{_esc(label)}</td><td><strong>{_esc(value)}</strong></td></tr>" for label,value in [
+            ('Calibrated likelihood',str(confidence.get('calibrated_likelihood',0))+'%'),('Evidence strength',str(confidence.get('evidence_strength',0))+'%'),('Observation quality',str(confidence.get('observation_quality',0))+'%'),('Evidence coverage',str(confidence.get('evidence_coverage',0))+'%'),('Exploitability confidence',str(confidence.get('exploitability_confidence',0))+'%'),('Independent groups',confidence.get('independent_evidence_groups',0)),('Contradicting evidence',confidence.get('contradicting_evidence',0))])
+        reasoning_section=f"<details style='margin-top:16px'><summary>Structured reasoning, alternatives & confidence</summary><div class='two-col' style='margin-top:10px'><section class='panel'><div class='panel-head'><h3>Why this may be wrong</h3></div><div class='panel-body'><ul>{wrong_html}</ul><h4>Alternative explanations / families</h4><ul>{alt_html}</ul><h4>What would reject it</h4><ul>{reject_html}</ul></div></section><section class='panel'><div class='panel-head'><h3>Confidence breakdown</h3></div><div class='table-wrap' style='border:0;border-radius:0'><table><tbody>{confidence_rows}</tbody></table></div></section></div></details>"
+        timeline_rows=''.join(f"<tr><td>{_esc(x.get('at'))}</td><td>{_pill(x.get('kind'))}</td><td>{_esc(x.get('title'))}</td><td><code>{_esc(x.get('source_run_id') or x.get('evidence_id') or '')}</code></td></tr>" for x in timeline[-100:])
+        history_rows=''.join(f"<tr><td>{_esc(x.get('finished_at') or x.get('updated_at'))}</td><td><code>{_esc(x.get('source_run_id'))}</code></td><td>{_esc(x.get('calibrated_likelihood'))}%</td><td>{_esc(x.get('evidence_strength'))}%</td><td>{_esc(x.get('evidence_coverage'))}%</td><td>{_pill(x.get('candidate_state'))}</td></tr>" for x in history)
+        version_rows=''.join(f"<tr><td>v{_esc(x.get('version'))}</td><td>{_esc(x.get('engine_version'))} / {_esc(x.get('rule_version'))}</td><td><code>{_esc(str(x.get('analysis_snapshot_hash') or '')[:16])}</code></td><td>{_esc(x.get('created_at'))}</td></tr>" for x in versions)
+        chronology=f"<details style='margin-top:16px'><summary>Timeline & analysis history</summary><section class='panel' style='margin-top:10px'><div class='panel-head'><h3>Evidence timeline</h3></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>When</th><th>Type</th><th>Event</th><th>Reference</th></tr></thead><tbody>{timeline_rows or '<tr><td colspan=4>No timeline</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:10px'><div class='panel-head'><h3>Cross-run analysis history</h3></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>When</th><th>Run</th><th>Likelihood</th><th>Evidence</th><th>Coverage</th><th>State</th></tr></thead><tbody>{history_rows or '<tr><td colspan=6>No historical analyses</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:10px'><div class='panel-head'><h3>Immutable dossier versions</h3></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Version</th><th>Engine / rules</th><th>Snapshot hash</th><th>Created</th></tr></thead><tbody>{version_rows or '<tr><td colspan=4>No version snapshot</td></tr>'}</tbody></table></div></section></details>"
         decision_options=''.join(f"<option value='{_esc(x)}'{' selected' if x==candidate['analyst_decision'] else ''}>{_esc(x.replace('_',' '))}</option>" for x in ANALYST_DECISIONS)
         reason_options=''.join(f"<option value='{_esc(x)}'{' selected' if x==candidate.get('feedback_reason','') else ''}>{_esc(x.replace('_',' ') or '— select reason —')}</option>" for x in FEEDBACK_REASON_CODES)
         decision_form=f"<section class='panel'><div class='panel-head'><h3>Analyst decision</h3>{_pill(candidate['analyst_decision'])}</div><div class='panel-body'><form method='post' action='/bug-candidates/decision'><input type='hidden' name='candidate_id' value='{_esc(candidate_id)}'><input type='hidden' name='return' value='{_esc(self.path)}'><label>Decision<br><select name='decision'>{decision_options}</select></label><label>Reason code<br><select name='reason'>{reason_options}</select></label><label>Evidence-backed note<br><textarea name='note' placeholder='Why was this candidate confirmed, rejected, or left pending?'>{_esc(candidate['analyst_note'])}</textarea></label><button>Save decision</button></form></div></section>"
-        context=f"<section class='panel'><div class='panel-head'><h3>Candidate facts</h3></div><div class='panel-body kv'><strong>State</strong><span>{_pill(candidate['candidate_state'])}</span><strong>Lifecycle</strong><span>{_pill(candidate.get('lifecycle_state','observed'))}</span><strong>Profile</strong><span>{_pill(candidate.get('analysis_profile','balanced'))}</span><strong>Preconditions</strong><span>{_pill(candidate.get('precondition_state','unknown'))}</span><strong>Reachability</strong><span>{_pill(candidate.get('reachability_state','unknown'))}</span><strong>Seen</strong><span>{candidate.get('seen_count',1)} analysis run(s)</span><strong>Historical noise</strong><span>{candidate.get('historical_noise',0)}%</span><strong>Variant</strong><span>{_esc(candidate['bug_variant'])}</span><strong>Endpoint</strong><code>{_esc(candidate['endpoint'] or '—')}</code><strong>Source</strong><code>{_esc(candidate['source_ref'])}</code><strong>Bundle</strong><code>{_esc(candidate.get('bundle_id') or '—')}</code><strong>Rule version</strong><code>{_esc(candidate['rule_version'])}</code><strong>Analysis</strong><code>{_esc(candidate['analysis_id'])}</code><strong>Source run</strong><code>{_esc(candidate['source_run_id'])}</code></div></section>"
-        alert_context=f"<div class='callout'><strong>Related alert #{int(alert['id'])}: {_esc(alert['title'])}</strong><span class='muted'>{_esc(alert['item'])} · {_esc(alert['severity'])} · risk {alert['risk_score']} · {_esc(alert['status'])}</span></div>" if alert else ''
-        confidence_story=_candidate_confidence_story(candidate)
-        body=header+scores+confidence_story+alert_context+f"<div class='two-col' style='margin-top:16px'><main><div class='two-col'><section class='panel'><div class='panel-head'><h3>Supporting evidence</h3><span class='muted small'>{len(supporting)} signals</span></div><div class='panel-body evidence-feed'>{support_html}</div></section><section class='panel'><div class='panel-head'><h3>Contradicting evidence</h3><span class='muted small'>{len(contradicting)} signals</span></div><div class='panel-body evidence-feed'>{against_html}</div></section></div><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Missing evidence</h3></div><div class='panel-body'><ul>{missing_html}</ul></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Safe next action</h3></div><div class='panel-body'><div class='callout'><strong>Authorized review only</strong><span>{_esc(candidate['safe_next_action'])}</span></div></div></section><details style='margin-top:16px'><summary>Advanced reasoning & engine trace</summary><div class='panel-body'><h3>Candidate quality</h3><pre>{_esc(json_dumps({'quality':quality,'evidence_groups':groups},pretty=True))}</pre><h3>Security reasoning</h3><pre>{_esc(json_dumps({'reasoning':reasoning,'top_families':ranked_families,'evidence_provenance':evidence_records,'shadow_rules':shadow_rules},pretty=True))}</pre><h3>Behavioral context</h3><pre>{_esc(json_dumps({'authentication_boundary_diff':boundary_diff,'response_shape_diff':shape_diff,'protocol_findings':protocol_findings,'identity_relations':identity_relations},pretty=True))}</pre><h3>Rule trace & analysis metadata</h3><pre>{_esc(json_dumps({'rule_ids':rules,'analysis':dict(analysis) if analysis else {}},pretty=True))}</pre></div></details></main><aside class='stack sticky-rail'>{decision_form}{context}</aside></div>"
-        self.send_html("Bug candidate",body)
+        context=f"<section class='panel'><div class='panel-head'><h3>Audit facts</h3></div><div class='panel-body kv'><strong>Status</strong><span>{_pill('Unverified')}</span><strong>Candidate state</strong><span>{_pill(candidate['candidate_state'])}</span><strong>Preconditions</strong><span>{_pill(candidate.get('precondition_state','unknown'))}</span><strong>Reachability</strong><span>{_pill(candidate.get('reachability_state','unknown'))}</span><strong>Endpoint</strong><code>{_esc(candidate['endpoint'] or '—')}</code><strong>Analysis</strong><code>{_esc(candidate['analysis_id'])}</code><strong>Source run</strong><code>{_esc(candidate['source_run_id'])}</code><strong>Rule version</strong><code>{_esc(candidate['rule_version'])}</code></div></section>"
+        alert_context=f"<div class='callout' style='margin-top:16px'><strong>Source alert #{int(alert['id'])}: {_esc(alert['title'])}</strong><span class='muted'>{_esc(alert['item'])} · {_esc(alert['severity'])} · risk {alert['risk_score']} · {_esc(alert['status'])}</span></div>" if alert else ''
+        main=header+scores+audit_summary+alert_context+evidence_section+gaps+groups_section+reasoning_section+chronology
+        body=main+f"<div class='two-col' style='margin-top:16px'><main><details><summary>Engine metadata</summary><pre>{_esc(json_dumps({'analysis':dossier.get('analysis',{}),'reasoning_version':reasoning.get('engine_version') if isinstance(reasoning,Mapping) else '', 'rule_version':reasoning.get('rule_version') if isinstance(reasoning,Mapping) else ''},pretty=True))}</pre></details></main><aside class='stack'>{decision_form}{context}</aside></div>"
+        self.send_html("Potential Finding · Evidence Dossier",body)
 
     def security_reasoning_page(self) -> None:
         db=self.db()

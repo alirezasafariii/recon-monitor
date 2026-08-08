@@ -1,4 +1,12 @@
-# Recon Monitor 8.3.0
+# Recon Monitor 8.4.0
+
+## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
+
+Analysis is now deliberately quiet in the Dashboard: the visible Analysis workspace is a compact health/status surface while correlation, hypothesis competition, falsification, calibration, evidence deduplication and quality gates remain internal. Detailed reasoning is revealed only when an analyst opens a Potential Finding.
+
+Every promoted conclusion now has an **Evidence Dossier** that traces the finding to provenance-linked evidence records and immutable source snapshots. Dossiers expose supporting evidence, contradicting evidence, missing evidence, independent source groups, correlated signals that were suppressed and why, confidence factors, alternative explanations, evidence timeline, cross-run history, and immutable dossier versions. Source snapshots are SHA-256 protected and included in evidence exports. Internal chain-of-thought is not exposed; only structured facts, provenance, uncertainty and audit artifacts are shown.
+
+Database schema is **17**. The migration is additive and preserves existing runs, findings, analyst decisions and historical evidence. See `MIGRATION-v8.4.md`.
 
 ## Recon Intelligence 2.0 in 8.3.0
 

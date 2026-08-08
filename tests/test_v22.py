@@ -90,7 +90,7 @@ class Version22Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             db = Database(Path(temp) / "recon.db")
             try:
-                self.assertEqual(db.meta_get("schema_version"), "16")
+                self.assertEqual(db.meta_get("schema_version"), "17")
                 tables = {row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
                 self.assertTrue({"js_diffs", "endpoint_intelligence", "technology_observations", "entity_tags", "alert_history"}.issubset(tables))
             finally:

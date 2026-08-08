@@ -1,3 +1,15 @@
+# 8.4.0 — Invisible Analysis & Audit-Grade Evidence Dossiers
+
+- Reduced the visible Analysis workspace to a compact health/status surface; detailed analysis engines remain internal and are no longer exposed as sidebar navigation.
+- Added audit-grade source snapshots for every evidence record linked to a Potential Finding, with SHA-256 snapshot integrity verification.
+- Added explicit recording of correlated evidence signals that were suppressed, including machine-readable exclusion reason codes and the discarded signal payload.
+- Added immutable per-candidate analysis-version snapshots so reasoning outcomes can be reconstructed after later reruns or recalibration.
+- Added a structured Evidence Dossier to Potential Finding detail: supporting evidence, contradicting evidence, missing evidence, source lineage, raw source snapshots, independent evidence groups, exclusions, confidence breakdown, alternatives/falsification, timeline and cross-run analysis history.
+- Extended evidence ZIP exports with evidence snapshots, exclusions and analysis-version records.
+- Preserved the safety boundary: Potential Findings remain unverified, unknowns are not treated as negative evidence, and the analysis engine performs no automatic active validation.
+- Added regression tests for audit integrity, dossier rendering, hidden Analysis navigation and additive schema migration.
+- Database schema advances from 16 to 17 using additive tables only.
+
 # 8.3.0 — Recon Intelligence 2.0 & Navigation Consolidation
 
 - Rebuilt Recon around three layers: Overview, Categories, and Raw Data.

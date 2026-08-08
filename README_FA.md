@@ -1,5 +1,12 @@
-# راهنمای Recon Monitor 8.3.0
+# راهنمای Recon Monitor 8.4.0
 
+## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
+
+بخش Analysis عمداً مینیمال شده است: Dashboard فقط وضعیت سلامت و خروجی کلی را نشان می‌دهد و Correlation، Hypothesis Competition، Falsification، Calibration، Evidence Deduplication و Quality Gateها پشت‌صحنه اجرا می‌شوند. جزئیات فقط وقتی نمایش داده می‌شوند که Analyst یک Potential Finding را باز کند.
+
+برای هر نتیجه یک **Evidence Dossier** ساخته می‌شود که Finding را تا Evidence Record و Source Snapshot دقیق قابل ردیابی می‌کند. Supporting Evidence، Contradicting Evidence، Missing Evidence، Source Groupهای مستقل، Signalهای هم‌بسته‌ای که حذف شده‌اند و دلیل حذف، Confidence Breakdown، Alternative Explanationها، Timeline، تاریخچه بین Runها و نسخه‌های immutable تحلیل قابل مشاهده‌اند. Snapshotها با SHA-256 محافظت می‌شوند و در Evidence Export نیز قرار می‌گیرند. Chain-of-thought داخلی نمایش داده نمی‌شود؛ فقط Facts، Provenance، Uncertainty و Audit Artifactهای ساختاریافته قابل مشاهده‌اند.
+
+Schema دیتابیس **17** است و Migration کاملاً Additive است. راهنمای ارتقا: `MIGRATION-v8.4.md`.
 
 
 ## Recon Intelligence 2.0 در نسخه 8.3.0

@@ -81,6 +81,15 @@ class DashboardPolishV801Tests(unittest.TestCase):
         self.assertIn("91", html)
         self.assertIn("/bug-candidate?id=BC-1", html)
 
+    def test_analysis_navigation_exposes_only_the_workspace(self) -> None:
+        analysis = next(section for section in NAV_SECTIONS if section[0] == "analysis")
+        paths = [href for href,_,_ in analysis[4]]
+        self.assertEqual(paths, ["/analysis"])
+        page = _layout("Security reasoning", "<p>body</p>", current_path="/security-reasoning")
+        self.assertIn("class='nav-item active' href='/analysis'", page)
+        self.assertNotIn("Security reasoning</span>", page)
+        self.assertNotIn("Behavior changes</span>", page)
+
     def test_system_menu_has_no_workspace_route_duplicates(self) -> None:
         workspace_paths = {href for _,_,_,_,links in NAV_SECTIONS for href,_,_ in links}
         system_paths = {href for _,links in ADVANCED_NAV_SECTIONS for href,_,_ in links}

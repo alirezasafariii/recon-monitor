@@ -9,9 +9,10 @@ from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
+from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 
-REASONING_ENGINE_VERSION = "5.0.0"
-REASONING_RULE_VERSION = "2026.08.7"
+REASONING_ENGINE_VERSION = "5.1.0"
+REASONING_RULE_VERSION = "2026.08.8"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -394,7 +395,10 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
     candidate_id = str(candidate["candidate_id"])
     analysis_id = str(candidate["analysis_id"])
     db.execute("DELETE FROM candidate_evidence_links WHERE candidate_id=?", (candidate_id,))
+    db.execute("DELETE FROM candidate_evidence_snapshots WHERE candidate_id=?", (candidate_id,))
+    db.execute("DELETE FROM candidate_evidence_exclusions WHERE candidate_id=?", (candidate_id,))
     selected: dict[tuple[str, str], dict[str, Any]] = {}
+    excluded: list[tuple[str, str, dict[str, Any], str, str]] = []
     raw_count = 0
     for polarity, values in (("support", support), ("contradict", contradict)):
         for raw in values:
@@ -408,9 +412,14 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
             key = (polarity, item["root_fingerprint"])
             current = selected.get(key)
             score = abs(parse_int(item.get("weight"), 0)) * 2 + item["trust_score"]
-            if current is None or score > current["_selection_score"]:
-                item["_selection_score"] = score
+            item["_selection_score"] = score
+            if current is None:
                 selected[key] = item
+            elif score > current["_selection_score"]:
+                excluded.append((polarity, item["root_fingerprint"], dict(current), "correlated_duplicate", "Suppressed because a stronger signal from the same underlying evidence root was selected."))
+                selected[key] = item
+            else:
+                excluded.append((polarity, item["root_fingerprint"], dict(item), "correlated_duplicate", "Suppressed because an equal or stronger signal from the same underlying evidence root was already selected."))
     out_support: list[dict[str, Any]] = []
     out_contradict: list[dict[str, Any]] = []
     for (polarity, root), item in selected.items():
@@ -434,12 +443,15 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
             ),
         )
         db.execute("INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)", (candidate_id, evidence_id, polarity, parse_int(item.get("weight"), 0), "supports" if polarity == "support" else "contradicts", utc_now()))
+        capture_evidence_snapshot(db, candidate, evidence_id, item)
         item["evidence_id"] = evidence_id
         (out_support if polarity == "support" else out_contradict).append(item)
+    for polarity, root, item, reason_code, reason in excluded:
+        record_excluded_signal(db, candidate, item, polarity, root, reason_code, reason)
     metadata = {
         "raw_signals": raw_count,
         "independent_evidence": len(selected),
-        "suppressed_correlated_signals": max(0, raw_count - len(selected)),
+        "suppressed_correlated_signals": len(excluded),
         "support_roots": len(out_support),
         "contradict_roots": len(out_contradict),
     }
@@ -618,6 +630,8 @@ def _shadow_rules(db: Database, candidate: Mapping[str, Any], context: Mapping[s
 
 
 def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
+    db.execute("DELETE FROM candidate_evidence_exclusions WHERE analysis_id=?", (analysis_id,))
+    db.execute("DELETE FROM candidate_evidence_snapshots WHERE candidate_id IN (SELECT candidate_id FROM bug_candidates WHERE analysis_id=?)", (analysis_id,))
     db.execute("DELETE FROM evidence_records WHERE analysis_id=?", (analysis_id,))
     db.execute("DELETE FROM family_rankings WHERE analysis_id=?", (analysis_id,))
     db.execute("DELETE FROM candidate_reasoning_traces WHERE analysis_id=?", (analysis_id,))
@@ -684,6 +698,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
                 (calibrated, calibrated, evidence_strength, exploitability, assessment["overall_coverage"], observation_quality, investigation, investigation, candidate_state, assessment["precondition_state"], reachability, json_dumps(support), json_dumps(contradict), json_dumps(assessment["unknowns"]), json_dumps(unknowns), json_dumps(top3[1:]), json_dumps(reasoning), json_dumps(reasoning), REASONING_RULE_VERSION, utc_now(), candidate["candidate_id"]),
             )
             db.execute("INSERT OR REPLACE INTO candidate_reasoning_traces(candidate_id,analysis_id,trace_json,engine_version,rule_version,created_at) VALUES(?,?,?,?,?,?)", (candidate["candidate_id"], analysis_id, json_dumps(reasoning), REASONING_ENGINE_VERSION, REASONING_RULE_VERSION, utc_now()))
+            record_analysis_version(db, str(candidate["candidate_id"]), reasoning, REASONING_ENGINE_VERSION, REASONING_RULE_VERSION)
             updated += 1
             continue
         ranked_primary = top3[0]["score"] if top3 else raw_likelihood
@@ -747,6 +762,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             (calibrated, calibrated, evidence_strength, exploitability, assessment["overall_coverage"], observation_quality, investigation, investigation, candidate_state, assessment["precondition_state"], reachability, json_dumps(support), json_dumps(contradict), json_dumps(assessment["unknowns"]), json_dumps(unknowns), json_dumps(top3[1:]), json_dumps(reasoning), json_dumps(reasoning), REASONING_RULE_VERSION, utc_now(), candidate["candidate_id"]),
         )
         db.execute("INSERT OR REPLACE INTO candidate_reasoning_traces(candidate_id,analysis_id,trace_json,engine_version,rule_version,created_at) VALUES(?,?,?,?,?,?)", (candidate["candidate_id"], analysis_id, json_dumps(reasoning), REASONING_ENGINE_VERSION, REASONING_RULE_VERSION, utc_now()))
+        record_analysis_version(db, str(candidate["candidate_id"]), reasoning, REASONING_ENGINE_VERSION, REASONING_RULE_VERSION)
         db.execute("INSERT OR REPLACE INTO incremental_reasoning_cache(candidate_fingerprint,evidence_fingerprint,rule_version,result_json,updated_at) VALUES(?,?,?,?,?)", (str(candidate.get("candidate_fingerprint") or ""), evidence_fingerprint, REASONING_RULE_VERSION, json_dumps({"candidate_state": candidate_state, "reachability_state": reachability, "unknowns": unknowns, "scores": reasoning["scores"], "reasoning": reasoning}), utc_now()))
         updated += 1
     evaluation = evaluate_reasoning(db, analysis_id, persist=True)
@@ -754,14 +770,16 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
 
 
 def evidence_trace(db: Database, candidate_id: str) -> dict[str, Any]:
-    candidate = db.one("SELECT * FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
-    if not candidate:
-        raise ValueError(f"Candidate not found: {candidate_id}")
-    evidence = [dict(row) for row in db.all("SELECT e.*,l.polarity,l.weight,l.relation FROM candidate_evidence_links l JOIN evidence_records e ON e.evidence_id=l.evidence_id WHERE l.candidate_id=? ORDER BY l.polarity DESC,e.trust_score DESC", (candidate_id,))]
-    rankings = [dict(row) for row in db.all("SELECT * FROM family_rankings WHERE candidate_id=? ORDER BY rank", (candidate_id,))]
-    trace = db.one("SELECT * FROM candidate_reasoning_traces WHERE candidate_id=?", (candidate_id,))
+    dossier = build_evidence_dossier(db, candidate_id)
     shadow = [dict(row) for row in db.all("SELECT * FROM shadow_rule_results WHERE candidate_id=? ORDER BY matched DESC,confidence DESC", (candidate_id,))]
-    return {"candidate": dict(candidate), "evidence": evidence, "family_rankings": rankings, "reasoning": _loads(trace["trace_json"], {}) if trace else {}, "shadow_rules": shadow}
+    return {
+        "candidate": dossier["candidate"],
+        "evidence": [*dossier["supporting"], *dossier["contradicting"]],
+        "family_rankings": dossier["family_rankings"],
+        "reasoning": dossier["reasoning"],
+        "shadow_rules": shadow,
+        "audit": dossier,
+    }
 
 
 def family_calibration_report(db: Database, target: str | None = None) -> dict[str, Any]:

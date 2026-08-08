@@ -29,7 +29,7 @@ class AnalysisV4Tests(unittest.TestCase):
             try:
                 tables={row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
                 self.assertTrue({'analysis_runs','analysis_results','js_dataflows','endpoint_schemas','deployment_signatures'}.issubset(tables))
-                self.assertEqual(db.meta_get('schema_version'),'16')
+                self.assertEqual(db.meta_get('schema_version'),'17')
             finally: db.close()
 
     def test_hypothesis_evidence_and_endpoint_schema(self):

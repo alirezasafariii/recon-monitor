@@ -25,8 +25,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
-APP_VERSION = "8.3.0"
-SCHEMA_VERSION = 16
+APP_VERSION = "8.4.0"
+SCHEMA_VERSION = 17
 UTC = dt.timezone.utc
 
 
@@ -1139,6 +1139,23 @@ class Database:
               engine_version TEXT NOT NULL, rule_version TEXT NOT NULL, created_at TEXT NOT NULL,
               FOREIGN KEY(candidate_id) REFERENCES bug_candidates(candidate_id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS candidate_evidence_snapshots (
+              candidate_id TEXT NOT NULL, evidence_id TEXT NOT NULL, snapshot_hash TEXT NOT NULL,
+              snapshot_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, PRIMARY KEY(candidate_id,evidence_id),
+              FOREIGN KEY(candidate_id) REFERENCES bug_candidates(candidate_id) ON DELETE CASCADE,
+              FOREIGN KEY(evidence_id) REFERENCES evidence_records(evidence_id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS candidate_evidence_exclusions (
+              exclusion_id TEXT PRIMARY KEY, candidate_id TEXT NOT NULL, analysis_id TEXT NOT NULL, root_fingerprint TEXT NOT NULL,
+              polarity TEXT NOT NULL, reason_code TEXT NOT NULL, reason TEXT NOT NULL, signal_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL,
+              FOREIGN KEY(candidate_id) REFERENCES bug_candidates(candidate_id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS candidate_analysis_versions (
+              candidate_id TEXT NOT NULL, version INTEGER NOT NULL, analysis_id TEXT NOT NULL, candidate_fingerprint TEXT NOT NULL,
+              engine_version TEXT NOT NULL, rule_version TEXT NOT NULL, analysis_snapshot_hash TEXT NOT NULL, snapshot_json TEXT NOT NULL DEFAULT '{}',
+              created_at TEXT NOT NULL, PRIMARY KEY(candidate_id,version), UNIQUE(candidate_id,analysis_snapshot_hash),
+              FOREIGN KEY(candidate_id) REFERENCES bug_candidates(candidate_id) ON DELETE CASCADE
+            );
             CREATE TABLE IF NOT EXISTS shadow_rule_results (
               analysis_id TEXT NOT NULL, candidate_id TEXT NOT NULL, rule_id TEXT NOT NULL, rule_version TEXT NOT NULL,
               matched INTEGER NOT NULL, confidence INTEGER NOT NULL, evidence_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL,
@@ -1454,6 +1471,9 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_evidence_analysis ON evidence_records(analysis_id,target,polarity,trust_score);
             CREATE INDEX IF NOT EXISTS idx_evidence_root ON evidence_records(root_fingerprint,source_kind);
             CREATE INDEX IF NOT EXISTS idx_candidate_evidence_candidate ON candidate_evidence_links(candidate_id,polarity);
+            CREATE INDEX IF NOT EXISTS idx_candidate_evidence_snapshots_candidate ON candidate_evidence_snapshots(candidate_id,created_at);
+            CREATE INDEX IF NOT EXISTS idx_candidate_evidence_exclusions_candidate ON candidate_evidence_exclusions(candidate_id,reason_code,created_at);
+            CREATE INDEX IF NOT EXISTS idx_candidate_analysis_versions_fingerprint ON candidate_analysis_versions(candidate_fingerprint,created_at);
             CREATE INDEX IF NOT EXISTS idx_family_rankings_analysis ON family_rankings(analysis_id,bug_family,score);
             CREATE INDEX IF NOT EXISTS idx_shadow_rules_analysis ON shadow_rule_results(analysis_id,rule_id,matched);
             CREATE INDEX IF NOT EXISTS idx_reasoning_evaluations_analysis ON reasoning_evaluations(analysis_id,created_at);
