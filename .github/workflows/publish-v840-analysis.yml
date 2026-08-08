@@ -31,8 +31,8 @@ jobs:
           base64 -d /tmp/v840.patch.gz.b64 > /tmp/v840.patch.gz
           gzip -t /tmp/v840.patch.gz
           gzip -dc /tmp/v840.patch.gz > /tmp/v840.patch
-          git apply --check /tmp/v840.patch
-          git apply /tmp/v840.patch
+          git apply --exclude=MANIFEST.sha256 --check /tmp/v840.patch
+          git apply --exclude=MANIFEST.sha256 /tmp/v840.patch
           rm -rf .github/patches/v840
           rm -f .github/workflows/publish-v840-analysis.yml
           find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
