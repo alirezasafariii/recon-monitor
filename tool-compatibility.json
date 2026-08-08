@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "strategy": "capability-detection",
+  "required_flags": {
+    "subfinder": ["-oJ", "-cs", "-rl"],
+    "dnsx": ["-json", "-wd", "-rl"],
+    "katana": ["-jc", "-rl"],
+    "httpx": ["-json", "-hash", "-jarm", "-include-chain"],
+    "naabu": ["-json", "-rate"],
+    "nuclei": ["-jsonl", "-id", "-dut", "-rl"]
+  }
+}

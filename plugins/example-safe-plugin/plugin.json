@@ -1,0 +1,9 @@
+{
+  "name": "example-safe-plugin",
+  "version": "1.0.0",
+  "category": "analysis",
+  "entrypoint": "plugin.py",
+  "enabled": false,
+  "requires_authorization": false,
+  "description": "Reference plugin that returns metadata without network activity"
+}

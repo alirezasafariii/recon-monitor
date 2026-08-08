@@ -1,0 +1,69 @@
+{
+  "schema": 3,
+  "defaults": {
+    "modules": {
+      "subdomains": true,
+      "dns": true,
+      "urls": true,
+      "javascript": true,
+      "endpoint_validation": false,
+      "fingerprint": true,
+      "screenshots": false,
+      "ports": false,
+      "nuclei": false
+    },
+    "analysis": {
+      "asset_graph": true,
+      "detailed_js_diff": true,
+      "endpoint_classification": true,
+      "technology_confidence": true,
+      "semantic_change_classification": true,
+      "explainable_risk": true,
+      "track_confirmation_state": true,
+      "stable_confirmations": 2,
+      "change_correlation": true,
+      "asset_lifecycle": true
+    },
+    "alert": {
+      "minimum_score": 70,
+      "cooldown_hours": 24,
+      "confirmed_only": false
+    },
+    "limits": {
+      "request_rate": 3,
+      "dns_rate": 100,
+      "timeout_seconds": 900,
+      "retries": 1,
+      "crawl_depth": 2,
+      "max_urls": 10000,
+      "max_js_files": 200,
+      "max_js_bytes": 5000000,
+      "http_threads": 20,
+      "naabu_rate": 50,
+      "nuclei_rate": 3,
+      "max_runtime_minutes": 120,
+      "max_http_requests": 10000,
+      "max_dns_queries": 5000,
+      "max_download_mb": 500,
+      "max_new_assets": 5000,
+      "dns_workers": 10,
+      "http_workers": 20,
+      "js_workers": 5,
+      "screenshot_workers": 2
+    },
+    "javascript": {"download_source_maps": true}
+  },
+  "targets": [
+    {
+      "name": "example.com",
+      "roots": ["example.com"],
+      "include": ["(^|\\.)example\\.com$"],
+      "exclude": [],
+      "active": {
+        "confirmation": "",
+        "naabu_ports": "80,443,8080,8443",
+        "nuclei_template_ids": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+config.env
+policies/targets.json
+state/
+output/
+reports/
+logs/*.log
+logs/*.jsonl
+*.db
+*.db-*
+.DS_Store
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+
+# Local target-policy backups
+policies/targets.json.backup-*
