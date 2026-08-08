@@ -1,0 +1,264 @@
+name: Publish Recon Monitor v8.4.1 Dashboard Readiness Hotfix v2
+
+on:
+  push:
+    branches:
+      - agent/publish-v8-4-1-dashboard-readiness
+    paths:
+      - '.github/workflows/publish-v841-dashboard-readiness-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/publish-v8-4-1-dashboard-readiness
+          fetch-depth: 0
+
+      - name: Apply focused hotfix and current release contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'missing expected text in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          replace('app/core.py', 'APP_VERSION = "8.4.0"', 'APP_VERSION = "8.4.1"')
+
+          p = Path('app/dashboard_service.py')
+          text = p.read_text(encoding='utf-8')
+          anchor = '''def dashboard_status(paths: AppPaths) -> tuple[bool, str]:\n    pid = _read_pid(paths)\n    if _alive(pid):\n        return True, f"Dashboard running (PID {pid})"\n    with contextlib.suppress(OSError):\n        _pid_path(paths).unlink()\n    return False, "Dashboard is not running"\n\n\n'''
+          helper = '''def dashboard_status(paths: AppPaths) -> tuple[bool, str]:\n    pid = _read_pid(paths)\n    if _alive(pid):\n        return True, f"Dashboard running (PID {pid})"\n    with contextlib.suppress(OSError):\n        _pid_path(paths).unlink()\n    return False, "Dashboard is not running"\n\n\ndef _dashboard_listener_ready(host: str, port: int, timeout: float = 0.5) -> bool:\n    \"\"\"Return True once the spawned dashboard is accepting TCP connections.\n\n    Readiness stays independent from /health because that page intentionally\n    performs operator diagnostics, including database integrity work.\n    \"\"\"\n    try:\n        with socket.create_connection((host, port), timeout=timeout):\n            return True\n    except OSError:\n        return False\n\n\n'''
+          if anchor not in text:
+              raise SystemExit('dashboard_status anchor not found')
+          text = text.replace(anchor, helper, 1)
+          old_loop = '''    deadline = time.time() + 8\n    url = f"http://{host}:{port}/health"\n    ready = False\n    while time.time() < deadline:\n        if process.poll() is not None:\n            with contextlib.suppress(OSError):\n                _pid_path(paths).unlink()\n            tail = _recent_dashboard_log(paths)\n            suffix = (\n                f"\\nLast dashboard log lines:\\n{tail}"\n                if tail\n                else f"\\nInspect {_log_path(paths)}"\n            )\n            raise ReconError(\n                f"Dashboard exited early with code {process.returncode}.{suffix}"\n            )\n        try:\n            with urllib.request.urlopen(url, timeout=0.5) as response:\n                if response.status == 200:\n                    ready = True\n                    break\n        except urllib.error.HTTPError as exc:\n            if exc.code == 401:\n                ready = True\n                break\n            time.sleep(0.2)\n        except Exception:\n            time.sleep(0.2)\n'''
+          new_loop = '''    deadline = time.time() + 20\n    ready = False\n    while time.time() < deadline:\n        if process.poll() is not None:\n            with contextlib.suppress(OSError):\n                _pid_path(paths).unlink()\n            tail = _recent_dashboard_log(paths)\n            suffix = (\n                f"\\nLast dashboard log lines:\\n{tail}"\n                if tail\n                else f"\\nInspect {_log_path(paths)}"\n            )\n            raise ReconError(\n                f"Dashboard exited early with code {process.returncode}.{suffix}"\n            )\n        if _dashboard_listener_ready(host, port):\n            ready = True\n            break\n        time.sleep(0.2)\n'''
+          if old_loop not in text:
+              raise SystemExit('old readiness loop not found')
+          p.write_text(text.replace(old_loop, new_loop, 1), encoding='utf-8')
+
+          replace(
+              'app/workspace_v7.py',
+              'from core import APP_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now',
+              'from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now',
+          )
+          replace(
+              'app/workspace_v7.py',
+              '    schema = str(db.meta_get("schema_version") or "unknown")\n    add("DB-SCHEMA", "Database schema", "ok" if schema == "16" else "warn", f"Schema {schema}; expected 16", "Run the v7 migration if the schema is older.")',
+              '    schema = str(db.meta_get("schema_version") or "unknown")\n    expected_schema = str(SCHEMA_VERSION)\n    add("DB-SCHEMA", "Database schema", "ok" if schema == expected_schema else "warn", f"Schema {schema}; expected {expected_schema}", "Run the current Recon Monitor migration if the schema is older.")',
+          )
+          replace(
+              'app/dashboard.py',
+              'from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_int',
+              'from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_int',
+          )
+          replace(
+              'app/dashboard.py',
+              "_metric_card('Schema', next((c['detail'] for c in diagnostics['checks'] if c['id']=='DB-SCHEMA'),'unknown'), 'Expected schema 16', 'info')",
+              "_metric_card('Schema', next((c['detail'] for c in diagnostics['checks'] if c['id']=='DB-SCHEMA'),'unknown'), f'Expected schema {SCHEMA_VERSION}', 'info')",
+          )
+
+          p = Path('tests/test_dashboard_polish_v801.py')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(
+              'from core import AppPaths, Config, Database, Logger, ReconError',
+              'from core import SCHEMA_VERSION, AppPaths, Config, Database, Logger, ReconError',
+              1,
+          )
+          text = text.replace(
+              'from dashboard_service import _port_listener_details, start_dashboard',
+              'from dashboard_service import _dashboard_listener_ready, _port_listener_details, start_dashboard',
+              1,
+          )
+          text = text.replace(
+              'from dashboard_service import _dashboard_listener_ready, _port_listener_details, start_dashboard\n',
+              'from dashboard_service import _dashboard_listener_ready, _port_listener_details, start_dashboard\nfrom workspace_v7 import operator_diagnostics\n',
+              1,
+          )
+          marker = '''    def test_command_center_remains_reachable_from_sidebar(self) -> None:\n'''
+          tests = '''    def test_dashboard_listener_readiness_is_lightweight(self) -> None:\n        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n        listener.bind(("127.0.0.1", 0))\n        listener.listen(1)\n        port = listener.getsockname()[1]\n        try:\n            self.assertTrue(_dashboard_listener_ready("127.0.0.1", port, timeout=0.2))\n        finally:\n            listener.close()\n\n    def test_operator_diagnostics_uses_current_schema_version(self) -> None:\n        with tempfile.TemporaryDirectory() as tmp:\n            paths = AppPaths.from_root(Path(tmp)); paths.ensure()\n            paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\\n', encoding="utf-8")\n            paths.policy.write_text(json.dumps({"schema": 1, "defaults": {}, "targets": []}), encoding="utf-8")\n            config = Config(paths); db = Database(paths.db)\n            try:\n                result = operator_diagnostics(paths, config, db, persist=False)\n                check = next(c for c in result["checks"] if c["id"] == "DB-SCHEMA")\n                self.assertEqual(check["status"], "ok")\n                self.assertIn(f"expected {SCHEMA_VERSION}", check["detail"] )\n            finally:\n                db.close()\n\n'''
+          if marker not in text:
+              raise SystemExit('test insertion marker not found')
+          p.write_text(text.replace(marker, tests + marker, 1), encoding='utf-8')
+
+          for name in [
+              'tests/test_platform_v60.py',
+              'tests/test_product_platform_v50.py',
+              'tests/test_safe_validation_v51.py',
+              'tests/test_stability_v451.py',
+              'tests/test_workspace_v70.py',
+          ]:
+              p = Path(name)
+              text = p.read_text(encoding='utf-8')
+              if '8.4.0' not in text:
+                  raise SystemExit(f'expected 8.4.0 release contract missing in {name}')
+              p.write_text(text.replace('8.4.0', '8.4.1'), encoding='utf-8')
+
+          p = Path('tests/test_workspace_v70.py')
+          text = p.read_text(encoding='utf-8')
+          old = "self.assertTrue(any(c['id']=='DB-SCHEMA' and '16' in c['detail'] for c in diag['checks']))"
+          new = "self.assertTrue(any(c['id']=='DB-SCHEMA' and str(SCHEMA_VERSION) in c['detail'] for c in diag['checks']))"
+          if old not in text:
+              raise SystemExit('stale schema diagnostic assertion not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          migration = '''# Migration to Recon Monitor 8.4.1\n\nRecon Monitor 8.4.1 is a focused Dashboard startup hotfix. Database schema remains **17**.\n\n## Fixes\n\n- Background Dashboard readiness no longer calls the diagnostic-heavy `/health` page. It waits for the local TCP listener directly, so large migrated databases cannot cause a false startup timeout.\n- The startup window is increased from 8 to 20 seconds for slower machines while still failing fast if the child process exits.\n- Workspace diagnostics and the Health page now use the current `SCHEMA_VERSION` instead of the stale hardcoded schema 16 expectation.\n\nNo Recon, Analysis, Potential Findings, validation, or authorization behavior changes in this hotfix.\n'''
+          Path('MIGRATION-v8.4.1.md').write_text(migration, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          current = changelog.read_text(encoding='utf-8')
+          note = '''## 8.4.1 - Dashboard readiness hotfix\n\n- Fix false Dashboard startup timeouts caused by probing the full diagnostics `/health` page during readiness.\n- Use lightweight local listener readiness with a 20-second startup window.\n- Remove stale schema-16 diagnostics and bind health reporting to the current schema version.\n\n'''
+          changelog.write_text(note + current, encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/publish-v841-dashboard-readiness.yml
+          rm -f .github/workflows/prepare-v841-test-contracts.yml
+          rm -f .github/workflows/publish-v841-dashboard-readiness-v2.yml
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f \( -name '*.pyc' -o -name '.DS_Store' \) -delete
+          rm -f config.env policies/targets.json state/recon-v2.db state/dashboard.pid
+
+      - name: Rebuild manifest and verify contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          rows=[]
+          for p in sorted(Path('.').rglob('*'), key=lambda x:x.as_posix()):
+              if not p.is_file(): continue
+              rel=p.as_posix().removeprefix('./'); parts=p.parts
+              if '.git' in parts or rel == 'MANIFEST.sha256': continue
+              if rel in {'config.env','policies/targets.json'}: continue
+              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store': continue
+              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep': continue
+              rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
+          Path('MANIFEST.sha256').write_text('\n'.join(rows)+'\n', encoding='utf-8')
+          print(f'Manifest files: {len(rows)}')
+          PY
+          sha256sum -c MANIFEST.sha256
+          grep -q 'APP_VERSION = "8.4.1"' app/core.py
+          grep -q 'SCHEMA_VERSION = 17' app/core.py
+          grep -q '_dashboard_listener_ready' app/dashboard_service.py
+          ! grep -q 'url = f"http://{host}:{port}/health"' app/dashboard_service.py
+          ! grep -q 'expected 16' app/workspace_v7.py
+          ! grep -q 'Expected schema 16' app/dashboard.py
+          test ! -e .github/workflows/publish-v841-dashboard-readiness.yml
+          test ! -e .github/workflows/prepare-v841-test-contracts.yml
+          test ! -e .github/workflows/publish-v841-dashboard-readiness-v2.yml
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test Python 3.11 and real Dashboard lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/*.py
+          PYTHONPATH=app python -m unittest discover -s tests -v
+          cp config.env.example config.env
+          sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
+          cp policies/targets.json.example policies/targets.json
+          ./recon-monitor.sh test --integration
+          ./recon-monitor.sh dashboard start --port 18787
+          ./recon-monitor.sh dashboard status
+          lsof -nP -iTCP:18787 -sTCP:LISTEN || true
+          curl -fsS --max-time 15 http://127.0.0.1:18787/health >/dev/null
+          ./recon-monitor.sh dashboard stop
+          rm -f config.env policies/targets.json state/recon-v2.db state/dashboard.pid
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Test Python 3.13 and real Dashboard lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/*.py
+          PYTHONPATH=app python -m unittest discover -s tests -v
+          cp config.env.example config.env
+          sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
+          cp policies/targets.json.example policies/targets.json
+          ./recon-monitor.sh test --integration
+          ./recon-monitor.sh dashboard start --port 18788
+          ./recon-monitor.sh dashboard status
+          curl -fsS --max-time 15 http://127.0.0.1:18788/health >/dev/null
+          ./recon-monitor.sh dashboard stop
+          rm -f config.env policies/targets.json state/recon-v2.db state/dashboard.pid
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete
+
+      - name: Rebuild and verify final manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          rows=[]
+          for p in sorted(Path('.').rglob('*'), key=lambda x:x.as_posix()):
+              if not p.is_file(): continue
+              rel=p.as_posix().removeprefix('./'); parts=p.parts
+              if '.git' in parts or rel == 'MANIFEST.sha256': continue
+              if rel in {'config.env','policies/targets.json'}: continue
+              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store': continue
+              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep': continue
+              rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
+          Path('MANIFEST.sha256').write_text('\n'.join(rows)+'\n', encoding='utf-8')
+          print(f'Final manifest files: {len(rows)}')
+          PY
+          sha256sum -c MANIFEST.sha256
+          if find . -type f \( -name '*.pyc' -o -name '.DS_Store' -o -name '*.db' -o -name '*.log' \) | grep -q .; then
+            echo 'Forbidden runtime artifact detected'; exit 1
+          fi
+
+      - name: Commit one clean hotfix to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git reset --mixed origin/main
+          git add -A
+          test ! -e .github/workflows/publish-v841-dashboard-readiness.yml
+          test ! -e .github/workflows/prepare-v841-test-contracts.yml
+          test ! -e .github/workflows/publish-v841-dashboard-readiness-v2.yml
+          git commit -m 'Release Recon Monitor 8.4.1 dashboard readiness hotfix'
+          git push origin HEAD:main
+
+      - name: Tag and release v8.4.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git tag -a v8.4.1 -m 'Recon Monitor 8.4.1'
+          git push origin v8.4.1
+          git archive --format=zip --prefix=recon-monitor-v8.4.1/ -o /tmp/recon-monitor-v8.4.1.zip HEAD
+          cd /tmp
+          sha256sum recon-monitor-v8.4.1.zip > recon-monitor-v8.4.1.zip.sha256
+          gh release create v8.4.1 recon-monitor-v8.4.1.zip recon-monitor-v8.4.1.zip.sha256 \
+            --repo alirezasafariii/recon-monitor \
+            --title 'Recon Monitor v8.4.1' \
+            --notes 'Focused Dashboard startup hotfix. Background readiness now checks the local TCP listener instead of invoking the diagnostic-heavy /health page, the startup window is 20 seconds, and schema diagnostics use the current schema version (17) rather than stale schema 16. No Recon, Analysis, Potential Findings, validation, or authorization behavior changes. Validated with the full unit suite, integration tests, and real dashboard start/status/health/stop smoke tests on Python 3.11 and 3.13.'
