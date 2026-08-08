@@ -1,5 +1,6 @@
 config.env
 policies/targets.json
+policies/targets.json.backup-*
 state/
 output/
 reports/
@@ -8,3 +9,14 @@ logs/*.jsonl
 *.db
 *.db-*
 .DS_Store
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.venv/
+venv/
