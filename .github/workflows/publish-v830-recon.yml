@@ -22,13 +22,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/patches/v830/part* > /tmp/v830.b64
+          cat .github/patches/v830/part0* > /tmp/v830.b64
           test "$(wc -c < /tmp/v830.b64)" -eq 20432
           base64 -d /tmp/v830.b64 > /tmp/v830.patch.gz
           gzip -t /tmp/v830.patch.gz
           gzip -dc /tmp/v830.patch.gz > /tmp/v830.patch
-          git apply --check /tmp/v830.patch
-          git apply /tmp/v830.patch
+          git apply --check --exclude=tests/test_dashboard_polish_v801.py /tmp/v830.patch
+          git apply --exclude=tests/test_dashboard_polish_v801.py /tmp/v830.patch
+          cp .github/patches/v830/test_dashboard_polish_v801.py tests/test_dashboard_polish_v801.py
           rm -rf .github/patches/v830
           rm -f .github/workflows/publish-v830-recon.yml
           find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
@@ -44,20 +45,13 @@ jobs:
           root=Path('.')
           rows=[]
           for p in sorted(root.rglob('*'), key=lambda x: x.as_posix()):
-              if not p.is_file():
-                  continue
-              rel=p.as_posix().removeprefix('./')
-              parts=p.parts
-              if '.git' in parts or rel == 'MANIFEST.sha256':
-                  continue
-              if rel in {'config.env','policies/targets.json'}:
-                  continue
-              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store':
-                  continue
-              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep':
-                  continue
-              digest=hashlib.sha256(p.read_bytes()).hexdigest()
-              rows.append(f'{digest}  {rel}')
+              if not p.is_file(): continue
+              rel=p.as_posix().removeprefix('./'); parts=p.parts
+              if '.git' in parts or rel == 'MANIFEST.sha256': continue
+              if rel in {'config.env','policies/targets.json'}: continue
+              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store': continue
+              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep': continue
+              rows.append(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}')
           Path('MANIFEST.sha256').write_text('\n'.join(rows)+'\n', encoding='utf-8')
           print(f'Manifest files: {len(rows)}')
           PY
@@ -73,7 +67,7 @@ jobs:
           test ! -e .github/workflows/publish-v830-recon.yml
           grep -q 'APP_VERSION = "8.3.0"' app/core.py
           grep -q 'RECON_CATEGORY_ORDER' app/dashboard.py
-          grep -q "System" app/dashboard.py
+          grep -q '<strong>System</strong>' app/dashboard.py
           if find . -type f \( -name '*.pyc' -o -name '.DS_Store' \) | grep -q .; then exit 1; fi
 
       - name: Set up Python 3.11
