@@ -79,9 +79,32 @@ class DashboardNavigationFiltersV511Tests(unittest.TestCase):
         self.assertIn('Decide, validate, report', html)
         self.assertIn('Candidates and reasoning', html)
         self.assertIn('Scope, runs and platform health', html)
-        self.assertIn("class='nav-item active' href='/cases'", html)
+        self.assertIn("class='nav-item active' href='/potential-findings'", html)
+        self.assertNotIn("class='nav-item active' href='/cases'", html)
         self.assertIn("localStorage.setItem(key", html)
-        self.assertIn("<strong>More tools</strong>", html)
+        self.assertIn("<strong>System</strong>", html)
+
+    def test_recon_workspace_has_three_clean_layers(self) -> None:
+        handler, captured = self.handler('/recon', {'view': ['overview']})
+        handler.recon_workspace()
+        body = str(captured.get('body') or '')
+        self.assertIn('Attack Surface Summary', body)
+        self.assertIn('New / Changed Surface', body)
+        self.assertIn('High-interest Areas', body)
+        self.assertIn('Coverage / Blind Spots', body)
+
+        handler, captured = self.handler('/recon?view=categories', {'view': ['categories']})
+        handler.recon_workspace()
+        body = str(captured.get('body') or '')
+        for label in ('Hosts &amp; Subdomains','APIs','Authentication','Admin / Internal','File &amp; Upload','Data / Object','Client-side / JavaScript','Infrastructure','Other'):
+            self.assertIn(label, body)
+
+        handler, captured = self.handler('/recon?view=raw', {'view': ['raw']})
+        handler.recon_workspace()
+        body = str(captured.get('body') or '')
+        for label in ('Hosts','URLs','Endpoints','Ports','JavaScript','Fingerprints'):
+            self.assertIn(label, body)
+
 
     def test_case_query_supports_multi_dimension_filters_and_sorting(self) -> None:
         db = Database(self.paths.db)

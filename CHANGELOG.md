@@ -1,3 +1,16 @@
+# 8.3.0 — Recon Intelligence 2.0 & Navigation Consolidation
+
+- Rebuilt Recon around three layers: Overview, Categories, and Raw Data.
+- Added a unified attack-surface view spanning hosts, URLs, endpoints, ports, JavaScript, and HTTP/TLS fingerprints.
+- Added multi-label security categories: Hosts & Subdomains, APIs, Authentication, Admin/Internal, File & Upload, Data/Object, Client-side/JavaScript, Infrastructure, and Other.
+- Added bounded interest scoring for review prioritization; interest is explicitly not a vulnerability verdict.
+- Added per-item change state and provenance where the stored recon evidence provides it.
+- Added Overview sections for Attack Surface Summary, New / Changed Surface, High-interest Areas, and Coverage / Blind Spots.
+- Consolidated the sidebar so research routes appear only under their owning workspace.
+- Replaced the duplicate-heavy More Tools menu with a System menu dedicated to cross-cutting operations, safety, governance, quality, and configuration.
+- Added regression coverage for multi-label classification, provenance, three-layer Recon rendering, and zero duplicate routes between workspaces and System.
+- Database schema remains 16; no destructive migration is required.
+
 # 8.2.0 — Command Center 2.0
 
 - Rebuilt the landing workspace around a ranked Decision Inbox instead of passive dashboard cards.

@@ -38,7 +38,7 @@ class Stability451Tests(unittest.TestCase):
         return temp, paths, Database(paths.db)
 
     def test_version_and_schema_remain_compatible(self):
-        self.assertEqual(APP_VERSION, "8.2.0")
+        self.assertEqual(APP_VERSION, "8.3.0")
         self.assertEqual(SCHEMA_VERSION, 16)
 
     def test_safe_json_loads_rejects_corrupt_and_wrong_shape(self):

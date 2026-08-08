@@ -618,58 +618,169 @@ def _change_alert_events(db: Database, target: str = "") -> list[dict[str, Any]]
     return events
 
 
+RECON_CATEGORY_ORDER = [
+    "hosts", "apis", "authentication", "admin_internal", "file_upload",
+    "data_object", "client_side", "infrastructure", "other",
+]
+RECON_CATEGORY_META = {
+    "hosts": ("Hosts & Subdomains", "Hosts, subdomains and discovered network names", "HS"),
+    "apis": ("APIs", "REST, GraphQL, WebSocket and API-like routes", "API"),
+    "authentication": ("Authentication", "Login, session, token, recovery, OAuth and identity surfaces", "AU"),
+    "admin_internal": ("Admin / Internal", "Administrative, internal, debug and management surfaces", "AI"),
+    "file_upload": ("File & Upload", "Upload, download, import, export and file-handling surfaces", "FU"),
+    "data_object": ("Data / Object", "Object identifiers and business-data access surfaces", "DO"),
+    "client_side": ("Client-side / JavaScript", "JavaScript, source maps and client-discovered routes", "JS"),
+    "infrastructure": ("Infrastructure", "Ports, services, HTTP/TLS fingerprints and technologies", "IF"),
+    "other": ("Other", "Observed surface not yet classified into a stronger security context", "OT"),
+}
+RECON_RAW_META = {
+    "host": ("Hosts", "Hosts and subdomains"), "url": ("URLs", "Observed web locations"),
+    "endpoint": ("Endpoints", "Normalized route intelligence"), "port": ("Ports", "Network services"),
+    "javascript": ("JavaScript", "Client-side resources"), "fingerprint": ("Fingerprints", "HTTP, TLS and technology observations"),
+}
+
+
+def _recon_security_categories(kind: str, value: str, detail: str = "", existing: Iterable[str] = ()) -> list[str]:
+    text = " ".join([kind, value, detail, *[str(x) for x in existing]]).lower()
+    labels: set[str] = set()
+    if kind == "host": labels.add("hosts")
+    if kind == "endpoint" or re.search(r"(?:^|/)(?:api|graphql|graphiql|ws|websocket)(?:/|$)", text) or re.search(r"/v[0-9]+(?:/|$)", text): labels.add("apis")
+    if any(x in text for x in ("login","logout","signin","sign-in","signup","sign-up","register","auth","oauth","oidc","sso","session","token","password","passwd","reset","recover","recovery","mfa","2fa")): labels.add("authentication")
+    if any(x in text for x in ("admin","internal","debug","management","manage/","backoffice","back-office","staff","console","actuator")): labels.add("admin_internal")
+    if any(x in text for x in ("upload","download","attachment","attachments","import","export","file/","files/","document","media/","multipart","source-map","sourcemap")): labels.add("file_upload")
+    if any(x in text for x in ("/user","/account","/profile","/order","/invoice","/project","/tenant","/customer","/record","/item","/object","/document","{id}",":id","uuid","object_id","user_id","account_id","tenant_id")): labels.add("data_object")
+    if kind == "javascript" or ".js" in value.lower() or "source map" in text or "sourcemap" in text: labels.add("client_side")
+    if kind in {"port","fingerprint"}: labels.add("infrastructure")
+    if not labels: labels.add("other")
+    return [key for key in RECON_CATEGORY_ORDER if key in labels]
+
+
+def _recon_interest_score(kind: str, categories: Iterable[str], confidence: int = 0, change_state: str = "stable", source_count: int = 1) -> int:
+    score = {"host":16,"url":22,"endpoint":34,"port":24,"javascript":20,"fingerprint":18}.get(kind,15)
+    weights = {"apis":10,"authentication":20,"admin_internal":24,"file_upload":15,"data_object":15,"client_side":5,"infrastructure":5,"hosts":2}
+    for category in set(categories): score += weights.get(category,0)
+    score += min(10, max(0,int(confidence))//10)
+    if change_state == "new": score += 15
+    elif change_state in {"changed","reappeared"}: score += 12
+    elif change_state == "disappeared": score += 5
+    score += min(8, max(0,source_count-1)*2)
+    return max(0,min(100,score))
+
+
+def _recon_surface_items(db: Database, target: str = "") -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    clause = " WHERE target=?" if target else ""
+    args: tuple[Any,...] = (target,) if target else ()
+    changes = _change_alert_events(db, target)
+    change_map: dict[tuple[str,str,str],dict[str,Any]] = {}
+    kind_alias = {"subdomain":"host","endpoint":"endpoint","url":"url","port":"port","javascript":"javascript","fingerprint":"fingerprint"}
+    for event in changes:
+        kind = kind_alias.get(str(event.get("kind") or ""))
+        if not kind: continue
+        key=(str(event.get("target") or ""),kind,str(event.get("value") or ""))
+        current=change_map.get(key)
+        if current is None or parse_int(event.get("score"),0)>parse_int(current.get("score"),0): change_map[key]=event
+    items: list[dict[str,Any]]=[]
+    def add(kind: str, row: Mapping[str,Any], value: str, detail: str, confidence: int, sources: Iterable[str], existing: Iterable[str] = ()) -> None:
+        row=dict(row)
+        src=[str(x) for x in sources if str(x).strip()]
+        if not src: src=["stored recon observation"]
+        event=change_map.get((str(row.get("target") or ""),kind,value))
+        change_state=str(event.get("change") if event else "stable")
+        cats=_recon_security_categories(kind,value,detail,existing)
+        items.append({
+            "kind":kind,"target":str(row.get("target") or ""),"value":value,"detail":detail,
+            "confidence":max(0,min(100,int(confidence or 0))),"categories":cats,
+            "interest":_recon_interest_score(kind,cats,int(confidence or 0),change_state,len(src)),
+            "change_state":change_state,"sources":src,"first_seen":str(row.get("first_seen") or ""),
+            "last_seen":str(row.get("last_seen") or ""),"last_run_id":str(row.get("last_run_id") or ""),
+        })
+    for r in db.all("SELECT target,host,sources_json,confidence,first_seen,last_seen,last_run_id FROM assets"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+        add("host",r,str(r["host"]),"Discovered host",parse_int(r["confidence"],0),_json(r["sources_json"],[]))
+    for r in db.all("SELECT target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id FROM endpoint_intelligence"+clause+" ORDER BY confidence DESC,last_seen DESC LIMIT 2000",args):
+        cats=_json(r["categories_json"],[]); reasons=_json(r["reasons_json"],[])
+        detail=" · ".join([str(r["primary_category"] or "endpoint")]+[str(x) for x in reasons[:2]])
+        add("endpoint",r,str(r["endpoint"]),detail,parse_int(r["confidence"],0),_json(r["sources_json"],[]),cats)
+    for r in db.all("SELECT target,url,kind,source,first_seen,last_seen,last_run_id FROM urls"+clause+" ORDER BY last_seen DESC LIMIT 2000",args):
+        add("url",r,str(r["url"]),str(r["kind"] or "URL"),0,[str(r["source"] or "")])
+    for r in db.all("SELECT target,host,ip,port,protocol,first_seen,last_seen,last_run_id,is_current FROM ports"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+        value=f"{r['host']}:{r['port']}/{r['protocol']}"; detail=f"{r['ip'] or 'IP not recorded'} · {'current' if r['is_current'] else 'not current'}"
+        add("port",r,value,detail,0,["stored port observation"])
+    for r in db.all("SELECT target,url,source_map_url,first_seen,last_seen,last_changed,last_run_id FROM js_files"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+        detail="Source map observed" if r["source_map_url"] else "JavaScript resource"
+        add("javascript",r,str(r["url"]),detail,0,["stored JavaScript observation"],["client-side"])
+    for r in db.all("SELECT target,url,status_code,title,webserver,technologies_json,content_type,ip,cdn,first_seen,last_seen,last_changed,last_run_id FROM fingerprints"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+        tech=[str(x) for x in _json(r["technologies_json"],[])[:4]]
+        detail=" · ".join(x for x in [str(r["status_code"] or ""),str(r["webserver"] or ""),", ".join(tech),str(r["cdn"] or "")] if x)
+        add("fingerprint",r,str(r["url"]),detail,0,["stored HTTP/TLS observation"],tech)
+    items.sort(key=lambda x:(parse_int(x.get("interest"),0),str(x.get("last_seen") or "")),reverse=True)
+    targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
+    coverage_rows=[]
+    for tgt in ([target] if target else targets[:25]):
+        if not tgt: continue
+        try: coverage_rows.append(recon_coverage(db,target=tgt,persist=False))
+        except Exception: continue
+    coverage_overall=round(sum(parse_int(x.get("overall"),0) for x in coverage_rows)/len(coverage_rows)) if coverage_rows else 0
+    blind=[]
+    for row in coverage_rows:
+        for spot in row.get("blind_spots",[]):
+            label=f"{row.get('target')}: {spot}" if not target else str(spot)
+            if label not in blind: blind.append(label)
+    return items,{"targets":targets,"coverage_overall":coverage_overall,"blind_spots":blind[:8],"changes":changes}
+
+
 NAV_SECTIONS = [
     ("recon", "01 · Recon", "01", "Discover and map", [
-        ("/recon", "Recon workspace", "RC"), ("/assets", "Assets", "AS"),
-        ("/endpoints", "Endpoints", "EP"), ("/runs", "Run history", "RN"),
+        ("/recon", "Recon workspace", "RC"), ("/assets", "Assets", "AS"), ("/asset", "Asset", "AS"),
+        ("/endpoints", "Endpoints", "EP"), ("/urls", "URLs", "URL"), ("/javascript", "JavaScript", "JS"),
+        ("/js-diff", "JavaScript diff", "JD"), ("/fingerprints", "HTTP / TLS", "HT"), ("/runs", "Run history", "RN"),
+        ("/attack-surface", "Attack surface", "AG"), ("/graph", "Asset graph", "GR"),
+        ("/recon-coverage", "Recon coverage", "CV"), ("/target-memory", "Target memory", "TM"),
+        ("/smart-recon", "Smart recon planner", "SP"), ("/browser-capture", "Browser capture", "BC"),
+        ("/lifecycle", "Lifecycle", "LC"),
     ]),
     ("analysis", "02 · Analysis", "02", "Understand the findings", [
         ("/analysis", "Analysis workspace", "AN"), ("/behavioral-intelligence", "Behavior changes", "BI"),
         ("/differential-intelligence", "Differential analysis", "DI"), ("/evidence-gaps", "Evidence gaps", "EG"),
+        ("/security-reasoning", "Security reasoning", "SR"), ("/semantic-intelligence", "Semantic intelligence", "SI"),
+        ("/auth-contexts", "Authentication contexts", "AC"), ("/hypotheses", "Hypotheses", "HY"),
+        ("/clusters", "Similarity clusters", "CL"), ("/dataflows", "JS data flows", "DF"),
+        ("/analysis-quality", "Analysis quality", "AQ"), ("/security-stories", "Security stories", "SS"),
     ]),
     ("findings", "03 · Potential Findings", "03", "Review probable bugs", [
-        ("/potential-findings", "Potential findings", "PF"), ("/cases", "Reviewed cases", "CS"),
-        ("/safe-validation", "Validation", "SV"), ("/report-builder", "Reports", "RP"),
+        ("/potential-findings", "Potential findings", "PF"), ("/bug-candidates", "Potential findings", "PF"),
+        ("/bug-candidate", "Finding detail", "PF"), ("/cases", "Reviewed cases", "CS"), ("/case", "Case detail", "CS"),
+        ("/safe-validation", "Validation", "SV"), ("/case-autopilot", "Case autopilot", "AP"),
+        ("/report-builder", "Reports", "RP"), ("/candidate-quality", "Candidate quality", "CQ"),
+        ("/candidate-bundles", "Candidate bundles", "CB"), ("/workbench", "Review queue", "RQ"),
+        ("/validation-intelligence", "Validation intelligence", "VI"), ("/review-priority", "Review priority", "PR"),
+        ("/report-quality", "Report quality", "RQ"), ("/learning", "False-positive learning", "FL"),
     ]),
     ("alerts", "04 · Alerts", "04", "See what changed", [
-        ("/alerts", "Change alerts", "AL"), ("/change-intelligence", "Change intelligence", "CH"),
-        ("/compare", "Compare runs", "CR"), ("/daily", "Recent changes", "RC"),
-    ]),
-]
-
-ADVANCED_NAV_SECTIONS = [
-    ("Recon detail", [
-        ("/assets", "Assets", "AS"), ("/endpoints", "Endpoints", "EP"), ("/urls", "URLs", "URL"),
-        ("/javascript", "JavaScript", "JS"), ("/fingerprints", "HTTP / TLS", "HT"), ("/runs", "Run history", "RN"),
-        ("/attack-surface", "Attack surface", "AG"), ("/graph", "Asset graph", "GR"),
-        ("/recon-coverage", "Recon coverage", "CV"), ("/target-memory", "Target memory", "TM"),
-        ("/smart-recon", "Smart recon planner", "SP"),
-    ]),
-    ("Analysis detail", [
-        ("/behavioral-intelligence", "Behavior changes", "BI"), ("/differential-intelligence", "Differential analysis", "DI"),
-        ("/evidence-gaps", "Evidence gaps", "EG"), ("/security-reasoning", "Security reasoning", "SR"),
-        ("/semantic-intelligence", "Semantic intelligence", "SI"), ("/auth-contexts", "Authentication contexts", "AC"),
-        ("/hypotheses", "Hypotheses", "HY"), ("/clusters", "Similarity clusters", "CL"),
-        ("/dataflows", "JS data flows", "DF"), ("/analysis-quality", "Analysis quality", "AQ"),
-        ("/candidate-quality", "Candidate quality", "CQ"),
-    ]),
-    ("Findings detail", [
-        ("/cases", "Reviewed cases", "CS"), ("/safe-validation", "Validation", "SV"),
-        ("/report-builder", "Reports", "RP"), ("/case-autopilot", "Case autopilot", "AP"),
-    ]),
-    ("Alerts detail", [
+        ("/alerts", "Change alerts", "AL"), ("/signal-alerts", "Signal workflow", "SG"), ("/alert", "Alert detail", "AL"),
         ("/change-intelligence", "Change intelligence", "CH"), ("/compare", "Compare runs", "CR"),
-        ("/daily", "Recent changes", "RC"), ("/signal-alerts", "Signal workflow", "SG"),
-    ]),
-    ("Operations & settings", [
-        ("/workbench", "Review queue", "RQ"), ("/operations-center", "Operations center", "OC"),
-        ("/safety-center", "Safety center", "SF"), ("/diagnostics", "Diagnostics", "DX"),
-        ("/scope-center", "Scope center", "SC"), ("/views", "Saved views", "VW"),
-        ("/rules", "Rule governance", "RG"), ("/plugins", "Plugins", "PL"),
-        ("/audit", "Audit trail", "AU"), ("/targets", "Targets", "TG"),
+        ("/daily", "Recent changes", "RC"), ("/incidents", "Incidents", "IN"),
     ]),
 ]
 
+# Only cross-cutting system functions belong here. Research pages live exclusively
+# inside their owning workspace above so the sidebar never exposes duplicate paths.
+ADVANCED_NAV_SECTIONS = [
+    ("Operations", [
+        ("/operations-center", "Operations center", "OC"), ("/storage-health", "Storage health", "SH"),
+        ("/automation", "Automation", "AU"), ("/performance", "Performance", "PF"),
+        ("/retention", "Retention", "RT"), ("/views", "Saved views", "VW"),
+    ]),
+    ("Safety & governance", [
+        ("/scope-center", "Scope center", "SC"), ("/targets", "Targets", "TG"),
+        ("/safety-center", "Safety center", "SF"), ("/platform-security", "Platform security", "PS"),
+        ("/diagnostics", "Diagnostics", "DX"), ("/rules", "Rule governance", "RG"),
+        ("/audit", "Audit trail", "AT"),
+    ]),
+    ("System quality & configuration", [
+        ("/engine-quality", "Engine quality", "EQ"), ("/data-quality", "Data quality", "DQ"),
+        ("/templates", "Target templates", "TP"), ("/plugins", "Plugins", "PL"),
+    ]),
+]
 
 
 def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str = "", current_path: str = "") -> str:
@@ -701,7 +812,7 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
             active=active_path == href or active_path.startswith(href)
             items.append(f"<a class='nav-item{' active' if active else ''}' href='{href}'><span class='nav-icon'>{_esc(icon)}</span><span class='nav-text'>{_esc(label)}</span></a>")
         advanced_groups.append(f"<div class='advanced-group'><div class='advanced-label'>{_esc(group_label)}</div>{''.join(items)}</div>")
-    advanced_nav=f"<details class='advanced-nav' data-nav-group='advanced' data-active='{'1' if advanced_active else '0'}'{' open' if advanced_active else ''}><summary><span class='nav-group-icon'>••</span><span class='nav-group-copy'><strong>More tools</strong><small>Change research and administration</small></span><b>⌄</b></summary><div class='nav-items'>{''.join(advanced_groups)}</div></details>"
+    advanced_nav=f"<details class='advanced-nav' data-nav-group='advanced' data-active='{'1' if advanced_active else '0'}'{' open' if advanced_active else ''}><summary><span class='nav-group-icon'>••</span><span class='nav-group-copy'><strong>System</strong><small>Operations, safety and settings</small></span><b>⌄</b></summary><div class='nav-items'>{''.join(advanced_groups)}</div></details>"
     legacy_nav_contract="<div hidden aria-hidden='true'><details data-nav-group='workspace'><summary>Decide, validate, report</summary></details><details data-nav-group='analysis'><summary>Candidates and reasoning</summary></details><details data-nav-group='quality'></details><details data-nav-group='operations'><summary>Scope, runs and platform health</summary></details><details data-nav-group='inventory'></details></div>"
     user = _esc(username or "local")
     user_role = _esc(role or "viewer")
@@ -712,7 +823,7 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     for _,section,_,_,links in NAV_SECTIONS:
         if any(active_path == href or (href != '/' and active_path.startswith(href)) for href,_,_ in links):
             section_name=section; break
-    if advanced_active: section_name='More tools'
+    if advanced_active: section_name='System'
     return f"""<!doctype html>
 <html lang='en' data-theme='dark'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>{_esc(title)} — Recon Monitor</title>
@@ -1324,43 +1435,87 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.SEE_OTHER); self.send_header("Location","/"); self.send_header("Set-Cookie",session_cookie(session,secure=False)); self.send_header("Cache-Control","no-store"); self.end_headers()
 
     def recon_workspace(self) -> None:
-        p=self.query(); target=str((p.get('target')or[''])[0]); q=str((p.get('q')or[''])[0]).strip(); kind=str((p.get('kind')or[''])[0]); days=parse_int((p.get('days')or[0])[0],0,0,3650)
+        p=self.query()
+        target=str((p.get('target') or [''])[0]).strip()
+        view=str((p.get('view') or ['overview'])[0]).strip().lower()
+        category=str((p.get('category') or [''])[0]).strip().lower()
+        raw=str((p.get('raw') or [''])[0]).strip().lower()
+        q=str((p.get('q') or [''])[0]).strip()
+        days=parse_int((p.get('days') or [0])[0],0,0,3650)
+        legacy_kind=str((p.get('kind') or [''])[0]).strip().lower()
+        if legacy_kind and 'view' not in p:
+            view='raw'; raw={'subdomain':'host','endpoint':'endpoint','url':'url','port':'port','javascript':'javascript'}.get(legacy_kind,legacy_kind)
+        if view not in {'overview','categories','raw'}: view='overview'
         db=self.db()
         try:
-            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
-            base_args=[]; target_sql=''
-            if target: target_sql=' WHERE target=?'; base_args=[target]
-            counts={
-                'assets':int((db.one('SELECT COUNT(*) c FROM assets'+target_sql,tuple(base_args)) or {'c':0})['c']),
-                'endpoints':int((db.one('SELECT COUNT(*) c FROM endpoint_intelligence'+target_sql,tuple(base_args)) or {'c':0})['c']),
-                'urls':int((db.one('SELECT COUNT(*) c FROM urls'+target_sql,tuple(base_args)) or {'c':0})['c']),
-                'ports':int((db.one('SELECT COUNT(*) c FROM ports'+target_sql,tuple(base_args)) or {'c':0})['c']),
-                'javascript':int((db.one('SELECT COUNT(*) c FROM js_files'+target_sql,tuple(base_args)) or {'c':0})['c']),
-            }
-            since=''
-            if days: since=(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=days)).replace(microsecond=0).isoformat().replace('+00:00','Z')
-            results=[]
-            def add_rows(asset_kind, sql, args):
-                if kind and kind!=asset_kind:return
-                for row in db.all(sql,args):
-                    results.append(dict(row)|{'asset_kind':asset_kind})
-            like=f'%{q}%'
-            add_rows('subdomain',"SELECT target,host value,confidence score,last_seen seen,'Host discovered by recon' detail FROM assets WHERE (?='' OR target=?) AND (?='' OR host LIKE ?) AND (?='' OR last_seen>=?) ORDER BY last_seen DESC LIMIT 150",(target,target,q,like,since,since))
-            add_rows('endpoint',"SELECT target,endpoint value,confidence score,last_seen seen,primary_category detail FROM endpoint_intelligence WHERE (?='' OR target=?) AND (?='' OR endpoint LIKE ? OR reasons_json LIKE ?) AND (?='' OR last_seen>=?) ORDER BY confidence DESC,last_seen DESC LIMIT 150",(target,target,q,like,like,since,since))
-            add_rows('url',"SELECT target,url value,0 score,last_seen seen,kind detail FROM urls WHERE (?='' OR target=?) AND (?='' OR url LIKE ?) AND (?='' OR last_seen>=?) ORDER BY last_seen DESC LIMIT 150",(target,target,q,like,since,since))
-            add_rows('port',"SELECT target,(host||':'||port||'/'||protocol) value,0 score,last_seen seen,COALESCE(ip,'') detail FROM ports WHERE (?='' OR target=?) AND (?='' OR host LIKE ? OR CAST(port AS TEXT) LIKE ?) AND (?='' OR last_seen>=?) ORDER BY last_seen DESC LIMIT 150",(target,target,q,like,like,since,since))
-            add_rows('javascript',"SELECT target,url value,0 score,last_seen seen,'JavaScript' detail FROM js_files WHERE (?='' OR target=?) AND (?='' OR url LIKE ?) AND (?='' OR last_seen>=?) ORDER BY last_seen DESC LIMIT 150",(target,target,q,like,since,since))
-            results.sort(key=lambda x:str(x.get('seen') or ''),reverse=True);results=results[:500]
-        finally: db.close()
-        day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
-        fields=f"<label class='filter-wide'>Search all recon findings<input name='q' value='{_esc(q)}' placeholder='Host, endpoint, URL, port, JavaScript…'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Finding type{_select_pairs('kind',[('subdomain','Subdomain / host'),('endpoint','Endpoint'),('url','URL'),('port','Port / service'),('javascript','JavaScript')],kind,'All types')}</label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Type':kind,'Window':dict(day_pairs).get(str(days),'') if days else ''},'/recon',title='Recon search & filters',result_count=len(results))
-        metrics="<div class='metrics-grid'>"+_metric_card('Assets',counts['assets'],'Hosts and subdomains','info','/assets')+_metric_card('Endpoints',counts['endpoints'],'API and route intelligence','purple','/endpoints')+_metric_card('URLs',counts['urls'],'Observed web locations','success','/urls')+_metric_card('Ports',counts['ports'],'Observed services','amber','/fingerprints')+_metric_card('JavaScript',counts['javascript'],'Client-side surface','blue','/javascript')+"</div>"
-        rows=''.join(f"<tr><td>{_pill(r['asset_kind'])}</td><td>{_esc(r['target'])}</td><td><code>{_esc(r['value'])}</code></td><td>{_confidence(r['score']) if parse_int(r.get('score'),0) else '—'}</td><td>{_esc(r.get('detail'))}</td><td>{_esc(r.get('seen'))}</td></tr>" for r in results)
-        quick="<div class='workspace-strip'><a class='workspace-tile' href='/assets'><span class='workspace-tile-icon'>AS</span><span><strong>Assets</strong><small>Hosts, lifecycle and scope</small></span></a><a class='workspace-tile' href='/endpoints'><span class='workspace-tile-icon'>EP</span><span><strong>Endpoints</strong><small>Routes, categories and confidence</small></span></a><a class='workspace-tile' href='/attack-surface'><span class='workspace-tile-icon'>AG</span><span><strong>Attack surface</strong><small>Connected surface graph</small></span></a><a class='workspace-tile' href='/runs'><span class='workspace-tile-icon'>RN</span><span><strong>Recon runs</strong><small>History and comparisons</small></span></a></div>"
-        header=_page_header('Recon','Discover first, then narrow quickly. High-volume inventory stays searchable without hiding the current attack-surface story.',"<a class='button secondary' href='/smart-recon'>Smart recon plan</a><a class='button' href='/runs'>Run history</a>",'01 · Discover')
-        presets=_quick_views([('All findings','/recon',not any([target,q,kind,days])),('Endpoints','/recon?kind=endpoint',kind=='endpoint'),('Last 24h','/recon?days=1',days==1),('JavaScript','/recon?kind=javascript',kind=='javascript'),('Ports / services','/recon?kind=port',kind=='port')])
-        self.send_html('Recon',header+metrics+quick+presets+controls+f"<section class='panel'><div class='panel-head'><h3>All recon findings</h3><span class='muted small'>{len(results)} shown · use filters to reduce inventory noise</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Type</th><th>Target</th><th>Finding</th><th>Confidence</th><th>Context</th><th>Last seen</th></tr></thead><tbody>{rows or '<tr><td colspan=6>No recon findings match the current filters</td></tr>'}</tbody></table></div></section>")
+            items,meta=_recon_surface_items(db,target)
+        finally:
+            db.close()
+        targets=meta['targets']
+        since=''
+        if days: since=(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=days)).replace(microsecond=0).isoformat().replace('+00:00','Z')
+        filtered=[x for x in items if (not q or q.lower() in (' '.join([str(x.get('value','')),str(x.get('detail','')),str(x.get('target','')),' '.join(x.get('categories',[])),' '.join(x.get('sources',[]))])).lower()) and (not since or str(x.get('last_seen') or '')>=since)]
+        counts={kind:sum(1 for x in items if x['kind']==kind) for kind in RECON_RAW_META}
+        category_counts={key:sum(1 for x in items if key in x['categories']) for key in RECON_CATEGORY_ORDER}
+        state_counts={state:sum(1 for x in items if x['change_state']==state) for state in ('new','changed','reappeared','disappeared','stable')}
+        high_interest=[x for x in filtered if parse_int(x.get('interest'),0)>=70]
+        tabs="<nav class='segmented' aria-label='Recon views'>"+''.join(
+            f"<a class='{'active' if view==key else ''}' href='{_query_link('/recon',view=key,target=target)}'>{label}</a>"
+            for key,label in [('overview','Overview'),('categories','Categories'),('raw','Raw Data')]
+        )+"</nav>"
+        target_controls=_filter_panel(
+            f"<label>Target{_select('target',targets,target,'All targets')}</label><input type='hidden' name='view' value='{_esc(view)}'>",
+            {'Target':target},_query_link('/recon',view=view),title='Recon focus',result_count=len(filtered)
+        )
+        header=_page_header('Recon','Understand the attack surface first. Overview explains the current picture, Categories organize security context, and Raw Data preserves full evidence.',"<a class='button secondary' href='/smart-recon'>Next recon action</a><a class='button' href='/runs'>Run history</a>",'01 · Discover')
+        common=header+tabs+target_controls
+        if view=='overview':
+            summary="<div class='metrics-grid'>"+''.join([
+                _metric_card('Attack-surface items',len(items),'Unified observations across all recon sources','info',_query_link('/recon',view='raw',target=target)),
+                _metric_card('High-interest',len([x for x in items if parse_int(x.get('interest'),0)>=70]),'Prioritized surface — not vulnerability claims','orange',_query_link('/recon',view='categories',target=target)),
+                _metric_card('New / changed',state_counts['new']+state_counts['changed']+state_counts['reappeared'],'Material change states from run comparisons','purple',_query_link('/recon',view='overview',target=target)+'#changes'),
+                _metric_card('Coverage',str(meta['coverage_overall'])+'%','Observation confidence across selected scope','success' if meta['coverage_overall']>=75 else 'amber','/recon-coverage'+(('?target='+urllib.parse.quote(target)) if target else '')),
+            ])+"</div>"
+            raw_pulse="<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Attack Surface Summary</h3><span class='muted small'>Inventory by raw evidence source</span></div><div class='attention-grid'>"+''.join(
+                f"<a class='attention-card' href='{_query_link('/recon',view='raw',raw=k,target=target)}'><span>{_esc(RECON_RAW_META[k][1])}</span><strong>{counts[k]}</strong><small>{_esc(RECON_RAW_META[k][0])}</small></a>" for k in RECON_RAW_META
+            )+"</div></section>"
+            change_cards=''.join(
+                f"<a class='attention-card' href='{_query_link('/recon',view='raw',target=target)}'><span>{_esc(label)}</span><strong>{state_counts[key]}</strong><small>surface items</small></a>"
+                for key,label in [('new','New'),('changed','Changed'),('reappeared','Reappeared'),('disappeared','Disappeared')]
+            )
+            changes=f"<section class='panel' id='changes' style='margin-top:16px'><div class='panel-head'><h3>New / Changed Surface</h3><span class='muted small'>Run-to-run state, not a vulnerability verdict</span></div><div class='attention-grid'>{change_cards}</div></section>"
+            top=high_interest[:12]
+            top_rows=''.join(f"<tr><td><strong>{x['interest']}</strong></td><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code></td><td>{' '.join(_pill(RECON_CATEGORY_META[c][0],'info') for c in x['categories'])}</td><td>{_pill(x['change_state'])}</td><td>{_esc(', '.join(x['sources'][:3]))}</td></tr>" for x in top)
+            interest=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>High-interest Areas</h3><span class='muted small'>Interest ranks review value only; it does not claim a vulnerability.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Categories</th><th>Change</th><th>Provenance</th></tr></thead><tbody>{top_rows or '<tr><td colspan=7>No high-interest surface is currently indexed</td></tr>'}</tbody></table></div></section>"
+            blind=''.join(f"<li>{_esc(x)}</li>" for x in meta['blind_spots']) or '<li>No major blind spot identified by current coverage heuristics.</li>'
+            coverage=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Coverage / Blind Spots</h3><span class='muted small'>Coverage {meta['coverage_overall']}%</span></div><div class='panel-body'><ul>{blind}</ul><p class='muted small'>Low coverage means observations are missing; it never means the target is safe.</p></div></section>"
+            self.send_html('Recon',common+summary+raw_pulse+changes+interest+coverage); return
+        if view=='categories':
+            cards=[]
+            for key in RECON_CATEGORY_ORDER:
+                label,desc,icon=RECON_CATEGORY_META[key]
+                members=[x for x in filtered if key in x['categories']]
+                high=sum(1 for x in members if parse_int(x.get('interest'),0)>=70)
+                changed=sum(1 for x in members if x['change_state']!='stable')
+                cards.append(f"<a class='workspace-tile' href='{_query_link('/recon',view='categories',category=key,target=target)}'><span class='workspace-tile-icon'>{_esc(icon)}</span><span><strong>{_esc(label)}</strong><small>{len(members)} items · {high} high-interest · {changed} changed<br>{_esc(desc)}</small></span></a>")
+            category_grid="<div class='workspace-strip' style='grid-template-columns:repeat(auto-fit,minmax(260px,1fr))'>"+''.join(cards)+"</div>"
+            chosen=category if category in RECON_CATEGORY_META else ''
+            members=[x for x in filtered if not chosen or chosen in x['categories']]
+            fields=f"<label class='filter-wide'>Search categorized surface<input name='q' value='{_esc(q)}' placeholder='Host, route, category, source…'></label><label>Category{_select_pairs('category',[(k,RECON_CATEGORY_META[k][0]) for k in RECON_CATEGORY_ORDER],chosen,'All categories')}</label><label>Seen{_select_pairs('days',[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')],str(days) if days else '','Any time')}</label><input type='hidden' name='view' value='categories'><input type='hidden' name='target' value='{_esc(target)}'>"
+            controls=_filter_panel(fields,{'Category':RECON_CATEGORY_META.get(chosen,('',))[0] if chosen else '', 'Search':q,'Window':str(days)+' days' if days else ''},_query_link('/recon',view='categories',target=target),title='Category filters',result_count=len(members))
+            rows=''.join(f"<tr><td><strong>{x['interest']}</strong></td><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span></td><td>{' '.join(_pill(RECON_CATEGORY_META[c][0],'info') for c in x['categories'])}</td><td>{_pill(x['change_state'])}</td><td>{_esc(', '.join(x['sources'][:3]))}</td><td>{_esc(x['last_seen'])}</td></tr>" for x in members[:500])
+            title=RECON_CATEGORY_META[chosen][0] if chosen else 'All categorized surface'
+            table=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(title)}</h3><span class='muted small'>Multi-label categories: one item may appear in more than one security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Labels</th><th>Change</th><th>Provenance</th><th>Last seen</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No surface matches this category</td></tr>'}</tbody></table></div></section>"
+            self.send_html('Recon categories',common+category_grid+controls+table); return
+        # Raw Data: source-faithful evidence with minimal interpretation.
+        chosen=raw if raw in RECON_RAW_META else ''
+        members=[x for x in filtered if not chosen or x['kind']==chosen]
+        raw_tiles="<div class='workspace-strip'>"+''.join(f"<a class='workspace-tile' href='{_query_link('/recon',view='raw',raw=k,target=target)}'><span class='workspace-tile-icon'>{_esc(k[:2].upper())}</span><span><strong>{_esc(RECON_RAW_META[k][0])}</strong><small>{counts[k]} · {_esc(RECON_RAW_META[k][1])}</small></span></a>" for k in RECON_RAW_META)+"</div>"
+        fields=f"<label class='filter-wide'>Search raw recon data<input name='q' value='{_esc(q)}' placeholder='Exact host, URL, route, service or source…'></label><label>Raw type{_select_pairs('raw',[(k,v[0]) for k,v in RECON_RAW_META.items()],chosen,'All raw data')}</label><label>Seen{_select_pairs('days',[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')],str(days) if days else '','Any time')}</label><input type='hidden' name='view' value='raw'><input type='hidden' name='target' value='{_esc(target)}'>"
+        controls=_filter_panel(fields,{'Type':RECON_RAW_META.get(chosen,('',))[0] if chosen else '', 'Search':q,'Window':str(days)+' days' if days else ''},_query_link('/recon',view='raw',target=target),title='Raw data filters',result_count=len(members))
+        rows=''.join(f"<tr><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span></td><td>{_confidence(x['confidence']) if x['confidence'] else '—'}</td><td>{_esc(', '.join(x['sources'][:4]))}</td><td>{_esc(x['first_seen'])}</td><td>{_esc(x['last_seen'])}</td><td>{_esc(x['last_run_id'])}</td></tr>" for x in members[:500])
+        table=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(RECON_RAW_META[chosen][0] if chosen else 'All raw recon data')}</h3><span class='muted small'>Source-faithful inventory; use Categories for security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Type</th><th>Target</th><th>Observation</th><th>Confidence</th><th>Provenance</th><th>First seen</th><th>Last seen</th><th>Run</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No raw observations match the current filters</td></tr>'}</tbody></table></div></section>"
+        self.send_html('Recon raw data',common+raw_tiles+controls+table)
 
     def analysis_engine(self) -> None:
         p=self.query();q=str((p.get('q')or[''])[0]).strip();target=str((p.get('target')or[''])[0]);severity=str((p.get('severity')or[''])[0]);sort=str((p.get('sort')or['score'])[0]);min_conf=parse_int((p.get('min_confidence')or[0])[0],0,0,100);min_score=parse_int((p.get('min_score')or[0])[0],0,0,100)

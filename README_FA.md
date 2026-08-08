@@ -1,6 +1,14 @@
-# راهنمای Recon Monitor 8.2.0
+# راهنمای Recon Monitor 8.3.0
 
 
+
+## Recon Intelligence 2.0 در نسخه 8.3.0
+
+بخش Recon حالا سه لایه روشن دارد: **Overview**، **Categories** و **Raw Data**. Overview خلاصه Attack Surface، موارد New/Changed، نواحی High-interest و Coverage/Blind Spots را نشان می‌دهد. Categories داده‌ها را به‌صورت چندبرچسبی در گروه‌های Hosts & Subdomains، APIs، Authentication، Admin/Internal، File & Upload، Data/Object، Client-side/JavaScript، Infrastructure و Other سازمان‌دهی می‌کند. Raw Data نیز داده اصلی Hosts، URLs، Endpoints، Ports، JavaScript و Fingerprints را بدون مخلوط‌کردن با استنتاج امنیتی نگه می‌دارد.
+
+هر Surface Item می‌تواند چند Category هم‌زمان، Interest Score، Change State و Provenance داشته باشد. Interest Score فقط برای اولویت‌بندی بررسی است و به معنی تأیید Vulnerability نیست. منوی Sidebar نیز تمیز شده است: ابزارهای تحقیقاتی فقط داخل Workspace مالک خود نمایش داده می‌شوند و منوی **System** فقط برای Operations، Scope، Safety، Governance، Quality و Configuration باقی می‌ماند. Schema دیتابیس همچنان **16** است.
+
+راهنمای ارتقا: `MIGRATION-v8.3.md`.
 
 ## آپدیت خودکار از GitHub Private در نسخه 8.1.0
 

@@ -1,4 +1,12 @@
-# Recon Monitor 8.2.0
+# Recon Monitor 8.3.0
+
+## Recon Intelligence 2.0 in 8.3.0
+
+Recon is now organized into three deliberate layers: **Overview**, **Categories**, and **Raw Data**. Overview summarizes the attack surface, material changes, high-interest areas, and coverage/blind spots. Categories provides multi-label security context across Hosts & Subdomains, APIs, Authentication, Admin/Internal, File & Upload, Data/Object, Client-side/JavaScript, Infrastructure, and Other. Raw Data preserves source-faithful Hosts, URLs, Endpoints, Ports, JavaScript, and HTTP/TLS Fingerprints.
+
+Each unified surface item carries bounded **interest scoring**, change state, and provenance where available. Interest is a review-priority signal only; it never claims that an item is a vulnerability. The sidebar was also de-duplicated: research routes now live only under their owning Recon, Analysis, Potential Findings, or Alerts workspace, while the final **System** menu is reserved for cross-cutting operations, safety, governance, quality, and configuration. Database schema remains **16**.
+
+See `MIGRATION-v8.3.md` for the 8.2.x → 8.3 transition.
 
 ## Command Center 2.0 in 8.2.0
 

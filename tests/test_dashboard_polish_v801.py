@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from core import AppPaths, Config, Logger, ReconError
-from dashboard import _candidate_confidence_story, _command_decision_item, _layout
+from core import AppPaths, Config, Database, Logger, ReconError
+from dashboard import ADVANCED_NAV_SECTIONS, NAV_SECTIONS, _candidate_confidence_story, _command_decision_item, _layout, _recon_interest_score, _recon_security_categories, _recon_surface_items
 from dashboard_service import _port_listener_details, start_dashboard
 
 
@@ -22,8 +22,9 @@ class DashboardPolishV801Tests(unittest.TestCase):
         self.assertIn("data-primary-workspace='1'", page)
         self.assertIn("03 · Potential Findings", page)
         self.assertIn("04 · Alerts", page)
-        self.assertIn("<strong>More tools</strong>", page)
-        self.assertIn("href='/cases'", page)
+        self.assertIn("<strong>System</strong>", page)
+        self.assertNotIn("<div class='advanced-label'>Recon detail</div>", page)
+        self.assertNotIn("<div class='advanced-label'>Analysis detail</div>", page)
 
     def test_candidate_confidence_is_explainable(self) -> None:
         html = _candidate_confidence_story({
@@ -69,7 +70,6 @@ class DashboardPolishV801Tests(unittest.TestCase):
         self.assertIn("<strong>Command Center</strong>", page)
         self.assertIn("<small>Overview and decision inbox</small>", page)
 
-
     def test_command_center_v2_decision_item_is_actionable(self) -> None:
         html = _command_decision_item({
             "kind": "candidate", "eyebrow": "Potential finding", "title": "Review authorization boundary",
@@ -81,6 +81,39 @@ class DashboardPolishV801Tests(unittest.TestCase):
         self.assertIn("91", html)
         self.assertIn("/bug-candidate?id=BC-1", html)
 
+    def test_system_menu_has_no_workspace_route_duplicates(self) -> None:
+        workspace_paths = {href for _,_,_,_,links in NAV_SECTIONS for href,_,_ in links}
+        system_paths = {href for _,links in ADVANCED_NAV_SECTIONS for href,_,_ in links}
+        self.assertFalse(workspace_paths & system_paths)
+        self.assertNotIn('/assets', system_paths)
+        self.assertNotIn('/cases', system_paths)
+        self.assertNotIn('/change-intelligence', system_paths)
+
+    def test_recon_security_categories_are_multilabel(self) -> None:
+        labels = _recon_security_categories('endpoint', '/api/v2/admin/users/{id}/export', 'authenticated route')
+        self.assertIn('apis', labels)
+        self.assertIn('admin_internal', labels)
+        self.assertIn('data_object', labels)
+        self.assertIn('file_upload', labels)
+        self.assertGreater(_recon_interest_score('endpoint', labels, 85, 'new', 2), 70)
+
+    def test_recon_surface_items_preserve_provenance_and_security_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = AppPaths.from_root(Path(tmp)); paths.ensure(); db = Database(paths.db)
+            try:
+                now = "2026-08-08T00:00:00Z"
+                db.execute("INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    ("example.com","/api/admin/users/{id}/export","rest","api",88,json.dumps(["api"]),json.dumps(["identifier"]),json.dumps(["javascript","crawler"]),now,now,"run-1"))
+                items, _ = _recon_surface_items(db, "example.com")
+                item = next(x for x in items if x["kind"] == "endpoint")
+                self.assertIn("apis", item["categories"])
+                self.assertIn("admin_internal", item["categories"])
+                self.assertIn("data_object", item["categories"])
+                self.assertIn("file_upload", item["categories"])
+                self.assertEqual(item["sources"], ["javascript","crawler"])
+                self.assertGreaterEqual(item["interest"], 70)
+            finally:
+                db.close()
 
 
 if __name__ == "__main__":
