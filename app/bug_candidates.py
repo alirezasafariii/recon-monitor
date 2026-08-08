@@ -8,8 +8,8 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
 
-CANDIDATE_ENGINE_VERSION = "5.0.0"
-CANDIDATE_RULE_VERSION = "2026.08.7"
+CANDIDATE_ENGINE_VERSION = "5.0.1"
+CANDIDATE_RULE_VERSION = "2026.08.8.1"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -135,9 +135,22 @@ def _evidence_strength(analysis_confidence: int, support: list[dict[str, Any]], 
 
 
 def _candidate_fingerprint(target: str, alert_id: int | None, family: str, variant: str, endpoint: str, source_ref: str) -> str:
+    del alert_id, source_ref
     normalized_endpoint = re.sub(r"\b\d{2,}\b", "{n}", endpoint.lower())
     normalized_endpoint = re.sub(r"[0-9a-f]{8}-[0-9a-f-]{27,}", "{uuid}", normalized_endpoint, flags=re.I)
-    return sha256_text("|".join([target, str(alert_id or 0), family, variant, normalized_endpoint, source_ref]))
+    return sha256_text("|".join([target, family, variant, normalized_endpoint]))
+
+
+def _merge_evidence_lists(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in [*left, *right]:
+        key = json_dumps(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged
 
 
 def _previous_decision(db: Database, fingerprint: str, analysis_id: str) -> tuple[str, str]:
@@ -193,6 +206,17 @@ def _insert_candidate(
     impact_potential = _clamp(impact_potential)
     auto_state = _state(likelihood, evidence_strength)
     fingerprint = _candidate_fingerprint(target, alert_id, family, variant, endpoint, source_ref)
+    existing = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND candidate_fingerprint=?", (analysis_id, fingerprint))
+    if existing:
+        support = _merge_evidence_lists(_loads(existing["supporting_evidence_json"], []), support)
+        contradict = _merge_evidence_lists(_loads(existing["contradicting_evidence_json"], []), contradict)
+        missing = list(dict.fromkeys([*_loads(existing["missing_evidence_json"], []), *missing]))
+        rule_ids = list(dict.fromkeys([*_loads(existing["rule_ids_json"], []), *rule_ids]))
+        likelihood = max(likelihood, parse_int(existing["likelihood_score"], 0))
+        evidence_strength = max(evidence_strength, parse_int(existing["evidence_strength"], 0))
+        impact_potential = max(impact_potential, parse_int(existing["impact_potential"], 0))
+        alert_id = existing["alert_id"]
+        source_ref = str(existing["source_ref"] or source_ref)
     decision, note = _previous_decision(db, fingerprint, analysis_id)
     state = "confirmed_by_analyst" if decision == "confirmed_by_analyst" else "rejected" if decision == "rejected" else auto_state
     candidate_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:{analysis_id}:{fingerprint}"))
@@ -228,6 +252,8 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     item = str(row.get("item") or "")
     endpoint = str(endpoint_schema.get("endpoint") or item)
     method = str(endpoint_schema.get("method") or details.get("method") or "UNKNOWN").upper()
+    if endpoint_schema.get("is_endpoint") is False or category in {"dns_change", "new_subdomain", "new_port"}:
+        return 0
     body_fields = [str(x) for x in _list(endpoint_schema.get("body_fields"))]
     query_fields = [str(x) for x in _list(endpoint_schema.get("query_parameters"))]
     path_fields = [str(x) for x in _list(endpoint_schema.get("path_parameters"))]
@@ -262,9 +288,14 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         count += 1
 
     # BOLA / IDOR
-    if object_ids or any(field.lower() in OBJECT_MARKERS for field in path_fields + query_fields + body_fields):
+    structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
+    typed_object_ids = [value for value in object_ids if value.lower() != "id"]
+    generic_id_is_structural = any(field.lower() == "id" for field in structural_fields)
+    known_object_operation = method in {"GET", "POST", "PUT", "PATCH", "DELETE"}
+    if known_object_operation and (typed_object_ids or generic_id_is_structural):
+        ids_for_text = typed_object_ids or ["id"]
         support = [
-            {"type": "object_identifier", "source": "endpoint_schema", "weight": 18, "text": f"Object identifier observed: {', '.join((object_ids or path_fields + query_fields)[:5])}"},
+            {"type": "object_identifier", "source": "endpoint_schema", "weight": 18, "text": f"Structured object identifier observed: {', '.join(ids_for_text[:5])}"},
             {"type": "object_operation", "source": "endpoint", "weight": 10, "text": f"Object-specific {method} operation is exposed by the client"},
         ]
         if context in SENSITIVE_CONTEXTS:
@@ -274,8 +305,8 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         contradict = []
         status = details.get("status_code") or (_loads(details.get("new"), {}).get("status_code") if isinstance(details.get("new"), Mapping) else None)
         if status in {401, 403}:
-            contradict.append({"type": "anonymous_boundary", "source": "http", "weight": -5, "text": f"Anonymous access returned {status}; object-level authorization remains untested"})
-        emit("broken_object_authorization", "object_boundary", 24, support, contradict,
+            contradict.append({"type": "anonymous_boundary", "source": "http", "weight": -8, "text": f"Anonymous access returned {status}; object-level authorization remains untested"})
+        emit("broken_object_authorization", "object_boundary", 18, support, contradict,
              ["Expected object ownership or tenant boundary", "Server-side binding between identity and object", "Behavior with a different authorized test object"],
              ["candidate-object-identifier", "candidate-sensitive-object-context"],
              "The endpoint may contain an object-level authorization boundary; the current evidence does not establish unauthorized access.")

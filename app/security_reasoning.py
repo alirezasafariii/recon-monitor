@@ -11,8 +11,8 @@ from typing import Any, Iterable, Mapping
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 
-REASONING_ENGINE_VERSION = "5.1.0"
-REASONING_RULE_VERSION = "2026.08.8"
+REASONING_ENGINE_VERSION = "5.1.1"
+REASONING_RULE_VERSION = "2026.08.8.1"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -36,7 +36,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
         "label": "BOLA / IDOR",
         "required": [
             {"object_identifier", "graphql_identifier", "parameter_relation"},
-            {"object_operation", "graphql_operation", "endpoint_contract"},
+            {"object_operation", "graphql_operation"},
         ],
         "support": {"sensitive_object", "business_context", "identity_relation", "client_controlled", "response_data", "cross_context"},
         "contradict": {"ownership_binding", "current_user_only", "identifier_ignored", "non_reachable"},
@@ -704,11 +704,22 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         ranked_primary = top3[0]["score"] if top3 else raw_likelihood
         precondition_adjust = 8 if assessment["precondition_state"] == "complete" else -8 if assessment["precondition_state"] == "partial" else -22 if assessment["precondition_state"] == "insufficient" else 0
         calibrated = _clamp(raw_likelihood * .55 + ranked_primary * .30 + assessment["overall_coverage"] * .15 + calibration["adjustment"] + precondition_adjust, 0, 96)
+        maturity_limiter = ""
+        if family == "broken_object_authorization":
+            decisive_types = support_types & {"identity_relation", "cross_context", "response_data", "sensitive_response_shape", "structural_response_diff", "authentication_boundary_regression"}
+            if not decisive_types:
+                protected = bool(contradict_types & {"authentication_required", "protected_boundary", "anonymous_boundary"})
+                cap = 44 if protected else 54
+                if calibrated > cap:
+                    calibrated = cap
+                    maturity_limiter = "BOLA capped until direct identity/object, cross-context, or response evidence exists"
         reachability, reach_conf = _reachability(candidate, support, contradict, context)
         direct_groups = len({str(x.get("root_fingerprint")) for x in support if x.get("direct") or x.get("source_kind") in {"behavioral_diff", "http", "response_shape"}})
         exploitability = _clamp(12 + direct_groups * 12 + reach_conf * .22 + assessment["required_coverage"] * .18 + assessment["supporting_coverage"] * .08 - len(assessment["required_missing"]) * 12 - len(contradict) * 5, 5, 85)
         if candidate.get("analyst_decision") == "confirmed_by_analyst": exploitability = max(exploitability, 86)
         elif reachability in {"static_only", "unknown"}: exploitability = min(exploitability, 45)
+        if maturity_limiter:
+            exploitability = min(exploitability, 40)
         trust_avg = sum(parse_int(x.get("trust_score"), 30) for x in support) / max(1, len(support))
         evidence_strength = _clamp(parse_int(candidate.get("evidence_strength"), 0) * .45 + trust_avg * .30 + assessment["overall_coverage"] * .25 - len(contradict) * 2, 5, 96)
         impact = parse_int(candidate.get("impact_potential"), 0)
@@ -741,6 +752,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             "calibration": calibration,
             "causal_chain": causal,
             "evidence_lineage": evidence_meta,
+            "maturity_limiter": maturity_limiter,
             "scores": {
                 "raw_likelihood": raw_likelihood,
                 "calibrated_likelihood": calibrated,

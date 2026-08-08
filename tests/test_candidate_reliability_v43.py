@@ -98,7 +98,7 @@ class CandidateReliabilityV43Tests(unittest.TestCase):
                 replayed = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND candidate_fingerprint=?", (second["analysis_id"], candidate["candidate_fingerprint"]))
                 self.assertEqual(replayed["analyst_decision"], "confirmed_by_analyst")
                 self.assertGreaterEqual(int(replayed["seen_count"]), 2)
-                self.assertIn(replayed["lifecycle_state"], {"confirmed", "persistent", "recurring"})
+                self.assertIn(replayed["lifecycle_state"], {"tracked", "persistent", "recurring"})
                 feedback = db.one("SELECT * FROM candidate_feedback WHERE candidate_id=?", (candidate["candidate_id"],))
                 self.assertEqual(feedback["reason_code"], "authorization_difference")
                 report = candidate_calibration(db, "example.com")

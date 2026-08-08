@@ -13,8 +13,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-SEMANTIC_ENGINE_VERSION = "5.0.0"
-SEMANTIC_RULE_VERSION = "2026.08.7"
+SEMANTIC_ENGINE_VERSION = "5.0.1"
+SEMANTIC_RULE_VERSION = "2026.08.8.1"
 PROFILES = {
     "quiet": {"minimum_sources": 3, "minimum_evidence": 62, "minimum_likelihood": 50, "stale_days": 21},
     "balanced": {"minimum_sources": 2, "minimum_evidence": 42, "minimum_likelihood": 32, "stale_days": 30},
@@ -190,6 +190,8 @@ def generate_semantic_intelligence(paths: AppPaths, db: Database, analysis_id: s
         for row in rows:
             schema = _loads(row["endpoint_schema_json"], {})
             details = _loads(row["details_json"], {})
+            if schema.get("is_endpoint") is False:
+                continue
             endpoint = str(schema.get("endpoint") or row["item"] or "")
             method = str(schema.get("method") or "UNKNOWN").upper()
             body_fields = [str(value) for value in schema.get("body_fields", []) if value]
@@ -264,7 +266,7 @@ def _lifecycle(db: Database, fingerprint: str, analysis_id: str, now: str, stale
         return "observed", 1, now, now, 100
     first = str(rows[0]["created_at"] or now); last = str(rows[-1]["updated_at"] or now); seen = len(rows) + 1
     unique_runs = len({str(row["source_run_id"]) for row in rows})
-    state = "persistent" if unique_runs >= 2 else "confirmed"
+    state = "persistent" if unique_runs >= 2 else "tracked"
     novelty = max(20, 100 - min(70, len(rows) * 12))
     try:
         last_dt = dt.datetime.fromisoformat(last.replace("Z", "+00:00")); now_dt = dt.datetime.fromisoformat(now.replace("Z", "+00:00"))

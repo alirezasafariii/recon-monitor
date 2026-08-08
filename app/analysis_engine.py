@@ -18,8 +18,8 @@ from behavioral_intelligence import generate_behavioral_candidates, generate_beh
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
 
-ENGINE_VERSION = "5.1.0"
-RULE_VERSION = "2026.08.8"
+ENGINE_VERSION = "5.1.1"
+RULE_VERSION = "2026.08.8.1"
 
 RULES: dict[str, dict[str, Any]] = {
     "evidence-public-200": {"weight": 8, "description": "Public HTTP 200 observation"},
@@ -201,18 +201,71 @@ def _business_context(target: str, item: str, category: str, tags: Iterable[str]
     return "general", 0, ["No specialized business context matched"]
 
 
+def _is_infrastructure_observation(value: str, details: Mapping[str, Any]) -> bool:
+    rrtype = str(details.get("rrtype") or "").upper().strip()
+    if rrtype in {"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA", "PTR"}:
+        return True
+    if re.search(r"\s(?:A|AAAA|CNAME|MX|TXT|NS|SRV|CAA|PTR)\s", value, re.I):
+        return True
+    if str(details.get("change_class") or "").lower() == "infrastructure" and details.get("host") and details.get("value") and "://" not in value:
+        return True
+    return False
+
+
+def _structured_object_identifiers(path_parameters: list[str], query_parameters: list[str], body_fields: list[Any], details: Mapping[str, Any]) -> list[str]:
+    canonical = {
+        "id": "id", "accountid": "accountId", "userid": "userId", "customerid": "customerId",
+        "tenantid": "tenantId", "orgid": "orgId", "orderid": "orderId", "invoiceid": "invoiceId",
+        "profileid": "profileId", "objectid": "objectId", "ownerid": "ownerId",
+    }
+    candidates: list[str] = [*path_parameters, *query_parameters, *[str(value) for value in body_fields]]
+
+    def walk_keys(value: Any, depth: int = 0) -> None:
+        if depth > 4:
+            return
+        if isinstance(value, Mapping):
+            for key, child in list(value.items())[:300]:
+                candidates.append(str(key))
+                walk_keys(child, depth + 1)
+        elif isinstance(value, list):
+            for child in value[:50]:
+                walk_keys(child, depth + 1)
+
+    walk_keys(details)
+    found = set()
+    for value in candidates:
+        normalized = re.sub(r"[^A-Za-z0-9_]", "", str(value)).lower()
+        if normalized in canonical:
+            found.add(canonical[normalized])
+    return sorted(found)
+
+
 def _endpoint_schema(value: str, details: Mapping[str, Any]) -> dict[str, Any]:
     endpoint = str(value or details.get("value") or details.get("resolved_url") or "")
     if "@" in endpoint and endpoint.startswith(("endpoint:", "absolute_url:")):
         endpoint = endpoint.split(":", 1)[1].rsplit("@", 1)[0]
+    if _is_infrastructure_observation(endpoint, details):
+        return {
+            "endpoint": endpoint,
+            "method": "UNKNOWN",
+            "path": "",
+            "path_parameters": [],
+            "query_parameters": [],
+            "body_fields": [],
+            "object_identifiers": [],
+            "content_type": "",
+            "authentication_hints": [],
+            "is_endpoint": False,
+            "observation_kind": "infrastructure",
+        }
     parsed = urllib.parse.urlsplit(endpoint if "://" in endpoint else "https://placeholder.invalid" + (endpoint if endpoint.startswith("/") else "/" + endpoint))
     path = parsed.path or "/"
     path_parameters = re.findall(r"\{([^{}]+)\}|:([A-Za-z_][A-Za-z0-9_]*)", path)
     path_parameters = [a or b for a, b in path_parameters]
-    object_identifiers = sorted(set(re.findall(r"(?i)(accountId|userId|customerId|tenantId|orgId|orderId|invoiceId|profileId|objectId|id)", endpoint + " " + json_dumps(details))))
     method = str(details.get("method") or details.get("http_method") or "UNKNOWN").upper()
     query_parameters = sorted(urllib.parse.parse_qs(parsed.query).keys())
     body_fields = details.get("body_fields") if isinstance(details.get("body_fields"), list) else []
+    object_identifiers = _structured_object_identifiers(path_parameters, query_parameters, body_fields, details)
     authentication_hints = []
     haystack = json_dumps(details).lower()
     for token in ("authorization", "bearer", "cookie", "session", "csrf", "oauth", "jwt"):
@@ -228,6 +281,8 @@ def _endpoint_schema(value: str, details: Mapping[str, Any]) -> dict[str, Any]:
         "object_identifiers": object_identifiers,
         "content_type": str(details.get("content_type") or ""),
         "authentication_hints": authentication_hints,
+        "is_endpoint": True,
+        "observation_kind": "endpoint",
     }
 
 
@@ -277,6 +332,8 @@ def _evidence(alert: Mapping[str, Any], details: Mapping[str, Any]) -> tuple[lis
 
 
 def _playbook_key(category: str, change_class: str, schema: Mapping[str, Any]) -> str:
+    if schema.get("is_endpoint") is False:
+        return "infrastructure"
     text = f"{category} {change_class} {json_dumps(schema)}".lower()
     if "auth" in text or "session" in text or "login" in text:
         return "authentication"
@@ -503,7 +560,8 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
             "INSERT OR REPLACE INTO analysis_results(analysis_id,alert_id,target,source_run_id,category,original_score,adjusted_score,confidence,hypothesis,next_action,playbook_id,business_context,evidence_for_json,evidence_against_json,anomaly_score,baseline_json,feedback_json,duplicate_cluster,rule_ids_json,temporal_json,endpoint_schema_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (analysis_id,alert["id"],alert["target"],run_id,alert["category"],alert["risk_score"],adjusted,confidence,hypothesis,next_action,playbook_key,business_context,json_dumps(evidence_for),json_dumps(evidence_against),anomaly,json_dumps(baseline),json_dumps(feedback),cluster,json_dumps(rules),json_dumps(temporal),json_dumps(schema),utc_now()),
         )
-        db.execute("INSERT OR REPLACE INTO endpoint_schemas(analysis_id,target,source_run_id,alert_id,endpoint,method,path_parameters_json,query_parameters_json,body_fields_json,object_identifiers_json,auth_hints_json,content_type,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(analysis_id,alert["target"],run_id,alert["id"],schema["endpoint"],schema["method"],json_dumps(schema["path_parameters"]),json_dumps(schema["query_parameters"]),json_dumps(schema["body_fields"]),json_dumps(schema["object_identifiers"]),json_dumps(schema["authentication_hints"]),schema["content_type"],utc_now()))
+        if schema.get("is_endpoint", True):
+            db.execute("INSERT OR REPLACE INTO endpoint_schemas(analysis_id,target,source_run_id,alert_id,endpoint,method,path_parameters_json,query_parameters_json,body_fields_json,object_identifiers_json,auth_hints_json,content_type,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(analysis_id,alert["target"],run_id,alert["id"],schema["endpoint"],schema["method"],json_dumps(schema["path_parameters"]),json_dumps(schema["query_parameters"]),json_dumps(schema["body_fields"]),json_dumps(schema["object_identifiers"]),json_dumps(schema["authentication_hints"]),schema["content_type"],utc_now()))
         db.execute("INSERT OR REPLACE INTO business_contexts(analysis_id,target,entity_type,entity_value,context,adjustment,reasons_json,created_at) VALUES(?,?,?,?,?,?,?,?)",(analysis_id,alert["target"],"alert",str(alert["id"]),business_context,business_adjust,json_dumps(business_reasons),utc_now()))
         adjusted_scores.append(adjusted)
     for cluster,members in cluster_members.items():
