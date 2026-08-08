@@ -12,8 +12,8 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "5.2.0"
-REASONING_RULE_VERSION = "2026.08.8.3"
+REASONING_ENGINE_VERSION = "5.2.1"
+REASONING_RULE_VERSION = "2026.08.8.4"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -843,9 +843,13 @@ def evaluate_reasoning(db: Database, analysis_id: str, persist: bool = False) ->
     strong = [row for row in candidates if row.get("candidate_state") in {"strong_candidate", "confirmed_by_analyst"}]
     reviewed_strong = [row for row in strong if row.get("analyst_decision") != "unreviewed"]
     useful_strong = sum(1 for row in reviewed_strong if row.get("analyst_decision") in {"confirmed_by_analyst", "needs_more_evidence"})
+    evidence_count = int((db.one("SELECT COUNT(*) count FROM evidence_records WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"])
+    hypothesis_count = int((db.one("SELECT COUNT(*) count FROM analysis_hypotheses WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"])
     metrics = {
         "analysis_id": analysis_id,
         "candidates": len(candidates),
+        "hypotheses": hypothesis_count,
+        "abstained_with_retained_hypotheses": bool(not candidates and hypothesis_count),
         "gold_evaluated": evaluated,
         "gold_positive": positive,
         "top1_family_accuracy": round(top1 / max(1, evaluated), 3),
@@ -855,8 +859,10 @@ def evaluate_reasoning(db: Database, analysis_id: str, persist: bool = False) ->
         "reviewed_strong": len(reviewed_strong),
         "strong_precision_proxy": round(useful_strong / max(1, len(reviewed_strong)), 3),
         "average_evidence_coverage": round(sum(parse_int(row.get("evidence_coverage"), 0) for row in candidates) / max(1, len(candidates)), 2),
+        "average_evidence_coverage_applicable": bool(candidates),
         "average_exploitability_confidence": round(sum(parse_int(row.get("exploitability_confidence"), 0) for row in candidates) / max(1, len(candidates)), 2),
-        "candidate_rate_per_1000_evidence": round(len(candidates) * 1000 / max(1, int((db.one("SELECT COUNT(*) count FROM evidence_records WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"])), 2),
+        "average_exploitability_confidence_applicable": bool(candidates),
+        "candidate_rate_per_1000_evidence": round(len(candidates) * 1000 / max(1, evidence_count), 2),
     }
     if persist:
         db.execute("INSERT INTO reasoning_evaluations(analysis_id,metrics_json,created_at) VALUES(?,?,?)", (analysis_id, json_dumps(metrics), utc_now()))
@@ -885,11 +891,27 @@ def reasoning_regression_gate(db: Database, analysis_id: str, baseline_analysis_
         checks.append({"name": name, "passed": bool(passed), "current": current_value, "baseline": baseline_value, "detail": detail})
     check("top3_family_accuracy", current["top3_family_accuracy"] + 0.001 >= baseline["top3_family_accuracy"] - 0.05, current["top3_family_accuracy"], baseline["top3_family_accuracy"], "Top-3 family accuracy may not regress by more than 5 percentage points.")
     check("strong_precision_proxy", current["strong_precision_proxy"] + 0.001 >= baseline["strong_precision_proxy"] - 0.10, current["strong_precision_proxy"], baseline["strong_precision_proxy"], "Strong-candidate precision proxy may not regress by more than 10 percentage points.")
-    check("evidence_coverage", current["average_evidence_coverage"] + 0.001 >= baseline["average_evidence_coverage"] - 10, current["average_evidence_coverage"], baseline["average_evidence_coverage"], "Average evidence coverage may not fall by more than 10 points.")
+    if not current.get("average_evidence_coverage_applicable", bool(current.get("candidates"))):
+        check("evidence_coverage", True, "not_applicable", baseline["average_evidence_coverage"], "No admitted candidates exist in the current analysis, so candidate evidence coverage is undefined rather than zero; retained-signal recall is checked separately.")
+    elif not baseline.get("average_evidence_coverage_applicable", bool(baseline.get("candidates"))):
+        check("evidence_coverage", True, current["average_evidence_coverage"], "not_applicable", "The baseline has no admitted candidates, so there is no candidate-coverage baseline to regress against.")
+    else:
+        check("evidence_coverage", current["average_evidence_coverage"] + 0.001 >= baseline["average_evidence_coverage"] - 10, current["average_evidence_coverage"], baseline["average_evidence_coverage"], "Average evidence coverage may not fall by more than 10 points when both analyses have admitted candidates.")
     rate_limit = max(25.0, baseline["candidate_rate_per_1000_evidence"] * 1.5)
     check("candidate_noise_rate", current["candidate_rate_per_1000_evidence"] <= rate_limit, current["candidate_rate_per_1000_evidence"], baseline["candidate_rate_per_1000_evidence"], "Candidate rate must remain inside the 1.5x noise budget.")
     baseline_run = db.one("SELECT source_run_id FROM analysis_runs WHERE id=?", (baseline_analysis_id,))
     same_source_run = bool(baseline_run and str(baseline_run["source_run_id"] or "") == str(current_run["source_run_id"] or ""))
+    baseline_unconfirmed_families = {str(row[0]) for row in db.all("SELECT DISTINCT bug_family FROM bug_candidates WHERE analysis_id=? AND analyst_decision NOT IN ('confirmed_by_analyst','rejected','duplicate','out_of_scope')", (baseline_analysis_id,))}
+    current_candidate_families = {str(row[0]) for row in db.all("SELECT DISTINCT bug_family FROM bug_candidates WHERE analysis_id=?", (analysis_id,))}
+    current_hidden_families = {str(row[0]) for row in db.all("SELECT DISTINCT bug_family FROM analysis_hypotheses WHERE analysis_id=? AND state<>'promoted'", (analysis_id,))}
+    lost_unconfirmed_families = sorted(baseline_unconfirmed_families - current_candidate_families - current_hidden_families) if same_source_run else []
+    check(
+        "abstention_signal_retention",
+        not lost_unconfirmed_families,
+        len(baseline_unconfirmed_families) - len(lost_unconfirmed_families) if same_source_run else "not_applicable",
+        len(baseline_unconfirmed_families),
+        "On replay of the same source run, previously surfaced unconfirmed families must remain either admitted candidates or retained hidden hypotheses; otherwise recall has regressed.",
+    )
     baseline_confirmed = {str(row[0]) for row in db.all("SELECT candidate_fingerprint FROM bug_candidates WHERE analysis_id=? AND analyst_decision='confirmed_by_analyst'", (baseline_analysis_id,))}
     current_fingerprints = {str(row[0]) for row in db.all("SELECT candidate_fingerprint FROM bug_candidates WHERE analysis_id=?", (analysis_id,))}
     lost = sorted(baseline_confirmed - current_fingerprints) if same_source_run else []
@@ -901,7 +923,7 @@ def reasoning_regression_gate(db: Database, analysis_id: str, baseline_analysis_
         "Confirmed-fingerprint retention is enforced only when replaying the same source run; different runs may legitimately contain different evidence.",
     )
     passed = all(item["passed"] for item in checks)
-    result = {"analysis_id": analysis_id, "baseline_analysis_id": baseline_analysis_id, "passed": passed, "status": "passed" if passed else "failed", "checks": checks, "current": current, "baseline": baseline, "lost_confirmed_fingerprints": lost}
+    result = {"analysis_id": analysis_id, "baseline_analysis_id": baseline_analysis_id, "passed": passed, "status": "passed" if passed else "failed", "checks": checks, "current": current, "baseline": baseline, "lost_confirmed_fingerprints": lost, "lost_unconfirmed_families": lost_unconfirmed_families}
     if persist:
         db.execute("INSERT INTO reasoning_regression_gates(analysis_id,baseline_analysis_id,passed,checks_json,created_at) VALUES(?,?,?,?,?)", (analysis_id, baseline_analysis_id, 1 if passed else 0, json_dumps(result), utc_now()))
     return result

@@ -109,17 +109,17 @@ def _table_exists(db: Database, table: str) -> bool:
 def _latest_run(db: Database, target: str = "") -> str:
     if target:
         row = db.one(
-            "SELECT r.id FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status='success' AND rt.target=? ORDER BY COALESCE(r.finished_at,r.started_at) DESC LIMIT 1",
+            "SELECT r.id FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status IN ('success','partial') AND rt.status='success' AND rt.target=? ORDER BY COALESCE(r.finished_at,r.started_at) DESC LIMIT 1",
             (target,),
         )
     else:
-        row = db.one("SELECT id FROM runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+        row = db.one("SELECT id FROM runs WHERE status IN ('success','partial') ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
     return str(row["id"]) if row else ""
 
 
 def _previous_run(db: Database, target: str, current_run: str = "") -> str:
     params: list[Any] = [target]
-    sql = "SELECT r.id FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status='success' AND rt.target=?"
+    sql = "SELECT r.id FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status IN ('success','partial') AND rt.status='success' AND rt.target=?"
     if current_run:
         current = db.one("SELECT COALESCE(finished_at,started_at) ts FROM runs WHERE id=?", (current_run,))
         if current and current["ts"]:
@@ -973,20 +973,44 @@ def universal_search(db: Database, query: str, *, limit: int = 50) -> dict[str, 
     return results
 
 
+def _current_case_ids(db: Database, targets: list[str], limit: int = 500) -> list[str]:
+    active: list[tuple[str, str]] = []
+    for target in targets:
+        analysis_id = _latest_analysis(db, target)
+        if analysis_id:
+            active.append((target, analysis_id))
+    if not active:
+        return []
+    clauses = []
+    params: list[Any] = []
+    for target, analysis_id in active:
+        clauses.append("(target=? AND analysis_id=?)")
+        params.extend([target, analysis_id])
+    params.append(max(1, min(5000, limit)))
+    sql = "SELECT case_id FROM security_cases WHERE state NOT IN ('reported','closed','rejected') AND (" + " OR ".join(clauses) + ") ORDER BY priority_score DESC,updated_at DESC LIMIT ?"
+    return [str(r["case_id"]) for r in db.all(sql, tuple(params))]
+
+
 def workspace_v7_sync(paths: AppPaths, config: Config, db: Database, *, target: str = "", actor: str = "system") -> dict[str, Any]:
     targets = [target] if target else [str(r["target"]) for r in db.all("SELECT DISTINCT target FROM run_targets ORDER BY target")]
     output: dict[str, Any] = {"version": WORKSPACE_V7_VERSION, "targets": {}, "cases": 0}
     for tgt in targets:
         if not tgt: continue
         entry: dict[str, Any] = {}
+        analysis_id = _latest_analysis(db, tgt)
+        source_run_id = ""
+        if analysis_id:
+            row = db.one("SELECT source_run_id FROM analysis_runs WHERE id=?", (analysis_id,))
+            source_run_id = str(row["source_run_id"] or "") if row else ""
         entry["memory"] = target_memory(db, target=tgt, persist=True)
-        entry["coverage"] = recon_coverage(db, target=tgt, persist=True)
-        entry["changes"] = change_intelligence(db, target=tgt, persist=True)
-        entry["contexts"] = authentication_contexts(db, target=tgt, persist=True)
-        entry["differentials"] = differential_intelligence(db, target=tgt, persist=True)
+        entry["coverage"] = recon_coverage(db, target=tgt, run_id=source_run_id, persist=True)
+        entry["changes"] = change_intelligence(db, target=tgt, run_id=source_run_id, persist=True)
+        entry["contexts"] = authentication_contexts(db, target=tgt, analysis_id=analysis_id, persist=True)
+        entry["differentials"] = differential_intelligence(db, target=tgt, analysis_id=analysis_id, persist=True)
         entry["learning"] = false_positive_learning(db, target=tgt, persist=True)
+        entry["analysis_id"] = analysis_id
         output["targets"][tgt] = entry
-    cases = [str(r["case_id"]) for r in db.all("SELECT case_id FROM security_cases WHERE state NOT IN ('reported','closed','rejected') ORDER BY priority_score DESC LIMIT 500")]
+    cases = _current_case_ids(db, [t for t in targets if t], limit=500)
     for case_id in cases:
         try:
             case_autopilot(db, case_id, actor=actor, persist=True)

@@ -67,7 +67,7 @@ class ProductPlatformV50Tests(unittest.TestCase):
     def test_version_schema_and_platform_tables(self):
         temp, paths, db = self.project()
         try:
-            self.assertEqual(APP_VERSION, "8.4.3"); self.assertEqual(SCHEMA_VERSION, 18); self.assertEqual(db.meta_get("schema_version"), "18")
+            self.assertEqual(APP_VERSION, "8.4.4"); self.assertEqual(SCHEMA_VERSION, 18); self.assertEqual(db.meta_get("schema_version"), "18")
             names = {row[0] for row in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
             for name in ("engine_quality_snapshots", "rule_governance", "rule_noise_budgets", "target_learning_profiles", "security_cases", "security_case_events", "security_stories", "validation_packages", "report_drafts", "run_completeness", "scope_snapshots", "schedule_policies", "notification_policies", "storage_snapshots", "incremental_checkpoints", "incremental_reasoning_cache", "plugin_health_history"):
                 self.assertIn(name, names)
@@ -77,7 +77,7 @@ class ProductPlatformV50Tests(unittest.TestCase):
         temp, paths, db, _, result = self.analyzed_project()
         try:
             sync = platform_sync(paths, db, result["analysis_id"])
-            self.assertEqual(sync["version"], "6.0.4")
+            self.assertEqual(sync["version"], "6.0.5")
             self.assertGreaterEqual(sync["cases"]["cases"], 1)
             self.assertGreater(sync["quality"]["candidates"], 0)
             self.assertEqual(sync["target_learning"]["target"], "example.com")

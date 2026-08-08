@@ -11,7 +11,7 @@ from typing import Any, Iterable
 
 from core import APP_VERSION, AppPaths, Database, ReconError, json_dumps, parse_int, safe_json_loads, utc_now
 
-PLATFORM_VERSION = "6.0.4"
+PLATFORM_VERSION = "6.0.5"
 
 # Heavy platform summaries are generated at analysis/sync time. Dashboard GET
 # requests serve snapshots or a short-lived process cache instead of rescanning
@@ -294,29 +294,57 @@ def noise_budget_status(db: Database, analysis_id: str | None = None, *, profile
 
 def learn_target_profile(db: Database, target: str, analysis_id: str | None = None, *, persist: bool = True) -> dict[str, Any]:
     analysis_id = analysis_id or _latest_analysis(db, target)
-    candidates = [dict(r) for r in db.all("SELECT * FROM bug_candidates WHERE target=? ORDER BY updated_at DESC LIMIT 5000", (target,))]
-    endpoints = [str(r[0] or "") for r in db.all("SELECT endpoint FROM endpoint_contracts WHERE target=? ORDER BY created_at DESC LIMIT 5000", (target,))]
-    boundaries = [str(r[0] or "unknown") for r in db.all("SELECT boundary FROM authentication_boundaries WHERE target=? ORDER BY created_at DESC LIMIT 5000", (target,))]
-    families = Counter(str(r.get("bug_family") or "unknown") for r in candidates)
-    decisions = Counter(str(r.get("analyst_decision") or "unreviewed") for r in candidates)
+    historical_candidates = [dict(r) for r in db.all("SELECT * FROM bug_candidates WHERE target=? ORDER BY updated_at DESC LIMIT 5000", (target,))]
+    if analysis_id:
+        current_candidates = [dict(r) for r in db.all("SELECT * FROM bug_candidates WHERE target=? AND analysis_id=? ORDER BY updated_at DESC LIMIT 5000", (target, analysis_id))]
+        endpoints = [str(r[0] or "") for r in db.all("SELECT endpoint FROM endpoint_contracts WHERE target=? AND analysis_id=? ORDER BY created_at DESC LIMIT 5000", (target, analysis_id))]
+        boundaries = [str(r[0] or "unknown") for r in db.all("SELECT boundary FROM authentication_boundaries WHERE target=? AND analysis_id=? ORDER BY created_at DESC LIMIT 5000", (target, analysis_id))]
+    else:
+        current_candidates = historical_candidates
+        endpoints = [str(r[0] or "") for r in db.all("SELECT endpoint FROM endpoint_contracts WHERE target=? ORDER BY created_at DESC LIMIT 5000", (target,))]
+        boundaries = [str(r[0] or "unknown") for r in db.all("SELECT boundary FROM authentication_boundaries WHERE target=? ORDER BY created_at DESC LIMIT 5000", (target,))]
+
+    current_families = Counter(str(r.get("bug_family") or "unknown") for r in current_candidates)
+    current_decisions = Counter(str(r.get("analyst_decision") or "unreviewed") for r in current_candidates)
+    historical_families = Counter(str(r.get("bug_family") or "unknown") for r in historical_candidates)
+    historical_decisions = Counter(str(r.get("analyst_decision") or "unreviewed") for r in historical_candidates)
+    current_prefixes = Counter()
+    historical_prefixes = Counter()
     noisy_paths = Counter()
-    common_prefixes = Counter()
-    for candidate in candidates:
+
+    def prefix_for(candidate: dict[str, Any]) -> str:
         endpoint = str(candidate.get("endpoint") or "")
-        decision = str(candidate.get("analyst_decision") or "unreviewed")
         path = urllib.parse.urlsplit(endpoint if "://" in endpoint else "https://local" + (endpoint if endpoint.startswith("/") else "/" + endpoint)).path
         segments = [seg for seg in path.split("/") if seg]
-        prefix = "/" + "/".join(segments[:2]) if segments else "/"
-        if prefix: common_prefixes[prefix] += 1
-        if decision in NEGATIVE_DECISIONS and endpoint: noisy_paths[prefix] += 1
-    reviewed = sum(v for k, v in decisions.items() if k != "unreviewed")
-    confidence = min(100, round((len(candidates) + reviewed * 3 + len(endpoints)) / 3))
+        return "/" + "/".join(segments[:2]) if segments else "/"
+
+    for candidate in current_candidates:
+        current_prefixes[prefix_for(candidate)] += 1
+    for candidate in historical_candidates:
+        prefix = prefix_for(candidate)
+        historical_prefixes[prefix] += 1
+        if str(candidate.get("analyst_decision") or "unreviewed") in NEGATIVE_DECISIONS:
+            noisy_paths[prefix] += 1
+
+    current_reviewed = sum(v for k, v in current_decisions.items() if k != "unreviewed")
+    historical_reviewed = sum(v for k, v in historical_decisions.items() if k != "unreviewed")
+    confidence = min(100, round((len(historical_candidates) + historical_reviewed * 3 + len(endpoints)) / 3))
     baseline = {
-        "analysis_id": analysis_id, "candidate_count": len(candidates), "reviewed_count": reviewed,
-        "common_families": families.most_common(12), "common_endpoint_prefixes": common_prefixes.most_common(20),
+        "analysis_id": analysis_id,
+        "candidate_count": len(current_candidates),
+        "reviewed_count": current_reviewed,
+        "common_families": current_families.most_common(12),
+        "common_endpoint_prefixes": current_prefixes.most_common(20),
         "normal_authentication_boundaries": Counter(boundaries).most_common(10),
-        "decision_distribution": dict(decisions),
-        "interpretation": "Target-specific history adjusts prioritization context only; it never suppresses raw evidence or confirms security.",
+        "decision_distribution": dict(current_decisions),
+        "history": {
+            "candidate_count": len(historical_candidates),
+            "reviewed_count": historical_reviewed,
+            "common_families": historical_families.most_common(12),
+            "common_endpoint_prefixes": historical_prefixes.most_common(20),
+            "decision_distribution": dict(historical_decisions),
+        },
+        "interpretation": "Current-analysis counts describe the selected analysis only. Historical counts remain available under history and may adjust prioritization context, but never suppress raw evidence or confirm security.",
     }
     known_noise = [{"path_prefix": key, "negative_decisions": value} for key, value in noisy_paths.most_common(20) if value >= 2]
     payload = {"target": target, "confidence": confidence, "baseline": baseline, "known_noise": known_noise, "updated_at": utc_now()}
