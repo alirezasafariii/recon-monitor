@@ -521,11 +521,12 @@ def attack_surface_graph(db: Database, *, target: str, limit: int = 1200) -> dic
             if url:
                 endpoint_id = add_node("endpoint", url, status_code=row["status_code"])
                 edges.append({"source": context_id, "target": endpoint_id, "relation": "captured"})
-    for row in db.all("SELECT candidate_id,endpoint,bug_family,candidate_state,priority_score FROM bug_candidates WHERE target=? ORDER BY priority_score DESC LIMIT 300", (target,)):
-        cid = add_node("candidate", str(row["candidate_id"]), family=str(row["bug_family"]), state=str(row["candidate_state"]), priority=int(row["priority_score"] or 0))
-        endpoint = str(row["endpoint"] or "")
-        parent = add_node("endpoint", endpoint) if endpoint else root
-        edges.append({"source": parent, "target": cid, "relation": "candidate"})
+    if analysis_id:
+        for row in db.all("SELECT candidate_id,endpoint,bug_family,candidate_state,priority_score FROM bug_candidates WHERE analysis_id=? AND target=? ORDER BY priority_score DESC LIMIT 300", (analysis_id, target)):
+            cid = add_node("candidate", str(row["candidate_id"]), family=str(row["bug_family"]), state=str(row["candidate_state"]), priority=int(row["priority_score"] or 0))
+            endpoint = str(row["endpoint"] or "")
+            parent = add_node("endpoint", endpoint) if endpoint else root
+            edges.append({"source": parent, "target": cid, "relation": "candidate"})
     for row in db.all("SELECT source_type,source_value,relation,destination_type,destination_value FROM asset_edges WHERE target=? ORDER BY last_seen DESC LIMIT ?", (target, limit)):
         sid = add_node(str(row["source_type"]), str(row["source_value"]))
         did = add_node(str(row["destination_type"]), str(row["destination_value"]))
@@ -565,10 +566,11 @@ def change_intelligence(db: Database, *, target: str, run_id: str = "", persist:
         if boundary_count: changes.append({"type": "authentication_boundary", "change": "changed", "count": boundary_count})
         if shape_count: changes.append({"type": "response_shape", "change": "changed", "count": shape_count})
         for row in sensitive[:5]: important.append({"type": "sensitive_response_expansion", "endpoint": row["endpoint"], "confidence": row["confidence"], "severity": row["severity"]})
-    for row in db.all("SELECT candidate_id,title,priority_score,candidate_state FROM bug_candidates WHERE target=? AND source_run_id=? ORDER BY priority_score DESC LIMIT 8", (target, run_id)):
-        if int(row["priority_score"] or 0) >= 70:
-            important.append({"type": "candidate", "candidate_id": row["candidate_id"], "title": row["title"], "priority": row["priority_score"], "state": row["candidate_state"]})
-    result = {"target": target, "current_run": run_id, "previous_run": previous, "changes": changes, "important": important, "generated_at": utc_now()}
+    if analysis_id:
+        for row in db.all("SELECT candidate_id,title,priority_score,candidate_state FROM bug_candidates WHERE analysis_id=? AND target=? AND source_run_id=? ORDER BY priority_score DESC LIMIT 8", (analysis_id, target, run_id)):
+            if int(row["priority_score"] or 0) >= 70:
+                important.append({"type": "candidate", "candidate_id": row["candidate_id"], "title": row["title"], "priority": row["priority_score"], "state": row["candidate_state"]})
+    result = {"target": target, "analysis_id": analysis_id, "current_run": run_id, "previous_run": previous, "changes": changes, "important": important, "generated_at": utc_now()}
     if persist:
         db.execute(
             "INSERT INTO change_intelligence_snapshots(run_id,target,previous_run_id,summary_json,created_at) VALUES(?,?,?,?,?) ON CONFLICT(run_id,target) DO UPDATE SET previous_run_id=excluded.previous_run_id,summary_json=excluded.summary_json,created_at=excluded.created_at",

@@ -26,7 +26,7 @@ class AbstentionConsistencyV844Tests(unittest.TestCase):
         now = utc_now()
         self.db.execute(
             "INSERT INTO runs(id,version,status,started_at,finished_at,target_count) VALUES(?,?,?,?,?,?)",
-            (self.run_id, "8.4.4", "partial", "2026-08-08T17:00:00Z", "2026-08-08T17:10:00Z", 2),
+            (self.run_id, "8.4.5", "partial", "2026-08-08T17:00:00Z", "2026-08-08T17:10:00Z", 2),
         )
         self.db.execute(
             "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) VALUES(?,?,?,?,?,?,?,?,?)",
