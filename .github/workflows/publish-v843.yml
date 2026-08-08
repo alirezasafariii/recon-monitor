@@ -22,6 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/v843_recall_admission_patch.py
+          python scripts/v843_test_contract_fix.py
           grep -q 'APP_VERSION = "8.4.3"' app/core.py
           grep -q 'SCHEMA_VERSION = 18' app/core.py
           grep -q 'analysis_hypotheses' app/core.py
@@ -90,17 +91,15 @@ jobs:
         run: |
           set -euo pipefail
           git clean -fdX
-          git rm .github/workflows/publish-v843.yml scripts/v843_recall_admission_patch.py
+          git rm .github/workflows/publish-v843.yml scripts/v843_recall_admission_patch.py scripts/v843_test_contract_fix.py
           rmdir scripts 2>/dev/null || true
 
-          # The manifest reflects the final tracked source only; it never hashes itself.
           git add -A
           git ls-files | grep -v '^MANIFEST.sha256$' | LC_ALL=C sort | while IFS= read -r f; do
             [ -f "$f" ] && sha256sum "$f"
           done > MANIFEST.sha256
           git add MANIFEST.sha256
 
-          # Runtime/source hygiene.
           test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "ci.yml"
           if find . -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.pyc' -o -name '*.log' \) ! -path './.git/*' | grep -q .; then
             echo 'runtime artifact found in source tree'
