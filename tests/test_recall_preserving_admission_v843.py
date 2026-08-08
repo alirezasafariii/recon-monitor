@@ -20,6 +20,7 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
         self.db = Database(Path(self.tmp.name) / "recon.db")
         self.analysis_id = "analysis-admission-test"
         self.run_id = "run-admission-test"
+        self.alert_seq = 0
         now = utc_now()
         self.db.execute(
             "INSERT INTO runs(id,version,status,started_at,finished_at,target_count) VALUES(?,?,?,?,?,?)",
@@ -35,6 +36,7 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
         self.tmp.cleanup()
 
     def row(self, endpoint: str, *, method: str = "GET", body=None, query=None, path=None, details=None, category="new_url"):
+        self.alert_seq += 1
         schema = {
             "endpoint": endpoint,
             "method": method,
@@ -48,8 +50,14 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
             "is_endpoint": True,
             "observation_kind": "endpoint",
         }
+        now = utc_now()
+        cursor = self.db.execute(
+            """INSERT INTO alerts(target,dedup_key,category,severity,risk_score,title,item,details_json,status,occurrences,first_seen,last_seen,last_run_id)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ("x.test", f"test-alert-{self.alert_seq}", category, "info", 10, "test", endpoint, json.dumps(details or {}), "new", 1, now, now, self.run_id),
+        )
         return {
-            "alert_id": None,
+            "alert_id": int(cursor.lastrowid),
             "target": "x.test",
             "endpoint_schema_json": json.dumps(schema),
             "details_json": json.dumps(details or {}),
