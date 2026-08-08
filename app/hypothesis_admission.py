@@ -82,7 +82,7 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
     "path_traversal": {
         "required": [
             {"path_parameter", "filename_field", "storage_path"},
-            {"file_operation", "download_operation", "import_operation", "archive_operation"},
+            {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
         ],
         "min_independent_sources": 2,
         "label": "user-influenced path/filename plus a file-system-relevant operation",
