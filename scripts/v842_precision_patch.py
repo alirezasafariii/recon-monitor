@@ -1,0 +1,278 @@
+from __future__ import annotations
+
+from pathlib import Path
+import re
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    p = Path(path)
+    text = p.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"expected exactly one match in {path}: {old[:80]!r}, found {count}")
+    p.write_text(text.replace(old, new, 1))
+
+
+# App / engine versions.
+replace_once('app/core.py', 'APP_VERSION = "8.4.1"', 'APP_VERSION = "8.4.2"')
+replace_once('app/analysis_engine.py', 'ENGINE_VERSION = "5.1.0"', 'ENGINE_VERSION = "5.1.1"')
+replace_once('app/analysis_engine.py', 'RULE_VERSION = "2026.08.8"', 'RULE_VERSION = "2026.08.8.1"')
+replace_once('app/security_reasoning.py', 'REASONING_ENGINE_VERSION = "5.1.0"', 'REASONING_ENGINE_VERSION = "5.1.1"')
+replace_once('app/security_reasoning.py', 'REASONING_RULE_VERSION = "2026.08.8"', 'REASONING_RULE_VERSION = "2026.08.8.1"')
+replace_once('app/bug_candidates.py', 'CANDIDATE_ENGINE_VERSION = "5.0.0"', 'CANDIDATE_ENGINE_VERSION = "5.0.1"')
+replace_once('app/bug_candidates.py', 'CANDIDATE_RULE_VERSION = "2026.08.7"', 'CANDIDATE_RULE_VERSION = "2026.08.8.1"')
+replace_once('app/candidate_intelligence.py', 'SEMANTIC_ENGINE_VERSION = "5.0.0"', 'SEMANTIC_ENGINE_VERSION = "5.0.1"')
+replace_once('app/candidate_intelligence.py', 'SEMANTIC_RULE_VERSION = "2026.08.7"', 'SEMANTIC_RULE_VERSION = "2026.08.8.1"')
+
+# analysis_engine: strict endpoint recognition and structural object identifiers.
+p = Path('app/analysis_engine.py')
+text = p.read_text()
+new_endpoint = r'''def _is_infrastructure_observation(value: str, details: Mapping[str, Any]) -> bool:
+    rrtype = str(details.get("rrtype") or "").upper().strip()
+    if rrtype in {"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA", "PTR"}:
+        return True
+    if re.search(r"\s(?:A|AAAA|CNAME|MX|TXT|NS|SRV|CAA|PTR)\s", value, re.I):
+        return True
+    if str(details.get("change_class") or "").lower() == "infrastructure" and details.get("host") and details.get("value") and "://" not in value:
+        return True
+    return False
+
+
+def _structured_object_identifiers(path_parameters: list[str], query_parameters: list[str], body_fields: list[Any], details: Mapping[str, Any]) -> list[str]:
+    canonical = {
+        "id": "id", "accountid": "accountId", "userid": "userId", "customerid": "customerId",
+        "tenantid": "tenantId", "orgid": "orgId", "orderid": "orderId", "invoiceid": "invoiceId",
+        "profileid": "profileId", "objectid": "objectId", "ownerid": "ownerId",
+    }
+    candidates: list[str] = [*path_parameters, *query_parameters, *[str(value) for value in body_fields]]
+
+    def walk_keys(value: Any, depth: int = 0) -> None:
+        if depth > 4:
+            return
+        if isinstance(value, Mapping):
+            for key, child in list(value.items())[:300]:
+                candidates.append(str(key))
+                walk_keys(child, depth + 1)
+        elif isinstance(value, list):
+            for child in value[:50]:
+                walk_keys(child, depth + 1)
+
+    walk_keys(details)
+    found = set()
+    for value in candidates:
+        normalized = re.sub(r"[^A-Za-z0-9_]", "", str(value)).lower()
+        if normalized in canonical:
+            found.add(canonical[normalized])
+    return sorted(found)
+
+
+def _endpoint_schema(value: str, details: Mapping[str, Any]) -> dict[str, Any]:
+    endpoint = str(value or details.get("value") or details.get("resolved_url") or "")
+    if "@" in endpoint and endpoint.startswith(("endpoint:", "absolute_url:")):
+        endpoint = endpoint.split(":", 1)[1].rsplit("@", 1)[0]
+    if _is_infrastructure_observation(endpoint, details):
+        return {
+            "endpoint": endpoint,
+            "method": "UNKNOWN",
+            "path": "",
+            "path_parameters": [],
+            "query_parameters": [],
+            "body_fields": [],
+            "object_identifiers": [],
+            "content_type": "",
+            "authentication_hints": [],
+            "is_endpoint": False,
+            "observation_kind": "infrastructure",
+        }
+    parsed = urllib.parse.urlsplit(endpoint if "://" in endpoint else "https://placeholder.invalid" + (endpoint if endpoint.startswith("/") else "/" + endpoint))
+    path = parsed.path or "/"
+    path_parameters = re.findall(r"\{([^{}]+)\}|:([A-Za-z_][A-Za-z0-9_]*)", path)
+    path_parameters = [a or b for a, b in path_parameters]
+    method = str(details.get("method") or details.get("http_method") or "UNKNOWN").upper()
+    query_parameters = sorted(urllib.parse.parse_qs(parsed.query).keys())
+    body_fields = details.get("body_fields") if isinstance(details.get("body_fields"), list) else []
+    object_identifiers = _structured_object_identifiers(path_parameters, query_parameters, body_fields, details)
+    authentication_hints = []
+    haystack = json_dumps(details).lower()
+    for token in ("authorization", "bearer", "cookie", "session", "csrf", "oauth", "jwt"):
+        if token in haystack:
+            authentication_hints.append(token)
+    return {
+        "endpoint": endpoint,
+        "method": method,
+        "path": path,
+        "path_parameters": path_parameters,
+        "query_parameters": query_parameters,
+        "body_fields": body_fields[:100],
+        "object_identifiers": object_identifiers,
+        "content_type": str(details.get("content_type") or ""),
+        "authentication_hints": authentication_hints,
+        "is_endpoint": True,
+        "observation_kind": "endpoint",
+    }
+'''
+text, n = re.subn(r'def _endpoint_schema\(value: str, details: Mapping\[str, Any\]\) -> dict\[str, Any\]:.*?(?=\n\ndef _evidence)', new_endpoint, text, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit('failed to replace _endpoint_schema')
+old = 'def _playbook_key(category: str, change_class: str, schema: Mapping[str, Any]) -> str:\n    text = f"{category} {change_class} {json_dumps(schema)}".lower()\n'
+new = 'def _playbook_key(category: str, change_class: str, schema: Mapping[str, Any]) -> str:\n    if schema.get("is_endpoint") is False:\n        return "infrastructure"\n    text = f"{category} {change_class} {json_dumps(schema)}".lower()\n'
+if old not in text:
+    raise SystemExit('playbook pattern missing')
+text = text.replace(old, new, 1)
+old_insert = '        db.execute("INSERT OR REPLACE INTO endpoint_schemas(analysis_id,target,source_run_id,alert_id,endpoint,method,path_parameters_json,query_parameters_json,body_fields_json,object_identifiers_json,auth_hints_json,content_type,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(analysis_id,alert["target"],run_id,alert["id"],schema["endpoint"],schema["method"],json_dumps(schema["path_parameters"]),json_dumps(schema["query_parameters"]),json_dumps(schema["body_fields"]),json_dumps(schema["object_identifiers"]),json_dumps(schema["authentication_hints"]),schema["content_type"],utc_now()))\n'
+new_insert = '        if schema.get("is_endpoint", True):\n            db.execute("INSERT OR REPLACE INTO endpoint_schemas(analysis_id,target,source_run_id,alert_id,endpoint,method,path_parameters_json,query_parameters_json,body_fields_json,object_identifiers_json,auth_hints_json,content_type,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(analysis_id,alert["target"],run_id,alert["id"],schema["endpoint"],schema["method"],json_dumps(schema["path_parameters"]),json_dumps(schema["query_parameters"]),json_dumps(schema["body_fields"]),json_dumps(schema["object_identifiers"]),json_dumps(schema["authentication_hints"]),schema["content_type"],utc_now()))\n'
+if old_insert not in text:
+    raise SystemExit('endpoint_schemas insert pattern missing')
+text = text.replace(old_insert, new_insert, 1)
+p.write_text(text)
+
+# candidate_intelligence: never construct endpoint contracts/auth boundaries for non-endpoint observations; avoid ambiguous lifecycle confirmed.
+replace_once(
+    'app/candidate_intelligence.py',
+    '            schema = _loads(row["endpoint_schema_json"], {})\n            details = _loads(row["details_json"], {})\n',
+    '            schema = _loads(row["endpoint_schema_json"], {})\n            details = _loads(row["details_json"], {})\n            if schema.get("is_endpoint") is False:\n                continue\n',
+)
+replace_once('app/candidate_intelligence.py', '    state = "persistent" if unique_runs >= 2 else "confirmed"\n', '    state = "persistent" if unique_runs >= 2 else "tracked"\n')
+
+# bug_candidates: semantic fingerprint dedupe, merge evidence, infrastructure gate, and no UNKNOWN BOLA operation.
+p = Path('app/bug_candidates.py')
+text = p.read_text()
+text, n = re.subn(
+    r'def _candidate_fingerprint\(target: str, alert_id: int \| None, family: str, variant: str, endpoint: str, source_ref: str\) -> str:.*?(?=\n\ndef _previous_decision)',
+    '''def _candidate_fingerprint(target: str, alert_id: int | None, family: str, variant: str, endpoint: str, source_ref: str) -> str:\n    del alert_id, source_ref\n    normalized_endpoint = re.sub(r"\\b\\d{2,}\\b", "{n}", endpoint.lower())\n    normalized_endpoint = re.sub(r"[0-9a-f]{8}-[0-9a-f-]{27,}", "{uuid}", normalized_endpoint, flags=re.I)\n    return sha256_text("|".join([target, family, variant, normalized_endpoint]))\n\n\ndef _merge_evidence_lists(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> list[dict[str, Any]]:\n    merged: list[dict[str, Any]] = []\n    seen: set[str] = set()\n    for item in [*left, *right]:\n        key = json_dumps(item)\n        if key in seen:\n            continue\n        seen.add(key)\n        merged.append(item)\n    return merged\n''',
+    text,
+    count=1,
+    flags=re.S,
+)
+if n != 1:
+    raise SystemExit('failed to patch candidate fingerprint')
+old = '    fingerprint = _candidate_fingerprint(target, alert_id, family, variant, endpoint, source_ref)\n    decision, note = _previous_decision(db, fingerprint, analysis_id)\n'
+new = '''    fingerprint = _candidate_fingerprint(target, alert_id, family, variant, endpoint, source_ref)\n    existing = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND candidate_fingerprint=?", (analysis_id, fingerprint))\n    if existing:\n        support = _merge_evidence_lists(_loads(existing["supporting_evidence_json"], []), support)\n        contradict = _merge_evidence_lists(_loads(existing["contradicting_evidence_json"], []), contradict)\n        missing = list(dict.fromkeys([*_loads(existing["missing_evidence_json"], []), *missing]))\n        rule_ids = list(dict.fromkeys([*_loads(existing["rule_ids_json"], []), *rule_ids]))\n        likelihood = max(likelihood, parse_int(existing["likelihood_score"], 0))\n        evidence_strength = max(evidence_strength, parse_int(existing["evidence_strength"], 0))\n        impact_potential = max(impact_potential, parse_int(existing["impact_potential"], 0))\n        alert_id = existing["alert_id"]\n        source_ref = str(existing["source_ref"] or source_ref)\n    decision, note = _previous_decision(db, fingerprint, analysis_id)\n'''
+if old not in text:
+    raise SystemExit('insert-candidate fingerprint block missing')
+text = text.replace(old, new, 1)
+old = '    endpoint = str(endpoint_schema.get("endpoint") or item)\n    method = str(endpoint_schema.get("method") or details.get("method") or "UNKNOWN").upper()\n'
+new = '    endpoint = str(endpoint_schema.get("endpoint") or item)\n    method = str(endpoint_schema.get("method") or details.get("method") or "UNKNOWN").upper()\n    if endpoint_schema.get("is_endpoint") is False or category in {"dns_change", "new_subdomain", "new_port"}:\n        return 0\n'
+if old not in text:
+    raise SystemExit('alert candidate endpoint block missing')
+text = text.replace(old, new, 1)
+bola = '''    # BOLA / IDOR\n    structural_fields = [str(field) for field in path_fields + query_fields + body_fields]\n    typed_object_ids = [value for value in object_ids if value.lower() != "id"]\n    generic_id_is_structural = any(field.lower() == "id" for field in structural_fields)\n    known_object_operation = method in {"GET", "POST", "PUT", "PATCH", "DELETE"}\n    if known_object_operation and (typed_object_ids or generic_id_is_structural):\n        ids_for_text = typed_object_ids or ["id"]\n        support = [\n            {"type": "object_identifier", "source": "endpoint_schema", "weight": 18, "text": f"Structured object identifier observed: {', '.join(ids_for_text[:5])}"},\n            {"type": "object_operation", "source": "endpoint", "weight": 10, "text": f"Object-specific {method} operation is exposed by the client"},\n        ]\n        if context in SENSITIVE_CONTEXTS:\n            support.append({"type": "business_context", "source": "context", "weight": 12, "text": f"Endpoint is associated with {context.replace('_',' ')} data or workflow"})\n        if any(token in haystack for token in ("export", "invoice", "order", "profile", "customer", "account")):\n            support.append({"type": "sensitive_object", "source": "semantic", "weight": 8, "text": "Endpoint semantics indicate user, account, order or export data"})\n        contradict = []\n        status = details.get("status_code") or (_loads(details.get("new"), {}).get("status_code") if isinstance(details.get("new"), Mapping) else None)\n        if status in {401, 403}:\n            contradict.append({"type": "anonymous_boundary", "source": "http", "weight": -8, "text": f"Anonymous access returned {status}; object-level authorization remains untested"})\n        emit("broken_object_authorization", "object_boundary", 18, support, contradict,\n             ["Expected object ownership or tenant boundary", "Server-side binding between identity and object", "Behavior with a different authorized test object"],\n             ["candidate-object-identifier", "candidate-sensitive-object-context"],\n             "The endpoint may contain an object-level authorization boundary; the current evidence does not establish unauthorized access.")\n\n'''
+text, n = re.subn(r'    # BOLA / IDOR\n.*?(?=    # Function / role authorization)', bola, text, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit('failed to replace BOLA candidate block')
+p.write_text(text)
+
+# security_reasoning: endpoint_contract alone cannot satisfy BOLA operation; cap immature BOLA beliefs.
+replace_once(
+    'app/security_reasoning.py',
+    '            {"object_operation", "graphql_operation", "endpoint_contract"},\n',
+    '            {"object_operation", "graphql_operation"},\n',
+)
+p = Path('app/security_reasoning.py')
+text = p.read_text()
+old = '        calibrated = _clamp(raw_likelihood * .55 + ranked_primary * .30 + assessment["overall_coverage"] * .15 + calibration["adjustment"] + precondition_adjust, 0, 96)\n        reachability, reach_conf = _reachability(candidate, support, contradict, context)\n'
+new = '''        calibrated = _clamp(raw_likelihood * .55 + ranked_primary * .30 + assessment["overall_coverage"] * .15 + calibration["adjustment"] + precondition_adjust, 0, 96)\n        maturity_limiter = ""\n        if family == "broken_object_authorization":\n            decisive_types = support_types & {"identity_relation", "cross_context", "response_data", "sensitive_response_shape", "structural_response_diff", "authentication_boundary_regression"}\n            if not decisive_types:\n                protected = bool(contradict_types & {"authentication_required", "protected_boundary", "anonymous_boundary"})\n                cap = 44 if protected else 54\n                if calibrated > cap:\n                    calibrated = cap\n                    maturity_limiter = "BOLA capped until direct identity/object, cross-context, or response evidence exists"\n        reachability, reach_conf = _reachability(candidate, support, contradict, context)\n'''
+if old not in text:
+    raise SystemExit('calibrated block missing')
+text = text.replace(old, new, 1)
+old = '        if candidate.get("analyst_decision") == "confirmed_by_analyst": exploitability = max(exploitability, 86)\n        elif reachability in {"static_only", "unknown"}: exploitability = min(exploitability, 45)\n'
+new = '        if candidate.get("analyst_decision") == "confirmed_by_analyst": exploitability = max(exploitability, 86)\n        elif reachability in {"static_only", "unknown"}: exploitability = min(exploitability, 45)\n        if maturity_limiter:\n            exploitability = min(exploitability, 40)\n'
+if old not in text:
+    raise SystemExit('exploitability block missing')
+text = text.replace(old, new, 1)
+old = '            "evidence_lineage": evidence_meta,\n            "scores": {\n'
+new = '            "evidence_lineage": evidence_meta,\n            "maturity_limiter": maturity_limiter,\n            "scores": {\n'
+if old not in text:
+    raise SystemExit('reasoning field block missing')
+text = text.replace(old, new, 1)
+p.write_text(text)
+
+# Regression tests derived from the real false-positive lineage.
+Path('tests/test_analysis_precision_v842.py').write_text(r'''from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "app"))
+
+from analysis_engine import _endpoint_schema
+from bug_candidates import _alert_candidates, _candidate_fingerprint
+from core import Database
+
+
+class AnalysisPrecisionV842Tests(unittest.TestCase):
+    def test_dns_cname_is_not_endpoint_and_does_not_extract_embedded_id(self):
+        details = {
+            "action": "added",
+            "change_class": "infrastructure",
+            "host": "nonmerchvendorprofile.anfcorp.com",
+            "rrtype": "CNAME",
+            "value": "external-id-gateway.anfcorp.com",
+        }
+        schema = _endpoint_schema("nonmerchvendorprofile.anfcorp.com CNAME external-id-gateway.anfcorp.com", details)
+        self.assertFalse(schema["is_endpoint"])
+        self.assertEqual(schema["object_identifiers"], [])
+        self.assertEqual(schema["method"], "UNKNOWN")
+
+    def test_structural_id_is_detected_for_real_endpoint(self):
+        schema = _endpoint_schema("https://example.test/api/orders/{id}", {"method": "GET"})
+        self.assertTrue(schema["is_endpoint"])
+        self.assertIn("id", schema["object_identifiers"])
+
+    def test_candidate_fingerprint_dedupes_alert_sources(self):
+        left = _candidate_fingerprint("example.test", 1, "file_upload", "file_validation", "https://example.test/upload", "alert:1")
+        right = _candidate_fingerprint("example.test", 2, "file_upload", "file_validation", "https://example.test/upload", "alert:2")
+        self.assertEqual(left, right)
+
+    def _db(self):
+        tmp = tempfile.TemporaryDirectory()
+        db = Database(Path(tmp.name) / "recon.db")
+        self.addCleanup(db.close)
+        self.addCleanup(tmp.cleanup)
+        return db
+
+    def test_dns_alert_produces_no_security_candidate(self):
+        db = self._db()
+        details = {"change_class": "infrastructure", "host": "x.test", "rrtype": "CNAME", "value": "external-id-gateway.test"}
+        schema = _endpoint_schema("x.test CNAME external-id-gateway.test", details)
+        row = {
+            "alert_id": 1, "target": "x.test", "endpoint_schema_json": json.dumps(schema), "details_json": json.dumps(details),
+            "evidence_for_json": "[]", "evidence_against_json": "[]", "confidence": 47, "business_context": "identity",
+            "category": "dns_change", "item": "x.test CNAME external-id-gateway.test",
+        }
+        self.assertEqual(_alert_candidates(db, "analysis-test", "run-test", row), 0)
+        self.assertEqual(db.one("SELECT COUNT(*) count FROM bug_candidates")["count"], 0)
+
+    def test_unknown_method_does_not_satisfy_bola_operation(self):
+        db = self._db()
+        schema = _endpoint_schema("https://x.test/api/orders/{id}", {})
+        row = {
+            "alert_id": 2, "target": "x.test", "endpoint_schema_json": json.dumps(schema), "details_json": "{}",
+            "evidence_for_json": "[]", "evidence_against_json": "[]", "confidence": 60, "business_context": "customer_data",
+            "category": "validated_endpoint", "item": "https://x.test/api/orders/{id}",
+        }
+        _alert_candidates(db, "analysis-test", "run-test", row)
+        count = db.one("SELECT COUNT(*) count FROM bug_candidates WHERE bug_family='broken_object_authorization'")["count"]
+        self.assertEqual(count, 0)
+
+    def test_same_semantic_bola_from_two_alerts_merges_to_one_candidate(self):
+        db = self._db()
+        schema = _endpoint_schema("https://x.test/api/orders/{id}", {"method": "GET"})
+        for alert_id in (10, 11):
+            row = {
+                "alert_id": alert_id, "target": "x.test", "endpoint_schema_json": json.dumps(schema), "details_json": json.dumps({"method": "GET"}),
+                "evidence_for_json": "[]", "evidence_against_json": "[]", "confidence": 70, "business_context": "customer_data",
+                "category": "validated_endpoint", "item": "https://x.test/api/orders/{id}",
+            }
+            _alert_candidates(db, "analysis-test", "run-test", row)
+        count = db.one("SELECT COUNT(*) count FROM bug_candidates WHERE bug_family='broken_object_authorization'")["count"]
+        self.assertEqual(count, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
+''')
