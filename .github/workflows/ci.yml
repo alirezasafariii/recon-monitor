@@ -6,6 +6,7 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -41,10 +42,16 @@ jobs:
         shell: bash
         run: sha256sum -c MANIFEST.sha256
 
-      - name: Verify version
+      - name: Verify version consistency
         shell: bash
         run: |
-          test "$(./recon-monitor.sh --version)" = "8.0.2"
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
 
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
