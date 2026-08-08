@@ -1,17 +1,33 @@
 config.env
 policies/targets.json
-state/
-output/
-reports/
+policies/targets.json.backup-*
+
+# Runtime data: keep directory placeholders, ignore contents
+state/*
+!state/.gitkeep
+output/*
+!output/.gitkeep
+reports/*
+!reports/.gitkeep
+backups/*
+!backups/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# Logs
 logs/*.log
 logs/*.jsonl
+
+# Databases
 *.db
 *.db-*
-.DS_Store
 
-# Python runtime artifacts
+# OS/editor/runtime artifacts
+.DS_Store
 __pycache__/
 *.py[cod]
-
-# Local target-policy backups
-policies/targets.json.backup-*
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
