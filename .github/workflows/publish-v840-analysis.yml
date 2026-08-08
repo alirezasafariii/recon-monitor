@@ -38,6 +38,9 @@ jobs:
           base64 -d .github/patches/v840/extra.tar.gz.b64 > /tmp/v840-extra.tar.gz
           gzip -t /tmp/v840-extra.tar.gz
           tar -xzf /tmp/v840-extra.tar.gz
+          echo '5bb9684357173b8e5a6690d687a0b520c1e1ff41bde6f907dbe1a11e7cde94a4  .github/patches/v840/py311.patch' | sha256sum -c -
+          git apply --check .github/patches/v840/py311.patch
+          git apply .github/patches/v840/py311.patch
           test -f app/analysis_audit.py
           test -f MIGRATION-v8.4.md
           rm -rf .github/patches/v840
@@ -103,6 +106,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          PYTHONPATH=app python -m py_compile app/dashboard.py app/analysis_audit.py app/security_reasoning.py app/analysis_engine.py
           PYTHONPATH=app python -m unittest discover -s tests -v
           cp config.env.example config.env
           sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
@@ -121,6 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          PYTHONPATH=app python -m py_compile app/dashboard.py app/analysis_audit.py app/security_reasoning.py app/analysis_engine.py
           PYTHONPATH=app python -m unittest discover -s tests -v
           cp config.env.example config.env
           sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
