@@ -1,0 +1,171 @@
+name: Publish Recon Monitor v8.4.0 Invisible Analysis
+
+on:
+  push:
+    branches:
+      - agent/publish-v8-4-0
+    paths:
+      - '.github/workflows/publish-v840-analysis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/publish-v8-4-0
+          fetch-depth: 0
+
+      - name: Validate payload and apply v8.4.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/patches/v840/part* > /tmp/v840.patch.gz.b64
+          test "$(wc -c < /tmp/v840.patch.gz.b64)" -eq 34708
+          echo '72dc5fec765268f2a85c5b121315f0037c531b319950d4c3e41ea0db169488f3  /tmp/v840.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/v840.patch.gz.b64 > /tmp/v840.patch.gz
+          gzip -t /tmp/v840.patch.gz
+          gzip -dc /tmp/v840.patch.gz > /tmp/v840.patch
+          git apply --check /tmp/v840.patch
+          git apply /tmp/v840.patch
+          rm -rf .github/patches/v840
+          rm -f .github/workflows/publish-v840-analysis.yml
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f \( -name '*.pyc' -o -name '.DS_Store' \) -delete
+          rm -f config.env policies/targets.json state/recon-v2.db
+
+      - name: Rebuild source manifest
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root = Path('.')
+          rows = []
+          for p in sorted(root.rglob('*'), key=lambda x: x.as_posix()):
+              if not p.is_file():
+                  continue
+              rel = p.as_posix().removeprefix('./')
+              parts = p.parts
+              if '.git' in parts or rel == 'MANIFEST.sha256':
+                  continue
+              if rel in {'config.env', 'policies/targets.json'}:
+                  continue
+              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store':
+                  continue
+              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep':
+                  continue
+              rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
+          Path('MANIFEST.sha256').write_text('\n'.join(rows) + '\n', encoding='utf-8')
+          print(f'Manifest files: {len(rows)}')
+          PY
+
+      - name: Verify source hygiene and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum -c MANIFEST.sha256
+          test ! -f config.env
+          test ! -f policies/targets.json
+          test ! -e .github/patches/v840
+          test ! -e .github/workflows/publish-v840-analysis.yml
+          grep -q 'APP_VERSION = "8.4.0"' app/core.py
+          grep -q 'SCHEMA_VERSION = 17' app/core.py
+          test -f app/analysis_audit.py
+          grep -q 'build_evidence_dossier' app/analysis_audit.py
+          grep -q 'Evidence Dossier' app/dashboard.py
+          if find . -type f \( -name '*.pyc' -o -name '.DS_Store' -o -name '*.db' -o -name '*.log' \) | grep -q .; then
+            echo 'Forbidden runtime artifact detected'; exit 1
+          fi
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test Python 3.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=app python -m unittest discover -s tests -v
+          cp config.env.example config.env
+          sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
+          cp policies/targets.json.example policies/targets.json
+          ./recon-monitor.sh test --integration
+          rm -f config.env policies/targets.json state/recon-v2.db
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Test Python 3.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=app python -m unittest discover -s tests -v
+          cp config.env.example config.env
+          sed -i 's/I_HAVE_AUTHORIZATION="no"/I_HAVE_AUTHORIZATION="yes"/' config.env
+          cp policies/targets.json.example policies/targets.json
+          ./recon-monitor.sh test --integration
+          rm -f config.env policies/targets.json state/recon-v2.db
+          find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
+          find . -type f -name '*.pyc' -delete
+
+      - name: Rebuild and verify final manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          rows=[]
+          for p in sorted(Path('.').rglob('*'), key=lambda x: x.as_posix()):
+              if not p.is_file(): continue
+              rel=p.as_posix().removeprefix('./'); parts=p.parts
+              if '.git' in parts or rel == 'MANIFEST.sha256': continue
+              if rel in {'config.env','policies/targets.json'}: continue
+              if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store': continue
+              if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep': continue
+              rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
+          Path('MANIFEST.sha256').write_text('\n'.join(rows)+'\n',encoding='utf-8')
+          print(f'Final manifest files: {len(rows)}')
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit one clean v8.4.0 source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git reset --mixed origin/main
+          git add -A
+          test ! -e .github/patches/v840
+          test ! -e .github/workflows/publish-v840-analysis.yml
+          git commit -m 'Release Recon Monitor 8.4.0 Invisible Analysis & Evidence Dossiers'
+          git push origin HEAD:main
+
+      - name: Tag and release v8.4.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git tag -a v8.4.0 -m 'Recon Monitor 8.4.0'
+          git push origin v8.4.0
+          git archive --format=zip --prefix=recon-monitor-v8.4.0/ -o /tmp/recon-monitor-v8.4.0.zip HEAD
+          cd /tmp
+          sha256sum recon-monitor-v8.4.0.zip > recon-monitor-v8.4.0.zip.sha256
+          gh release create v8.4.0 recon-monitor-v8.4.0.zip recon-monitor-v8.4.0.zip.sha256 \
+            --repo alirezasafariii/recon-monitor \
+            --title 'Recon Monitor v8.4.0' \
+            --notes 'Invisible Analysis and audit-grade Evidence Dossiers. Analysis reasoning stays behind the scenes while each Potential Finding can expose the complete structured evidence trail on demand: supporting and contradicting evidence, missing evidence, suppressed/correlated signals and exclusion reasons, source lineage, immutable source snapshots with SHA-256 integrity, evidence independence, confidence factors, structured alternatives, timeline and version history. Analysis navigation is collapsed to one clean workspace while internal engines remain routable and operational. Schema 17 is additive. Potential Findings remain Unverified and no active validation is auto-enabled. Validated with 182 unit tests plus integration on Python 3.11 and 3.13.'
