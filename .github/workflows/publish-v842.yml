@@ -18,7 +18,20 @@ jobs:
           fetch-depth: 0
 
       - name: Apply precision patch
-        run: python scripts/v842_precision_patch.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/v842_precision_patch.py')
+          text = p.read_text()
+          old = "text, n = re.subn(r'def _endpoint_schema\\(value: str, details: Mapping\\[str, Any\\]\\) -> dict\\[str, Any\\]:.*?(?=\\n\\ndef _evidence)', new_endpoint, text, count=1, flags=re.S)"
+          new = "text, n = re.subn(r'def _endpoint_schema\\(value: str, details: Mapping\\[str, Any\\]\\) -> dict\\[str, Any\\]:.*?(?=\\n\\ndef _evidence)', lambda _m: new_endpoint, text, count=1, flags=re.S)"
+          if old not in text:
+              raise SystemExit('endpoint replacement driver pattern missing')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          python scripts/v842_precision_patch.py
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -54,7 +67,6 @@ jobs:
           find . -type d -name __pycache__ -prune -exec rm -rf {} + || true
           find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' \) -delete || true
           rm -f config.env policies/targets.json
-
           python - <<'PY'
           from pathlib import Path
           import hashlib
@@ -67,13 +79,11 @@ jobs:
           paths = sorted(set(p for p in paths if Path(p).is_file() and p not in {'MANIFEST.sha256', '.github/workflows/publish-v842.yml', 'scripts/v842_precision_patch.py'}))
           manifest.write_text('\n'.join(f"{hashlib.sha256(Path(name).read_bytes()).hexdigest()}  {name}" for name in paths) + '\n')
           PY
-
           sha256sum -c MANIFEST.sha256
           test ! -e config.env
           test ! -e policies/targets.json
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' \) -print -quit)"
-
           git fetch origin main
           git diff --binary origin/main > /tmp/v842.patch
           git reset --hard origin/main
