@@ -74,6 +74,30 @@ for path in sorted((ROOT / "tests").glob("test_*.py")):
     updated = text.replace('"8.4.5"', '"8.5.0"').replace("'8.4.5'", "'8.5.0'")
     path.write_text(updated, encoding="utf-8")
 
+# Legacy fixtures that intentionally expect a BOLA candidate must now include actual
+# authorization-boundary evidence. This updates test data, not the production gate.
+replace_once(
+    "tests/test_bug_candidates_v41.py",
+    '            "status_code": 401,\n            "method": "PATCH",',
+    '            "status_code": 200,\n            "identity_id": "fixture-user-a",\n            "object_owner_id": "fixture-user-b",\n            "method": "PATCH",',
+)
+replace_once(
+    "tests/test_security_reasoning_v46.py",
+    '            "status_code": 200,\n            "method": "PATCH",',
+    '            "status_code": 200,\n            "request_tenant_id": "tenant-a",\n            "object_tenant_id": "tenant-b",\n            "method": "PATCH",',
+)
+
+# The updater test must continue to model a release newer than the running application.
+update_test = ROOT / "tests/test_update_v810.py"
+text = update_test.read_text(encoding="utf-8")
+text = text.replace('"tagName": "v8.5.0"', '"tagName": "v8.5.1"')
+text = text.replace('"name": "Recon Monitor v8.5.0"', '"name": "Recon Monitor v8.5.1"')
+text = text.replace('/releases/tag/v8.5.0"', '/releases/tag/v8.5.1"')
+text = text.replace('recon-monitor-v8.5.0.zip.sha256', 'recon-monitor-v8.5.1.zip.sha256')
+text = text.replace('recon-monitor-v8.5.0.zip', 'recon-monitor-v8.5.1.zip')
+text = text.replace('result["available"], "8.5.0"', 'result["available"], "8.5.1"')
+update_test.write_text(text, encoding="utf-8")
+
 # Changelog entry is intentionally concise; the detailed design lives in docs/BOLA_INTELLIGENCE_2.md.
 changelog = ROOT / "CHANGELOG.md"
 text = changelog.read_text(encoding="utf-8")
