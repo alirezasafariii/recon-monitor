@@ -87,6 +87,11 @@ replace_once(
     '            "status_code": 200,\n            "request_tenant_id": "tenant-a",\n            "object_tenant_id": "tenant-b",\n            "method": "PATCH",',
 )
 replace_once(
+    "tests/test_security_reasoning_v46.py",
+    '                "anonymous": {"status_code": 200, "auth_state": "anonymous", "confidence": 82},',
+    '                "anonymous": {"status_code": 200, "auth_state": "anonymous", "expected_access": False, "confidence": 82},',
+)
+replace_once(
     "tests/test_bola_intelligence_v850.py",
     '        self.assertTrue(any("authorization-boundary" in " ".join(group) for group in admission["required_missing"]))',
     '        self.assertTrue(any("unauthorized_object_response" in group or "cross_identity_object_access" in group for group in admission["required_missing"]))',
