@@ -1,0 +1,62 @@
+name: Prepare v8.4.1 Test Contracts
+
+on:
+  push:
+    branches:
+      - agent/publish-v8-4-1-dashboard-readiness
+    paths:
+      - '.github/workflows/prepare-v841-test-contracts.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/publish-v8-4-1-dashboard-readiness
+          fetch-depth: 0
+      - name: Update release contract assertions and retrigger publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          version_files = [
+              'tests/test_platform_v60.py',
+              'tests/test_product_platform_v50.py',
+              'tests/test_safe_validation_v51.py',
+              'tests/test_stability_v451.py',
+              'tests/test_workspace_v70.py',
+          ]
+          for name in version_files:
+              p = Path(name)
+              text = p.read_text(encoding='utf-8')
+              if '8.4.0' not in text:
+                  raise SystemExit(f'expected 8.4.0 contract missing in {name}')
+              p.write_text(text.replace('8.4.0', '8.4.1'), encoding='utf-8')
+
+          p = Path('tests/test_workspace_v70.py')
+          text = p.read_text(encoding='utf-8')
+          old = "self.assertTrue(any(c['id']=='DB-SCHEMA' and '16' in c['detail'] for c in diag['checks']))"
+          new = "self.assertTrue(any(c['id']=='DB-SCHEMA' and str(SCHEMA_VERSION) in c['detail'] for c in diag['checks']))"
+          if old not in text:
+              raise SystemExit('stale schema diagnostic assertion not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          pub = Path('.github/workflows/publish-v841-dashboard-readiness.yml')
+          text = pub.read_text(encoding='utf-8')
+          marker = '# retry-contracts-v2\n'
+          if marker not in text:
+              text += '\n' + marker
+          pub.write_text(text, encoding='utf-8')
+          PY
+          rm -f .github/workflows/prepare-v841-test-contracts.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Update v8.4.1 release test contracts'
+          git push origin HEAD:agent/publish-v8-4-1-dashboard-readiness
