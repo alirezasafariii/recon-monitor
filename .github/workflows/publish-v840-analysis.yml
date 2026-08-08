@@ -33,6 +33,13 @@ jobs:
           gzip -dc /tmp/v840.patch.gz > /tmp/v840.patch
           git apply --exclude=MANIFEST.sha256 --check /tmp/v840.patch
           git apply --exclude=MANIFEST.sha256 /tmp/v840.patch
+          test "$(wc -c < .github/patches/v840/extra.tar.gz.b64)" -eq 6400
+          echo 'b7e003d60faa31bfa00bdf724284bd0b83916a981e0999a75a36b7e5812d6f73  .github/patches/v840/extra.tar.gz.b64' | sha256sum -c -
+          base64 -d .github/patches/v840/extra.tar.gz.b64 > /tmp/v840-extra.tar.gz
+          gzip -t /tmp/v840-extra.tar.gz
+          tar -xzf /tmp/v840-extra.tar.gz
+          test -f app/analysis_audit.py
+          test -f MIGRATION-v8.4.md
           rm -rf .github/patches/v840
           rm -f .github/workflows/publish-v840-analysis.yml
           find app tests -type d -name '__pycache__' -prune -exec rm -rf {} + || true
@@ -63,6 +70,8 @@ jobs:
               rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
           Path('MANIFEST.sha256').write_text('\n'.join(rows) + '\n', encoding='utf-8')
           print(f'Manifest files: {len(rows)}')
+          if len(rows) != 138:
+              raise SystemExit(f'Expected 138 manifest files, found {len(rows)}')
           PY
 
       - name: Verify source hygiene and contracts
@@ -77,7 +86,9 @@ jobs:
           grep -q 'APP_VERSION = "8.4.0"' app/core.py
           grep -q 'SCHEMA_VERSION = 17' app/core.py
           test -f app/analysis_audit.py
+          test -f MIGRATION-v8.4.md
           grep -q 'build_evidence_dossier' app/analysis_audit.py
+          grep -q 'capture_evidence_snapshot' app/analysis_audit.py
           grep -q 'Evidence Dossier' app/dashboard.py
           if find . -type f \( -name '*.pyc' -o -name '.DS_Store' -o -name '*.db' -o -name '*.log' \) | grep -q .; then
             echo 'Forbidden runtime artifact detected'; exit 1
@@ -135,6 +146,8 @@ jobs:
               if '__pycache__' in parts or p.suffix == '.pyc' or p.name == '.DS_Store': continue
               if parts and parts[0] in {'state','output','reports','logs'} and p.name != '.gitkeep': continue
               rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {rel}")
+          if len(rows) != 138:
+              raise SystemExit(f'Expected 138 final manifest files, found {len(rows)}')
           Path('MANIFEST.sha256').write_text('\n'.join(rows)+'\n',encoding='utf-8')
           print(f'Final manifest files: {len(rows)}')
           PY
