@@ -25,11 +25,11 @@ jobs:
           from pathlib import Path
           p = Path('scripts/v842_precision_patch.py')
           text = p.read_text()
-          old = "text, n = re.subn(r'def _endpoint_schema\\(value: str, details: Mapping\\[str, Any\\]\\) -> dict\\[str, Any\\]:.*?(?=\\n\\ndef _evidence)', new_endpoint, text, count=1, flags=re.S)"
-          new = "text, n = re.subn(r'def _endpoint_schema\\(value: str, details: Mapping\\[str, Any\\]\\) -> dict\\[str, Any\\]:.*?(?=\\n\\ndef _evidence)', lambda _m: new_endpoint, text, count=1, flags=re.S)"
-          if old not in text:
-              raise SystemExit('endpoint replacement driver pattern missing')
-          p.write_text(text.replace(old, new, 1))
+          marker = 'import re\n'
+          shim = '''import re\n\n_REAL_RE_SUBN = re.subn\ndef _literal_re_subn(pattern, repl, string, count=0, flags=0):\n    replacement = (lambda _match: repl) if isinstance(repl, str) else repl\n    return _REAL_RE_SUBN(pattern, replacement, string, count=count, flags=flags)\nre.subn = _literal_re_subn\n'''
+          if marker not in text:
+              raise SystemExit('import marker missing')
+          p.write_text(text.replace(marker, shim, 1))
           PY
           python scripts/v842_precision_patch.py
 
