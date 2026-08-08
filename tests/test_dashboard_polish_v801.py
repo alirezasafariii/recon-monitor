@@ -10,9 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from core import AppPaths, Config, Database, Logger, ReconError
+from core import SCHEMA_VERSION, AppPaths, Config, Database, Logger, ReconError
 from dashboard import ADVANCED_NAV_SECTIONS, NAV_SECTIONS, _candidate_confidence_story, _command_decision_item, _layout, _recon_interest_score, _recon_security_categories, _recon_surface_items
-from dashboard_service import _port_listener_details, start_dashboard
+from dashboard_service import _dashboard_listener_ready, _port_listener_details, start_dashboard
+from workspace_v7 import operator_diagnostics
 
 
 class DashboardPolishV801Tests(unittest.TestCase):
@@ -63,6 +64,31 @@ class DashboardPolishV801Tests(unittest.TestCase):
                 self.assertIn("--port", message)
             finally:
                 listener.close()
+
+    def test_dashboard_listener_readiness_is_lightweight(self) -> None:
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        try:
+            self.assertTrue(_dashboard_listener_ready("127.0.0.1", port, timeout=0.2))
+        finally:
+            listener.close()
+
+    def test_operator_diagnostics_uses_current_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = AppPaths.from_root(Path(tmp)); paths.ensure()
+            paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\n', encoding="utf-8")
+            paths.policy.write_text(json.dumps({"schema": 1, "defaults": {}, "targets": []}), encoding="utf-8")
+            config = Config(paths); db = Database(paths.db)
+            try:
+                result = operator_diagnostics(paths, config, db, persist=False)
+                check = next(c for c in result["checks"] if c["id"] == "DB-SCHEMA")
+                self.assertEqual(check["status"], "ok")
+                self.assertIn(f"expected {SCHEMA_VERSION}", check["detail"] )
+            finally:
+                db.close()
 
     def test_command_center_remains_reachable_from_sidebar(self) -> None:
         page = _layout("Command Center", "<p>body</p>", current_path="/")

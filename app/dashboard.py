@@ -42,7 +42,7 @@ from workspace_v7 import (
     operator_diagnostics, recent_error_events, recon_coverage, safe_repair, safety_center, smart_recon_plan, stage_value_analysis,
     target_memory, universal_search, workspace_v7_sync, record_error_event, import_browser_capture,
 )
-from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_int
+from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_int
 from dashboard_auth import verify_basic_header
 from session_auth import parse_session, create_session, destroy_session, verify_user, session_cookie, expired_cookie, ROLE_LEVEL
 from evidence import build_evidence_export
@@ -3082,7 +3082,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
             for e in errors
         )
         header = _page_header('Health & self-check', 'Subsystem health, browser compatibility and safe operator diagnostics. Health checks never perform active target validation.', "<a class='button' href='/diagnostics'>Open diagnostics & repair</a>", f'Recon Monitor {APP_VERSION} · Stability & Operator UX')
-        metrics = "<div class='metrics-grid'>" + _metric_card('Overall', diagnostics['overall'], 'Startup/operator self-check', status_tone.get(diagnostics['overall'],'info')) + _metric_card('Schema', next((c['detail'] for c in diagnostics['checks'] if c['id']=='DB-SCHEMA'),'unknown'), 'Expected schema 16', 'info') + _metric_card('Browser', browser['family'], 'Dashboard compatibility', 'success' if browser['supported'] else 'amber') + _metric_card('Recent errors', len(errors), 'Structured error events', 'amber' if errors else 'success') + "</div>"
+        metrics = "<div class='metrics-grid'>" + _metric_card('Overall', diagnostics['overall'], 'Startup/operator self-check', status_tone.get(diagnostics['overall'],'info')) + _metric_card('Schema', next((c['detail'] for c in diagnostics['checks'] if c['id']=='DB-SCHEMA'),'unknown'), f'Expected schema {SCHEMA_VERSION}', 'info') + _metric_card('Browser', browser['family'], 'Dashboard compatibility', 'success' if browser['supported'] else 'amber') + _metric_card('Recent errors', len(errors), 'Structured error events', 'amber' if errors else 'success') + "</div>"
         browser_notes = ''.join(f"<li>{_esc(n)}</li>" for n in browser.get('notes', [])) or '<li>No browser-specific warning detected.</li>'
         body = header + metrics + f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Subsystem checks</h3></div><div class='table-wrap'><table><thead><tr><th>ID</th><th>Subsystem</th><th>Status</th><th>Observed</th><th>Recommended action</th></tr></thead><tbody>{check_rows}</tbody></table></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Browser compatibility</h3></div><div class='panel-body'><p><strong>{_esc(browser['family'])}</strong> · supported: {_esc(browser['supported'])}</p><ul>{browser_notes}</ul></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Recent structured errors</h3></div><div class='table-wrap'><table><thead><tr><th>Error ID</th><th>Component</th><th>Summary</th><th>Time</th></tr></thead><tbody>{error_rows or '<tr><td colspan=4>No structured errors</td></tr>'}</tbody></table></div></section>"
         self.send_html('Health', body)

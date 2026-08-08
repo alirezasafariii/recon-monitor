@@ -49,6 +49,19 @@ def dashboard_status(paths: AppPaths) -> tuple[bool, str]:
     return False, "Dashboard is not running"
 
 
+def _dashboard_listener_ready(host: str, port: int, timeout: float = 0.5) -> bool:
+    """Return True once the spawned dashboard is accepting TCP connections.
+
+    Readiness stays independent from /health because that page intentionally
+    performs operator diagnostics, including database integrity work.
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def _port_listener_details(host: str, port: int) -> dict[str, Any] | None:
     """Return a best-effort description when a TCP listener already owns the dashboard port.
 
@@ -187,8 +200,7 @@ def start_dashboard(
     log_handle.close()
     atomic_write_text(_pid_path(paths), f"{process.pid}\n")
 
-    deadline = time.time() + 8
-    url = f"http://{host}:{port}/health"
+    deadline = time.time() + 20
     ready = False
     while time.time() < deadline:
         if process.poll() is not None:
@@ -203,18 +215,10 @@ def start_dashboard(
             raise ReconError(
                 f"Dashboard exited early with code {process.returncode}.{suffix}"
             )
-        try:
-            with urllib.request.urlopen(url, timeout=0.5) as response:
-                if response.status == 200:
-                    ready = True
-                    break
-        except urllib.error.HTTPError as exc:
-            if exc.code == 401:
-                ready = True
-                break
-            time.sleep(0.2)
-        except Exception:
-            time.sleep(0.2)
+        if _dashboard_listener_ready(host, port):
+            ready = True
+            break
+        time.sleep(0.2)
 
     if not ready:
         with contextlib.suppress(OSError):

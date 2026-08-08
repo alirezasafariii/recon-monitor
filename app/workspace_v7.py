@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
-from core import APP_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now
+from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now
 
 WORKSPACE_V7_VERSION = APP_VERSION
 
@@ -860,7 +860,8 @@ def operator_diagnostics(paths: AppPaths, config: Config, db: Database, *, persi
     except Exception as exc:
         add("DB-INTEGRITY", "Database integrity", "error", str(exc), "Run backup verification and repair diagnostics.")
     schema = str(db.meta_get("schema_version") or "unknown")
-    add("DB-SCHEMA", "Database schema", "ok" if schema == "16" else "warn", f"Schema {schema}; expected 16", "Run the v7 migration if the schema is older.")
+    expected_schema = str(SCHEMA_VERSION)
+    add("DB-SCHEMA", "Database schema", "ok" if schema == expected_schema else "warn", f"Schema {schema}; expected {expected_schema}", "Run the current Recon Monitor migration if the schema is older.")
     disk = shutil.disk_usage(paths.root)
     free_gb = disk.free / (1024 ** 3)
     add("FS-DISK", "Free disk space", "ok" if free_gb >= 2 else "warn", f"{free_gb:.1f} GB free", "Run retention preview or free disk space." if free_gb < 2 else "")

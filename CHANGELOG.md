@@ -1,3 +1,9 @@
+## 8.4.1 - Dashboard readiness hotfix
+
+- Fix false Dashboard startup timeouts caused by probing the full diagnostics `/health` page during readiness.
+- Use lightweight local listener readiness with a 20-second startup window.
+- Remove stale schema-16 diagnostics and bind health reporting to the current schema version.
+
 # 8.4.0 — Invisible Analysis & Audit-Grade Evidence Dossiers
 
 - Reduced the visible Analysis workspace to a compact health/status surface; detailed analysis engines remain internal and are no longer exposed as sidebar navigation.

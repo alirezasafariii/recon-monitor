@@ -77,7 +77,7 @@ class WorkspaceV70Tests(unittest.TestCase):
     def test_version_schema_and_workspace_tables(self):
         temp, paths, db = self.project()
         try:
-            self.assertEqual((APP_VERSION, SCHEMA_VERSION, db.meta_get('schema_version')), ('8.4.0', 17, '17'))
+            self.assertEqual((APP_VERSION, SCHEMA_VERSION, db.meta_get('schema_version')), ('8.4.1', 17, '17'))
             tables = {r[0] for r in db.all("SELECT name FROM sqlite_master WHERE type='table'")}
             for name in ('evidence_gap_snapshots','case_autopilot_tasks','auth_context_profiles','differential_findings','recon_coverage_snapshots','target_memory','false_positive_learning','smart_recon_plans','report_claims','browser_capture_events','operator_diagnostics','error_events','recovery_actions'):
                 self.assertIn(name, tables)
@@ -249,7 +249,7 @@ class WorkspaceV70Tests(unittest.TestCase):
         temp, paths, db = self.project()
         try:
             result=workspace_v7_sync(paths,Config(paths),db,target='example.com',actor='test')
-            self.assertEqual(result['version'],'8.4.0')
+            self.assertEqual(result['version'],'8.4.1')
             self.assertIn('example.com',result['targets'])
             self.assertGreaterEqual(result['cases'],1)
             self.assertTrue(db.one("SELECT 1 FROM target_memory WHERE target='example.com'"))
@@ -261,7 +261,7 @@ class WorkspaceV70Tests(unittest.TestCase):
         try:
             diag=operator_diagnostics(paths,Config(paths),db,persist=True)
             self.assertIn(diag['overall'],{'ok','warn','error'})
-            self.assertTrue(any(c['id']=='DB-SCHEMA' and '16' in c['detail'] for c in diag['checks']))
+            self.assertTrue(any(c['id']=='DB-SCHEMA' and str(SCHEMA_VERSION) in c['detail'] for c in diag['checks']))
             safari=browser_compatibility('Mozilla/5.0 Version/26.0 Safari/605.1.15')
             self.assertEqual(safari['family'],'safari'); self.assertTrue(safari['supported'])
         finally: db.close(); temp.cleanup()
