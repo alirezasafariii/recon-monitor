@@ -22,7 +22,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/patches/v830/part* | base64 -d | gzip -d > /tmp/v830.patch
+          cat .github/patches/v830/part* > /tmp/v830.b64
+          test "$(wc -c < /tmp/v830.b64)" -eq 20432
+          base64 -d /tmp/v830.b64 > /tmp/v830.patch.gz
+          gzip -t /tmp/v830.patch.gz
+          gzip -dc /tmp/v830.patch.gz > /tmp/v830.patch
           git apply --check /tmp/v830.patch
           git apply /tmp/v830.patch
           rm -rf .github/patches/v830
