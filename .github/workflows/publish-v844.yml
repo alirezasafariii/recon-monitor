@@ -1,0 +1,121 @@
+name: Publish Recon Monitor v8.4.4 Abstention Consistency
+
+on:
+  push:
+    branches:
+      - agent/abstention-consistency-v844
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply v8.4.4 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/v844_abstention_consistency_patch.py
+          grep -q 'APP_VERSION = "8.4.4"' app/core.py
+          grep -q 'SCHEMA_VERSION = 18' app/core.py
+          grep -q 'REASONING_ENGINE_VERSION = "5.2.1"' app/security_reasoning.py
+          grep -q 'PLATFORM_VERSION = "6.0.5"' app/product_platform.py
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Python 3.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/*.py
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          python tests/integration_runner.py
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Validate Python 3.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/*.py
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          python tests/integration_runner.py
+
+      - name: Abstention and recall contract checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_abstention_consistency_v844 -v
+          python - <<'PY'
+          import sys, tempfile
+          from pathlib import Path
+          sys.path.insert(0, 'app')
+          from core import Database, APP_VERSION, SCHEMA_VERSION
+          from product_platform import PLATFORM_VERSION
+          from security_reasoning import REASONING_ENGINE_VERSION, REASONING_RULE_VERSION
+          assert APP_VERSION == '8.4.4'
+          assert SCHEMA_VERSION == 18
+          assert PLATFORM_VERSION == '6.0.5'
+          assert REASONING_ENGINE_VERSION == '5.2.1'
+          assert REASONING_RULE_VERSION == '2026.08.8.4'
+          with tempfile.TemporaryDirectory() as td:
+              db = Database(Path(td) / 'db.sqlite')
+              assert db.meta_get('schema_version') == '18'
+              db.close()
+          PY
+
+      - name: Prepare clean source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clean -fdX
+          git rm .github/workflows/publish-v844.yml scripts/v844_abstention_consistency_patch.py
+          rmdir scripts 2>/dev/null || true
+          git add -A
+          git ls-files | grep -v '^MANIFEST.sha256$' | LC_ALL=C sort | while IFS= read -r f; do
+            [ -f "$f" ] && sha256sum "$f"
+          done > MANIFEST.sha256
+          git add MANIFEST.sha256
+          test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "ci.yml"
+          if find . -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.pyc' -o -name '*.log' \) ! -path './.git/*' | grep -q .; then
+            echo 'runtime artifact found in source tree'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git reset --soft origin/main
+          git add -A
+          git commit -m 'Fix abstention and workspace consistency'
+          git push origin HEAD:main
+
+      - name: Package and release v8.4.4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA=$(git rev-parse HEAD)
+          test "$MAIN_SHA" = "$(git rev-parse origin/main)"
+          git tag -a v8.4.4 -m 'Recon Monitor 8.4.4'
+          git push origin v8.4.4
+          git archive --format=zip --prefix=recon-monitor-v8.4.4/ HEAD -o recon-monitor-v8.4.4.zip
+          SHA=$(sha256sum recon-monitor-v8.4.4.zip | awk '{print $1}')
+          printf '%s  %s\n' "$SHA" recon-monitor-v8.4.4.zip > recon-monitor-v8.4.4.zip.sha256
+          gh release create v8.4.4 \
+            recon-monitor-v8.4.4.zip \
+            recon-monitor-v8.4.4.zip.sha256 \
+            --title 'Recon Monitor v8.4.4' \
+            --notes 'Abstention Consistency hotfix. Zero admitted candidates are treated as an abstention state rather than a false evidence-coverage regression. Same-run replay now fails only if a previously surfaced unconfirmed family disappears from both candidates and hidden hypotheses. Target learning separates current analysis from history, Recon coverage accepts successful target results from globally partial runs, and workspace case sync processes only cases from each target latest analysis. Schema remains 18. Full unit/integration and dedicated recall/abstention tests run on Python 3.11 and 3.13.'
+          echo "RELEASE_SHA256=$SHA"
