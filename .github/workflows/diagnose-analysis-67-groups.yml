@@ -1,0 +1,51 @@
+name: Diagnose Analysis 6.7 Regression Groups
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-diagnose-groups
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending 6.7 patches
+        run: |
+          python .analysis-67-boundaries.py
+          python .analysis-67-postfreeze-tests.py
+      - name: Legacy analysis tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_*.py' -q
+      - name: Security reasoning tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: python tests/test_security_reasoning_v46.py
+      - name: Candidate and admission tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_recall_preserving_admission_v843.py
+          python tests/test_abstention_consistency_v844.py
+          python tests/test_candidate_reliability_v43.py
+          python tests/test_bola_intelligence_v850.py
+      - name: Core and platform tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_core.py
+          python tests/test_platform_v60.py
+          python tests/test_product_platform_v50.py
+          python tests/test_workspace_v70.py
