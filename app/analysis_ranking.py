@@ -2,34 +2,21 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
 
-from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
+from family_reasoners import (
+    FAMILY_REASONER_RULE_VERSION,
+    FAMILY_REASONER_VERSION,
+    condition_confidence,
+    rank_with_family_reasoners,
+    reason_family,
+)
 
-RANKING_ENGINE_VERSION = "1.0.0"
-RANKING_RULE_VERSION = "2026.08.10.6.5"
-
-
-def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
-    return max(low, min(high, float(value)))
+RANKING_ENGINE_VERSION = "2.0.0"
+RANKING_RULE_VERSION = "2026.08.10.6.7"
 
 
 def admission_confidence(assessment: Mapping[str, Any]) -> float:
-    """Probability-like confidence that the vulnerability condition is established.
-
-    This is deliberately separate from family fit. A family-specific security control can
-    make the vulnerability condition unlikely while simultaneously making the family
-    classification more certain.
-    """
-    if assessment.get("admitted"):
-        return 0.96
-    state = str(assessment.get("state") or "")
-    if state == "shadow_contradicted":
-        return 0.04
-    satisfied = len(assessment.get("required_satisfied") or [])
-    missing = len(assessment.get("required_missing") or [])
-    coverage = satisfied / max(1, satisfied + missing)
-    if state == "shadow_partial":
-        return round(min(0.28, 0.06 + 0.24 * coverage), 6)
-    return 0.04
+    """Backward-compatible wrapper around the family-reasoner condition model."""
+    return condition_confidence(assessment)
 
 
 def family_compatibility(
@@ -37,39 +24,27 @@ def family_compatibility(
     support: Iterable[Mapping[str, Any]],
     contradict: Iterable[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Rank how well evidence belongs to a vulnerability family, not whether it is vulnerable.
+    """Return family-specific identity fit separately from vulnerability confidence.
 
-    Blocking contradictions are intentionally *not* subtracted from family fit. They are
-    evidence that the relevant security control was observed for this family, and therefore
-    belong in condition confidence / admission, not in family identity scoring.
+    Analysis 6.7 no longer ranks every bug family with one generic coverage formula.
+    Each family owns its analytical question, group weights, scoped source counting,
+    controls, and confusion boundaries in ``family_reasoners.py``.
     """
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
-    assessment = assess_admission(family, support_items, contradict_items)
-    policy = FAMILY_ADMISSION_POLICIES[family]
-    required_count = max(1, len(policy.get("required", [])))
-    satisfied_count = len(assessment.get("required_satisfied") or [])
-    coverage = satisfied_count / required_count
-    required_sources = max(1, int(policy.get("min_independent_sources", 1)))
-    source_ratio = min(1.0, int(assessment.get("independent_sources") or 0) / required_sources)
-
-    score = 0.68 * coverage + 0.14 * source_ratio
-    if assessment.get("admitted"):
-        score += 0.18
-    score = _clamp(score)
-    blocking = list(assessment.get("blocking_contradictions") or [])
-    condition_confidence = admission_confidence(assessment)
+    row = reason_family(family, support, contradict)
+    total_group_weight = sum(float(item.get("weight") or 0.0) for item in row["group_results"])
+    normalized_coverage = (
+        float(row["weighted_group_coverage"]) / total_group_weight
+        if total_group_weight > 0
+        else 0.0
+    )
     return {
-        "family": family,
-        "score": round(score, 6),
-        "family_fit_score": round(score, 6),
-        "coverage": round(coverage, 6),
-        "source_ratio": round(source_ratio, 6),
-        "condition_confidence": condition_confidence,
-        "control_evidence": blocking,
-        "assessment": assessment,
+        **row,
+        # Compatibility aliases used by Benchmark 3.x and existing diagnostics.
+        "coverage": round(normalized_coverage, 6),
         "ranking_engine_version": RANKING_ENGINE_VERSION,
         "ranking_rule_version": RANKING_RULE_VERSION,
+        "family_reasoner_version": FAMILY_REASONER_VERSION,
+        "family_reasoner_rule_version": FAMILY_REASONER_RULE_VERSION,
     }
 
 
@@ -77,17 +52,15 @@ def rank_families(
     support: Iterable[Mapping[str, Any]],
     contradict: Iterable[Mapping[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
-    rows = [family_compatibility(family, support_items, contradict_items) for family in FAMILY_ADMISSION_POLICIES]
-    rows.sort(
-        key=lambda item: (
-            float(item["family_fit_score"]),
-            bool(item["assessment"].get("admitted")),
-            float(item["coverage"]),
-            float(item["source_ratio"]),
-            str(item["family"]),
-        ),
-        reverse=True,
-    )
+    rows = rank_with_family_reasoners(support, contradict)
+    for row in rows:
+        total_group_weight = sum(float(item.get("weight") or 0.0) for item in row["group_results"])
+        row["coverage"] = round(
+            float(row["weighted_group_coverage"]) / total_group_weight
+            if total_group_weight > 0
+            else 0.0,
+            6,
+        )
+        row["ranking_engine_version"] = RANKING_ENGINE_VERSION
+        row["ranking_rule_version"] = RANKING_RULE_VERSION
     return rows
