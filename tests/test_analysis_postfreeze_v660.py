@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import unittest
 
 from analysis_postfreeze import (
@@ -126,6 +127,11 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertTrue(any("provenance URL already exists" in error for error in result["errors"]))
 
+        reused_ref = _root_cases(root="OLD-REFERENCE", url="https://example.invalid/advisory/newer")
+        result = validate_postfreeze_corpus(reused_ref, manifest, prior)
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("provenance reference already exists" in error for error in result["errors"]))
+
     def test_rejects_external_knowledge_as_target_evidence(self) -> None:
         manifest = load_manifest(DEFAULT_MANIFEST)
         cases = _root_cases()
@@ -138,6 +144,49 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         result = validate_postfreeze_corpus(cases, manifest, [])
         self.assertFalse(result["passed"])
         self.assertTrue(any("external knowledge leaked" in error for error in result["errors"]))
+
+    def test_rejects_unknown_family_and_unapproved_source_kind(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        cases = _root_cases()
+        for row in cases:
+            row["family"] = "imaginary_family"
+            row["expected"] = {"family": "imaginary_family", "admitted": row["case_kind"] == "positive"}
+            row["provenance"] = {**row["provenance"], "source_kind": "secondary_blog"}
+        result = validate_postfreeze_corpus(cases, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("unknown family" in error for error in result["errors"]))
+        self.assertTrue(any("source_kind" in error and "not allowed" in error for error in result["errors"]))
+
+    def test_rejects_missing_source_date(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        cases = _root_cases()
+        for row in cases:
+            row.pop("source_date", None)
+        result = validate_postfreeze_corpus(cases, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("missing source_date" in error for error in result["errors"]))
+
+    def test_rejects_noncanonical_wstg_or_cwe_grounding(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        cases = copy.deepcopy(_root_cases())
+        for row in cases:
+            row["standards"] = {"wstg": ["WSTG-FAKE-01"], "cwe": ["CWE-999999"]}
+        result = validate_postfreeze_corpus(cases, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("WSTG grounding missing or inconsistent" in error for error in result["errors"]))
+        self.assertTrue(any("CWE grounding missing or inconsistent" in error for error in result["errors"]))
+
+    def test_variants_must_share_family_date_source_kind_and_project(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        cases = _root_cases()
+        cases[3]["source_date"] = "2026-08-09"
+        cases[2]["source_project"] = "different-project"
+        cases[1]["provenance"] = {**cases[1]["provenance"], "source_kind": "vendor_advisory"}
+        result = validate_postfreeze_corpus(cases, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("share one source_date" in error for error in result["errors"]))
+        self.assertTrue(any("share one source_project" in error for error in result["errors"]))
+        self.assertTrue(any("share one source_kind" in error for error in result["errors"]))
 
 
 if __name__ == "__main__":
