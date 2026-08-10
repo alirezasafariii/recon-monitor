@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "protocol": "analysis-6.6-postfreeze-blind",
+  "evaluation_status": "collection_open",
+  "frozen_at": "2026-08-10",
+  "frozen_head_sha": "de3d6f210a52c409a60f9ffb861bc283790ea8fe",
+  "frozen_engine": {
+    "analysis_engine_version": "6.5.0",
+    "ranking_engine_version": "1.0.0",
+    "ranking_rule_version": "2026.08.10.6.5",
+    "benchmark_engine_version": "3.1.0"
+  },
+  "protected_files": {
+    "app/analysis_engine.py": "d91c1d1fe02b38cc5723dbf64f4351e5e5e47a7a",
+    "app/bug_candidates.py": "0b981c242b12fbda3aa071c88f6a4518451cad7e",
+    "app/security_reasoning.py": "a14030a6529b8633ad38976e5ce2bbf9ce08e346",
+    "app/hypothesis_admission.py": "57de659dac58ceb6d55fc546cfd9bc1758a09bd6",
+    "app/analysis_standards.py": "790c8de05a57d52176200360cbb945dd0cb11a3c",
+    "app/analysis_ranking.py": "561ff89b1677292e89793223d2662a198d4649d3"
+  },
+  "acceptance_gates": {
+    "precision_min": 0.93,
+    "recall_min": 0.85,
+    "top1_accuracy_min": 0.90,
+    "top3_accuracy_min": 0.95,
+    "abstention_accuracy_min": 0.90,
+    "false_promotion_rate_max": 0.05,
+    "brier_score_max": 0.15,
+    "ece_max": 0.15,
+    "standards_coverage_min": 1.0,
+    "source_root_leakage_rate_max": 0.0
+  },
+  "collection_target": {
+    "new_source_roots": 50,
+    "variants_per_root": 4,
+    "target_cases": 200,
+    "required_case_variants": [
+      "positive",
+      "near_miss",
+      "secure_negative",
+      "sparse_noisy"
+    ]
+  },
+  "source_policy": {
+    "primary_sources_only": true,
+    "allowed_source_kinds": [
+      "github_security_lab",
+      "vendor_advisory",
+      "project_security_advisory"
+    ],
+    "https_required": true,
+    "root_must_be_absent_from_v3": true,
+    "url_must_be_absent_from_v3": true,
+    "root_is_split_unit": true,
+    "split": "postfreeze_holdout",
+    "retuning_after_evaluation": false
+  },
+  "prior_evaluations": {
+    "analysis_golden_v3": {
+      "evaluation_status": "consumed_diagnostic",
+      "reason": "Held-out cases were inspected during Analysis 6.5 diagnosis and are regression-only after that point."
+    }
+  },
+  "corpus": {
+    "path": "benchmarks/golden/analysis_golden_v4.jsonl",
+    "sha256": null,
+    "sealed": false,
+    "source_roots": []
+  }
+}
