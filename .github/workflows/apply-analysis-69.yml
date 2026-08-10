@@ -1,0 +1,101 @@
+name: Apply Analysis 6.9 Physical Family Detectors
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.9-physical-family-detectors
+    paths:
+      - .analysis-69-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.9-physical-family-detectors
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply Analysis 6.9 integration
+        run: python .analysis-69-apply.py
+
+      - name: Syntax and registry check
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_detectors/*.py app/analysis_standards.py app/bug_candidates.py app/analysis_engine.py app/security_reasoning.py
+          python - <<'PY'
+          from family_detectors import validate_detector_registry
+          errors = validate_detector_registry()
+          assert not errors, errors
+          PY
+
+      - name: Focused Analysis 6.9 tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_physical_family_detectors_v690.py
+          python tests/test_family_evidence_extractors_v680.py
+          python tests/test_family_reasoners_v670.py
+          python tests/test_family_confusion_matrix_v670.py
+          python tests/test_analysis_ranking_v650.py
+          python tests/test_analysis_coverage_v610.py
+
+      - name: Full unit suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden v3 regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        run: python tests/integration_runner.py
+
+      - name: Remove temporary Analysis 6.9 machinery
+        run: |
+          rm -f .analysis-69-apply.py .analysis-69-trigger
+          rm -f .github/workflows/apply-analysis-69.yml
+
+      - name: Regenerate manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, os, subprocess
+          raw = subprocess.check_output(['git', 'ls-files', '-z'])
+          paths = [x.decode('utf-8') for x in raw.split(b'\0') if x]
+          removed = {'.analysis-69-apply.py', '.analysis-69-trigger', '.github/workflows/apply-analysis-69.yml'}
+          lines = []
+          for path in sorted(paths):
+              if path == 'MANIFEST.sha256' or path in removed or not os.path.isfile(path):
+                  continue
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(chunk)
+              lines.append(f'{h.hexdigest()}  {path}\n')
+          with open('MANIFEST.sha256', 'w', encoding='utf-8') as f:
+              f.writelines(lines)
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit finalized Analysis 6.9
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Integrate Analysis 6.9 physical family detectors"
+          git push origin HEAD:agent/analysis-engine-6.9-physical-family-detectors
