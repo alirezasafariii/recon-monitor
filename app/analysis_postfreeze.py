@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from analysis_benchmark import run_benchmark
+from analysis_standards import standards_for_family
+from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-POSTFREEZE_EVALUATOR_VERSION = "1.0.0"
+POSTFREEZE_EVALUATOR_VERSION = "1.1.0"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "benchmarks" / "golden" / "splits" / "v4.json"
 PRIOR_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v3.jsonl"
@@ -29,15 +31,8 @@ PREREGISTERED_GATES: dict[str, float] = {
 
 VALID_VARIANTS = {"positive", "near_miss", "secure_negative", "sparse_noisy"}
 FORBIDDEN_EVIDENCE_SOURCES = {
-    "knowledge",
-    "external_writeup",
-    "owasp",
-    "owasp_wstg",
-    "wstg",
-    "mitre_cwe",
-    "cwe",
-    "standards",
-    "provenance",
+    "knowledge", "external_writeup", "owasp", "owasp_wstg", "wstg",
+    "mitre_cwe", "cwe", "standards", "provenance",
 }
 FORBIDDEN_EVIDENCE_TYPES = {"knowledge_reference", "wstg_reference", "cwe_reference"}
 LOW_MARGIN_THRESHOLD = 0.08
@@ -48,18 +43,16 @@ def _norm(value: Any) -> str:
 
 
 def load_manifest(path: str | Path = DEFAULT_MANIFEST) -> dict[str, Any]:
-    source = Path(path)
-    data = json.loads(source.read_text(encoding="utf-8"))
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("Post-freeze manifest must be a JSON object")
     return data
 
 
 def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
-    source = Path(path)
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for line_no, raw in enumerate(source.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
         text = raw.strip()
         if not text or text.startswith("#"):
             continue
@@ -78,8 +71,7 @@ def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
 
 def git_blob_sha1(path: str | Path) -> str:
     data = Path(path).read_bytes()
-    header = f"blob {len(data)}\0".encode("ascii")
-    return hashlib.sha1(header + data).hexdigest()
+    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
 
 
 def sha256_file(path: str | Path) -> str:
@@ -95,6 +87,7 @@ def validate_freeze(manifest: Mapping[str, Any]) -> dict[str, Any]:
     protected = manifest.get("protected_files") if isinstance(manifest.get("protected_files"), Mapping) else {}
     if not protected:
         errors.append("manifest has no protected_files")
+
     checked: dict[str, dict[str, str]] = {}
     for rel_path, expected in sorted(protected.items()):
         path = ROOT / str(rel_path)
@@ -104,19 +97,24 @@ def validate_freeze(manifest: Mapping[str, Any]) -> dict[str, Any]:
         actual = git_blob_sha1(path)
         checked[str(rel_path)] = {"expected": _norm(expected), "actual": actual}
         if actual != _norm(expected):
-            errors.append(f"POST-FREEZE MODEL MUTATION DETECTED: {rel_path} expected {_norm(expected)} got {actual}")
+            errors.append(
+                f"POST-FREEZE MODEL MUTATION DETECTED: {rel_path} "
+                f"expected {_norm(expected)} got {actual}"
+            )
 
     gates = manifest.get("acceptance_gates") if isinstance(manifest.get("acceptance_gates"), Mapping) else {}
     if dict(gates) != PREREGISTERED_GATES:
         errors.append("preregistered acceptance gates changed after freeze")
 
     frozen = manifest.get("frozen_engine") if isinstance(manifest.get("frozen_engine"), Mapping) else {}
-    if _norm(frozen.get("analysis_engine_version")) != "6.5.0":
-        errors.append("frozen analysis engine version must remain 6.5.0")
-    if _norm(frozen.get("ranking_engine_version")) != "1.0.0":
-        errors.append("frozen ranking engine version must remain 1.0.0")
-    if _norm(frozen.get("ranking_rule_version")) != "2026.08.10.6.5":
-        errors.append("frozen ranking rule version changed")
+    expected_versions = {
+        "analysis_engine_version": "6.5.0",
+        "ranking_engine_version": "1.0.0",
+        "ranking_rule_version": "2026.08.10.6.5",
+    }
+    for key, expected in expected_versions.items():
+        if _norm(frozen.get(key)) != expected:
+            errors.append(f"frozen {key} changed")
     if _norm(manifest.get("frozen_head_sha")) != "de3d6f210a52c409a60f9ffb861bc283790ea8fe":
         errors.append("frozen head SHA changed")
 
@@ -137,7 +135,15 @@ def _evidence_is_external(item: Mapping[str, Any]) -> bool:
     source = _norm(item.get("source")).lower()
     group = _norm(item.get("source_group")).lower()
     kind = _norm(item.get("type")).lower()
-    return source in FORBIDDEN_EVIDENCE_SOURCES or group in FORBIDDEN_EVIDENCE_SOURCES or kind in FORBIDDEN_EVIDENCE_TYPES
+    return (
+        source in FORBIDDEN_EVIDENCE_SOURCES
+        or group in FORBIDDEN_EVIDENCE_SOURCES
+        or kind in FORBIDDEN_EVIDENCE_TYPES
+    )
+
+
+def _provenance(row: Mapping[str, Any]) -> Mapping[str, Any]:
+    return row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
 
 
 def _root(row: Mapping[str, Any]) -> str:
@@ -145,16 +151,16 @@ def _root(row: Mapping[str, Any]) -> str:
 
 
 def _url(row: Mapping[str, Any]) -> str:
-    provenance = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
-    return _norm(provenance.get("url"))
+    return _norm(_provenance(row).get("url"))
 
 
 def _reference(row: Mapping[str, Any]) -> str:
-    provenance = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
-    return _norm(provenance.get("reference"))
+    return _norm(_provenance(row).get("reference"))
 
 
-def _prior_identity_sets(prior_cases: Iterable[Mapping[str, Any]]) -> tuple[set[str], set[str], set[str]]:
+def _prior_identity_sets(
+    prior_cases: Iterable[Mapping[str, Any]],
+) -> tuple[set[str], set[str], set[str]]:
     roots: set[str] = set()
     urls: set[str] = set()
     refs: set[str] = set()
@@ -171,6 +177,13 @@ def _prior_identity_sets(prior_cases: Iterable[Mapping[str, Any]]) -> tuple[set[
     return roots, urls, refs
 
 
+def _canonical_standard_ids(family: str) -> tuple[set[str], set[str]]:
+    canonical = standards_for_family(family)
+    wstg = {str(item.get("id")) for item in canonical.get("wstg", []) if item.get("id")}
+    cwe = {str(item.get("id")) for item in canonical.get("cwe", []) if item.get("id")}
+    return wstg, cwe
+
+
 def validate_postfreeze_corpus(
     cases: Iterable[Mapping[str, Any]],
     manifest: Mapping[str, Any],
@@ -185,6 +198,13 @@ def validate_postfreeze_corpus(
     refs: set[str] = set()
     ids: set[str] = set()
 
+    source_policy = manifest.get("source_policy") if isinstance(manifest.get("source_policy"), Mapping) else {}
+    allowed_source_kinds = {
+        _norm(value) for value in source_policy.get("allowed_source_kinds", []) if _norm(value)
+    }
+    if not allowed_source_kinds:
+        errors.append("manifest source_policy has no allowed_source_kinds")
+
     for row in rows:
         cid = _norm(row.get("id"))
         family = _norm(row.get("family"))
@@ -192,6 +212,8 @@ def validate_postfreeze_corpus(
         split = _norm(row.get("split"))
         root = _root(row)
         project = _norm(row.get("source_project"))
+        source_date = _norm(row.get("source_date") or _provenance(row).get("source_date"))
+        source_kind = _norm(_provenance(row).get("source_kind"))
         url = _url(row)
         ref = _reference(row)
         expected = row.get("expected") if isinstance(row.get("expected"), Mapping) else {}
@@ -201,8 +223,13 @@ def validate_postfreeze_corpus(
         elif cid in ids:
             errors.append(f"duplicate case id: {cid}")
         ids.add(cid)
+
+        known_family = family in FAMILY_ADMISSION_POLICIES
         if not family:
             errors.append(f"{cid}: missing family")
+        elif not known_family:
+            errors.append(f"{cid}: unknown family {family}")
+
         if variant not in VALID_VARIANTS:
             errors.append(f"{cid}: invalid case_kind {variant!r}")
         if split != "postfreeze_holdout":
@@ -215,6 +242,13 @@ def validate_postfreeze_corpus(
             errors.append(f"{cid}: missing source_project")
         else:
             source_projects.add(project)
+        if not source_date:
+            errors.append(f"{cid}: missing source_date")
+        if source_kind not in allowed_source_kinds:
+            errors.append(f"{cid}: source_kind {source_kind!r} is not allowed")
+        if not ref:
+            errors.append(f"{cid}: missing provenance reference")
+
         if not url.startswith("https://"):
             errors.append(f"{cid}: provenance URL must be HTTPS")
         if url:
@@ -229,6 +263,7 @@ def validate_postfreeze_corpus(
                 errors.append(f"{cid}: provenance reference already exists in analysis_golden_v3")
         if root and root.lower() in prior_roots:
             errors.append(f"{cid}: source_root already exists in analysis_golden_v3")
+
         if _norm(expected.get("family")) != family:
             errors.append(f"{cid}: expected family must equal case family")
         if variant == "positive" and not bool(expected.get("admitted")):
@@ -242,6 +277,16 @@ def validate_postfreeze_corpus(
                 if isinstance(item, Mapping) and _evidence_is_external(item):
                     errors.append(f"{cid}: external knowledge leaked into target {bucket_name} evidence")
 
+        standards = row.get("standards") if isinstance(row.get("standards"), Mapping) else {}
+        row_wstg = {_norm(value) for value in standards.get("wstg", []) if _norm(value)}
+        row_cwe = {_norm(value) for value in standards.get("cwe", []) if _norm(value)}
+        if known_family:
+            canonical_wstg, canonical_cwe = _canonical_standard_ids(family)
+            if not row_wstg or not row_wstg.issubset(canonical_wstg):
+                errors.append(f"{cid}: WSTG grounding missing or inconsistent")
+            if not row_cwe or not row_cwe.issubset(canonical_cwe):
+                errors.append(f"{cid}: CWE grounding missing or inconsistent")
+
     required_variants = set(
         manifest.get("collection_target", {}).get("required_case_variants", [])
         if isinstance(manifest.get("collection_target"), Mapping)
@@ -250,18 +295,34 @@ def validate_postfreeze_corpus(
     for root, root_rows in sorted(by_root.items()):
         variants = Counter(_norm(row.get("case_kind")) for row in root_rows)
         if set(variants) != required_variants:
-            errors.append(f"{root}: root variants are {sorted(variants)}; expected {sorted(required_variants)}")
+            errors.append(
+                f"{root}: root variants are {sorted(variants)}; expected {sorted(required_variants)}"
+            )
         if any(count != 1 for count in variants.values()):
             errors.append(f"{root}: each root variant must appear exactly once")
+
         root_urls = {_url(row).lower().rstrip("/") for row in root_rows if _url(row)}
+        root_refs = {_reference(row).lower() for row in root_rows if _reference(row)}
+        root_projects = {
+            _norm(row.get("source_project")) for row in root_rows if _norm(row.get("source_project"))
+        }
+        root_kinds = {_norm(_provenance(row).get("source_kind")) for row in root_rows}
+        root_dates = {
+            _norm(row.get("source_date") or _provenance(row).get("source_date")) for row in root_rows
+        }
+        root_families = {_norm(row.get("family")) for row in root_rows}
         if len(root_urls) != 1:
             errors.append(f"{root}: all variants must share one provenance URL")
-        root_refs = {_reference(row).lower() for row in root_rows if _reference(row)}
         if len(root_refs) != 1:
             errors.append(f"{root}: all variants must share one provenance reference")
-        root_projects = {_norm(row.get("source_project")) for row in root_rows if _norm(row.get("source_project"))}
         if len(root_projects) != 1:
             errors.append(f"{root}: all variants must share one source_project")
+        if len(root_kinds) != 1:
+            errors.append(f"{root}: all variants must share one source_kind")
+        if len(root_dates) != 1:
+            errors.append(f"{root}: all variants must share one source_date")
+        if len(root_families) != 1:
+            errors.append(f"{root}: all variants must share one expected family")
 
     corpus_cfg = manifest.get("corpus") if isinstance(manifest.get("corpus"), Mapping) else {}
     manifest_roots = {_norm(value) for value in corpus_cfg.get("source_roots", []) if _norm(value)}
@@ -306,7 +367,13 @@ def verify_corpus_seal(manifest: Mapping[str, Any], corpus_path: str | Path) -> 
         errors.append("sealed corpus has no SHA256 in manifest")
     elif actual != expected:
         errors.append(f"corpus SHA256 mismatch: expected {expected}, got {actual}")
-    return {"passed": not errors, "errors": errors, "expected_sha256": expected, "actual_sha256": actual, "sealed": sealed}
+    return {
+        "passed": not errors,
+        "errors": errors,
+        "expected_sha256": expected,
+        "actual_sha256": actual,
+        "sealed": sealed,
+    }
 
 
 def _fresh_quality_gate(metrics: Mapping[str, Any], leakage_rate: float) -> dict[str, Any]:
@@ -332,19 +399,30 @@ def _fresh_quality_gate(metrics: Mapping[str, Any], leakage_rate: float) -> dict
             ok = value >= threshold
             direction = "min"
         if not ok:
-            failures.append({"metric": gate, "value": value, "threshold": threshold, "direction": direction})
-    return {"passed": not failures, "thresholds": dict(PREREGISTERED_GATES), "values": values, "failures": failures}
+            failures.append(
+                {"metric": gate, "value": value, "threshold": threshold, "direction": direction}
+            )
+    return {
+        "passed": not failures,
+        "thresholds": dict(PREREGISTERED_GATES),
+        "values": values,
+        "failures": failures,
+    }
 
 
 def _diagnostics(report: Mapping[str, Any]) -> dict[str, Any]:
     rows = report.get("cases") if isinstance(report.get("cases"), list) else []
     ranked = [row for row in rows if row.get("rank_required")]
     correct = [row for row in ranked if row.get("top1_correct")]
-    low_margin_correct = [row for row in correct if float(row.get("top1_margin") or 0.0) < LOW_MARGIN_THRESHOLD]
+    low_margin_correct = [
+        row for row in correct if float(row.get("top1_margin") or 0.0) < LOW_MARGIN_THRESHOLD
+    ]
     wrong = [row for row in ranked if not row.get("top1_correct")]
     wrong_top3 = [row for row in wrong if row.get("top3_correct")]
 
-    by_family: dict[str, dict[str, int]] = defaultdict(lambda: {"ranked": 0, "top1_correct": 0, "positive": 0, "admitted": 0})
+    by_family: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"ranked": 0, "top1_correct": 0, "positive": 0, "admitted": 0}
+    )
     for row in rows:
         family = _norm(row.get("family"))
         if row.get("rank_required"):
@@ -393,7 +471,9 @@ def evaluate_postfreeze(
     cases = load_jsonl(corpus)
     validation = validate_postfreeze_corpus(cases, manifest, prior_cases)
     if not validation["passed"]:
-        raise RuntimeError("Post-freeze corpus validation failed: " + "; ".join(validation["errors"]))
+        raise RuntimeError(
+            "Post-freeze corpus validation failed: " + "; ".join(validation["errors"])
+        )
 
     seal = verify_corpus_seal(manifest, corpus)
     if not seal["passed"]:
@@ -434,6 +514,7 @@ def collection_status(manifest_path: str | Path = DEFAULT_MANIFEST) -> dict[str,
             "sealed": bool(corpus_cfg.get("sealed")),
             "collection_target": manifest.get("collection_target"),
         }
+
     prior_cases = load_jsonl(PRIOR_CORPUS)
     cases = load_jsonl(corpus_path)
     validation = validate_postfreeze_corpus(cases, manifest, prior_cases)
@@ -449,23 +530,46 @@ def collection_status(manifest_path: str | Path = DEFAULT_MANIFEST) -> dict[str,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Analysis 6.6 fresh post-freeze blind evaluation")
+    parser = argparse.ArgumentParser(
+        description="Analysis 6.6 fresh post-freeze blind evaluation"
+    )
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     parser.add_argument("--corpus", default=None)
-    parser.add_argument("--evaluate", action="store_true", help="Evaluate only after the corpus is sealed and hashed")
+    parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Evaluate only after the corpus is sealed and hashed",
+    )
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args(argv)
 
     try:
-        result = evaluate_postfreeze(args.manifest, args.corpus) if args.evaluate else collection_status(args.manifest)
+        result = (
+            evaluate_postfreeze(args.manifest, args.corpus)
+            if args.evaluate
+            else collection_status(args.manifest)
+        )
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
-        result = {"passed": False, "error": str(exc), "evaluation_status": "refused" if args.evaluate else "invalid_collection"}
+        result = {
+            "passed": False,
+            "error": str(exc),
+            "evaluation_status": "refused" if args.evaluate else "invalid_collection",
+        }
         print(json.dumps(result, indent=2, sort_keys=True) if args.as_json else result["error"])
         return 2
 
-    passed = bool(result.get("quality_gate", {}).get("passed")) if args.evaluate else bool(result.get("freeze_validation", {}).get("passed")) and bool(result.get("corpus_validation", {"passed": True}).get("passed"))
+    passed = (
+        bool(result.get("quality_gate", {}).get("passed"))
+        if args.evaluate
+        else bool(result.get("freeze_validation", {}).get("passed"))
+        and bool(result.get("corpus_validation", {"passed": True}).get("passed"))
+    )
     result["passed"] = passed
-    print(json.dumps(result, indent=2, sort_keys=True) if args.as_json else json.dumps(result, sort_keys=True))
+    print(
+        json.dumps(result, indent=2, sort_keys=True)
+        if args.as_json
+        else json.dumps(result, sort_keys=True)
+    )
     return 0 if passed else 2
 
 
