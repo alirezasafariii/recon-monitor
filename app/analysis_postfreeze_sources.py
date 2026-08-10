@@ -8,7 +8,7 @@ from analysis_postfreeze import DEFAULT_MANIFEST, PRIOR_CORPUS, ROOT, _norm, loa
 from analysis_standards import standards_for_family
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-SOURCE_REGISTRY_VALIDATOR_VERSION = "1.0.1"
+SOURCE_REGISTRY_VALIDATOR_VERSION = "1.1.0"
 DEFAULT_SOURCE_REGISTRY = ROOT / "benchmarks" / "golden" / "sources" / "v4_roots.jsonl"
 
 
@@ -52,6 +52,68 @@ def _canonical_standard_ids(family: str) -> tuple[set[str], set[str]]:
     wstg = {str(item.get("id")) for item in canonical.get("wstg", []) if item.get("id")}
     cwe = {str(item.get("id")) for item in canonical.get("cwe", []) if item.get("id")}
     return wstg, cwe
+
+
+def _validate_policy_adjudication(
+    root: str,
+    family: str,
+    adjudication: Mapping[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    policy = FAMILY_ADMISSION_POLICIES.get(family)
+    if not policy:
+        return errors
+
+    surface = {
+        _norm(value)
+        for value in adjudication.get("surface", [])
+        if _norm(value)
+    } if isinstance(adjudication.get("surface"), list) else set()
+    decisive = {
+        _norm(value)
+        for value in adjudication.get("decisive", [])
+        if _norm(value)
+    } if isinstance(adjudication.get("decisive"), list) else set()
+    observed = surface | decisive
+    secure_control = _norm(adjudication.get("secure_control"))
+
+    if not surface:
+        errors.append(f"{root}: adjudication surface is empty")
+    if not decisive:
+        errors.append(f"{root}: adjudication decisive evidence is empty")
+    if not secure_control:
+        errors.append(f"{root}: adjudication secure_control is empty")
+
+    required = policy.get("required") if isinstance(policy.get("required"), list) else []
+    missing_groups: list[list[str]] = []
+    for group in required:
+        normalized_group = {_norm(value) for value in group if _norm(value)}
+        if normalized_group and not (observed & normalized_group):
+            missing_groups.append(sorted(normalized_group))
+    if missing_groups:
+        errors.append(
+            f"{root}: adjudication does not satisfy frozen {family} required groups: {missing_groups}"
+        )
+
+    # A real-positive root must carry condition-level evidence, not only attack-surface clues.
+    if required:
+        condition_group = {_norm(value) for value in required[-1] if _norm(value)}
+        if condition_group and not (decisive & condition_group):
+            errors.append(
+                f"{root}: decisive evidence does not intersect the frozen {family} condition group"
+            )
+
+    blockers = {
+        _norm(value)
+        for value in policy.get("blocking_contradictions", set())
+        if _norm(value)
+    }
+    if secure_control and secure_control not in blockers:
+        errors.append(
+            f"{root}: secure_control {secure_control!r} is not a frozen {family} blocking contradiction"
+        )
+
+    return errors
 
 
 def validate_source_registry(
@@ -105,6 +167,7 @@ def validate_source_registry(
             errors.append(f"{root}: unknown or missing family {family!r}")
         else:
             family_counts[family] = family_counts.get(family, 0) + 1
+            errors.extend(_validate_policy_adjudication(root, family, adjudication))
 
         if not project:
             errors.append(f"{root}: missing source_project")
@@ -136,16 +199,6 @@ def validate_source_registry(
             errors.append(f"{root}: review_status must be primary_source_verified")
         if row.get("v3_overlap") is not False:
             errors.append(f"{root}: v3_overlap must be explicitly false after verification")
-
-        surface = adjudication.get("surface") if isinstance(adjudication.get("surface"), list) else []
-        decisive = adjudication.get("decisive") if isinstance(adjudication.get("decisive"), list) else []
-        secure_control = _norm(adjudication.get("secure_control"))
-        if len([value for value in surface if _norm(value)]) < 1:
-            errors.append(f"{root}: adjudication surface is empty")
-        if len([value for value in decisive if _norm(value)]) < 1:
-            errors.append(f"{root}: adjudication decisive evidence is empty")
-        if not secure_control:
-            errors.append(f"{root}: adjudication secure_control is empty")
 
         standards = row.get("standards") if isinstance(row.get("standards"), Mapping) else {}
         row_wstg = {_norm(value) for value in standards.get("wstg", []) if _norm(value)}
