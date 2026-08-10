@@ -25,8 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
+        uses:
           python-version: ${{ matrix.python-version }}
 
       - name: Verify source hygiene
@@ -37,16 +36,6 @@ jobs:
           test ! -e policies/targets.json
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
-
-      - name: BOLA family analyzer hash diagnostic
-        shell: bash
-        run: sha256sum app/bola_intelligence.py app/family_analyzers/__init__.py app/family_analyzers/base.py app/family_analyzers/bola.py app/family_analyzers/bola_core.py app/family_analyzers/router.py tests/test_family_analyzer_bola_v868.py docs/FAMILY_ANALYZERS.md
-
-      - name: Unit tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-
-      - name: Integration test
-        run: python tests/integration_runner.py
 
       - name: Verify manifest
         shell: bash
@@ -62,3 +51,9 @@ jobs:
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
           fi
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Integration test
+        run: python tests/integration_runner.py
