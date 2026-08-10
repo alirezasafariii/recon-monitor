@@ -17,7 +17,7 @@ class AnalysisRankingV650Tests(unittest.TestCase):
     def test_versions(self):
         self.assertEqual(RANKING_ENGINE_VERSION, "2.1.0")
         self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.1.0")
-        self.assertEqual(REASONING_ENGINE_VERSION, "6.8.0")
+        self.assertEqual(REASONING_ENGINE_VERSION, "6.9.0")
 
     def test_security_control_reduces_condition_not_family_fit(self):
         support = [

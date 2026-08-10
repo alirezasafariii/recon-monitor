@@ -1,49 +1,4 @@
-from pathlib import Path
-import sys
-
-
-def replace_once(path: str, old: str, new: str) -> None:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    if old not in text:
-        raise SystemExit(f"patch target not found in {path}: {old[:100]!r}")
-    p.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
-# Standards: current WSTG has an explicit API BFLA test in addition to generic authz tests.
-replace_once("app/analysis_standards.py", 'STANDARDS_ENGINE_VERSION = "1.1.0"', 'STANDARDS_ENGINE_VERSION = "1.2.0"')
-replace_once(
-    "app/analysis_standards.py",
-    "        'wstg': [\n            _wstg('WSTG-ATHZ-02', 'Bypassing Authorization Schema'),",
-    "        'wstg': [\n            _wstg('WSTG-APIT-04', 'API Broken Function Level Authorization'),\n            _wstg('WSTG-ATHZ-02', 'Bypassing Authorization Schema'),",
-)
-
-# Physical detector integration is deliberately before the 6.8 evidence firewall/admission path.
-replace_once(
-    "app/bug_candidates.py",
-    "from family_evidence_extractors import scope_family_evidence",
-    "from family_detectors import detector_rule_ids, evaluate_family_detector",
-)
-replace_once("app/bug_candidates.py", 'CANDIDATE_ENGINE_VERSION = "6.8.0"', 'CANDIDATE_ENGINE_VERSION = "6.9.0"')
-replace_once("app/bug_candidates.py", 'CANDIDATE_RULE_VERSION = "2026.08.10.6.8"', 'CANDIDATE_RULE_VERSION = "2026.08.10.6.9"')
-replace_once(
-    "app/bug_candidates.py",
-    '    extraction = scope_family_evidence(family, support, contradict, channel="candidate")\n    support = extraction["support"]\n    contradict = extraction["contradict"]\n    admission = assess_admission(family, support, contradict)',
-    '    extraction = evaluate_family_detector(family, support, contradict, channel="candidate")\n    support = extraction["support"]\n    contradict = extraction["contradict"]\n    rule_ids = list(dict.fromkeys([*rule_ids, *detector_rule_ids(family)]))\n    admission = assess_admission(family, support, contradict)',
-)
-replace_once(
-    "app/bug_candidates.py",
-    '        extraction = scope_family_evidence(family, support, contradict, channel="alert")\n        support = extraction["support"]\n        contradict = extraction["contradict"]\n        hypothesis = record_hypothesis(',
-    '        extraction = evaluate_family_detector(family, support, contradict, channel="alert")\n        support = extraction["support"]\n        contradict = extraction["contradict"]\n        rules = list(dict.fromkeys([*rules, *detector_rule_ids(family)]))\n        hypothesis = record_hypothesis(',
-)
-
-replace_once("app/analysis_engine.py", 'ENGINE_VERSION = "6.8.0"', 'ENGINE_VERSION = "6.9.0"')
-replace_once("app/analysis_engine.py", 'RULE_VERSION = "2026.08.10.6.8"', 'RULE_VERSION = "2026.08.10.6.9"')
-replace_once("app/security_reasoning.py", 'REASONING_ENGINE_VERSION = "6.8.0"', 'REASONING_ENGINE_VERSION = "6.9.0"')
-replace_once("app/security_reasoning.py", 'REASONING_RULE_VERSION = "2026.08.10.6.8"', 'REASONING_RULE_VERSION = "2026.08.10.6.9"')
-
-# Focused contract tests.
-Path("tests/test_physical_family_detectors_v690.py").write_text(r'''from __future__ import annotations
+from __future__ import annotations
 
 import importlib
 import unittest
@@ -166,32 +121,3 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-''', encoding="utf-8")
-
-# Generate an auditable 31-family logic matrix directly from the executable specs.
-sys.path.insert(0, str(Path("app").resolve()))
-from family_detectors.registry import DETECTOR_SPECS
-
-lines = [
-    "# Analysis 6.9 — Physical Family Detectors\n",
-    "Analysis 6.9 gives every vulnerability family a physical detector module. External standards and write-ups define the detector contract but never count as target evidence.\n",
-    "## Non-negotiable evidence rule\n",
-    "`surface -> family identity -> decisive target condition -> blocking-control check -> admission`\n",
-    "WSTG, CWE and write-up references are knowledge/provenance only. They cannot satisfy a required evidence group, increase independent target-source count, override a contradiction, or auto-confirm a finding.\n",
-    "## Family matrix\n",
-    "| Family | Strategy | WSTG | CWE | Decisive condition signals | Confounders | Primary/related write-up |\n",
-    "|---|---|---|---|---|---|---|\n",
-]
-for family, spec in sorted(DETECTOR_SPECS.items()):
-    ref = spec.writeups[0]
-    lines.append(
-        f"| `{family}` | `{spec.strategy}` | {', '.join(spec.wstg_ids)} | {', '.join(spec.cwe_ids)} | "
-        f"{', '.join(sorted(spec.condition_signals))} | {', '.join(spec.confounders)} | {ref.ref} ({ref.relation}) |\n"
-    )
-lines += [
-    "\n## Runtime boundary\n",
-    "`bug_candidates.py` sends every support/contradiction packet through `evaluate_family_detector()` before hypothesis admission. The detector annotates target signals, then calls the Analysis 6.8 family evidence firewall. The physical detector's WSTG/CWE IDs are stored as rule/taxonomy metadata, never as support evidence.\n",
-    "## Versioning\n",
-    "- Analysis Engine: 6.9.0\n- Candidate Engine: 6.9.0\n- Security Reasoning: 6.9.0\n- Physical Detector Engine: 1.0.0\n- Standards Engine: 1.2.0\n- Rule: 2026.08.10.6.9\n",
-]
-Path("docs/ANALYSIS_ENGINE_6_9_PHYSICAL_FAMILY_DETECTORS.md").write_text("".join(lines), encoding="utf-8")

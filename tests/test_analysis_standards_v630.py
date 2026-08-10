@@ -13,7 +13,7 @@ from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission, kn
 
 class AnalysisStandardsV630Tests(unittest.TestCase):
     def test_every_admission_family_has_wstg_and_cwe_grounding(self):
-        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.1.0")
+        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.2.0")
         self.assertEqual(set(FAMILY_STANDARDS), set(FAMILY_ADMISSION_POLICIES))
         self.assertEqual(len(FAMILY_STANDARDS), 31)
         self.assertEqual(validate_family_standards(FAMILY_ADMISSION_POLICIES), [])

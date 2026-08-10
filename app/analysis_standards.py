@@ -2,7 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable, Mapping
 
-STANDARDS_ENGINE_VERSION = "1.1.0"
+STANDARDS_ENGINE_VERSION = "1.2.0"
 WSTG_REFERENCE_VERSION = "latest@2026-08-10"
 CWE_REFERENCE_VERSION = "4.20"
 WSTG_BASE_URL = 'https://owasp.org/www-project-web-security-testing-guide/latest/'
@@ -30,6 +30,7 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
     'broken_function_authorization': {
         'principle': 'Privileged-looking functionality is only a surface; promotion requires an observed role/function authorization failure.',
         'wstg': [
+            _wstg('WSTG-APIT-04', 'API Broken Function Level Authorization'),
             _wstg('WSTG-ATHZ-02', 'Bypassing Authorization Schema'),
             _wstg('WSTG-ATHZ-03', 'Privilege Escalation'),
         ],
