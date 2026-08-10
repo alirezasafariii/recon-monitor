@@ -54,8 +54,6 @@ class FamilyReasoningV867Tests(unittest.TestCase):
                     "source_group": f"group-{index}",
                     "text": f"synthetic contract evidence {index}",
                 })
-            # Some families have more required groups than their independent-source
-            # threshold; source groups stay distinct so the contract itself is tested.
             result = assess_admission(family, support, [])
             self.assertTrue(result["admitted"], (family, result))
             self.assertEqual(result["required_missing"], [], family)
@@ -78,13 +76,21 @@ class FamilyReasoningV867Tests(unittest.TestCase):
             self.assertTrue(result["required_missing"], family)
 
     def test_blocking_contradiction_keeps_signal_hidden_unless_overridden(self):
+        checked = 0
         for family, policy in FAMILY_ADMISSION_POLICIES.items():
             blockers = set(policy.get("blocking_contradictions", set()))
+            overrides = set(policy.get("override_signals", set()))
             if not blockers:
                 continue
+            chosen = [sorted(group)[0] for group in policy["required"]]
+            # Some families (notably BOLA) require a decisive target-boundary
+            # failure as part of promotion. That evidence is intentionally an
+            # override, so an otherwise blocking enforcement clue must not erase it.
+            if set(chosen) & overrides:
+                continue
             support = [
-                {"type": sorted(group)[0], "source": f"source-{index}", "source_group": f"group-{index}"}
-                for index, group in enumerate(policy["required"], start=1)
+                {"type": evidence_type, "source": f"source-{index}", "source_group": f"group-{index}"}
+                for index, evidence_type in enumerate(chosen, start=1)
             ]
             result = assess_admission(
                 family,
@@ -93,6 +99,23 @@ class FamilyReasoningV867Tests(unittest.TestCase):
             )
             self.assertFalse(result["admitted"], family)
             self.assertEqual(result["state"], "shadow_contradicted", family)
+            checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_override_signal_can_outweigh_blocking_context(self):
+        policy = FAMILY_ADMISSION_POLICIES["broken_object_authorization"]
+        support = [
+            {"type": "object_identifier", "source": "schema", "source_group": "object"},
+            {"type": "object_operation", "source": "endpoint", "source_group": "operation"},
+            {"type": "unauthorized_object_response", "source": "stored_context", "source_group": "authorization"},
+        ]
+        result = assess_admission(
+            "broken_object_authorization",
+            support,
+            [{"type": sorted(policy["blocking_contradictions"])[0], "source": "enforcement"}],
+        )
+        self.assertTrue(result["admitted"])
+        self.assertIn("unauthorized_object_response", result["decisive_signals"])
 
     def test_unknown_family_fails_closed(self):
         result = assess_admission(
@@ -132,7 +155,6 @@ class FamilyReasoningV867Tests(unittest.TestCase):
             )
 
     def test_confirmation_is_stricter_than_promotion_context(self):
-        # Structural candidate evidence is not silently treated as confirmation.
         self.assertTrue(confirmation_gaps("dom_xss", {"dataflow_source", "dataflow_sink"}))
         self.assertTrue(confirmation_gaps("ssrf", {"remote_destination", "server_feature"}))
         self.assertTrue(confirmation_gaps("business_logic", {"workflow_markers", "stateful_operation"}))
