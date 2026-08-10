@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
+import bug_candidates
 from core import APP_VERSION, Database, utc_now
 from family_analyzers.bfla import (
     BFLA_FAMILY_ANALYZER_VERSION,
@@ -168,6 +170,95 @@ class BflaFamilyAnalyzerV869Tests(unittest.TestCase):
             semantic_text="ordinary user profile read",
         )
         self.assertIsNone(result)
+
+    def test_candidate_engine_routes_bfla_through_dedicated_analyzer_before_admission(self):
+        endpoint = "https://example.com/api/admin/users/disable"
+        details = {
+            "context_observations": [
+                {
+                    "context": "member",
+                    "role": "member",
+                    "required_role": "admin",
+                    "expected_access": False,
+                    "status_code": 200,
+                    "privileged_effect": True,
+                }
+            ]
+        }
+        schema = {
+            "endpoint": endpoint,
+            "method": "POST",
+            "path_parameters": [],
+            "query_parameters": [],
+            "body_fields": [],
+            "object_identifiers": [],
+            "authentication_hints": ["bearer"],
+            "is_endpoint": True,
+        }
+        now = utc_now()
+        cursor = self.db.execute(
+            """INSERT INTO alerts(target,dedup_key,category,severity,risk_score,title,item,details_json,status,occurrences,first_seen,last_seen,last_run_id)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                "example.com", "bfla-prod-1", "new_url", "info", 10, "test",
+                endpoint, json.dumps(details), "new", 1, now, now, "RUN-BFLA-FAMILY",
+            ),
+        )
+        alert_id = int(cursor.lastrowid)
+        self.db.execute(
+            """INSERT INTO analysis_results(
+            analysis_id,alert_id,target,source_run_id,category,original_score,adjusted_score,confidence,
+            hypothesis,next_action,playbook_id,business_context,evidence_for_json,evidence_against_json,
+            anomaly_score,baseline_json,feedback_json,duplicate_cluster,rule_ids_json,temporal_json,endpoint_schema_json,created_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                "AN-BFLA-FAMILY", alert_id, "example.com", "RUN-BFLA-FAMILY", "new_url",
+                50, 50, 80, "test", "review", "test", "administration", "[]", "[]",
+                0.0, "{}", "{}", "", "[]", "{}", json.dumps(schema), now,
+            ),
+        )
+        row = {
+            "alert_id": alert_id,
+            "target": "example.com",
+            "endpoint_schema_json": json.dumps(schema),
+            "details_json": json.dumps(details),
+            "evidence_for_json": "[]",
+            "evidence_against_json": "[]",
+            "confidence": 80,
+            "business_context": "administration",
+            "category": "new_url",
+            "item": endpoint,
+        }
+
+        count = bug_candidates._alert_candidates(
+            self.db,
+            "AN-BFLA-FAMILY",
+            "RUN-BFLA-FAMILY",
+            row,
+        )
+        self.assertGreaterEqual(count, 1)
+        hypothesis = self.db.one(
+            "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='broken_function_authorization'",
+            ("AN-BFLA-FAMILY",),
+        )
+        self.assertIsNotNone(hypothesis)
+        support = {item["type"] for item in json.loads(hypothesis["supporting_evidence_json"])}
+        self.assertIn("unauthorized_function_success", support)
+        self.assertIn("role_authorization_differential", support)
+        admission = json.loads(hypothesis["admission_json"])
+        self.assertTrue(admission["admitted"])
+        self.assertEqual(
+            admission["family_analyzer"]["family"],
+            "broken_function_authorization",
+        )
+        self.assertTrue(admission["family_analyzer"]["knowledge_does_not_change_target_evidence"])
+        candidate = self.db.one(
+            "SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='broken_function_authorization'",
+            ("AN-BFLA-FAMILY",),
+        )
+        self.assertIsNotNone(candidate)
+        candidate_support = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}
+        self.assertIn("unauthorized_function_success", candidate_support)
 
 
 if __name__ == "__main__":
