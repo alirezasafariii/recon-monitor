@@ -11,10 +11,12 @@ from family_detectors import (
     EXECUTION_ENGINE_VERSION,
     EXECUTION_PROFILES,
     EXECUTION_RULE_VERSION,
+    evaluate_family_detector,
     execute_detector_intelligence,
     validate_execution_profiles,
 )
 from family_detectors.registry import DETECTOR_SPECS
+from hypothesis_admission import assess_admission
 
 
 def packet_types(result: dict, family: str, side: str = "support") -> set[str]:
@@ -41,6 +43,39 @@ class DetectorExecutionIntelligence6100Tests(unittest.TestCase):
         self.assertIn("sql_query_surface", sql)
         self.assertIn("database_error_observed", sql)
         self.assertNotIn("nosql_error_observed", packet_types(result, "nosql_injection"))
+
+    def test_passive_sql_chain_reaches_existing_firewall_and_admission(self):
+        execution = execute_detector_intelligence(
+            target="example.test",
+            endpoint="/api/search",
+            method="GET",
+            endpoint_schema={"query_parameters": ["query"], "body_fields": [], "path_parameters": []},
+            details={"status_code": 500, "response_text": "PostgreSQL syntax error at or near SELECT"},
+            category="search",
+        )["sql_injection"]
+        scoped = evaluate_family_detector(
+            "sql_injection", execution["support"], execution["contradict"], channel="alert"
+        )
+        assessment = assess_admission("sql_injection", scoped["support"], scoped["contradict"])
+        self.assertTrue(assessment["admitted"])
+        self.assertEqual(assessment["state"], "admitted")
+
+    def test_resource_control_remains_blocking_through_existing_admission(self):
+        execution = execute_detector_intelligence(
+            target="example.test",
+            endpoint="/api/export",
+            method="GET",
+            endpoint_schema={"query_parameters": ["limit"], "body_fields": [], "path_parameters": []},
+            details={"status_code": 429, "unbounded_page_size_observed": True},
+        )["unrestricted_resource_consumption"]
+        scoped = evaluate_family_detector(
+            "unrestricted_resource_consumption", execution["support"], execution["contradict"], channel="alert"
+        )
+        assessment = assess_admission(
+            "unrestricted_resource_consumption", scoped["support"], scoped["contradict"]
+        )
+        self.assertFalse(assessment["admitted"])
+        self.assertEqual(assessment["state"], "shadow_contradicted")
 
     def test_ssrf_server_fetch_does_not_become_open_redirect(self):
         result = execute_detector_intelligence(
