@@ -1,0 +1,68 @@
+name: Apply Analysis 6.7 Family Reasoners
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-run
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply production ranking patch
+        run: python .analysis-67-apply.py
+
+      - name: Syntax check
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile \
+            app/family_reasoners.py \
+            app/security_family_ranker.py \
+            app/analysis_ranking.py \
+            app/security_reasoning.py
+
+      - name: Focused family-separation tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_family_reasoners_v670.py
+          python tests/test_analysis_ranking_v650.py
+
+      - name: Golden v3 regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Remove temporary apply machinery
+        run: |
+          rm -f .analysis-67-apply.py
+          rm -f .analysis-67-run
+          rm -f .github/workflows/apply-analysis-67.yml
+
+      - name: Commit Analysis 6.7 production integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Integrate family-specific Analysis 6.7 reasoners"
+          git push origin HEAD:agent/analysis-engine-6.7-family-reasoners
