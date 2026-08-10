@@ -3,14 +3,16 @@ from __future__ import annotations
 """Compatibility/integration surface for Candidate Engine family analyzers.
 
 The historical Candidate Engine implementation is preserved byte-for-byte in
-``bug_candidates_core.py``. This wrapper enriches BFLA and Mass Assignment
-hypotheses with dedicated family analyzers before the existing admission and
-promotion flow runs. Other families remain delegated unchanged until migrated.
+``bug_candidates_core.py``. This wrapper enriches BFLA, Mass Assignment and
+Authentication/Session hypotheses with dedicated family analyzers before the
+existing admission and promotion flow runs. Other families remain delegated
+unchanged until migrated.
 """
 
 import importlib
 from typing import Any, Mapping
 
+from family_analyzers.authentication_session import analyze_authentication_session_signal
 from family_analyzers.bfla import analyze_bfla_signal
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 
@@ -21,7 +23,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.1.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.2.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 
@@ -36,6 +38,12 @@ _FAMILY_DIRECT_TYPES = {
         "protected_property_accepted",
         "protected_property_mutated",
         "property_authorization_differential",
+    },
+    "authentication_session": {
+        "session_reuse_after_logout",
+        "token_not_rotated",
+        "recovery_bypass",
+        "authentication_state_violation",
     },
 }
 
@@ -67,6 +75,21 @@ _base.FAMILY_EVIDENCE_SCHEMAS["mass_assignment"] = {
         ),
     ),
     "label": "policy-sensitive property plus writable object/property operation context",
+}
+_base.FAMILY_EVIDENCE_SCHEMAS["authentication_session"] = {
+    "required_any": (
+        ("authentication_surface",),
+        (
+            "client_operation",
+            "state_change",
+            "auth_boundary",
+            "session_reuse_after_logout",
+            "token_not_rotated",
+            "recovery_bypass",
+            "authentication_state_violation",
+        ),
+    ),
+    "label": "authentication/session surface plus concrete lifecycle or boundary operation context",
 }
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
@@ -188,6 +211,21 @@ def _dedicated_family_result(
             business_context=stored["business_context"],
         )
 
+    if family == "authentication_session":
+        return analyze_authentication_session_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            body_fields=stored["body_fields"],
+            query_fields=stored["query_fields"],
+            auth_hints=stored["auth_hints"],
+            details=stored["details"],
+            business_context=stored["business_context"],
+            semantic_text=stored["semantic_text"],
+        )
+
     return None
 
 
@@ -210,7 +248,11 @@ def _record_hypothesis_with_family_analyzers(
     summary: str,
 ) -> dict[str, Any]:
     family_meta: dict[str, Any] | None = None
-    if family in {"broken_function_authorization", "mass_assignment"}:
+    if family in {
+        "broken_function_authorization",
+        "mass_assignment",
+        "authentication_session",
+    }:
         dedicated = _dedicated_family_result(
             db,
             analysis_id=analysis_id,
