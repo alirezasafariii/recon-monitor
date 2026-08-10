@@ -47,19 +47,21 @@ class BflaFamilyAnalyzerV869Tests(unittest.TestCase):
             semantic_text=semantic_text,
         )
 
-    def test_router_registers_bola_bfla_and_mass_assignment_without_generic_fallback(self):
+    def test_router_registers_bola_bfla_mass_assignment_and_authentication_without_generic_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
             "mass_assignment",
+            "authentication_session",
         ])
-        self.assertEqual(status["registered_count"], 3)
-        self.assertEqual(status["pending_count"], 18)
+        self.assertEqual(status["registered_count"], 4)
+        self.assertEqual(status["pending_count"], 17)
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
+        self.assertIsNotNone(analyzer_for_family("authentication_session"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_is_grounded_in_api5_wstg_and_cwe(self):
