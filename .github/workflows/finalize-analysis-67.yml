@@ -1,0 +1,92 @@
+name: Finalize Analysis 6.7 Family Boundaries
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-finalize
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply strict family identity gates
+        run: python .analysis-67-boundaries.py
+
+      - name: Syntax and focused family tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_reasoners.py app/security_family_ranker.py app/analysis_ranking.py app/security_reasoning.py
+          python tests/test_family_reasoners_v670.py
+          python tests/test_family_confusion_matrix_v670.py
+          python tests/test_analysis_ranking_v650.py
+
+      - name: Full unit suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden v3 regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        run: python tests/integration_runner.py
+
+      - name: Remove temporary machinery
+        run: |
+          rm -f .analysis-67-boundaries.py
+          rm -f .analysis-67-finalize
+          rm -f .github/workflows/finalize-analysis-67.yml
+
+      - name: Regenerate tracked-source manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import subprocess
+
+          raw = subprocess.check_output(["git", "ls-files", "-z"])
+          paths = [item.decode("utf-8") for item in raw.split(b"\0") if item]
+          lines = []
+          for path in sorted(paths):
+              if path == "MANIFEST.sha256" or not os.path.isfile(path):
+                  continue
+              h = hashlib.sha256()
+              with open(path, "rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      h.update(chunk)
+              lines.append(f"{h.hexdigest()}  {path}\n")
+          with open("MANIFEST.sha256", "w", encoding="utf-8") as handle:
+              handle.writelines(lines)
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit finalized Analysis 6.7
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Finalize Analysis 6.7 family-specific reasoning boundaries"
+          git push origin HEAD:agent/analysis-engine-6.7-family-reasoners
