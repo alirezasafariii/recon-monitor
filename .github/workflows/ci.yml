@@ -38,10 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Investigation workflow hash diagnostic
-        shell: bash
-        run: sha256sum app/dashboard.py app/investigation_workflow.py tests/test_investigation_case_workflow_v866.py
-
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
