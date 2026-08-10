@@ -1,0 +1,67 @@
+name: Materialize Analysis 6.6 Corpus
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.6-postfreeze-blind
+    paths:
+      - .analysis-66-materialize
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.6-postfreeze-blind
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Verify frozen source registry
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_postfreeze_sources.py
+
+      - name: Materialize without scoring
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_postfreeze_materialize.py --json
+
+      - name: Validate collection only
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/analysis_postfreeze.py --json
+          test -f benchmarks/golden/analysis_golden_v4.jsonl
+          test "$(wc -l < benchmarks/golden/analysis_golden_v4.jsonl)" -eq 200
+          grep -q '"sealed": false' benchmarks/golden/splits/v4.json
+          grep -q '"sha256": null' benchmarks/golden/splits/v4.json
+
+      - name: Run post-freeze construction tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest \
+            tests.test_analysis_postfreeze_sources_v660 \
+            tests.test_analysis_postfreeze_build_v660 \
+            tests.test_analysis_postfreeze_v660 -q
+
+      - name: Commit materialized corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/golden/analysis_golden_v4.jsonl benchmarks/golden/splits/v4.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Materialize Analysis 6.6 blind corpus without scoring"
+          git push origin HEAD:agent/analysis-engine-6.6-postfreeze-blind
