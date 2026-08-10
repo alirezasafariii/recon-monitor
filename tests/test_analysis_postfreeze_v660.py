@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
-import pytest
+import unittest
 
 from analysis_postfreeze import (
     DEFAULT_MANIFEST,
@@ -75,73 +72,73 @@ def _root_cases(root: str = "BLIND-ROOT-001", url: str = "https://example.invali
     ]
 
 
-def test_v660_manifest_freezes_analysis_65_and_preregisters_gates() -> None:
-    manifest = load_manifest(DEFAULT_MANIFEST)
-    assert manifest["frozen_head_sha"] == "de3d6f210a52c409a60f9ffb861bc283790ea8fe"
-    assert manifest["frozen_engine"]["analysis_engine_version"] == "6.5.0"
-    assert manifest["frozen_engine"]["ranking_engine_version"] == "1.0.0"
-    assert manifest["acceptance_gates"] == PREREGISTERED_GATES
-    assert manifest["prior_evaluations"]["analysis_golden_v3"]["evaluation_status"] == "consumed_diagnostic"
-    assert manifest["collection_target"]["new_source_roots"] == 50
-    assert manifest["collection_target"]["target_cases"] == 200
+class AnalysisPostFreeze660Tests(unittest.TestCase):
+    def test_manifest_freezes_analysis_65_and_preregisters_gates(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        self.assertEqual(manifest["frozen_head_sha"], "de3d6f210a52c409a60f9ffb861bc283790ea8fe")
+        self.assertEqual(manifest["frozen_engine"]["analysis_engine_version"], "6.5.0")
+        self.assertEqual(manifest["frozen_engine"]["ranking_engine_version"], "1.0.0")
+        self.assertEqual(manifest["acceptance_gates"], PREREGISTERED_GATES)
+        self.assertEqual(manifest["prior_evaluations"]["analysis_golden_v3"]["evaluation_status"], "consumed_diagnostic")
+        self.assertEqual(manifest["collection_target"]["new_source_roots"], 50)
+        self.assertEqual(manifest["collection_target"]["target_cases"], 200)
+
+    def test_protected_files_match_frozen_git_blobs(self) -> None:
+        result = validate_freeze(load_manifest(DEFAULT_MANIFEST))
+        self.assertTrue(result["passed"], result["errors"])
+        self.assertEqual(len(result["checked_files"]), 6)
+
+    def test_collection_mode_does_not_evaluate_unsealed_corpus(self) -> None:
+        status = collection_status(DEFAULT_MANIFEST)
+        self.assertTrue(status["freeze_validation"]["passed"])
+        self.assertFalse(status["sealed"])
+        self.assertEqual(status["evaluation_status"], "collection_open")
+
+    def test_requires_exactly_four_variants_per_source_root(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        result = validate_postfreeze_corpus(_root_cases(), manifest, [])
+        self.assertTrue(result["passed"], result["errors"])
+        self.assertEqual(result["source_root_count"], 1)
+        self.assertEqual(result["case_count"], 4)
+
+        incomplete = _root_cases()[:-1]
+        result = validate_postfreeze_corpus(incomplete, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("root variants" in error for error in result["errors"]))
+
+    def test_rejects_v3_root_url_or_reference_reuse(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        prior = [{
+            "source_root": "OLD-ROOT",
+            "provenance": {
+                "url": "https://example.invalid/advisory/old",
+                "reference": "OLD-REFERENCE",
+            },
+        }]
+
+        reused_root = _root_cases(root="OLD-ROOT", url="https://example.invalid/advisory/new")
+        result = validate_postfreeze_corpus(reused_root, manifest, prior)
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("source_root already exists" in error for error in result["errors"]))
+
+        reused_url = _root_cases(root="NEW-ROOT", url="https://example.invalid/advisory/old")
+        result = validate_postfreeze_corpus(reused_url, manifest, prior)
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("provenance URL already exists" in error for error in result["errors"]))
+
+    def test_rejects_external_knowledge_as_target_evidence(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        cases = _root_cases()
+        cases[0]["support"].append({
+            "type": "wstg_reference",
+            "source_group": "standards",
+            "source": "owasp_wstg",
+            "text": "must never count as target evidence",
+        })
+        result = validate_postfreeze_corpus(cases, manifest, [])
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("external knowledge leaked" in error for error in result["errors"]))
 
 
-def test_v660_protected_files_match_frozen_git_blobs() -> None:
-    result = validate_freeze(load_manifest(DEFAULT_MANIFEST))
-    assert result["passed"], result["errors"]
-    assert len(result["checked_files"]) == 6
-
-
-def test_v660_collection_mode_does_not_evaluate_unsealed_corpus() -> None:
-    status = collection_status(DEFAULT_MANIFEST)
-    assert status["freeze_validation"]["passed"]
-    assert status["sealed"] is False
-    assert status["evaluation_status"] == "collection_open"
-
-
-def test_v660_requires_exactly_four_variants_per_source_root() -> None:
-    manifest = load_manifest(DEFAULT_MANIFEST)
-    result = validate_postfreeze_corpus(_root_cases(), manifest, [])
-    assert result["passed"], result["errors"]
-    assert result["source_root_count"] == 1
-    assert result["case_count"] == 4
-
-    incomplete = _root_cases()[:-1]
-    result = validate_postfreeze_corpus(incomplete, manifest, [])
-    assert not result["passed"]
-    assert any("root variants" in error for error in result["errors"])
-
-
-def test_v660_rejects_v3_root_url_or_reference_reuse() -> None:
-    manifest = load_manifest(DEFAULT_MANIFEST)
-    prior = [{
-        "source_root": "OLD-ROOT",
-        "provenance": {
-            "url": "https://example.invalid/advisory/old",
-            "reference": "OLD-REFERENCE",
-        },
-    }]
-
-    reused_root = _root_cases(root="OLD-ROOT", url="https://example.invalid/advisory/new")
-    result = validate_postfreeze_corpus(reused_root, manifest, prior)
-    assert not result["passed"]
-    assert any("source_root already exists" in error for error in result["errors"])
-
-    reused_url = _root_cases(root="NEW-ROOT", url="https://example.invalid/advisory/old")
-    result = validate_postfreeze_corpus(reused_url, manifest, prior)
-    assert not result["passed"]
-    assert any("provenance URL already exists" in error for error in result["errors"])
-
-
-def test_v660_rejects_external_knowledge_as_target_evidence() -> None:
-    manifest = load_manifest(DEFAULT_MANIFEST)
-    cases = _root_cases()
-    cases[0]["support"].append({
-        "type": "wstg_reference",
-        "source_group": "standards",
-        "source": "owasp_wstg",
-        "text": "must never count as target evidence",
-    })
-    result = validate_postfreeze_corpus(cases, manifest, [])
-    assert not result["passed"]
-    assert any("external knowledge leaked" in error for error in result["errors"])
+if __name__ == "__main__":
+    unittest.main()
