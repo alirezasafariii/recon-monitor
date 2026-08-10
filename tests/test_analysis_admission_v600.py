@@ -12,7 +12,7 @@ from hypothesis_admission import ADMISSION_ENGINE_VERSION, assess_admission
 
 class AnalysisAdmissionV600Tests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.0.0")
+        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.1.0")
 
     def assert_hidden(self, family, support, contradict=None):
         result = assess_admission(family, support, contradict or [])

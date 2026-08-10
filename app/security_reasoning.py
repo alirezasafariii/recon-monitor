@@ -12,8 +12,8 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "6.0.0"
-REASONING_RULE_VERSION = "2026.08.10.6.0"
+REASONING_ENGINE_VERSION = "6.1.0"
+REASONING_RULE_VERSION = "2026.08.10.6.1"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -177,6 +177,96 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
         "contradict": {"canonicalization", "fixed_directory", "opaque_file_id"},
         "unknowns": ["Server-side path canonicalization", "Base-directory enforcement", "Whether client input reaches a filesystem operation"],
         "variants": {"download": "file_download_path_boundary", "archive": "archive_entry_path_boundary"},
+    },
+    "sql_injection": {
+        "label": "SQL Injection",
+        "rank_gate": {"sql_query_surface", "database_query_semantic"},
+        "required": [{"input_parameter", "query_parameter", "body_parameter", "path_parameter"}, {"sql_query_surface", "database_query_semantic", "dynamic_query_surface"}, {"sql_error_differential", "boolean_response_differential", "database_time_delay_observed", "query_structure_influence", "database_error_observed", "unsafe_query_construction"}],
+        "support": {"database_error_observed", "query_structure_influence", "database_time_delay_observed"},
+        "contradict": {"parameterized_query", "query_builder_binding", "input_not_used_in_query"},
+        "unknowns": ["Exact user-input-to-query dataflow", "Parameterized binding behavior", "Controlled boolean/error/timing differential"],
+        "variants": {"filter": "filter_query_injection", "search": "search_query_injection", "sort": "sort_or_identifier_injection"},
+    },
+    "nosql_injection": {
+        "label": "NoSQL Injection",
+        "rank_gate": {"nosql_query_surface", "json_query_surface"},
+        "required": [{"input_parameter", "query_parameter", "body_parameter"}, {"nosql_query_surface", "json_query_surface", "document_query_semantic"}, {"nosql_operator_accepted", "query_operator_influence", "nosql_auth_bypass_observed", "nosql_response_differential", "nosql_error_observed"}],
+        "support": {"query_operator_influence", "nosql_response_differential"},
+        "contradict": {"operator_allowlist", "typed_query_schema", "nosql_operator_rejected"},
+        "unknowns": ["Whether client structures become database operators", "Typed input schema", "Controlled result differential"],
+        "variants": {"operator": "document_operator_injection", "auth": "nosql_authentication_bypass"},
+    },
+    "command_injection": {
+        "label": "OS Command Injection",
+        "rank_gate": {"command_execution_surface", "process_execution_surface"},
+        "required": [{"input_parameter", "query_parameter", "body_parameter", "path_parameter"}, {"command_execution_surface", "shell_command_semantic", "process_execution_surface"}, {"command_output_observed", "command_time_delay_observed", "shell_metacharacter_effect", "process_execution_reached", "unsafe_command_construction"}],
+        "support": {"shell_metacharacter_effect", "command_output_observed", "process_execution_reached"},
+        "contradict": {"exec_file_argument_array", "shell_disabled", "command_allowlist"},
+        "unknowns": ["Exact input-to-process dataflow", "Shell-string vs argument-array construction", "Harmless process execution differential"],
+        "variants": {"diagnostic": "diagnostic_command_injection", "convert": "conversion_command_injection"},
+    },
+    "server_side_template_injection": {
+        "label": "Server-Side Template Injection",
+        "rank_gate": {"template_render_surface", "template_engine_semantic"},
+        "required": [{"input_parameter", "body_parameter", "template_input"}, {"template_render_surface", "template_engine_semantic", "server_render_operation"}, {"template_expression_evaluated", "template_output_differential", "template_engine_error_observed", "server_template_execution"}],
+        "support": {"template_expression_evaluated", "template_engine_error_observed"},
+        "contradict": {"literal_template_rendering", "template_sandbox_enforced", "template_input_escaped", "client_side_only"},
+        "unknowns": ["Server-side template engine", "Expression evaluation behavior", "Sandbox/escaping policy"],
+        "variants": {"preview": "template_preview_injection", "email": "email_template_injection"},
+    },
+    "ldap_injection": {
+        "label": "LDAP Injection",
+        "rank_gate": {"ldap_query_surface", "directory_query_semantic"},
+        "required": [{"input_parameter", "query_parameter", "body_parameter"}, {"ldap_query_surface", "directory_query_semantic", "ldap_filter_surface"}, {"ldap_filter_influence", "ldap_response_differential", "ldap_auth_bypass_observed", "ldap_error_observed"}],
+        "support": {"ldap_filter_influence", "ldap_response_differential"},
+        "contradict": {"ldap_filter_escaped", "ldap_parameter_binding", "ldap_input_rejected"},
+        "unknowns": ["Filter construction", "LDAP escaping/binding", "Controlled directory result differential"],
+        "variants": {"search": "ldap_search_filter_injection", "auth": "ldap_auth_filter_injection"},
+    },
+    "unrestricted_resource_consumption": {
+        "label": "Unrestricted Resource Consumption",
+        "rank_gate": {"resource_control_parameter", "batch_operation", "expensive_operation"},
+        "required": [{"resource_control_parameter", "batch_operation", "pagination_control", "upload_size_control", "expensive_operation", "paid_provider_operation"}, {"rate_limit_absent_observed", "unbounded_page_size_observed", "batch_limit_absent_observed", "oversized_payload_accepted", "cost_amplification_observed", "timeout_limit_absent", "resource_exhaustion_differential"}],
+        "support": {"cost_amplification_observed", "resource_exhaustion_differential"},
+        "contradict": {"rate_limit_enforced", "page_size_capped", "batch_limit_enforced", "payload_size_rejected", "timeout_enforced"},
+        "unknowns": ["Rate/frequency limit", "Maximum payload/page/batch size", "Execution timeout and provider cost limit"],
+        "variants": {"pagination": "unbounded_pagination", "batch": "unbounded_batch", "provider": "third_party_cost_amplification"},
+    },
+    "sensitive_business_flow_abuse": {
+        "label": "Unrestricted Sensitive Business Flow",
+        "rank_gate": {"sensitive_business_flow"},
+        "required": [{"sensitive_business_flow", "purchase_flow", "reservation_flow", "posting_flow", "signup_flow", "redemption_flow"}, {"automation_limit_absent", "anti_bot_control_absent", "per_user_limit_absent", "bulk_abuse_observed", "scalping_control_absent", "reservation_abuse_observed", "workflow_frequency_unrestricted", "business_flow_limit_bypass"}],
+        "support": {"bulk_abuse_observed", "business_flow_limit_bypass"},
+        "contradict": {"anti_bot_control_enforced", "per_user_limit_enforced", "inventory_limit_enforced", "reservation_limit_enforced"},
+        "unknowns": ["Business abuse threshold", "Per-user/frequency controls", "Anti-automation controls"],
+        "variants": {"purchase": "purchase_scalping_abuse", "reservation": "reservation_exhaustion", "signup": "automated_account_creation"},
+    },
+    "security_misconfiguration": {
+        "label": "Security Misconfiguration",
+        "rank_gate": {"misconfiguration_surface", "debug_surface", "transport_surface"},
+        "required": [{"misconfiguration_surface", "debug_surface", "transport_surface", "http_method_surface", "deployment_configuration_surface"}, {"stack_trace_exposed", "debug_mode_exposed", "insecure_http_enabled", "unnecessary_method_enabled", "directory_listing_observed", "security_header_missing_on_sensitive_response", "desync_processing_difference", "unsafe_default_configuration"}],
+        "support": {"stack_trace_exposed", "debug_mode_exposed", "desync_processing_difference"},
+        "contradict": {"hardening_observed", "tls_enforced", "method_rejected", "debug_disabled", "security_headers_present"},
+        "unknowns": ["Expected production hardening baseline", "Transport/method policy", "Whether exposed defaults/debug behavior is intended"],
+        "variants": {"debug": "debug_configuration_exposure", "transport": "cleartext_transport_configuration", "method": "unnecessary_http_method"},
+    },
+    "improper_inventory_management": {
+        "label": "Improper API Inventory Management",
+        "rank_gate": {"api_version_surface", "legacy_endpoint_surface", "nonproduction_surface"},
+        "required": [{"api_version_surface", "legacy_endpoint_surface", "nonproduction_surface", "undocumented_host_surface"}, {"deprecated_version_still_reachable", "older_version_weaker_controls", "undocumented_host_observed", "nonproduction_with_production_data", "retired_endpoint_active", "inventory_drift_observed", "unprotected_legacy_endpoint"}],
+        "support": {"older_version_weaker_controls", "nonproduction_with_production_data", "inventory_drift_observed"},
+        "contradict": {"retired_endpoint_unreachable", "legacy_controls_equivalent", "nonproduction_isolated", "inventory_documented"},
+        "unknowns": ["Authoritative API inventory", "Retirement status", "Control parity and data sensitivity of legacy/non-production deployment"],
+        "variants": {"legacy": "active_legacy_api", "nonprod": "nonproduction_api_exposure", "undocumented": "undocumented_api_host"},
+    },
+    "unsafe_api_consumption": {
+        "label": "Unsafe Consumption of Third-Party APIs",
+        "rank_gate": {"third_party_integration", "upstream_api_surface"},
+        "required": [{"third_party_integration", "upstream_api_surface", "external_service_dependency"}, {"upstream_tls_missing", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"}],
+        "support": {"third_party_data_unsanitized", "unsafe_upstream_data_reaches_sink"},
+        "contradict": {"upstream_tls_enforced", "third_party_schema_validation", "upstream_redirect_restricted", "upstream_timeout_enforced", "upstream_response_capped"},
+        "unknowns": ["Upstream TLS/authentication", "Redirect/timeout/response-size controls", "Validation and sanitization before downstream processing"],
+        "variants": {"redirect": "unrestricted_upstream_redirect", "validation": "unvalidated_third_party_data", "resource": "unbounded_upstream_response"},
     },
     "source_map_exposure": {
         "label": "Source-map Exposure",

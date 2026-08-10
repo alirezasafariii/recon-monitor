@@ -7,8 +7,8 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
 
-ADMISSION_ENGINE_VERSION = "2.0.0"
-ADMISSION_RULE_VERSION = "2026.08.10.6.0"
+ADMISSION_ENGINE_VERSION = "2.1.0"
+ADMISSION_RULE_VERSION = "2026.08.10.6.1"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
@@ -163,6 +163,75 @@ KNOWLEDGE_REFERENCES.update({
         "source": "OWASP WSTG", "ref": "Business Logic Testing",
         "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
         "principle": "Business-operation names define hypotheses; a candidate needs an observed violation of a workflow, value, state, or authorization invariant.",
+    }],
+})
+
+
+# Analysis 6.1 coverage expansion: OWASP/WSTG and representative write-ups
+# define what counts as decisive evidence for newly modeled families. These
+# references never count as target evidence.
+KNOWLEDGE_REFERENCES.update({
+    "sql_injection": [{
+        "source": "OWASP Top 10 / WSTG", "ref": "A03:2021 Injection / WSTG-INPV-05 SQL Injection",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection",
+        "principle": "A parameter or search endpoint is only an injection surface; a candidate needs evidence that user-controlled input changes SQL query semantics, database errors, boolean results, or database timing."
+    }, {
+        "source": "GitHub Security Lab", "ref": "GHSL-2023-141 NocoDB SQL injection",
+        "url": "https://securitylab.github.com/advisories/GHSL-2023-141_nocodb_nocodb/",
+        "principle": "A real SQL injection connects a user-controlled value to dynamic SQL construction and observes query execution through output, errors, or timing."
+    }],
+    "nosql_injection": [{
+        "source": "OWASP WSTG", "ref": "Testing for NoSQL Injection",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection",
+        "principle": "JSON/operator-shaped input is only a surface until attacker-controlled operators or query structure measurably alter the database operation."
+    }],
+    "command_injection": [{
+        "source": "OWASP WSTG", "ref": "WSTG-INPV-12 Command Injection",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection",
+        "principle": "A diagnostic or command-like parameter is only a surface; decisive evidence links attacker-controlled input to operating-system command execution or a command-specific output/timing effect."
+    }, {
+        "source": "GitHub Security Lab", "ref": "GHSL-2020-112 systeminformation command injection",
+        "url": "https://securitylab.github.com/advisories/GHSL-2020-112-systeminformation/",
+        "principle": "Real command injection findings show untrusted data reaching a shell/interpreter and producing a process side effect."
+    }],
+    "server_side_template_injection": [{
+        "source": "OWASP WSTG", "ref": "Testing for Server-Side Template Injection",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/18-Testing_for_Server-Side_Template_Injection",
+        "principle": "Template or preview functionality is only a surface; a candidate requires evidence that user-controlled template syntax is evaluated server-side."
+    }, {
+        "source": "GitHub Security Lab", "ref": "GHSL-2020-227 SCIMono SSTI",
+        "url": "https://securitylab.github.com/advisories/GHSL-2020-227-scimono-ssti/",
+        "principle": "A real SSTI connects untrusted text to a template/expression engine and observes expression evaluation or execution."
+    }],
+    "ldap_injection": [{
+        "source": "OWASP WSTG", "ref": "Testing for LDAP Injection",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/06-Testing_for_LDAP_Injection",
+        "principle": "Directory search parameters are only surfaces; promotion requires evidence that user input changes the LDAP filter or authentication/search result."
+    }],
+    "unrestricted_resource_consumption": [{
+        "source": "OWASP API Security Top 10", "ref": "API4:2023 Unrestricted Resource Consumption",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/",
+        "principle": "Pagination, batching, upload, expensive processing, or paid-provider operations are surfaces; a candidate requires stored evidence that a relevant size/frequency/cost/timeout limit is absent or ineffective."
+    }],
+    "sensitive_business_flow_abuse": [{
+        "source": "OWASP API Security Top 10", "ref": "API6:2023 Unrestricted Access to Sensitive Business Flows",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/",
+        "principle": "Purchasing, reservation, posting, signup, redemption, or similar sensitive flows are surfaces; promotion requires evidence that automation/frequency/business limits are absent or bypassed."
+    }],
+    "security_misconfiguration": [{
+        "source": "OWASP API Security Top 10", "ref": "API8:2023 Security Misconfiguration",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/",
+        "principle": "Configuration markers are not enough; a candidate requires a directly observed insecure configuration such as stack traces, debug mode, cleartext transport, unnecessary methods, directory listing, or inconsistent HTTP processing."
+    }],
+    "improper_inventory_management": [{
+        "source": "OWASP API Security Top 10", "ref": "API9:2023 Improper Inventory Management",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/",
+        "principle": "Version, beta, staging, or legacy naming is only inventory surface; promotion requires evidence that an old/retired/undocumented deployment remains reachable with weaker controls, real data, or inventory drift."
+    }],
+    "unsafe_api_consumption": [{
+        "source": "OWASP API Security Top 10", "ref": "API10:2023 Unsafe Consumption of APIs",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xaa-unsafe-consumption-of-apis/",
+        "principle": "Third-party integrations are surfaces; a candidate requires evidence that upstream transport, redirects, response validation, resource limits, authentication, or downstream sanitization is unsafe."
     }],
 })
 
@@ -351,6 +420,102 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "label": "state-changing single-use/balance operation + observed duplicate or atomicity failure",
         "blocking_contradictions": {"idempotency_control", "transaction_lock", "duplicate_rejected"},
+    },
+
+    "sql_injection": {
+        "required": [
+            {"input_parameter", "query_parameter", "body_parameter", "path_parameter"},
+            {"sql_query_surface", "database_query_semantic", "dynamic_query_surface"},
+            {"sql_error_differential", "boolean_response_differential", "database_time_delay_observed", "query_structure_influence", "database_error_observed", "unsafe_query_construction"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled input + SQL query surface + observed SQL semantic/error/boolean/timing influence",
+        "blocking_contradictions": {"parameterized_query", "query_builder_binding", "input_not_used_in_query", "uniform_database_behavior"},
+    },
+    "nosql_injection": {
+        "required": [
+            {"input_parameter", "query_parameter", "body_parameter"},
+            {"nosql_query_surface", "json_query_surface", "document_query_semantic"},
+            {"nosql_operator_accepted", "query_operator_influence", "nosql_auth_bypass_observed", "nosql_response_differential", "nosql_error_observed"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled structured input + NoSQL query surface + observed operator/query influence",
+        "blocking_contradictions": {"operator_allowlist", "typed_query_schema", "input_not_used_in_query", "nosql_operator_rejected"},
+    },
+    "command_injection": {
+        "required": [
+            {"input_parameter", "query_parameter", "body_parameter", "path_parameter"},
+            {"command_execution_surface", "shell_command_semantic", "process_execution_surface"},
+            {"command_output_observed", "command_time_delay_observed", "shell_metacharacter_effect", "process_execution_reached", "unsafe_command_construction"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled input + OS/process execution surface + observed command execution effect",
+        "blocking_contradictions": {"exec_file_argument_array", "shell_disabled", "command_allowlist", "input_not_used_in_command"},
+    },
+    "server_side_template_injection": {
+        "required": [
+            {"input_parameter", "body_parameter", "template_input"},
+            {"template_render_surface", "template_engine_semantic", "server_render_operation"},
+            {"template_expression_evaluated", "template_output_differential", "template_engine_error_observed", "server_template_execution"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled template input + server-side rendering surface + observed expression evaluation",
+        "blocking_contradictions": {"literal_template_rendering", "template_sandbox_enforced", "template_input_escaped", "client_side_only"},
+    },
+    "ldap_injection": {
+        "required": [
+            {"input_parameter", "query_parameter", "body_parameter"},
+            {"ldap_query_surface", "directory_query_semantic", "ldap_filter_surface"},
+            {"ldap_filter_influence", "ldap_response_differential", "ldap_auth_bypass_observed", "ldap_error_observed"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled directory input + LDAP filter/search surface + observed filter/result influence",
+        "blocking_contradictions": {"ldap_filter_escaped", "ldap_parameter_binding", "ldap_input_rejected"},
+    },
+    "unrestricted_resource_consumption": {
+        "required": [
+            {"resource_control_parameter", "batch_operation", "pagination_control", "upload_size_control", "expensive_operation", "paid_provider_operation"},
+            {"rate_limit_absent_observed", "unbounded_page_size_observed", "batch_limit_absent_observed", "oversized_payload_accepted", "cost_amplification_observed", "timeout_limit_absent", "resource_exhaustion_differential"},
+        ],
+        "min_independent_sources": 2,
+        "label": "resource-amplifying API control + observed missing/ineffective size, frequency, timeout, or cost limit",
+        "blocking_contradictions": {"rate_limit_enforced", "page_size_capped", "batch_limit_enforced", "payload_size_rejected", "spending_limit_enforced", "timeout_enforced"},
+    },
+    "sensitive_business_flow_abuse": {
+        "required": [
+            {"sensitive_business_flow", "purchase_flow", "reservation_flow", "posting_flow", "signup_flow", "redemption_flow"},
+            {"automation_limit_absent", "anti_bot_control_absent", "per_user_limit_absent", "bulk_abuse_observed", "scalping_control_absent", "reservation_abuse_observed", "workflow_frequency_unrestricted", "business_flow_limit_bypass"},
+        ],
+        "min_independent_sources": 2,
+        "label": "sensitive business flow + observed missing/bypassable automation or frequency restriction",
+        "blocking_contradictions": {"anti_bot_control_enforced", "per_user_limit_enforced", "inventory_limit_enforced", "reservation_limit_enforced", "workflow_frequency_limited"},
+    },
+    "security_misconfiguration": {
+        "required": [
+            {"misconfiguration_surface", "debug_surface", "transport_surface", "http_method_surface", "deployment_configuration_surface"},
+            {"stack_trace_exposed", "debug_mode_exposed", "insecure_http_enabled", "unnecessary_method_enabled", "directory_listing_observed", "security_header_missing_on_sensitive_response", "desync_processing_difference", "unsafe_default_configuration"},
+        ],
+        "min_independent_sources": 2,
+        "label": "configuration surface + directly observed insecure deployment/application-stack configuration",
+        "blocking_contradictions": {"hardening_observed", "tls_enforced", "method_rejected", "debug_disabled", "security_headers_present"},
+    },
+    "improper_inventory_management": {
+        "required": [
+            {"api_version_surface", "legacy_endpoint_surface", "nonproduction_surface", "undocumented_host_surface"},
+            {"deprecated_version_still_reachable", "older_version_weaker_controls", "undocumented_host_observed", "nonproduction_with_production_data", "retired_endpoint_active", "inventory_drift_observed", "unprotected_legacy_endpoint"},
+        ],
+        "min_independent_sources": 2,
+        "label": "version/deployment inventory surface + observed active legacy, undocumented, or non-production exposure with security relevance",
+        "blocking_contradictions": {"retired_endpoint_unreachable", "legacy_controls_equivalent", "nonproduction_isolated", "inventory_documented"},
+    },
+    "unsafe_api_consumption": {
+        "required": [
+            {"third_party_integration", "upstream_api_surface", "external_service_dependency"},
+            {"upstream_tls_missing", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"},
+        ],
+        "min_independent_sources": 2,
+        "label": "third-party/upstream API dependency + observed unsafe transport, trust, redirect, resource, auth, or validation behavior",
+        "blocking_contradictions": {"upstream_tls_enforced", "third_party_schema_validation", "upstream_redirect_restricted", "upstream_timeout_enforced", "upstream_response_capped"},
     },
     "source_map_exposure": {
         "required": [{"source_map"}, {"internal_sources", "source_contents"}, {"public_observation", "direct_reachability"}],
