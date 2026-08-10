@@ -1,0 +1,65 @@
+name: Seal Analysis 6.6 Corpus
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.6-postfreeze-blind
+    paths:
+      - .analysis-66-seal
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.6-postfreeze-blind
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Verify pre-seal protocol and source registry
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/analysis_postfreeze_sources.py
+          python app/analysis_postfreeze.py --json
+          python -m unittest discover -s tests -p 'test_analysis_postfreeze*_v660.py' -q
+
+      - name: Seal corpus without scoring
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_postfreeze_seal.py --json
+
+      - name: Verify seal and corpus immutability
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/analysis_postfreeze.py --json
+          git diff --exit-code -- benchmarks/golden/analysis_golden_v4.jsonl
+          grep -q '"evaluation_status": "sealed_postfreeze"' benchmarks/golden/splits/v4.json
+          grep -q '"sealed": true' benchmarks/golden/splits/v4.json
+          if grep -q '"sha256": null' benchmarks/golden/splits/v4.json; then
+            echo 'sealed corpus still has null SHA256' >&2
+            exit 1
+          fi
+          python -m unittest discover -s tests -p 'test_analysis_postfreeze*_v660.py' -q
+
+      - name: Commit seal only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/golden/splits/v4.json
+          git diff --cached --name-only | grep -qx 'benchmarks/golden/splits/v4.json'
+          git commit -m "Seal Analysis 6.6 blind corpus before evaluation"
+          git push origin HEAD:agent/analysis-engine-6.6-postfreeze-blind
