@@ -67,44 +67,82 @@ The BOLA algorithm separates five questions:
 
 An identifier alone remains a hypothesis surface and cannot become a BOLA Potential Finding.
 
+## Dedicated analyzer: BFLA
+
+The second production-routed analyzer is `family_analyzers.bfla.BflaFamilyAnalyzer`.
+
+Primary reasoning references:
+
+- CWE-862 — Missing Authorization
+- CWE-285 / CWE-863 / CWE-269 as related authorization and privilege concepts
+- OWASP API5:2023 — Broken Function Level Authorization
+- WSTG-ATHZ-02 — Testing for Bypassing Authorization Schema
+- WSTG-APIT-04 — API Broken Function Level Authorization
+
+The BFLA algorithm separates six questions:
+
+1. **Function inventory** — Is the surface actually role-, group-, permission-, scope-, or administration-sensitive?
+2. **Role/function matrix** — Which role or permission is expected to invoke the exact function and HTTP operation?
+3. **Vertical comparison** — What happens for explicitly authorized lower- and higher-privilege test contexts?
+4. **Method/scope differential** — Can a weaker permission or alternate method reach a more privileged effect?
+5. **Behavioral decision** — Did a context explicitly expected to be denied successfully invoke the function, and did the privileged effect occur when that distinction matters?
+6. **Contradiction / false-positive check** — Is server-side role/permission enforcement observed, is the lower role denied, is the function intentionally shared/no-op, or is the signal better explained by BOLA or property authorization?
+
+An `/admin` route, privileged-looking label, UI visibility, or authentication hint alone is not BFLA confirmation.
+
+### BFLA real-world pattern library
+
+Current non-evidentiary patterns include:
+
+- a group-membership function guarded by a weaker update permission instead of a manage-users permission;
+- an alternate POST function with a weaker permission than the stricter administrative permission used for the equivalent destructive action;
+- a sensitive function whose handler omits the expected server-side authorization call.
+
+These patterns are derived from public security research/write-ups and are used only to shape reasoning, false-positive review and next-evidence planning. They never become supporting target evidence.
+
 ## Write-up pattern library
 
-The analyzer reuses the non-evidentiary write-up corpus from `vulnerability_knowledge.py`. The current BOLA patterns include examples such as:
+Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records.
 
-- missing secondary ownership/access guard;
-- missing group/role object guard;
-- parent/child identifier not bound to the authorized parent;
-- tenant/object mismatch across organizational boundaries.
-
-A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence.
+A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
 
 ## Compatibility
 
-`app/bola_intelligence.py` remains the public compatibility import surface. Existing Candidate Engine callers still use `analyze_bola_signal`; that symbol now routes through the dedicated BOLA analyzer while preserving historical BOLA engine and rule versions.
+`app/bola_intelligence.py` remains the BOLA public compatibility import surface.
+
+For Candidate Engine integration, the historical implementation is preserved in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is an additive compatibility/integration wrapper. BFLA target evidence is enriched by the dedicated analyzer before the existing `record_hypothesis → Family Reasoning admission → promotion` flow. Other families remain delegated unchanged until their dedicated analyzer migration is complete.
+
+## Router status
+
+Currently production-routed:
+
+1. BOLA / IDOR
+2. Broken Function Level Authorization
+
+Pending dedicated analyzers: 19.
 
 ## Migration order
 
-After the BOLA reference implementation is stable, analyzers will be added independently for:
+Next analyzers will be added independently for:
 
-1. Broken Function Level Authorization
-2. Mass Assignment / Property Authorization
-3. Authentication / Session
-4. Account Enumeration
-5. DOM XSS
-6. postMessage Trust
-7. Open Redirect
-8. SSRF
-9. File Upload / Import
-10. Path Traversal
-11. Information Disclosure
-12. Source-map Exposure
-13. Secret Exposure
-14. GraphQL Authorization
-15. GraphQL Data Exposure
-16. Business Logic
-17. Race Condition
-18. WebSocket Authorization
-19. CORS
-20. Sensitive Caching
+1. Mass Assignment / Property Authorization
+2. Authentication / Session
+3. Account Enumeration
+4. DOM XSS
+5. postMessage Trust
+6. Open Redirect
+7. SSRF
+8. File Upload / Import
+9. Path Traversal
+10. Information Disclosure
+11. Source-map Exposure
+12. Secret Exposure
+13. GraphQL Authorization
+14. GraphQL Data Exposure
+15. Business Logic
+16. Race Condition
+17. WebSocket Authorization
+18. CORS
+19. Sensitive Caching
 
-Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, and CI before the router is allowed to register that family.
+Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and CI before the router is allowed to register that family.
