@@ -38,6 +38,10 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Family reasoning hash diagnostic
+        shell: bash
+        run: sha256sum app/family_reasoning.py app/hypothesis_admission.py tests/test_family_reasoning_v867.py docs/FAMILY_REASONING_V2.md
+
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
