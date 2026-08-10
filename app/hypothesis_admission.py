@@ -7,6 +7,11 @@ from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
+from correlation_engine import (
+    CORRELATION_ENGINE_VERSION,
+    CORRELATION_RULE_VERSION,
+    build_correlation_context,
+)
 from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
 from vulnerability_knowledge import (
     KNOWLEDGE_ENGINE_VERSION,
@@ -21,7 +26,8 @@ ADMISSION_RULE_VERSION = "2026.08.10.1"
 
 # Admission is intentionally stricter than hypothesis generation. Signals that
 # fail admission remain persisted in analysis_hypotheses so recall is preserved.
-# External knowledge is NEVER consulted while calculating `complete` below.
+# External knowledge and cross-surface correlation are NEVER consulted while
+# calculating `complete` below.
 FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
     "broken_object_authorization": {
         "required": [
@@ -135,44 +141,6 @@ def _historical_family_scores(db: Database, target: str) -> dict[str, int]:
     return result
 
 
-def _correlation_family_scores(
-    db: Database,
-    *,
-    analysis_id: str,
-    target: str,
-    endpoint: str,
-    alert_id: int | None,
-    source_ref: str,
-) -> dict[str, int]:
-    """Reuse already-promoted related surfaces as a non-evidentiary prior."""
-    clauses: list[str] = []
-    params: list[Any] = [analysis_id, target]
-    if endpoint:
-        clauses.append("endpoint=?")
-        params.append(endpoint)
-    if alert_id is not None:
-        clauses.append("alert_id=?")
-        params.append(alert_id)
-    if source_ref:
-        clauses.append("source_ref=?")
-        params.append(source_ref)
-    if not clauses:
-        return {}
-    rows = db.all(
-        f"""SELECT bug_family,COUNT(*) count,MAX(investigation_value) max_investigation
-        FROM bug_candidates
-        WHERE analysis_id=? AND target=? AND ({' OR '.join(clauses)})
-        GROUP BY bug_family""",
-        tuple(params),
-    )
-    result: dict[str, int] = {}
-    for row in rows:
-        count = int(row["count"] or 0)
-        investigation = int(row["max_investigation"] or 0)
-        result[str(row["bug_family"])] = max(0, min(100, int(round(30 + min(30, count * 10) + investigation * 0.40))))
-    return result
-
-
 def _classification_context(
     family: str,
     support: Iterable[Mapping[str, Any]],
@@ -250,8 +218,6 @@ def assess_admission(
             "blocking_contradictions": [],
             "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
         }
-        # Classification context is attached only after the target-evidence
-        # decision above has already been made.
         result["knowledge_references"] = knowledge_for_family(family)
         result["knowledge_context"] = _classification_context(
             family,
@@ -293,7 +259,6 @@ def assess_admission(
     if not source_ok:
         reason += f" Independent-source requirement is not yet met ({len(sources)}/{policy.get('min_independent_sources', 1)})."
 
-    # From here downward everything knowledge-related is explanatory only.
     result = {
         "state": state,
         "admitted": complete,
@@ -392,9 +357,11 @@ def record_hypothesis(
         alert_id = existing["alert_id"] if existing["alert_id"] is not None else alert_id
         source_ref = str(existing["source_ref"] or source_ref)
 
+    # Admission is fixed first from target evidence only.
     assessment = assess_admission(family, support, contradict)
+
     historical_scores = _historical_family_scores(db, target)
-    correlation_scores = _correlation_family_scores(
+    correlation_context = build_correlation_context(
         db,
         analysis_id=analysis_id,
         target=target,
@@ -402,8 +369,10 @@ def record_hypothesis(
         alert_id=alert_id,
         source_ref=source_ref,
     )
-    # Rebuild retrieval/ranking with endpoint, summary, historical and related
-    # candidate context. All of these remain non-evidentiary.
+    correlation_scores = correlation_context.get("family_scores", {})
+
+    # Rebuild retrieval/ranking with endpoint, summary, historical and
+    # cross-surface context only after admission. These remain non-evidentiary.
     assessment["knowledge_context"] = _classification_context(
         family,
         support,
@@ -414,10 +383,13 @@ def record_hypothesis(
         correlation_scores=correlation_scores,
         admission_by_family={family: assessment},
     )
+    assessment["correlation_context"] = correlation_context
     assessment["knowledge_engine_version"] = KNOWLEDGE_ENGINE_VERSION
     assessment["knowledge_rule_version"] = KNOWLEDGE_RULE_VERSION
     assessment["meta_ranker_version"] = META_RANKER_VERSION
     assessment["meta_ranker_rule_version"] = META_RANKER_RULE_VERSION
+    assessment["correlation_engine_version"] = CORRELATION_ENGINE_VERSION
+    assessment["correlation_rule_version"] = CORRELATION_RULE_VERSION
 
     state = "promoted" if promoted_candidate_id else assessment["state"]
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
@@ -495,4 +467,6 @@ def hypothesis_summary(db: Database, analysis_id: str) -> dict[str, Any]:
         "knowledge_rule_version": KNOWLEDGE_RULE_VERSION,
         "meta_ranker_version": META_RANKER_VERSION,
         "meta_ranker_rule_version": META_RANKER_RULE_VERSION,
+        "correlation_engine_version": CORRELATION_ENGINE_VERSION,
+        "correlation_rule_version": CORRELATION_RULE_VERSION,
     }
