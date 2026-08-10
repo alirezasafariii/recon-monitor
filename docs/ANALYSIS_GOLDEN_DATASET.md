@@ -85,6 +85,22 @@ Precision counts every admitted case/family pair, so an unrelated family promote
 
 Ranking is deliberately separate from admission. A near-miss should normally rank near its expected family while remaining unadmitted.
 
+## Seed baseline
+
+The first 45-case corpus run establishes the following regression baseline:
+
+- precision: `1.000`
+- recall: `1.000`
+- Top-1 accuracy: `1.000`
+- Top-3 accuracy: `1.000`
+- abstention accuracy: `1.000`
+- false-promotion rate: `0.000`
+- macro family recall: `1.000`
+- Brier score: `0.015067`
+- expected calibration error: `0.094667`
+
+All 15 positives promoted only their expected family; all 15 near-misses and all 15 secure negatives abstained. These are **seed regression results**, not estimates of production-world prevalence or error rates. The next corpus versions must add multiple independent cases per family and cross-family confounders before these figures are treated as externally representative quality estimates.
+
 ## Running
 
 ```bash
@@ -94,6 +110,8 @@ PYTHONPATH=app python3 app/analysis_benchmark.py --strict
 ```
 
 `--strict` exits non-zero when a quality gate fails.
+
+The main repository CI runs the strict benchmark on both supported Python versions after the unit suite.
 
 ## Expansion rules
 
