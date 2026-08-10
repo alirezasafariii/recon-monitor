@@ -3,14 +3,17 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
+from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
 from vulnerability_knowledge import (
     KNOWLEDGE_ENGINE_VERSION,
     KNOWLEDGE_RULE_VERSION,
     knowledge_context,
     knowledge_for_family,
+    retrieve_writeups,
 )
 
 ADMISSION_ENGINE_VERSION = "1.1.0"
@@ -102,6 +105,74 @@ def hypothesis_fingerprint(target: str, family: str, variant: str, endpoint: str
     return sha256_text("|".join([target, family, variant, normalized_endpoint]))
 
 
+def _historical_family_scores(db: Database, target: str) -> dict[str, int]:
+    """Shrink analyst outcomes toward neutral until a family has enough history."""
+    rows = db.all(
+        """SELECT bug_family,analyst_decision,COUNT(*) count
+        FROM bug_candidates
+        WHERE target=? AND analyst_decision<>'unreviewed'
+        GROUP BY bug_family,analyst_decision""",
+        (target,),
+    )
+    decision_weight = {
+        "confirmed_by_analyst": 100,
+        "needs_more_evidence": 70,
+        "duplicate": 30,
+        "rejected": 5,
+        "out_of_scope": 5,
+    }
+    grouped: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for row in rows:
+        grouped[str(row["bug_family"])].append((str(row["analyst_decision"]), int(row["count"] or 0)))
+    result: dict[str, int] = {}
+    for family, values in grouped.items():
+        reviewed = sum(count for _, count in values)
+        if reviewed <= 0:
+            continue
+        weighted = sum(decision_weight.get(decision, 50) * count for decision, count in values) / reviewed
+        reliability = min(1.0, reviewed / 8.0)
+        result[family] = max(0, min(100, int(round(50 + (weighted - 50) * reliability))))
+    return result
+
+
+def _correlation_family_scores(
+    db: Database,
+    *,
+    analysis_id: str,
+    target: str,
+    endpoint: str,
+    alert_id: int | None,
+    source_ref: str,
+) -> dict[str, int]:
+    """Reuse already-promoted related surfaces as a non-evidentiary prior."""
+    clauses: list[str] = []
+    params: list[Any] = [analysis_id, target]
+    if endpoint:
+        clauses.append("endpoint=?")
+        params.append(endpoint)
+    if alert_id is not None:
+        clauses.append("alert_id=?")
+        params.append(alert_id)
+    if source_ref:
+        clauses.append("source_ref=?")
+        params.append(source_ref)
+    if not clauses:
+        return {}
+    rows = db.all(
+        f"""SELECT bug_family,COUNT(*) count,MAX(investigation_value) max_investigation
+        FROM bug_candidates
+        WHERE analysis_id=? AND target=? AND ({' OR '.join(clauses)})
+        GROUP BY bug_family""",
+        tuple(params),
+    )
+    result: dict[str, int] = {}
+    for row in rows:
+        count = int(row["count"] or 0)
+        investigation = int(row["max_investigation"] or 0)
+        result[str(row["bug_family"])] = max(0, min(100, int(round(30 + min(30, count * 10) + investigation * 0.40))))
+    return result
+
+
 def _classification_context(
     family: str,
     support: Iterable[Mapping[str, Any]],
@@ -109,21 +180,47 @@ def _classification_context(
     *,
     endpoint: str = "",
     summary: str = "",
+    historical_scores: Mapping[str, Any] | None = None,
+    correlation_scores: Mapping[str, Any] | None = None,
+    llm_advisory_scores: Mapping[str, Any] | None = None,
+    admission_by_family: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build non-evidentiary taxonomy/writeup context.
+    """Build non-evidentiary taxonomy/writeup/meta-ranking context.
 
     This function is intentionally called only *after* admission state has been
-    calculated.  Its output is persisted for explanation and tagging but never
+    calculated. Its output is persisted for explanation and tagging but never
     changes required groups, independent source counts, blocking contradictions,
     or the admitted boolean.
     """
-    return knowledge_context(
+    support_items = [dict(item) for item in support]
+    contradict_items = [dict(item) for item in contradict]
+    context = knowledge_context(
         family,
-        support,
-        contradict,
+        support_items,
+        contradict_items,
         endpoint=endpoint,
         summary=summary,
     )
+    broader_writeups = retrieve_writeups(
+        support_items,
+        contradict_items,
+        endpoint=endpoint,
+        summary=summary,
+        family=None,
+        limit=50,
+    )
+    context["meta_ranker"] = rank_bug_proximity(
+        support_items,
+        contradict_items,
+        context.get("family_rankings", []),
+        broader_writeups,
+        historical_scores=historical_scores,
+        correlation_scores=correlation_scores,
+        llm_advisory_scores=llm_advisory_scores,
+        admission_by_family=admission_by_family,
+        limit=3,
+    )
+    return context
 
 
 def assess_admission(
@@ -156,7 +253,12 @@ def assess_admission(
         # Classification context is attached only after the target-evidence
         # decision above has already been made.
         result["knowledge_references"] = knowledge_for_family(family)
-        result["knowledge_context"] = _classification_context(family, support_items, contradict_items)
+        result["knowledge_context"] = _classification_context(
+            family,
+            support_items,
+            contradict_items,
+            admission_by_family={family: result},
+        )
         return result
 
     satisfied: list[list[str]] = []
@@ -204,7 +306,12 @@ def assess_admission(
         "reason": reason,
     }
     result["knowledge_references"] = knowledge_for_family(family)
-    result["knowledge_context"] = _classification_context(family, support_items, contradict_items)
+    result["knowledge_context"] = _classification_context(
+        family,
+        support_items,
+        contradict_items,
+        admission_by_family={family: result},
+    )
     return result
 
 
@@ -216,7 +323,7 @@ def _persist_classification_tags(
     entity_value: str,
     context: Mapping[str, Any],
 ) -> None:
-    """Persist namespaced `near:`/taxonomy tags without claiming a finding."""
+    """Persist namespaced proximity/taxonomy tags without claiming a finding."""
     tags = [str(value) for value in context.get("tags", []) if str(value).strip()]
     rankings = context.get("family_rankings", [])
     if isinstance(rankings, list):
@@ -228,6 +335,19 @@ def _persist_classification_tags(
             family = str(ranking.get("family") or "").strip().replace("_", "-")
             if family:
                 tags.append(f"near-family:{family}")
+    meta = context.get("meta_ranker", {})
+    if isinstance(meta, Mapping):
+        primary = meta.get("primary")
+        if isinstance(primary, Mapping):
+            family = str(primary.get("family") or "").strip().replace("_", "-")
+            band = str(primary.get("proximity_band") or "").strip().replace("_", "-")
+            priority = str(primary.get("hunt_priority") or "").strip().lower()
+            if family:
+                tags.append(f"proximity-family:{family}")
+            if band:
+                tags.append(f"proximity:{band}")
+            if priority:
+                tags.append(f"hunt-priority:{priority}")
     for tag in dict.fromkeys(tags):
         db.execute(
             "INSERT OR IGNORE INTO entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
@@ -273,16 +393,31 @@ def record_hypothesis(
         source_ref = str(existing["source_ref"] or source_ref)
 
     assessment = assess_admission(family, support, contradict)
-    # Rebuild retrieval with endpoint/summary context. This remains non-evidentiary.
+    historical_scores = _historical_family_scores(db, target)
+    correlation_scores = _correlation_family_scores(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        endpoint=endpoint,
+        alert_id=alert_id,
+        source_ref=source_ref,
+    )
+    # Rebuild retrieval/ranking with endpoint, summary, historical and related
+    # candidate context. All of these remain non-evidentiary.
     assessment["knowledge_context"] = _classification_context(
         family,
         support,
         contradict,
         endpoint=endpoint,
         summary=summary,
+        historical_scores=historical_scores,
+        correlation_scores=correlation_scores,
+        admission_by_family={family: assessment},
     )
     assessment["knowledge_engine_version"] = KNOWLEDGE_ENGINE_VERSION
     assessment["knowledge_rule_version"] = KNOWLEDGE_RULE_VERSION
+    assessment["meta_ranker_version"] = META_RANKER_VERSION
+    assessment["meta_ranker_rule_version"] = META_RANKER_RULE_VERSION
 
     state = "promoted" if promoted_candidate_id else assessment["state"]
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
@@ -358,4 +493,6 @@ def hypothesis_summary(db: Database, analysis_id: str) -> dict[str, Any]:
         "rule_version": ADMISSION_RULE_VERSION,
         "knowledge_engine_version": KNOWLEDGE_ENGINE_VERSION,
         "knowledge_rule_version": KNOWLEDGE_RULE_VERSION,
+        "meta_ranker_version": META_RANKER_VERSION,
+        "meta_ranker_rule_version": META_RANKER_RULE_VERSION,
     }
