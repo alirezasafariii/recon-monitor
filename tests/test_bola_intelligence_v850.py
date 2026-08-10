@@ -95,7 +95,7 @@ class BolaIntelligenceV850Tests(unittest.TestCase):
         self.assertEqual(SCHEMA_VERSION, 18)
         self.assertEqual(BOLA_ENGINE_VERSION, "2.0.0")
         self.assertEqual(BOLA_RULE_VERSION, "2026.08.8.5")
-        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.1.0")
+        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.2.0")
 
     def test_generic_object_id_is_retained_not_promoted(self):
         row = self.row("https://x.test/api/orders/{id}", path=["id"], object_ids=["id"])

@@ -6,9 +6,10 @@ import uuid
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
+from analysis_standards import standards_for_family, validate_family_standards
 
-ADMISSION_ENGINE_VERSION = "2.1.0"
-ADMISSION_RULE_VERSION = "2026.08.10.6.1"
+ADMISSION_ENGINE_VERSION = "2.2.0"
+ADMISSION_RULE_VERSION = "2026.08.10.6.3"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
@@ -531,6 +532,9 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
     },
 }
 
+_STANDARD_GROUNDING_ERRORS = validate_family_standards(FAMILY_ADMISSION_POLICIES)
+if _STANDARD_GROUNDING_ERRORS:
+    raise RuntimeError("Analysis standard grounding is incomplete: " + ", ".join(_STANDARD_GROUNDING_ERRORS))
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -563,7 +567,23 @@ def hypothesis_fingerprint(target: str, family: str, variant: str, endpoint: str
 
 
 def knowledge_for_family(family: str) -> list[dict[str, str]]:
-    return [dict(item) for item in KNOWLEDGE_REFERENCES.get(family, [])]
+    refs: list[dict[str, str]] = [dict(item) for item in KNOWLEDGE_REFERENCES.get(family, [])]
+    standards = standards_for_family(family)
+    for item in standards.get("wstg", []):
+        refs.append({
+            "source": "OWASP WSTG",
+            "ref": str(item.get("id") or ""),
+            "url": str(item.get("url") or ""),
+            "principle": str(standards.get("principle") or ""),
+        })
+    for item in standards.get("cwe", []):
+        refs.append({
+            "source": "MITRE CWE",
+            "ref": f"{item.get('id')} / {item.get('title')}",
+            "url": str(item.get("url") or ""),
+            "principle": str(standards.get("principle") or ""),
+        })
+    return refs
 
 
 def assess_admission(
@@ -592,6 +612,7 @@ def assess_admission(
             "blocking_contradictions": [],
             "reason": "No Analysis 6.0 admission policy is defined for this family; the existing family-specific reasoning gate remains authoritative.",
             "knowledge_references": knowledge_for_family(family),
+            "standards": standards_for_family(family, admitted=True, decisive_signals=types),
         }
 
     satisfied: list[list[str]] = []
@@ -637,6 +658,7 @@ def assess_admission(
         "blocking_contradictions": blocking,
         "reason": reason,
         "knowledge_references": knowledge_for_family(family),
+        "standards": standards_for_family(family, admitted=complete, decisive_signals=decisive),
     }
 
 
