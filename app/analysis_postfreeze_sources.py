@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -7,8 +8,21 @@ from analysis_postfreeze import DEFAULT_MANIFEST, PRIOR_CORPUS, ROOT, _norm, loa
 from analysis_standards import standards_for_family
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-SOURCE_REGISTRY_VALIDATOR_VERSION = "1.0.0"
+SOURCE_REGISTRY_VALIDATOR_VERSION = "1.0.1"
 DEFAULT_SOURCE_REGISTRY = ROOT / "benchmarks" / "golden" / "sources" / "v4_roots.jsonl"
+
+
+def load_source_registry(path: str | Path = DEFAULT_SOURCE_REGISTRY) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
+        text = raw.strip()
+        if not text or text.startswith("#"):
+            continue
+        row = json.loads(text)
+        if not isinstance(row, dict):
+            raise ValueError(f"source registry line {line_no} is not an object")
+        rows.append(row)
+    return rows
 
 
 def _provenance(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -46,7 +60,7 @@ def validate_source_registry(
     prior_corpus_path: str | Path = PRIOR_CORPUS,
 ) -> dict[str, Any]:
     manifest = load_manifest(manifest_path)
-    rows = load_jsonl(registry_path)
+    rows = load_source_registry(registry_path)
     prior_rows = load_jsonl(prior_corpus_path)
     prior_roots, prior_urls, prior_refs = _identity_sets(prior_rows)
 
@@ -164,11 +178,9 @@ def validate_source_registry(
 
 
 def main() -> int:
-    import json
-
     try:
         result = validate_source_registry()
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
         result = {"passed": False, "errors": [str(exc)]}
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("passed") else 2
