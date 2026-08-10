@@ -12,6 +12,11 @@ from correlation_engine import (
     CORRELATION_RULE_VERSION,
     build_correlation_context,
 )
+from family_reasoning import (
+    FAMILY_REASONING_RULE_VERSION,
+    FAMILY_REASONING_VERSION,
+    admission_policy_map,
+)
 from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
 from vulnerability_knowledge import (
     KNOWLEDGE_ENGINE_VERSION,
@@ -21,65 +26,15 @@ from vulnerability_knowledge import (
     retrieve_writeups,
 )
 
-ADMISSION_ENGINE_VERSION = "1.1.0"
-ADMISSION_RULE_VERSION = "2026.08.10.1"
+ADMISSION_ENGINE_VERSION = "2.0.0"
+ADMISSION_RULE_VERSION = "2026.08.10.2"
 
 # Admission is intentionally stricter than hypothesis generation. Signals that
 # fail admission remain persisted in analysis_hypotheses so recall is preserved.
-# External knowledge and cross-surface correlation are NEVER consulted while
-# calculating `complete` below.
-FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
-    "broken_object_authorization": {
-        "required": [
-            {"object_identifier", "graphql_identifier"},
-            {"object_operation", "graphql_operation"},
-            {
-                "cross_identity_object_access",
-                "cross_tenant_object_access",
-                "ownership_mismatch",
-                "parent_child_scope_mismatch",
-                "authorization_response_differential",
-                "object_access_without_secondary_guard",
-                "identity_object_relation_conflict",
-                "unauthorized_object_response",
-            },
-        ],
-        "min_independent_sources": 2,
-        "label": "object reference plus object operation plus object-level authorization-boundary evidence",
-        "blocking_contradictions": {
-            "ownership_enforcement_observed",
-            "cross_context_denied",
-            "scope_binding_observed",
-            "secondary_guard_enforced",
-        },
-        "override_signals": {
-            "cross_identity_object_access",
-            "cross_tenant_object_access",
-            "ownership_mismatch",
-            "parent_child_scope_mismatch",
-            "authorization_response_differential",
-            "object_access_without_secondary_guard",
-            "identity_object_relation_conflict",
-            "unauthorized_object_response",
-        },
-    },
-    "file_upload": {
-        "required": [
-            {"file_input"},
-            {"upload_operation", "import_operation"},
-        ],
-        "min_independent_sources": 2,
-        "label": "actual file input plus an upload/import operation",
-    },
-    "path_traversal": {
-        "required": [
-            {"path_parameter", "filename_field", "storage_path"},
-            {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
-        ],
-        "min_independent_sources": 2,
-        "label": "user-influenced path/filename plus a file-system-relevant operation",
-    },
-}
+# External knowledge, historical priors, correlation and LLM context are NEVER
+# consulted while calculating `complete` below. Every known vulnerability family
+# now receives its policy from the single Family Reasoning catalog.
+FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = admission_policy_map()
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -206,17 +161,23 @@ def assess_admission(
     }
     policy = FAMILY_ADMISSION_POLICIES.get(family)
 
+    # Unknown families fail closed. Candidate generation should never silently
+    # promote a family that has no reviewed evidence contract.
     if not policy:
         result = {
-            "state": "admitted",
-            "admitted": True,
-            "policy": "existing-family-gate",
+            "state": "shadow_signal",
+            "admitted": False,
+            "policy": "missing-family-reasoning-policy",
             "required_satisfied": [],
-            "required_missing": [],
+            "required_missing": [["family reasoning policy"]],
             "independent_sources": len(sources),
-            "decisive_signals": sorted(types),
+            "decisive_signals": [],
             "blocking_contradictions": [],
-            "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
+            "confirmation_required": [],
+            "validation_level": "offline",
+            "reason": "Retained as a hidden hypothesis because no reviewed Family Reasoning policy exists for this family.",
+            "family_reasoning_version": FAMILY_REASONING_VERSION,
+            "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
         }
         result["knowledge_references"] = knowledge_for_family(family)
         result["knowledge_context"] = _classification_context(
@@ -249,7 +210,7 @@ def assess_admission(
         reason = f"Admission complete: {policy.get('label')}."
     elif blocked:
         state = "shadow_contradicted"
-        reason = f"Retained as a hidden hypothesis because stored target evidence supports enforcement: {', '.join(blocking)}."
+        reason = f"Retained as a hidden hypothesis because stored target evidence supports an enforcing or non-vulnerable interpretation: {', '.join(blocking)}."
     elif satisfied:
         state = "shadow_partial"
         reason = f"Retained as a hidden hypothesis: partial evidence for {policy.get('label')}."
@@ -268,7 +229,11 @@ def assess_admission(
         "independent_sources": len(sources),
         "decisive_signals": sorted(decisive),
         "blocking_contradictions": blocking,
+        "confirmation_required": [sorted(group) for group in policy.get("confirmation_required", [])],
+        "validation_level": str(policy.get("validation_level") or "offline"),
         "reason": reason,
+        "family_reasoning_version": FAMILY_REASONING_VERSION,
+        "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
     }
     result["knowledge_references"] = knowledge_for_family(family)
     result["knowledge_context"] = _classification_context(
@@ -390,6 +355,8 @@ def record_hypothesis(
     assessment["meta_ranker_rule_version"] = META_RANKER_RULE_VERSION
     assessment["correlation_engine_version"] = CORRELATION_ENGINE_VERSION
     assessment["correlation_rule_version"] = CORRELATION_RULE_VERSION
+    assessment["family_reasoning_version"] = FAMILY_REASONING_VERSION
+    assessment["family_reasoning_rule_version"] = FAMILY_REASONING_RULE_VERSION
 
     state = "promoted" if promoted_candidate_id else assessment["state"]
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
@@ -463,6 +430,8 @@ def hypothesis_summary(db: Database, analysis_id: str) -> dict[str, Any]:
         "states": counts,
         "engine_version": ADMISSION_ENGINE_VERSION,
         "rule_version": ADMISSION_RULE_VERSION,
+        "family_reasoning_version": FAMILY_REASONING_VERSION,
+        "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
         "knowledge_engine_version": KNOWLEDGE_ENGINE_VERSION,
         "knowledge_rule_version": KNOWLEDGE_RULE_VERSION,
         "meta_ranker_version": META_RANKER_VERSION,
