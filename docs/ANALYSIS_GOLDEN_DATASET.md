@@ -9,7 +9,7 @@ The benchmark answers four separate questions instead of collapsing them into on
 1. **Admission precision/recall** — does decisive target evidence promote the expected family without promoting unrelated families?
 2. **Abstention quality** — do attack-surface-only and explicitly secure/control-enforced cases remain hidden?
 3. **Family ranking** — is the expected family Top-1 / Top-3 even when admission deliberately abstains?
-4. **Calibration** — does the family compatibility score numerically separate positive from near-miss / secure-negative evidence?
+4. **Calibration** — does confidence that the vulnerability condition is established track the positive/negative labels without confusing semantic family similarity with probability?
 
 The benchmark does not execute attacks, generate exploit payloads, contact target systems, or validate credentials. It operates only on structured stored-fact fixtures.
 
@@ -53,6 +53,19 @@ The 15 positive seeds are backed by 10 GitHub Security Lab vulnerability advisor
 - API8:2023 Security Misconfiguration.
 - API9:2023 Improper Inventory Management.
 - API10:2023 Unsafe Consumption of APIs.
+
+## Ranking score versus admission confidence
+
+The benchmark intentionally exposes two different numbers:
+
+- `expected_family_score` is **family compatibility**. It answers: “How well do these facts resemble this family compared with the other families?” A strong near-miss may legitimately have a high ranking score.
+- `expected_family_confidence` is **confidence that the vulnerability condition is established**. It is deliberately conservative until the admission gate is complete and drops sharply when an enforcement contradiction is present.
+
+Top-1 / Top-3 use compatibility. Brier score and expected calibration error use admission confidence.
+
+This separation is important: treating a high semantic match as a high probability of vulnerability would make surface-only cases look overconfident even though the engine correctly abstains.
+
+The confidence mapping in corpus v1 is an explicit benchmark calibration contract, not a claim of population-level statistical calibration. As the corpus grows to multiple independent examples per family, this mapping should be recalibrated from held-out labeled data rather than hand-tuned seed fixtures.
 
 ## Metrics
 
