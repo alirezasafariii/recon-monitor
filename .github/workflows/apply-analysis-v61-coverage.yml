@@ -1,0 +1,84 @@
+name: Apply Analysis Engine 6.1 Coverage
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.0-owasp-admission
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.0-owasp-admission
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply Analysis Engine 6.1 coverage patch
+        run: python3 .analysis_v61_coverage_patch.py
+
+      - name: Python syntax checks
+        run: |
+          python3 -m py_compile \
+            app/hypothesis_admission.py \
+            app/bug_candidates.py \
+            app/security_reasoning.py \
+            app/analysis_engine.py \
+            tests/test_analysis_coverage_v610.py
+
+      - name: Focused Analysis 6.1 regression tests
+        run: |
+          python3 -m unittest \
+            tests.test_analysis_coverage_v610 \
+            tests.test_analysis_admission_v600 \
+            tests.test_recall_preserving_admission_v843 \
+            tests.test_bola_intelligence_v850 \
+            tests.test_security_reasoning_v46 \
+            tests.test_bug_candidates_v41
+
+      - name: Full regression suite
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Clean staging files and regenerate manifest
+        run: |
+          rm -f .analysis_v61_coverage_patch.py
+          rm -f .github/workflows/apply-analysis-v61-coverage.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import subprocess
+
+          files = subprocess.check_output(["git", "ls-files", "-z"]).split(b"\0")
+          rows = []
+          for raw in files:
+              if not raw:
+                  continue
+              name = raw.decode()
+              if name == "MANIFEST.sha256":
+                  continue
+              path = Path(name)
+              if not path.is_file():
+                  continue
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              rows.append(f"{digest}  {name}")
+          Path("MANIFEST.sha256").write_text("\n".join(rows) + "\n", encoding="utf-8")
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit tested Analysis Engine 6.1 coverage
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add Analysis Engine 6.1 coverage expansion'
+          git push origin HEAD:agent/analysis-engine-6.0-owasp-admission
