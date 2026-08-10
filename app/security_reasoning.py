@@ -11,9 +11,10 @@ from typing import Any, Iterable, Mapping
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
+from security_family_ranker import production_family_rankings
 
-REASONING_ENGINE_VERSION = "6.5.0"
-REASONING_RULE_VERSION = "2026.08.10.6.5"
+REASONING_ENGINE_VERSION = "6.7.0"
+REASONING_RULE_VERSION = "2026.08.10.6.7"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -744,12 +745,13 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         assessment = _schema_assessment(family, support, contradict, missing)
         support_types = _types(support); contradict_types = _types(contradict)
         text = " ".join([str(candidate.get("endpoint") or ""), str(candidate.get("summary") or ""), str(candidate.get("bug_variant") or "")]).lower()
-        rankings: list[dict[str, Any]] = []
-        for ranked_family in FAMILY_SCHEMAS:
-            score, reason = _family_score(ranked_family, family, support_types, contradict_types, text)
-            if score > 0:
-                rankings.append({"family": ranked_family, "label": FAMILY_SCHEMAS[ranked_family]["label"], "score": score, "reason": reason})
-        rankings.sort(key=lambda x: x["score"], reverse=True)
+        # Analysis 6.7: production ranking is family-specific. The legacy
+        # _family_score helper remains for compatibility/tests but is no longer
+        # used to rank live candidates. Each family reasoner scopes evidence to
+        # its own vocabulary, weights its own required groups, and suppresses
+        # known confounders only when its own decisive condition is absent.
+        labels = {name: str(value.get("label") or name) for name, value in FAMILY_SCHEMAS.items()}
+        rankings = production_family_rankings(support, contradict, labels)
         top3 = rankings[:3]
         for rank, value in enumerate(top3, 1):
             db.execute("INSERT OR REPLACE INTO family_rankings(analysis_id,candidate_id,rank,bug_family,score,reason_json,created_at) VALUES(?,?,?,?,?,?,?)", (analysis_id, candidate["candidate_id"], rank, value["family"], value["score"], json_dumps(value["reason"]), utc_now()))
