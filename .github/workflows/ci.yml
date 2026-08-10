@@ -36,7 +36,8 @@ jobs:
           test ! -e config.env
           test ! -e policies/targets.json
           test -z "$(find . -type d -name __pycache__ -print -quit)"
-          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name 'targets.json.backup-*' \) -print -quit)"
+          test -z "$(find . -type f -name '*.jsonl' ! -path './benchmarks/golden/*' -print -quit)"
 
       - name: Verify manifest
         shell: bash
@@ -55,6 +56,11 @@ jobs:
 
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden analysis benchmark
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
 
       - name: Integration test
         run: python tests/integration_runner.py
