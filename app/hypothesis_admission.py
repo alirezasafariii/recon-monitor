@@ -13,7 +13,7 @@ from vulnerability_knowledge import (
     knowledge_for_family,
 )
 
-ADMISSION_ENGINE_VERSION = "1.2.0"
+ADMISSION_ENGINE_VERSION = "1.1.0"
 ADMISSION_RULE_VERSION = "2026.08.10.1"
 
 # Admission is intentionally stricter than hypothesis generation. Signals that
@@ -153,8 +153,6 @@ def assess_admission(
             "blocking_contradictions": [],
             "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
         }
-        # Classification context is attached only after the target-evidence
-        # decision above has already been made.
         result["knowledge_references"] = knowledge_for_family(family)
         result["knowledge_context"] = _classification_context(family, support_items, contradict_items)
         return result
@@ -191,7 +189,6 @@ def assess_admission(
     if not source_ok:
         reason += f" Independent-source requirement is not yet met ({len(sources)}/{policy.get('min_independent_sources', 1)})."
 
-    # From here downward everything knowledge-related is explanatory only.
     result = {
         "state": state,
         "admitted": complete,
@@ -273,7 +270,6 @@ def record_hypothesis(
         source_ref = str(existing["source_ref"] or source_ref)
 
     assessment = assess_admission(family, support, contradict)
-    # Rebuild retrieval with endpoint/summary context. This remains non-evidentiary.
     assessment["knowledge_context"] = _classification_context(
         family,
         support,
