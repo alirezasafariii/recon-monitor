@@ -7,11 +7,11 @@ from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
-from hypothesis_admission import mark_promoted, record_hypothesis
+from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 
-CANDIDATE_ENGINE_VERSION = "5.2.0"
-CANDIDATE_RULE_VERSION = "2026.08.8.5"
+CANDIDATE_ENGINE_VERSION = "6.0.0"
+CANDIDATE_RULE_VERSION = "2026.08.10.6.0"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -23,10 +23,10 @@ FEEDBACK_REASON_CODES = (
 FAMILY_EVIDENCE_SCHEMAS: dict[str, dict[str, Any]] = {
     "broken_object_authorization": {"required_any": (("object_identifier", "graphql_identifier"), ("object_operation", "graphql_operation"), ("cross_identity_object_access", "cross_tenant_object_access", "ownership_mismatch", "parent_child_scope_mismatch", "authorization_response_differential", "object_access_without_secondary_guard", "identity_object_relation_conflict", "unauthorized_object_response")), "label": "object identifier plus object operation plus object-level authorization-boundary evidence"},
     "broken_function_authorization": {"required_any": (("privileged_function", "privileged_classification"), ("state_change", "role_property")), "label": "privileged function plus role or state-changing context"},
-    "mass_assignment": {"required_any": (("privileged_fields",), ("write_method", "body_schema")), "label": "privileged property plus writable request contract"},
-    "dom_xss": {"required_any": (("source_sink",),), "label": "static source-to-DOM-sink relation"},
+    "mass_assignment": {"required_any": (("privileged_property", "privileged_fields", "privileged_contract_fields"), ("write_method", "state_change", "body_schema")), "label": "privileged property plus writable request contract"},
+    "dom_xss": {"required_any": (("source_sink", "taint_flow"), ("dangerous_sink", "html_sink", "javascript_sink")), "label": "source-to-dangerous-DOM-sink relation"},
     "open_redirect": {"required_any": (("source_sink", "redirect_parameter"),), "label": "user-influenced navigation target"},
-    "ssrf": {"required_any": (("url_parameter",), ("server_fetch_semantic", "server_request_function")), "label": "URL input plus server-side fetch semantics"},
+    "ssrf": {"required_any": (("url_parameter", "remote_destination", "remote_resource"), ("server_fetch_observed", "server_fetch_semantic", "server_request_function", "backend_fetch")), "label": "URL input plus server-side fetch evidence"},
     "file_upload": {"required_any": (("file_input",), ("upload_operation", "import_operation")), "label": "file input plus upload or import operation"},
     "path_traversal": {"required_any": (("path_parameter", "filename_field", "storage_path"), ("file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation")), "label": "user-influenced path or filename plus a file operation"},
     "graphql_authorization": {"required_any": (("graphql_identifier",), ("graphql_operation",)), "label": "GraphQL object identifier and operation"},
@@ -109,6 +109,68 @@ def _words(value: Any) -> set[str]:
 def _contains_any(text: str, tokens: Iterable[str]) -> list[str]:
     lower = text.lower()
     return [token for token in tokens if token.lower() in lower]
+
+
+
+
+def _truthy_evidence_flag(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value == 1
+    return str(value or "").strip().lower() in {"true", "yes", "1", "observed", "accepted", "allowed", "succeeded", "success"}
+
+
+def _explicit_flag(details: Mapping[str, Any], *names: str) -> str:
+    wanted = {re.sub(r"[^a-z0-9]", "", name.lower()): name for name in names}
+    stack: list[Any] = [details]
+    seen = 0
+    while stack and seen < 1500:
+        current = stack.pop(); seen += 1
+        if isinstance(current, Mapping):
+            for key, value in list(current.items())[:400]:
+                normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+                if normalized in wanted and _truthy_evidence_flag(value):
+                    return wanted[normalized]
+                if isinstance(value, (Mapping, list, tuple)):
+                    stack.append(value)
+        elif isinstance(current, (list, tuple)):
+            stack.extend(list(current)[:100])
+    return ""
+
+
+def _stored_contexts(details: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    raw = details.get("context_observations") or details.get("observations") or details.get("contexts")
+    if isinstance(raw, Mapping):
+        return [value for value in raw.values() if isinstance(value, Mapping)]
+    if isinstance(raw, list):
+        return [value for value in raw if isinstance(value, Mapping)]
+    return []
+
+
+def _header_maps(details: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    response: dict[str, str] = {}
+    request: dict[str, str] = {}
+    def absorb(value: Any, destination: dict[str, str]) -> None:
+        if isinstance(value, Mapping):
+            for key, item in value.items(): destination[str(key).strip().lower()] = str(item).strip()
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, str) and ":" in item:
+                    key, body = item.split(":", 1); destination[key.strip().lower()] = body.strip()
+    for key in ("headers", "response_headers", "headers_json", "new_headers", "current_headers"):
+        absorb(details.get(key), response)
+    for key in ("request_headers", "request_headers_json"):
+        absorb(details.get(key), request)
+    for key in ("new", "current", "after", "response"):
+        nested = details.get(key)
+        if isinstance(nested, Mapping):
+            for hkey in ("headers", "response_headers", "headers_json"): absorb(nested.get(hkey), response)
+    for key in ("request", "before_request"):
+        nested = details.get(key)
+        if isinstance(nested, Mapping):
+            for hkey in ("headers", "request_headers", "headers_json"): absorb(nested.get(hkey), request)
+    return response, request
 
 
 def _state(likelihood: int, evidence_strength: int) -> str:
@@ -203,6 +265,14 @@ def _insert_candidate(
 ) -> str:
     if family not in BUG_FAMILIES:
         raise ReconError(f"Unknown bug family: {family}")
+    admission = assess_admission(family, support, contradict)
+    if not admission["admitted"]:
+        record_hypothesis(
+            db, analysis_id=analysis_id, source_run_id=source_run_id, target=target, alert_id=alert_id, asset=asset,
+            endpoint=endpoint, source_ref=source_ref, family=family, variant=variant, support=support, contradict=contradict,
+            missing=missing, rule_ids=rule_ids, summary=summary,
+        )
+        return ""
     gate_adjustment, missing = _family_schema_gate(family, support, missing)
     likelihood = _clamp(likelihood + gate_adjustment)
     evidence_strength = _clamp(evidence_strength)
@@ -301,8 +371,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact_potential=_impact(impact if impact is not None else BUG_FAMILIES[family]["impact"], context, method),
             support=support, contradict=contradict, missing=missing, rule_ids=rules, summary=summary,
         )
-        mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
-        count += 1
+        if candidate_id:
+            mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
+            count += 1
 
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
@@ -347,6 +418,16 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         contradict = []
         if auth_hints:
             contradict.append({"type": "auth_hint", "source": "client", "weight": -4, "text": "Authentication hints are present, but server-side role enforcement is unknown"})
+        for observed in _stored_contexts(details):
+            status = parse_int(observed.get("status_code"), 0)
+            expected = observed.get("expected_access", observed.get("authorization_expected"))
+            role = str(observed.get("role") or observed.get("auth_state") or observed.get("context") or "").lower()
+            if expected is False and 200 <= status < 300:
+                support.append({"type": "unauthorized_function_response", "source": "stored_context", "source_group": "role_behavior", "weight": 30, "text": f"A stored context expected to be denied executed the privileged function successfully ({status})"})
+                if any(token in role for token in ("low", "user", "member", "viewer", "unpriv", "anonymous")):
+                    support.append({"type": "lower_privilege_success", "source": "stored_context", "source_group": "role_behavior", "weight": 28, "text": "A lower-privilege stored context successfully executed the privileged function"})
+            elif expected is False and status in {401, 403, 404}:
+                contradict.append({"type": "lower_privilege_denied", "source": "stored_context", "source_group": "role_behavior", "weight": -22, "text": f"The stored unauthorized/lower-privilege context was denied ({status})"})
         emit("broken_function_authorization", "role_boundary", 22, support, contradict,
              ["Expected role matrix", "Server-side permission enforcement", "Behavior for an authorized lower-privilege test role"],
              ["candidate-privileged-function", "candidate-role-boundary"],
@@ -361,6 +442,14 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         ]
         if object_ids:
             support.append({"type": "object_update", "source": "endpoint_schema", "weight": 8, "text": "The update is associated with an object identifier"})
+        for flag, signal, weight in (
+            ("privileged_property_accepted", "privileged_property_accepted", 30),
+            ("unauthorized_property_change", "unauthorized_property_change", 32),
+            ("property_authorization_differential", "property_authorization_differential", 28),
+            ("response_reflects_privileged_change", "response_reflects_privileged_change", 24),
+        ):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "property_behavior", "weight": weight, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
         emit("mass_assignment", "privileged_properties", 24, support, [],
              ["Server allow-list of writable fields", "Whether sensitive properties are ignored or rejected", "Expected property-level authorization"],
              ["candidate-write-schema", "candidate-privileged-property"],
@@ -381,6 +470,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              "The collected endpoint and client context expose an authentication or session lifecycle that warrants controlled review.")
         if any(token in haystack for token in ("forgot", "reset", "recover", "lookup", "check-email", "username")):
             enum_support = support[:2] + [{"type": "identity_lookup", "source": "semantic", "weight": 12, "text": "The flow appears to accept an account identity or recovery identifier"}]
+            for flag, signal in (("response_difference", "response_difference"), ("timing_difference", "timing_difference"), ("distinct_error", "distinct_error"), ("account_existence_differential", "account_existence_differential")):
+                if _explicit_flag(details, flag):
+                    enum_support.append({"type": signal, "source": "stored_behavior", "source_group": "enumeration_behavior", "weight": 24, "text": f"Stored controlled-account evidence records {signal.replace('_', ' ')}"})
             emit("account_enumeration", "identity_response_difference", 15, enum_support, [],
                  ["Response-shape consistency for test identities", "Timing consistency", "Rate limiting"],
                  ["candidate-recovery-identity", "candidate-response-difference"],
@@ -394,6 +486,11 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             {"type": "redirect_parameter", "source": "endpoint_schema", "weight": 18, "text": f"Navigation parameter markers observed: {', '.join(redirect_tokens[:5])}"},
             {"type": "navigation_context", "source": "client", "weight": 14, "text": "The value appears in a client or callback navigation context"},
         ]
+        if navigation or _explicit_flag(details, "navigation_sink", "redirect_response"):
+            support.append({"type": "navigation_sink", "source": "stored_flow", "source_group": "navigation", "weight": 16, "text": "Stored evidence identifies a navigation/redirect sink"})
+        for flag, signal in (("external_redirect_observed", "external_destination"), ("allowlist_bypass", "allowlist_bypass"), ("same_origin_bypass", "same_origin_bypass"), ("unrestricted_destination", "unrestricted_destination")):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "redirect_behavior", "weight": 26, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
         emit("open_redirect", "unvalidated_destination", 20, support, [],
              ["Destination allow-list or same-origin validation", "Whether the parameter reaches the final navigation sink"],
              ["candidate-redirect-parameter", "candidate-navigation-context"],
@@ -405,8 +502,11 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     if ssrf_tokens or generic_url_fields:
         support = [
             {"type": "remote_destination", "source": "schema", "weight": 18, "text": f"Remote destination input observed: {', '.join((ssrf_tokens + generic_url_fields)[:6])}"},
-            {"type": "server_feature", "source": "semantic", "weight": 12, "text": "Import, preview, proxy, callback or webhook semantics may involve server-side fetching"},
+            {"type": "server_feature", "source": "semantic", "weight": 8, "text": "Import, preview, proxy, callback or webhook semantics may involve server-side fetching; execution location is not assumed"},
         ]
+        for flag, signal in (("server_fetch_observed", "server_fetch_observed"), ("backend_fetch", "backend_fetch"), ("webhook_delivery_observed", "webhook_delivery_observed"), ("remote_import_fetch", "remote_import_fetch")):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "server_fetch", "weight": 30, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
         contradict = [{"type": "execution_location", "source": "missing", "weight": -8, "text": "The evidence does not establish whether the browser or server performs the request"}]
         emit("ssrf", "remote_fetch", 20, support, contradict,
              ["Whether the server performs the outbound request", "Destination validation and scheme restrictions", "Network egress policy"],
@@ -454,6 +554,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             support.append({"type": "import_operation", "source": "endpoint", "weight": 18, "text": f"{method} operation is tied to an import route"})
         if write_method:
             support.append({"type": "write_method", "source": "method", "weight": 5, "text": f"State-changing method observed: {method}"})
+        for flag, signal in (("dangerous_type_accepted", "dangerous_type_accepted"), ("content_type_mismatch_accepted", "content_type_mismatch_accepted"), ("active_content_served", "active_content_served"), ("unsafe_storage", "unsafe_storage"), ("executable_upload", "executable_upload"), ("filename_control_reaches_storage", "filename_control_reaches_storage"), ("upload_validation_bypass", "upload_validation_bypass")):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "upload_behavior", "weight": 28, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
         emit("file_upload", "file_validation", 18, support, [],
              ["Allowed file types and size", "Storage and serving behavior", "Server-generated filenames and content disposition"],
              ["candidate-file-surface", "candidate-file-validation", "admission-file-input-operation"],
@@ -482,6 +585,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         explicit_file_operation = download_route or archive_route or upload_route or import_route
         if explicit_file_operation and method in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
             path_support.append({"type": "file_operation", "source": "endpoint_contract", "weight": 10, "text": "Endpoint semantics identify an explicit file-related operation"})
+        for flag, signal in (("filesystem_path_reachability", "filesystem_path_reachability"), ("path_escape_observed", "path_escape_observed"), ("canonicalization_bypass", "canonicalization_bypass"), ("base_directory_escape", "base_directory_escape"), ("archive_entry_escape", "archive_entry_escape"), ("path_join_user_controlled", "path_join_user_controlled")):
+            if _explicit_flag(details, flag):
+                path_support.append({"type": signal, "source": "stored_behavior", "source_group": "filesystem_behavior", "weight": 30, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
         emit("path_traversal", "path_construction", 16, path_support, [],
              ["Path canonicalization", "Base-directory enforcement", "Whether user-controlled path data reaches filesystem APIs"],
              ["candidate-path-input", "candidate-file-path", "admission-path-input-operation"],
@@ -500,20 +606,33 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              "Sensitive, debug or internal metadata may be exposed; public reachability and sensitivity remain unverified.")
 
     headers_text = json_dumps(details).lower()
-    if "access-control-allow-origin" in headers_text and ("*" in headers_text or "origin" in headers_text):
-        support = [
-            {"type": "cors_header", "source": "http_headers", "weight": 18, "text": "CORS response-header evidence is present"},
-            {"type": "sensitive_context", "source": "context", "weight": 10, "text": f"The endpoint is associated with {context.replace('_',' ')} context"},
-        ]
+    response_headers, request_headers = _header_maps(details)
+    acao = response_headers.get("access-control-allow-origin", "").strip()
+    acac = response_headers.get("access-control-allow-credentials", "").strip().lower()
+    request_origin = request_headers.get("origin", "").strip()
+    reflected = bool(request_origin and acao and acao == request_origin and _explicit_flag(details, "origin_reflection_observed", "reflected_origin"))
+    wildcard = acao == "*"
+    null_origin = acao.lower() == "null" and _explicit_flag(details, "null_origin_accepted")
+    if wildcard or reflected or null_origin:
+        support = [{"type": "cors_header", "source": "http_headers", "weight": 10, "text": f"Access-Control-Allow-Origin observed as {acao!r}"}]
+        if wildcard: support.append({"type": "wildcard_origin", "source": "http_headers", "source_group": "cors_policy", "weight": 18, "text": "Wildcard ACAO policy observed"})
+        if reflected: support.append({"type": "reflected_origin", "source": "stored_behavior", "source_group": "cors_policy", "weight": 22, "text": "Stored target evidence records request-origin reflection"})
+        if null_origin: support.append({"type": "null_origin_accepted", "source": "stored_behavior", "source_group": "cors_policy", "weight": 22, "text": "Stored target evidence records null-origin acceptance"})
+        if acac == "true": support.append({"type": "credentials_allowed", "source": "http_headers", "source_group": "cors_credentials", "weight": 24, "text": "Access-Control-Allow-Credentials: true observed"})
+        if _explicit_flag(details, "sensitive_cross_origin_response"):
+            support.append({"type": "sensitive_cross_origin_response", "source": "stored_behavior", "source_group": "cors_exposure", "weight": 28, "text": "Stored target evidence records sensitive cross-origin response readability"})
         emit("cors_misconfiguration", "origin_policy", 18, support, [],
-             ["Exact allowed-origin value", "Credential behavior", "Whether sensitive response data is readable cross-origin"],
-             ["candidate-cors-header", "candidate-sensitive-cors"],
-             "CORS headers on a security-relevant endpoint may permit an unintended origin; exact credential and origin behavior require review.")
+             ["Exact origin allow-list policy", "Credential behavior", "Whether sensitive response data is readable cross-origin"],
+             ["candidate-cors-header", "admission-cors-origin-exposure"],
+             "An unsafe CORS origin pattern is retained; promotion requires credentialed or sensitive cross-origin exposure evidence.")
     if "cache-control" in headers_text and context in SENSITIVE_CONTEXTS and any(token in headers_text for token in ("public", "s-maxage", "max-age")):
         support = [
             {"type": "cache_header", "source": "http_headers", "weight": 18, "text": "Cacheable response directives were observed"},
             {"type": "sensitive_context", "source": "context", "weight": 14, "text": f"The response is associated with {context.replace('_',' ')} context"},
         ]
+        for flag, signal in (("shared_cache_risk", "shared_cache_risk"), ("missing_vary", "missing_vary"), ("cdn_cache", "cdn_cache"), ("cache_key_missing_auth_context", "cache_key_missing_auth_context")):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "cache_behavior", "weight": 24, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
         emit("sensitive_caching", "cache_policy", 20, support, [],
              ["Authentication context", "Cache key and Vary behavior", "Whether response content is user-specific"],
              ["candidate-cache-header", "candidate-sensitive-response"],
@@ -526,6 +645,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             {"type": "workflow_markers", "source": "semantic", "weight": 12, "text": f"Business workflow markers observed: {', '.join(business_tokens[:7])}"},
             {"type": "stateful_operation", "source": "method", "weight": 8, "text": f"The workflow is associated with {method} or client-visible state transitions"},
         ]
+        for flag, signal in (("workflow_invariant_violation", "workflow_invariant_violation"), ("value_constraint_bypass", "value_constraint_bypass"), ("invalid_transition_accepted", "invalid_transition_accepted"), ("server_calculation_mismatch", "server_calculation_mismatch"), ("business_rule_bypass", "business_rule_bypass")):
+            if _explicit_flag(details, flag):
+                support.append({"type": signal, "source": "stored_behavior", "source_group": "business_behavior", "weight": 28, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
         emit("business_logic", "workflow_invariant", 12, support, [],
              ["Intended workflow and invariants", "Server-side value calculation", "Allowed transition order"],
              ["candidate-business-workflow", "candidate-state-invariant"],
@@ -533,6 +655,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         race_tokens = [x for x in business_tokens if x in {"redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund"}]
         if race_tokens:
             support2 = support + [{"type": "single_use_semantics", "source": "semantic", "weight": 10, "text": f"Potential single-use or balance-changing actions observed: {', '.join(race_tokens)}"}]
+            for flag, signal in (("duplicate_effect_observed", "duplicate_effect_observed"), ("atomicity_failure", "atomicity_failure"), ("concurrency_invariant_violation", "concurrency_invariant_violation"), ("double_spend_observed", "double_spend_observed")):
+                if _explicit_flag(details, flag):
+                    support2.append({"type": signal, "source": "stored_behavior", "source_group": "concurrency_behavior", "weight": 32, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
             emit("race_condition", "duplicate_operation", 10, support2, [],
                  ["Idempotency key or transaction guard", "Atomic state transition behavior", "Whether the action is intended to be single-use"],
                  ["candidate-single-use-operation", "candidate-idempotency"],
@@ -555,9 +680,11 @@ def _static_candidates(db: Database, analysis_id: str, run_id: str, target: str 
         source = str(row["source_kind"]); sink = str(row["sink_kind"]); current_target = str(row["target"]); js_url = str(row["js_url"])
         confidence = parse_int(row["confidence"], 0)
         support = [
-            {"type": "dataflow_source", "source": "javascript_dataflow", "weight": 20, "text": f"User-influenced source observed: {source}"},
-            {"type": "dataflow_sink", "source": "javascript_sink", "weight": 24, "text": f"Sensitive sink observed in nearby static flow: {sink}"},
+            {"type": "source_sink", "source": "javascript_dataflow", "source_group": "static_flow", "weight": 18, "text": f"Static source/sink proximity observed: {source} -> {sink}"},
         ]
+        if sink in {"innerHTML", "eval"}: support.append({"type": "dangerous_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 20, "text": f"Dangerous DOM/JS sink observed: {sink}"})
+        if sink == "navigation": support.append({"type": "navigation_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 18, "text": "Navigation sink observed in static flow"})
+        if source == "postMessage": support.append({"type": "postmessage_handler", "source": "javascript_dataflow", "source_group": "message_source", "weight": 16, "text": "postMessage-controlled source observed"})
         contradict = [{"type": "static_only", "source": "analysis_limit", "weight": -8, "text": "Static proximity does not prove runtime reachability or missing sanitization"}]
         missing = ["Runtime reachability", "Sanitization or encoding behavior", "Whether the value is transformed before the sink"]
         family = ""
@@ -608,9 +735,12 @@ def _static_candidates(db: Database, analysis_id: str, run_id: str, target: str 
             {"type": "secret_pattern", "source": "secret_intelligence", "weight": 26, "text": f"A redacted {row['secret_kind']} pattern was detected in production JavaScript"},
             {"type": "context", "source": "javascript", "weight": 10, "text": "The candidate was found in client-delivered code and stored only as a fingerprint"},
         ]
+        support.append({"type": "production_javascript", "source": "javascript", "source_group": "client_context", "weight": 10, "text": "The secret-like material was observed in client-delivered JavaScript"})
         contradict = []
         if assessment == "likely_placeholder":
             contradict.append({"type": "placeholder", "source": "secret_intelligence", "weight": -24, "text": "Context suggests an example, test or placeholder value"})
+        else:
+            support.append({"type": "non_placeholder_secret", "source": "secret_intelligence", "source_group": "secret_assessment", "weight": 18, "text": "Secret intelligence did not classify the redacted value as a known placeholder"})
         _insert_candidate(db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint=str(row["js_url"]), source_ref=f"secret:{row['js_url']}:{row['value_fingerprint']}", family="secret_exposure", variant=str(row["secret_kind"]), likelihood=_clamp(24 + confidence * 0.5 + sum(parse_int(x.get("weight"),0) for x in contradict)), evidence_strength=_evidence_strength(confidence, support, contradict, direct=True), impact_potential=90, support=support, contradict=contradict, missing=["Whether the value is live or a placeholder", "Intended exposure and privilege", "Rotation or revocation status"], rule_ids=["candidate-secret-pattern", "candidate-client-secret"], summary="A redacted credential- or token-like value may be exposed in client-delivered JavaScript; validity has not been tested.")
         count += 1
 
@@ -652,7 +782,9 @@ def generate_bug_candidates(db: Database, analysis_id: str, run_id: str, target:
         tuple(params),
     )
     alert_candidates = sum(_alert_candidates(db, analysis_id, run_id, dict(row)) for row in rows)
-    static_candidates = _static_candidates(db, analysis_id, run_id, target)
+    _static_candidates(db,analysis_id,run_id,target)
+    static_row = db.one("SELECT COUNT(*) count FROM bug_candidates WHERE analysis_id=? AND alert_id IS NULL", (analysis_id,))
+    static_candidates = int(static_row["count"] if static_row else 0)
     summary_rows = db.all(
         "SELECT bug_family,candidate_state,COUNT(*) count,ROUND(AVG(likelihood_score),1) avg_likelihood,ROUND(AVG(evidence_strength),1) avg_evidence,ROUND(AVG(impact_potential),1) avg_impact FROM bug_candidates WHERE analysis_id=? GROUP BY bug_family,candidate_state ORDER BY count DESC",
         (analysis_id,),

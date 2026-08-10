@@ -52,6 +52,7 @@ class ProductPlatformV50Tests(unittest.TestCase):
             db.execute("INSERT INTO stage_runs(run_id,target,stage,status,attempt,started_at,finished_at,heartbeat_at,metrics_json) VALUES(?,?,?,?,1,?,?,?,?)", ("run50", "example.com", stage, "success", now, now, now, json.dumps({"records": 1})))
         details = {
             "status_code": 200, "method": "PATCH", "authentication": "bearer",
+            "request_tenant_id": "tenant-a", "object_tenant_id": "tenant-b",
             "body_fields": ["displayName", "role", "isAdmin", "tenantId", "userId"],
             "path_parameters": ["tenantId", "userId"],
             "endpoint_classification": {"primary_category": "admin", "confidence": 96},

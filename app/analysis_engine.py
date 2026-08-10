@@ -18,8 +18,8 @@ from behavioral_intelligence import generate_behavioral_candidates, generate_beh
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
 
-ENGINE_VERSION = "5.2.0"
-RULE_VERSION = "2026.08.8.5"
+ENGINE_VERSION = "6.0.0"
+RULE_VERSION = "2026.08.10.6.0"
 
 RULES: dict[str, dict[str, Any]] = {
     "evidence-public-200": {"weight": 8, "description": "Public HTTP 200 observation"},
@@ -404,7 +404,7 @@ def _temporal(alert: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _scan_js_intelligence(paths: AppPaths, db: Database, run_id: str, target: str, analysis_id: str) -> dict[str, int]:
-    rows = db.all("SELECT url,blob_path,source_map_url,raw_hash FROM js_files WHERE target=? AND (last_run_id=? OR last_changed IS NOT NULL) ORDER BY last_seen DESC LIMIT 500", (target, run_id))
+    rows = db.all("SELECT url,blob_path,source_map_url,raw_hash FROM js_files WHERE target=? AND last_run_id=? ORDER BY last_seen DESC LIMIT 500", (target, run_id))
     flow_count = secret_count = source_map_count = 0
     source_patterns = {
         "location.search": re.compile(r"location\.search|URLSearchParams", re.I),

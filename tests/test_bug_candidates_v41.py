@@ -46,8 +46,13 @@ class BugCandidateV41Tests(unittest.TestCase):
                 rows = db.all("SELECT * FROM bug_candidates WHERE analysis_id=? AND alert_id=?", (result['analysis_id'], alert_id))
                 families = {str(row['bug_family']) for row in rows}
                 self.assertIn('broken_object_authorization', families)
-                self.assertIn('broken_function_authorization', families)
-                self.assertIn('mass_assignment', families)
+                self.assertNotIn('broken_function_authorization', families)
+                self.assertNotIn('mass_assignment', families)
+                hidden = {str(row['bug_family']): str(row['state']) for row in db.all("SELECT bug_family,state FROM analysis_hypotheses WHERE analysis_id=?", (result['analysis_id'],))}
+                self.assertIn('broken_function_authorization', hidden)
+                self.assertIn('mass_assignment', hidden)
+                self.assertNotEqual(hidden['broken_function_authorization'], 'promoted')
+                self.assertNotEqual(hidden['mass_assignment'], 'promoted')
                 bola = next(row for row in rows if row['bug_family'] == 'broken_object_authorization')
                 self.assertLessEqual(int(bola['likelihood_score']), 100)
                 self.assertIn(str(bola['candidate_state']), {'possible', 'plausible', 'strong_candidate'})
@@ -66,10 +71,12 @@ class BugCandidateV41Tests(unittest.TestCase):
                     (result['analysis_id'], 'example.com', 'run-candidate', 'https://example.com/app.js', 'location.search', 'innerHTML', 78, 'value -> innerHTML', utc_now()),
                 )
                 summary = generate_bug_candidates(db, result['analysis_id'], 'run-candidate', 'example.com')
-                self.assertGreater(summary['from_static_intelligence'], 0)
+                self.assertEqual(summary['from_static_intelligence'], 0)
                 row = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'", (result['analysis_id'],))
-                self.assertIsNotNone(row)
-                self.assertIn('runtime', str(row['missing_evidence_json']).lower())
+                self.assertIsNone(row)
+                hidden = db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'", (result['analysis_id'],))
+                self.assertIsNotNone(hidden)
+                self.assertFalse(json.loads(hidden['admission_json'])['admitted'])
             finally:
                 db.close()
 

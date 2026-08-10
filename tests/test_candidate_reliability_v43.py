@@ -25,6 +25,8 @@ class CandidateReliabilityV43Tests(unittest.TestCase):
         )
         details = {
             "status_code": 200,
+            "request_tenant_id": "tenant-a",
+            "object_tenant_id": "tenant-b",
             "method": "PATCH",
             "body_fields": ["displayName", "role", "isAdmin", "tenantId", "userId"],
             "authentication": "bearer",

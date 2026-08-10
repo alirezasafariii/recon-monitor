@@ -7,8 +7,8 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
 
-ADMISSION_ENGINE_VERSION = "1.1.0"
-ADMISSION_RULE_VERSION = "2026.08.8.5"
+ADMISSION_ENGINE_VERSION = "2.0.0"
+ADMISSION_RULE_VERSION = "2026.08.10.6.0"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
@@ -98,6 +98,74 @@ KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
     ],
 }
 
+# Analysis 6.0 expands the knowledge map to the families that previously relied
+# mostly on generic scoring. These references are explanatory context only.
+KNOWLEDGE_REFERENCES.update({
+    "broken_function_authorization": [{
+        "source": "OWASP API Security Top 10", "ref": "API5:2023 Broken Function Level Authorization",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/",
+        "principle": "A privileged-looking route is an attack surface; a candidate needs evidence that an unauthorized or lower-privilege identity can execute the protected function.",
+    }],
+    "mass_assignment": [{
+        "source": "OWASP API Security Top 10", "ref": "API3:2023 Broken Object Property Level Authorization",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/",
+        "principle": "Client-visible privileged properties are only a surface; the server must accept, return, or apply a property outside the caller's permitted property set.",
+    }],
+    "account_enumeration": [{
+        "source": "OWASP WSTG", "ref": "Account Enumeration",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/",
+        "principle": "Enumeration depends on an observable response, error, or timing differential between controlled existing and non-existing identities.",
+    }],
+    "dom_xss": [{
+        "source": "OWASP WSTG", "ref": "Testing for DOM-based Cross Site Scripting",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/01-Testing_for_DOM-based_Cross_Site_Scripting",
+        "principle": "Source/sink proximity is a clue; a candidate needs a traceable user-controlled flow into an executable/HTML sink with runtime or sanitization evidence.",
+    }],
+    "postmessage_trust": [{
+        "source": "OWASP WSTG", "ref": "Testing Web Messaging",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/",
+        "principle": "A message handler becomes a candidate when attacker-controllable messages reach sensitive behavior without strict origin/source/schema validation.",
+    }],
+    "open_redirect": [{
+        "source": "OWASP WSTG", "ref": "Testing for Client-side URL Redirect",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/04-Testing_for_Client-side_URL_Redirect",
+        "principle": "Redirect parameter names are not findings; the destination must be user controlled and able to reach an unintended external location or bypass destination restrictions.",
+    }, {
+        "source": "GitHub Security Lab", "ref": "GHSL-2025-121 / NocoDB",
+        "url": "https://securitylab.github.com/advisories/",
+        "principle": "A real redirect weakness includes an attacker-controlled external destination accepted without the expected origin/domain restriction.",
+    }],
+    "ssrf": [{
+        "source": "OWASP API Security Top 10", "ref": "API7:2023 Server Side Request Forgery",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/",
+        "principle": "SSRF requires both a user-controlled destination and evidence that the server performs or attempts the outbound request.",
+    }, {
+        "source": "GitHub Security Lab", "ref": "SSRF write-up pattern",
+        "url": "https://securitylab.github.com/advisories/",
+        "principle": "Real SSRF write-ups connect a controllable URL to a backend fetch primitive; URL-looking fields alone are insufficient.",
+    }],
+    "graphql_authorization": [{
+        "source": "OWASP API Security Top 10", "ref": "API1/API3 authorization principles applied to GraphQL",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0x00-toc/",
+        "principle": "GraphQL operations and IDs are authorization surfaces; resolver/object/role boundary failure is the decisive evidence.",
+    }],
+    "graphql_data_exposure": [{
+        "source": "OWASP API Security Top 10", "ref": "API3:2023 Broken Object Property Level Authorization",
+        "url": "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/",
+        "principle": "Sensitive GraphQL field names are not enough; the current role must actually receive fields outside the intended field policy.",
+    }],
+    "cors_misconfiguration": [{
+        "source": "OWASP WSTG", "ref": "Cross Origin Resource Sharing",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/",
+        "principle": "The presence of Access-Control-Allow-Origin is not a weakness; an unsafe origin policy must combine with credentialed or sensitive cross-origin exposure.",
+    }],
+    "business_logic": [{
+        "source": "OWASP WSTG", "ref": "Business Logic Testing",
+        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
+        "principle": "Business-operation names define hypotheses; a candidate needs an observed violation of a workflow, value, state, or authorization invariant.",
+    }],
+})
+
 # Admission is intentionally stricter than hypothesis generation. Signals that fail
 # admission remain persisted in analysis_hypotheses so recall is preserved.
 FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
@@ -105,53 +173,199 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
         "required": [
             {"object_identifier", "graphql_identifier"},
             {"object_operation", "graphql_operation"},
-            {
-                "cross_identity_object_access",
-                "cross_tenant_object_access",
-                "ownership_mismatch",
-                "parent_child_scope_mismatch",
-                "authorization_response_differential",
-                "object_access_without_secondary_guard",
-                "identity_object_relation_conflict",
-                "unauthorized_object_response",
-            },
+            {"cross_identity_object_access", "cross_tenant_object_access", "ownership_mismatch", "parent_child_scope_mismatch", "authorization_response_differential", "object_access_without_secondary_guard", "identity_object_relation_conflict", "unauthorized_object_response"},
         ],
         "min_independent_sources": 2,
-        "label": "object reference plus object operation plus object-level authorization-boundary evidence",
-        "blocking_contradictions": {
-            "ownership_enforcement_observed",
-            "cross_context_denied",
-            "scope_binding_observed",
-            "secondary_guard_enforced",
-        },
-        "override_signals": {
-            "cross_identity_object_access",
-            "cross_tenant_object_access",
-            "ownership_mismatch",
-            "parent_child_scope_mismatch",
-            "authorization_response_differential",
-            "object_access_without_secondary_guard",
-            "identity_object_relation_conflict",
-            "unauthorized_object_response",
-        },
+        "label": "object reference + operation + object-level authorization failure evidence",
+        "blocking_contradictions": {"ownership_enforcement_observed", "cross_context_denied", "scope_binding_observed", "secondary_guard_enforced"},
+        "override_signals": {"cross_identity_object_access", "cross_tenant_object_access", "ownership_mismatch", "parent_child_scope_mismatch", "authorization_response_differential", "object_access_without_secondary_guard", "identity_object_relation_conflict", "unauthorized_object_response"},
+    },
+    "broken_function_authorization": {
+        "required": [
+            {"privileged_function", "privileged_classification", "sensitive_operation"},
+            {"state_change", "role_property", "role_hint"},
+            {"lower_privilege_success", "unauthorized_function_response", "role_boundary_failure", "authorization_response_differential", "function_access_without_role", "role_boundary_regression"},
+        ],
+        "min_independent_sources": 2,
+        "label": "privileged function + role context + observed function-level authorization failure",
+        "blocking_contradictions": {"confirmed_role_enforcement", "lower_privilege_denied", "role_boundary_enforced"},
+    },
+    "mass_assignment": {
+        "required": [
+            {"write_method", "state_change"},
+            {"privileged_property", "privileged_fields", "privileged_contract_fields"},            {"privileged_property_accepted", "unauthorized_property_change", "property_authorization_differential", "response_reflects_privileged_change"},
+        ],
+        "min_independent_sources": 2,
+        "label": "writable privileged property + evidence the server accepted/applied it outside the property policy",
+        "blocking_contradictions": {"field_allowlist", "privileged_fields_removed", "privileged_property_rejected", "read_only_contract"},
+    },
+    "authentication_session": {
+        "required": [
+            {"authentication_surface", "authentication_semantic", "auth_boundary", "oauth_parameter", "token_storage", "authentication_boundary_regression"},
+            {"authentication_boundary_regression", "boundary_regression", "protected_to_public", "session_validation_failure", "token_rotation_failure", "missing_state", "token_exposure"},
+        ],
+        "min_independent_sources": 2,
+        "label": "authentication/session surface + observed control regression or lifecycle failure",
+        "blocking_contradictions": {"stable_boundary", "pkce_present", "state_present"},
+    },
+    "account_enumeration": {
+        "required": [
+            {"identity_lookup", "account_identifier", "identity_field"},
+            {"response_difference", "timing_difference", "distinct_error", "error_schema", "account_existence_differential"},
+        ],
+        "min_independent_sources": 2,
+        "label": "identity lookup + observable existing/non-existing account differential",
+        "blocking_contradictions": {"uniform_response", "generic_error"},
+    },
+    "dom_xss": {
+        "required": [
+            {"source_sink", "taint_flow"},
+            {"dangerous_sink", "html_sink", "javascript_sink"},
+            {"runtime_reachable_flow", "javascript_runtime", "reachable_route", "no_sanitizer"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled source-to-dangerous-sink flow with runtime/sanitization evidence",
+        "blocking_contradictions": {"recognized_sanitizer", "text_only_sink", "constant_value", "non_reachable"},
+    },
+    "postmessage_trust": {
+        "required": [
+            {"postmessage_handler", "message_source"},
+            {"message_sink", "sensitive_message_action", "dangerous_sink"},
+            {"missing_origin_check", "wildcard_origin", "missing_source_window_check", "message_schema_unvalidated"},
+        ],
+        "min_independent_sources": 2,
+        "label": "attacker-controllable message + sensitive action + missing origin/source/schema enforcement",
+        "blocking_contradictions": {"strict_origin_check", "source_window_check", "schema_validation"},
+    },
+    "open_redirect": {
+        "required": [
+            {"redirect_parameter", "user_controlled_destination", "source_sink"},
+            {"navigation_sink", "client_navigation", "redirect_response"},
+            {"external_url", "external_destination", "allowlist_bypass", "same_origin_bypass", "unrestricted_destination"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled destination + navigation sink + evidence an unintended external destination is accepted",
+        "blocking_contradictions": {"same_origin_only", "relative_path_only", "host_allowlist", "constant_value"},
+    },
+    "ssrf": {
+        "required": [
+            {"url_parameter", "remote_destination", "remote_resource"},
+            {"server_fetch_observed", "server_fetch_semantic", "server_request_function", "backend_fetch", "webhook_delivery_observed", "remote_import_fetch"},
+        ],
+        "min_independent_sources": 2,
+        "label": "user-controlled remote destination + evidence the server performs the outbound request",
+        "blocking_contradictions": {"browser_side_only", "relative_path_only", "host_allowlist", "predefined_destination"},
     },
     "file_upload": {
         "required": [
             {"file_input"},
             {"upload_operation", "import_operation"},
+            {"dangerous_type_accepted", "content_type_mismatch_accepted", "active_content_served", "unsafe_storage", "executable_upload", "filename_control_reaches_storage", "upload_validation_bypass"},
         ],
         "min_independent_sources": 2,
-        "label": "actual file input plus an upload/import operation",
+        "label": "actual file input + upload/import operation + observed unsafe file-handling behavior",
+        "blocking_contradictions": {"strict_type_allowlist", "inert_storage", "server_generated_filename", "upload_rejected"},
     },
     "path_traversal": {
         "required": [
             {"path_parameter", "filename_field", "storage_path"},
             {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
+            {"filesystem_path_reachability", "path_escape_observed", "canonicalization_bypass", "base_directory_escape", "archive_entry_escape", "path_join_user_controlled"},
         ],
         "min_independent_sources": 2,
-        "label": "user-influenced path/filename plus a file-system-relevant operation",
+        "label": "user-controlled path/filename + file operation + filesystem/confinement-failure evidence",
+        "blocking_contradictions": {"canonicalization", "fixed_directory", "opaque_file_id", "path_rejected"},
+    },
+    "information_disclosure": {
+        "required": [
+            {"sensitive_fields", "secret_pattern", "debug_information", "sensitive_marker", "sensitive_expansion"},
+            {"public_observation", "unauthorized_data_response", "protected_to_data", "error_to_data", "response_data"},
+        ],
+        "min_independent_sources": 2,
+        "label": "sensitive/debug material + observed response exposure in a public or unintended context",
+        "blocking_contradictions": {"redacted_only", "placeholder", "authentication_required", "intended_public"},
+    },
+    "graphql_authorization": {
+        "required": [
+            {"graphql_operation"},
+            {"graphql_identifier", "parameter_relation"},
+            {"cross_context", "authorization_response_differential", "unauthorized_object_response", "resolver_authorization_failure", "cross_identity_object_access", "cross_tenant_object_access"},
+        ],
+        "min_independent_sources": 2,
+        "label": "GraphQL object operation + identifier + resolver/object authorization failure evidence",
+        "blocking_contradictions": {"resolver_authorization", "cross_context_denied", "schema_only"},
+    },
+    "graphql_data_exposure": {
+        "required": [
+            {"graphql_operation", "client_operation"},
+            {"sensitive_fields", "nested_sensitive_fields"},
+            {"response_data", "field_expansion", "unauthorized_data_response", "cross_context", "sensitive_expansion"},
+        ],
+        "min_independent_sources": 2,
+        "label": "GraphQL sensitive fields + evidence those fields are actually exposed outside the intended field policy",
+        "blocking_contradictions": {"schema_only", "field_authorization", "minimal_projection"},
+    },
+    "websocket_authorization": {
+        "required": [
+            {"websocket_channel", "websocket_url", "subscribe_operation"},
+            {"object_identifier", "identity_relation", "room_identifier", "tenant_channel", "user_channel"},
+            {"unauthorized_subscription", "cross_context", "channel_authorization_failure", "message_received_outside_scope"},
+        ],
+        "min_independent_sources": 2,
+        "label": "channel/object surface + identity scope + observed subscription/message authorization failure",
+        "blocking_contradictions": {"channel_authorization", "authenticated_handshake", "cross_context_denied"},
+    },
+    "cors_misconfiguration": {
+        "required": [
+            {"wildcard_origin", "reflected_origin", "null_origin_accepted", "unsafe_origin_policy"},
+            {"credentials_allowed", "sensitive_cross_origin_response", "authenticated_context"},
+        ],
+        "min_independent_sources": 2,
+        "label": "unsafe CORS origin policy + credentialed or sensitive cross-origin exposure",
+        "blocking_contradictions": {"strict_origin_allowlist", "credentials_disabled", "public_intended"},
+    },
+    "sensitive_caching": {
+        "required": [
+            {"cache_header", "public_cache", "cacheable_response_context"},
+            {"sensitive_fields", "authenticated_context", "response_data", "sensitive_context"},
+            {"shared_cache_risk", "missing_vary", "cdn_cache", "cache_key_missing_auth_context"},
+        ],
+        "min_independent_sources": 2,
+        "label": "cacheable response + sensitive/authenticated data + shared-cache isolation weakness",
+        "blocking_contradictions": {"no_store", "private_cache", "vary_authorization"},
+    },
+    "business_logic": {
+        "required": [
+            {"business_operation", "workflow_transition", "state_change", "stateful_operation"},
+            {"workflow_invariant_violation", "value_constraint_bypass", "invalid_transition_accepted", "server_calculation_mismatch", "business_rule_bypass"},
+        ],
+        "min_independent_sources": 2,        "label": "business operation + observed violation of the intended workflow/value/state invariant",
+        "blocking_contradictions": {"state_machine_enforced", "server_side_calculation_enforced", "read_only_contract"},
+    },
+    "race_condition": {
+        "required": [
+            {"state_change", "stateful_operation"},
+            {"single_use_operation", "balance_operation", "duplicate_operation", "single_use_semantics"},
+            {"duplicate_effect_observed", "atomicity_failure", "concurrency_invariant_violation", "double_spend_observed"},
+        ],
+        "min_independent_sources": 2,
+        "label": "state-changing single-use/balance operation + observed duplicate or atomicity failure",
+        "blocking_contradictions": {"idempotency_control", "transaction_lock", "duplicate_rejected"},
+    },
+    "source_map_exposure": {
+        "required": [{"source_map"}, {"internal_sources", "source_contents"}, {"public_observation", "direct_reachability"}],
+        "min_independent_sources": 2,
+        "label": "source map + meaningful source content + verified public reachability",
+        "blocking_contradictions": {"non_reachable", "empty_map", "intended_public"},
+    },
+    "secret_exposure": {
+        "required": [{"secret_pattern"}, {"production_javascript", "client_operation", "javascript_runtime"}, {"high_entropy_value", "credential_context", "token_exposure", "non_placeholder_secret"}],
+        "min_independent_sources": 2,
+        "label": "secret-like material in production client context + evidence it is non-placeholder credential material",
+        "blocking_contradictions": {"placeholder", "example_value", "redacted_only"},
     },
 }
+
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -211,7 +425,7 @@ def assess_admission(
             "independent_sources": len(sources),
             "decisive_signals": sorted(types),
             "blocking_contradictions": [],
-            "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
+            "reason": "No Analysis 6.0 admission policy is defined for this family; the existing family-specific reasoning gate remains authoritative.",
             "knowledge_references": knowledge_for_family(family),
         }
 
@@ -240,7 +454,7 @@ def assess_admission(
         reason = f"Retained as a hidden hypothesis because stored target evidence supports enforcement: {', '.join(blocking)}."
     elif satisfied:
         state = "shadow_partial"
-        reason = f"Retained as a hidden hypothesis: partial evidence for {policy.get('label')}."
+        reason = f"Retained as a hidden hypothesis: attack-surface/partial evidence exists for {policy.get('label')}, but decisive vulnerability-condition evidence is incomplete."
     else:
         state = "shadow_signal"
         reason = f"Retained as a hidden hypothesis: no decisive family-specific evidence yet for {policy.get('label')}."

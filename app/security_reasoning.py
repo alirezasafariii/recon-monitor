@@ -12,8 +12,8 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "5.2.1"
-REASONING_RULE_VERSION = "2026.08.8.4"
+REASONING_ENGINE_VERSION = "6.0.0"
+REASONING_RULE_VERSION = "2026.08.10.6.0"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -54,7 +54,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "mass_assignment": {
         "label": "Mass Assignment / Property Authorization",
-        "required": [{"write_method", "state_change"}, {"privileged_fields", "body_schema", "input_fields"}],
+        "required": [{"write_method", "state_change"}, {"privileged_property", "privileged_fields", "privileged_contract_fields", "body_schema", "input_fields"}],
         "support": {"endpoint_contract", "role_property", "identity_property", "client_controlled"},
         "contradict": {"field_allowlist", "privileged_fields_removed", "read_only_contract"},
         "unknowns": ["Server-side accepted-field allowlist", "Whether privileged fields are writable", "Object property authorization behavior"],
@@ -71,7 +71,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     "dom_xss": {
         "label": "DOM-based XSS",
         "rank_gate": {"source_sink", "dangerous_sink"},
-        "required": [{"source_sink"}, {"reachable_route", "javascript_runtime", "semantic_unit"}],
+        "required": [{"source_sink", "taint_flow"}, {"dangerous_sink", "html_sink", "javascript_sink"}, {"runtime_reachable_flow", "reachable_route", "javascript_runtime", "semantic_unit", "no_sanitizer"}],
         "support": {"dangerous_sink", "user_controlled_source", "no_sanitizer", "html_context"},
         "contradict": {"recognized_sanitizer", "text_only_sink", "constant_value", "non_reachable"},
         "unknowns": ["Runtime reachability of the source-to-sink flow", "Encoding or sanitization applied before the sink", "Exact browser execution context"],
@@ -89,7 +89,7 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     "ssrf": {
         "label": "Server-side Request Forgery Candidate",
         "rank_gate": {"server_fetch_semantic", "server_request_function", "webhook_operation"},
-        "required": [{"url_parameter", "remote_resource"}, {"server_fetch_semantic", "server_request_function", "webhook_operation"}],
+        "required": [{"url_parameter", "remote_destination", "remote_resource"}, {"server_fetch_observed", "server_fetch_semantic", "server_request_function", "backend_fetch", "webhook_operation", "webhook_delivery_observed", "remote_import_fetch"}],
         "support": {"preview_operation", "remote_import", "pdf_from_url", "backend_fetch"},
         "contradict": {"browser_side_only", "relative_path_only", "host_allowlist", "predefined_destination"},
         "unknowns": ["Whether the server performs the request", "Destination allowlist and network restrictions", "Redirect and DNS resolution behavior"],

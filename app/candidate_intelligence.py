@@ -228,7 +228,7 @@ def generate_semantic_intelligence(paths: AppPaths, db: Database, analysis_id: s
                 ); counts["response_shapes"] += 1
 
         # Semantic JS units and feature flags.
-        js_rows = db.all("SELECT url,blob_path FROM js_files WHERE target=? AND (last_run_id=? OR last_changed IS NOT NULL) ORDER BY last_seen DESC LIMIT 500", (target, run_id))
+        js_rows = db.all("SELECT url,blob_path FROM js_files WHERE target=? AND last_run_id=? ORDER BY last_seen DESC LIMIT 500", (target, run_id))
         for js in js_rows:
             path = Path(str(js["blob_path"] or ""))
             if not path.exists():

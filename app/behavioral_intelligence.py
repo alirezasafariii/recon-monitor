@@ -10,8 +10,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-BEHAVIORAL_ENGINE_VERSION = "5.0.0"
-BEHAVIORAL_RULE_VERSION = "2026.08.7"
+BEHAVIORAL_ENGINE_VERSION = "6.0.0"
+BEHAVIORAL_RULE_VERSION = "2026.08.10.6.0"
 
 PROTECTED_BOUNDARIES = {
     "authentication_required", "session_required", "bearer_required", "api_key_required",
@@ -49,11 +49,12 @@ def _latest_previous_analysis(db: Database, analysis_id: str, target: str) -> st
         FROM analysis_runs ar
         JOIN analysis_results r ON r.analysis_id=ar.id
         WHERE ar.status='success' AND ar.id<>? AND r.target=?
+          AND COALESCE(ar.source_run_id,'') <> COALESCE((SELECT source_run_id FROM analysis_runs WHERE id=?),'')
         GROUP BY ar.id
         ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC
         LIMIT 1
         """,
-        (analysis_id, target),
+        (analysis_id, target, analysis_id),
     )
     return str(row["id"]) if row else ""
 
@@ -482,6 +483,7 @@ def generate_behavioral_candidates(db: Database, analysis_id: str, run_id: str) 
         endpoint = str(row["endpoint"])
         support = [
             {"type": "authentication_boundary_regression", "source": "behavioral_diff", "source_group": "behavioral_boundary", "weight": 30, "text": f"Stored boundary changed from {row['previous_boundary']} to {row['current_boundary']}"},
+            {"type": "boundary_regression", "source": "behavioral_diff", "source_group": "behavioral_boundary", "weight": 28, "text": "A protected authentication boundary became more permissive across different source runs"},
             {"type": "cross_run_confirmation", "source": "analysis_history", "source_group": "temporal", "weight": 14, "text": f"The transition was observed across analysis runs {row['previous_analysis_id']} and {analysis_id}"},
         ]
         _insert_candidate(
@@ -507,8 +509,10 @@ def generate_behavioral_candidates(db: Database, analysis_id: str, run_id: str) 
             {"type": "structural_response_diff", "source": "behavioral_diff", "source_group": "response_shape", "weight": 24, "text": f"Stored response shape transition: {row['transition']}"},
             {"type": "cross_run_confirmation", "source": "analysis_history", "source_group": "temporal", "weight": 12, "text": "The structural change was calculated across two stored analysis runs"},
         ]
+        if str(row["transition"]) in {"protected_to_data", "error_to_data", "sensitive_expansion"}:
+            support.append({"type": str(row["transition"]), "source": "behavioral_diff", "source_group": "response_transition", "weight": 24, "text": f"Stored response transition is {row['transition']}"})
         if sensitive:
-            support.append({"type": "sensitive_fields_added", "source": "response_shape", "source_group": "sensitive_shape", "weight": 20, "text": f"Sensitive-looking fields appeared: {', '.join(map(str, sensitive[:8]))}"})
+            support.append({"type": "sensitive_fields", "source": "response_shape", "source_group": "sensitive_shape", "weight": 20, "text": f"Sensitive-looking fields appeared: {', '.join(map(str, sensitive[:8]))}"})
         _insert_candidate(
             db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint=endpoint,
             source_ref=f"shape-diff:{analysis_id}:{sha256_text(endpoint)[:12]}", family="information_disclosure", variant=str(row["transition"]),

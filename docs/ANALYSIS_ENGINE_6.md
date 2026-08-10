@@ -1,50 +1,4 @@
-            {"type": "redirect_parameter", "source": "schema"},
-            {"type": "navigation_sink", "source": "javascript"},
-        ])
-
-    def test_open_redirect_external_destination_is_decisive(self):
-        self.assert_admitted("open_redirect", [
-            {"type": "redirect_parameter", "source": "schema"},
-            {"type": "navigation_sink", "source": "javascript"},
-            {"type": "external_destination", "source": "stored_behavior"},
-        ])
-
-    def test_file_upload_surface_does_not_promote(self):
-        self.assert_hidden("file_upload", [
-            {"type": "file_input", "source": "schema"},
-            {"type": "upload_operation", "source": "endpoint"},
-        ])
-
-    def test_path_download_surface_does_not_promote(self):
-        self.assert_hidden("path_traversal", [
-            {"type": "filename_field", "source": "schema"},
-            {"type": "download_operation", "source": "endpoint"},
-        ])
-
-    def test_graphql_id_is_surface_only(self):
-        self.assert_hidden("graphql_authorization", [
-            {"type": "graphql_operation", "source": "graphql"},
-            {"type": "graphql_identifier", "source": "graphql"},
-        ])
-
-    def test_cors_header_alone_is_not_a_candidate(self):
-        self.assert_hidden("cors_misconfiguration", [
-            {"type": "wildcard_origin", "source": "headers"},
-        ])
-
-    def test_business_terms_are_watchlist_only(self):
-        self.assert_hidden("business_logic", [
-            {"type": "business_operation", "source": "semantic"},
-            {"type": "state_change", "source": "method"},
-        ])
-
-
-if __name__ == "__main__":
-    unittest.main()
-''', encoding="utf-8")
-
-# Documentation for the new contract.
-(ROOT / "docs/ANALYSIS_ENGINE_6.md").write_text(r'''# Analysis Engine 6.0 — vulnerability-condition admission
+# Analysis Engine 6.0 — vulnerability-condition admission
 
 Analysis Engine 6.0 separates **attack-surface discovery** from **Potential Finding admission** across the main vulnerability families.
 
@@ -70,6 +24,3 @@ Key changes:
 - DOM/static JavaScript proximity remains a hypothesis until runtime/flow/sanitization evidence exists.
 
 Current-projection correctness also changes: JavaScript intelligence is restricted to files observed in the source run, and behavioral diffs compare different source runs so replaying one run with a new engine cannot masquerade as target drift.
-''', encoding="utf-8")
-
-print("Analysis Engine 6.0 patch applied")
