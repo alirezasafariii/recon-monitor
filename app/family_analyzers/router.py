@@ -7,13 +7,15 @@ from typing import Any
 from family_reasoning import FAMILY_ORDER
 
 from .base import FamilyAnalyzer
+from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.0.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "1.1.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
+    "broken_function_authorization": BflaFamilyAnalyzer,
 }
 
 
