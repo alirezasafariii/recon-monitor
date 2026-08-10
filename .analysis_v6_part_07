@@ -1,0 +1,111 @@
+text = replace_once(text, 'REASONING_RULE_VERSION = "2026.08.8.4"', 'REASONING_RULE_VERSION = "2026.08.10.6.0"', "reasoning rule version")
+text = replace_once(
+    text,
+    '"required": [{"write_method", "state_change"}, {"privileged_fields", "body_schema", "input_fields"}],',
+    '"required": [{"write_method", "state_change"}, {"privileged_property", "privileged_fields", "privileged_contract_fields", "body_schema", "input_fields"}],',
+    "reasoning mass assignment vocabulary",
+)
+text = replace_once(
+    text,
+    '"required": [{"url_parameter", "remote_resource"}, {"server_fetch_semantic", "server_request_function", "webhook_operation"}],',
+    '"required": [{"url_parameter", "remote_destination", "remote_resource"}, {"server_fetch_observed", "server_fetch_semantic", "server_request_function", "backend_fetch", "webhook_operation", "webhook_delivery_observed", "remote_import_fetch"}],',
+    "reasoning ssrf vocabulary",
+)
+text = replace_once(
+    text,
+    '"required": [{"source_sink"}, {"reachable_route", "javascript_runtime", "semantic_unit"}],',
+    '"required": [{"source_sink", "taint_flow"}, {"dangerous_sink", "html_sink", "javascript_sink"}, {"runtime_reachable_flow", "reachable_route", "javascript_runtime", "semantic_unit", "no_sanitizer"}],',
+    "reasoning dom vocabulary",
+)
+write(path, text)
+
+
+# ---------------------------------------------------------------------------
+# 6) Regression tests: old surface-only promotion expectations are intentionally
+#    reversed. Add explicit decisive-evidence promotion cases.
+# ---------------------------------------------------------------------------
+path = "tests/test_bola_intelligence_v850.py"
+text = read(path)
+text = replace_once(text, 'self.assertEqual(ADMISSION_ENGINE_VERSION, "1.1.0")', 'self.assertEqual(ADMISSION_ENGINE_VERSION, "2.0.0")', "bola admission version test")
+write(path, text)
+
+path = "tests/test_recall_preserving_admission_v843.py"
+text = read(path)
+old = '''    def test_real_structured_upload_is_promoted(self):\n        row = self.row("https://x.test/api/upload", method="POST", body=["file"])\n        created = _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        self.assertGreaterEqual(created, 1)\n        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='file_upload'")\n        self.assertIsNotNone(candidate)\n        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE bug_family='file_upload'")\n        self.assertEqual(hypothesis["state"], "promoted")\n        self.assertEqual(hypothesis["promoted_candidate_id"], candidate["candidate_id"])\n        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}\n        self.assertIn("file_input", types)\n        self.assertIn("upload_operation", types)'''
+new = '''    def test_real_structured_upload_is_surface_only_without_unsafe_behavior(self):\n        row = self.row("https://x.test/api/upload", method="POST", body=["file"])\n        created = _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        self.assertEqual(created, 0)\n        self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE bug_family='file_upload'"))\n        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE bug_family='file_upload'")\n        self.assertIsNotNone(hypothesis)\n        admission = json.loads(hypothesis["admission_json"])\n        self.assertFalse(admission["admitted"])\n        self.assertTrue(any("dangerous_type_accepted" in group for group in admission["required_missing"]))\n\n    def test_upload_promotes_with_explicit_unsafe_acceptance_evidence(self):\n        row = self.row("https://x.test/api/upload", method="POST", body=["file"], details={"dangerous_type_accepted": True})\n        created = _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        self.assertGreaterEqual(created, 1)\n        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='file_upload'")\n        self.assertIsNotNone(candidate)\n        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}\n        self.assertIn("dangerous_type_accepted", types)'''
+text = replace_once(text, old, new, "upload regression test")
+old = '''    def test_structured_filename_and_download_operation_promotes_traversal(self):\n        row = self.row("https://x.test/api/download", method="GET", query=["filename"])\n        _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='path_traversal'")\n        self.assertIsNotNone(candidate)\n        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}\n        self.assertIn("filename_field", types)\n        self.assertIn("download_operation", types)'''
+new = '''    def test_structured_filename_and_download_is_surface_only_without_path_escape(self):\n        row = self.row("https://x.test/api/download", method="GET", query=["filename"])\n        _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE bug_family='path_traversal'"))\n        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE bug_family='path_traversal'")\n        self.assertIsNotNone(hypothesis)\n        self.assertFalse(json.loads(hypothesis["admission_json"])["admitted"])\n\n    def test_traversal_promotes_with_explicit_path_escape_evidence(self):\n        row = self.row("https://x.test/api/download", method="GET", query=["filename"], details={"path_escape_observed": True})\n        _alert_candidates(self.db, self.analysis_id, self.run_id, row)\n        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='path_traversal'")\n        self.assertIsNotNone(candidate)\n        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}\n        self.assertIn("path_escape_observed", types)'''
+text = replace_once(text, old, new, "traversal regression test")
+write(path, text)
+
+# New policy-level tests are intentionally independent from individual detectors.
+new_test = ROOT / "tests/test_analysis_admission_v600.py"
+new_test.write_text(r'''from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "app"))
+
+from hypothesis_admission import ADMISSION_ENGINE_VERSION, assess_admission
+
+
+class AnalysisAdmissionV600Tests(unittest.TestCase):
+    def test_version(self):
+        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.0.0")
+
+    def assert_hidden(self, family, support, contradict=None):
+        result = assess_admission(family, support, contradict or [])
+        self.assertFalse(result["admitted"], result)
+        self.assertIn(result["state"], {"shadow_signal", "shadow_partial", "shadow_contradicted"})
+        return result
+
+    def assert_admitted(self, family, support, contradict=None):
+        result = assess_admission(family, support, contradict or [])
+        self.assertTrue(result["admitted"], result)
+        self.assertEqual(result["state"], "admitted")
+        return result
+
+    def test_bfla_admin_route_is_surface_only(self):
+        self.assert_hidden("broken_function_authorization", [
+            {"type": "privileged_function", "source": "semantic"},
+            {"type": "state_change", "source": "method"},
+        ])
+
+    def test_bfla_lower_privilege_success_is_decisive(self):
+        self.assert_admitted("broken_function_authorization", [
+            {"type": "privileged_function", "source": "semantic"},
+            {"type": "state_change", "source": "method"},
+            {"type": "lower_privilege_success", "source": "stored_context"},
+        ])
+
+    def test_mass_assignment_schema_is_surface_only(self):
+        self.assert_hidden("mass_assignment", [
+            {"type": "write_method", "source": "method"},
+            {"type": "privileged_property", "source": "schema"},
+        ])
+
+    def test_mass_assignment_server_acceptance_is_decisive(self):
+        self.assert_admitted("mass_assignment", [
+            {"type": "write_method", "source": "method"},
+            {"type": "privileged_property", "source": "schema"},
+            {"type": "privileged_property_accepted", "source": "stored_behavior"},
+        ])
+
+    def test_ssrf_url_field_is_surface_only(self):
+        self.assert_hidden("ssrf", [
+            {"type": "remote_destination", "source": "schema"},
+            {"type": "server_feature", "source": "semantic"},
+        ])
+
+    def test_ssrf_backend_fetch_is_decisive(self):
+        self.assert_admitted("ssrf", [
+            {"type": "remote_destination", "source": "schema"},
+            {"type": "server_fetch_observed", "source": "stored_behavior"},
+        ])
+
+    def test_open_redirect_parameter_is_surface_only(self):
+        self.assert_hidden("open_redirect", [
