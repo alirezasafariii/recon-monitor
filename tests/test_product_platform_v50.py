@@ -56,7 +56,7 @@ class ProductPlatformV50Tests(unittest.TestCase):
             "path_parameters": ["tenantId", "userId"],
             "endpoint_classification": {"primary_category": "admin", "confidence": 96},
             "response_json": {"user": {"email": "redacted", "role": "admin"}, "tenantId": "t1"},
-            "context_observations": {"anonymous": {"status_code": 200, "auth_state": "anonymous", "confidence": 82}},
+            "context_observations": {"anonymous": {"status_code": 200, "auth_state": "anonymous", "expected_access": False, "request_tenant_id": "tenant-a", "object_tenant_id": "tenant-b", "confidence": 82}},
         }
         alert_id, _, _ = db.upsert_alert("example.com", "v50-alert", "new_endpoint", "HIGH", 91, "Tenant administration endpoint", "/api/tenants/{tenantId}/users/{userId}", details, "run50")
         js = paths.state / "v50.js"; js.write_text("const enableTenantAdmin=true; fetch('/api/tenants/'+tenantId+'/users/'+userId);", encoding="utf-8")
