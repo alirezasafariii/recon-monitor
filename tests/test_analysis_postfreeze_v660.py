@@ -17,6 +17,14 @@ def _evidence(kind: str, group: str, source: str = "stored_behavior") -> dict[st
     return {"type": kind, "source_group": group, "source": source, "text": kind}
 
 
+def _synthetic_manifest() -> dict:
+    manifest = copy.deepcopy(load_manifest(DEFAULT_MANIFEST))
+    manifest["corpus"]["source_roots"] = []
+    manifest["corpus"]["sha256"] = None
+    manifest["corpus"]["sealed"] = False
+    return manifest
+
+
 def _root_cases(root: str = "BLIND-ROOT-001", url: str = "https://example.invalid/advisory/1") -> list[dict]:
     base = {
         "family": "ssrf",
@@ -96,7 +104,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertIn(status["evaluation_status"], {"collection_open", "corpus_materialized"})
 
     def test_requires_exactly_four_variants_per_source_root(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         result = validate_postfreeze_corpus(_root_cases(), manifest, [])
         self.assertTrue(result["passed"], result["errors"])
         self.assertEqual(result["source_root_count"], 1)
@@ -108,7 +116,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("root variants" in error for error in result["errors"]))
 
     def test_rejects_v3_root_url_or_reference_reuse(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         prior = [{
             "source_root": "OLD-ROOT",
             "provenance": {
@@ -133,7 +141,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("provenance reference already exists" in error for error in result["errors"]))
 
     def test_rejects_external_knowledge_as_target_evidence(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         cases = _root_cases()
         cases[0]["support"].append({
             "type": "wstg_reference",
@@ -146,7 +154,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("external knowledge leaked" in error for error in result["errors"]))
 
     def test_rejects_unknown_family_and_unapproved_source_kind(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         cases = _root_cases()
         for row in cases:
             row["family"] = "imaginary_family"
@@ -158,7 +166,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("source_kind" in error and "not allowed" in error for error in result["errors"]))
 
     def test_rejects_missing_source_date(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         cases = _root_cases()
         for row in cases:
             row.pop("source_date", None)
@@ -167,7 +175,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("missing source_date" in error for error in result["errors"]))
 
     def test_rejects_noncanonical_wstg_or_cwe_grounding(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         cases = copy.deepcopy(_root_cases())
         for row in cases:
             row["standards"] = {"wstg": ["WSTG-FAKE-01"], "cwe": ["CWE-999999"]}
@@ -177,7 +185,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(any("CWE grounding missing or inconsistent" in error for error in result["errors"]))
 
     def test_variants_must_share_family_date_source_kind_and_project(self) -> None:
-        manifest = load_manifest(DEFAULT_MANIFEST)
+        manifest = _synthetic_manifest()
         cases = _root_cases()
         cases[3]["source_date"] = "2026-08-09"
         cases[2]["source_project"] = "different-project"
