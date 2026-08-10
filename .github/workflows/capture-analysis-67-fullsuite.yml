@@ -1,0 +1,45 @@
+name: Capture Analysis 6.7 Full Suite
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-capture-fullsuite
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending 6.7 patches
+        run: |
+          python .analysis-67-boundaries.py
+          python .analysis-67-postfreeze-tests.py
+      - name: Capture full unit output
+        env:
+          PYTHONPATH: app
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -p 'test_*.py' -v > analysis67-full-suite.txt 2>&1
+          status=$?
+          echo "EXIT_CODE=$status" >> analysis67-full-suite.txt
+          exit 0
+      - name: Commit diagnostic output
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis67-full-suite.txt
+          git commit -m "Capture Analysis 6.7 full-suite failure"
+          git push origin HEAD:agent/analysis-engine-6.7-family-reasoners
