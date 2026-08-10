@@ -3,39 +3,42 @@ from __future__ import annotations
 """Compatibility/integration surface for Candidate Engine family analyzers.
 
 The historical Candidate Engine implementation is preserved byte-for-byte in
-``bug_candidates_core.py``. This wrapper enriches only BFLA hypotheses with the
-dedicated family analyzer before the existing admission/promotion flow runs.
-All other behavior is delegated unchanged to the core module.
+``bug_candidates_core.py``. This wrapper enriches BFLA and Mass Assignment
+hypotheses with dedicated family analyzers before the existing admission and
+promotion flow runs. Other families remain delegated unchanged until migrated.
 """
 
 import importlib
 from typing import Any, Mapping
 
 from family_analyzers.bfla import analyze_bfla_signal
+from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 
 _base = importlib.import_module("bug_candidates_core")
 
-# Re-export the complete historical module contract, including private helpers
-# used by regression tests and internal callers.
 for _name, _value in vars(_base).items():
     if not _name.startswith("__"):
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.0.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.1.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 
-_BFLA_DIRECT_TYPES = {
-    "unauthorized_function_success",
-    "role_authorization_differential",
-    "permission_scope_mismatch",
-    "privileged_effect_observed",
+_FAMILY_DIRECT_TYPES = {
+    "broken_function_authorization": {
+        "unauthorized_function_success",
+        "role_authorization_differential",
+        "permission_scope_mismatch",
+        "privileged_effect_observed",
+    },
+    "mass_assignment": {
+        "protected_property_accepted",
+        "protected_property_mutated",
+        "property_authorization_differential",
+    },
 }
 
-# Keep the legacy candidate score gate aligned with evidence emitted by the
-# dedicated BFLA analyzer. Admission remains authoritative and is evaluated
-# separately in hypothesis_admission.
 _base.FAMILY_EVIDENCE_SCHEMAS["broken_function_authorization"] = {
     "required_any": (
         ("privileged_function", "privileged_classification"),
@@ -50,6 +53,20 @@ _base.FAMILY_EVIDENCE_SCHEMAS["broken_function_authorization"] = {
         ),
     ),
     "label": "privileged function plus role/permission-sensitive operation context",
+}
+_base.FAMILY_EVIDENCE_SCHEMAS["mass_assignment"] = {
+    "required_any": (
+        ("privileged_property", "privileged_fields"),
+        (
+            "write_method",
+            "body_schema",
+            "object_update",
+            "protected_property_accepted",
+            "protected_property_mutated",
+            "property_authorization_differential",
+        ),
+    ),
+    "label": "policy-sensitive property plus writable object/property operation context",
 }
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
@@ -83,7 +100,7 @@ def _analysis_alert_context(
     }
 
 
-def _dedicated_bfla_result(
+def _stored_family_context(
     db: Any,
     *,
     analysis_id: str,
@@ -112,18 +129,66 @@ def _dedicated_bfla_result(
             " ".join(body_fields + query_fields + path_fields),
         ]
     )
-    return analyze_bfla_signal(
+    return {
+        "target": target,
+        "endpoint": resolved_endpoint,
+        "method": method,
+        "body_fields": body_fields,
+        "query_fields": query_fields,
+        "path_fields": path_fields,
+        "auth_hints": auth_hints,
+        "details": details,
+        "business_context": stored["business_context"],
+        "semantic_text": semantic_text,
+    }
+
+
+def _dedicated_family_result(
+    db: Any,
+    *,
+    analysis_id: str,
+    target: str,
+    alert_id: int | None,
+    endpoint: str,
+    family: str,
+) -> dict[str, Any] | None:
+    stored = _stored_family_context(
         db,
         analysis_id=analysis_id,
         target=target,
-        endpoint=resolved_endpoint,
-        method=method,
-        body_fields=body_fields,
-        auth_hints=auth_hints,
-        details=details,
-        business_context=stored["business_context"],
-        semantic_text=semantic_text,
+        alert_id=alert_id,
+        endpoint=endpoint,
     )
+    if not stored:
+        return None
+
+    if family == "broken_function_authorization":
+        return analyze_bfla_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            body_fields=stored["body_fields"],
+            auth_hints=stored["auth_hints"],
+            details=stored["details"],
+            business_context=stored["business_context"],
+            semantic_text=stored["semantic_text"],
+        )
+
+    if family == "mass_assignment":
+        return analyze_mass_assignment_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            body_fields=stored["body_fields"],
+            details=stored["details"],
+            business_context=stored["business_context"],
+        )
+
+    return None
 
 
 def _record_hypothesis_with_family_analyzers(
@@ -145,13 +210,14 @@ def _record_hypothesis_with_family_analyzers(
     summary: str,
 ) -> dict[str, Any]:
     family_meta: dict[str, Any] | None = None
-    if family == "broken_function_authorization":
-        dedicated = _dedicated_bfla_result(
+    if family in {"broken_function_authorization", "mass_assignment"}:
+        dedicated = _dedicated_family_result(
             db,
             analysis_id=analysis_id,
             target=target,
             alert_id=alert_id,
             endpoint=endpoint,
+            family=family,
         )
         if dedicated:
             variant = str(dedicated.get("variant") or variant)
@@ -204,8 +270,9 @@ def _evidence_strength_with_family_directness(
     *,
     direct: bool = False,
 ) -> int:
-    if not direct and any(str(item.get("type") or "") in _BFLA_DIRECT_TYPES for item in support):
-        direct = True
+    if not direct:
+        observed = {str(item.get("type") or "") for item in support}
+        direct = any(bool(observed & signals) for signals in _FAMILY_DIRECT_TYPES.values())
     return _ORIGINAL_EVIDENCE_STRENGTH(
         analysis_confidence,
         support,
@@ -214,14 +281,11 @@ def _evidence_strength_with_family_directness(
     )
 
 
-# Patch only the dependency references used by functions defined in the core
-# module. No Candidate Engine route, persistence schema or public API changes.
 _base.record_hypothesis = _record_hypothesis_with_family_analyzers
 _base._evidence_strength = _evidence_strength_with_family_directness
 record_hypothesis = _record_hypothesis_with_family_analyzers
 _evidence_strength = _evidence_strength_with_family_directness
 
-# Refresh exported references after patching the core globals.
 for _name, _value in vars(_base).items():
     if not _name.startswith("__"):
         globals()[_name] = _value
