@@ -49,11 +49,7 @@ jobs:
       - name: Run post-freeze construction tests
         env:
           PYTHONPATH: app
-        run: |
-          python -m unittest \
-            tests.test_analysis_postfreeze_sources_v660 \
-            tests.test_analysis_postfreeze_build_v660 \
-            tests.test_analysis_postfreeze_v660 -q
+        run: python -m unittest discover -s tests -p 'test_analysis_postfreeze*_v660.py' -q
 
       - name: Commit materialized corpus
         shell: bash
