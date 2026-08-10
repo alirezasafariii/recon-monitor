@@ -8,20 +8,34 @@ from analysis_postfreeze import DEFAULT_MANIFEST, PRIOR_CORPUS, ROOT, _norm, loa
 from analysis_standards import standards_for_family
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-SOURCE_REGISTRY_VALIDATOR_VERSION = "1.1.0"
-DEFAULT_SOURCE_REGISTRY = ROOT / "benchmarks" / "golden" / "sources" / "v4_roots.jsonl"
+SOURCE_REGISTRY_VALIDATOR_VERSION = "1.2.0"
+DEFAULT_SOURCE_REGISTRY = ROOT / "benchmarks" / "golden" / "sources"
+SOURCE_REGISTRY_GLOB = "v4_roots*.jsonl"
+
+
+def _registry_files(path: str | Path) -> list[Path]:
+    source = Path(path)
+    if source.is_dir():
+        files = sorted(candidate for candidate in source.glob(SOURCE_REGISTRY_GLOB) if candidate.is_file())
+        if not files:
+            raise ValueError(f"no {SOURCE_REGISTRY_GLOB} files found in {source}")
+        return files
+    if not source.is_file():
+        raise ValueError(f"source registry does not exist: {source}")
+    return [source]
 
 
 def load_source_registry(path: str | Path = DEFAULT_SOURCE_REGISTRY) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
-        text = raw.strip()
-        if not text or text.startswith("#"):
-            continue
-        row = json.loads(text)
-        if not isinstance(row, dict):
-            raise ValueError(f"source registry line {line_no} is not an object")
-        rows.append(row)
+    for source in _registry_files(path):
+        for line_no, raw in enumerate(source.read_text(encoding="utf-8").splitlines(), start=1):
+            text = raw.strip()
+            if not text or text.startswith("#"):
+                continue
+            row = json.loads(text)
+            if not isinstance(row, dict):
+                raise ValueError(f"source registry {source.name}:{line_no} is not an object")
+            rows.append(row)
     return rows
 
 
@@ -95,7 +109,6 @@ def _validate_policy_adjudication(
             f"{root}: adjudication does not satisfy frozen {family} required groups: {missing_groups}"
         )
 
-    # A real-positive root must carry condition-level evidence, not only attack-surface clues.
     if required:
         condition_group = {_norm(value) for value in required[-1] if _norm(value)}
         if condition_group and not (decisive & condition_group):
@@ -122,6 +135,7 @@ def validate_source_registry(
     prior_corpus_path: str | Path = PRIOR_CORPUS,
 ) -> dict[str, Any]:
     manifest = load_manifest(manifest_path)
+    source_files = _registry_files(registry_path)
     rows = load_source_registry(registry_path)
     prior_rows = load_jsonl(prior_corpus_path)
     prior_roots, prior_urls, prior_refs = _identity_sets(prior_rows)
@@ -221,6 +235,7 @@ def validate_source_registry(
         "passed": not errors,
         "errors": errors,
         "warnings": warnings,
+        "source_files": [path.name for path in source_files],
         "verified_source_roots": count,
         "target_source_roots": target_roots,
         "remaining_source_roots": max(0, target_roots - count),
