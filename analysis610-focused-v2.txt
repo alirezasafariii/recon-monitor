@@ -1,0 +1,59 @@
+### tests/test_detector_execution_intelligence_v6100.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.017s
+
+OK
+EXIT=0
+### tests/test_physical_family_detectors_v690.py
+.....F.......
+======================================================================
+FAIL: test_exact_31_family_physical_coverage (__main__.PhysicalFamilyDetectors690Tests.test_exact_31_family_physical_coverage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_physical_family_detectors_v690.py", line 18, in test_exact_31_family_physical_coverage
+    self.assertEqual(modules, set(FAMILY_ADMISSION_POLICIES))
+AssertionError: Items in the first set but not the second:
+'execution'
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.002s
+
+FAILED (failures=1)
+EXIT=1
+### tests/test_family_evidence_extractors_v680.py
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.004s
+
+OK
+EXIT=0
+### tests/test_family_reasoners_v670.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.022s
+
+OK
+EXIT=0
+### tests/test_family_confusion_matrix_v670.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.069s
+
+OK
+EXIT=0
+### tests/test_analysis_ranking_v650.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 1.772s
+
+OK
+EXIT=0
+### tests/test_analysis_coverage_v610.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.255s
+
+OK
+EXIT=0
+OVERALL=1
