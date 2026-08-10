@@ -13,8 +13,8 @@ from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, re
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 from security_family_ranker import production_family_rankings
 
-REASONING_ENGINE_VERSION = "6.9.0"
-REASONING_RULE_VERSION = "2026.08.10.6.9"
+REASONING_ENGINE_VERSION = "6.10.0"
+REASONING_RULE_VERSION = "2026.08.11.6.10"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,

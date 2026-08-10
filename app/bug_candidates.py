@@ -9,10 +9,10 @@ from typing import Any, Iterable, Mapping
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
-from family_detectors import detector_rule_ids, evaluate_family_detector
+from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
 
-CANDIDATE_ENGINE_VERSION = "6.9.0"
-CANDIDATE_RULE_VERSION = "2026.08.10.6.9"
+CANDIDATE_ENGINE_VERSION = "6.10.0"
+CANDIDATE_RULE_VERSION = "2026.08.11.6.10"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -376,10 +376,21 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             asset = urlsplit(endpoint).hostname or ""
         except Exception:
             asset = ""
+    execution_map = execute_detector_intelligence(
+        target=target, endpoint=endpoint, method=method, endpoint_schema=endpoint_schema, details=details,
+        evidence_for=evidence_for, evidence_against=evidence_against, category=category, business_context=context,
+    )
+    emitted_execution_families: set[str] = set()
     count = 0
 
     def emit(family: str, variant: str, base: int, support: list[dict[str, Any]], contradict: list[dict[str, Any]], missing: list[str], rules: list[str], summary: str, *, direct: bool = False, impact: int | None = None) -> None:
         nonlocal count
+        execution_packet = execution_map.get(family, {})
+        if execution_packet:
+            support = _merge_evidence_lists(support, list(execution_packet.get("support", [])))
+            contradict = _merge_evidence_lists(contradict, list(execution_packet.get("contradict", [])))
+            rules = list(dict.fromkeys([*rules, *execution_packet.get("rule_ids", []), *execution_rule_ids(family)]))
+        emitted_execution_families.add(family)
         extraction = evaluate_family_detector(family, support, contradict, channel="alert")
         support = extraction["support"]
         contradict = extraction["contradict"]
@@ -934,6 +945,27 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
                  ["Idempotency key or transaction guard", "Atomic state transition behavior", "Whether the action is intended to be single-use"],
                  ["candidate-single-use-operation", "candidate-idempotency"],
                  "A balance-changing or single-use workflow may require idempotency and atomicity controls; no concurrency test has been performed.", impact=80)
+
+    # Execution-only families still enter the hidden hypothesis ledger even when
+    # legacy surface heuristics did not emit them. Admission remains the only promotion gate.
+    for execution_family, execution_packet in execution_map.items():
+        if execution_family in emitted_execution_families:
+            continue
+        if not execution_packet.get("support") and not execution_packet.get("contradict"):
+            continue
+        emit(
+            execution_family,
+            "raw_execution_intelligence",
+            10,
+            [],
+            [],
+            [
+                "Correlate the execution signal with an independent target artifact",
+                "Verify the family-specific vulnerability condition and blocking controls",
+            ],
+            ["detector-execution-fallback"],
+            f"Stored raw artifacts produced family-specific {execution_family.replace('_', ' ')} evidence; admission remains evidence-gated.",
+        )
 
     return count
 
