@@ -1,0 +1,87 @@
+name: Apply Analysis 6.10 Detector Execution Intelligence
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.10-detector-execution-intelligence
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.10-detector-execution-intelligence
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply 6.10 pipeline integration
+        run: python .analysis-610-apply.py
+
+      - name: Syntax and registry validation
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_detectors/execution.py app/family_detectors/__init__.py app/bug_candidates.py app/analysis_engine.py app/security_reasoning.py
+          python - <<'PY'
+          from family_detectors import validate_detector_registry, validate_execution_profiles
+          assert validate_detector_registry() == []
+          assert validate_execution_profiles() == []
+          print('physical and execution registries: OK')
+          PY
+
+      - name: Commit integrated 6.10 code
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/bug_candidates.py app/analysis_engine.py app/security_reasoning.py tests/test_analysis_coverage_v610.py tests/test_analysis_ranking_v650.py
+          git commit -m 'Wire Analysis 6.10 execution intelligence into candidate pipeline'
+          git push origin HEAD:agent/analysis-engine-6.10-detector-execution-intelligence
+
+      - name: Focused 6.10 and detector-stack tests
+        run: |
+          python tests/test_detector_execution_intelligence_v6100.py
+          python tests/test_physical_family_detectors_v690.py
+          python tests/test_family_evidence_extractors_v680.py
+          python tests/test_family_reasoners_v670.py
+          python tests/test_family_confusion_matrix_v670.py
+          python tests/test_analysis_ranking_v650.py
+          python tests/test_analysis_coverage_v610.py
+
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden v3 strict regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        run: python tests/integration_runner.py
+
+      - name: Cleanup temporary 6.10 machinery
+        run: |
+          rm -f .analysis-610-apply.py
+          rm -f .github/workflows/apply-analysis-610.yml
+
+      - name: Regenerate manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files | grep -v '^MANIFEST.sha256$' | grep -v '^.analysis-610-apply.py$' | grep -v '^.github/workflows/apply-analysis-610.yml$' | LC_ALL=C sort | xargs sha256sum > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit finalized Analysis 6.10
+        run: |
+          git add -A
+          git commit -m 'Finalize Analysis 6.10 detector execution intelligence'
+          git push origin HEAD:agent/analysis-engine-6.10-detector-execution-intelligence
