@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 root = Path(__file__).resolve().parent
 
@@ -19,4 +20,9 @@ if old not in t:
 t = t.replace(old, 'self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.0.0")', 1)
 p.write_text(t, encoding="utf-8")
 
-print("Analysis 6.4 backward-compatibility fix applied")
+# Analysis 6.4 needs no permanent workflow edit: the existing strict benchmark
+# step automatically uses Golden Dataset v3 because DEFAULT_RUN_CORPUS changes.
+# Restore ci.yml so the Actions token does not need workflow-write permission.
+subprocess.run(["git", "checkout", "HEAD", "--", ".github/workflows/ci.yml"], cwd=root, check=True)
+
+print("Analysis 6.4 backward-compatibility and CI-permission fix applied")
