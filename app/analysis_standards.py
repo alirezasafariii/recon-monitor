@@ -2,7 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable, Mapping
 
-STANDARDS_ENGINE_VERSION = "1.0.0"
+STANDARDS_ENGINE_VERSION = "1.1.0"
 WSTG_REFERENCE_VERSION = "latest@2026-08-10"
 CWE_REFERENCE_VERSION = "4.20"
 WSTG_BASE_URL = 'https://owasp.org/www-project-web-security-testing-guide/latest/'

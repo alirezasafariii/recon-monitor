@@ -124,3 +124,8 @@ A new family is not considered benchmark-covered until it has at least:
 5. no external-knowledge fields in `support` or `contradict`.
 
 Future corpus versions should add multiple independent write-ups per family, cross-family confounders, noisy recon evidence, partial behavioral observations, and historical regression fixtures. The long-term target is a balanced corpus large enough to report per-family precision/recall confidence intervals rather than a single seed example per family.
+
+
+## Golden Dataset v3 — Analysis 6.4
+
+Dataset v3 expands evaluation to 179 cases, adds 33 independent real-world GitHub Security Lab source roots, and introduces source-root-isolated held-out calibration/reliability reporting. See `docs/ANALYSIS_ENGINE_6_4_REAL_WORLD_CALIBRATION.md`.

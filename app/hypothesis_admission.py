@@ -8,8 +8,8 @@ from typing import Any, Iterable, Mapping
 from core import Database, json_dumps, sha256_text, utc_now
 from analysis_standards import standards_for_family, validate_family_standards
 
-ADMISSION_ENGINE_VERSION = "2.2.0"
-ADMISSION_RULE_VERSION = "2026.08.10.6.3"
+ADMISSION_ENGINE_VERSION = "2.3.0"
+ADMISSION_RULE_VERSION = "2026.08.10.6.4"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {

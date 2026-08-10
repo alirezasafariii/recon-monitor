@@ -25,7 +25,7 @@ class AnalysisHardBenchmarkV630Tests(unittest.TestCase):
         cls.report = run_benchmark(cls.cases)
 
     def test_v2_shape(self):
-        self.assertEqual(BENCHMARK_ENGINE_VERSION, "2.0.0")
+        self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.0.0")
         self.assertEqual(len(self.seed), 45)
         self.assertEqual(len(self.cases), 69)
         hard = [case for case in self.cases if case.get("difficulty") == "hard"]

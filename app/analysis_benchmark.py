@@ -8,13 +8,15 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from analysis_standards import FAMILY_STANDARDS, validate_family_standards
+from analysis_corpus import validate_corpus
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
 
-BENCHMARK_ENGINE_VERSION = "2.0.0"
+BENCHMARK_ENGINE_VERSION = "3.0.0"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v1.jsonl"
 HARD_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v2.jsonl"
-DEFAULT_RUN_CORPUS = HARD_CORPUS
+REAL_WORLD_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v3.jsonl"
+DEFAULT_RUN_CORPUS = REAL_WORLD_CORPUS
 
 DEFAULT_QUALITY_GATES: dict[str, float] = {
     "precision": 0.95,
@@ -33,6 +35,18 @@ HARD_QUALITY_GATES: dict[str, float] = {
     "hard_top3_accuracy": 0.98,
     "hard_abstention_accuracy": 0.95,
     "confounder_leak_rate": 0.05,
+}
+
+HELDOUT_QUALITY_GATES: dict[str, float] = {
+    "heldout_precision": 0.93,
+    "heldout_recall": 0.85,
+    "heldout_top1_accuracy": 0.80,
+    "heldout_top3_accuracy": 0.95,
+    "heldout_abstention_accuracy": 0.90,
+    "heldout_false_promotion_rate": 0.05,
+    "heldout_brier_score": 0.15,
+    "heldout_ece": 0.15,
+    "source_root_leakage_rate": 0.0,
 }
 
 
@@ -302,11 +316,13 @@ def quality_gate(report: Mapping[str, Any], thresholds: Mapping[str, float] | No
     gates = dict(DEFAULT_QUALITY_GATES)
     if int(report.get("hard_case_count") or 0) > 0:
         gates.update(HARD_QUALITY_GATES)
+    if int(report.get("held_out_case_count") or 0) > 0:
+        gates.update(HELDOUT_QUALITY_GATES)
     if thresholds:
         gates.update({str(key): float(value) for key, value in thresholds.items()})
     metrics = report.get("metrics") if isinstance(report.get("metrics"), Mapping) else {}
     failures: list[dict[str, Any]] = []
-    lower_is_better = {"false_promotion_rate", "brier_score", "ece", "confounder_leak_rate"}
+    lower_is_better = {"false_promotion_rate", "brier_score", "ece", "confounder_leak_rate", "heldout_false_promotion_rate", "heldout_brier_score", "heldout_ece", "source_root_leakage_rate"}
     for metric, threshold in gates.items():
         value = float(metrics.get(metric, math.inf if metric in lower_is_better else -math.inf))
         ok = value <= threshold if metric in lower_is_better else value >= threshold
@@ -320,9 +336,75 @@ def quality_gate(report: Mapping[str, Any], thresholds: Mapping[str, float] | No
     return {"passed": not failures, "thresholds": gates, "failures": failures}
 
 
+def _reliability_buckets(rows: list[dict[str, Any]], bins: int = 5) -> list[dict[str, Any]]:
+    buckets: list[dict[str, Any]] = []
+    for index in range(bins):
+        low = index / bins
+        high = (index + 1) / bins
+        subset = [
+            row for row in rows
+            if low <= float(row["expected_family_confidence"]) < high
+            or (index == bins - 1 and float(row["expected_family_confidence"]) == 1.0)
+        ]
+        if not subset:
+            continue
+        confidence = sum(float(row["expected_family_confidence"]) for row in subset) / len(subset)
+        accuracy = sum(1.0 if row["expected_admitted"] else 0.0 for row in subset) / len(subset)
+        buckets.append({"low": round(low, 3), "high": round(high, 3), "count": len(subset), "mean_confidence": round(confidence, 6), "empirical_rate": round(accuracy, 6), "gap": round(abs(confidence - accuracy), 6)})
+    return buckets
+
+
 def benchmark_file(path: str | Path = DEFAULT_CORPUS) -> dict[str, Any]:
-    report = run_benchmark(load_golden_cases(path))
+    cases = load_golden_cases(path)
+    is_real_world_corpus = Path(path).resolve() == REAL_WORLD_CORPUS.resolve()
+    validation = validate_corpus(cases) if is_real_world_corpus else {
+        "validator_version": "legacy-compatible",
+        "passed": True,
+        "errors": [],
+        "case_count": len(cases),
+        "split_counts": {"development": len(cases)},
+        "source_kind_counts": {},
+        "real_positive_source_roots": 0,
+        "source_project_count": 0,
+        "held_out_root_count": 0,
+        "held_out_case_count": 0,
+        "source_root_leakage_count": 0,
+        "family_real_source_roots": {},
+    }
+    report = run_benchmark(cases)
+    development_cases = [case for case in cases if str(case.get("split") or "development") == "development"]
+    held_out_cases = [case for case in cases if str(case.get("split") or "") == "held_out"]
+    development = run_benchmark(development_cases) if development_cases else None
+    held_out = run_benchmark(held_out_cases) if held_out_cases else None
+    report["corpus_validation"] = validation
+    report["development_case_count"] = len(development_cases)
+    report["held_out_case_count"] = len(held_out_cases)
+    report["partitions"] = {"development": development, "held_out": held_out}
+    leakage_count = int(validation.get("source_root_leakage_count") or 0)
+    unique_roots = max(1, int(validation.get("real_positive_source_roots") or 0))
+    report["metrics"]["source_root_leakage_rate"] = round(leakage_count / unique_roots, 6)
+    if held_out:
+        hm = held_out["metrics"]
+        report["metrics"].update({
+            "heldout_precision": hm["precision"],
+            "heldout_recall": hm["recall"],
+            "heldout_top1_accuracy": hm["top1_accuracy"],
+            "heldout_top3_accuracy": hm["top3_accuracy"],
+            "heldout_abstention_accuracy": hm["abstention_accuracy"],
+            "heldout_false_promotion_rate": hm["false_promotion_rate"],
+            "heldout_brier_score": hm["brier_score"],
+            "heldout_ece": hm["ece"],
+        })
+        report["held_out_confusion_matrix"] = held_out.get("hard_confusion_matrix", {})
+        report["held_out_reliability_buckets"] = _reliability_buckets(held_out.get("cases", []))
+    else:
+        report["metrics"].update({"heldout_precision": 0.0, "heldout_recall": 0.0, "heldout_top1_accuracy": 0.0, "heldout_top3_accuracy": 0.0, "heldout_abstention_accuracy": 0.0, "heldout_false_promotion_rate": 0.0, "heldout_brier_score": 0.0, "heldout_ece": 0.0})
+        report["held_out_confusion_matrix"] = {}
+        report["held_out_reliability_buckets"] = []
     report["quality_gate"] = quality_gate(report)
+    if not validation.get("passed"):
+        report["quality_gate"]["passed"] = False
+        report["quality_gate"]["failures"].append({"metric": "corpus_validation", "value": 0.0, "threshold": 1.0, "direction": "min", "errors": validation.get("errors", [])})
     report["corpus"] = str(Path(path))
     return report
 
@@ -332,22 +414,23 @@ def _summary(report: Mapping[str, Any]) -> str:
     gate = report["quality_gate"]
     hard = ""
     if int(report.get("hard_case_count") or 0):
-        hard = (
-            f" hardTop1={metrics['hard_top1_accuracy']:.3f}"
-            f" hardTop3={metrics['hard_top3_accuracy']:.3f}"
-            f" hardAbst={metrics['hard_abstention_accuracy']:.3f}"
-            f" confLeak={metrics['confounder_leak_rate']:.3f}"
-        )
+        hard = f" hardTop1={metrics['hard_top1_accuracy']:.3f} hardTop3={metrics['hard_top3_accuracy']:.3f} hardAbst={metrics['hard_abstention_accuracy']:.3f} confLeak={metrics['confounder_leak_rate']:.3f}"
+    held = ""
+    if int(report.get("held_out_case_count") or 0):
+        held = f" heldOut={report['held_out_case_count']} heldP={metrics['heldout_precision']:.3f} heldR={metrics['heldout_recall']:.3f} heldTop1={metrics['heldout_top1_accuracy']:.3f} heldTop3={metrics['heldout_top3_accuracy']:.3f} heldAbst={metrics['heldout_abstention_accuracy']:.3f} heldECE={metrics['heldout_ece']:.3f}"
+    validation = report.get("corpus_validation") or {}
+    corpus = ""
+    if validation:
+        corpus = f" realRoots={int(validation.get('real_positive_source_roots') or 0)} projects={int(validation.get('source_project_count') or 0)} rootLeak={metrics.get('source_root_leakage_rate', 0.0):.3f}"
     return (
         f"Golden benchmark {report['benchmark_engine_version']}: {report['case_count']} cases / "
         f"{report['family_count']} positive families | precision={metrics['precision']:.3f} "
         f"recall={metrics['recall']:.3f} top1={metrics['top1_accuracy']:.3f} "
         f"top3={metrics['top3_accuracy']:.3f} abstention={metrics['abstention_accuracy']:.3f} "
         f"FPR={metrics['false_promotion_rate']:.3f} Brier={metrics['brier_score']:.3f} "
-        f"ECE={metrics['ece']:.3f} standards={metrics['standards_coverage']:.3f}{hard} "
+        f"ECE={metrics['ece']:.3f} standards={metrics['standards_coverage']:.3f}{hard}{held}{corpus} "
         f"| gate={'PASS' if gate['passed'] else 'FAIL'}"
     )
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Recon Monitor Analysis Golden Dataset benchmark")

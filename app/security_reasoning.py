@@ -12,8 +12,8 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "6.3.0"
-REASONING_RULE_VERSION = "2026.08.10.6.3"
+REASONING_ENGINE_VERSION = "6.4.0"
+REASONING_RULE_VERSION = "2026.08.10.6.4"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,

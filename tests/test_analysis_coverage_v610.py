@@ -25,10 +25,10 @@ def ev(kind: str, source: str = "fixture") -> dict[str, str]:
 
 class AnalysisCoverageV610Tests(unittest.TestCase):
     def test_versions_and_registry(self):
-        self.assertEqual(ENGINE_VERSION, "6.3.0")
-        self.assertEqual(CANDIDATE_ENGINE_VERSION, "6.3.0")
-        self.assertEqual(REASONING_ENGINE_VERSION, "6.3.0")
-        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.2.0")
+        self.assertEqual(ENGINE_VERSION, "6.4.0")
+        self.assertEqual(CANDIDATE_ENGINE_VERSION, "6.4.0")
+        self.assertEqual(REASONING_ENGINE_VERSION, "6.4.0")
+        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.3.0")
         for family in NEW_FAMILIES:
             self.assertIn(family, BUG_FAMILIES)
             self.assertIn(family, SAFE_ACTIONS)
