@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.0-owasp-admission
     paths:
       - .analysis-64-apply.py
+      - .analysis-64-fix.py
       - .github/workflows/apply-analysis-64.yml
 
 permissions:
@@ -27,11 +28,14 @@ jobs:
           python-version: '3.11'
 
       - name: Apply Analysis 6.4 patch
-        run: python3 .analysis-64-apply.py
+        run: |
+          python3 .analysis-64-apply.py
+          python3 .analysis-64-fix.py
 
       - name: Remove temporary patch machinery
         run: |
           rm -f .analysis-64-apply.py
+          rm -f .analysis-64-fix.py
           rm -f .github/workflows/apply-analysis-64.yml
 
       - name: Syntax checks
