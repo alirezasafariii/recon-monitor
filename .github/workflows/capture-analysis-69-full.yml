@@ -1,0 +1,48 @@
+name: Capture Analysis 6.9 Full Suite
+on:
+  push:
+    branches: [agent/analysis-engine-6.9-physical-family-detectors]
+    paths: [.analysis-69-full]
+permissions:
+  contents: write
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.9-physical-family-detectors
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply integration
+        run: python .analysis-69-apply.py
+      - name: Advance inherited version contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          repls={
+          'tests/test_analysis_ranking_v650.py':[('REASONING_ENGINE_VERSION, "6.8.0"','REASONING_ENGINE_VERSION, "6.9.0"')],
+          'tests/test_analysis_coverage_v610.py':[('ENGINE_VERSION, "6.8.0"','ENGINE_VERSION, "6.9.0"'),('CANDIDATE_ENGINE_VERSION, "6.8.0"','CANDIDATE_ENGINE_VERSION, "6.9.0"'),('REASONING_ENGINE_VERSION, "6.8.0"','REASONING_ENGINE_VERSION, "6.9.0"')]}
+          for path, pairs in repls.items():
+              p=Path(path); text=p.read_text()
+              for a,b in pairs: text=text.replace(a,b,1)
+              p.write_text(text)
+          PY
+      - name: Capture full suite
+        shell: bash
+        env:
+          PYTHONPATH: app
+        run: |
+          set +e
+          python -m unittest discover -s tests -p 'test_*.py' -v > analysis69-full.txt 2>&1
+          echo "EXIT=$?" >> analysis69-full.txt
+          exit 0
+      - name: Commit output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis69-full.txt
+          git commit -m "Capture Analysis 6.9 full-suite diagnostic output"
+          git push origin HEAD:agent/analysis-engine-6.9-physical-family-detectors
