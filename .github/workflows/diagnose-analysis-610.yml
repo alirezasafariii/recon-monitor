@@ -1,0 +1,50 @@
+name: Diagnose Analysis 6.10 Focused Tests
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.10-detector-execution-intelligence
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.10-detector-execution-intelligence
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture focused tests
+        shell: bash
+        run: |
+          set +e
+          : > analysis610-focused.txt
+          overall=0
+          for test in \
+            tests/test_detector_execution_intelligence_v6100.py \
+            tests/test_physical_family_detectors_v690.py \
+            tests/test_family_evidence_extractors_v680.py \
+            tests/test_family_reasoners_v670.py \
+            tests/test_family_confusion_matrix_v670.py \
+            tests/test_analysis_ranking_v650.py \
+            tests/test_analysis_coverage_v610.py; do
+            echo "### $test" >> analysis610-focused.txt
+            python "$test" >> analysis610-focused.txt 2>&1
+            code=$?
+            echo "EXIT=$code" >> analysis610-focused.txt
+            if [ "$code" -ne 0 ]; then overall=1; fi
+          done
+          echo "OVERALL=$overall" >> analysis610-focused.txt
+      - name: Commit diagnostic output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add analysis610-focused.txt
+          git commit -m 'Capture Analysis 6.10 focused diagnostics'
+          git push origin HEAD:agent/analysis-engine-6.10-detector-execution-intelligence
