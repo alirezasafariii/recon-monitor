@@ -12,8 +12,8 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 
-REASONING_ENGINE_VERSION = "6.4.0"
-REASONING_RULE_VERSION = "2026.08.10.6.4"
+REASONING_ENGINE_VERSION = "6.5.0"
+REASONING_RULE_VERSION = "2026.08.10.6.5"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -628,11 +628,13 @@ def _family_score(family: str, primary_family: str, support_types: set[str], con
             missing_groups += 1
     matched_support = sorted(schema.get("support", set()) & support_types)
     matched_contradict = sorted(schema.get("contradict", set()) & contradict_types)
-    score = 12 + (18 if family == primary_family else 0) + len(matched_required) * 13 + len(matched_support) * 5 - missing_groups * 16 - len(matched_contradict) * 10
+    # A matched security control can falsify exploitability while still making the family identity more certain.
+    # Keep contradictions out of family-fit scoring; condition confidence is handled separately downstream.
+    score = 12 + (18 if family == primary_family else 0) + len(matched_required) * 13 + len(matched_support) * 5 - missing_groups * 16
     for token, variant in schema.get("variants", {}).items():
         if token in text:
             score += 5
-    return _clamp(score, 0, 96), {"matched_required": matched_required, "missing_required_groups": missing_groups, "matched_support": matched_support, "matched_contradict": matched_contradict}
+    return _clamp(score, 0, 96), {"matched_required": matched_required, "missing_required_groups": missing_groups, "matched_support": matched_support, "matched_contradict": matched_contradict, "contradictions_affect_family_fit": False}
 
 
 def _calibration_for_family(db: Database, family: str, target: str) -> dict[str, Any]:

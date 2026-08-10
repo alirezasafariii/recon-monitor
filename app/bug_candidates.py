@@ -10,8 +10,8 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 
-CANDIDATE_ENGINE_VERSION = "6.4.0"
-CANDIDATE_RULE_VERSION = "2026.08.10.6.4"
+CANDIDATE_ENGINE_VERSION = "6.5.0"
+CANDIDATE_RULE_VERSION = "2026.08.10.6.5"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")

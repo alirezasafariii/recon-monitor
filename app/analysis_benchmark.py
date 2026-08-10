@@ -9,9 +9,10 @@ from typing import Any, Iterable, Mapping
 
 from analysis_standards import FAMILY_STANDARDS, validate_family_standards
 from analysis_corpus import validate_corpus
-from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
+from analysis_ranking import admission_confidence as _ranking_admission_confidence, family_compatibility as _ranking_family_compatibility, rank_families
+from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-BENCHMARK_ENGINE_VERSION = "3.0.0"
+BENCHMARK_ENGINE_VERSION = "3.1.0"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v1.jsonl"
 HARD_CORPUS = ROOT / "benchmarks" / "golden" / "analysis_golden_v2.jsonl"
@@ -95,60 +96,18 @@ def family_compatibility(
     support: Iterable[Mapping[str, Any]],
     contradict: Iterable[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
-    assessment = assess_admission(family, support_items, contradict_items)
-    policy = FAMILY_ADMISSION_POLICIES[family]
-    required_count = max(1, len(policy.get("required", [])))
-    satisfied_count = len(assessment.get("required_satisfied") or [])
-    coverage = satisfied_count / required_count
-    required_sources = max(1, int(policy.get("min_independent_sources", 1)))
-    source_ratio = min(1.0, int(assessment.get("independent_sources") or 0) / required_sources)
-    blocking = len(assessment.get("blocking_contradictions") or [])
-
-    # Compatibility is a ranking signal, not a vulnerability probability.
-    score = 0.68 * coverage + 0.14 * source_ratio
-    if assessment.get("admitted"):
-        score += 0.18
-    if blocking:
-        score -= min(0.30, 0.16 + 0.05 * blocking)
-    score = _clamp(score)
-    return {
-        "family": family,
-        "score": round(score, 6),
-        "coverage": round(coverage, 6),
-        "source_ratio": round(source_ratio, 6),
-        "assessment": assessment,
-    }
+    # Backward-compatible benchmark API; implementation lives in analysis_ranking.
+    return _ranking_family_compatibility(family, support, contradict)
 
 
 def _admission_confidence(assessment: Mapping[str, Any]) -> float:
-    """Confidence that the vulnerability condition is established, not family similarity."""
-    if assessment.get("admitted"):
-        return 0.96
-    state = str(assessment.get("state") or "")
-    if state == "shadow_contradicted":
-        return 0.04
-    satisfied = len(assessment.get("required_satisfied") or [])
-    missing = len(assessment.get("required_missing") or [])
-    coverage = satisfied / max(1, satisfied + missing)
-    if state == "shadow_partial":
-        return round(min(0.28, 0.06 + 0.24 * coverage), 6)
-    return 0.04
+    return _ranking_admission_confidence(assessment)
 
 
 def evaluate_case(case: Mapping[str, Any]) -> dict[str, Any]:
     support = case.get("support") if isinstance(case.get("support"), list) else []
     contradict = case.get("contradict") if isinstance(case.get("contradict"), list) else []
-    rankings = [family_compatibility(family, support, contradict) for family in FAMILY_ADMISSION_POLICIES]
-    rankings.sort(
-        key=lambda item: (
-            float(item["score"]),
-            bool(item["assessment"].get("admitted")),
-            str(item["family"]),
-        ),
-        reverse=True,
-    )
+    rankings = rank_families(support, contradict)
     expected = case.get("expected") if isinstance(case.get("expected"), Mapping) else {}
     expected_family = str(expected.get("family") or case.get("family") or "")
     expected_admitted = bool(expected.get("admitted"))
@@ -165,6 +124,10 @@ def evaluate_case(case: Mapping[str, Any]) -> dict[str, Any]:
     if not expected_admitted:
         no_wrong_promotion = not admitted_families
     top1_family = rankings[0]["family"] if rankings else ""
+    top1_score = float(rankings[0]["score"]) if rankings else 0.0
+    top2_score = float(rankings[1]["score"]) if len(rankings) > 1 else 0.0
+    target_rank = next((index + 1 for index, item in enumerate(rankings) if item["family"] == expected_family), 0)
+    closest_incorrect_family = next((item["family"] for item in rankings if item["family"] != expected_family), "")
     confounder_leaks = [family for family in admitted_families if family in set(confounders)]
     return {
         "id": str(case.get("id") or ""),
@@ -183,6 +146,11 @@ def evaluate_case(case: Mapping[str, Any]) -> dict[str, Any]:
         "expected_family_standards": target["assessment"].get("standards") or {},
         "top1": top1_family,
         "top3": top,
+        "top1_score": round(top1_score, 6),
+        "top2_score": round(top2_score, 6),
+        "top1_margin": round(max(0.0, top1_score - top2_score), 6),
+        "target_rank": target_rank,
+        "closest_incorrect_family": closest_incorrect_family,
         "top1_correct": top1_family in acceptable_top,
         "top3_correct": bool(acceptable_top & set(top)),
         "correct_admission": correct_admission,
@@ -272,15 +240,21 @@ def run_benchmark(cases: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             "pass_rate": round(_safe_ratio(passed, len(subset)), 6),
         }
 
-    confusion: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    full_confusion: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for row in labeled_rank:
+        full_confusion[row["family"]][row["top1"]] += 1
+    ranking_errors = [row for row in labeled_rank if not row["top1_correct"]]
+
+    hard_confusion: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for row in hard_rank:
-        confusion[row["family"]][row["top1"]] += 1
+        hard_confusion[row["family"]][row["top1"]] += 1
 
     metrics = {
         "precision": round(precision, 6),
         "recall": round(recall, 6),
         "top1_accuracy": round(top1, 6),
         "top3_accuracy": round(top3, 6),
+        "ranking_error_rate": round(1.0 - top1, 6),
         "abstention_accuracy": round(abstention, 6),
         "false_promotion_rate": round(false_promotion_rate, 6),
         "macro_family_recall": round(macro_family_recall, 6),
@@ -304,7 +278,9 @@ def run_benchmark(cases: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "confounder_leaks": confounder_leaks,
         "metrics": metrics,
         "family_recall": family_recalls,
-        "hard_confusion_matrix": {family: dict(values) for family, values in sorted(confusion.items())},
+        "confusion_matrix": {family: dict(values) for family, values in sorted(full_confusion.items())},
+        "ranking_errors": ranking_errors,
+        "hard_confusion_matrix": {family: dict(values) for family, values in sorted(hard_confusion.items())},
         "standards_errors": standards_errors,
         "by_kind": by_kind,
         "failures": [row for row in evaluated if not row["pass"]],
@@ -395,11 +371,13 @@ def benchmark_file(path: str | Path = DEFAULT_CORPUS) -> dict[str, Any]:
             "heldout_brier_score": hm["brier_score"],
             "heldout_ece": hm["ece"],
         })
-        report["held_out_confusion_matrix"] = held_out.get("hard_confusion_matrix", {})
+        report["held_out_confusion_matrix"] = held_out.get("confusion_matrix", {})
+        report["held_out_ranking_errors"] = held_out.get("ranking_errors", [])
         report["held_out_reliability_buckets"] = _reliability_buckets(held_out.get("cases", []))
     else:
         report["metrics"].update({"heldout_precision": 0.0, "heldout_recall": 0.0, "heldout_top1_accuracy": 0.0, "heldout_top3_accuracy": 0.0, "heldout_abstention_accuracy": 0.0, "heldout_false_promotion_rate": 0.0, "heldout_brier_score": 0.0, "heldout_ece": 0.0})
         report["held_out_confusion_matrix"] = {}
+        report["held_out_ranking_errors"] = []
         report["held_out_reliability_buckets"] = []
     report["quality_gate"] = quality_gate(report)
     if not validation.get("passed"):

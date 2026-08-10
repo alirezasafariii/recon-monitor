@@ -27,7 +27,7 @@ class AnalysisGoldenBenchmarkV620Tests(unittest.TestCase):
         cls.report = run_benchmark(cls.cases)
 
     def test_version_and_seed_shape(self):
-        self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.0.0")
+        self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.1.0")
         self.assertEqual(len(self.cases), 45)
         families = defaultdict(set)
         for case in self.cases:

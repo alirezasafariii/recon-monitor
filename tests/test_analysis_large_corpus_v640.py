@@ -20,7 +20,7 @@ class AnalysisLargeCorpusV640Tests(unittest.TestCase):
         cls.report = benchmark_file(REAL_WORLD_CORPUS)
 
     def test_version_and_large_corpus_shape(self):
-        self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.0.0")
+        self.assertEqual(BENCHMARK_ENGINE_VERSION, "3.1.0")
         self.assertEqual(CORPUS_VALIDATOR_VERSION, "1.0.0")
         self.assertEqual(len(self.cases), 179)
         self.assertGreaterEqual(self.validation["real_positive_source_roots"], 40)
