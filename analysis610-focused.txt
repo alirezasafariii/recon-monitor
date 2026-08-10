@@ -1,0 +1,46 @@
+### tests/test_detector_execution_intelligence_v6100.py
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.008s
+
+OK
+EXIT=0
+### tests/test_physical_family_detectors_v690.py
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_physical_family_detectors_v690.py", line 7, in <module>
+    from analysis_standards import FAMILY_STANDARDS, STANDARDS_ENGINE_VERSION
+ModuleNotFoundError: No module named 'analysis_standards'
+EXIT=1
+### tests/test_family_evidence_extractors_v680.py
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_family_evidence_extractors_v680.py", line 5, in <module>
+    from analysis_ranking import RANKING_ENGINE_VERSION, rank_families
+ModuleNotFoundError: No module named 'analysis_ranking'
+EXIT=1
+### tests/test_family_reasoners_v670.py
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_family_reasoners_v670.py", line 5, in <module>
+    from analysis_ranking import RANKING_ENGINE_VERSION, rank_families
+ModuleNotFoundError: No module named 'analysis_ranking'
+EXIT=1
+### tests/test_family_confusion_matrix_v670.py
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_family_confusion_matrix_v670.py", line 5, in <module>
+    from analysis_ranking import rank_families
+ModuleNotFoundError: No module named 'analysis_ranking'
+EXIT=1
+### tests/test_analysis_ranking_v650.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 2.023s
+
+OK
+EXIT=0
+### tests/test_analysis_coverage_v610.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.283s
+
+OK
+EXIT=0
+OVERALL=1
