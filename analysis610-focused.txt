@@ -32,14 +32,14 @@ EXIT=1
 ### tests/test_analysis_ranking_v650.py
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 1.630s
+Ran 5 tests in 1.095s
 
 OK
 EXIT=0
 ### tests/test_analysis_coverage_v610.py
 ......
 ----------------------------------------------------------------------
-Ran 6 tests in 0.257s
+Ran 6 tests in 0.397s
 
 OK
 EXIT=0
