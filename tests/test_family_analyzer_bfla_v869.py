@@ -1,0 +1,174 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "app"))
+
+from core import APP_VERSION, Database, utc_now
+from family_analyzers.bfla import (
+    BFLA_FAMILY_ANALYZER_VERSION,
+    BFLA_METHOD,
+    analyze_bfla_signal,
+)
+from family_analyzers.router import analyzer_for_family, router_status
+
+
+class BflaFamilyAnalyzerV869Tests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db = Database(Path(self.tmp.name) / "recon.db")
+        now = utc_now()
+        self.db.execute(
+            "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) VALUES('RUN-BFLA-FAMILY',?,'success',?,?, 'example.com',1)",
+            (APP_VERSION, now, now),
+        )
+        self.db.execute(
+            "INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,mode,status,started_at,finished_at,summary_json) VALUES('AN-BFLA-FAMILY','RUN-BFLA-FAMILY','example.com','8.6','family','analysis','success',?,?, '{}')",
+            (now, now),
+        )
+
+    def tearDown(self) -> None:
+        self.db.close()
+        self.tmp.cleanup()
+
+    def analyze(
+        self,
+        details,
+        *,
+        endpoint="https://example.com/api/admin/users",
+        method="POST",
+        body_fields=None,
+        auth_hints=None,
+        semantic_text="",
+    ):
+        return analyze_bfla_signal(
+            self.db,
+            analysis_id="AN-BFLA-FAMILY",
+            target="example.com",
+            endpoint=endpoint,
+            method=method,
+            body_fields=list(body_fields or []),
+            auth_hints=list(auth_hints or []),
+            details=details,
+            business_context="administration",
+            semantic_text=semantic_text,
+        )
+
+    def test_router_registers_bola_and_bfla_without_generic_fallback(self):
+        status = router_status()
+        self.assertEqual(status["target_family_count"], 21)
+        self.assertEqual(
+            status["registered"],
+            ["broken_object_authorization", "broken_function_authorization"],
+        )
+        self.assertEqual(status["registered_count"], 2)
+        self.assertEqual(status["pending_count"], 19)
+        self.assertFalse(status["generic_family_analyzer_fallback"])
+        self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
+        self.assertIsNone(analyzer_for_family("ssrf"))
+
+    def test_methodology_is_grounded_in_api5_wstg_and_cwe(self):
+        result = self.analyze({}, body_fields=["role"])
+        self.assertIsNotNone(result)
+        meta = result["family_analyzer"]
+        self.assertEqual(BFLA_FAMILY_ANALYZER_VERSION, "1.0.0")
+        self.assertIn("CWE-862", meta["taxonomy"]["cwe"])
+        self.assertIn("WSTG-APIT-04", meta["taxonomy"]["wstg"])
+        self.assertIn("WSTG-ATHZ-02", meta["taxonomy"]["wstg"])
+        basis = {item for step in BFLA_METHOD for item in step["basis"]}
+        self.assertIn("OWASP API5:2023", basis)
+        self.assertIn("CWE-862", basis)
+        self.assertIn("WSTG-ATHZ-02", basis)
+
+    def test_privileged_route_alone_is_not_confirmation(self):
+        result = self.analyze({}, endpoint="https://example.com/api/admin/audit", method="GET")
+        observed = {row["type"] for row in result["support"]}
+        self.assertIn("privileged_function", observed)
+        self.assertIn("privileged_read_operation", observed)
+        self.assertEqual(result["variant"], "privileged_read")
+        self.assertFalse(result["direct"])
+        self.assertFalse(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
+        self.assertTrue(result["family_analyzer"]["confirmation_missing"])
+
+    def test_lower_privilege_success_is_direct_role_boundary_evidence(self):
+        result = self.analyze({
+            "context_observations": [
+                {
+                    "context": "member",
+                    "role": "member",
+                    "required_role": "admin",
+                    "expected_access": False,
+                    "status_code": 200,
+                    "privileged_effect": True,
+                }
+            ]
+        })
+        observed = {row["type"] for row in result["support"]}
+        self.assertIn("unauthorized_function_success", observed)
+        self.assertIn("role_authorization_differential", observed)
+        self.assertIn("privileged_effect_observed", observed)
+        self.assertTrue(result["direct"])
+        self.assertEqual(result["variant"], "vertical_role_bypass")
+        self.assertTrue(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
+        self.assertEqual(result["family_analyzer"]["confirmation_missing"], [])
+
+    def test_permission_scope_mismatch_matches_real_world_patterns_but_stays_non_evidentiary(self):
+        result = self.analyze({
+            "context_observations": [
+                {
+                    "context": "writer",
+                    "permission": "event:write",
+                    "required_permission": "event:admin",
+                    "expected_access": False,
+                    "status_code": 200,
+                }
+            ]
+        }, endpoint="https://example.com/api/admin/events/reprocess", method="POST")
+        observed = {row["type"] for row in result["support"]}
+        self.assertIn("permission_scope_mismatch", observed)
+        self.assertIn("role_authorization_differential", observed)
+        refs = {row["id"] for row in result["family_analyzer"]["writeup_patterns"]}
+        self.assertIn("ghsl-sentry-2025-120", refs)
+        self.assertTrue(all(row["non_evidentiary"] for row in result["family_analyzer"]["writeup_patterns"]))
+        self.assertNotIn("ghsl-sentry-2025-120", observed)
+        self.assertTrue(result["family_analyzer"]["knowledge_does_not_change_target_evidence"])
+
+    def test_enforced_lower_privilege_denial_triggers_false_positive_review(self):
+        result = self.analyze({
+            "context_observations": [
+                {
+                    "context": "member",
+                    "role": "member",
+                    "required_role": "admin",
+                    "expected_access": False,
+                    "status_code": 403,
+                    "role_enforcement": True,
+                    "permission_enforced": True,
+                }
+            ]
+        })
+        contradictions = {row["type"] for row in result["contradict"]}
+        self.assertIn("lower_privilege_denied", contradictions)
+        self.assertIn("role_enforcement_observed", contradictions)
+        self.assertIn("permission_check_enforced", contradictions)
+        triggered = {row["signal"] for row in result["family_analyzer"]["triggered_false_positive_checks"]}
+        self.assertIn("lower_privilege_denied", triggered)
+        self.assertIn("role_enforcement_observed", triggered)
+        self.assertFalse(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
+
+    def test_non_privileged_surface_does_not_emit_bfla(self):
+        result = self.analyze(
+            {},
+            endpoint="https://example.com/api/profile",
+            method="GET",
+            semantic_text="ordinary user profile read",
+        )
+        self.assertIsNone(result)
+
+
+if __name__ == "__main__":
+    unittest.main()
