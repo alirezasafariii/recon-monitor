@@ -1,0 +1,113 @@
+name: Apply Analysis 6.8 Family Evidence Extraction
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.8-family-evidence-extractors
+    paths:
+      - .analysis-68-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.8-family-evidence-extractors
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply Analysis 6.8 patches
+        run: python .analysis-68-apply.py
+
+      - name: Syntax check
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile \
+            app/family_evidence_extractors.py \
+            app/family_reasoners.py \
+            app/hypothesis_admission.py \
+            app/bug_candidates.py \
+            app/analysis_ranking.py \
+            app/security_family_ranker.py \
+            app/security_reasoning.py \
+            app/analysis_engine.py
+
+      - name: Focused Analysis 6.8 tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_family_evidence_extractors_v680.py
+          python tests/test_family_reasoners_v670.py
+          python tests/test_family_confusion_matrix_v670.py
+          python tests/test_analysis_ranking_v650.py
+          python tests/test_analysis_coverage_v610.py
+
+      - name: Full unit suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden v3 regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        run: python tests/integration_runner.py
+
+      - name: Remove temporary Analysis 6.8 machinery
+        shell: bash
+        run: |
+          rm -f .analysis-68-apply.py
+          rm -f .analysis-68-trigger
+          rm -f .github/workflows/apply-analysis-68.yml
+
+      - name: Regenerate manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import subprocess
+
+          raw = subprocess.check_output(["git", "ls-files", "-z"])
+          paths = [item.decode("utf-8") for item in raw.split(b"\0") if item]
+          removed = {
+              ".analysis-68-apply.py",
+              ".analysis-68-trigger",
+              ".github/workflows/apply-analysis-68.yml",
+          }
+          lines = []
+          for path in sorted(paths):
+              if path == "MANIFEST.sha256" or path in removed or not os.path.isfile(path):
+                  continue
+              h = hashlib.sha256()
+              with open(path, "rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      h.update(chunk)
+              lines.append(f"{h.hexdigest()}  {path}\n")
+          with open("MANIFEST.sha256", "w", encoding="utf-8") as handle:
+              handle.writelines(lines)
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit finalized Analysis 6.8
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Analysis 6.8 family evidence extraction boundaries"
+          git push origin HEAD:agent/analysis-engine-6.8-family-evidence-extractors
