@@ -1,0 +1,54 @@
+name: Capture Analysis 6.8 Full Suite Regression
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.8-family-evidence-extractors
+    paths:
+      - .analysis-68-fullcapture
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.8-family-evidence-extractors
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending 6.8 implementation
+        run: |
+          python .analysis-68-apply.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/family_evidence_extractors.py')
+          text=p.read_text(encoding='utf-8')
+          old='''    if signal in overrides:\n        return "condition"\n    for index, group in enumerate(required):\n        if signal in group:\n            return "condition" if index == len(required) - 1 else "identity"\n    return "surface"\n'''
+          new='''    if signal in overrides:\n        return "condition"\n    if required and signal in required[-1]:\n        return "condition"\n    for group in required[:-1]:\n        if signal in group:\n            return "identity"\n    return "surface"\n'''
+          if old not in text: raise SystemExit('precedence target missing')
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Capture full suite
+        shell: bash
+        env:
+          PYTHONPATH: app
+        run: |
+          set +e
+          python -m unittest discover -s tests -p 'test_*.py' -v > analysis68-full-suite.txt 2>&1
+          code=$?
+          echo "EXIT=$code" >> analysis68-full-suite.txt
+          cat analysis68-full-suite.txt
+          exit 0
+      - name: Commit diagnostic output
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis68-full-suite.txt
+          git commit -m "Capture Analysis 6.8 full-suite regression" || exit 0
+          git push origin HEAD:agent/analysis-engine-6.8-family-evidence-extractors
