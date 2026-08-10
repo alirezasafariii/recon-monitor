@@ -29,6 +29,9 @@ jobs:
           python3 .analysis_v6_patch.py
           python3 - <<'PY'
           from pathlib import Path
+
+          # Recall-preserving admission: complementary evidence now needs an unsafe
+          # behavior signal, not merely file-input + operation surface evidence.
           p = Path('tests/test_recall_preserving_admission_v843.py')
           s = p.read_text(encoding='utf-8')
           old = 'variant="file_validation", support=[{"type": "import_operation", "source": "endpoint", "text": "import operation"}],'
@@ -38,11 +41,67 @@ jobs:
           s = s.replace(old, new, 1)
           s = s.replace('{"file_input", "import_operation"}', '{"file_input", "import_operation", "dangerous_type_accepted"}', 1)
           p.write_text(s, encoding='utf-8')
+
+          # V4.1 tests previously encoded the old over-promotion contract. BOLA is
+          # still admitted by direct owner mismatch; BFLA/Mass Assignment stay hidden
+          # until their own decisive evidence exists. Static DOM proximity is also a
+          # hidden hypothesis rather than an analyst-facing finding.
+          p = Path('tests/test_bug_candidates_v41.py')
+          s = p.read_text(encoding='utf-8')
+          old = """                self.assertIn('broken_object_authorization', families)\n                self.assertIn('broken_function_authorization', families)\n                self.assertIn('mass_assignment', families)\n                bola = next(row for row in rows if row['bug_family'] == 'broken_object_authorization')"""
+          new = """                self.assertIn('broken_object_authorization', families)\n                self.assertNotIn('broken_function_authorization', families)\n                self.assertNotIn('mass_assignment', families)\n                hidden = {str(row['bug_family']): str(row['state']) for row in db.all(\"SELECT bug_family,state FROM analysis_hypotheses WHERE analysis_id=?\", (result['analysis_id'],))}\n                self.assertIn('broken_function_authorization', hidden)\n                self.assertIn('mass_assignment', hidden)\n                self.assertNotEqual(hidden['broken_function_authorization'], 'promoted')\n                self.assertNotEqual(hidden['mass_assignment'], 'promoted')\n                bola = next(row for row in rows if row['bug_family'] == 'broken_object_authorization')"""
+          if old not in s:
+              raise SystemExit('v41 family assertions not found')
+          s = s.replace(old, new, 1)
+          old = """                summary = generate_bug_candidates(db, result['analysis_id'], 'run-candidate', 'example.com')\n                self.assertGreater(summary['from_static_intelligence'], 0)\n                row = db.one(\"SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'\", (result['analysis_id'],))\n                self.assertIsNotNone(row)\n                self.assertIn('runtime', str(row['missing_evidence_json']).lower())"""
+          new = """                summary = generate_bug_candidates(db, result['analysis_id'], 'run-candidate', 'example.com')\n                self.assertEqual(summary['from_static_intelligence'], 0)\n                row = db.one(\"SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'\", (result['analysis_id'],))\n                self.assertIsNone(row)\n                hidden = db.one(\"SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'\", (result['analysis_id'],))\n                self.assertIsNotNone(hidden)\n                self.assertFalse(json.loads(hidden['admission_json'])['admitted'])"""
+          if old not in s:
+              raise SystemExit('v41 static candidate assertions not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # Reliability tests exercise lifecycle/calibration mechanics, not admission.
+          # Give the fixture direct cross-tenant evidence so it still creates a valid
+          # BOLA candidate under Analysis 6.0.
+          p = Path('tests/test_candidate_reliability_v43.py')
+          s = p.read_text(encoding='utf-8')
+          old = '            "status_code": 200,\n            "method": "PATCH",'
+          new = '            "status_code": 200,\n            "request_tenant_id": "tenant-a",\n            "object_tenant_id": "tenant-b",\n            "method": "PATCH",'
+          if old not in s:
+              raise SystemExit('v43 reliability fixture anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # Product-platform tests likewise need one genuinely admitted candidate to
+          # exercise case lifecycle, cache, reports, and export plumbing.
+          p = Path('tests/test_product_platform_v50.py')
+          s = p.read_text(encoding='utf-8')
+          old = '            "status_code": 200, "method": "PATCH", "authentication": "bearer",'
+          new = '            "status_code": 200, "method": "PATCH", "authentication": "bearer",\n            "request_tenant_id": "tenant-a", "object_tenant_id": "tenant-b",'
+          if old not in s:
+              raise SystemExit('v50 product platform fixture anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
           PY
       - name: Syntax checks
-        run: python3 -m py_compile app/hypothesis_admission.py app/bug_candidates.py app/analysis_engine.py app/candidate_intelligence.py app/behavioral_intelligence.py app/security_reasoning.py tests/test_analysis_admission_v600.py tests/test_recall_preserving_admission_v843.py
+        run: |
+          python3 -m py_compile \
+            app/hypothesis_admission.py app/bug_candidates.py app/analysis_engine.py \
+            app/candidate_intelligence.py app/behavioral_intelligence.py app/security_reasoning.py \
+            tests/test_analysis_admission_v600.py tests/test_recall_preserving_admission_v843.py \
+            tests/test_bug_candidates_v41.py tests/test_candidate_reliability_v43.py tests/test_product_platform_v50.py
       - name: Focused Analysis regression tests
-        run: python3 -m unittest tests.test_analysis_admission_v600 tests.test_recall_preserving_admission_v843 tests.test_bola_intelligence_v850 tests.test_security_reasoning_v46 tests.test_abstention_consistency_v844 tests.test_current_projection_v845
+        run: |
+          python3 -m unittest \
+            tests.test_analysis_admission_v600 \
+            tests.test_recall_preserving_admission_v843 \
+            tests.test_bola_intelligence_v850 \
+            tests.test_security_reasoning_v46 \
+            tests.test_abstention_consistency_v844 \
+            tests.test_current_projection_v845 \
+            tests.test_bug_candidates_v41 \
+            tests.test_candidate_reliability_v43 \
+            tests.test_product_platform_v50
       - name: Full regression suite
         run: python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Clean staging files
