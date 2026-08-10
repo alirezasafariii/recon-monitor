@@ -88,7 +88,10 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertEqual(manifest["frozen_engine"]["analysis_engine_version"], "6.5.0")
         self.assertEqual(manifest["frozen_engine"]["ranking_engine_version"], "1.0.0")
         self.assertEqual(manifest["acceptance_gates"], PREREGISTERED_GATES)
-        self.assertEqual(manifest["prior_evaluations"]["analysis_golden_v3"]["evaluation_status"], "consumed_diagnostic")
+        self.assertEqual(
+            manifest["prior_evaluations"]["analysis_golden_v3"]["evaluation_status"],
+            "consumed_diagnostic",
+        )
         self.assertEqual(manifest["collection_target"]["new_source_roots"], 50)
         self.assertEqual(manifest["collection_target"]["target_cases"], 200)
 
@@ -97,11 +100,20 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertTrue(result["passed"], result["errors"])
         self.assertEqual(len(result["checked_files"]), 6)
 
-    def test_collection_mode_does_not_evaluate_unsealed_corpus(self) -> None:
+    def test_protocol_state_matches_seal_state(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
         status = collection_status(DEFAULT_MANIFEST)
         self.assertTrue(status["freeze_validation"]["passed"])
-        self.assertFalse(status["sealed"])
-        self.assertIn(status["evaluation_status"], {"collection_open", "corpus_materialized"})
+        if manifest["corpus"]["sealed"]:
+            self.assertTrue(status["sealed"])
+            self.assertEqual(status["evaluation_status"], "sealed_postfreeze")
+            digest = str(manifest["corpus"]["sha256"] or "")
+            self.assertEqual(len(digest), 64)
+            int(digest, 16)
+        else:
+            self.assertFalse(status["sealed"])
+            self.assertIn(status["evaluation_status"], {"collection_open", "corpus_materialized"})
+            self.assertIsNone(manifest["corpus"]["sha256"])
 
     def test_requires_exactly_four_variants_per_source_root(self) -> None:
         manifest = _synthetic_manifest()
@@ -110,8 +122,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertEqual(result["source_root_count"], 1)
         self.assertEqual(result["case_count"], 4)
 
-        incomplete = _root_cases()[:-1]
-        result = validate_postfreeze_corpus(incomplete, manifest, [])
+        result = validate_postfreeze_corpus(_root_cases()[:-1], manifest, [])
         self.assertFalse(result["passed"])
         self.assertTrue(any("root variants" in error for error in result["errors"]))
 
@@ -124,21 +135,15 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
                 "reference": "OLD-REFERENCE",
             },
         }]
-
-        reused_root = _root_cases(root="OLD-ROOT", url="https://example.invalid/advisory/new")
-        result = validate_postfreeze_corpus(reused_root, manifest, prior)
-        self.assertFalse(result["passed"])
-        self.assertTrue(any("source_root already exists" in error for error in result["errors"]))
-
-        reused_url = _root_cases(root="NEW-ROOT", url="https://example.invalid/advisory/old")
-        result = validate_postfreeze_corpus(reused_url, manifest, prior)
-        self.assertFalse(result["passed"])
-        self.assertTrue(any("provenance URL already exists" in error for error in result["errors"]))
-
-        reused_ref = _root_cases(root="OLD-REFERENCE", url="https://example.invalid/advisory/newer")
-        result = validate_postfreeze_corpus(reused_ref, manifest, prior)
-        self.assertFalse(result["passed"])
-        self.assertTrue(any("provenance reference already exists" in error for error in result["errors"]))
+        checks = [
+            (_root_cases(root="OLD-ROOT", url="https://example.invalid/advisory/new"), "source_root already exists"),
+            (_root_cases(root="NEW-ROOT", url="https://example.invalid/advisory/old"), "provenance URL already exists"),
+            (_root_cases(root="OLD-REFERENCE", url="https://example.invalid/advisory/newer"), "provenance reference already exists"),
+        ]
+        for cases, needle in checks:
+            result = validate_postfreeze_corpus(cases, manifest, prior)
+            self.assertFalse(result["passed"])
+            self.assertTrue(any(needle in error for error in result["errors"]))
 
     def test_rejects_external_knowledge_as_target_evidence(self) -> None:
         manifest = _synthetic_manifest()
