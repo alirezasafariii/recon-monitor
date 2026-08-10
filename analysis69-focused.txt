@@ -1,0 +1,71 @@
+### tests/test_physical_family_detectors_v690.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.001s
+
+OK
+EXIT=0
+### tests/test_family_evidence_extractors_v680.py
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.003s
+
+OK
+EXIT=0
+### tests/test_family_reasoners_v670.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.013s
+
+OK
+EXIT=0
+### tests/test_family_confusion_matrix_v670.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.044s
+
+OK
+EXIT=0
+### tests/test_analysis_ranking_v650.py
+....F
+======================================================================
+FAIL: test_versions (__main__.AnalysisRankingV650Tests.test_versions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_analysis_ranking_v650.py", line 20, in test_versions
+    self.assertEqual(REASONING_ENGINE_VERSION, "6.8.0")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '6.9.0' != '6.8.0'
+- 6.9.0
+?   ^
++ 6.8.0
+?   ^
+
+
+----------------------------------------------------------------------
+Ran 5 tests in 1.055s
+
+FAILED (failures=1)
+EXIT=1
+### tests/test_analysis_coverage_v610.py
+.....F
+======================================================================
+FAIL: test_versions_and_registry (__main__.AnalysisCoverageV610Tests.test_versions_and_registry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_analysis_coverage_v610.py", line 28, in test_versions_and_registry
+    self.assertEqual(ENGINE_VERSION, "6.8.0")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '6.9.0' != '6.8.0'
+- 6.9.0
+?   ^
++ 6.8.0
+?   ^
+
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.560s
+
+FAILED (failures=1)
+EXIT=1
+OVERALL=1
