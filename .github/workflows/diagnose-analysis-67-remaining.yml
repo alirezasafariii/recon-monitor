@@ -1,0 +1,54 @@
+name: Diagnose Analysis 6.7 Remaining Tests
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-diagnose-remaining
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending 6.7 patches
+        run: |
+          python .analysis-67-boundaries.py
+          python .analysis-67-postfreeze-tests.py
+      - name: Dashboard tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_dashboard_csrf_v601.py
+          python tests/test_dashboard_four_workspaces_v70.py
+          python tests/test_dashboard_navigation_filters_v511.py
+          python tests/test_dashboard_performance_v501.py
+          python tests/test_dashboard_polish_v801.py
+          python tests/test_dashboard_v31.py
+      - name: Projection stability and update tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_current_projection_v845.py
+          python tests/test_stability_v451.py
+          python tests/test_update_v810.py
+          python tests/test_safe_validation_v51.py
+      - name: Remaining legacy tests
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python tests/test_behavioral_v45.py
+          python tests/test_bug_candidates_v41.py
+          python tests/test_management.py
+          python tests/test_reporting.py
+          python tests/test_v22.py
+          python tests/test_v3.py
