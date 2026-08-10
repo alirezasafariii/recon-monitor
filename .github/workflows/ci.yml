@@ -38,6 +38,16 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: BFLA family analyzer hash diagnostic
+        shell: bash
+        run: sha256sum app/bug_candidates.py app/bug_candidates_core.py app/family_analyzers/__init__.py app/family_analyzers/bfla.py app/family_analyzers/router.py tests/test_family_analyzer_bola_v868.py tests/test_family_analyzer_bfla_v869.py
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Integration test
+        run: python tests/integration_runner.py
+
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
@@ -52,9 +62,3 @@ jobs:
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
           fi
-
-      - name: Unit tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-
-      - name: Integration test
-        run: python tests/integration_runner.py
