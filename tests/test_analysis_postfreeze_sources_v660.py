@@ -19,32 +19,36 @@ def _write_registry(rows: list[dict], directory: str) -> Path:
 
 
 class AnalysisPostFreezeSourceRegistry660Tests(unittest.TestCase):
-    def test_current_registry_is_valid_but_collection_is_incomplete(self) -> None:
+    def test_current_registry_is_complete_and_policy_valid(self) -> None:
         result = validate_source_registry()
         self.assertTrue(result["passed"], result["errors"])
-        self.assertEqual(result["verified_source_roots"], 31)
+        self.assertEqual(result["verified_source_roots"], 50)
         self.assertEqual(result["target_source_roots"], 50)
-        self.assertEqual(result["remaining_source_roots"], 19)
-        self.assertEqual(result["source_projects"], 31)
-        self.assertEqual(result["source_files"], ["v4_roots.jsonl", "v4_roots_02.jsonl"])
-        self.assertFalse(result["collection_complete"])
-        self.assertTrue(any("31/50" in warning for warning in result["warnings"]))
+        self.assertEqual(result["remaining_source_roots"], 0)
+        self.assertEqual(result["source_projects"], 50)
+        self.assertEqual(
+            result["source_files"],
+            ["v4_roots.jsonl", "v4_roots_02.jsonl", "v4_roots_03.jsonl"],
+        )
+        self.assertTrue(result["collection_complete"])
+        self.assertEqual(result["warnings"], [])
         self.assertEqual(result["family_counts"]["broken_object_authorization"], 4)
         self.assertEqual(result["family_counts"]["broken_function_authorization"], 2)
         self.assertEqual(result["family_counts"]["sql_injection"], 2)
-        self.assertEqual(result["family_counts"]["command_injection"], 4)
-        self.assertEqual(result["family_counts"]["path_traversal"], 3)
+        self.assertEqual(result["family_counts"]["command_injection"], 7)
+        self.assertEqual(result["family_counts"]["path_traversal"], 9)
         self.assertEqual(result["family_counts"]["ssrf"], 3)
         self.assertEqual(result["family_counts"]["cors_misconfiguration"], 4)
-        self.assertEqual(result["family_counts"]["open_redirect"], 1)
-        self.assertEqual(result["family_counts"]["server_side_template_injection"], 2)
-        self.assertEqual(result["family_counts"]["unrestricted_resource_consumption"], 4)
+        self.assertEqual(result["family_counts"]["open_redirect"], 2)
+        self.assertEqual(result["family_counts"]["server_side_template_injection"], 4)
+        self.assertEqual(result["family_counts"]["unrestricted_resource_consumption"], 7)
         self.assertEqual(result["family_counts"]["file_upload"], 1)
         self.assertEqual(result["family_counts"]["information_disclosure"], 1)
+        self.assertEqual(result["family_counts"]["authentication_session"], 4)
 
     def test_source_registry_loader_does_not_require_case_id(self) -> None:
         rows = load_source_registry(DEFAULT_SOURCE_REGISTRY)
-        self.assertEqual(len(rows), 31)
+        self.assertEqual(len(rows), 50)
         self.assertTrue(all("source_root" in row for row in rows))
         self.assertTrue(all("id" not in row for row in rows))
 
