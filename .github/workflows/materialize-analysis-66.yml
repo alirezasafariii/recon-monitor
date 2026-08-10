@@ -46,10 +46,20 @@ jobs:
           grep -q '"sealed": false' benchmarks/golden/splits/v4.json
           grep -q '"sha256": null' benchmarks/golden/splits/v4.json
 
-      - name: Run post-freeze construction tests
+      - name: Test source registry layer
         env:
           PYTHONPATH: app
-        run: python -m unittest discover -s tests -p 'test_analysis_postfreeze*_v660.py' -q
+        run: python -m unittest discover -s tests -p 'test_analysis_postfreeze_sources_v660.py' -q
+
+      - name: Test corpus builder layer
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_postfreeze_build_v660.py' -q
+
+      - name: Test protocol state layer
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_postfreeze_v660.py' -q
 
       - name: Commit materialized corpus
         shell: bash
