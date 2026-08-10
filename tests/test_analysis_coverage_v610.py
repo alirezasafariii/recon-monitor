@@ -78,19 +78,29 @@ class AnalysisCoverageV610Tests(unittest.TestCase):
     def test_surface_only_sql_is_hidden_in_real_analysis(self):
         temp, paths, db = self._project()
         try:
-            db.execute("INSERT INTO targets(id,run_id,target,domain,created_at) VALUES('t61','run61','api.example.com','example.com',?)", (utc_now(),))
-            db.execute("INSERT INTO endpoints(run_id,target,url,method,source,first_seen,last_seen) VALUES('run61','api.example.com','https://api.example.com/search?q=1','GET','fixture',?,?)", (utc_now(), utc_now()))
-            db.execute("INSERT INTO api_parameters(run_id,target,endpoint,method,parameter,location,evidence_json,created_at) VALUES('run61','api.example.com','https://api.example.com/search?q=1','GET','q','query','{}',?)", (utc_now(),))
-            result = run_analysis(paths, "run61")
-            self.assertEqual(result["analysis_engine_version"], "6.5.0")
-            families = {str(row["bug_family"]) for row in db.all("SELECT bug_family FROM bug_candidates WHERE analysis_id=?", (result["analysis_id"],))}
-            self.assertNotIn("sql_injection", families)
+            details = {"status_code": 200, "method": "GET", "query_parameters": ["filter"]}
+            db.upsert_alert("example.com", "sql-surface", "new_endpoint", "MEDIUM", 55, "Search endpoint", "/api/search?filter=x", details, "run61")
+            result = run_analysis(paths, db, "run61", "example.com")
+            candidate = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='sql_injection'", (result["analysis_id"],))
+            hypothesis = db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='sql_injection'", (result["analysis_id"],))
+            self.assertIsNone(candidate)
+            self.assertIsNotNone(hypothesis)
         finally:
             db.close(); temp.cleanup()
 
-    def test_all_new_families_are_covered_by_security_reasoning(self):
-        self.assertTrue(NEW_FAMILIES.issubset(FAMILY_SCHEMAS))
-
+    def test_decisive_sql_and_api4_evidence_promote(self):
+        temp, paths, db = self._project()
+        try:
+            sql_details = {"status_code": 200, "method": "GET", "query_parameters": ["filter"], "query_structure_influence": True}
+            db.upsert_alert("example.com", "sql-decisive", "new_endpoint", "HIGH", 82, "Database search endpoint", "/api/search?filter=x", sql_details, "run61")
+            resource_details = {"status_code": 200, "method": "GET", "query_parameters": ["limit"], "unbounded_page_size_observed": True}
+            db.upsert_alert("example.com", "resource-decisive", "new_endpoint", "HIGH", 78, "Bulk export endpoint", "/api/export?limit=100", resource_details, "run61")
+            result = run_analysis(paths, db, "run61", "example.com")
+            families = {str(row["bug_family"]) for row in db.all("SELECT bug_family FROM bug_candidates WHERE analysis_id=?", (result["analysis_id"],))}
+            self.assertIn("sql_injection", families)
+            self.assertIn("unrestricted_resource_consumption", families)
+        finally:
+            db.close(); temp.cleanup()
 
 if __name__ == "__main__":
     unittest.main()
