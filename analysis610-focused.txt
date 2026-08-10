@@ -1,7 +1,7 @@
 ### tests/test_detector_execution_intelligence_v6100.py
-...........
+.............
 ----------------------------------------------------------------------
-Ran 11 tests in 0.008s
+Ran 13 tests in 0.009s
 
 OK
 EXIT=0
@@ -32,14 +32,14 @@ EXIT=1
 ### tests/test_analysis_ranking_v650.py
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 2.023s
+Ran 5 tests in 1.630s
 
 OK
 EXIT=0
 ### tests/test_analysis_coverage_v610.py
 ......
 ----------------------------------------------------------------------
-Ran 6 tests in 0.283s
+Ran 6 tests in 0.257s
 
 OK
 EXIT=0
