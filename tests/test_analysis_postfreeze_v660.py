@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import unittest
 
+from analysis_ranking import RANKING_ENGINE_VERSION
 from analysis_postfreeze import (
     DEFAULT_MANIFEST,
     PREREGISTERED_GATES,
@@ -95,15 +96,34 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         self.assertEqual(manifest["collection_target"]["new_source_roots"], 50)
         self.assertEqual(manifest["collection_target"]["target_cases"], 200)
 
-    def test_protected_files_match_frozen_git_blobs(self) -> None:
-        result = validate_freeze(load_manifest(DEFAULT_MANIFEST))
-        self.assertTrue(result["passed"], result["errors"])
+    def test_historical_v4_freeze_detects_current_engine_drift(self) -> None:
+        manifest = load_manifest(DEFAULT_MANIFEST)
+        result = validate_freeze(manifest)
+        frozen_ranking = str(manifest["frozen_engine"]["ranking_engine_version"])
+        if RANKING_ENGINE_VERSION == frozen_ranking:
+            self.assertTrue(result["passed"], result["errors"])
+        else:
+            self.assertFalse(result["passed"])
+            self.assertTrue(
+                any("POST-FREEZE MODEL MUTATION DETECTED" in error for error in result["errors"]),
+                result["errors"],
+            )
         self.assertEqual(len(result["checked_files"]), 6)
 
-    def test_protocol_state_matches_seal_state(self) -> None:
+    def test_protocol_state_preserves_seal_while_new_engine_cannot_replay_fresh_v4(self) -> None:
         manifest = load_manifest(DEFAULT_MANIFEST)
         status = collection_status(DEFAULT_MANIFEST)
-        self.assertTrue(status["freeze_validation"]["passed"])
+        frozen_ranking = str(manifest["frozen_engine"]["ranking_engine_version"])
+        if RANKING_ENGINE_VERSION == frozen_ranking:
+            self.assertTrue(status["freeze_validation"]["passed"])
+        else:
+            self.assertFalse(status["freeze_validation"]["passed"])
+            self.assertTrue(
+                any(
+                    "POST-FREEZE MODEL MUTATION DETECTED" in error
+                    for error in status["freeze_validation"]["errors"]
+                )
+            )
         if manifest["corpus"]["sealed"]:
             self.assertTrue(status["sealed"])
             self.assertEqual(status["evaluation_status"], "sealed_postfreeze")

@@ -22,6 +22,44 @@ class FamilyReasonerProfile:
 # Every family owns an explicit analytical question, evidence weighting, and
 # confusion boundary. The weights are intentionally not inferred from a shared
 # vulnerability class: they encode what is identity-defining for that family.
+# Required identity groups before a family may participate in ranking when
+# decisive condition evidence is still absent. This prevents generic clues
+# (for example, merely having an input parameter) from mixing injection families.
+FAMILY_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
+    "broken_object_authorization": (0, 1),
+    "broken_function_authorization": (0, 1),
+    "mass_assignment": (1,),
+    "authentication_session": (0,),
+    "account_enumeration": (0,),
+    "dom_xss": (0, 1),
+    "postmessage_trust": (0,),
+    "open_redirect": (0, 1),
+    "ssrf": (0,),
+    "file_upload": (0, 1),
+    "path_traversal": (0, 1),
+    "information_disclosure": (0,),
+    "graphql_authorization": (0, 1),
+    "graphql_data_exposure": (0, 1),
+    "websocket_authorization": (0, 1),
+    "cors_misconfiguration": (0,),
+    "sensitive_caching": (0, 1),
+    "business_logic": (0,),
+    "race_condition": (0, 1),
+    "sql_injection": (1,),
+    "nosql_injection": (1,),
+    "command_injection": (1,),
+    "server_side_template_injection": (1,),
+    "ldap_injection": (1,),
+    "unrestricted_resource_consumption": (0,),
+    "sensitive_business_flow_abuse": (0,),
+    "security_misconfiguration": (0,),
+    "improper_inventory_management": (0,),
+    "unsafe_api_consumption": (0,),
+    "source_map_exposure": (0,),
+    "secret_exposure": (0, 1),
+}
+
+
 FAMILY_REASONER_PROFILES: dict[str, FamilyReasonerProfile] = {
     "broken_object_authorization": FamilyReasonerProfile(
         "Can this caller operate on this specific object despite an object/tenant ownership boundary?",
@@ -214,10 +252,15 @@ def _profile_errors() -> list[str]:
     errors: list[str] = []
     policy_families = set(FAMILY_ADMISSION_POLICIES)
     profile_families = set(FAMILY_REASONER_PROFILES)
+    gate_families = set(FAMILY_IDENTITY_GATES)
     if policy_families != profile_families:
         missing = sorted(policy_families - profile_families)
         extra = sorted(profile_families - policy_families)
         errors.append(f"reasoner coverage mismatch missing={missing} extra={extra}")
+    if policy_families != gate_families:
+        missing = sorted(policy_families - gate_families)
+        extra = sorted(gate_families - policy_families)
+        errors.append(f"identity-gate coverage mismatch missing={missing} extra={extra}")
     for family, profile in FAMILY_REASONER_PROFILES.items():
         required = FAMILY_ADMISSION_POLICIES[family].get("required", [])
         if len(profile.group_weights) != len(required):
@@ -232,6 +275,10 @@ def _profile_errors() -> list[str]:
             errors.append(f"{family}: unknown confounders {unknown}")
         if family in profile.confounders:
             errors.append(f"{family}: cannot confound with itself")
+        gates = FAMILY_IDENTITY_GATES.get(family, ())
+        invalid_gates = [index for index in gates if index < 0 or index >= len(required)]
+        if invalid_gates:
+            errors.append(f"{family}: invalid identity gate indices {invalid_gates}")
     return errors
 
 
@@ -369,7 +416,9 @@ def reason_family(
 
     identity_groups = group_results[:-1]
     identity_hits = sum(1 for row in identity_groups if row["hit"])
-    if not own_condition_present and identity_hits == 0:
+    identity_gate = FAMILY_IDENTITY_GATES[family]
+    identity_gate_satisfied = all(group_results[index]["hit"] for index in identity_gate)
+    if not own_condition_present and not identity_gate_satisfied:
         score = 0.0
 
     controls = list(assessment.get("blocking_contradictions") or [])
@@ -381,6 +430,8 @@ def reason_family(
         "weighted_group_coverage": round(weighted_coverage, 6),
         "group_results": group_results,
         "identity_group_hits": identity_hits,
+        "identity_gate": list(identity_gate),
+        "identity_gate_satisfied": identity_gate_satisfied,
         "condition_hits": condition_hits,
         "condition_confidence": condition_confidence(assessment),
         "control_evidence": controls,
