@@ -1,119 +1,13 @@
 name: Finalize Analysis 6.10 Detector Execution Intelligence v2
 
 on:
-  push:
-    branches:
-      - agent/analysis-engine-6.10-detector-execution-intelligence
+  workflow_dispatch:
 
 permissions:
-  contents: write
-
-env:
-  PYTHONPATH: app
+  contents: read
 
 jobs:
-  finalize:
-    if: github.actor != 'github-actions[bot]'
+  disabled:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: agent/analysis-engine-6.10-detector-execution-intelligence
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Syntax and registry validation
-        run: |
-          python -m py_compile \
-            app/family_detectors/execution.py \
-            app/family_detectors/__init__.py \
-            app/family_detectors/base.py \
-            app/family_detectors/registry.py \
-            app/bug_candidates.py \
-            app/analysis_engine.py \
-            app/security_reasoning.py
-          python - <<'PY'
-          from family_detectors import validate_detector_registry, validate_execution_profiles
-          assert validate_detector_registry() == []
-          assert validate_execution_profiles() == []
-          print('31 physical detector modules: OK')
-          print('31 execution profiles: OK')
-          PY
-
-      - name: Focused detector execution stack
-        run: |
-          python tests/test_detector_execution_intelligence_v6100.py
-          python tests/test_physical_family_detectors_v690.py
-          python tests/test_family_evidence_extractors_v680.py
-          python tests/test_family_reasoners_v670.py
-          python tests/test_family_confusion_matrix_v670.py
-          python tests/test_analysis_ranking_v650.py
-          python tests/test_analysis_coverage_v610.py
-
-      - name: Full unit suite
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-
-      - name: Golden v3 strict regression
-        run: python app/analysis_benchmark.py --strict
-
-      - name: Integration test
-        run: python tests/integration_runner.py
-
-      - name: Verify passive-only execution AST
-        run: |
-          python - <<'PY'
-          import ast
-          from pathlib import Path
-          tree = ast.parse(Path('app/family_detectors/execution.py').read_text(encoding='utf-8'))
-          forbidden_import_roots = {'requests', 'httpx', 'aiohttp', 'socket', 'subprocess', 'os'}
-          for node in ast.walk(tree):
-              if isinstance(node, ast.Import):
-                  for alias in node.names:
-                      assert alias.name.split('.')[0] not in forbidden_import_roots, alias.name
-              if isinstance(node, ast.ImportFrom) and node.module:
-                  assert node.module.split('.')[0] not in forbidden_import_roots, node.module
-          source = Path('app/family_detectors/execution.py').read_text(encoding='utf-8')
-          assert 'execution_passive_only' in source
-          assert 'urllib.request' not in source
-          print('passive-only executor AST/import contract: OK')
-          PY
-
-      - name: Cleanup all temporary Analysis 6.10 machinery
-        run: |
-          rm -f .analysis-610-apply.py
-          rm -f analysis610-focused.txt analysis610-focused-v2.txt
-          rm -f .github/workflows/apply-analysis-610.yml
-          rm -f .github/workflows/diagnose-analysis-610.yml
-          rm -f .github/workflows/diagnose-analysis-610-v2.yml
-          rm -f .github/workflows/finalize-analysis-610.yml
-          rm -f .github/workflows/finalize-analysis-610-v2.yml
-
-      - name: Regenerate tracked-source manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          git ls-files | \
-            grep -v '^MANIFEST.sha256$' | \
-            grep -v '^.analysis-610-apply.py$' | \
-            grep -v '^analysis610-focused.txt$' | \
-            grep -v '^analysis610-focused-v2.txt$' | \
-            grep -v '^.github/workflows/apply-analysis-610.yml$' | \
-            grep -v '^.github/workflows/diagnose-analysis-610.yml$' | \
-            grep -v '^.github/workflows/diagnose-analysis-610-v2.yml$' | \
-            grep -v '^.github/workflows/finalize-analysis-610.yml$' | \
-            grep -v '^.github/workflows/finalize-analysis-610-v2.yml$' | \
-            LC_ALL=C sort | xargs sha256sum > MANIFEST.sha256
-          sha256sum -c MANIFEST.sha256
-
-      - name: Commit finalized Analysis 6.10
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Finalize Analysis 6.10 detector execution intelligence'
-          git push origin HEAD:agent/analysis-engine-6.10-detector-execution-intelligence
+      - run: echo 'Superseded Analysis 6.10 finalizer'
