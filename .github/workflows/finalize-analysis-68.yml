@@ -28,11 +28,12 @@ jobs:
       - name: Apply Analysis 6.8 patches
         run: python .analysis-68-apply.py
 
-      - name: Enforce condition-role precedence
+      - name: Enforce 6.8 contract fixes
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+
           p = Path('app/family_evidence_extractors.py')
           text = p.read_text(encoding='utf-8')
           old = '''    if signal in overrides:\n        return "condition"\n    for index, group in enumerate(required):\n        if signal in group:\n            return "condition" if index == len(required) - 1 else "identity"\n    return "surface"\n'''
@@ -40,6 +41,15 @@ jobs:
           if old not in text:
               raise SystemExit('evidence_role precedence patch target not found')
           p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          for path in ('tests/test_analysis_admission_v600.py', 'tests/test_bola_intelligence_v850.py'):
+              q = Path(path)
+              value = q.read_text(encoding='utf-8')
+              old_version = 'self.assertEqual(ADMISSION_ENGINE_VERSION, "2.3.0")'
+              new_version = 'self.assertEqual(ADMISSION_ENGINE_VERSION, "2.4.0")'
+              if old_version not in value:
+                  raise SystemExit(f'{path}: legacy admission version assertion not found')
+              q.write_text(value.replace(old_version, new_version, 1), encoding='utf-8')
           PY
 
       - name: Syntax check
@@ -65,6 +75,8 @@ jobs:
           python tests/test_family_confusion_matrix_v670.py
           python tests/test_analysis_ranking_v650.py
           python tests/test_analysis_coverage_v610.py
+          python tests/test_analysis_admission_v600.py
+          python tests/test_bola_intelligence_v850.py
           python tests/test_analysis_postfreeze_v660.py
 
       - name: Full unit suite
@@ -88,10 +100,13 @@ jobs:
           rm -f .analysis-68-diag
           rm -f .analysis-68-capture
           rm -f .analysis-68-finalize
+          rm -f .analysis-68-fullcapture
           rm -f analysis68-focused-combined.txt
+          rm -f analysis68-full-suite.txt
           rm -f .github/workflows/apply-analysis-68.yml
           rm -f .github/workflows/diagnose-analysis-68.yml
           rm -f .github/workflows/capture-analysis-68-focused.yml
+          rm -f .github/workflows/capture-analysis-68-fullsuite.yml
           rm -f .github/workflows/finalize-analysis-68.yml
 
       - name: Regenerate tracked-source manifest
@@ -106,10 +121,12 @@ jobs:
           paths = [item.decode('utf-8') for item in raw.split(b'\0') if item]
           removed = {
               '.analysis-68-apply.py', '.analysis-68-trigger', '.analysis-68-diag',
-              '.analysis-68-capture', '.analysis-68-finalize', 'analysis68-focused-combined.txt',
+              '.analysis-68-capture', '.analysis-68-finalize', '.analysis-68-fullcapture',
+              'analysis68-focused-combined.txt', 'analysis68-full-suite.txt',
               '.github/workflows/apply-analysis-68.yml',
               '.github/workflows/diagnose-analysis-68.yml',
               '.github/workflows/capture-analysis-68-focused.yml',
+              '.github/workflows/capture-analysis-68-fullsuite.yml',
               '.github/workflows/finalize-analysis-68.yml',
           }
           lines = []
