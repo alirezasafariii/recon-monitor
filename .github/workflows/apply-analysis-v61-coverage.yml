@@ -25,7 +25,18 @@ jobs:
           python-version: '3.11'
 
       - name: Apply Analysis Engine 6.1 coverage patch
-        run: python3 .analysis_v61_coverage_patch.py
+        run: |
+          python3 .analysis_v61_coverage_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('tests/test_analysis_admission_v600.py', 'tests/test_bola_intelligence_v850.py'):
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              old = 'self.assertEqual(ADMISSION_ENGINE_VERSION, "2.0.0")'
+              if old not in s:
+                  raise SystemExit(f'admission version contract not found in {name}')
+              p.write_text(s.replace(old, 'self.assertEqual(ADMISSION_ENGINE_VERSION, "2.1.0")', 1), encoding='utf-8')
+          PY
 
       - name: Python syntax checks
         run: |
@@ -34,7 +45,9 @@ jobs:
             app/bug_candidates.py \
             app/security_reasoning.py \
             app/analysis_engine.py \
-            tests/test_analysis_coverage_v610.py
+            tests/test_analysis_coverage_v610.py \
+            tests/test_analysis_admission_v600.py \
+            tests/test_bola_intelligence_v850.py
 
       - name: Focused Analysis 6.1 regression tests
         run: |
