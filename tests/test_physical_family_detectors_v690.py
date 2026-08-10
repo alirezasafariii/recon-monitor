@@ -14,7 +14,8 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
     def test_exact_31_family_physical_coverage(self):
         self.assertEqual(set(DETECTOR_SPECS), set(FAMILY_ADMISSION_POLICIES))
         self.assertEqual(len(DETECTOR_SPECS), 31)
-        modules = {p.stem for p in Path("app/family_detectors").glob("*.py")} - {"__init__", "base", "registry"}
+        infrastructure = {"__init__", "base", "registry", "execution"}
+        modules = {p.stem for p in Path("app/family_detectors").glob("*.py")} - infrastructure
         self.assertEqual(modules, set(FAMILY_ADMISSION_POLICIES))
         self.assertEqual(validate_detector_registry(), [])
 
