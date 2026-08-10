@@ -37,13 +37,7 @@ CWE, OWASP WSTG, OWASP API Security guidance, CAPEC and vulnerability write-ups 
 - how it explains a hypothesis;
 - which real-world patterns are similar.
 
-They may **not**:
-
-- create supporting target evidence;
-- count as an independent evidence root;
-- satisfy Family Reasoning admission;
-- raise target-evidence confidence;
-- confirm a vulnerability.
+They may **not** create supporting target evidence, count as an independent evidence root, satisfy Family Reasoning admission, raise target-evidence confidence, or confirm a vulnerability.
 
 ## Reference implementation: BOLA / IDOR
 
@@ -57,15 +51,7 @@ Primary reasoning references:
 - WSTG-ATHZ-02 — Testing for Bypassing Authorization Schema
 - WSTG-APIT-02 — API Broken Object Level Authorization
 
-The BOLA algorithm separates five questions:
-
-1. **Object reference** — Is a client-influenced identifier actually selecting an object, and what operation is being performed?
-2. **Authorization boundary** — What identity, tenant, role, sharing, parent/child, or secondary-guard relationship is expected for that object?
-3. **Comparable context** — Is there stored, explicitly authorized comparison context for a different identity/object or tenant/object relationship?
-4. **Behavioral decision** — Did a context that should not have object access successfully read or mutate that object?
-5. **Contradiction / false-positive check** — Is the object public/shared, is ownership/scope enforcement observed, was the mismatched context denied, or is the issue actually authentication/function authorization rather than object authorization?
-
-An identifier alone remains a hypothesis surface and cannot become a BOLA Potential Finding.
+The BOLA algorithm separates object reference, expected authorization boundary, horizontal comparison, behavioral authorization failure and explicit contradiction/false-positive checks. An identifier alone remains a hypothesis surface and cannot confirm BOLA.
 
 ## Dedicated analyzer: BFLA
 
@@ -79,38 +65,55 @@ Primary reasoning references:
 - WSTG-ATHZ-02 — Testing for Bypassing Authorization Schema
 - WSTG-APIT-04 — API Broken Function Level Authorization
 
-The BFLA algorithm separates six questions:
+The BFLA algorithm separates privileged-function discovery, role/function policy, vertical comparison, method/scope differentials, behavioral success and contradiction/false-positive review. An `/admin` route or privileged-looking label alone is not confirmation.
 
-1. **Function inventory** — Is the surface actually role-, group-, permission-, scope-, or administration-sensitive?
-2. **Role/function matrix** — Which role or permission is expected to invoke the exact function and HTTP operation?
-3. **Vertical comparison** — What happens for explicitly authorized lower- and higher-privilege test contexts?
-4. **Method/scope differential** — Can a weaker permission or alternate method reach a more privileged effect?
-5. **Behavioral decision** — Did a context explicitly expected to be denied successfully invoke the function, and did the privileged effect occur when that distinction matters?
-6. **Contradiction / false-positive check** — Is server-side role/permission enforcement observed, is the lower role denied, is the function intentionally shared/no-op, or is the signal better explained by BOLA or property authorization?
+## Dedicated analyzer: Mass Assignment / Object Property Authorization
 
-An `/admin` route, privileged-looking label, UI visibility, or authentication hint alone is not BFLA confirmation.
+The third production-routed analyzer is `family_analyzers.mass_assignment.MassAssignmentFamilyAnalyzer`.
 
-### BFLA real-world pattern library
+Primary reasoning references:
 
-Current non-evidentiary patterns include:
+- CWE-915 — Improperly Controlled Modification of Dynamically-Determined Object Attributes
+- OWASP API3:2023 — Broken Object Property Level Authorization
+- OWASP API6:2019 — Mass Assignment
+- WSTG-INPV-20 — Mass Assignment
 
-- a group-membership function guarded by a weaker update permission instead of a manage-users permission;
-- an alternate POST function with a weaker permission than the stricter administrative permission used for the equivalent destructive action;
-- a sensitive function whose handler omits the expected server-side authorization call.
+The Mass Assignment algorithm separates six questions:
 
-These patterns are derived from public security research/write-ups and are used only to shape reasoning, false-positive review and next-evidence planning. They never become supporting target evidence.
+1. **Property surface** — does a client-controlled write contract expose a security-sensitive or policy-controlled object property?
+2. **Writable contract** — what fields is the server intended to accept for this exact operation?
+3. **Property authorization** — may this caller modify this specific property on an otherwise writable object?
+4. **Behavioral decision** — was a protected/non-writable property actually accepted contrary to policy?
+5. **Persistence** — was the property merely echoed/parsed, or was it actually persisted/changed in stored target evidence?
+6. **Contradictions/confounders** — was the field rejected, ignored, excluded by a server allow-list, or is the case better explained by BOLA, BFLA or business logic?
+
+A body field such as `role`, `is_admin`, `status`, `permissions`, `owner_id` or `tenant_id` is only a surface clue. Direct evidence is represented by family-specific observations such as:
+
+- `protected_property_accepted`
+- `protected_property_mutated`
+- `property_authorization_differential`
+
+Explicit controls include:
+
+- `protected_property_rejected`
+- `sensitive_property_ignored`
+- `server_allowlist_observed`
+
+A 2xx response by itself is not property-mutation confirmation; persisted/read-back or explicit property-policy evidence is preferred.
+
+### Mass Assignment real-world pattern library
+
+The current non-evidentiary pattern library includes the adjacent Wekan custom-field manipulation lesson from GHSL-2026-044: writable privileged/custom-field behavior is only meaningful when the server applies a property outside the caller's intended property policy. Pattern similarity never becomes target evidence.
 
 ## Write-up pattern library
 
-Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records.
-
-A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
+Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
 
 ## Compatibility
 
 `app/bola_intelligence.py` remains the BOLA public compatibility import surface.
 
-For Candidate Engine integration, the historical implementation is preserved in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is an additive compatibility/integration wrapper. BFLA target evidence is enriched by the dedicated analyzer before the existing `record_hypothesis → Family Reasoning admission → promotion` flow. Other families remain delegated unchanged until their dedicated analyzer migration is complete.
+For Candidate Engine integration, the historical implementation is preserved in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is an additive compatibility/integration wrapper. BFLA and Mass Assignment target evidence are enriched by their dedicated analyzers before the existing `record_hypothesis → Family Reasoning admission → promotion` flow. Other families remain delegated unchanged until their dedicated analyzer migration is complete.
 
 ## Router status
 
@@ -118,31 +121,31 @@ Currently production-routed:
 
 1. BOLA / IDOR
 2. Broken Function Level Authorization
+3. Mass Assignment / Object Property Authorization
 
-Pending dedicated analyzers: 19.
+Pending dedicated analyzers: 18.
 
 ## Migration order
 
 Next analyzers will be added independently for:
 
-1. Mass Assignment / Property Authorization
-2. Authentication / Session
-3. Account Enumeration
-4. DOM XSS
-5. postMessage Trust
-6. Open Redirect
-7. SSRF
-8. File Upload / Import
-9. Path Traversal
-10. Information Disclosure
-11. Source-map Exposure
-12. Secret Exposure
-13. GraphQL Authorization
-14. GraphQL Data Exposure
-15. Business Logic
-16. Race Condition
-17. WebSocket Authorization
-18. CORS
-19. Sensitive Caching
+1. Authentication / Session
+2. Account Enumeration
+3. DOM XSS
+4. postMessage Trust
+5. Open Redirect
+6. SSRF
+7. File Upload / Import
+8. Path Traversal
+9. Information Disclosure
+10. Source-map Exposure
+11. Secret Exposure
+12. GraphQL Authorization
+13. GraphQL Data Exposure
+14. Business Logic
+15. Race Condition
+16. WebSocket Authorization
+17. CORS
+18. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and CI before the router is allowed to register that family.
