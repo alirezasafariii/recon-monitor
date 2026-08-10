@@ -22,31 +22,32 @@ class AnalysisPostFreezeSourceRegistry660Tests(unittest.TestCase):
     def test_current_registry_is_valid_but_collection_is_incomplete(self) -> None:
         result = validate_source_registry()
         self.assertTrue(result["passed"], result["errors"])
-        self.assertEqual(result["verified_source_roots"], 12)
+        self.assertEqual(result["verified_source_roots"], 16)
         self.assertEqual(result["target_source_roots"], 50)
-        self.assertEqual(result["remaining_source_roots"], 38)
-        self.assertEqual(result["source_projects"], 12)
+        self.assertEqual(result["remaining_source_roots"], 34)
+        self.assertEqual(result["source_projects"], 16)
         self.assertFalse(result["collection_complete"])
-        self.assertTrue(any("12/50" in warning for warning in result["warnings"]))
+        self.assertTrue(any("16/50" in warning for warning in result["warnings"]))
         self.assertEqual(result["family_counts"]["broken_object_authorization"], 4)
         self.assertEqual(result["family_counts"]["broken_function_authorization"], 2)
         self.assertEqual(result["family_counts"]["sql_injection"], 2)
+        self.assertEqual(result["family_counts"]["command_injection"], 2)
+        self.assertEqual(result["family_counts"]["path_traversal"], 2)
         self.assertEqual(result["family_counts"]["ssrf"], 1)
-        self.assertEqual(result["family_counts"]["path_traversal"], 1)
         self.assertEqual(result["family_counts"]["cors_misconfiguration"], 1)
         self.assertEqual(result["family_counts"]["open_redirect"], 1)
+        self.assertEqual(result["family_counts"]["server_side_template_injection"], 1)
 
     def test_source_registry_loader_does_not_require_case_id(self) -> None:
         rows = load_source_registry(DEFAULT_SOURCE_REGISTRY)
-        self.assertEqual(len(rows), 12)
+        self.assertEqual(len(rows), 16)
         self.assertTrue(all("source_root" in row for row in rows))
         self.assertTrue(all("id" not in row for row in rows))
 
     def test_duplicate_root_is_rejected(self) -> None:
         rows = load_source_registry(DEFAULT_SOURCE_REGISTRY)
         with tempfile.TemporaryDirectory() as tmp:
-            path = _write_registry([*rows, dict(rows[0])], tmp)
-            result = validate_source_registry(registry_path=path)
+            result = validate_source_registry(registry_path=_write_registry([*rows, dict(rows[0])], tmp))
         self.assertFalse(result["passed"])
         self.assertTrue(any("duplicate source_root" in error for error in result["errors"]))
 
