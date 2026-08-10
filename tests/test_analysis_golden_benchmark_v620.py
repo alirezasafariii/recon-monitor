@@ -64,6 +64,19 @@ class AnalysisGoldenBenchmarkV620Tests(unittest.TestCase):
             result = evaluate_case(case)
             self.assertTrue(result["top3_correct"], result)
 
+    def test_ranking_score_is_separate_from_admission_confidence(self):
+        for case in self.cases:
+            result = evaluate_case(case)
+            self.assertIn("expected_family_score", result)
+            self.assertIn("expected_family_confidence", result)
+            if case["case_kind"] == "positive":
+                self.assertGreaterEqual(result["expected_family_confidence"], 0.90, result)
+            else:
+                self.assertLess(result["expected_family_confidence"], 0.50, result)
+                # A strong near-miss/secure family match may rank highly while the
+                # vulnerability-condition confidence deliberately remains low.
+                self.assertGreater(result["expected_family_score"], result["expected_family_confidence"], result)
+
     def test_baseline_quality_gate(self):
         gate = quality_gate(self.report)
         self.assertTrue(gate["passed"], gate)
@@ -74,8 +87,8 @@ class AnalysisGoldenBenchmarkV620Tests(unittest.TestCase):
         self.assertGreaterEqual(metrics["top3_accuracy"], 0.98)
         self.assertGreaterEqual(metrics["abstention_accuracy"], 0.95)
         self.assertLessEqual(metrics["false_promotion_rate"], 0.05)
-        self.assertLessEqual(metrics["brier_score"], 0.15)
-        self.assertLessEqual(metrics["ece"], 0.30)
+        self.assertLessEqual(metrics["brier_score"], 0.12)
+        self.assertLessEqual(metrics["ece"], 0.12)
 
     def test_benchmark_file_attaches_gate_and_corpus(self):
         report = benchmark_file(DEFAULT_CORPUS)
