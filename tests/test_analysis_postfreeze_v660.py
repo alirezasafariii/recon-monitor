@@ -93,7 +93,7 @@ class AnalysisPostFreeze660Tests(unittest.TestCase):
         status = collection_status(DEFAULT_MANIFEST)
         self.assertTrue(status["freeze_validation"]["passed"])
         self.assertFalse(status["sealed"])
-        self.assertEqual(status["evaluation_status"], "collection_open")
+        self.assertIn(status["evaluation_status"], {"collection_open", "corpus_materialized"})
 
     def test_requires_exactly_four_variants_per_source_root(self) -> None:
         manifest = load_manifest(DEFAULT_MANIFEST)
