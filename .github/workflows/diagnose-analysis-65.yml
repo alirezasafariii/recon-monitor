@@ -1,0 +1,24 @@
+name: Diagnose Analysis 6.5
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.0-owasp-admission
+    paths:
+      - .analysis-65-diagnose.py
+      - .github/workflows/diagnose-analysis-65.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.0-owasp-admission
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Held-out ranking diagnostics
+        env:
+          PYTHONPATH: app
+        run: python3 .analysis-65-diagnose.py
