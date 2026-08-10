@@ -1,0 +1,53 @@
+name: Diagnose Analysis 6.9 Focused Tests
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.9-physical-family-detectors]
+    paths: [.analysis-69-diag]
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.9-physical-family-detectors
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending integration
+        run: python .analysis-69-apply.py
+      - name: Capture focused tests
+        shell: bash
+        env:
+          PYTHONPATH: app
+        run: |
+          set +e
+          : > analysis69-focused.txt
+          overall=0
+          for t in \
+            tests/test_physical_family_detectors_v690.py \
+            tests/test_family_evidence_extractors_v680.py \
+            tests/test_family_reasoners_v670.py \
+            tests/test_family_confusion_matrix_v670.py \
+            tests/test_analysis_ranking_v650.py \
+            tests/test_analysis_coverage_v610.py
+          do
+            echo "### $t" >> analysis69-focused.txt
+            python "$t" >> analysis69-focused.txt 2>&1
+            rc=$?
+            echo "EXIT=$rc" >> analysis69-focused.txt
+            [ $rc -eq 0 ] || overall=1
+          done
+          echo "OVERALL=$overall" >> analysis69-focused.txt
+      - name: Commit diagnostic output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analysis69-focused.txt
+          git commit -m "Capture Analysis 6.9 focused diagnostic output"
+          git push origin HEAD:agent/analysis-engine-6.9-physical-family-detectors
