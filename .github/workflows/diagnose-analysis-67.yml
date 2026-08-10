@@ -1,0 +1,35 @@
+name: Diagnose Analysis 6.7 Full Suite
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.7-family-reasoners
+    paths:
+      - .analysis-67-diagnose
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.7-family-reasoners
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply pending identity gates
+        run: python .analysis-67-boundaries.py
+      - name: Post-freeze protocol test
+        env:
+          PYTHONPATH: app
+        run: python tests/test_analysis_postfreeze_v660.py
+      - name: Post-freeze builder test
+        if: always()
+        env:
+          PYTHONPATH: app
+        run: python tests/test_analysis_postfreeze_build_v660.py
+      - name: Post-freeze seal test
+        if: always()
+        env:
+          PYTHONPATH: app
+        run: python tests/test_analysis_postfreeze_seal_v660.py
