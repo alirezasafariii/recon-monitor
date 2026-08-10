@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "protocol": "analysis-6.6-postfreeze-blind",
-  "evaluation_status": "corpus_materialized",
+  "evaluation_status": "sealed_postfreeze",
   "frozen_at": "2026-08-10",
   "frozen_head_sha": "de3d6f210a52c409a60f9ffb861bc283790ea8fe",
   "frozen_engine": {
@@ -63,8 +63,8 @@
   },
   "corpus": {
     "path": "benchmarks/golden/analysis_golden_v4.jsonl",
-    "sha256": null,
-    "sealed": false,
+    "sha256": "90aa5e60ee2d7ba9d686d831ad0aa88e6aee28fb4c2f09b87bc02ad3f64290ab",
+    "sealed": true,
     "source_roots": [
       "GHSL-2026-002",
       "GHSL-2026-012",
