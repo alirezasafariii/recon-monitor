@@ -74,8 +74,9 @@ def family_compatibility(
     source_ratio = min(1.0, int(assessment.get("independent_sources") or 0) / required_sources)
     blocking = len(assessment.get("blocking_contradictions") or [])
 
-    # This score ranks family compatibility only. It does not alter admission and
-    # external write-up knowledge is deliberately absent from the calculation.
+    # Compatibility is a ranking signal, not a vulnerability probability.
+    # It intentionally stays high for a strong near-miss so the expected family
+    # can remain Top-1/Top-3 while admission still abstains.
     score = 0.68 * coverage + 0.14 * source_ratio
     if assessment.get("admitted"):
         score += 0.18
@@ -89,6 +90,28 @@ def family_compatibility(
         "source_ratio": round(source_ratio, 6),
         "assessment": assessment,
     }
+
+
+def _admission_confidence(assessment: Mapping[str, Any]) -> float:
+    """Confidence that the vulnerability condition is established, not family similarity.
+
+    This is deliberately conservative for partial evidence. A near-miss may be a
+    very good semantic match for a family while still having low confidence that
+    the vulnerability condition itself has been established. This separation is
+    what makes Brier/ECE meaningful instead of treating ranking compatibility as
+    a probability.
+    """
+    if assessment.get("admitted"):
+        return 0.96
+    state = str(assessment.get("state") or "")
+    if state == "shadow_contradicted":
+        return 0.04
+    satisfied = len(assessment.get("required_satisfied") or [])
+    missing = len(assessment.get("required_missing") or [])
+    coverage = satisfied / max(1, satisfied + missing)
+    if state == "shadow_partial":
+        return round(min(0.28, 0.06 + 0.24 * coverage), 6)
+    return 0.04
 
 
 def evaluate_case(case: Mapping[str, Any]) -> dict[str, Any]:
@@ -122,6 +145,7 @@ def evaluate_case(case: Mapping[str, Any]) -> dict[str, Any]:
         "predicted_positive": predicted_positive,
         "admitted_families": admitted_families,
         "expected_family_score": float(target["score"]),
+        "expected_family_confidence": _admission_confidence(target["assessment"]),
         "expected_family_state": str(target["assessment"].get("state") or ""),
         "top1": rankings[0]["family"] if rankings else "",
         "top3": top,
@@ -141,18 +165,18 @@ def _calibration_metrics(rows: list[dict[str, Any]], bins: int = 5) -> tuple[flo
     labeled = [row for row in rows if row["case_kind"] in {"positive", "near_miss", "secure_negative"}]
     if not labeled:
         return 0.0, 0.0
-    brier = sum((row["expected_family_score"] - (1.0 if row["expected_admitted"] else 0.0)) ** 2 for row in labeled) / len(labeled)
+    brier = sum((row["expected_family_confidence"] - (1.0 if row["expected_admitted"] else 0.0)) ** 2 for row in labeled) / len(labeled)
     ece = 0.0
     for index in range(bins):
         low = index / bins
         high = (index + 1) / bins
         bucket = [
             row for row in labeled
-            if low <= row["expected_family_score"] < high or (index == bins - 1 and row["expected_family_score"] == 1.0)
+            if low <= row["expected_family_confidence"] < high or (index == bins - 1 and row["expected_family_confidence"] == 1.0)
         ]
         if not bucket:
             continue
-        confidence = sum(row["expected_family_score"] for row in bucket) / len(bucket)
+        confidence = sum(row["expected_family_confidence"] for row in bucket) / len(bucket)
         accuracy = sum(1.0 if row["expected_admitted"] else 0.0 for row in bucket) / len(bucket)
         ece += (len(bucket) / len(labeled)) * abs(confidence - accuracy)
     return round(brier, 6), round(ece, 6)
@@ -248,8 +272,8 @@ def _summary(report: Mapping[str, Any]) -> str:
         f"{report['family_count']} families | precision={metrics['precision']:.3f} "
         f"recall={metrics['recall']:.3f} top1={metrics['top1_accuracy']:.3f} "
         f"top3={metrics['top3_accuracy']:.3f} abstention={metrics['abstention_accuracy']:.3f} "
-        f"FPR={metrics['false_promotion_rate']:.3f} ECE={metrics['ece']:.3f} | "
-        f"gate={'PASS' if gate['passed'] else 'FAIL'}"
+        f"FPR={metrics['false_promotion_rate']:.3f} Brier={metrics['brier_score']:.3f} "
+        f"ECE={metrics['ece']:.3f} | gate={'PASS' if gate['passed'] else 'FAIL'}"
     )
 
 
