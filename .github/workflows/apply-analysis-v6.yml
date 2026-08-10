@@ -29,6 +29,7 @@ jobs:
           cat .analysis_v6_part_01 .analysis_v6_part_02 .analysis_v6_part_03 .analysis_v6_part_04 \
               .analysis_v6_part_05 .analysis_v6_part_06 .analysis_v6_part_07 .analysis_v6_part_08 \
               > .analysis_v6_patch.py
+          sed -i 's/ROOT = Path(__file__).resolve().parents\[1\]/ROOT = Path(__file__).resolve().parent/' .analysis_v6_patch.py
           python3 .analysis_v6_patch.py
 
       - name: Python syntax checks
