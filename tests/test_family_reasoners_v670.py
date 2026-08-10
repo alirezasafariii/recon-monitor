@@ -18,8 +18,8 @@ def ev(kind: str, group: str) -> dict[str, str]:
 
 class FamilyReasoners670Tests(unittest.TestCase):
     def test_every_admission_family_has_exactly_one_reasoner(self) -> None:
-        self.assertEqual(FAMILY_REASONER_VERSION, "1.0.0")
-        self.assertEqual(RANKING_ENGINE_VERSION, "2.0.0")
+        self.assertEqual(FAMILY_REASONER_VERSION, "1.1.0")
+        self.assertEqual(RANKING_ENGINE_VERSION, "2.1.0")
         self.assertEqual(set(FAMILY_REASONER_PROFILES), set(FAMILY_ADMISSION_POLICIES))
         self.assertEqual(len(FAMILY_REASONER_PROFILES), 31)
 

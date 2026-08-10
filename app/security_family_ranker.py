@@ -4,8 +4,8 @@ from typing import Any, Iterable, Mapping
 
 from family_reasoners import FAMILY_REASONER_PROFILES, reason_family
 
-SECURITY_FAMILY_RANKER_VERSION = "1.0.0"
-SECURITY_FAMILY_RANKER_RULE_VERSION = "2026.08.10.6.7"
+SECURITY_FAMILY_RANKER_VERSION = "1.1.0"
+SECURITY_FAMILY_RANKER_RULE_VERSION = "2026.08.10.6.8"
 
 
 def _score_0_96(value: float) -> int:

@@ -8,8 +8,8 @@ from typing import Any, Iterable, Mapping
 from core import Database, json_dumps, sha256_text, utc_now
 from analysis_standards import standards_for_family, validate_family_standards
 
-ADMISSION_ENGINE_VERSION = "2.3.0"
-ADMISSION_RULE_VERSION = "2026.08.10.6.4"
+ADMISSION_ENGINE_VERSION = "2.4.0"
+ADMISSION_RULE_VERSION = "2026.08.10.6.8"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
@@ -591,8 +591,16 @@ def assess_admission(
     support: Iterable[Mapping[str, Any]],
     contradict: Iterable[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
+    support_items = [
+        dict(item) for item in support
+        if not str(item.get("family_scope") or "").strip()
+        or str(item.get("family_scope") or "").strip() == family
+    ]
+    contradict_items = [
+        dict(item) for item in (contradict or [])
+        if not str(item.get("family_scope") or "").strip()
+        or str(item.get("family_scope") or "").strip() == family
+    ]
     types = {str(item.get("type") or "") for item in support_items}
     contradiction_types = {str(item.get("type") or "") for item in contradict_items}
     sources = {

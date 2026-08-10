@@ -9,9 +9,10 @@ from typing import Any, Iterable, Mapping
 from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_now
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
+from family_evidence_extractors import scope_family_evidence
 
-CANDIDATE_ENGINE_VERSION = "6.5.0"
-CANDIDATE_RULE_VERSION = "2026.08.10.6.5"
+CANDIDATE_ENGINE_VERSION = "6.8.0"
+CANDIDATE_RULE_VERSION = "2026.08.10.6.8"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -295,6 +296,9 @@ def _insert_candidate(
 ) -> str:
     if family not in BUG_FAMILIES:
         raise ReconError(f"Unknown bug family: {family}")
+    extraction = scope_family_evidence(family, support, contradict, channel="candidate")
+    support = extraction["support"]
+    contradict = extraction["contradict"]
     admission = assess_admission(family, support, contradict)
     if not admission["admitted"]:
         record_hypothesis(
@@ -375,6 +379,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
 
     def emit(family: str, variant: str, base: int, support: list[dict[str, Any]], contradict: list[dict[str, Any]], missing: list[str], rules: list[str], summary: str, *, direct: bool = False, impact: int | None = None) -> None:
         nonlocal count
+        extraction = scope_family_evidence(family, support, contradict, channel="alert")
+        support = extraction["support"]
+        contradict = extraction["contradict"]
         hypothesis = record_hypothesis(
             db, analysis_id=analysis_id, source_run_id=run_id, target=target, alert_id=alert_id, asset=asset,
             endpoint=endpoint, source_ref=source_ref, family=family, variant=variant, support=support,

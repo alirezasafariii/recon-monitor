@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
+from family_evidence_extractors import filter_evidence_for_family
 
-FAMILY_REASONER_VERSION = "1.0.0"
-FAMILY_REASONER_RULE_VERSION = "2026.08.10.6.7"
+FAMILY_REASONER_VERSION = "1.1.0"
+FAMILY_REASONER_RULE_VERSION = "2026.08.10.6.8"
 
 
 @dataclass(frozen=True)
@@ -371,8 +372,8 @@ def reason_family(
     if family not in FAMILY_REASONER_PROFILES:
         raise KeyError(f"unknown family reasoner: {family}")
 
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
+    support_items = filter_evidence_for_family(family, support)
+    contradict_items = filter_evidence_for_family(family, contradict or [])
     support_types = _signal_types(support_items)
     profile = FAMILY_REASONER_PROFILES[family]
     policy = FAMILY_ADMISSION_POLICIES[family]

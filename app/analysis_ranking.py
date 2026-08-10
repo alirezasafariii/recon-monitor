@@ -10,8 +10,8 @@ from family_reasoners import (
     reason_family,
 )
 
-RANKING_ENGINE_VERSION = "2.0.0"
-RANKING_RULE_VERSION = "2026.08.10.6.7"
+RANKING_ENGINE_VERSION = "2.1.0"
+RANKING_RULE_VERSION = "2026.08.10.6.8"
 
 
 def admission_confidence(assessment: Mapping[str, Any]) -> float:

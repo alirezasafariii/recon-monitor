@@ -4,10 +4,47 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
-from family_reasoners import FAMILY_IDENTITY_GATES
 
 FAMILY_EVIDENCE_EXTRACTOR_VERSION = "1.0.0"
 FAMILY_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.08.10.6.8"
+
+
+# Extraction has an explicit copy of the identity gates so this module stays
+# below the reasoning layer and cannot create an import cycle. Tests require
+# exact equality with family_reasoners.FAMILY_IDENTITY_GATES.
+FAMILY_EXTRACTION_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
+    "broken_object_authorization": (0, 1),
+    "broken_function_authorization": (0, 1),
+    "mass_assignment": (1,),
+    "authentication_session": (0,),
+    "account_enumeration": (0,),
+    "dom_xss": (0, 1),
+    "postmessage_trust": (0,),
+    "open_redirect": (0, 1),
+    "ssrf": (0,),
+    "file_upload": (0, 1),
+    "path_traversal": (0, 1),
+    "information_disclosure": (0,),
+    "graphql_authorization": (0, 1),
+    "graphql_data_exposure": (0, 1),
+    "websocket_authorization": (0, 1),
+    "cors_misconfiguration": (0,),
+    "sensitive_caching": (0, 1),
+    "business_logic": (0,),
+    "race_condition": (0, 1),
+    "sql_injection": (1,),
+    "nosql_injection": (1,),
+    "command_injection": (1,),
+    "server_side_template_injection": (1,),
+    "ldap_injection": (1,),
+    "unrestricted_resource_consumption": (0,),
+    "sensitive_business_flow_abuse": (0,),
+    "security_misconfiguration": (0,),
+    "improper_inventory_management": (0,),
+    "unsafe_api_consumption": (0,),
+    "source_map_exposure": (0,),
+    "secret_exposure": (0, 1),
+}
 
 
 @dataclass(frozen=True)
@@ -77,7 +114,7 @@ def _registry_errors() -> list[str]:
         required = list(FAMILY_ADMISSION_POLICIES[family].get("required", []))
         if not required:
             errors.append(f"{family}: admission policy has no required evidence groups")
-        gates = FAMILY_IDENTITY_GATES.get(family, ())
+        gates = FAMILY_EXTRACTION_IDENTITY_GATES.get(family, ())
         if any(index < 0 or index >= len(required) for index in gates):
             errors.append(f"{family}: extractor cannot align invalid identity gates {gates}")
     return errors
@@ -120,9 +157,13 @@ def evidence_role(family: str, signal: str, *, contradiction: bool = False) -> s
         return "control" if signal in controls else "contextual_control"
     if signal in overrides:
         return "condition"
-    for index, group in enumerate(required):
+    # A signal may intentionally appear in both an identity group and the
+    # decisive condition group. Decisive condition semantics must win.
+    if required and signal in required[-1]:
+        return "condition"
+    for group in required[:-1]:
         if signal in group:
-            return "condition" if index == len(required) - 1 else "identity"
+            return "identity"
     return "surface"
 
 
@@ -181,7 +222,7 @@ def scope_family_evidence(
         item["extractor_id"] = f"family-extractor:{family}"
         item["extractor_version"] = FAMILY_EVIDENCE_EXTRACTOR_VERSION
         item["extractor_rule_version"] = FAMILY_EVIDENCE_EXTRACTOR_RULE_VERSION
-        item["extractor_channel"] = channel
+        item.setdefault("extractor_channel", channel)
         item["signal_role"] = role
         item["counts_for_family"] = role in {"identity", "condition", "control"}
         return item
@@ -199,7 +240,7 @@ def scope_family_evidence(
     contradict_rows = _dedupe(contradict_rows)
     support_types = {str(item.get("type") or "") for item in support_rows}
     required, overrides, _ = _policy_sets(family)
-    gate_indices = FAMILY_IDENTITY_GATES[family]
+    gate_indices = FAMILY_EXTRACTION_IDENTITY_GATES[family]
     gate_satisfied = all(bool(support_types & required[index]) for index in gate_indices)
     condition_signals = (required[-1] if required else set()) | overrides
     condition_hits = sorted(support_types & condition_signals)
