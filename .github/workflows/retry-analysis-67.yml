@@ -71,9 +71,16 @@ jobs:
           rm -f .analysis-67-diagnose
           rm -f .analysis-67-postfreeze-tests.py
           rm -f .analysis-67-retry
+          rm -f .analysis-67-diagnose-groups
+          rm -f .analysis-67-diagnose-remaining
+          rm -f .analysis-67-capture-fullsuite
+          rm -f analysis67-full-suite.txt
           rm -f .github/workflows/finalize-analysis-67.yml
           rm -f .github/workflows/diagnose-analysis-67.yml
           rm -f .github/workflows/retry-analysis-67.yml
+          rm -f .github/workflows/diagnose-analysis-67-groups.yml
+          rm -f .github/workflows/diagnose-analysis-67-remaining.yml
+          rm -f .github/workflows/capture-analysis-67-fullsuite.yml
 
       - name: Regenerate tracked-source manifest
         shell: bash
@@ -91,9 +98,16 @@ jobs:
               ".analysis-67-diagnose",
               ".analysis-67-postfreeze-tests.py",
               ".analysis-67-retry",
+              ".analysis-67-diagnose-groups",
+              ".analysis-67-diagnose-remaining",
+              ".analysis-67-capture-fullsuite",
+              "analysis67-full-suite.txt",
               ".github/workflows/finalize-analysis-67.yml",
               ".github/workflows/diagnose-analysis-67.yml",
               ".github/workflows/retry-analysis-67.yml",
+              ".github/workflows/diagnose-analysis-67-groups.yml",
+              ".github/workflows/diagnose-analysis-67-remaining.yml",
+              ".github/workflows/capture-analysis-67-fullsuite.yml",
           }
           lines = []
           for path in sorted(paths):
