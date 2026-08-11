@@ -53,11 +53,11 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
             business_context="general",
         )
 
-    def test_router_registers_six_dedicated_families_without_fallback(self):
+    def test_router_registers_seven_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 6)
-        self.assertEqual(status["pending_count"], 15)
+        self.assertEqual(status["registered_count"], 7)
+        self.assertEqual(status["pending_count"], 14)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
@@ -65,9 +65,11 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
             "authentication_session",
             "account_enumeration",
             "dom_xss",
+            "postmessage_trust",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("dom_xss"))
+        self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_grounding_and_writeups_are_non_evidentiary(self):
@@ -105,13 +107,7 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         self.assertIsNone(self.analyze(source="postMessage", sink="innerHTML", snippet="onmessage = e => out.innerHTML = e.data"))
 
     def test_runtime_reachability_without_neutralization_result_is_not_direct(self):
-        result = self.analyze({
-            "dom_runtime_observations": [{
-                "source_kind": "location_hash",
-                "sink_kind": "innerhtml",
-                "runtime_dom_sink_reached": True,
-            }]
-        })
+        result = self.analyze({"dom_runtime_observations": [{"source_kind": "location_hash", "sink_kind": "innerhtml", "runtime_dom_sink_reached": True}]})
         observed = {row["type"] for row in result["support"]}
         self.assertIn("runtime_dom_sink_reached", observed)
         self.assertNotIn("unsanitized_dom_flow", observed)
@@ -119,14 +115,7 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         self.assertFalse(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
 
     def test_runtime_unsanitized_execution_sink_is_direct_condition_evidence(self):
-        result = self.analyze({
-            "dom_runtime_observations": [{
-                "source_kind": "location_hash",
-                "sink_kind": "eval",
-                "runtime_dom_sink_reached": True,
-                "sanitized": False,
-            }]
-        }, sink="eval", snippet="eval(location.hash)")
+        result = self.analyze({"dom_runtime_observations": [{"source_kind": "location_hash", "sink_kind": "eval", "runtime_dom_sink_reached": True, "sanitized": False}]}, sink="eval", snippet="eval(location.hash)")
         observed = {row["type"] for row in result["support"]}
         self.assertIn("runtime_dom_sink_reached", observed)
         self.assertIn("unsanitized_dom_flow", observed)
@@ -136,38 +125,14 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         self.assertTrue(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
 
     def test_html_sink_requires_explicit_script_capable_context_for_direct_condition(self):
-        incomplete = self.analyze({
-            "dom_runtime_observations": [{
-                "source_kind": "location_hash",
-                "sink_kind": "innerhtml",
-                "runtime_dom_sink_reached": True,
-                "sanitized": False,
-            }]
-        })
+        incomplete = self.analyze({"dom_runtime_observations": [{"source_kind": "location_hash", "sink_kind": "innerhtml", "runtime_dom_sink_reached": True, "sanitized": False}]})
         self.assertNotIn("unsanitized_dom_flow", {row["type"] for row in incomplete["support"]})
-
-        established = self.analyze({
-            "dom_runtime_observations": [{
-                "source_kind": "location_hash",
-                "sink_kind": "innerhtml",
-                "runtime_dom_sink_reached": True,
-                "sanitized": False,
-                "execution_context_reached": True,
-            }]
-        })
+        established = self.analyze({"dom_runtime_observations": [{"source_kind": "location_hash", "sink_kind": "innerhtml", "runtime_dom_sink_reached": True, "sanitized": False, "execution_context_reached": True}]})
         self.assertIn("unsanitized_dom_flow", {row["type"] for row in established["support"]})
         self.assertTrue(established["direct"])
 
     def test_sanitization_or_trusted_types_is_contradiction(self):
-        result = self.analyze({
-            "dom_runtime_observations": [{
-                "source_kind": "location_hash",
-                "sink_kind": "innerhtml",
-                "runtime_dom_sink_reached": True,
-                "sanitized": True,
-                "trusted_types_enforced": True,
-            }]
-        })
+        result = self.analyze({"dom_runtime_observations": [{"source_kind": "location_hash", "sink_kind": "innerhtml", "runtime_dom_sink_reached": True, "sanitized": True, "trusted_types_enforced": True}]})
         contradictions = {row["type"] for row in result["contradict"]}
         self.assertIn("sanitization_observed", contradictions)
         self.assertFalse(result["direct"])
@@ -179,26 +144,17 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         self.db.execute(
             """INSERT INTO js_dataflows(analysis_id,target,run_id,js_url,source_kind,sink_kind,confidence,snippet,created_at)
             VALUES(?,?,?,?,?,?,?,?,?)""",
-            (
-                "AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", "https://example.com/app.js",
-                "location.hash", "innerHTML", 90, "out.innerHTML = location.hash", now,
-            ),
+            ("AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", "https://example.com/app.js", "location.hash", "innerHTML", 90, "out.innerHTML = location.hash", now),
         )
         count = bug_candidates._static_candidates(self.db, "AN-DOM-FAMILY", "RUN-DOM-FAMILY", "example.com")
         self.assertEqual(count, 0)
-        hypothesis = self.db.one(
-            "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'",
-            ("AN-DOM-FAMILY",),
-        )
+        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'", ("AN-DOM-FAMILY",))
         self.assertIsNotNone(hypothesis)
         admission = json.loads(hypothesis["admission_json"])
         self.assertFalse(admission["admitted"])
         self.assertEqual(admission["family_analyzer"]["family"], "dom_xss")
         self.assertTrue(admission["family_analyzer"]["static_source_and_sink_are_one_evidence_root"])
-        candidate = self.db.one(
-            "SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'",
-            ("AN-DOM-FAMILY",),
-        )
+        candidate = self.db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'", ("AN-DOM-FAMILY",))
         self.assertIsNone(candidate)
 
     def test_static_path_promotes_only_with_independent_stored_runtime_condition(self):
@@ -207,32 +163,16 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         self.db.execute(
             """INSERT INTO js_dataflows(analysis_id,target,run_id,js_url,source_kind,sink_kind,confidence,snippet,created_at)
             VALUES(?,?,?,?,?,?,?,?,?)""",
-            (
-                "AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", js_url,
-                "location.hash", "eval", 92, "eval(location.hash)", now,
-            ),
+            ("AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", js_url, "location.hash", "eval", 92, "eval(location.hash)", now),
         )
         self.db.execute(
             """INSERT INTO semantic_js_units(analysis_id,target,run_id,js_url,unit_type,unit_key,value_json,confidence,created_at)
             VALUES(?,?,?,?,?,?,?,?,?)""",
-            (
-                "AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", js_url,
-                "dom_runtime_observation", "controlled-marker-runtime",
-                json.dumps({
-                    "source_kind": "location_hash",
-                    "sink_kind": "eval",
-                    "runtime_dom_sink_reached": True,
-                    "sanitized": False,
-                }),
-                95, now,
-            ),
+            ("AN-DOM-FAMILY", "example.com", "RUN-DOM-FAMILY", js_url, "dom_runtime_observation", "controlled-marker-runtime", json.dumps({"source_kind": "location_hash", "sink_kind": "eval", "runtime_dom_sink_reached": True, "sanitized": False}), 95, now),
         )
         count = bug_candidates._static_candidates(self.db, "AN-DOM-FAMILY", "RUN-DOM-FAMILY", "example.com")
         self.assertEqual(count, 1)
-        hypothesis = self.db.one(
-            "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'",
-            ("AN-DOM-FAMILY",),
-        )
+        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'", ("AN-DOM-FAMILY",))
         self.assertIsNotNone(hypothesis)
         support = {item["type"] for item in json.loads(hypothesis["supporting_evidence_json"])}
         self.assertIn("runtime_dom_sink_reached", support)
@@ -240,10 +180,7 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
         admission = json.loads(hypothesis["admission_json"])
         self.assertTrue(admission["admitted"])
         self.assertTrue(admission["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
-        candidate = self.db.one(
-            "SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'",
-            ("AN-DOM-FAMILY",),
-        )
+        candidate = self.db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'", ("AN-DOM-FAMILY",))
         self.assertIsNotNone(candidate)
         candidate_support = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}
         self.assertIn("unsanitized_dom_flow", candidate_support)
