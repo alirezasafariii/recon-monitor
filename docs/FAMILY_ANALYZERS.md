@@ -212,6 +212,65 @@ Potential Finding
 
 No automatic redirect request, browser navigation, exploit payload or active validation is performed by the analyzer.
 
+## 9. Server-Side Request Forgery (SSRF)
+
+`family_analyzers.ssrf.SsrfFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-918 — Server-Side Request Forgery (SSRF)
+- WSTG-INPV-19 — Testing for Server-Side Request Forgery
+
+The algorithm separates five independent questions:
+
+1. **Destination surface** — does the endpoint expose a user-controlled URL/URI/destination field?
+2. **Execution location** — is the network request performed by the server/backend rather than by browser JavaScript?
+3. **Destination policy** — are scheme/host allow-lists, private-network restrictions, redirect revalidation or egress controls actually enforced?
+4. **Stored outbound observation** — does stored target evidence tie the user-controlled destination to an outbound request performed by the server, or to a tester-controlled correlated callback explicitly attributed to server execution?
+5. **Boundary failure** — did the same stored observation show an intended destination restriction being bypassed or a destination expected to be restricted being accepted?
+
+A URL-looking field plus webhook/import/preview/proxy semantics is intentionally **one structural evidence root**. It is useful for recall and hunting, but does not by itself create a Potential Finding. Browser-side fetches are explicitly contradictory evidence for SSRF.
+
+Family-specific evidence is deliberately split by certainty:
+
+- `server_fetch_capability_observed` — server-side remote fetching exists, but user control of that destination is not established; not direct SSRF evidence.
+- `server_fetch_observed` — stored evidence ties a user-controlled destination to a server-side outbound request. This is sufficient for a **Potential Finding**, but not by itself for family-level confirmation.
+- `controlled_callback_observed` — a tester-controlled destination produced a correlated callback that is explicitly attributed to server/backend execution. This may promote a Potential Finding, but still does not by itself prove that a destination trust boundary was bypassed.
+- `destination_policy_bypass_observed` — the same direct server-fetch observation establishes bypass of an intended destination restriction; decisive confirmation condition.
+- `restricted_destination_accepted` — the same direct server-fetch observation records that a destination expected to be restricted was accepted; decisive confirmation condition.
+
+Contradicting controls include:
+
+- `browser_side_fetch_observed`
+- `server_fetch_not_observed`
+- `destination_validation_observed`
+
+`destination_validation_observed` covers stored enforcement of destination/host/scheme allow-lists, private-network or metadata blocking, redirect revalidation and egress policy. A missing visible validation branch is only supporting context and cannot confirm SSRF.
+
+Literal IP destinations may be classified offline as public/private/loopback/link-local/reserved using parsing only. The analyzer performs **no DNS resolution**, no internal or metadata endpoint probing, no arbitrary third-party request, and no automatic active validation.
+
+The Candidate Engine alert/endpoint path is now hypothesis-first for SSRF:
+
+```text
+remote destination + server-fetch semantics
+        ↓
+hidden hypothesis
+        ↓
+dedicated SSRF analyzer
+        ↓
+Family Reasoning admission
+        ↓
+independent stored server-side outbound observation
+        ↓
+Potential Finding
+        ↓
+stored destination-boundary failure
+        ↓
+family confirmation-ready state
+```
+
+This preserves recall while preventing `url`, `webhook`, `preview`, `import`, `proxy` or HTTP 2xx clues from becoming findings without server-side execution evidence.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -220,7 +279,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling while non-migrated static families continue through the legacy implementation.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF migrates its alert/endpoint surface through the dedicated analyzer before admission, so structural remote-fetch semantics remain hidden until independent stored server-side outbound evidence exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
 ## Router status
 
@@ -234,25 +293,25 @@ Currently production-routed:
 6. DOM-based XSS
 7. postMessage Trust / Web Messaging
 8. Open Redirect / Navigation Injection
+9. Server-Side Request Forgery (SSRF)
 
-Pending dedicated analyzers: **13**.
+Pending dedicated analyzers: **12**.
 
 ## Migration order
 
 Next analyzers:
 
-1. SSRF
-2. File Upload / Import
-3. Path Traversal
-4. Information Disclosure
-5. Source-map Exposure
-6. Secret Exposure
-7. GraphQL Authorization
-8. GraphQL Data Exposure
-9. Business Logic
-10. Race Condition
-11. WebSocket Authorization
-12. CORS
-13. Sensitive Caching
+1. File Upload / Import
+2. Path Traversal
+3. Information Disclosure
+4. Source-map Exposure
+5. Secret Exposure
+6. GraphQL Authorization
+7. GraphQL Data Exposure
+8. Business Logic
+9. Race Condition
+10. WebSocket Authorization
+11. CORS
+12. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
