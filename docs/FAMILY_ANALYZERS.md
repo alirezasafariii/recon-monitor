@@ -119,21 +119,67 @@ The algorithm is deliberately source-to-sink and runtime aware:
 5. **Runtime reachability** — accept only stored observations showing a controlled harmless marker reaching the identified dangerous sink.
 6. **Vulnerability condition** — direct DOM-XSS condition evidence requires runtime reachability into an executable/script-capable context plus explicit absence of effective neutralization.
 
-Static source/sink proximity is intentionally **one correlated evidence root**. A row such as `location.search → innerHTML` therefore becomes a hidden hypothesis, not a Potential Finding. It cannot satisfy the independent-evidence requirement by counting the source and sink as separate observations.
+Static source/sink proximity is intentionally **one correlated evidence root**. A row such as `location.search → innerHTML` therefore becomes a hidden hypothesis, not a Potential Finding.
 
 Family-specific direct evidence:
 
 - `runtime_dom_sink_reached` — runtime reachability only; not sufficient for confirmation by itself.
-- `unsanitized_dom_flow` — runtime-reachable dangerous/executable context with effective neutralization explicitly absent; this is the decisive family condition.
+- `unsanitized_dom_flow` — runtime-reachable dangerous/executable context with effective neutralization explicitly absent; decisive family condition.
 
-Contradicting controls:
-
-- `sanitization_observed`
-- `runtime_unreachable`
+Contradicting controls include `sanitization_observed` and `runtime_unreachable`.
 
 The Candidate Engine static JavaScript path is migrated for DOM-XSS: legacy direct insertion is filtered out, the flow is first recorded in `analysis_hypotheses`, and a Potential Finding is created only when independent stored runtime condition evidence is present. No payload execution or active browser validation is performed by the analyzer.
 
-The non-evidentiary pattern library includes WSTG-CLNT-01 and the GHSL-2026-030 NocoDB rendering lesson: attacker-controlled rich content rendered through an HTML-capable client sink without effective sanitization illustrates why flow, sink context and neutralization must be evaluated together. Pattern similarity never becomes target evidence.
+## 7. postMessage Trust / Web Messaging
+
+`family_analyzers.postmessage_trust.PostMessageTrustFamilyAnalyzer`
+
+Primary reasoning references:
+
+- WSTG-CLNT-11 — Testing Web Messaging
+- CWE-346 — Origin Validation Error
+
+The algorithm separates five independent questions:
+
+1. **Handler surface** — does client code consume `postMessage` / `MessageEvent` data?
+2. **Origin/source policy** — which sender origins or source windows are intended to be trusted, and is that trust decision actually enforced?
+3. **Message schema** — is `event.data` validated as untrusted input independently of sender trust?
+4. **Sensitive consumer** — does accepted message data reach a DOM, navigation, network, storage, authentication or state-changing consumer?
+5. **Runtime trust decision** — did stored target evidence show an explicitly untrusted sender being accepted and reaching that sensitive consumer?
+
+Static message-handler and sink proximity is intentionally **one correlated evidence root**. The existence of `addEventListener('message', ...)`, `event.data`, a sensitive-looking sink, or a missing origin check does not by itself confirm a vulnerability.
+
+Family-specific evidence:
+
+- `origin_validation_absent` — stored evidence that an effective origin check was absent; useful support, but not confirmation by itself.
+- `untrusted_message_reached_handler` — an explicitly untrusted sender was accepted by the handler, but no sensitive effect is established yet.
+- `untrusted_message_accepted` — an explicitly untrusted sender was accepted and reached the identified sensitive consumer without an effective origin/source trust control; this is the decisive direct condition.
+
+Contradicting controls include:
+
+- `origin_check_observed`
+- `trusted_origin_only`
+- `message_schema_rejected`
+
+Exact origin allow-lists and verified source-window controls are treated as evidence against an unsafe trust decision. A wildcard `targetOrigin` on the sending side is not automatically treated as a receiving-side trust failure. DOM execution is also not inferred from postMessage trust failure alone; DOM-XSS remains a neighboring family with its own confirmation contract.
+
+The Candidate Engine static JavaScript path is migrated for postMessage Trust as well:
+
+```text
+postMessage static flow
+        ↓
+hidden hypothesis
+        ↓
+dedicated postMessage analyzer
+        ↓
+Family Reasoning admission
+        ↓
+independent stored runtime trust failure
+        ↓
+Potential Finding
+```
+
+No automatic cross-origin message injection, exploit payload execution or active browser exploitation is performed by the analyzer.
 
 ## Write-up pattern library
 
@@ -143,7 +189,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS additionally migrates its static JavaScript path to hypothesis-first handling while non-migrated static families continue through the legacy implementation.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS and postMessage Trust additionally migrate their static JavaScript paths to hypothesis-first handling while non-migrated static families continue through the legacy implementation.
 
 ## Router status
 
@@ -155,27 +201,27 @@ Currently production-routed:
 4. Authentication / Session
 5. Account Enumeration
 6. DOM-based XSS
+7. postMessage Trust / Web Messaging
 
-Pending dedicated analyzers: **15**.
+Pending dedicated analyzers: **14**.
 
 ## Migration order
 
 Next analyzers:
 
-1. postMessage Trust
-2. Open Redirect
-3. SSRF
-4. File Upload / Import
-5. Path Traversal
-6. Information Disclosure
-7. Source-map Exposure
-8. Secret Exposure
-9. GraphQL Authorization
-10. GraphQL Data Exposure
-11. Business Logic
-12. Race Condition
-13. WebSocket Authorization
-14. CORS
-15. Sensitive Caching
+1. Open Redirect
+2. SSRF
+3. File Upload / Import
+4. Path Traversal
+5. Information Disclosure
+6. Source-map Exposure
+7. Secret Exposure
+8. GraphQL Authorization
+9. GraphQL Data Exposure
+10. Business Logic
+11. Race Condition
+12. WebSocket Authorization
+13. CORS
+14. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
