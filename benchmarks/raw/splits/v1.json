@@ -49,6 +49,28 @@
     "minimum_positive_families": 14,
     "required_case_variants": ["positive", "near_miss", "secure_negative", "sparse_noisy"]
   },
+  "source_buckets": [
+    {"family": "broken_object_authorization", "cwe": 639},
+    {"family": "broken_function_authorization", "cwe": 862},
+    {"family": "mass_assignment", "cwe": 915},
+    {"family": "authentication_session", "cwe": 287},
+    {"family": "account_enumeration", "cwe": 203},
+    {"family": "open_redirect", "cwe": 601},
+    {"family": "ssrf", "cwe": 918},
+    {"family": "file_upload", "cwe": 434},
+    {"family": "path_traversal", "cwe": 22},
+    {"family": "information_disclosure", "cwe": 200},
+    {"family": "cors_misconfiguration", "cwe": 942},
+    {"family": "race_condition", "cwe": 362},
+    {"family": "sql_injection", "cwe": 89},
+    {"family": "nosql_injection", "cwe": 943},
+    {"family": "command_injection", "cwe": 78},
+    {"family": "server_side_template_injection", "cwe": 1336},
+    {"family": "ldap_injection", "cwe": 90},
+    {"family": "unrestricted_resource_consumption", "cwe": 400},
+    {"family": "security_misconfiguration", "cwe": 209},
+    {"family": "secret_exposure", "cwe": 798}
+  ],
   "source_policy": {
     "primary_sources_only": true,
     "github_reviewed_advisories_preferred": true,
@@ -60,7 +82,7 @@
     "root_is_split_unit": true,
     "split": "postfreeze_holdout",
     "retuning_after_first_evaluation": false,
-    "selection_rule": "After freeze, select the first eligible reviewed primary advisory roots from predeclared CWE/family buckets, skipping prior-corpus overlap, pre-freeze-exposed roots, duplicate projects when alternatives exist, and sources without enough concrete information to build a sanitized raw/minimally-normalized replay fixture. No benchmark scoring is allowed during collection or fixture sealing."
+    "selection_rule": "After freeze, query source_buckets in declared order. Pass 1 selects the first eligible reviewed primary advisory from each bucket; pass 2 selects at most one additional root per bucket until 24 roots are reached. Skip prior-corpus overlap, pre-freeze-exposed roots, duplicate projects when an unused project is available, and sources without enough concrete information to construct a sanitized raw/minimally-normalized replay fixture. No benchmark scoring is allowed during collection or fixture sealing."
   },
   "pre_freeze_exclusions": {
     "reason": "These advisory roots were exposed while verifying the public advisory API before the production/benchmark freeze and therefore cannot be considered blind holdout roots.",
