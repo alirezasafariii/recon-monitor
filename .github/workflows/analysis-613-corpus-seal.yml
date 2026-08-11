@@ -1,0 +1,110 @@
+name: Seal Analysis 6.13 Raw v2 Corpus
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.13-fresh-raw-holdout-v2
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.13-fresh-raw-holdout-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate final corpus without detector scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          from raw_recon_v2_corpus import load_raw_cases, validate_v2_corpus
+          f=verify_v2_freeze(); assert f['passed'], f
+          assert f['manifest']['evaluation_status']=='protocol_sealed_collection_open'
+          cases=load_raw_cases('benchmarks/raw/analysis_raw_v2.jsonl')
+          r=validate_v2_corpus(cases); assert r['passed'], r
+          assert r['case_count']==96 and r['source_root_count']==24 and r['source_project_count']==24
+          assert r['positive_family_count']==20
+          assert r['positive_control_raw_collision_count']==0
+          assert r['positive_observable_delta_rate']==1.0
+          data=Path('benchmarks/raw/analysis_raw_v2.jsonl').read_bytes()
+          sha=hashlib.sha256(data).hexdigest()
+          report=json.loads(Path('benchmarks/raw/sources/v2_materialization_report.json').read_text())
+          assert sha==report['corpus_sha256']== '1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3'
+          assert report['scoring_executed'] is False
+          print(json.dumps(r, indent=2, sort_keys=True))
+          PY
+      - name: Seal corpus hash and status
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          path=Path('benchmarks/raw/splits/v2.json')
+          m=json.loads(path.read_text())
+          corpus=Path('benchmarks/raw/analysis_raw_v2.jsonl')
+          sha256=hashlib.sha256(corpus.read_bytes()).hexdigest()
+          blob=subprocess.check_output(['git','hash-object',str(corpus)], text=True).strip()
+          shortlist_blob=subprocess.check_output(['git','hash-object','benchmarks/raw/sources/v2_shortlist.json'], text=True).strip()
+          material_blob=subprocess.check_output(['git','hash-object','benchmarks/raw/sources/v2_materialization_report.json'], text=True).strip()
+          m['evaluation_status']='sealed_unscored'
+          m['corpus']={
+            'path':'benchmarks/raw/analysis_raw_v2.jsonl',
+            'sealed':True,
+            'scored':False,
+            'sha256':sha256,
+            'case_count':96,
+            'source_root_count':24,
+            'source_project_count':24,
+            'positive_family_count':20,
+            'positive_control_raw_collision_count':0,
+            'positive_observable_delta_rate':1.0
+          }
+          m['protected_files']['benchmarks/raw/analysis_raw_v2.jsonl']=blob
+          m['protected_files']['benchmarks/raw/sources/v2_shortlist.json']=shortlist_blob
+          m['protected_files']['benchmarks/raw/sources/v2_materialization_report.json']=material_blob
+          m['corpus_seal']={
+            'sealed_on':'2026-08-11',
+            'scoring_executed_before_seal':False,
+            'sha256':sha256,
+            'validator_version':'1.0.0',
+            'materializer_version':'1.0.0',
+            'selection_shortlist_version':'1.1.0'
+          }
+          path.write_text(json.dumps(m, indent=2, sort_keys=True)+'\n')
+          PY
+          PYTHONPATH=app python - <<'PY'
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          r=verify_v2_freeze(); assert r['passed'], r
+          assert r['manifest']['evaluation_status']=='sealed_unscored'
+          assert r['manifest']['corpus']['sealed'] is True
+          assert r['manifest']['corpus']['scored'] is False
+          print({'protected_file_count':r['protected_file_count'],'status':r['manifest']['evaluation_status']})
+          PY
+      - name: Cleanup and regenerate manifest
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-613-corpus-seal.yml
+          tmp="$(mktemp)"
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | sort -k2 > "$tmp"
+          mv "$tmp" MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256 >/dev/null
+          test ! -e .github/workflows/analysis-613-corpus-seal.yml
+      - name: Commit sealed unscored corpus
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Seal Analysis 6.13 raw v2 corpus unscored'
+          git push origin HEAD:agent/analysis-engine-6.13-fresh-raw-holdout-v2
