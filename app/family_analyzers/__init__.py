@@ -7,6 +7,7 @@ from .dom_xss import DomXssFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
+from .ssrf import SsrfFamilyAnalyzer
 from .router import analyzer_for_family, pending_families, registered_families, router_status
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "DomXssFamilyAnalyzer",
     "PostMessageTrustFamilyAnalyzer",
     "OpenRedirectFamilyAnalyzer",
+    "SsrfFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
