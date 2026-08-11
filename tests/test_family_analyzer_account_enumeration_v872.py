@@ -60,11 +60,11 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
             semantic_text=semantic_text,
         )
 
-    def test_router_registers_six_dedicated_families_without_fallback(self):
+    def test_router_registers_seven_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 6)
-        self.assertEqual(status["pending_count"], 15)
+        self.assertEqual(status["registered_count"], 7)
+        self.assertEqual(status["pending_count"], 14)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
@@ -72,10 +72,12 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
             "authentication_session",
             "account_enumeration",
             "dom_xss",
+            "postmessage_trust",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("account_enumeration"))
         self.assertIsNotNone(analyzer_for_family("dom_xss"))
+        self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_grounding_is_non_evidentiary(self):
@@ -106,20 +108,8 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
     def test_controlled_response_differential_is_direct_confirmation_evidence(self):
         result = self.analyze({
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message_class": "reset_link_sent",
-                    "response_shape": ["message"],
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 404,
-                    "message_class": "account_not_found",
-                    "response_shape": ["message"],
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "message_class": "reset_link_sent", "response_shape": ["message"]},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 404, "message_class": "account_not_found", "response_shape": ["message"]},
             ]
         })
         observed = {row["type"] for row in result["support"]}
@@ -135,20 +125,8 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
     def test_uniform_generic_response_is_false_positive_control(self):
         result = self.analyze({
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message": "If an account exists, check your email",
-                    "response_shape": ["message"],
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message": "If an account exists, check your email",
-                    "response_shape": ["message"],
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "message": "If an account exists, check your email", "response_shape": ["message"]},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 200, "message": "If an account exists, check your email", "response_shape": ["message"]},
             ]
         })
         contradictions = {row["type"] for row in result["contradict"]}
@@ -161,22 +139,8 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
     def test_stable_repeated_timing_difference_can_be_direct_but_single_sample_cannot(self):
         stable = self.analyze({
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message": "If an account exists, check your email",
-                    "median_ms": 420,
-                    "sample_count": 5,
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message": "If an account exists, check your email",
-                    "median_ms": 180,
-                    "sample_count": 5,
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "message": "If an account exists, check your email", "median_ms": 420, "sample_count": 5},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 200, "message": "If an account exists, check your email", "median_ms": 180, "sample_count": 5},
             ]
         })
         stable_types = {row["type"] for row in stable["support"]}
@@ -188,20 +152,8 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
 
         single = self.analyze({
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "median_ms": 600,
-                    "sample_count": 1,
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "median_ms": 100,
-                    "sample_count": 1,
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "median_ms": 600, "sample_count": 1},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 200, "median_ms": 100, "sample_count": 1},
             ]
         })
         single_types = {row["type"] for row in single["support"]}
@@ -211,23 +163,8 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
     def test_rate_limit_confounded_difference_never_becomes_direct_evidence(self):
         result = self.analyze({
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message_class": "reset_link_sent",
-                    "median_ms": 500,
-                    "sample_count": 5,
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 429,
-                    "message_class": "rate_limited",
-                    "median_ms": 100,
-                    "sample_count": 5,
-                    "rate_limited": True,
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "message_class": "reset_link_sent", "median_ms": 500, "sample_count": 5},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 429, "message_class": "rate_limited", "median_ms": 100, "sample_count": 5, "rate_limited": True},
             ]
         })
         observed = {row["type"] for row in result["support"]}
@@ -250,54 +187,23 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
         self.assertFalse(result["direct"])
 
     def test_non_identity_surface_does_not_emit(self):
-        result = self.analyze(
-            {},
-            endpoint="https://example.com/api/catalog",
-            method="GET",
-            body_fields=[],
-            query_fields=["page"],
-            semantic_text="ordinary public catalog listing",
-        )
+        result = self.analyze({}, endpoint="https://example.com/api/catalog", method="GET", body_fields=[], query_fields=["page"], semantic_text="ordinary public catalog listing")
         self.assertIsNone(result)
 
     def test_candidate_engine_routes_account_enumeration_before_admission(self):
         endpoint = "https://example.com/api/password/reset"
         details = {
             "identity_observations": [
-                {
-                    "identity_class": "existing",
-                    "controlled_identity": True,
-                    "status_code": 200,
-                    "message_class": "reset_link_sent",
-                    "response_shape": ["message"],
-                },
-                {
-                    "identity_class": "nonexisting",
-                    "controlled_identity": True,
-                    "status_code": 404,
-                    "message_class": "account_not_found",
-                    "response_shape": ["message"],
-                },
+                {"identity_class": "existing", "controlled_identity": True, "status_code": 200, "message_class": "reset_link_sent", "response_shape": ["message"]},
+                {"identity_class": "nonexisting", "controlled_identity": True, "status_code": 404, "message_class": "account_not_found", "response_shape": ["message"]},
             ]
         }
-        schema = {
-            "endpoint": endpoint,
-            "method": "POST",
-            "path_parameters": [],
-            "query_parameters": [],
-            "body_fields": ["email"],
-            "object_identifiers": [],
-            "authentication_hints": [],
-            "is_endpoint": True,
-        }
+        schema = {"endpoint": endpoint, "method": "POST", "path_parameters": [], "query_parameters": [], "body_fields": ["email"], "object_identifiers": [], "authentication_hints": [], "is_endpoint": True}
         now = utc_now()
         cursor = self.db.execute(
             """INSERT INTO alerts(target,dedup_key,category,severity,risk_score,title,item,details_json,status,occurrences,first_seen,last_seen,last_run_id)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                "example.com", "enum-prod-1", "new_url", "info", 10, "test",
-                endpoint, json.dumps(details), "new", 1, now, now, "RUN-ENUM-FAMILY",
-            ),
+            ("example.com", "enum-prod-1", "new_url", "info", 10, "test", endpoint, json.dumps(details), "new", 1, now, now, "RUN-ENUM-FAMILY"),
         )
         alert_id = int(cursor.lastrowid)
         self.db.execute(
@@ -306,36 +212,12 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
             hypothesis,next_action,playbook_id,business_context,evidence_for_json,evidence_against_json,
             anomaly_score,baseline_json,feedback_json,duplicate_cluster,rule_ids_json,temporal_json,endpoint_schema_json,created_at
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                "AN-ENUM-FAMILY", alert_id, "example.com", "RUN-ENUM-FAMILY", "new_url",
-                50, 50, 80, "test", "review", "test", "identity", "[]", "[]",
-                0.0, "{}", "{}", "", "[]", "{}", json.dumps(schema), now,
-            ),
+            ("AN-ENUM-FAMILY", alert_id, "example.com", "RUN-ENUM-FAMILY", "new_url", 50, 50, 80, "test", "review", "test", "identity", "[]", "[]", 0.0, "{}", "{}", "", "[]", "{}", json.dumps(schema), now),
         )
-        row = {
-            "alert_id": alert_id,
-            "target": "example.com",
-            "endpoint_schema_json": json.dumps(schema),
-            "details_json": json.dumps(details),
-            "evidence_for_json": "[]",
-            "evidence_against_json": "[]",
-            "confidence": 80,
-            "business_context": "identity",
-            "category": "new_url",
-            "item": endpoint,
-        }
-
-        count = bug_candidates._alert_candidates(
-            self.db,
-            "AN-ENUM-FAMILY",
-            "RUN-ENUM-FAMILY",
-            row,
-        )
+        row = {"alert_id": alert_id, "target": "example.com", "endpoint_schema_json": json.dumps(schema), "details_json": json.dumps(details), "evidence_for_json": "[]", "evidence_against_json": "[]", "confidence": 80, "business_context": "identity", "category": "new_url", "item": endpoint}
+        count = bug_candidates._alert_candidates(self.db, "AN-ENUM-FAMILY", "RUN-ENUM-FAMILY", row)
         self.assertGreaterEqual(count, 1)
-        hypothesis = self.db.one(
-            "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='account_enumeration'",
-            ("AN-ENUM-FAMILY",),
-        )
+        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='account_enumeration'", ("AN-ENUM-FAMILY",))
         self.assertIsNotNone(hypothesis)
         support = {item["type"] for item in json.loads(hypothesis["supporting_evidence_json"])}
         self.assertIn("identity_response_differential", support)
@@ -343,10 +225,7 @@ class AccountEnumerationFamilyAnalyzerV872Tests(unittest.TestCase):
         self.assertTrue(admission["admitted"])
         self.assertEqual(admission["family_analyzer"]["family"], "account_enumeration")
         self.assertTrue(admission["family_analyzer"]["knowledge_does_not_change_target_evidence"])
-        candidate = self.db.one(
-            "SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='account_enumeration'",
-            ("AN-ENUM-FAMILY",),
-        )
+        candidate = self.db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='account_enumeration'", ("AN-ENUM-FAMILY",))
         self.assertIsNotNone(candidate)
         candidate_support = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}
         self.assertIn("identity_response_differential", candidate_support)
