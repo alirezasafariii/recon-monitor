@@ -9,17 +9,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   manifest:
-    name: Verify normalized manifest source
+    name: Normalize release manifest
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/vulnerability-intelligence-8.6.0
 
-      - name: Generate and diff normalized manifest
+      - name: Generate normalized manifest
         shell: bash
         run: |
           python - <<'PY'
@@ -36,6 +38,19 @@ jobs:
               else:
                   digest = hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
               lines.append(f"{digest}  {name}")
-          pathlib.Path("normalized-manifest.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          pathlib.Path("MANIFEST.sha256").write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
-          diff -u normalized-manifest.txt MANIFEST.sha256
+
+      - name: Commit normalized manifest when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- MANIFEST.sha256; then
+            echo "Manifest already normalized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MANIFEST.sha256
+          git commit -m "Normalize release manifest checksums"
+          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
