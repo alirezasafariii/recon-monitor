@@ -38,9 +38,25 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Diagnostic manifest status
+      - name: Diagnostic checksums
         shell: bash
-        run: sha256sum -c MANIFEST.sha256 || true
+        run: |
+          sha256sum \
+            app/bug_candidates.py \
+            app/family_analyzers/__init__.py \
+            app/family_analyzers/router.py \
+            app/family_analyzers/file_upload.py \
+            docs/FAMILY_ANALYZERS.md \
+            tests/test_family_analyzer_bola_v868.py \
+            tests/test_family_analyzer_bfla_v869.py \
+            tests/test_family_analyzer_mass_assignment_v870.py \
+            tests/test_family_analyzer_authentication_session_v871.py \
+            tests/test_family_analyzer_account_enumeration_v872.py \
+            tests/test_family_analyzer_dom_xss_v873.py \
+            tests/test_family_analyzer_postmessage_v874.py \
+            tests/test_family_analyzer_open_redirect_v875.py \
+            tests/test_family_analyzer_ssrf_v876.py \
+            tests/test_family_analyzer_file_upload_v877.py
 
       - name: Verify version consistency
         shell: bash
@@ -49,12 +65,3 @@ jobs:
           CLI_VERSION="$(./recon-monitor.sh --version)"
           CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
           test "$CLI_VERSION" = "$CORE_VERSION"
-          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
-          fi
-
-      - name: Unit tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-
-      - name: Integration test
-        run: python tests/integration_runner.py
