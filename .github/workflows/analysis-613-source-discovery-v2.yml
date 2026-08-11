@@ -1,0 +1,62 @@
+name: Analysis 6.13 Source Discovery v2
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.13-fresh-raw-holdout-v2
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.13-fresh-raw-holdout-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify sealed protocol
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          r=verify_v2_freeze(); assert r['passed'], r
+          assert r['manifest']['evaluation_status']=='protocol_sealed_collection_open'
+          assert r['manifest']['seal']['scored'] is False
+          PY
+      - name: Collect deduplicated CWE-filtered candidates without scoring
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python app/raw_recon_v2_source_discovery.py --per-bucket 100
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v2_candidates.json').read_text())
+          assert d['source_discovery_version']=='1.1.0'
+          assert d['eligible_candidate_count'] > 0
+          print(json.dumps(d['family_candidate_counts'], indent=2, sort_keys=True))
+          PY
+      - name: Cleanup and regenerate manifest
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-613-source-discovery-v2.yml
+          tmp="$(mktemp)"
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | sort -k2 > "$tmp"
+          mv "$tmp" MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256 >/dev/null
+      - name: Commit corrected source inventory
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Refresh Analysis 6.13 CWE-filtered source candidates'
+          git push origin HEAD:agent/analysis-engine-6.13-fresh-raw-holdout-v2
