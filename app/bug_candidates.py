@@ -2,24 +2,24 @@ from __future__ import annotations
 
 """Compatibility/integration surface for Candidate Engine family analyzers.
 
-The historical Candidate Engine implementation is preserved byte-for-byte in
-``bug_candidates_core.py``. This wrapper enriches BFLA, Mass Assignment,
-Authentication/Session, Account Enumeration, DOM-XSS and postMessage Trust
-hypotheses with dedicated family analyzers before the existing admission and
-promotion flow. DOM-XSS and postMessage Trust also migrate their static
+The historical Candidate Engine implementation is preserved in
+``bug_candidates_core.py``. This wrapper enriches specialized family hypotheses
+with dedicated analyzers before the existing admission and promotion flow.
+DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static
 JavaScript paths away from direct candidate insertion: static proximity is
 retained as a hidden hypothesis and promotion requires independent stored
 runtime condition evidence.
 """
 
 import importlib
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from family_analyzers.account_enumeration import analyze_account_enumeration_signal
 from family_analyzers.authentication_session import analyze_authentication_session_signal
 from family_analyzers.bfla import analyze_bfla_signal
 from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_sink
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
+from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
 
 _base = importlib.import_module("bug_candidates_core")
@@ -29,7 +29,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.5.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.6.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -62,6 +62,9 @@ _FAMILY_DIRECT_TYPES = {
     },
     "postmessage_trust": {
         "untrusted_message_accepted",
+    },
+    "open_redirect": {
+        "external_destination_accepted",
     },
 }
 
@@ -135,7 +138,30 @@ _base.FAMILY_EVIDENCE_SCHEMAS["postmessage_trust"] = {
     ),
     "label": "Web Messaging source/handler plus sensitive message consumer context",
 }
+_base.FAMILY_EVIDENCE_SCHEMAS["open_redirect"] = {
+    "required_any": (
+        ("redirect_parameter", "dataflow_source"),
+        ("navigation_context", "dataflow_sink"),
+    ),
+    "label": "user-influenced redirect destination plus concrete navigation sink",
+}
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
+
+_DEDICATED_ALERT_FAMILIES = {
+    "broken_function_authorization",
+    "mass_assignment",
+    "authentication_session",
+    "account_enumeration",
+    "dom_xss",
+    "postmessage_trust",
+    "open_redirect",
+}
+
+_INCOMPLETE_STATIC_GROUPS = {
+    "dom_xss": "dom_xss_incomplete_correlated_flow",
+    "postmessage_trust": "postmessage_incomplete_correlated_flow",
+    "open_redirect": "open_redirect_incomplete_correlated_flow",
+}
 
 
 def _analysis_alert_context(
@@ -284,8 +310,8 @@ def _dedicated_family_result(
             semantic_text=stored["semantic_text"],
         )
 
+    details = stored["details"]
     if family == "dom_xss":
-        details = stored["details"]
         return analyze_dom_xss_signal(
             db,
             analysis_id=analysis_id,
@@ -301,7 +327,6 @@ def _dedicated_family_result(
         )
 
     if family == "postmessage_trust":
-        details = stored["details"]
         return analyze_postmessage_trust_signal(
             db,
             analysis_id=analysis_id,
@@ -316,27 +341,44 @@ def _dedicated_family_result(
             business_context=stored["business_context"],
         )
 
+    if family == "open_redirect":
+        return analyze_open_redirect_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            source_kind=str(
+                details.get("source_kind")
+                or details.get("redirect_source")
+                or details.get("redirect_parameter")
+                or "redirect_parameter"
+            ),
+            sink_kind=str(details.get("sink_kind") or details.get("navigation_sink") or "navigation"),
+            snippet=stored["semantic_text"],
+            confidence=_base.parse_int(details.get("confidence"), 0),
+            details=details,
+            business_context=stored["business_context"],
+        )
+
     return None
 
 
-def _collapse_incomplete_dom_sources(support: list[dict[str, Any]], family_meta: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+def _collapse_incomplete_sources(
+    support: list[dict[str, Any]],
+    family_meta: Mapping[str, Any] | None,
+    *,
+    family: str,
+) -> list[dict[str, Any]]:
     if not family_meta or bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
+        return support
+    group = _INCOMPLETE_STATIC_GROUPS.get(family)
+    if not group:
         return support
     collapsed: list[dict[str, Any]] = []
     for raw in support:
         item = dict(raw)
-        item["source_group"] = "dom_xss_incomplete_correlated_flow"
-        collapsed.append(item)
-    return collapsed
-
-
-def _collapse_incomplete_postmessage_sources(support: list[dict[str, Any]], family_meta: Mapping[str, Any] | None) -> list[dict[str, Any]]:
-    if not family_meta or bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
-        return support
-    collapsed: list[dict[str, Any]] = []
-    for raw in support:
-        item = dict(raw)
-        item["source_group"] = "postmessage_incomplete_correlated_flow"
+        item["source_group"] = group
         collapsed.append(item)
     return collapsed
 
@@ -372,14 +414,7 @@ def _record_hypothesis_with_family_analyzers(
     summary: str,
 ) -> dict[str, Any]:
     family_meta: dict[str, Any] | None = None
-    if family in {
-        "broken_function_authorization",
-        "mass_assignment",
-        "authentication_session",
-        "account_enumeration",
-        "dom_xss",
-        "postmessage_trust",
-    }:
+    if family in _DEDICATED_ALERT_FAMILIES:
         dedicated = _dedicated_family_result(
             db,
             analysis_id=analysis_id,
@@ -401,10 +436,7 @@ def _record_hypothesis_with_family_analyzers(
             raw_meta = dedicated.get("family_analyzer")
             if isinstance(raw_meta, Mapping):
                 family_meta = dict(raw_meta)
-            if family == "dom_xss":
-                support = _collapse_incomplete_dom_sources(support, family_meta)
-            elif family == "postmessage_trust":
-                support = _collapse_incomplete_postmessage_sources(support, family_meta)
+            support = _collapse_incomplete_sources(support, family_meta, family=family)
 
     result = _ORIGINAL_RECORD_HYPOTHESIS(
         db,
@@ -447,14 +479,23 @@ def _evidence_strength_with_family_directness(
     )
 
 
-def _dom_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
+def _semantic_runtime_details(
+    db: Any,
+    *,
+    analysis_id: str,
+    target: str,
+    js_url: str,
+    unit_types: tuple[str, ...],
+    result_key: str,
+) -> dict[str, Any]:
+    placeholders = ",".join("?" for _ in unit_types)
     rows = db.all(
-        """SELECT unit_type,unit_key,value_json,confidence
+        f"""SELECT unit_type,unit_key,value_json,confidence
         FROM semantic_js_units
         WHERE analysis_id=? AND target=? AND js_url=?
-          AND unit_type IN ('dom_runtime_observation','dom_xss_runtime','runtime_dom_flow','dom_sanitization')
+          AND unit_type IN ({placeholders})
         ORDER BY confidence DESC,unit_type,unit_key""",
-        (analysis_id, target, js_url),
+        (analysis_id, target, js_url, *unit_types),
     )
     observations: list[dict[str, Any]] = []
     for row in rows:
@@ -464,27 +505,155 @@ def _dom_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str)
         item.setdefault("unit_key", str(row["unit_key"] or ""))
         item.setdefault("confidence", _base.parse_int(row["confidence"], 0))
         observations.append(item)
-    return {"dom_runtime_observations": observations} if observations else {}
+    return {result_key: observations} if observations else {}
+
+
+def _dom_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
+    return _semantic_runtime_details(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        unit_types=("dom_runtime_observation", "dom_xss_runtime", "runtime_dom_flow", "dom_sanitization"),
+        result_key="dom_runtime_observations",
+    )
 
 
 def _postmessage_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
-    rows = db.all(
-        """SELECT unit_type,unit_key,value_json,confidence
-        FROM semantic_js_units
-        WHERE analysis_id=? AND target=? AND js_url=?
-          AND unit_type IN ('postmessage_runtime_observation','web_message_runtime','message_runtime_observation','postmessage_trust_observation')
-        ORDER BY confidence DESC,unit_type,unit_key""",
-        (analysis_id, target, js_url),
+    return _semantic_runtime_details(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        unit_types=(
+            "postmessage_runtime_observation",
+            "web_message_runtime",
+            "message_runtime_observation",
+            "postmessage_trust_observation",
+        ),
+        result_key="postmessage_runtime_observations",
     )
-    observations: list[dict[str, Any]] = []
-    for row in rows:
-        value = _base._loads(row["value_json"], {})
-        item = dict(value) if isinstance(value, Mapping) else {}
-        item.setdefault("unit_type", str(row["unit_type"] or ""))
-        item.setdefault("unit_key", str(row["unit_key"] or ""))
-        item.setdefault("confidence", _base.parse_int(row["confidence"], 0))
-        observations.append(item)
-    return {"postmessage_runtime_observations": observations} if observations else {}
+
+
+def _open_redirect_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
+    return _semantic_runtime_details(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        unit_types=(
+            "redirect_runtime_observation",
+            "open_redirect_runtime",
+            "navigation_runtime_observation",
+            "client_redirect_observation",
+        ),
+        result_key="redirect_runtime_observations",
+    )
+
+
+def _record_migrated_static_hypothesis(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    row: Mapping[str, Any],
+    family: str,
+    analyzer: Callable[..., dict[str, Any] | None],
+    runtime_details: dict[str, Any],
+    fallback_variant: str,
+    fallback_candidate_variant: str,
+    fallback_summary: str,
+) -> bool:
+    target = str(row["target"])
+    js_url = str(row["js_url"])
+    source = str(row["source_kind"])
+    sink = str(row["sink_kind"])
+    confidence = _base.parse_int(row["confidence"], 0)
+    dedicated = analyzer(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        endpoint=js_url,
+        method="GET",
+        source_kind=source,
+        sink_kind=sink,
+        snippet=str(row["snippet"] or ""),
+        confidence=confidence,
+        details=runtime_details,
+        business_context="general",
+    )
+    if not dedicated:
+        return False
+
+    family_meta = dict(dedicated.get("family_analyzer") or {})
+    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
+    support = _collapse_incomplete_sources(support, family_meta, family=family)
+    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
+    source_ref = f"js-dataflow:{js_url}:{source}:{sink}"
+    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=js_url,
+        source_ref=source_ref,
+        family=family,
+        variant=str(dedicated.get("variant") or fallback_variant),
+        support=support,
+        contradict=contradict,
+        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
+        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
+        summary=str(dedicated.get("summary") or fallback_summary),
+    )
+    if family_meta:
+        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
+
+    if not bool(hypothesis.get("assessment", {}).get("admitted")):
+        return False
+    if not bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
+        return False
+
+    support = hypothesis["support"]
+    contradict = hypothesis["contradict"]
+    missing = hypothesis["missing"]
+    rules = hypothesis["rule_ids"]
+    likelihood = _base._clamp(
+        30
+        + confidence * 0.30
+        + sum(_base.parse_int(item.get("weight"), 0) for item in support)
+        + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
+    )
+    strength = _evidence_strength_with_family_directness(
+        confidence,
+        support,
+        contradict,
+        direct=bool(dedicated.get("direct")),
+    )
+    candidate_id = _base._insert_candidate(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=js_url,
+        source_ref=source_ref,
+        family=family,
+        variant=str(dedicated.get("variant") or fallback_candidate_variant),
+        likelihood=likelihood,
+        evidence_strength=strength,
+        impact_potential=_base._impact(_base.BUG_FAMILIES[family]["impact"], "general"),
+        support=support,
+        contradict=contradict,
+        missing=missing,
+        rule_ids=rules,
+        summary=str(dedicated.get("summary") or fallback_summary),
+    )
+    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
+    return True
 
 
 def _record_dom_static_hypothesis(
@@ -496,94 +665,18 @@ def _record_dom_static_hypothesis(
 ) -> bool:
     target = str(row["target"])
     js_url = str(row["js_url"])
-    source = str(row["source_kind"])
-    sink = str(row["sink_kind"])
-    confidence = _base.parse_int(row["confidence"], 0)
-    details = _dom_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url)
-    dedicated = analyze_dom_xss_signal(
+    return _record_migrated_static_hypothesis(
         db,
         analysis_id=analysis_id,
-        target=target,
-        js_url=js_url,
-        endpoint=js_url,
-        method="GET",
-        source_kind=source,
-        sink_kind=sink,
-        snippet=str(row["snippet"] or ""),
-        confidence=confidence,
-        details=details,
-        business_context="general",
-    )
-    if not dedicated:
-        return False
-
-    family_meta = dict(dedicated.get("family_analyzer") or {})
-    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
-    support = _collapse_incomplete_dom_sources(support, family_meta)
-    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
-    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
-        db,
-        analysis_id=analysis_id,
-        source_run_id=run_id,
-        target=target,
-        alert_id=None,
-        asset="",
-        endpoint=js_url,
-        source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
+        run_id=run_id,
+        row=row,
         family="dom_xss",
-        variant=str(dedicated.get("variant") or "static_dom_flow"),
-        support=support,
-        contradict=contradict,
-        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
-        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
-        summary=str(dedicated.get("summary") or "DOM-XSS client-side flow hypothesis."),
+        analyzer=analyze_dom_xss_signal,
+        runtime_details=_dom_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url),
+        fallback_variant="static_dom_flow",
+        fallback_candidate_variant="runtime_unsanitized_dom_flow",
+        fallback_summary="DOM-XSS client-side flow hypothesis.",
     )
-    if family_meta:
-        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
-
-    if not bool(hypothesis.get("assessment", {}).get("admitted")):
-        return False
-    if not bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
-        return False
-
-    support = hypothesis["support"]
-    contradict = hypothesis["contradict"]
-    missing = hypothesis["missing"]
-    rules = hypothesis["rule_ids"]
-    likelihood = _base._clamp(
-        30
-        + confidence * 0.30
-        + sum(_base.parse_int(item.get("weight"), 0) for item in support)
-        + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
-    )
-    strength = _evidence_strength_with_family_directness(
-        confidence,
-        support,
-        contradict,
-        direct=bool(dedicated.get("direct")),
-    )
-    candidate_id = _base._insert_candidate(
-        db,
-        analysis_id=analysis_id,
-        source_run_id=run_id,
-        target=target,
-        alert_id=None,
-        asset="",
-        endpoint=js_url,
-        source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
-        family="dom_xss",
-        variant=str(dedicated.get("variant") or "runtime_unsanitized_dom_flow"),
-        likelihood=likelihood,
-        evidence_strength=strength,
-        impact_potential=_base._impact(_base.BUG_FAMILIES["dom_xss"]["impact"], "general"),
-        support=support,
-        contradict=contradict,
-        missing=missing,
-        rule_ids=rules,
-        summary=str(dedicated.get("summary") or "Stored DOM-XSS runtime condition evidence."),
-    )
-    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
-    return True
 
 
 def _record_postmessage_static_hypothesis(
@@ -595,98 +688,45 @@ def _record_postmessage_static_hypothesis(
 ) -> bool:
     target = str(row["target"])
     js_url = str(row["js_url"])
-    source = str(row["source_kind"])
-    sink = str(row["sink_kind"])
-    confidence = _base.parse_int(row["confidence"], 0)
-    details = _postmessage_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url)
-    dedicated = analyze_postmessage_trust_signal(
+    return _record_migrated_static_hypothesis(
         db,
         analysis_id=analysis_id,
-        target=target,
-        js_url=js_url,
-        endpoint=js_url,
-        method="GET",
-        source_kind=source,
-        sink_kind=sink,
-        snippet=str(row["snippet"] or ""),
-        confidence=confidence,
-        details=details,
-        business_context="general",
-    )
-    if not dedicated:
-        return False
-
-    family_meta = dict(dedicated.get("family_analyzer") or {})
-    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
-    support = _collapse_incomplete_postmessage_sources(support, family_meta)
-    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
-    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
-        db,
-        analysis_id=analysis_id,
-        source_run_id=run_id,
-        target=target,
-        alert_id=None,
-        asset="",
-        endpoint=js_url,
-        source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
+        run_id=run_id,
+        row=row,
         family="postmessage_trust",
-        variant=str(dedicated.get("variant") or "static_message_handler"),
-        support=support,
-        contradict=contradict,
-        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
-        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
-        summary=str(dedicated.get("summary") or "postMessage trust hypothesis."),
+        analyzer=analyze_postmessage_trust_signal,
+        runtime_details=_postmessage_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url),
+        fallback_variant="static_message_handler",
+        fallback_candidate_variant="untrusted_sender_to_sensitive_consumer",
+        fallback_summary="postMessage trust hypothesis.",
     )
-    if family_meta:
-        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
 
-    if not bool(hypothesis.get("assessment", {}).get("admitted")):
-        return False
-    if not bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
-        return False
 
-    support = hypothesis["support"]
-    contradict = hypothesis["contradict"]
-    missing = hypothesis["missing"]
-    rules = hypothesis["rule_ids"]
-    likelihood = _base._clamp(
-        30
-        + confidence * 0.30
-        + sum(_base.parse_int(item.get("weight"), 0) for item in support)
-        + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
-    )
-    strength = _evidence_strength_with_family_directness(
-        confidence,
-        support,
-        contradict,
-        direct=bool(dedicated.get("direct")),
-    )
-    candidate_id = _base._insert_candidate(
+def _record_open_redirect_static_hypothesis(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    row: Mapping[str, Any],
+) -> bool:
+    target = str(row["target"])
+    js_url = str(row["js_url"])
+    return _record_migrated_static_hypothesis(
         db,
         analysis_id=analysis_id,
-        source_run_id=run_id,
-        target=target,
-        alert_id=None,
-        asset="",
-        endpoint=js_url,
-        source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
-        family="postmessage_trust",
-        variant=str(dedicated.get("variant") or "untrusted_sender_to_sensitive_consumer"),
-        likelihood=likelihood,
-        evidence_strength=strength,
-        impact_potential=_base._impact(_base.BUG_FAMILIES["postmessage_trust"]["impact"], "general"),
-        support=support,
-        contradict=contradict,
-        missing=missing,
-        rule_ids=rules,
-        summary=str(dedicated.get("summary") or "Stored postMessage trust-failure evidence."),
+        run_id=run_id,
+        row=row,
+        family="open_redirect",
+        analyzer=analyze_open_redirect_signal,
+        runtime_details=_open_redirect_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url),
+        fallback_variant="static_source_to_navigation_sink",
+        fallback_candidate_variant="user_controlled_external_destination",
+        fallback_summary="Open Redirect navigation hypothesis.",
     )
-    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
-    return True
 
 
 class _MigratedStaticFilteredDatabase:
-    """Delegate DB access while hiding migrated DOM/postMessage rows from legacy insertion."""
+    """Delegate DB access while hiding migrated client-side rows from legacy insertion."""
 
     def __init__(self, db: Any):
         self._db = db
@@ -702,6 +742,8 @@ class _MigratedStaticFilteredDatabase:
             if is_postmessage_source(source):
                 continue
             if is_dangerous_dom_sink(sink):
+                continue
+            if is_navigation_sink(sink):
                 continue
             filtered.append(row)
         return filtered
@@ -728,6 +770,11 @@ def _static_candidates_with_family_analyzers(db: Any, analysis_id: str, run_id: 
         if is_dangerous_dom_sink(sink):
             if _record_dom_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
                 migrated_count += 1
+            continue
+        if is_navigation_sink(sink):
+            if _record_open_redirect_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
+                migrated_count += 1
+            continue
 
     legacy_count = _ORIGINAL_STATIC_CANDIDATES(
         _MigratedStaticFilteredDatabase(db),
