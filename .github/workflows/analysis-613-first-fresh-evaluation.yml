@@ -1,0 +1,135 @@
+name: Analysis 6.13 First Fresh Raw v2 Evaluation
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.13-fresh-raw-holdout-v2
+
+permissions:
+  contents: write
+
+jobs:
+  evaluate-once:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.13-fresh-raw-holdout-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight sealed fresh holdout
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          r=verify_v2_freeze(); assert r['passed'], r
+          m=r['manifest']
+          assert m['evaluation_status']=='sealed_unscored', m['evaluation_status']
+          assert m['corpus']['sealed'] is True and m['corpus']['scored'] is False
+          assert m['seal']['scored'] is False
+          actual=hashlib.sha256(Path(m['corpus']['path']).read_bytes()).hexdigest()
+          assert actual==m['corpus']['sha256']=='1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3'
+          print({'status':m['evaluation_status'],'corpus_sha256':actual,'protected_files':r['protected_file_count']})
+          PY
+      - name: Execute exactly one first fresh evaluation and consume v2
+        env:
+          PYTHONPATH: app
+        shell: bash
+        run: |
+          mkdir -p benchmarks/raw/results
+          python - <<'PY'
+          import hashlib, json, os, traceback
+          from pathlib import Path
+          from raw_recon_v2_benchmark import benchmark_v2_file
+
+          manifest_path=Path('benchmarks/raw/splits/v2.json')
+          result_path=Path('benchmarks/raw/results/analysis_raw_v2_first_evaluation.json')
+          run_id=os.environ.get('GITHUB_RUN_ID','')
+          head_sha=os.environ.get('GITHUB_SHA','')
+          report=None
+          error=None
+          try:
+              # This is the single first fresh scoring call. Do not add a second call.
+              report=benchmark_v2_file()
+              result_path.write_text(json.dumps(report, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          except Exception as exc:
+              error={
+                  'type':type(exc).__name__,
+                  'message':str(exc),
+                  'traceback':traceback.format_exc(),
+              }
+              result_path.write_text(json.dumps({'evaluation_error':error}, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          finally:
+              m=json.loads(manifest_path.read_text(encoding='utf-8'))
+              # Once the sealed corpus reaches the scoring call above, it is consumed
+              # whether the result passes, fails gates, or the evaluator raises.
+              m['evaluation_status']='evaluated_once_consumed'
+              m['corpus']['scored']=True
+              m['seal']['scored']=True
+              m['seal']['corpus_materialized']=True
+              result_sha=hashlib.sha256(result_path.read_bytes()).hexdigest()
+              record={
+                  'run_id':run_id,
+                  'evaluation_head_sha':head_sha,
+                  'corpus_sha256':m['corpus']['sha256'],
+                  'report_path':str(result_path),
+                  'report_sha256':result_sha,
+                  'fresh':True,
+                  'consumed_immediately':True,
+                  'rerun_policy':'regression_only_after_this_run',
+              }
+              if report is not None:
+                  record['metrics']=report['metrics']
+                  record['quality_gate']=report['quality_gate']
+                  record['quality_gate_passed']=bool(report['quality_gate']['passed'])
+                  record['case_count']=report['case_count']
+                  record['corpus_validation']=report['corpus_validation']
+              if error is not None:
+                  record['evaluation_error']=error
+                  record['quality_gate_passed']=False
+              m['first_and_only_fresh_evaluation']=record
+              manifest_path.write_text(json.dumps(m, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          if error is not None:
+              raise SystemExit('fresh evaluator raised; v2 was still marked consumed: '+error['message'])
+          print(json.dumps({'metrics':report['metrics'],'quality_gate':report['quality_gate']}, indent=2, sort_keys=True))
+          PY
+      - name: Verify consumed state without rescoring
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          m=json.loads(Path('benchmarks/raw/splits/v2.json').read_text())
+          r=json.loads(Path('benchmarks/raw/results/analysis_raw_v2_first_evaluation.json').read_text())
+          assert m['evaluation_status']=='evaluated_once_consumed'
+          assert m['corpus']['scored'] is True and m['seal']['scored'] is True
+          first=m['first_and_only_fresh_evaluation']
+          assert first['run_id']==os.environ['GITHUB_RUN_ID']
+          assert first['metrics']==r['metrics']
+          assert first['quality_gate']==r['quality_gate']
+          assert first['consumed_immediately'] is True
+          print(json.dumps(first, indent=2, sort_keys=True))
+          PY
+      - name: Cleanup one-shot evaluator and regenerate manifest
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-613-first-fresh-evaluation.yml
+          tmp="$(mktemp)"
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | sort -k2 > "$tmp"
+          mv "$tmp" MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256 >/dev/null
+          test ! -e .github/workflows/analysis-613-first-fresh-evaluation.yml
+      - name: Commit consumed v2 result
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Record first and only fresh Analysis 6.13 raw v2 evaluation'
+          git push origin HEAD:agent/analysis-engine-6.13-fresh-raw-holdout-v2
