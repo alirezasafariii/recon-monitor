@@ -8,9 +8,9 @@ with dedicated analyzers before the existing admission and promotion flow.
 DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static
 JavaScript paths away from direct candidate insertion: static proximity is
 retained as a hidden hypothesis and promotion requires independent stored
-runtime condition evidence. SSRF uses the same hypothesis-first admission model
-for alert/endpoint surfaces and requires independent stored server-side outbound
-evidence before promotion.
+runtime condition evidence. SSRF and File Upload / Import use the same
+hypothesis-first admission model for alert/endpoint surfaces and require
+independent stored target behavior before promotion.
 """
 
 import importlib
@@ -20,6 +20,7 @@ from family_analyzers.account_enumeration import analyze_account_enumeration_sig
 from family_analyzers.authentication_session import analyze_authentication_session_signal
 from family_analyzers.bfla import analyze_bfla_signal
 from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_sink
+from family_analyzers.file_upload import analyze_file_upload_signal
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
@@ -32,7 +33,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.7.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.8.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -74,6 +75,12 @@ _FAMILY_DIRECT_TYPES = {
         "controlled_callback_observed",
         "destination_policy_bypass_observed",
         "restricted_destination_accepted",
+    },
+    "file_upload": {
+        "unsafe_file_accepted",
+        "file_policy_differential",
+        "content_type_bypass_observed",
+        "executable_upload_observed",
     },
 }
 
@@ -167,6 +174,20 @@ _base.FAMILY_EVIDENCE_SCHEMAS["ssrf"] = {
     ),
     "label": "user-influenced remote destination plus server-fetch semantics or stored server-side outbound observation",
 }
+_base.FAMILY_EVIDENCE_SCHEMAS["file_upload"] = {
+    "required_any": (
+        ("file_input",),
+        (
+            "upload_operation",
+            "import_operation",
+            "unsafe_file_accepted",
+            "file_policy_differential",
+            "content_type_bypass_observed",
+            "executable_upload_observed",
+        ),
+    ),
+    "label": "concrete file input plus upload/import operation or stored file-policy differential",
+}
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
 _DEDICATED_ALERT_FAMILIES = {
@@ -178,6 +199,7 @@ _DEDICATED_ALERT_FAMILIES = {
     "postmessage_trust",
     "open_redirect",
     "ssrf",
+    "file_upload",
 }
 
 _INCOMPLETE_STATIC_GROUPS = {
@@ -386,6 +408,20 @@ def _dedicated_family_result(
 
     if family == "ssrf":
         return analyze_ssrf_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            body_fields=stored["body_fields"],
+            query_fields=stored["query_fields"],
+            details=details,
+            business_context=stored["business_context"],
+            semantic_text=stored["semantic_text"],
+        )
+
+    if family == "file_upload":
+        return analyze_file_upload_signal(
             db,
             analysis_id=analysis_id,
             target=target,
