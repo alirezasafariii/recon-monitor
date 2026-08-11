@@ -46,6 +46,8 @@ jobs:
             app/family_analyzers/__init__.py \
             app/family_analyzers/router.py \
             app/family_analyzers/dom_xss.py \
+            docs/FAMILY_ANALYZERS.md \
+            tests/test_bug_candidates_v41.py \
             tests/test_family_analyzer_bola_v868.py \
             tests/test_family_analyzer_bfla_v869.py \
             tests/test_family_analyzer_mass_assignment_v870.py \
