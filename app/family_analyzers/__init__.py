@@ -1,3 +1,4 @@
+from .account_enumeration import AccountEnumerationFamilyAnalyzer
 from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .base import FAMILY_ANALYZER_FRAMEWORK_VERSION, FamilyAnalyzer, FamilyAnalyzerContext
 from .bfla import BflaFamilyAnalyzer
@@ -13,6 +14,7 @@ __all__ = [
     "BflaFamilyAnalyzer",
     "MassAssignmentFamilyAnalyzer",
     "AuthenticationSessionFamilyAnalyzer",
+    "AccountEnumerationFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
