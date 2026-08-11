@@ -82,7 +82,10 @@
     "root_is_split_unit": true,
     "split": "postfreeze_holdout",
     "retuning_after_first_evaluation": false,
-    "selection_rule": "After freeze, query source_buckets in declared order. Pass 1 selects the first eligible reviewed primary advisory from each bucket; pass 2 selects at most one additional root per bucket until 24 roots are reached. Skip prior-corpus overlap, pre-freeze-exposed roots, duplicate projects when an unused project is available, and sources without enough concrete information to construct a sanitized raw/minimally-normalized replay fixture. No benchmark scoring is allowed during collection or fixture sealing."
+    "minimum_advisory_description_chars": 160,
+    "require_repository_advisory_url": true,
+    "require_source_code_location": true,
+    "selection_rule": "After freeze, query source_buckets in declared order. Pass 1 selects the first eligible reviewed primary advisory from each bucket; pass 2 selects at most one additional root per bucket until 24 roots are reached. Eligibility requires type=reviewed, a repository_advisory_url, a source_code_location, and at least 160 description characters. Skip prior-corpus overlap, pre-freeze-exposed roots, duplicate projects when an unused project is available, and withdrawn advisories. No benchmark scoring is allowed during collection or fixture sealing."
   },
   "pre_freeze_exclusions": {
     "reason": "These advisory roots were exposed while verifying the public advisory API before the production/benchmark freeze and therefore cannot be considered blind holdout roots.",
