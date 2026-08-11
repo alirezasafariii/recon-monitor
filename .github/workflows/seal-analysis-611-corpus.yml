@@ -1,0 +1,81 @@
+name: Seal Analysis 6.11 Unscored Raw Holdout
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.11-blind-raw-recon-benchmark
+
+permissions:
+  contents: write
+
+env:
+  PYTHONPATH: app
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.11-blind-raw-recon-benchmark
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify frozen logic and validate unscored corpus
+        run: |
+          python - <<'PY'
+          from raw_recon_benchmark import verify_freeze
+          from raw_recon_corpus import load_raw_cases, validate_raw_corpus
+          freeze=verify_freeze('benchmarks/raw/splits/v1.json')
+          print(freeze)
+          if not freeze['passed']:
+              raise SystemExit('; '.join(freeze['errors']))
+          cases=load_raw_cases('benchmarks/raw/analysis_raw_v1.jsonl')
+          validation=validate_raw_corpus(cases)
+          print(validation)
+          if not validation['passed']:
+              raise SystemExit('; '.join(validation['errors']))
+          PY
+      - name: Seal corpus hash and source inventory without scoring
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          corpus=Path('benchmarks/raw/analysis_raw_v1.jsonl')
+          manifest_path=Path('benchmarks/raw/splits/v1.json')
+          rows=[json.loads(line) for line in corpus.read_text().splitlines() if line.strip()]
+          manifest=json.loads(manifest_path.read_text())
+          roots=sorted({r['source_root'] for r in rows})
+          projects=sorted({r['source_project'] for r in rows})
+          families=sorted({r['family'] for r in rows if r['case_kind']=='positive'})
+          digest=hashlib.sha256(corpus.read_bytes()).hexdigest()
+          manifest['evaluation_status']='sealed_unscored'
+          manifest['corpus'].update({
+              'sealed':True,
+              'sha256':digest,
+              'case_count':len(rows),
+              'source_root_count':len(roots),
+              'source_project_count':len(projects),
+              'positive_family_count':len(families),
+              'source_roots':roots,
+              'source_projects':projects,
+              'positive_families':families,
+          })
+          manifest['seal']={
+              'scored':False,
+              'benchmark_report':None,
+              'note':'Corpus schema, provenance independence, raw-label leakage, source floors, and freeze were validated before sealing. No detector/ranking/admission benchmark scoring was executed before this seal.'
+          }
+          manifest_path.write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')
+          print(json.dumps({'sha256':digest,'cases':len(rows),'roots':len(roots),'projects':len(projects),'families':len(families)},indent=2))
+          PY
+      - name: Remove sealing workflow and commit sealed manifest
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/seal-analysis-611-corpus.yml
+          git add benchmarks/raw/splits/v1.json
+          git commit -m 'Seal Analysis 6.11 blind raw holdout before scoring'
+          git push
