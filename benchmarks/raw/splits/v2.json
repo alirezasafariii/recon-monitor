@@ -68,7 +68,7 @@
     "positive_control_raw_collision_count": 0,
     "positive_family_count": 20,
     "positive_observable_delta_rate": 1.0,
-    "scored": false,
+    "scored": true,
     "sealed": true,
     "sha256": "1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3",
     "source_project_count": 24,
@@ -82,7 +82,97 @@
     "sha256": "1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3",
     "validator_version": "1.0.0"
   },
-  "evaluation_status": "sealed_unscored",
+  "evaluation_status": "evaluated_once_consumed",
+  "first_and_only_fresh_evaluation": {
+    "case_count": 96,
+    "consumed_immediately": true,
+    "corpus_sha256": "1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3",
+    "corpus_validation": {
+      "case_count": 96,
+      "case_kind_counts": {
+        "near_miss": 24,
+        "positive": 24,
+        "secure_negative": 24,
+        "sparse_noisy": 24
+      },
+      "errors": [],
+      "passed": true,
+      "positive_control_raw_collision_count": 0,
+      "positive_family_count": 20,
+      "positive_family_roots": {
+        "account_enumeration": 1,
+        "authentication_session": 2,
+        "broken_function_authorization": 1,
+        "broken_object_authorization": 2,
+        "command_injection": 1,
+        "cors_misconfiguration": 1,
+        "file_upload": 1,
+        "information_disclosure": 1,
+        "ldap_injection": 1,
+        "mass_assignment": 1,
+        "nosql_injection": 1,
+        "open_redirect": 1,
+        "path_traversal": 1,
+        "race_condition": 1,
+        "secret_exposure": 1,
+        "security_misconfiguration": 1,
+        "server_side_template_injection": 1,
+        "sql_injection": 1,
+        "ssrf": 3,
+        "unrestricted_resource_consumption": 1
+      },
+      "positive_observable_delta_count": 24,
+      "positive_observable_delta_rate": 1.0,
+      "prior_source_root_overlap_count": 0,
+      "prior_url_overlap_count": 0,
+      "raw_label_leakage_forbidden_key_count": 394,
+      "source_kind_counts": {
+        "github_reviewed_advisory": 96
+      },
+      "source_project_count": 24,
+      "source_root_count": 24,
+      "v2_prior_corpus_count": 3,
+      "validator_version": "1.0.0"
+    },
+    "evaluation_head_sha": "f60469a6d69dfe26a174a77c808f9556813cc4ae",
+    "fresh": true,
+    "metrics": {
+      "abstention_accuracy": 0.972222,
+      "admission_precision": 0.913043,
+      "admission_recall": 0.875,
+      "condition_extraction_precision": 0.84,
+      "condition_extraction_recall": 0.875,
+      "end_to_end_accuracy": 0.947917,
+      "false_promotion_rate": 0.027778,
+      "prior_source_root_overlap_rate": 0.0,
+      "raw_label_leakage_rate": 0.0,
+      "routing_top1_accuracy": 0.930556,
+      "routing_top3_accuracy": 0.986111,
+      "wrong_family_promotion_rate": 0.0
+    },
+    "quality_gate": {
+      "failures": [
+        {
+          "direction": "min",
+          "metric": "condition_extraction_precision",
+          "threshold": 0.9,
+          "value": 0.84
+        },
+        {
+          "direction": "min",
+          "metric": "admission_precision",
+          "threshold": 0.93,
+          "value": 0.913043
+        }
+      ],
+      "passed": false
+    },
+    "quality_gate_passed": false,
+    "report_path": "benchmarks/raw/results/analysis_raw_v2_first_evaluation.json",
+    "report_sha256": "0a2146f448f01ca45554e41ea3329881fa7e6a4a6d9ee5dfe420fe2d86d76282",
+    "rerun_policy": "regression_only_after_this_run",
+    "run_id": "31471744115"
+  },
   "frozen_engine": {
     "analysis_engine_version": "6.12.0",
     "detector_execution_engine_version": "1.1.0",
@@ -150,9 +240,9 @@
   "reuse_policy": "After the first fresh evaluation, v2 is consumed. Every later run must be explicitly labeled regression-only and must never be described as fresh or blind.",
   "schema_version": "1.0",
   "seal": {
-    "corpus_materialized": false,
+    "corpus_materialized": true,
     "note": "Production logic, benchmark gates, v2 observability rules, and benchmark harness were frozen before any new v2 advisory source discovery.",
-    "scored": false
+    "scored": true
   },
   "source_buckets": [
     {
