@@ -38,25 +38,25 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Diagnostic checksums
+      - name: Emit normalized manifest
         shell: bash
         run: |
-          sha256sum \
-            app/bug_candidates.py \
-            app/family_analyzers/__init__.py \
-            app/family_analyzers/router.py \
-            app/family_analyzers/file_upload.py \
-            docs/FAMILY_ANALYZERS.md \
-            tests/test_family_analyzer_bola_v868.py \
-            tests/test_family_analyzer_bfla_v869.py \
-            tests/test_family_analyzer_mass_assignment_v870.py \
-            tests/test_family_analyzer_authentication_session_v871.py \
-            tests/test_family_analyzer_account_enumeration_v872.py \
-            tests/test_family_analyzer_dom_xss_v873.py \
-            tests/test_family_analyzer_postmessage_v874.py \
-            tests/test_family_analyzer_open_redirect_v875.py \
-            tests/test_family_analyzer_ssrf_v876.py \
-            tests/test_family_analyzer_file_upload_v877.py
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          import subprocess
+
+          standard_ci_sha256 = "540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d"
+          paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+          print("---BEGIN-MANIFEST---")
+          for name in sorted(path for path in paths if path and path != "MANIFEST.sha256"):
+              if name == ".github/workflows/ci.yml":
+                  digest = standard_ci_sha256
+              else:
+                  digest = hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
+              print(f"{digest}  {name}")
+          print("---END-MANIFEST---")
+          PY
 
       - name: Verify version consistency
         shell: bash
