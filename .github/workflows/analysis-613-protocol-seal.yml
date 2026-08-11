@@ -1,0 +1,96 @@
+name: Seal Analysis 6.13 Raw Holdout v2 Protocol
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.13-fresh-raw-holdout-v2
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.13-fresh-raw-holdout-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused protocol contracts
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/raw_recon_v2_corpus.py app/raw_recon_v2_benchmark.py
+          python -m unittest tests.test_raw_recon_v2_protocol_v6130 tests.test_raw_condition_reconstruction_v6120 tests.test_raw_routing_boundaries_v6120 tests.test_raw_recon_benchmark_v6110 -v
+          python - <<'PY'
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          report = verify_v2_freeze()
+          assert report['passed'], report
+          print(report)
+          PY
+      - name: Full regression before protocol seal
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          PYTHONPATH=app python app/analysis_benchmark.py --strict
+          python tests/integration_runner.py
+      - name: Seal protocol metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+
+          path = Path('benchmarks/raw/splits/v2.json')
+          manifest = json.loads(path.read_text())
+          protocol_files = [
+              'app/raw_recon_v2_corpus.py',
+              'app/raw_recon_v2_benchmark.py',
+              'tests/test_raw_recon_v2_protocol_v6130.py',
+              'docs/ANALYSIS_ENGINE_6_13_FRESH_RAW_HOLDOUT_V2.md',
+          ]
+          hashes = {}
+          for relative in protocol_files:
+              hashes[relative] = subprocess.check_output(['git', 'hash-object', relative], text=True).strip()
+          manifest['evaluation_status'] = 'protocol_sealed_collection_open'
+          manifest['protocol_sealed_at'] = '2026-08-11'
+          manifest['protocol_files'] = hashes
+          manifest['protected_files'].update({
+              'app/raw_recon_v2_corpus.py': hashes['app/raw_recon_v2_corpus.py'],
+              'app/raw_recon_v2_benchmark.py': hashes['app/raw_recon_v2_benchmark.py'],
+          })
+          manifest.pop('protocol_files_pending_seal', None)
+          manifest['seal'] = {
+              'scored': False,
+              'corpus_materialized': False,
+              'note': 'Production logic, benchmark gates, v2 observability rules, and benchmark harness were frozen before any new v2 advisory source discovery.'
+          }
+          path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          PY
+          PYTHONPATH=app python - <<'PY'
+          from raw_recon_v2_benchmark import verify_v2_freeze
+          report = verify_v2_freeze()
+          assert report['passed'], report
+          assert report['manifest']['evaluation_status'] == 'protocol_sealed_collection_open'
+          print(report)
+          PY
+      - name: Cleanup seal workflow and regenerate manifest
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-613-protocol-seal.yml
+          tmp="$(mktemp)"
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | sort -k2 > "$tmp"
+          mv "$tmp" MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256 >/dev/null
+          test ! -e .github/workflows/analysis-613-protocol-seal.yml
+      - name: Commit sealed protocol
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Seal Analysis 6.13 raw holdout v2 protocol'
+          git push origin HEAD:agent/analysis-engine-6.13-fresh-raw-holdout-v2
