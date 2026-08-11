@@ -13,7 +13,7 @@ from typing import Any, Iterable, Mapping
 from raw_recon_v2_corpus import ROOT, V2_PRIOR_CORPORA
 from raw_recon_corpus import prior_source_index
 
-SOURCE_DISCOVERY_VERSION = "1.0.0"
+SOURCE_DISCOVERY_VERSION = "1.1.0"
 GITHUB_ADVISORY_API = "https://api.github.com/advisories"
 KNOWN_PREVIOUSLY_EXPOSED_ROOTS = {
     "GHSA-c9w5-rwh3-7pm9",
@@ -44,7 +44,6 @@ SOURCE_BUCKETS = (
     ("security_misconfiguration", "CWE-209"),
     ("secret_exposure", "CWE-798"),
 )
-BUCKET_BY_CWE = {cwe: family for family, cwe in SOURCE_BUCKETS}
 OBSERVABILITY_TERMS = {
     "broken_object_authorization": ("unauthorized", "other user", "another user", "access", "object", "tenant", "owner"),
     "broken_function_authorization": ("unauthorized", "privilege", "admin", "role", "permission", "bypass"),
@@ -79,100 +78,99 @@ def _project_from_source(url: str) -> str:
 
 
 def _headers() -> dict[str, str]:
-    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "recon-monitor-analysis-6.13"}
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "recon-monitor-analysis-6.13",
+    }
     token = os.getenv("GITHUB_TOKEN", "").strip()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
-def _fetch_page(page: int, per_page: int = 100) -> list[dict[str, Any]]:
-    query = urllib.parse.urlencode({"type": "reviewed", "per_page": per_page, "page": page})
+def _fetch_cwe(cwe: str, per_page: int = 100) -> list[dict[str, Any]]:
+    numeric = cwe.removeprefix("CWE-")
+    query = urllib.parse.urlencode({"type": "reviewed", "cwes": numeric, "per_page": per_page})
     request = urllib.request.Request(f"{GITHUB_ADVISORY_API}?{query}", headers=_headers())
     with urllib.request.urlopen(request, timeout=30) as response:
         data = json.load(response)
     return [dict(row) for row in data if isinstance(row, Mapping)]
 
 
-def _eligible_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def _eligible_rows(rows: Iterable[Mapping[str, Any]], family: str, cwe: str) -> list[dict[str, Any]]:
     prior = prior_source_index(V2_PRIOR_CORPORA)
     seen_roots = set(prior["roots"]) | KNOWN_PREVIOUSLY_EXPOSED_ROOTS
     seen_urls = set(prior["urls"])
     result: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[str, str]] = set()
     for raw in rows:
         row = dict(raw)
         root = _norm(row.get("ghsa_id"))
         repo_api = _norm(row.get("repository_advisory_url"))
         source = _norm(row.get("source_code_location"))
         description = _norm(row.get("description"))
-        withdrawn = row.get("withdrawn_at")
         refs = [_norm(value) for value in row.get("references") or [] if _norm(value)]
         canonical = next((value for value in refs if "/security/advisories/" in value and value.startswith("https://github.com/")), "")
-        cwes = {_norm(item.get("cwe_id")) for item in row.get("cwes") or [] if isinstance(item, Mapping)}
-        matching = [(BUCKET_BY_CWE[cwe], cwe) for cwe in cwes if cwe in BUCKET_BY_CWE]
-        if not matching:
+        row_cwes = {_norm(item.get("cwe_id")) for item in row.get("cwes") or [] if isinstance(item, Mapping)}
+        if cwe not in row_cwes:
             continue
-        if root in seen_roots or canonical in seen_urls:
+        if not root or root in seen_roots or canonical in seen_urls or row.get("withdrawn_at"):
             continue
-        if withdrawn or not repo_api or not source or not canonical or len(description) < 160:
+        if not repo_api or not source or not canonical or len(description) < 160:
             continue
         project = _project_from_source(source)
         if not project:
             continue
-        for family, cwe in matching:
-            lower = description.lower()
-            hits = [term for term in OBSERVABILITY_TERMS[family] if term in lower]
-            if not hits:
-                continue
-            result.append({
-                "source_root": root,
-                "source_project": project,
-                "family": family,
-                "cwe": cwe,
-                "published_at": _norm(row.get("published_at")),
-                "updated_at": _norm(row.get("updated_at")),
-                "severity": _norm(row.get("severity")),
-                "summary": _norm(row.get("summary")),
-                "description": description,
-                "repository_advisory_url": repo_api,
-                "source_code_location": source,
-                "canonical_advisory_url": canonical,
-                "references": refs,
-                "observable_term_hits": hits,
-            })
+        hits = [term for term in OBSERVABILITY_TERMS[family] if term in description.lower()]
+        if not hits or (root, family) in seen_pairs:
+            continue
+        seen_pairs.add((root, family))
+        result.append({
+            "source_root": root,
+            "source_project": project,
+            "family": family,
+            "cwe": cwe,
+            "published_at": _norm(row.get("published_at")),
+            "updated_at": _norm(row.get("updated_at")),
+            "severity": _norm(row.get("severity")),
+            "summary": _norm(row.get("summary")),
+            "description": description,
+            "repository_advisory_url": repo_api,
+            "source_code_location": source,
+            "canonical_advisory_url": canonical,
+            "references": refs,
+            "observable_term_hits": hits,
+        })
+    result.sort(key=lambda item: (item["published_at"], item["source_root"]), reverse=True)
     return result
 
 
-def discover(*, pages: int = 30) -> dict[str, Any]:
-    all_rows: list[dict[str, Any]] = []
-    for page in range(1, pages + 1):
-        rows = _fetch_page(page)
-        if not rows:
-            break
-        all_rows.extend(rows)
-    eligible = _eligible_rows(all_rows)
+def discover(*, per_bucket: int = 100) -> dict[str, Any]:
     by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in eligible:
-        by_family[row["family"]].append(row)
-    for family in by_family:
-        by_family[family].sort(key=lambda item: (item["published_at"], item["source_root"]), reverse=True)
+    queried = 0
+    for family, cwe in SOURCE_BUCKETS:
+        rows = _fetch_cwe(cwe, per_page=per_bucket)
+        queried += len(rows)
+        by_family[family] = _eligible_rows(rows, family, cwe)
+    unique = {(row["source_root"], row["family"]) for rows in by_family.values() for row in rows}
     return {
         "source_discovery_version": SOURCE_DISCOVERY_VERSION,
-        "queried_reviewed_advisory_count": len(all_rows),
-        "eligible_candidate_count": len(eligible),
+        "queried_reviewed_advisory_count": queried,
+        "eligible_candidate_count": len(unique),
         "family_candidate_counts": {family: len(by_family.get(family, [])) for family, _ in SOURCE_BUCKETS},
         "candidates_by_family": {family: by_family.get(family, []) for family, _ in SOURCE_BUCKETS},
         "known_previously_exposed_roots": sorted(KNOWN_PREVIOUSLY_EXPOSED_ROOTS),
-        "note": "Discovery only. No Analysis Engine detector, ranking, admission, reconstruction, or benchmark scoring is executed by this collector.",
+        "note": "Discovery only. GitHub Advisory API is queried by pre-registered CWE bucket. No Analysis Engine detector, ranking, admission, reconstruction, or benchmark scoring is executed by this collector.",
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Discover fresh primary advisory candidates for Analysis 6.13 raw v2")
-    parser.add_argument("--pages", type=int, default=30)
+    parser.add_argument("--per-bucket", type=int, default=100)
     parser.add_argument("--output", default=str(ROOT / "benchmarks" / "raw" / "sources" / "v2_candidates.json"))
     args = parser.parse_args()
-    report = discover(pages=max(1, args.pages))
+    report = discover(per_bucket=max(1, min(100, args.per_bucket)))
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
