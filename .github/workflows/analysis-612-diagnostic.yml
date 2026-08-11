@@ -1,0 +1,92 @@
+name: Analysis 6.12 V1 Observability Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.12-raw-condition-reconstruction
+
+permissions:
+  contents: write
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.12-raw-condition-reconstruction
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build consumed-v1 observability diagnostic
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          from collections import defaultdict
+
+          path = Path('benchmarks/raw/analysis_raw_v1.jsonl')
+          cases = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+          by_root = defaultdict(dict)
+          for case in cases:
+              by_root[case['source_root']][case['case_kind']] = case
+
+          def canonical(raw):
+              return json.dumps(raw, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+
+          def flatten(v, prefix=''):
+              out = []
+              if isinstance(v, dict):
+                  for k in sorted(v):
+                      p = f'{prefix}.{k}' if prefix else k
+                      out.extend(flatten(v[k], p))
+              elif isinstance(v, list):
+                  for i, x in enumerate(v):
+                      out.extend(flatten(x, f'{prefix}[{i}]'))
+              else:
+                  out.append((prefix, v))
+              return out
+
+          rows=[]
+          for root, variants in sorted(by_root.items()):
+              pos=variants.get('positive')
+              if not pos: continue
+              praw=pos['raw']
+              negs=[variants.get(k) for k in ('near_miss','secure_negative','sparse_noisy') if variants.get(k)]
+              collisions=[n['case_kind'] for n in negs if canonical(n['raw'])==canonical(praw)]
+              diffs={}
+              pflat=dict(flatten(praw))
+              for n in negs:
+                  nflat=dict(flatten(n['raw']))
+                  keys=sorted(set(pflat)|set(nflat))
+                  changed=[]
+                  for k in keys:
+                      if pflat.get(k,'<MISSING>') != nflat.get(k,'<MISSING>'):
+                          changed.append({'path':k,'positive':pflat.get(k,'<MISSING>'),'negative':nflat.get(k,'<MISSING>')})
+                  diffs[n['case_kind']]=changed[:30]
+              rows.append({
+                  'root':root,
+                  'family':pos['family'],
+                  'expected_condition_signals':pos.get('expected',{}).get('condition_signals',[]),
+                  'exact_raw_collision_with':collisions,
+                  'identifiable_by_exact_raw':not collisions,
+                  'diffs':diffs,
+              })
+          summary={
+              'case_roots':len(rows),
+              'exactly_identifiable_roots':sum(r['identifiable_by_exact_raw'] for r in rows),
+              'collision_roots':sum(bool(r['exact_raw_collision_with']) for r in rows),
+              'rows':rows,
+          }
+          Path('analysis612-v1-observability.json').write_text(json.dumps(summary, indent=2, sort_keys=True), encoding='utf-8')
+          print(json.dumps({k:v for k,v in summary.items() if k!='rows'}, indent=2))
+          PY
+      - name: Commit diagnostic
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add analysis612-v1-observability.json
+          git commit -m 'Record Analysis 6.12 consumed-v1 observability diagnostic' || exit 0
+          git push origin HEAD:agent/analysis-engine-6.12-raw-condition-reconstruction
