@@ -37,4 +37,4 @@ jobs:
       - name: Golden v3 regression
         run: python -m analysis_benchmark --corpus benchmarks/golden/analysis_golden_v3.jsonl --strict
       - name: Integration
-        run: python tests/integration_test.py
+        run: python tests/integration_runner.py
