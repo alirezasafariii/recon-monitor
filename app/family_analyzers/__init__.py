@@ -3,6 +3,7 @@ from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .base import FAMILY_ANALYZER_FRAMEWORK_VERSION, FamilyAnalyzer, FamilyAnalyzerContext
 from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
+from .dom_xss import DomXssFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .router import analyzer_for_family, pending_families, registered_families, router_status
 
@@ -15,6 +16,7 @@ __all__ = [
     "MassAssignmentFamilyAnalyzer",
     "AuthenticationSessionFamilyAnalyzer",
     "AccountEnumerationFamilyAnalyzer",
+    "DomXssFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
