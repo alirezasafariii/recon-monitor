@@ -47,7 +47,7 @@ class BflaFamilyAnalyzerV869Tests(unittest.TestCase):
             semantic_text=semantic_text,
         )
 
-    def test_router_registers_bola_bfla_mass_assignment_authentication_enumeration_and_dom_xss_without_generic_fallback(self):
+    def test_router_registers_seven_dedicated_families_without_generic_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
         self.assertEqual(status["registered"], [
@@ -57,15 +57,17 @@ class BflaFamilyAnalyzerV869Tests(unittest.TestCase):
             "authentication_session",
             "account_enumeration",
             "dom_xss",
+            "postmessage_trust",
         ])
-        self.assertEqual(status["registered_count"], 6)
-        self.assertEqual(status["pending_count"], 15)
+        self.assertEqual(status["registered_count"], 7)
+        self.assertEqual(status["pending_count"], 14)
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
         self.assertIsNotNone(analyzer_for_family("authentication_session"))
         self.assertIsNotNone(analyzer_for_family("account_enumeration"))
         self.assertIsNotNone(analyzer_for_family("dom_xss"))
+        self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_is_grounded_in_api5_wstg_and_cwe(self):
