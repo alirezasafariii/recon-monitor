@@ -63,11 +63,26 @@
     "variants_per_root": 4
   },
   "corpus": {
+    "case_count": 96,
     "path": "benchmarks/raw/analysis_raw_v2.jsonl",
+    "positive_control_raw_collision_count": 0,
+    "positive_family_count": 20,
+    "positive_observable_delta_rate": 1.0,
     "scored": false,
-    "sealed": false
+    "sealed": true,
+    "sha256": "1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3",
+    "source_project_count": 24,
+    "source_root_count": 24
   },
-  "evaluation_status": "protocol_sealed_collection_open",
+  "corpus_seal": {
+    "materializer_version": "1.0.0",
+    "scoring_executed_before_seal": false,
+    "sealed_on": "2026-08-11",
+    "selection_shortlist_version": "1.1.0",
+    "sha256": "1ad289915f89bf281fd6a80e0b8d55ebb045ecd8f9658b1ae9d88f07afddb1f3",
+    "validator_version": "1.0.0"
+  },
+  "evaluation_status": "sealed_unscored",
   "frozen_engine": {
     "analysis_engine_version": "6.12.0",
     "detector_execution_engine_version": "1.1.0",
@@ -116,7 +131,10 @@
     "app/raw_recon_v2_benchmark.py": "32e04b74b8805d61ec54d6f25e389f9ce55d4a33",
     "app/raw_recon_v2_corpus.py": "0220f847ffa6a4a65a4ce3505300aa0333ea9f0d",
     "app/security_family_ranker.py": "027ebf9d8bd93a49c61981f7c4b2b16a2c4aec41",
-    "app/security_reasoning.py": "af11e8bc7a65b96ccf6931eb86283ca47d61f767"
+    "app/security_reasoning.py": "af11e8bc7a65b96ccf6931eb86283ca47d61f767",
+    "benchmarks/raw/analysis_raw_v2.jsonl": "c6777d769eacf6983fc6c225fea98d22742fbaee",
+    "benchmarks/raw/sources/v2_materialization_report.json": "fd268f056e1e3a4f3f84c117f4429342df255cf7",
+    "benchmarks/raw/sources/v2_shortlist.json": "9f47285c50d11c6e8e8f264f1d44d0b113368296"
   },
   "protected_trees": {
     "app/family_detectors": "9ab222d5d7003e56f0aa5943d18362dff6c15a02"
