@@ -68,14 +68,16 @@ class BolaFamilyAnalyzerV868Tests(unittest.TestCase):
                 "broken_function_authorization",
                 "mass_assignment",
                 "authentication_session",
+                "account_enumeration",
             ],
         )
-        self.assertEqual(status["pending_count"], 17)
+        self.assertEqual(status["pending_count"], 16)
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("broken_object_authorization"))
         self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
         self.assertIsNotNone(analyzer_for_family("authentication_session"))
+        self.assertIsNotNone(analyzer_for_family("account_enumeration"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_cwe_wstg_and_writeups_shape_reasoning_not_target_evidence(self):
