@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from family_detectors import execute_detector_intelligence
-from security_family_ranker import rank_security_families
+from security_family_ranker import production_family_rankings
 
 
 def types(result: dict, family: str) -> set[str]:
@@ -18,7 +18,7 @@ def types(result: dict, family: str) -> set[str]:
 def top1(result: dict) -> str:
     support = [item for packet in result.values() for item in packet.get("support", [])]
     contradict = [item for packet in result.values() for item in packet.get("contradict", [])]
-    ranked = rank_security_families(support, contradict)
+    ranked = production_family_rankings(support, contradict)
     return str(ranked[0]["family"]) if ranked else ""
 
 
