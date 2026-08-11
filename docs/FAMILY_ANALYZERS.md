@@ -271,6 +271,60 @@ family confirmation-ready state
 
 This preserves recall while preventing `url`, `webhook`, `preview`, `import`, `proxy` or HTTP 2xx clues from becoming findings without server-side execution evidence.
 
+## 10. File Upload / Import
+
+`family_analyzers.file_upload.FileUploadFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-434 — Unrestricted Upload of File with Dangerous Type
+- WSTG-BUSL-08 — Test Upload of Unexpected File Types
+- WSTG-BUSL-09 — Test Upload of Malicious Files
+- WSTG-CONF-03 — Test File Extensions Handling for Sensitive Information
+
+The algorithm deliberately separates an upload surface from unsafe acceptance and from the stricter storage/processing condition:
+
+1. **Upload/import surface** — identify a concrete file input plus upload/import operation. `multipart/form-data`, a filename, or an `/upload` route alone is structural context.
+2. **Expected file policy** — model which extensions, MIME/signatures, sizes, names, archive/content types and authorization contexts are intended to be accepted or rejected.
+3. **Controlled inert observation** — direct promotion evidence is accepted only from stored behavior for an explicitly tester-controlled, inert/benign test file that the documented policy says should be rejected.
+4. **Processing/storage boundary** — distinguish simple acceptance from persistence, safe isolation, generated naming, forced-download serving, content scanning, or an execution-capable handler.
+5. **Confirmation boundary** — confirmation is stricter than promotion and requires stored evidence that the file-type/content validation boundary was actually bypassed or that the accepted content reached an execution-capable unsafe serving/storage context.
+
+Structural evidence such as `file_input` plus `upload_operation` / `import_operation` intentionally shares **one evidence root** (`file_upload_structural_surface`). This preserves recall but prevents upload-looking contracts from becoming Potential Findings by themselves.
+
+Family-specific evidence is split by certainty:
+
+- `unsafe_file_accepted` — a controlled inert test file that should have been rejected by policy was accepted. This can promote a **Potential Finding**, but is not confirmation by itself.
+- `file_policy_differential` — expected-reject versus observed-accept behavior for that same controlled inert file.
+- `unsafe_file_persisted` — the same policy-disallowed controlled inert file was stored after acceptance; useful impact context, still not sufficient alone for confirmation.
+- `content_type_bypass_observed` — stored evidence shows the relevant extension/MIME/signature/content validation policy was bypassed for the controlled inert file; confirmation-ready condition.
+- `executable_upload_observed` — stored evidence already records execution-capable or executable handling of the accepted content; confirmation-ready context. The analyzer does not execute or upload a payload itself.
+
+Contradicting controls include:
+
+- `file_type_enforcement_observed` — policy-disallowed file was rejected or extension/MIME/signature/content-scanning controls were actually enforced.
+- `safe_storage_observed` — evidence of isolation/outside-web-root storage, disabled execution, generated filenames, attachment disposition or equivalent serving controls.
+
+The Candidate Engine alert/endpoint path is hypothesis-first for File Upload / Import:
+
+```text
+file input + upload/import operation
+        ↓
+hidden hypothesis
+        ↓
+dedicated File Upload analyzer
+        ↓
+controlled inert expected-reject file accepted
+        ↓
+Potential Finding
+        ↓
+file-type/content bypass or execution-capable unsafe handling
+        ↓
+family confirmation-ready state
+```
+
+The analyzer is strictly read-only over stored observations. It performs **no active upload**, no payload execution, no malware or weaponized sample delivery, no arbitrary filesystem write, and no automatic serving/navigation test. Path/filename escape remains a neighboring Path Traversal family unless independently established.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -279,7 +333,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF migrates its alert/endpoint surface through the dedicated analyzer before admission, so structural remote-fetch semantics remain hidden until independent stored server-side outbound evidence exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF and File Upload / Import migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch or upload/import semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
 ## Router status
 
@@ -294,24 +348,24 @@ Currently production-routed:
 7. postMessage Trust / Web Messaging
 8. Open Redirect / Navigation Injection
 9. Server-Side Request Forgery (SSRF)
+10. File Upload / Import
 
-Pending dedicated analyzers: **12**.
+Pending dedicated analyzers: **11**.
 
 ## Migration order
 
 Next analyzers:
 
-1. File Upload / Import
-2. Path Traversal
-3. Information Disclosure
-4. Source-map Exposure
-5. Secret Exposure
-6. GraphQL Authorization
-7. GraphQL Data Exposure
-8. Business Logic
-9. Race Condition
-10. WebSocket Authorization
-11. CORS
-12. Sensitive Caching
+1. Path Traversal
+2. Information Disclosure
+3. Source-map Exposure
+4. Secret Exposure
+5. GraphQL Authorization
+6. GraphQL Data Exposure
+7. Business Logic
+8. Race Condition
+9. WebSocket Authorization
+10. CORS
+11. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
