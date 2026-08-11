@@ -8,7 +8,9 @@ with dedicated analyzers before the existing admission and promotion flow.
 DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static
 JavaScript paths away from direct candidate insertion: static proximity is
 retained as a hidden hypothesis and promotion requires independent stored
-runtime condition evidence.
+runtime condition evidence. SSRF uses the same hypothesis-first admission model
+for alert/endpoint surfaces and requires independent stored server-side outbound
+evidence before promotion.
 """
 
 import importlib
@@ -21,6 +23,7 @@ from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_si
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
+from family_analyzers.ssrf import analyze_ssrf_signal
 
 _base = importlib.import_module("bug_candidates_core")
 
@@ -29,7 +32,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.6.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.7.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -65,6 +68,12 @@ _FAMILY_DIRECT_TYPES = {
     },
     "open_redirect": {
         "external_destination_accepted",
+    },
+    "ssrf": {
+        "server_fetch_observed",
+        "controlled_callback_observed",
+        "destination_policy_bypass_observed",
+        "restricted_destination_accepted",
     },
 }
 
@@ -145,6 +154,19 @@ _base.FAMILY_EVIDENCE_SCHEMAS["open_redirect"] = {
     ),
     "label": "user-influenced redirect destination plus concrete navigation sink",
 }
+_base.FAMILY_EVIDENCE_SCHEMAS["ssrf"] = {
+    "required_any": (
+        ("remote_destination", "url_parameter"),
+        (
+            "server_feature",
+            "server_fetch_semantic",
+            "server_request_function",
+            "server_fetch_observed",
+            "controlled_callback_observed",
+        ),
+    ),
+    "label": "user-influenced remote destination plus server-fetch semantics or stored server-side outbound observation",
+}
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
 _DEDICATED_ALERT_FAMILIES = {
@@ -155,6 +177,7 @@ _DEDICATED_ALERT_FAMILIES = {
     "dom_xss",
     "postmessage_trust",
     "open_redirect",
+    "ssrf",
 }
 
 _INCOMPLETE_STATIC_GROUPS = {
@@ -359,6 +382,20 @@ def _dedicated_family_result(
             confidence=_base.parse_int(details.get("confidence"), 0),
             details=details,
             business_context=stored["business_context"],
+        )
+
+    if family == "ssrf":
+        return analyze_ssrf_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint=stored["endpoint"],
+            method=stored["method"],
+            body_fields=stored["body_fields"],
+            query_fields=stored["query_fields"],
+            details=details,
+            business_context=stored["business_context"],
+            semantic_text=stored["semantic_text"],
         )
 
     return None
