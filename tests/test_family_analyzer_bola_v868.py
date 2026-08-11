@@ -71,10 +71,11 @@ class BolaFamilyAnalyzerV868Tests(unittest.TestCase):
                 "account_enumeration",
                 "dom_xss",
                 "postmessage_trust",
+                "open_redirect",
             ],
         )
-        self.assertEqual(status["registered_count"], 7)
-        self.assertEqual(status["pending_count"], 14)
+        self.assertEqual(status["registered_count"], 8)
+        self.assertEqual(status["pending_count"], 13)
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("broken_object_authorization"))
         self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
@@ -83,6 +84,7 @@ class BolaFamilyAnalyzerV868Tests(unittest.TestCase):
         self.assertIsNotNone(analyzer_for_family("account_enumeration"))
         self.assertIsNotNone(analyzer_for_family("dom_xss"))
         self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
+        self.assertIsNotNone(analyzer_for_family("open_redirect"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_cwe_wstg_and_writeups_shape_reasoning_not_target_evidence(self):
