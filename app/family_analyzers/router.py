@@ -11,10 +11,11 @@ from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .base import FamilyAnalyzer
 from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
+from .dom_xss import DomXssFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.4.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "1.5.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -22,6 +23,7 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "mass_assignment": MassAssignmentFamilyAnalyzer,
     "authentication_session": AuthenticationSessionFamilyAnalyzer,
     "account_enumeration": AccountEnumerationFamilyAnalyzer,
+    "dom_xss": DomXssFamilyAnalyzer,
 }
 
 
