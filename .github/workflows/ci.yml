@@ -38,9 +38,19 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Verify manifest
+      - name: Account Enumeration analyzer hash diagnostic
         shell: bash
-        run: sha256sum -c MANIFEST.sha256
+        run: |
+          sha256sum \
+            app/bug_candidates.py \
+            app/family_analyzers/__init__.py \
+            app/family_analyzers/router.py \
+            app/family_analyzers/account_enumeration.py \
+            tests/test_family_analyzer_bola_v868.py \
+            tests/test_family_analyzer_bfla_v869.py \
+            tests/test_family_analyzer_mass_assignment_v870.py \
+            tests/test_family_analyzer_authentication_session_v871.py \
+            tests/test_family_analyzer_account_enumeration_v872.py
 
       - name: Verify version consistency
         shell: bash
@@ -58,3 +68,7 @@ jobs:
 
       - name: Integration test
         run: python tests/integration_runner.py
+
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
