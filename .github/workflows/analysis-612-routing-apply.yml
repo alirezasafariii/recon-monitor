@@ -1,0 +1,67 @@
+name: Apply Analysis 6.12 Routing Boundaries
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.12-raw-condition-reconstruction
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.12-raw-condition-reconstruction
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Tighten raw routing semantics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/family_detectors/execution.py')
+          text=p.read_text()
+          repls=[
+            ('THIRD_PARTY_MARKERS = ("third-party", "third_party", "provider", "integration", "upstream", "vendor", "partner api", "external api")',
+             'THIRD_PARTY_MARKERS = ("third-party", "third_party", "integration", "upstream", "vendor", "partner api", "external api")'),
+            ('FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extract", "/unpack", "/files", "/attachment")',
+             'FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extract", "/unpack", "/files", "/attachment")\nPATH_OPERATION_MARKERS = ("/download", "/archive", "/extract", "/unpack", "/files")\nCLI_EXECUTION_MARKERS = ("npm ", "npx ", "node ", "python ", "python3 ", "bash ", "sh ", "powershell ", "cmd.exe ", "git ", "curl ", "wget ", "jsii-diff ")'),
+            ('if (all_fields & PATH_FIELDS) or any(token in endpoint.lower() for token in FILE_OPERATION_MARKERS):',
+             'if (all_fields & PATH_FIELDS) or any(token in endpoint.lower() for token in PATH_OPERATION_MARKERS):'),
+            ('if any(token in endpoint.lower() for token in FILE_OPERATION_MARKERS):\n            _add_identity(packet, "path_traversal", "file_operation"',
+             'if any(token in endpoint.lower() for token in PATH_OPERATION_MARKERS):\n            _add_identity(packet, "path_traversal", "file_operation"'),
+            ('("query", "search", "filter", "where", "sort", "sql", "database", "report")',
+             '("query", "search", "filter", "where", "sort", "sql", "database")'),
+          ]
+          for old,new in repls:
+              if old not in text:
+                  raise SystemExit(f'pattern missing: {old}')
+              text=text.replace(old,new)
+          old='''    if all_fields and any(marker in text_lower for marker in PROCESS_MARKERS):\n        packet = _packet_for(result, "command_injection"); _add_identity(packet, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input is present near a process-execution surface.", "input_surface", 10); _add_identity(packet, "command_injection", "process_execution_surface", "raw_source", "Stored source artifact contains process/shell execution semantics.", "execution_surface", 18)'''
+          new='''    if all_fields and (any(marker in text_lower for marker in PROCESS_MARKERS) or any(marker in text_lower for marker in CLI_EXECUTION_MARKERS)):\n        packet = _packet_for(result, "command_injection"); _add_identity(packet, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input is present near a process-execution surface.", "input_surface", 10); _add_identity(packet, "command_injection", "process_execution_surface", "raw_source", "Stored source artifact contains process/shell or CLI execution semantics.", "execution_surface", 18)'''
+          if old not in text: raise SystemExit('command block missing')
+          p.write_text(text.replace(old,new), encoding='utf-8')
+          PY
+      - name: Focused routing and reconstruction tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_detectors/execution.py app/family_detectors/reconstruction.py
+          python -m unittest tests.test_raw_routing_boundaries_v6120 tests.test_raw_condition_reconstruction_v6120 tests.test_detector_execution_intelligence_v6100 tests.test_raw_recon_benchmark_v6110 -v
+      - name: Re-run consumed v1 diagnostic regression
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_regression.py --json --strict-safety > analysis612-consumed-v1-regression.json
+      - name: Cleanup workflow and commit
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-612-routing-apply.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Tighten Analysis 6.12 raw family routing boundaries'
+          git push origin HEAD:agent/analysis-engine-6.12-raw-condition-reconstruction
