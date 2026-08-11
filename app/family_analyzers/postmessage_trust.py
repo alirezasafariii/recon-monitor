@@ -109,9 +109,9 @@ def _bool(value: Any) -> bool | None:
     if isinstance(value, bool):
         return value
     text = str(value or "").strip().lower()
-    if text in {"true", "1", "yes", "observed", "accepted", "reached", "allowed", "missing", "absent"}:
+    if text in {"true", "1", "yes", "observed", "accepted", "reached", "allowed", "present", "enforced"}:
         return True
-    if text in {"false", "0", "no", "rejected", "blocked", "denied", "present", "enforced"}:
+    if text in {"false", "0", "no", "rejected", "blocked", "denied", "missing", "absent"}:
         return False
     return None
 
@@ -410,9 +410,6 @@ def analyze_postmessage_trust_signal(
 
     observed = {str(item.get("type") or "") for item in support}
     confirmation_missing = confirmation_gaps("postmessage_trust", observed)
-    # Stricter than the generic catalog: absence of an origin check is a control
-    # gap, not confirmation. Confirmation requires an untrusted sender accepted
-    # through the handler and reaching a sensitive consumer in stored runtime evidence.
     if "untrusted_message_accepted" not in observed:
         confirmation_missing = [
             "untrusted_message_accepted: stored runtime observation of an explicitly untrusted sender accepted and reaching the sensitive consumer"
