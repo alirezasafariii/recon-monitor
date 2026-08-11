@@ -1,0 +1,147 @@
+name: Collect Analysis 6.11 Post-Freeze Sources
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.11-blind-raw-recon-benchmark
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.11-blind-raw-recon-benchmark
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Deterministically collect reviewed advisory roots
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, re, time, urllib.parse, urllib.request
+          from pathlib import Path
+
+          root = Path('.')
+          manifest = json.loads((root/'benchmarks/raw/splits/v1.json').read_text())
+          buckets = manifest['source_buckets']
+          excluded = set(manifest['pre_freeze_exclusions']['source_roots'])
+          prior_roots, prior_urls = set(), set()
+          for path in [root/'benchmarks/golden/analysis_golden_v3.jsonl', root/'benchmarks/golden/analysis_golden_v4.jsonl']:
+              if not path.exists():
+                  continue
+              for line in path.read_text().splitlines():
+                  if not line.strip() or line.startswith('#'):
+                      continue
+                  row = json.loads(line)
+                  prior_roots.add(str(row.get('source_root') or ''))
+                  prov = row.get('provenance') or {}
+                  prior_urls.add(str(prov.get('url') or ''))
+
+          token = os.environ.get('GITHUB_TOKEN','')
+          headers = {'Accept':'application/vnd.github+json','User-Agent':'recon-monitor-analysis-6.11'}
+          if token:
+              headers['Authorization'] = f'Bearer {token}'
+          min_chars = int(manifest['source_policy']['minimum_advisory_description_chars'])
+
+          def project_from(url):
+              m = re.match(r'https://github\.com/([^/]+/[^/]+)', url or '')
+              return m.group(1) if m else ''
+
+          candidates = {}
+          for bucket in buckets:
+              family, cwe = bucket['family'], int(bucket['cwe'])
+              params = urllib.parse.urlencode({'cwes': cwe, 'type':'reviewed', 'per_page':30, 'sort':'published', 'direction':'desc'})
+              req = urllib.request.Request('https://api.github.com/advisories?'+params, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  rows = json.load(response)
+              eligible = []
+              for row in rows:
+                  ghsa = str(row.get('ghsa_id') or '')
+                  repo_adv = str(row.get('repository_advisory_url') or '')
+                  source_loc = str(row.get('source_code_location') or '')
+                  description = str(row.get('description') or '')
+                  html = str(row.get('html_url') or '')
+                  project = project_from(source_loc)
+                  if row.get('type') != 'reviewed' or row.get('withdrawn_at'):
+                      continue
+                  if not ghsa or ghsa in excluded or ghsa in prior_roots:
+                      continue
+                  if not repo_adv or not source_loc or not project or len(description) < min_chars:
+                      continue
+                  if html in prior_urls or repo_adv in prior_urls:
+                      continue
+                  eligible.append({
+                      'source_root': ghsa,
+                      'family': family,
+                      'bucket_cwe': cwe,
+                      'source_project': project,
+                      'source_date': str(row.get('published_at') or '')[:10],
+                      'provenance_url': repo_adv.replace('https://api.github.com/repos/', 'https://github.com/').replace('/security-advisories/', '/security/advisories/'),
+                      'source_code_location': source_loc,
+                      'summary': str(row.get('summary') or ''),
+                      'description': description,
+                      'cwes': [str(x.get('cwe_id') or '') for x in row.get('cwes') or []],
+                      'cve_id': row.get('cve_id'),
+                      'published_at': row.get('published_at'),
+                  })
+              candidates[family] = eligible
+              time.sleep(0.1)
+
+          selected, used_roots, used_projects = [], set(), set()
+          # Pass 1: breadth first, one root per declared family bucket.
+          for bucket in buckets:
+              family = bucket['family']
+              pool = candidates.get(family, [])
+              choice = next((r for r in pool if r['source_root'] not in used_roots and r['source_project'] not in used_projects), None)
+              if choice is None:
+                  choice = next((r for r in pool if r['source_root'] not in used_roots), None)
+              if choice:
+                  selected.append(choice); used_roots.add(choice['source_root']); used_projects.add(choice['source_project'])
+          # Pass 2: one additional root per bucket until target 24.
+          target = int(manifest['collection_target']['minimum_source_roots'])
+          for bucket in buckets:
+              if len(selected) >= target:
+                  break
+              family = bucket['family']
+              pool = candidates.get(family, [])
+              choice = next((r for r in pool if r['source_root'] not in used_roots and r['source_project'] not in used_projects), None)
+              if choice is None:
+                  choice = next((r for r in pool if r['source_root'] not in used_roots), None)
+              if choice:
+                  selected.append(choice); used_roots.add(choice['source_root']); used_projects.add(choice['source_project'])
+
+          out = {
+              'protocol':'analysis-6.11-blind-raw-recon',
+              'selection_status':'postfreeze_unscored_sources',
+              'frozen_head_sha':manifest['frozen_head_sha'],
+              'source_root_count':len(selected),
+              'source_project_count':len({r['source_project'] for r in selected}),
+              'family_count':len({r['family'] for r in selected}),
+              'selected':selected,
+              'bucket_candidate_counts':{k:len(v) for k,v in candidates.items()},
+          }
+          dest = root/'benchmarks/raw/sources/v1_candidates.json'
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          dest.write_text(json.dumps(out, indent=2, sort_keys=True), encoding='utf-8')
+          print(json.dumps({k:out[k] for k in ('source_root_count','source_project_count','family_count')}, indent=2))
+          if len(selected) < target:
+              raise SystemExit(f'Only {len(selected)}/{target} source roots selected')
+          if out['source_project_count'] < int(manifest['collection_target']['minimum_source_projects']):
+              raise SystemExit('source project floor not met')
+          if out['family_count'] < int(manifest['collection_target']['minimum_positive_families']):
+              raise SystemExit('family floor not met')
+          PY
+      - name: Commit selected source roots
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add benchmarks/raw/sources/v1_candidates.json
+          git commit -m 'Select Analysis 6.11 post-freeze source roots'
+          git push
