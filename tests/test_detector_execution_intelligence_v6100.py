@@ -200,8 +200,8 @@ class DetectorExecutionIntelligence6100Tests(unittest.TestCase):
         self.assertFalse(any("payload" in row or "request" in row for row in rows))
 
     def test_versions(self):
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.0.0")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.11.6.10")
+        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.1.0")
+        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.11.6.12")
 
 
 if __name__ == "__main__":

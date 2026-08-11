@@ -10,9 +10,10 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
+from family_detectors.reconstruction import reconstruct_raw_evidence
 
-EXECUTION_ENGINE_VERSION = "1.0.0"
-EXECUTION_RULE_VERSION = "2026.08.11.6.10"
+EXECUTION_ENGINE_VERSION = "1.1.0"
+EXECUTION_RULE_VERSION = "2026.08.11.6.12"
 MAX_TEXT_CHARS = 65536
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -73,7 +74,7 @@ THIRD_PARTY_MARKERS = ("third-party", "third_party", "provider", "integration", 
 BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "redeem", "claim", "coupon", "promo")
 SINGLE_USE_MARKERS = ("redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund")
 AUTH_MARKERS = ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso", "saml")
-VERSION_MARKERS = ("legacy", "deprecated", "staging", "stage", "beta", "alpha", "/v1/", "/v2/", "/dev/", "/test/")
+VERSION_MARKERS = ("legacy", "deprecated", "staging", "stage", "beta", "alpha", "/dev/", "/test/")
 FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extract", "/unpack", "/files", "/attachment")
 
 
@@ -530,7 +531,7 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         if len(raw) >= 16 and entropy >= 3.0: _add(packet, "support", _signal("secret_exposure", "high_entropy_value", "secret_fingerprint", "Redacted credential-like material has non-trivial length and character entropy.", source_group="secret_assessment", weight=18, basis="redacted_entropy"))
         break
 
-    if any(token in surface_text for token in VERSION_MARKERS) or re.search(r"/v\d+(?:\.\d+)?(?:/|$)", endpoint.lower()):
+    if any(token in surface_text for token in VERSION_MARKERS):
         packet = _packet_for(result, "improper_inventory_management"); _add_identity(packet, "improper_inventory_management", "api_version_surface", "endpoint", "Versioned, legacy, or non-production API surface is present.", "inventory_surface", 16)
         if status in SUCCESS_STATUSES and any(token in endpoint.lower() for token in ("legacy", "deprecated", "old")): _add(packet, "support", _signal("improper_inventory_management", "deprecated_version_still_reachable", "http_response", "Stored legacy/deprecated API endpoint remains reachable.", source_group="inventory_behavior", weight=28, basis="legacy_route_success"))
         if status in SUCCESS_STATUSES and any(token in endpoint.lower() for token in ("staging", "stage", "dev", "test", "beta", "alpha")): _add(packet, "support", _signal("improper_inventory_management", "undocumented_host_observed", "http_response", "Stored non-production/pre-release API surface is reachable.", source_group="inventory_behavior", weight=22, basis="nonproduction_route_success"))
@@ -545,4 +546,14 @@ def execute_detector_intelligence(*, target: str, endpoint: str, method: str, en
     endpoint_schema = dict(endpoint_schema or {}); details = dict(details or {}); result: dict[str, dict[str, Any]] = {}
     _typed_evidence(result, evidence_for or (), evidence_against or ()); _explicit_contract_flags(result, _flatten(details))
     _passive_raw_heuristics(result, target=str(target or ""), endpoint=str(endpoint or ""), method=str(method or "UNKNOWN"), endpoint_schema=endpoint_schema, details=details, category=str(category or ""), business_context=str(business_context or "general"))
+    reconstructed = reconstruct_raw_evidence(
+        target=str(target or ""), endpoint=str(endpoint or ""), method=str(method or "UNKNOWN"),
+        endpoint_schema=endpoint_schema, details=details, category=str(category or ""),
+        business_context=str(business_context or "general"),
+    )
+    for family, packet in reconstructed.items():
+        target_packet = _packet_for(result, family)
+        for side in ("support", "contradict"):
+            for item in packet.get(side) or []:
+                _add(target_packet, side, dict(item))
     return {family: packet for family, packet in result.items() if packet["support"] or packet["contradict"]}
