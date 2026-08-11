@@ -4,6 +4,7 @@ from .base import FAMILY_ANALYZER_FRAMEWORK_VERSION, FamilyAnalyzer, FamilyAnaly
 from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
 from .dom_xss import DomXssFamilyAnalyzer
+from .file_upload import FileUploadFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
@@ -23,6 +24,7 @@ __all__ = [
     "PostMessageTrustFamilyAnalyzer",
     "OpenRedirectFamilyAnalyzer",
     "SsrfFamilyAnalyzer",
+    "FileUploadFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
