@@ -53,11 +53,11 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
             business_context="general",
         )
 
-    def test_router_registers_seven_dedicated_families_without_fallback(self):
+    def test_router_registers_eight_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 7)
-        self.assertEqual(status["pending_count"], 14)
+        self.assertEqual(status["registered_count"], 8)
+        self.assertEqual(status["pending_count"], 13)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
@@ -66,10 +66,12 @@ class DomXssFamilyAnalyzerV873Tests(unittest.TestCase):
             "account_enumeration",
             "dom_xss",
             "postmessage_trust",
+            "open_redirect",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("dom_xss"))
         self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
+        self.assertIsNotNone(analyzer_for_family("open_redirect"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_grounding_and_writeups_are_non_evidentiary(self):
