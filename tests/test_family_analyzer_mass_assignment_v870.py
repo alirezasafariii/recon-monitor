@@ -49,22 +49,24 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
             business_context="identity",
         )
 
-    def test_router_registers_five_dedicated_families_without_fallback(self):
+    def test_router_registers_six_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 5)
-        self.assertEqual(status["pending_count"], 16)
+        self.assertEqual(status["registered_count"], 6)
+        self.assertEqual(status["pending_count"], 15)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
             "mass_assignment",
             "authentication_session",
             "account_enumeration",
+            "dom_xss",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
         self.assertIsNotNone(analyzer_for_family("authentication_session"))
         self.assertIsNotNone(analyzer_for_family("account_enumeration"))
+        self.assertIsNotNone(analyzer_for_family("dom_xss"))
         self.assertIsNone(analyzer_for_family("ssrf"))
 
     def test_methodology_grounding_is_non_evidentiary(self):
