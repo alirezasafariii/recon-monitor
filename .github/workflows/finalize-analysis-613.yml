@@ -62,7 +62,19 @@ jobs:
       - name: Enforce no v2 rescoring in finalizer
         shell: bash
         run: |
-          ! grep -Eq 'benchmark_v2_file\(|raw_recon_v2_benchmark.py .*--allow-consumed|run_raw_benchmark\(' .github/workflows/finalize-analysis-613.yml
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/finalize-analysis-613.yml').read_text()
+          forbidden=[
+              'benchmark_' + 'v2_file(',
+              'run_' + 'raw_benchmark(',
+              '--allow-' + 'consumed',
+          ]
+          body='\n'.join(line for line in text.splitlines() if "'benchmark_' + 'v2_file('" not in line and "'run_' + 'raw_benchmark('" not in line and "'--allow-' + 'consumed'" not in line)
+          hits=[token for token in forbidden if token in body]
+          assert not hits, hits
+          print('no v2 rescoring command present')
+          PY
       - name: Cleanup finalizer and regenerate manifest
         shell: bash
         run: |
