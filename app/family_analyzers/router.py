@@ -12,13 +12,14 @@ from .base import FamilyAnalyzer
 from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
 from .dom_xss import DomXssFamilyAnalyzer
+from .file_upload import FileUploadFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
 from .ssrf import SsrfFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.8.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "1.9.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -30,6 +31,7 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "postmessage_trust": PostMessageTrustFamilyAnalyzer,
     "open_redirect": OpenRedirectFamilyAnalyzer,
     "ssrf": SsrfFamilyAnalyzer,
+    "file_upload": FileUploadFamilyAnalyzer,
 }
 
 
