@@ -56,7 +56,7 @@ class BugCandidateV41Tests(unittest.TestCase):
             finally:
                 db.close()
 
-    def test_static_dataflow_candidate(self):
+    def test_static_dom_dataflow_is_retained_as_hypothesis_not_candidate(self):
         with tempfile.TemporaryDirectory() as td:
             paths, db, _ = self.make_db(td)
             try:
@@ -66,10 +66,15 @@ class BugCandidateV41Tests(unittest.TestCase):
                     (result['analysis_id'], 'example.com', 'run-candidate', 'https://example.com/app.js', 'location.search', 'innerHTML', 78, 'value -> innerHTML', utc_now()),
                 )
                 summary = generate_bug_candidates(db, result['analysis_id'], 'run-candidate', 'example.com')
-                self.assertGreater(summary['from_static_intelligence'], 0)
-                row = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'", (result['analysis_id'],))
-                self.assertIsNotNone(row)
-                self.assertIn('runtime', str(row['missing_evidence_json']).lower())
+                self.assertEqual(summary['from_static_intelligence'], 0)
+                candidate = db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='dom_xss'", (result['analysis_id'],))
+                self.assertIsNone(candidate)
+                hypothesis = db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='dom_xss'", (result['analysis_id'],))
+                self.assertIsNotNone(hypothesis)
+                self.assertIn('runtime', str(hypothesis['missing_evidence_json']).lower())
+                admission = json.loads(hypothesis['admission_json'])
+                self.assertFalse(admission['admitted'])
+                self.assertEqual(admission['family_analyzer']['family'], 'dom_xss')
             finally:
                 db.close()
 
