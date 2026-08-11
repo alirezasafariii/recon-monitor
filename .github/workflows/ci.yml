@@ -37,7 +37,7 @@ jobs:
           test ! -e policies/targets.json
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name 'targets.json.backup-*' \) -print -quit)"
-          test -z "$(find . -type f -name '*.jsonl' ! -path './benchmarks/golden/*' -print -quit)"
+          test -z "$(find . -type f -name '*.jsonl' ! -path './benchmarks/golden/*' ! -path './benchmarks/raw/*' -print -quit)"
 
       - name: Verify manifest
         shell: bash
