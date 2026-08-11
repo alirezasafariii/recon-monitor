@@ -38,25 +38,9 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Diagnostic checksums
+      - name: Verify manifest
         shell: bash
-        run: |
-          sha256sum \
-            .github/workflows/ci.yml \
-            app/bug_candidates.py \
-            app/family_analyzers/__init__.py \
-            app/family_analyzers/router.py \
-            app/family_analyzers/ssrf.py \
-            docs/FAMILY_ANALYZERS.md \
-            tests/test_family_analyzer_bola_v868.py \
-            tests/test_family_analyzer_bfla_v869.py \
-            tests/test_family_analyzer_mass_assignment_v870.py \
-            tests/test_family_analyzer_authentication_session_v871.py \
-            tests/test_family_analyzer_account_enumeration_v872.py \
-            tests/test_family_analyzer_dom_xss_v873.py \
-            tests/test_family_analyzer_postmessage_v874.py \
-            tests/test_family_analyzer_open_redirect_v875.py \
-            tests/test_family_analyzer_ssrf_v876.py
+        run: sha256sum -c MANIFEST.sha256
 
       - name: Verify version consistency
         shell: bash
@@ -74,7 +58,3 @@ jobs:
 
       - name: Integration test
         run: python tests/integration_runner.py
-
-      - name: Diagnostic manifest status
-        shell: bash
-        run: sha256sum -c MANIFEST.sha256 || true
