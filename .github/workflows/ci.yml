@@ -13,13 +13,13 @@ permissions:
 
 jobs:
   manifest:
-    name: Export normalized manifest
+    name: Verify normalized manifest source
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate normalized manifest
+      - name: Generate and diff normalized manifest
         shell: bash
         run: |
           python - <<'PY'
@@ -38,10 +38,4 @@ jobs:
               lines.append(f"{digest}  {name}")
           pathlib.Path("normalized-manifest.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
-
-      - name: Upload normalized manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: normalized-manifest
-          path: normalized-manifest.txt
-          if-no-files-found: error
+          diff -u normalized-manifest.txt MANIFEST.sha256
