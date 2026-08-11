@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
-from family_detectors.reconstruction import reconstruct_raw_evidence
+from raw_condition_reconstruction import reconstruct_raw_evidence
 
 EXECUTION_ENGINE_VERSION = "1.1.0"
 EXECUTION_RULE_VERSION = "2026.08.11.6.12"

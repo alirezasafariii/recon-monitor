@@ -23,7 +23,7 @@ Analysis 6.11 raw v1 is **consumed**. Every 6.12 measurement against v1 is a dev
 
 ## New reconstruction layer
 
-`app/family_detectors/reconstruction.py`
+`app/raw_condition_reconstruction.py`
 
 The reconstruction layer runs after the existing passive 6.10 raw heuristics and before the physical family detector / family evidence firewall boundary.
 

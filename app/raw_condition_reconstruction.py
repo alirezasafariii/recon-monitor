@@ -6,7 +6,7 @@ import urllib.parse
 from collections import defaultdict
 from typing import Any, Mapping
 
-from .registry import DETECTOR_SPECS
+from family_detectors.registry import DETECTOR_SPECS
 
 RECONSTRUCTION_ENGINE_VERSION = "1.0.0"
 RECONSTRUCTION_RULE_VERSION = "2026.08.11.6.12"
