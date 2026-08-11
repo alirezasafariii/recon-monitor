@@ -1,0 +1,57 @@
+name: Fix Analysis 6.12 Inherited Contracts
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.12-raw-condition-reconstruction
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.12-raw-condition-reconstruction
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preserve 31-family physical-module invariant
+        shell: bash
+        run: |
+          git mv app/family_detectors/reconstruction.py app/raw_condition_reconstruction.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/raw_condition_reconstruction.py')
+          text=p.read_text().replace('from .registry import DETECTOR_SPECS', 'from family_detectors.registry import DETECTOR_SPECS')
+          p.write_text(text, encoding='utf-8')
+          p=Path('app/family_detectors/execution.py')
+          text=p.read_text().replace('from family_detectors.reconstruction import reconstruct_raw_evidence', 'from raw_condition_reconstruction import reconstruct_raw_evidence')
+          p.write_text(text, encoding='utf-8')
+          p=Path('docs/ANALYSIS_ENGINE_6_12_RAW_CONDITION_RECONSTRUCTION.md')
+          text=p.read_text().replace('`app/family_detectors/reconstruction.py`', '`app/raw_condition_reconstruction.py`')
+          p.write_text(text, encoding='utf-8')
+          p=Path('tests/test_analysis_ranking_v650.py')
+          text=p.read_text().replace('self.assertEqual(REASONING_ENGINE_VERSION, "6.10.0")', 'self.assertEqual(REASONING_ENGINE_VERSION, "6.12.0")')
+          p.write_text(text, encoding='utf-8')
+          PY
+          rm -f analysis612-unit-failure.txt
+      - name: Re-run exact failures and focused stack
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_detectors/execution.py app/raw_condition_reconstruction.py app/raw_recon_observability.py app/raw_recon_regression.py
+          python -m unittest tests.test_analysis_ranking_v650 tests.test_physical_family_detectors_v690 tests.test_raw_condition_reconstruction_v6120 tests.test_raw_routing_boundaries_v6120 -v
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Cleanup and commit
+        shell: bash
+        run: |
+          rm -f .github/workflows/analysis-612-fix-inherited.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Preserve Analysis 6.12 physical detector boundaries'
+          git push origin HEAD:agent/analysis-engine-6.12-raw-condition-reconstruction
