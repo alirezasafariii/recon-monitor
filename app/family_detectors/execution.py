@@ -70,12 +70,14 @@ TEMPLATE_MARKERS = ("render_template", "template(", "jinja", "twig", "freemarker
 LDAP_MARKERS = ("ldap", "directory search", "distinguishedname", "dn=", "ou=", "memberof", "search_filter")
 GRAPHQL_MARKERS = ("graphql", "query ", "mutation ", "__typename", "__schema")
 WEBSOCKET_MARKERS = ("ws://", "wss://", "websocket", "subscribe", "subscription")
-THIRD_PARTY_MARKERS = ("third-party", "third_party", "provider", "integration", "upstream", "vendor", "partner api", "external api")
+THIRD_PARTY_MARKERS = ("third-party", "third_party", "integration", "upstream", "vendor", "partner api", "external api")
 BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "redeem", "claim", "coupon", "promo")
 SINGLE_USE_MARKERS = ("redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund")
 AUTH_MARKERS = ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso", "saml")
 VERSION_MARKERS = ("legacy", "deprecated", "staging", "stage", "beta", "alpha", "/dev/", "/test/")
 FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extract", "/unpack", "/files", "/attachment")
+PATH_OPERATION_MARKERS = ("/download", "/archive", "/extract", "/unpack", "/files")
+CLI_EXECUTION_MARKERS = ("npm ", "npx ", "node ", "python ", "python3 ", "bash ", "sh ", "powershell ", "cmd.exe ", "git ", "curl ", "wget ", "jsii-diff ")
 
 
 @dataclass(frozen=True)
@@ -423,11 +425,11 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         if method in {"POST", "PUT", "PATCH"}:
             signal = "import_operation" if "/import" in endpoint.lower() else "upload_operation"
             _add_identity(packet, "file_upload", signal, "endpoint_contract", f"{method} is tied to a file upload/import surface.", "file_operation", 18)
-    if (all_fields & PATH_FIELDS) or any(token in endpoint.lower() for token in FILE_OPERATION_MARKERS):
+    if (all_fields & PATH_FIELDS) or any(token in endpoint.lower() for token in PATH_OPERATION_MARKERS):
         packet = _packet_for(result, "path_traversal")
         signal = "filename_field" if (all_fields & {"filename", "file_name"}) else "path_parameter"
         _add_identity(packet, "path_traversal", signal, "endpoint_schema", "Client-controlled path/filename input is present.", "path_input", 18)
-        if any(token in endpoint.lower() for token in FILE_OPERATION_MARKERS):
+        if any(token in endpoint.lower() for token in PATH_OPERATION_MARKERS):
             _add_identity(packet, "path_traversal", "file_operation", "endpoint_contract", "Endpoint semantics identify a file-related operation.", "file_operation", 14)
 
     if any(marker in surface_text for marker in GRAPHQL_MARKERS) or endpoint.lower().rstrip("/").endswith("graphql"):
@@ -468,7 +470,7 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
             if "authorization" not in vary and "cookie" not in vary: _add(packet, "support", _signal("sensitive_caching", "missing_vary", "http_headers", "Sensitive cacheable response lacks Vary on Authorization/Cookie.", source_group="shared_cache_behavior", weight=24, basis="cache_header_interaction"))
         if _flag(flat, "cdn_cache") or any(header in response_headers for header in ("age", "x-cache", "cf-cache-status")): _add(packet, "support", _signal("sensitive_caching", "cdn_cache", "http_headers", "Stored response contains shared/CDN cache evidence.", source_group="shared_cache_behavior", weight=22, basis="cache_header_interaction"))
 
-    if all_fields and any(token in surface_text for token in ("query", "search", "filter", "where", "sort", "sql", "database", "report")):
+    if all_fields and any(token in surface_text for token in ("query", "search", "filter", "where", "sort", "sql", "database")):
         packet = _packet_for(result, "sql_injection")
         _add_identity(packet, "sql_injection", "input_parameter", "endpoint_schema", "Client-controlled input fields are present.", "input_surface", 10); _add_identity(packet, "sql_injection", "sql_query_surface", "endpoint_semantic", "Database/query semantics are present.", "query_surface", 14)
         if any(pattern in text_lower for pattern in SQL_ERROR_PATTERNS): _add(packet, "support", _signal("sql_injection", "database_error_observed", "raw_response", "Stored response contains a database/SQL error signature.", source_group="database_behavior", weight=30, basis="passive_error_signature"))
@@ -476,8 +478,8 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "nosql_injection")
         _add_identity(packet, "nosql_injection", "input_parameter", "endpoint_schema", "Client-controlled structured input is present.", "input_surface", 10); _add_identity(packet, "nosql_injection", "nosql_query_surface", "endpoint_semantic", "NoSQL/document-query semantics are present.", "query_surface", 14)
         if any(pattern in text_lower for pattern in NOSQL_ERROR_PATTERNS): _add(packet, "support", _signal("nosql_injection", "nosql_error_observed", "raw_response", "Stored response contains a NoSQL/document-query error signature.", source_group="database_behavior", weight=28, basis="passive_error_signature"))
-    if all_fields and any(marker in text_lower for marker in PROCESS_MARKERS):
-        packet = _packet_for(result, "command_injection"); _add_identity(packet, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input is present near a process-execution surface.", "input_surface", 10); _add_identity(packet, "command_injection", "process_execution_surface", "raw_source", "Stored source artifact contains process/shell execution semantics.", "execution_surface", 18)
+    if all_fields and (any(marker in text_lower for marker in PROCESS_MARKERS) or any(marker in text_lower for marker in CLI_EXECUTION_MARKERS)):
+        packet = _packet_for(result, "command_injection"); _add_identity(packet, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input is present near a process-execution surface.", "input_surface", 10); _add_identity(packet, "command_injection", "process_execution_surface", "raw_source", "Stored source artifact contains process/shell or CLI execution semantics.", "execution_surface", 18)
     if all_fields and any(marker in text_lower for marker in TEMPLATE_MARKERS):
         packet = _packet_for(result, "server_side_template_injection"); _add_identity(packet, "server_side_template_injection", "template_input", "endpoint_schema", "Client-controlled input participates in a template/rendering surface.", "template_input", 10); _add_identity(packet, "server_side_template_injection", "template_render_surface", "raw_source", "Stored source artifact contains server-side template/render semantics.", "render_surface", 18)
         if any(pattern in text_lower for pattern in TEMPLATE_ERROR_PATTERNS): _add(packet, "support", _signal("server_side_template_injection", "template_engine_error_observed", "raw_response", "Stored response contains a server-side template-engine error signature.", source_group="render_behavior", weight=30, basis="passive_error_signature"))

@@ -9,8 +9,8 @@
     "false_promotion_rate": 0.0,
     "prior_source_root_overlap_rate": 0.0,
     "raw_label_leakage_rate": 0.0,
-    "routing_top1_accuracy": 0.763889,
-    "routing_top3_accuracy": 0.888889,
+    "routing_top1_accuracy": 0.930556,
+    "routing_top3_accuracy": 0.930556,
     "wrong_family_promotion_rate": 0.0
   },
   "current_report": {
@@ -173,7 +173,6 @@
         ],
         "emitted_families": [
           "file_upload",
-          "path_traversal",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": false,
@@ -193,12 +192,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
+        "top1": "file_upload",
+        "top1_correct": true,
         "top3": [
-          "path_traversal",
           "file_upload",
-          "unrestricted_resource_consumption"
+          "unrestricted_resource_consumption",
+          "websocket_authorization"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -364,7 +363,9 @@
         "condition_signal_misses": [
           "process_execution_reached"
         ],
-        "emitted_families": [],
+        "emitted_families": [
+          "command_injection"
+        ],
         "end_to_end_pass": false,
         "expected_admitted": true,
         "expected_condition_families": [
@@ -381,15 +382,15 @@
         "source_root": "GHSA-wcx4-wpfv-mc5c",
         "target_admitted": false,
         "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
+        "target_state": "shadow_partial",
+        "top1": "command_injection",
+        "top1_correct": true,
         "top3": [
+          "command_injection",
           "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
+          "unsafe_api_consumption"
         ],
-        "top3_correct": false,
+        "top3_correct": true,
         "wrong_promotions": []
       },
       {
@@ -400,6 +401,7 @@
           "template_engine_error_observed"
         ],
         "emitted_families": [
+          "command_injection",
           "server_side_template_injection",
           "unrestricted_resource_consumption"
         ],
@@ -424,8 +426,8 @@
         "top1_correct": true,
         "top3": [
           "server_side_template_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "command_injection",
+          "unrestricted_resource_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -476,7 +478,6 @@
           "rate_limit_absent_observed"
         ],
         "emitted_families": [
-          "sql_injection",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": false,
@@ -496,12 +497,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "sql_injection",
-        "top1_correct": false,
+        "top1": "unrestricted_resource_consumption",
+        "top1_correct": true,
         "top3": [
-          "sql_injection",
           "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -589,8 +590,7 @@
           "authentication_boundary_regression"
         ],
         "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
+          "authentication_session"
         ],
         "end_to_end_pass": false,
         "expected_admitted": true,
@@ -609,12 +609,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
+        "top1": "authentication_session",
+        "top1_correct": true,
         "top3": [
-          "unsafe_api_consumption",
           "authentication_session",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -1590,7 +1590,6 @@
         ],
         "emitted_families": [
           "file_upload",
-          "path_traversal",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": false,
@@ -1610,12 +1609,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
+        "top1": "file_upload",
+        "top1_correct": true,
         "top3": [
-          "path_traversal",
           "file_upload",
-          "unrestricted_resource_consumption"
+          "unrestricted_resource_consumption",
+          "websocket_authorization"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -1627,7 +1626,6 @@
         "condition_signal_misses": [],
         "emitted_families": [
           "file_upload",
-          "path_traversal",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": true,
@@ -1643,12 +1641,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
+        "top1": "file_upload",
+        "top1_correct": true,
         "top3": [
-          "path_traversal",
           "file_upload",
-          "unrestricted_resource_consumption"
+          "unrestricted_resource_consumption",
+          "websocket_authorization"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -1660,7 +1658,6 @@
         "condition_signal_misses": [],
         "emitted_families": [
           "file_upload",
-          "path_traversal",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": true,
@@ -1676,12 +1673,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
+        "top1": "file_upload",
+        "top1_correct": true,
         "top3": [
-          "path_traversal",
           "file_upload",
-          "unrestricted_resource_consumption"
+          "unrestricted_resource_consumption",
+          "websocket_authorization"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -1693,7 +1690,6 @@
         "condition_signal_misses": [],
         "emitted_families": [
           "file_upload",
-          "path_traversal",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": true,
@@ -1709,12 +1705,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
+        "top1": "file_upload",
+        "top1_correct": true,
         "top3": [
-          "path_traversal",
           "file_upload",
-          "unrestricted_resource_consumption"
+          "unrestricted_resource_consumption",
+          "websocket_authorization"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2532,7 +2528,9 @@
         "condition_signal_misses": [
           "process_execution_reached"
         ],
-        "emitted_families": [],
+        "emitted_families": [
+          "command_injection"
+        ],
         "end_to_end_pass": false,
         "expected_admitted": true,
         "expected_condition_families": [
@@ -2549,15 +2547,15 @@
         "source_root": "GHSA-wcx4-wpfv-mc5c",
         "target_admitted": false,
         "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
+        "target_state": "shadow_partial",
+        "top1": "command_injection",
+        "top1_correct": true,
         "top3": [
+          "command_injection",
           "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
+          "unsafe_api_consumption"
         ],
-        "top3_correct": false,
+        "top3_correct": true,
         "wrong_promotions": []
       },
       {
@@ -2565,7 +2563,9 @@
         "case_kind": "near_miss",
         "condition_signal_hits": [],
         "condition_signal_misses": [],
-        "emitted_families": [],
+        "emitted_families": [
+          "command_injection"
+        ],
         "end_to_end_pass": true,
         "expected_admitted": false,
         "expected_condition_families": [],
@@ -2578,15 +2578,15 @@
         "source_root": "GHSA-wcx4-wpfv-mc5c",
         "target_admitted": false,
         "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
+        "target_state": "shadow_partial",
+        "top1": "command_injection",
+        "top1_correct": true,
         "top3": [
+          "command_injection",
           "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
+          "unsafe_api_consumption"
         ],
-        "top3_correct": false,
+        "top3_correct": true,
         "wrong_promotions": []
       },
       {
@@ -2594,7 +2594,9 @@
         "case_kind": "secure_negative",
         "condition_signal_hits": [],
         "condition_signal_misses": [],
-        "emitted_families": [],
+        "emitted_families": [
+          "command_injection"
+        ],
         "end_to_end_pass": true,
         "expected_admitted": false,
         "expected_condition_families": [],
@@ -2607,15 +2609,15 @@
         "source_root": "GHSA-wcx4-wpfv-mc5c",
         "target_admitted": false,
         "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
+        "target_state": "shadow_partial",
+        "top1": "command_injection",
+        "top1_correct": true,
         "top3": [
+          "command_injection",
           "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
+          "unsafe_api_consumption"
         ],
-        "top3_correct": false,
+        "top3_correct": true,
         "wrong_promotions": []
       },
       {
@@ -2655,6 +2657,7 @@
           "template_engine_error_observed"
         ],
         "emitted_families": [
+          "command_injection",
           "server_side_template_injection",
           "unrestricted_resource_consumption"
         ],
@@ -2679,8 +2682,8 @@
         "top1_correct": true,
         "top3": [
           "server_side_template_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "command_injection",
+          "unrestricted_resource_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2691,6 +2694,7 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
+          "command_injection",
           "server_side_template_injection",
           "unrestricted_resource_consumption"
         ],
@@ -2711,8 +2715,8 @@
         "top1_correct": true,
         "top3": [
           "server_side_template_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "command_injection",
+          "unrestricted_resource_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2723,6 +2727,7 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
+          "command_injection",
           "server_side_template_injection",
           "unrestricted_resource_consumption"
         ],
@@ -2743,8 +2748,8 @@
         "top1_correct": true,
         "top3": [
           "server_side_template_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "command_injection",
+          "unrestricted_resource_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2919,7 +2924,6 @@
           "rate_limit_absent_observed"
         ],
         "emitted_families": [
-          "sql_injection",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": false,
@@ -2939,12 +2943,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "sql_injection",
-        "top1_correct": false,
+        "top1": "unrestricted_resource_consumption",
+        "top1_correct": true,
         "top3": [
-          "sql_injection",
           "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2955,7 +2959,6 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
-          "sql_injection",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": true,
@@ -2971,12 +2974,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "sql_injection",
-        "top1_correct": false,
+        "top1": "unrestricted_resource_consumption",
+        "top1_correct": true,
         "top3": [
-          "sql_injection",
           "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -2987,7 +2990,6 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
-          "sql_injection",
           "unrestricted_resource_consumption"
         ],
         "end_to_end_pass": true,
@@ -3003,12 +3005,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_contradicted",
-        "top1": "sql_injection",
-        "top1_correct": false,
+        "top1": "unrestricted_resource_consumption",
+        "top1_correct": true,
         "top3": [
-          "sql_injection",
           "unrestricted_resource_consumption",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -3715,8 +3717,7 @@
           "authentication_boundary_regression"
         ],
         "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
+          "authentication_session"
         ],
         "end_to_end_pass": false,
         "expected_admitted": true,
@@ -3735,12 +3736,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
+        "top1": "authentication_session",
+        "top1_correct": true,
         "top3": [
-          "unsafe_api_consumption",
           "authentication_session",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -3751,8 +3752,7 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
+          "authentication_session"
         ],
         "end_to_end_pass": true,
         "expected_admitted": false,
@@ -3767,12 +3767,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
+        "top1": "authentication_session",
+        "top1_correct": true,
         "top3": [
-          "unsafe_api_consumption",
           "authentication_session",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -3783,8 +3783,7 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
+          "authentication_session"
         ],
         "end_to_end_pass": true,
         "expected_admitted": false,
@@ -3799,12 +3798,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
+        "top1": "authentication_session",
+        "top1_correct": true,
         "top3": [
-          "unsafe_api_consumption",
           "authentication_session",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -3815,8 +3814,7 @@
         "condition_signal_hits": [],
         "condition_signal_misses": [],
         "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
+          "authentication_session"
         ],
         "end_to_end_pass": true,
         "expected_admitted": false,
@@ -3831,12 +3829,12 @@
         "target_admitted": false,
         "target_condition_signals": [],
         "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
+        "top1": "authentication_session",
+        "top1_correct": true,
         "top3": [
-          "unsafe_api_consumption",
           "authentication_session",
-          "websocket_authorization"
+          "websocket_authorization",
+          "unsafe_api_consumption"
         ],
         "top3_correct": true,
         "wrong_promotions": []
@@ -3847,8 +3845,7 @@
         "account_enumeration": 3
       },
       "authentication_session": {
-        "authentication_session": 3,
-        "unsafe_api_consumption": 3
+        "authentication_session": 6
       },
       "broken_function_authorization": {
         "broken_function_authorization": 6
@@ -3857,14 +3854,14 @@
         "broken_object_authorization": 6
       },
       "command_injection": {
-        "websocket_authorization": 3
+        "command_injection": 3
       },
       "cors_misconfiguration": {
         "cors_misconfiguration": 2,
         "websocket_authorization": 1
       },
       "file_upload": {
-        "path_traversal": 3
+        "file_upload": 3
       },
       "information_disclosure": {
         "information_disclosure": 1,
@@ -3905,7 +3902,7 @@
         "ssrf": 3
       },
       "unrestricted_resource_consumption": {
-        "sql_injection": 3
+        "unrestricted_resource_consumption": 3
       }
     },
     "corpus_validation": {
@@ -3983,8 +3980,8 @@
       "false_promotion_rate": 0.0,
       "prior_source_root_overlap_rate": 0.0,
       "raw_label_leakage_rate": 0.0,
-      "routing_top1_accuracy": 0.763889,
-      "routing_top3_accuracy": 0.888889,
+      "routing_top1_accuracy": 0.930556,
+      "routing_top3_accuracy": 0.930556,
       "wrong_family_promotion_rate": 0.0
     },
     "negative_count": 72,
@@ -3999,15 +3996,9 @@
         },
         {
           "direction": "min",
-          "metric": "routing_top1_accuracy",
-          "threshold": 0.8,
-          "value": 0.763889
-        },
-        {
-          "direction": "min",
           "metric": "routing_top3_accuracy",
           "threshold": 0.95,
-          "value": 0.888889
+          "value": 0.930556
         },
         {
           "direction": "min",
@@ -4020,111 +4011,6 @@
     },
     "rank_required_count": 72,
     "ranking_errors": [
-      {
-        "admitted_families": [],
-        "case_kind": "positive",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [
-          "dangerous_type_accepted"
-        ],
-        "emitted_families": [
-          "file_upload",
-          "path_traversal",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": false,
-        "expected_admitted": true,
-        "expected_condition_families": [
-          "file_upload"
-        ],
-        "expected_condition_signals": [
-          "dangerous_type_accepted"
-        ],
-        "family": "file_upload",
-        "id": "GHSA-mmj4-63m4-r6h5-positive",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "codeigniter4/CodeIgniter4",
-        "source_root": "GHSA-mmj4-63m4-r6h5",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
-        "top3": [
-          "path_traversal",
-          "file_upload",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "near_miss",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "file_upload",
-          "path_traversal",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "file_upload",
-        "id": "GHSA-mmj4-63m4-r6h5-near_miss",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "codeigniter4/CodeIgniter4",
-        "source_root": "GHSA-mmj4-63m4-r6h5",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
-        "top3": [
-          "path_traversal",
-          "file_upload",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "secure_negative",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "file_upload",
-          "path_traversal",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "file_upload",
-        "id": "GHSA-mmj4-63m4-r6h5-secure_negative",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "codeigniter4/CodeIgniter4",
-        "source_root": "GHSA-mmj4-63m4-r6h5",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "path_traversal",
-        "top1_correct": false,
-        "top3": [
-          "path_traversal",
-          "file_upload",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
       {
         "admitted_families": [],
         "case_kind": "near_miss",
@@ -4214,201 +4100,6 @@
       },
       {
         "admitted_families": [],
-        "case_kind": "positive",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [
-          "process_execution_reached"
-        ],
-        "emitted_families": [],
-        "end_to_end_pass": false,
-        "expected_admitted": true,
-        "expected_condition_families": [
-          "command_injection"
-        ],
-        "expected_condition_signals": [
-          "process_execution_reached"
-        ],
-        "family": "command_injection",
-        "id": "GHSA-wcx4-wpfv-mc5c-positive",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "aws/jsii",
-        "source_root": "GHSA-wcx4-wpfv-mc5c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
-        "top3": [
-          "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": false,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "near_miss",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "command_injection",
-        "id": "GHSA-wcx4-wpfv-mc5c-near_miss",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "aws/jsii",
-        "source_root": "GHSA-wcx4-wpfv-mc5c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
-        "top3": [
-          "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": false,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "secure_negative",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "command_injection",
-        "id": "GHSA-wcx4-wpfv-mc5c-secure_negative",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "aws/jsii",
-        "source_root": "GHSA-wcx4-wpfv-mc5c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_signal",
-        "top1": "websocket_authorization",
-        "top1_correct": false,
-        "top3": [
-          "websocket_authorization",
-          "unsafe_api_consumption",
-          "unrestricted_resource_consumption"
-        ],
-        "top3_correct": false,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "positive",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [
-          "rate_limit_absent_observed"
-        ],
-        "emitted_families": [
-          "sql_injection",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": false,
-        "expected_admitted": true,
-        "expected_condition_families": [
-          "unrestricted_resource_consumption"
-        ],
-        "expected_condition_signals": [
-          "rate_limit_absent_observed"
-        ],
-        "family": "unrestricted_resource_consumption",
-        "id": "GHSA-fp3f-mc75-235c-positive",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "py-pdf/pypdf",
-        "source_root": "GHSA-fp3f-mc75-235c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "sql_injection",
-        "top1_correct": false,
-        "top3": [
-          "sql_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "near_miss",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "sql_injection",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "unrestricted_resource_consumption",
-        "id": "GHSA-fp3f-mc75-235c-near_miss",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "py-pdf/pypdf",
-        "source_root": "GHSA-fp3f-mc75-235c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "sql_injection",
-        "top1_correct": false,
-        "top3": [
-          "sql_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "secure_negative",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "sql_injection",
-          "unrestricted_resource_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "unrestricted_resource_consumption",
-        "id": "GHSA-fp3f-mc75-235c-secure_negative",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "py-pdf/pypdf",
-        "source_root": "GHSA-fp3f-mc75-235c",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_contradicted",
-        "top1": "sql_injection",
-        "top1_correct": false,
-        "top3": [
-          "sql_injection",
-          "unrestricted_resource_consumption",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
         "case_kind": "near_miss",
         "condition_signal_hits": [],
         "condition_signal_misses": [],
@@ -4464,108 +4155,6 @@
         ],
         "top3_correct": false,
         "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "positive",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [
-          "authentication_boundary_regression"
-        ],
-        "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
-        ],
-        "end_to_end_pass": false,
-        "expected_admitted": true,
-        "expected_condition_families": [
-          "authentication_session"
-        ],
-        "expected_condition_signals": [
-          "authentication_boundary_regression"
-        ],
-        "family": "authentication_session",
-        "id": "GHSA-rq84-p6rr-vf89-positive",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "open-webui/open-webui",
-        "source_root": "GHSA-rq84-p6rr-vf89",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
-        "top3": [
-          "unsafe_api_consumption",
-          "authentication_session",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "near_miss",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "authentication_session",
-        "id": "GHSA-rq84-p6rr-vf89-near_miss",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "open-webui/open-webui",
-        "source_root": "GHSA-rq84-p6rr-vf89",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
-        "top3": [
-          "unsafe_api_consumption",
-          "authentication_session",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
-      },
-      {
-        "admitted_families": [],
-        "case_kind": "secure_negative",
-        "condition_signal_hits": [],
-        "condition_signal_misses": [],
-        "emitted_families": [
-          "authentication_session",
-          "unsafe_api_consumption"
-        ],
-        "end_to_end_pass": true,
-        "expected_admitted": false,
-        "expected_condition_families": [],
-        "expected_condition_signals": [],
-        "family": "authentication_session",
-        "id": "GHSA-rq84-p6rr-vf89-secure_negative",
-        "predicted_condition_families": [],
-        "rank_required": true,
-        "source_project": "open-webui/open-webui",
-        "source_root": "GHSA-rq84-p6rr-vf89",
-        "target_admitted": false,
-        "target_condition_signals": [],
-        "target_state": "shadow_partial",
-        "top1": "unsafe_api_consumption",
-        "top1_correct": false,
-        "top3": [
-          "unsafe_api_consumption",
-          "authentication_session",
-          "websocket_authorization"
-        ],
-        "top3_correct": true,
-        "wrong_promotions": []
       }
     ],
     "raw_recon_benchmark_version": "1.0.0",
@@ -4596,8 +4185,8 @@
     "condition_extraction_recall": 0.083333,
     "end_to_end_accuracy": 0.020833,
     "false_promotion_rate": 0.0,
-    "routing_top1_accuracy": 0.111111,
-    "routing_top3_accuracy": 0.111111,
+    "routing_top1_accuracy": 0.277778,
+    "routing_top3_accuracy": 0.152778,
     "wrong_family_promotion_rate": 0.0
   },
   "note": "Analysis raw v1 was consumed by the single Analysis 6.11 fresh evaluation. This run is development regression only and must never be described as fresh or blind.",
