@@ -1,0 +1,93 @@
+name: Finalize Analysis 6.12 Raw Reconstruction
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.12-raw-condition-reconstruction
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.12-raw-condition-reconstruction
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax and focused 6.12 contracts
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/family_detectors/execution.py app/raw_condition_reconstruction.py app/raw_recon_observability.py app/raw_recon_regression.py
+          python -m unittest tests.test_raw_condition_reconstruction_v6120 tests.test_raw_routing_boundaries_v6120 tests.test_detector_execution_intelligence_v6100 tests.test_raw_recon_benchmark_v6110 tests.test_physical_family_detectors_v690 -v
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Golden v3 regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+      - name: Integration
+        run: python tests/integration_runner.py
+      - name: Consumed raw v1 diagnostic regression
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_regression.py --strict-safety
+      - name: Verify observability and scientific boundary
+        env:
+          PYTHONPATH: app
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_benchmark import run_raw_benchmark
+          from raw_recon_corpus import load_raw_cases, validate_raw_corpus
+          from raw_recon_observability import analyze_variant_observability
+          cases=load_raw_cases('benchmarks/raw/analysis_raw_v1.jsonl')
+          validation=validate_raw_corpus(cases)
+          assert validation['passed'], validation
+          obs=analyze_variant_observability(cases)
+          assert obs['source_root_count'] == 24, obs
+          assert obs['collision_root_count'] == 15, obs
+          assert obs['raw_distinguishable_root_count'] == 9, obs
+          metrics=run_raw_benchmark(cases, validation=validation)['metrics']
+          assert metrics['condition_extraction_precision'] == 1.0, metrics
+          assert metrics['admission_precision'] == 1.0, metrics
+          assert metrics['abstention_accuracy'] == 1.0, metrics
+          assert metrics['false_promotion_rate'] == 0.0, metrics
+          assert metrics['wrong_family_promotion_rate'] == 0.0, metrics
+          assert metrics['condition_extraction_recall'] >= 0.333333, metrics
+          assert metrics['admission_recall'] >= 0.333333, metrics
+          assert metrics['routing_top1_accuracy'] >= 0.9, metrics
+          manifest=json.loads(Path('benchmarks/raw/splits/v1.json').read_text())
+          assert manifest['evaluation_status'] == 'evaluated_once_consumed', manifest['evaluation_status']
+          assert manifest['first_and_only_fresh_evaluation']['run_id'] == '31445225324'
+          print(json.dumps({'metrics':metrics,'observability':{k:obs[k] for k in ('source_root_count','collision_root_count','raw_distinguishable_root_count')}}, indent=2))
+          PY
+      - name: Cleanup temporary machinery and regenerate manifest
+        shell: bash
+        run: |
+          rm -f analysis612-consumed-v1-regression.json analysis612-unit-failure.txt analysis612-v1-observability.json
+          rm -f .github/workflows/finalize-analysis-612.yml
+          tmp="$(mktemp)"
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | sort -k2 > "$tmp"
+          mv "$tmp" MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256 >/dev/null
+          test ! -e analysis612-consumed-v1-regression.json
+          test ! -e analysis612-unit-failure.txt
+          test ! -e analysis612-v1-observability.json
+          test ! -e .github/workflows/finalize-analysis-612.yml
+      - name: Commit final clean product tree
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Finalize Analysis 6.12 raw condition reconstruction'
+          git push origin HEAD:agent/analysis-engine-6.12-raw-condition-reconstruction
