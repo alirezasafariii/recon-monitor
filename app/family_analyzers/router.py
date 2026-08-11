@@ -6,6 +6,7 @@ from typing import Any
 
 from family_reasoning import FAMILY_ORDER
 
+from .account_enumeration import AccountEnumerationFamilyAnalyzer
 from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .base import FamilyAnalyzer
 from .bfla import BflaFamilyAnalyzer
@@ -13,13 +14,14 @@ from .bola import BolaFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.3.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "1.4.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
     "broken_function_authorization": BflaFamilyAnalyzer,
     "mass_assignment": MassAssignmentFamilyAnalyzer,
     "authentication_session": AuthenticationSessionFamilyAnalyzer,
+    "account_enumeration": AccountEnumerationFamilyAnalyzer,
 }
 
 
