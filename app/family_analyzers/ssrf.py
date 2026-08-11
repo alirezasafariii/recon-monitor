@@ -22,7 +22,7 @@ from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
 SSRF_FAMILY_ANALYZER_VERSION = "1.0.0"
-SSRF_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
+SSRF_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.2"
 
 DESTINATION_FIELDS = {
     "url", "uri", "endpoint", "destination", "destination_url", "destinationurl",
@@ -77,7 +77,7 @@ SSRF_FALSE_POSITIVE_CHECKS = (
     "A browser fetch, client-side image load or JavaScript request is not SSRF.",
     "An application response status such as HTTP 200 does not prove that the backend fetched the supplied destination.",
     "A server feature intentionally fetching a fixed or allow-listed destination is not an SSRF boundary failure.",
-    "A controlled callback must be correlated to the tested destination and request; unrelated DNS/HTTP noise is not target evidence.",
+    "A controlled callback must be correlated to the tested destination and request and attributed to server/backend execution; unrelated DNS/HTTP noise is not target evidence.",
     "Private, loopback, link-local or metadata-looking destinations are never probed automatically by this analyzer.",
     "Scheme restrictions, exact host allow-lists, private-network blocking, redirect revalidation and egress policy are evidence against the vulnerable condition when enforcement is observed.",
     "Hostname text is not resolved by the analyzer and no claim about private/public routing is inferred from an unresolved hostname.",
@@ -211,9 +211,6 @@ def _server_feature_markers(endpoint: str, semantic_text: str, details: Mapping[
 
 def _structural_evidence(destination_fields: list[str], feature_markers: list[str]) -> list[dict[str, Any]]:
     support: list[dict[str, Any]] = []
-    # All static/contract evidence intentionally shares one evidence root. It can
-    # establish a hunt surface but cannot satisfy the independent-source gate by
-    # itself.
     group = "ssrf_structural_surface"
     if destination_fields:
         _add_unique(support, {
@@ -393,7 +390,7 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
             and callback_correlated is True
             and controlled_destination is True
             and user_controlled is True
-            and execution != "browser"
+            and execution == "server"
             and validation_present is not True
         )
         direct_server_fetch = (
@@ -402,6 +399,7 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
             and execution == "server"
             and validation_present is not True
         )
+        observation_promotion_direct = False
 
         if direct_server_fetch:
             _add_unique(support, {
@@ -411,6 +409,7 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
                 "weight": 38,
                 "text": "Stored target evidence ties a user-controlled destination to an outbound request performed by the application server.",
             })
+            observation_promotion_direct = True
             promotion_direct = True
         elif server_fetch is True and execution == "server":
             _add_unique(support, {
@@ -427,26 +426,27 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
                 "source": "stored_ssrf_runtime",
                 "source_group": "ssrf_runtime_outbound",
                 "weight": 40,
-                "text": "A tester-controlled callback was correlated to the supplied user-controlled destination, providing stored evidence of server-side outbound execution without probing internal or third-party systems.",
+                "text": "A tester-controlled callback was correlated to the supplied user-controlled destination and attributed to server-side execution, without probing internal or unrelated third-party systems.",
             })
+            observation_promotion_direct = True
             promotion_direct = True
 
-        if promotion_direct and policy_bypass is True:
+        if observation_promotion_direct and policy_bypass is True:
             _add_unique(support, {
                 "type": "destination_policy_bypass_observed",
                 "source": "stored_ssrf_runtime",
                 "source_group": "ssrf_runtime_outbound",
                 "weight": 46,
-                "text": "Stored target evidence records that an intended destination restriction was bypassed on the user-controlled server-fetch path.",
+                "text": "Stored target evidence records that an intended destination restriction was bypassed on the same user-controlled server-fetch observation.",
             })
             confirmation_direct = True
-        if promotion_direct and restricted_accepted is True:
+        if observation_promotion_direct and restricted_accepted is True:
             _add_unique(support, {
                 "type": "restricted_destination_accepted",
                 "source": "stored_ssrf_runtime",
                 "source_group": "ssrf_runtime_outbound",
                 "weight": 48,
-                "text": "Stored target evidence records that a destination expected to be restricted was accepted by the server-fetch path.",
+                "text": "Stored target evidence records that a destination expected to be restricted was accepted on the same server-fetch observation.",
             })
             confirmation_direct = True
 
@@ -497,9 +497,12 @@ def analyze_ssrf_signal(
         return None
 
     observed = {str(item.get("type") or "") for item in support}
-    confirmation_missing = confirmation_gaps("ssrf", observed)
+    catalog_confirmation_missing = confirmation_gaps("ssrf", observed)
+    confirmation_missing = [] if confirmation_direct else [
+        "destination_policy_bypass_observed / restricted_destination_accepted: stored target evidence that the intended destination trust boundary actually failed"
+    ]
     blockers = {str(item.get("type") or "") for item in contradict}
-    confirmation_ready = not confirmation_missing and confirmation_direct and not blockers.intersection(
+    confirmation_ready = confirmation_direct and not blockers.intersection(
         {"browser_side_fetch_observed", "destination_validation_observed", "server_fetch_not_observed"}
     )
 
@@ -519,6 +522,7 @@ def analyze_ssrf_signal(
         "destination_context": destination_context,
         "structural_destination_and_feature_are_one_evidence_root": True,
         "promotion_ready_from_stored_target_evidence": promotion_direct,
+        "family_reasoning_confirmation_gaps": catalog_confirmation_missing,
         "confirmation_missing": confirmation_missing,
         "confirmation_ready_from_stored_target_evidence": confirmation_ready,
         "knowledge_does_not_change_target_evidence": True,
