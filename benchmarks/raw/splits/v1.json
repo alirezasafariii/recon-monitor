@@ -145,7 +145,28 @@
       "GHSA-xm43-3m56-w3wf"
     ]
   },
-  "evaluation_status": "sealed_unscored",
+  "evaluation_status": "evaluated_once_consumed",
+  "first_and_only_fresh_evaluation": {
+    "case_count": 96,
+    "head_sha": "a11c4c7953fbc67e63a8dc119c5199e98a229495",
+    "metrics": {
+      "abstention_accuracy": 1.0,
+      "admission_precision": 1.0,
+      "admission_recall": 0.25,
+      "condition_extraction_precision": 1.0,
+      "condition_extraction_recall": 0.25,
+      "end_to_end_accuracy": 0.8125,
+      "false_promotion_rate": 0.0,
+      "prior_source_root_overlap_rate": 0.0,
+      "raw_label_leakage_rate": 0.0,
+      "routing_top1_accuracy": 0.652778,
+      "routing_top3_accuracy": 0.777778,
+      "wrong_family_promotion_rate": 0.0
+    },
+    "quality_gate_passed": false,
+    "report": "benchmarks/raw/reports/analysis_raw_v1_postfreeze_report.json",
+    "run_id": "31445225324"
+  },
   "frozen_at": "2026-08-11",
   "frozen_engine": {
     "analysis_engine_version": "6.10.0",
@@ -190,11 +211,12 @@
     "app/security_reasoning.py": "e5ebc183123758b0de709c4507a9bac7aed4abc2"
   },
   "protocol": "analysis-6.11-blind-raw-recon",
+  "reuse_policy": "This holdout is consumed. Any future run must be explicitly labeled regression-only with --allow-consumed and must never be described as fresh or blind.",
   "schema_version": "1.0",
   "seal": {
-    "benchmark_report": null,
+    "benchmark_report": "benchmarks/raw/reports/analysis_raw_v1_postfreeze_report.json",
     "note": "Corpus schema, provenance independence, raw-label leakage, source floors, and freeze were validated before sealing. No detector/ranking/admission benchmark scoring was executed before this seal.",
-    "scored": false
+    "scored": true
   },
   "source_buckets": [
     {
