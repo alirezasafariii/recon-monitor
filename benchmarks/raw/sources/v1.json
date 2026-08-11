@@ -1,0 +1,269 @@
+{
+  "protocol": "analysis-6.11-blind-raw-recon",
+  "sources": [
+    {
+      "bucket_cwe": 639,
+      "cve_id": "CVE-2026-64662",
+      "family": "broken_object_authorization",
+      "provenance_url": "https://github.com/statamic/cms/security/advisories/GHSA-qh8c-7588-qfrv",
+      "source_code_location": "https://github.com/statamic/cms",
+      "source_date": "2026-08-06",
+      "source_project": "statamic/cms",
+      "source_root": "GHSA-qh8c-7588-qfrv",
+      "summary": "Statamic: Missing authorization on navigation endpoint allows disclosure of restricted entries"
+    },
+    {
+      "bucket_cwe": 862,
+      "cve_id": null,
+      "family": "broken_function_authorization",
+      "provenance_url": "https://github.com/craftcms/cms/security/advisories/GHSA-rvmm-v933-jgxq",
+      "source_code_location": "https://github.com/craftcms/cms",
+      "source_date": "2026-08-06",
+      "source_project": "craftcms/cms",
+      "source_root": "GHSA-rvmm-v933-jgxq",
+      "summary": "Craft CMS: Missing authorization check allows non-admin control panel users access to user registration metrics"
+    },
+    {
+      "bucket_cwe": 915,
+      "cve_id": "CVE-2026-69258",
+      "family": "mass_assignment",
+      "provenance_url": "https://github.com/FlowiseAI/Flowise/security/advisories/GHSA-6vh2-wg4h-4vwj",
+      "source_code_location": "https://github.com/FlowiseAI/Flowise",
+      "source_date": "2026-08-04",
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSA-6vh2-wg4h-4vwj",
+      "summary": "Flowise: Unauthenticated Property Injection into Flow Execution Context via Ungated `overrideConfig` Spread in Prediction API"
+    },
+    {
+      "bucket_cwe": 287,
+      "cve_id": "CVE-2026-71326",
+      "family": "authentication_session",
+      "provenance_url": "https://github.com/traefik/traefik/security/advisories/GHSA-6765-c87h-8mrf",
+      "source_code_location": "https://github.com/traefik/traefik",
+      "source_date": "2026-08-06",
+      "source_project": "traefik/traefik",
+      "source_root": "GHSA-6765-c87h-8mrf",
+      "summary": "Traefik: BasicAuth singleflight key collision allows authenticated identity spoofing"
+    },
+    {
+      "bucket_cwe": 203,
+      "cve_id": "CVE-2026-55555",
+      "family": "account_enumeration",
+      "provenance_url": "https://github.com/dompdf/dompdf/security/advisories/GHSA-7x2p-4jvh-6384",
+      "source_code_location": "https://github.com/dompdf/dompdf",
+      "source_date": "2026-07-22",
+      "source_project": "dompdf/dompdf",
+      "source_root": "GHSA-7x2p-4jvh-6384",
+      "summary": "Dompdf: File existence oracle via font-face stylesheet declaration"
+    },
+    {
+      "bucket_cwe": 601,
+      "cve_id": "CVE-2026-53573",
+      "family": "open_redirect",
+      "provenance_url": "https://github.com/geonetwork/core-geonetwork/security/advisories/GHSA-pjp7-q6wp-97qx",
+      "source_code_location": "https://github.com/geonetwork/core-geonetwork",
+      "source_date": "2026-07-31",
+      "source_project": "geonetwork/core-geonetwork",
+      "source_root": "GHSA-pjp7-q6wp-97qx",
+      "summary": "core-geonetwork has an Open Redirect Bypass"
+    },
+    {
+      "bucket_cwe": 918,
+      "cve_id": "CVE-2026-70605",
+      "family": "ssrf",
+      "provenance_url": "https://github.com/electron/electron/security/advisories/GHSA-v64r-4m7r-3mvq",
+      "source_code_location": "https://github.com/electron/electron",
+      "source_date": "2026-08-05",
+      "source_project": "electron/electron",
+      "source_root": "GHSA-v64r-4m7r-3mvq",
+      "summary": "Electron: HTTP redirect followed into local file loader"
+    },
+    {
+      "bucket_cwe": 434,
+      "cve_id": "CVE-2026-63223",
+      "family": "file_upload",
+      "provenance_url": "https://github.com/codeigniter4/CodeIgniter4/security/advisories/GHSA-mmj4-63m4-r6h5",
+      "source_code_location": "https://github.com/codeigniter4/CodeIgniter4",
+      "source_date": "2026-08-07",
+      "source_project": "codeigniter4/CodeIgniter4",
+      "source_root": "GHSA-mmj4-63m4-r6h5",
+      "summary": "CodeIgniter: Uploaded file extension validation bypass in `is_image` and `mime_in` rules"
+    },
+    {
+      "bucket_cwe": 22,
+      "cve_id": "CVE-2026-71557",
+      "family": "path_traversal",
+      "provenance_url": "https://github.com/go-git/go-git/security/advisories/GHSA-qgq7-7hm3-q39j",
+      "source_code_location": "https://github.com/go-git/go-git",
+      "source_date": "2026-08-07",
+      "source_project": "go-git/go-git",
+      "source_root": "GHSA-qgq7-7hm3-q39j",
+      "summary": "go-git: Malicious reference names may modify files outside the reference storage"
+    },
+    {
+      "bucket_cwe": 200,
+      "cve_id": "CVE-2026-71849",
+      "family": "information_disclosure",
+      "provenance_url": "https://github.com/honojs/hono/security/advisories/GHSA-79qm-7rj5-m7r9",
+      "source_code_location": "https://github.com/honojs/hono",
+      "source_date": "2026-08-07",
+      "source_project": "honojs/hono",
+      "source_root": "GHSA-79qm-7rj5-m7r9",
+      "summary": "Hono: Proxy Helper does not remove response headers listed in the `Connection` header"
+    },
+    {
+      "bucket_cwe": 942,
+      "cve_id": "CVE-2026-54753",
+      "family": "cors_misconfiguration",
+      "provenance_url": "https://github.com/nrwl/nx/security/advisories/GHSA-g2r8-wvmj-jf5w",
+      "source_code_location": "https://github.com/nrwl/nx",
+      "source_date": "2026-07-31",
+      "source_project": "nrwl/nx",
+      "source_root": "GHSA-g2r8-wvmj-jf5w",
+      "summary": "`nx graph` dev server permissive CORS policy"
+    },
+    {
+      "bucket_cwe": 362,
+      "cve_id": "CVE-2026-53715",
+      "family": "race_condition",
+      "provenance_url": "https://github.com/envoyproxy/gateway/security/advisories/GHSA-8fv2-88gg-hm7q",
+      "source_code_location": "https://github.com/envoyproxy/gateway",
+      "source_date": "2026-07-16",
+      "source_project": "envoyproxy/gateway",
+      "source_root": "GHSA-8fv2-88gg-hm7q",
+      "summary": "Envoy Gateway: Wasm cache ServeHTTP reads mappingPath2Cache without lock"
+    },
+    {
+      "bucket_cwe": 89,
+      "cve_id": null,
+      "family": "sql_injection",
+      "provenance_url": "https://github.com/Budibase/budibase/security/advisories/GHSA-2xgg-r2wc-c5r2",
+      "source_code_location": "https://github.com/Budibase/budibase",
+      "source_date": "2026-07-24",
+      "source_project": "Budibase/budibase",
+      "source_root": "GHSA-2xgg-r2wc-c5r2",
+      "summary": "Budibase: MySQL DESCRIBE Backtick Injection via multipleStatements in Database Connector"
+    },
+    {
+      "bucket_cwe": 943,
+      "cve_id": null,
+      "family": "nosql_injection",
+      "provenance_url": "https://github.com/dynatrace-oss/dynatrace-mcp/security/advisories/GHSA-pqh8-p93p-2rx7",
+      "source_code_location": "https://github.com/dynatrace-oss/dynatrace-mcp",
+      "source_date": "2026-07-31",
+      "source_project": "dynatrace-oss/dynatrace-mcp",
+      "source_root": "GHSA-pqh8-p93p-2rx7",
+      "summary": "@dynatrace-oss/dynatrace-mcp-server has a DQL injection via parameters not documented as DQL"
+    },
+    {
+      "bucket_cwe": 78,
+      "cve_id": "CVE-2026-15895",
+      "family": "command_injection",
+      "provenance_url": "https://github.com/aws/jsii/security/advisories/GHSA-wcx4-wpfv-mc5c",
+      "source_code_location": "https://github.com/aws/jsii",
+      "source_date": "2026-08-07",
+      "source_project": "aws/jsii",
+      "source_root": "GHSA-wcx4-wpfv-mc5c",
+      "summary": "jsii-diff: Command Injection via npm: package argument"
+    },
+    {
+      "bucket_cwe": 1336,
+      "cve_id": "CVE-2026-54666",
+      "family": "server_side_template_injection",
+      "provenance_url": "https://github.com/acacode/swagger-typescript-api/security/advisories/GHSA-w284-33mx-6g9v",
+      "source_code_location": "https://github.com/acacode/swagger-typescript-api",
+      "source_date": "2026-07-29",
+      "source_project": "acacode/swagger-typescript-api",
+      "source_root": "GHSA-w284-33mx-6g9v",
+      "summary": "swagger-typescript-api vulnerable to code injection via unescaped OpenAPI path strings in generated method bodies"
+    },
+    {
+      "bucket_cwe": 90,
+      "cve_id": "CVE-2026-47303",
+      "family": "ldap_injection",
+      "provenance_url": "https://github.com/dotnet/aspnetcore/security/advisories/GHSA-2p3q-h3hg-jcqq",
+      "source_code_location": "https://github.com/dotnet/aspnetcore",
+      "source_date": "2026-07-21",
+      "source_project": "dotnet/aspnetcore",
+      "source_root": "GHSA-2p3q-h3hg-jcqq",
+      "summary": "Microsoft Security Advisory CVE-2026-47303 \u2013 .NET Elevation of Privilege Vulnerability"
+    },
+    {
+      "bucket_cwe": 400,
+      "cve_id": "CVE-2026-71870",
+      "family": "unrestricted_resource_consumption",
+      "provenance_url": "https://github.com/py-pdf/pypdf/security/advisories/GHSA-fp3f-mc75-235c",
+      "source_code_location": "https://github.com/py-pdf/pypdf",
+      "source_date": "2026-08-07",
+      "source_project": "py-pdf/pypdf",
+      "source_root": "GHSA-fp3f-mc75-235c",
+      "summary": "pypdf: Possible large memory usage for large /ToUnicode streams"
+    },
+    {
+      "bucket_cwe": 209,
+      "cve_id": null,
+      "family": "security_misconfiguration",
+      "provenance_url": "https://github.com/rclone/rclone/security/advisories/GHSA-gwfq-86j8-7qhv",
+      "source_code_location": "https://github.com/rclone/rclone",
+      "source_date": "2026-08-05",
+      "source_project": "rclone/rclone",
+      "source_root": "GHSA-gwfq-86j8-7qhv",
+      "summary": "rclone: Verbose Stack Trace Disclosure in RC API Error Responses"
+    },
+    {
+      "bucket_cwe": 798,
+      "cve_id": "CVE-2026-61740",
+      "family": "secret_exposure",
+      "provenance_url": "https://github.com/HKUDS/LightRAG/security/advisories/GHSA-f4vv-55c2-5789",
+      "source_code_location": "https://github.com/HKUDS/LightRAG",
+      "source_date": "2026-07-20",
+      "source_project": "HKUDS/LightRAG",
+      "source_root": "GHSA-f4vv-55c2-5789",
+      "summary": "LightRAG is Vulnerable to Authentication Bypass: hardcoded DEFAULT_TOKEN_SECRET and public /auth-status defeat LIGHTRAG_API_KEY protection"
+    },
+    {
+      "bucket_cwe": 639,
+      "cve_id": "CVE-2026-59817",
+      "family": "broken_object_authorization",
+      "provenance_url": "https://github.com/TryGhost/Ghost/security/advisories/GHSA-xm43-3m56-w3wf",
+      "source_code_location": "https://github.com/TryGhost/Ghost",
+      "source_date": "2026-08-04",
+      "source_project": "TryGhost/Ghost",
+      "source_root": "GHSA-xm43-3m56-w3wf",
+      "summary": "Ghost: Paid gift memberships obtainable at minimal cost via the donations feature"
+    },
+    {
+      "bucket_cwe": 862,
+      "cve_id": "CVE-2026-71316",
+      "family": "broken_function_authorization",
+      "provenance_url": "https://github.com/nuxt/nuxt/security/advisories/GHSA-wm8w-6qjm-cv43",
+      "source_code_location": "https://github.com/nuxt/nuxt",
+      "source_date": "2026-08-05",
+      "source_project": "nuxt/nuxt",
+      "source_root": "GHSA-wm8w-6qjm-cv43",
+      "summary": "Nuxt runtime payload cache discloses another user's SSR data across users and to unauthenticated clients"
+    },
+    {
+      "bucket_cwe": 915,
+      "cve_id": "CVE-2026-59888",
+      "family": "mass_assignment",
+      "provenance_url": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-3pjw-73gf-8qr5",
+      "source_code_location": "https://github.com/FasterXML/jackson-databind",
+      "source_date": "2026-07-21",
+      "source_project": "FasterXML/jackson-databind",
+      "source_root": "GHSA-3pjw-73gf-8qr5",
+      "summary": "jackson-databind: @JsonIgnore on a Record property is bypassed with a PropertyNamingStrategy"
+    },
+    {
+      "bucket_cwe": 287,
+      "cve_id": "CVE-2026-70482",
+      "family": "authentication_session",
+      "provenance_url": "https://github.com/open-webui/open-webui/security/advisories/GHSA-rq84-p6rr-vf89",
+      "source_code_location": "https://github.com/open-webui/open-webui",
+      "source_date": "2026-08-04",
+      "source_project": "open-webui/open-webui",
+      "source_root": "GHSA-rq84-p6rr-vf89",
+      "summary": "Open WebUI: Account takeover via OAuth token exchange accepting tokens issued to any client"
+    }
+  ]
+}
