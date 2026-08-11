@@ -155,31 +155,62 @@ Family-specific evidence:
 - `untrusted_message_reached_handler` — an explicitly untrusted sender was accepted by the handler, but no sensitive effect is established yet.
 - `untrusted_message_accepted` — an explicitly untrusted sender was accepted and reached the identified sensitive consumer without an effective origin/source trust control; this is the decisive direct condition.
 
-Contradicting controls include:
-
-- `origin_check_observed`
-- `trusted_origin_only`
-- `message_schema_rejected`
+Contradicting controls include `origin_check_observed`, `trusted_origin_only` and `message_schema_rejected`.
 
 Exact origin allow-lists and verified source-window controls are treated as evidence against an unsafe trust decision. A wildcard `targetOrigin` on the sending side is not automatically treated as a receiving-side trust failure. DOM execution is also not inferred from postMessage trust failure alone; DOM-XSS remains a neighboring family with its own confirmation contract.
 
-The Candidate Engine static JavaScript path is migrated for postMessage Trust as well:
+The Candidate Engine static JavaScript path is migrated for postMessage Trust as well. No automatic cross-origin message injection, exploit payload execution or active browser exploitation is performed by the analyzer.
+
+## 8. Open Redirect / Navigation Injection
+
+`family_analyzers.open_redirect.OpenRedirectFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-601 — URL Redirection to Untrusted Site ('Open Redirect')
+- WSTG-CLNT-04 — Testing for Client-side URL Redirect
+
+The algorithm separates five questions:
+
+1. **Input surface** — which user-influenced parameter or browser value controls the candidate destination?
+2. **Navigation sink** — does that value reach an actual navigation primitive rather than merely URL parsing, display or logging?
+3. **Destination policy** — is navigation constrained by an exact allow-list, same-origin rule, relative-path-only policy, scheme restriction or normalization step?
+4. **Runtime destination** — did stored target evidence show the user-controlled destination being accepted and the resulting navigation reaching an external origin?
+5. **False-positive review** — do parsed origin semantics, allow-list enforcement or same-origin/relative-only behavior contradict the hypothesis?
+
+Static destination-to-navigation proximity is intentionally **one correlated evidence root**. Parameter names such as `next`, `url`, `returnUrl`, `callback` or `redirect_uri`, and a static `location.href` assignment, do not by themselves create a Potential Finding.
+
+Family-specific evidence:
+
+- `navigation_validation_absent` — stored evidence that effective destination validation was absent; support only, not confirmation.
+- `external_navigation_observed` — an external navigation was stored, but user control of its destination has not been established; not direct evidence.
+- `external_destination_accepted` — a user-controlled destination was accepted and navigation reached an external origin outside the intended trust boundary; this is the decisive direct condition.
+
+Contradicting controls include:
+
+- `destination_allowlist_observed`
+- `same_origin_navigation_enforced`
+- `unsafe_scheme_rejected`
+
+Destination comparisons use parsed scheme/hostname/port semantics rather than substring matching, so a host such as `example.com.evil.test` is not treated as trusted merely because it contains `example.com`. Relative paths and same-origin absolute URLs are not external redirect evidence.
+
+The Candidate Engine static JavaScript path is migrated for Open Redirect:
 
 ```text
-postMessage static flow
+static destination → navigation flow
         ↓
 hidden hypothesis
         ↓
-dedicated postMessage analyzer
+dedicated Open Redirect analyzer
         ↓
 Family Reasoning admission
         ↓
-independent stored runtime trust failure
+independent stored external-navigation condition
         ↓
 Potential Finding
 ```
 
-No automatic cross-origin message injection, exploit payload execution or active browser exploitation is performed by the analyzer.
+No automatic redirect request, browser navigation, exploit payload or active validation is performed by the analyzer.
 
 ## Write-up pattern library
 
@@ -189,7 +220,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS and postMessage Trust additionally migrate their static JavaScript paths to hypothesis-first handling while non-migrated static families continue through the legacy implementation.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling while non-migrated static families continue through the legacy implementation.
 
 ## Router status
 
@@ -202,26 +233,26 @@ Currently production-routed:
 5. Account Enumeration
 6. DOM-based XSS
 7. postMessage Trust / Web Messaging
+8. Open Redirect / Navigation Injection
 
-Pending dedicated analyzers: **14**.
+Pending dedicated analyzers: **13**.
 
 ## Migration order
 
 Next analyzers:
 
-1. Open Redirect
-2. SSRF
-3. File Upload / Import
-4. Path Traversal
-5. Information Disclosure
-6. Source-map Exposure
-7. Secret Exposure
-8. GraphQL Authorization
-9. GraphQL Data Exposure
-10. Business Logic
-11. Race Condition
-12. WebSocket Authorization
-13. CORS
-14. Sensitive Caching
+1. SSRF
+2. File Upload / Import
+3. Path Traversal
+4. Information Disclosure
+5. Source-map Exposure
+6. Secret Exposure
+7. GraphQL Authorization
+8. GraphQL Data Exposure
+9. Business Logic
+10. Race Condition
+11. WebSocket Authorization
+12. CORS
+13. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
