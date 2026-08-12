@@ -21,222 +21,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Apply calibrated reconstruction boundaries
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          def replace_once(path, old, new):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              if old not in text:
-                  raise SystemExit(f'missing replacement anchor in {path}: {old[:80]!r}')
-              p.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-          # Version lineage.
-          replace_once('app/raw_condition_reconstruction.py', 'RECONSTRUCTION_ENGINE_VERSION = "1.0.0"\nRECONSTRUCTION_RULE_VERSION = "2026.08.11.6.12"\nEXECUTION_ENGINE_VERSION = "1.1.0"\nEXECUTION_RULE_VERSION = "2026.08.11.6.12"', 'RECONSTRUCTION_ENGINE_VERSION = "1.1.0"\nRECONSTRUCTION_RULE_VERSION = "2026.08.12.6.14"\nEXECUTION_ENGINE_VERSION = "1.2.0"\nEXECUTION_RULE_VERSION = "2026.08.12.6.14"')
-          replace_once('app/family_detectors/execution.py', 'EXECUTION_ENGINE_VERSION = "1.1.0"\nEXECUTION_RULE_VERSION = "2026.08.11.6.12"', 'EXECUTION_ENGINE_VERSION = "1.2.0"\nEXECUTION_RULE_VERSION = "2026.08.12.6.14"')
-          replace_once('app/analysis_engine.py', 'ENGINE_VERSION = "6.12.0"\nRULE_VERSION = "2026.08.11.6.12"', 'ENGINE_VERSION = "6.14.0"\nRULE_VERSION = "2026.08.12.6.14"')
-          replace_once('app/bug_candidates.py', 'CANDIDATE_ENGINE_VERSION = "6.12.0"\nCANDIDATE_RULE_VERSION = "2026.08.11.6.12"', 'CANDIDATE_ENGINE_VERSION = "6.14.0"\nCANDIDATE_RULE_VERSION = "2026.08.12.6.14"')
-          replace_once('app/security_reasoning.py', 'REASONING_ENGINE_VERSION = "6.12.0"\nREASONING_RULE_VERSION = "2026.08.11.6.12"', 'REASONING_ENGINE_VERSION = "6.14.0"\nREASONING_RULE_VERSION = "2026.08.12.6.14"')
-
-          # Precise NoSQL error signatures: generic engine/query prose is not an error.
-          replace_once(
-              'app/family_detectors/execution.py',
-              'NOSQL_ERROR_PATTERNS = ("mongoerror", "mongodb", "unknown operator", "badvalue", "bson", "document query")',
-              'NOSQL_ERROR_PATTERNS = (\n    "mongoerror", "mongodb error", "mongodb exception", "unknown operator",\n    "badvalue", "bson error", "bsonexception", "failed to parse query",\n    "failed to parse filter", "invalid mongodb operator",\n)'
-          )
-
-          # Account-enumeration routing: generic login fields alone do not outrank authentication.
-          old = '''    if (all_fields & IDENTITY_FIELDS) and any(token in surface_text for token in ("forgot", "reset", "recover", "lookup", "login", "signin", "username", "email")):\n        packet = _packet_for(result, "account_enumeration")\n        _add_identity(packet, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity field participates in a lookup/authentication flow.", "identity_lookup", 15)\n'''
-          new = '''    context_labels = " ".join(str(row.get("context") or "") for row in _contexts(details)).lower()\n    enum_present = any(token in context_labels for token in ("existing", "known_user", "valid_user", "present_user"))\n    enum_absent = any(token in context_labels for token in ("absent", "nonexistent", "non_existent", "missing_user", "unknown_user", "invalid_user"))\n    explicit_enum_surface = any(token in surface_text for token in ("forgot", "reset", "recover", "lookup", "enumerat", "account exists", "username availability", "email availability"))\n    if (all_fields & IDENTITY_FIELDS) and (explicit_enum_surface or (enum_present and enum_absent)):\n        packet = _packet_for(result, "account_enumeration")\n        _add_identity(packet, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity field participates in a controlled existence/lookup surface.", "identity_lookup", 15)\n'''
-          replace_once('app/family_detectors/execution.py', old, new)
-
-          # CORS context is condition evidence only when the observed origin policy itself is unsafe.
-          old = '''    acao = response_headers.get("access-control-allow-origin", "").strip(); acac = response_headers.get("access-control-allow-credentials", "").strip().lower(); origin = request_headers.get("origin", "").strip()\n    if acao:\n        packet = _packet_for(result, "cors_misconfiguration")\n        if acao == "*": _add_identity(packet, "cors_misconfiguration", "wildcard_origin", "http_headers", "Access-Control-Allow-Origin wildcard is present.", "cors_policy", 22)\n        elif origin and acao == origin: _add_identity(packet, "cors_misconfiguration", "reflected_origin", "http_headers", "Stored response reflects the supplied Origin value.", "cors_policy", 24)\n        elif acao.lower() == "null": _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)\n        if acac == "true": _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Access-Control-Allow-Credentials: true is present.", source_group="cors_credentials", weight=26, basis="response_header"))\n        if auth_hints or business_context in {"identity", "customer_data", "payment", "administration"}: _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_context", "CORS response is associated with an authenticated or sensitive application context.", source_group="cors_credentials", weight=18, basis="endpoint_auth_or_sensitive_context"))\n'''
-          new = '''    acao = response_headers.get("access-control-allow-origin", "").strip(); acac = response_headers.get("access-control-allow-credentials", "").strip().lower(); origin = request_headers.get("origin", "").strip()\n    if acao:\n        packet = _packet_for(result, "cors_misconfiguration")\n        unsafe_origin_policy = False\n        if acao == "*":\n            unsafe_origin_policy = True\n            _add_identity(packet, "cors_misconfiguration", "wildcard_origin", "http_headers", "Access-Control-Allow-Origin wildcard is present.", "cors_policy", 22)\n        elif origin and acao == origin:\n            unsafe_origin_policy = True\n            _add_identity(packet, "cors_misconfiguration", "reflected_origin", "http_headers", "Stored response reflects the supplied Origin value.", "cors_policy", 24)\n        elif acao.lower() == "null":\n            unsafe_origin_policy = True\n            _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)\n        if unsafe_origin_policy and acac == "true":\n            _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Unsafe observed origin policy is combined with Access-Control-Allow-Credentials: true.", source_group="cors_credentials", weight=26, basis="unsafe_origin_with_credentials"))\n        if unsafe_origin_policy and (auth_hints or business_context in {"identity", "customer_data", "payment", "administration"}):\n            _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_context", "Unsafe observed CORS origin policy is associated with an authenticated or sensitive application context.", source_group="cors_sensitive_context", weight=18, basis="unsafe_origin_with_sensitive_context"))\n'''
-          replace_once('app/family_detectors/execution.py', old, new)
-
-          # Helpers for semantically controlled account timing comparisons.
-          anchor = '''def _is_auth_surface(endpoint: str, category: str, business_context: str, auth_hints: set[str]) -> bool:\n    hay = " ".join((endpoint, category, business_context)).lower()\n    return bool(auth_hints) or any(term in hay for term in AUTH_TERMS)\n\n\n'''
-          insert = '''def _is_auth_surface(endpoint: str, category: str, business_context: str, auth_hints: set[str]) -> bool:\n    hay = " ".join((endpoint, category, business_context)).lower()\n    return bool(auth_hints) or any(term in hay for term in AUTH_TERMS)\n\n\ndef _identity_context_class(context: Mapping[str, Any]) -> str:\n    flat = _flatten(context)\n    values: list[str] = []\n    for key in ("context", "identity_state", "account_state", "existence", "user_state", "expected_identity"):\n        values.extend(str(value).strip().lower() for value in flat.get(key, []) if str(value).strip())\n    hay = " ".join(values)\n    absent = ("absent", "nonexistent", "non_existent", "missing_user", "unknown_user", "invalid_user", "does_not_exist")\n    present = ("existing", "known_user", "valid_user", "present_user", "account_exists")\n    if any(token in hay for token in absent):\n        return "absent"\n    if any(token in hay for token in present):\n        return "present"\n    return ""\n\n\ndef _material_identity_difference(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:\n    if {_identity_context_class(left), _identity_context_class(right)} != {"present", "absent"}:\n        return False\n    a = _context_observable(left)\n    b = _context_observable(right)\n    # Status/body/length differences between opposite identity classes are directly observable.\n    if a[0] != b[0] and a[0] and b[0]:\n        return True\n    if a[1] != b[1] and (a[1] or b[1]):\n        return True\n    if a[2] != b[2] and a[2] is not None and b[2] is not None:\n        return True\n    # Timing-only enumeration must be large enough to dominate ordinary jitter.\n    if a[3] is not None and b[3] is not None and a[3] > 0 and b[3] > 0:\n        slower, faster = max(a[3], b[3]), min(a[3], b[3])\n        return (slower - faster) >= 10.0 and (slower / faster) >= 2.0\n    return False\n\n\ndef _number(flat: Mapping[str, list[Any]], *keys: str) -> float | None:\n    for key in keys:\n        for value in flat.get(_norm(key), []):\n            try:\n                return float(value)\n            except (TypeError, ValueError):\n                continue\n    return None\n\n\n'''
-          replace_once('app/raw_condition_reconstruction.py', anchor, insert)
-
-          # Replace permissive account differential.
-          old = '''    # Account enumeration requires a controlled stored response differential.\n    if (all_fields & IDENTITY_FIELDS) and any(term in surface for term in ("login", "signin", "forgot", "reset", "recover", "lookup", "username", "email")):\n        _emit(result, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity input participates in a stored lookup/authentication surface.", source_group="identity_lookup", weight=15, basis="raw_identity_surface")\n        observables = [_context_observable(row) for row in contexts]\n        meaningful = [value for value in observables if any(part not in (0, "", None) for part in value)]\n        if len(meaningful) >= 2 and len(set(meaningful)) >= 2:\n            _emit(result, "account_enumeration", "response_difference", "stored_context", "Stored controlled identity contexts have a directly observable response/status/length/timing differential.", source_group="identity_differential", weight=34, basis="stored_context_differential")\n'''
-          new = '''    # Account enumeration requires opposite identity-existence contexts plus a material observable differential.\n    if (all_fields & IDENTITY_FIELDS) and any(term in surface for term in ("login", "signin", "forgot", "reset", "recover", "lookup", "username", "email")):\n        controlled_pair = any(\n            _material_identity_difference(left, right)\n            for index, left in enumerate(contexts)\n            for right in contexts[index + 1:]\n        )\n        if controlled_pair:\n            _emit(result, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity input is observed across controlled present-versus-absent identity contexts.", source_group="identity_lookup", weight=15, basis="controlled_identity_surface")\n            _emit(result, "account_enumeration", "response_difference", "stored_context", "Controlled present-versus-absent identity contexts have a material status/body/length/timing differential.", source_group="identity_differential", weight=34, basis="material_identity_differential")\n'''
-          replace_once('app/raw_condition_reconstruction.py', old, new)
-
-          # Add conservative condition reconstruction for the three missing families.
-          marker = '''    # Routing-only family identity from semantically strong stored raw context. These\n    # never create a final vulnerability condition.\n'''
-          added = '''    # Command injection: passive static data-flow into a process execution primitive.\n    # This never executes the command; it only records direct client-input-to-sink reachability in stored source.\n    if all_fields and text:\n        for match in re.finditer(r"(?i)(?:child_process\\.)?(?:exec|execsync|system)\\s*\\(\\s*([A-Za-z_$][A-Za-z0-9_.$]*)", text):\n            variable = _norm(match.group(1).split(".")[-1])\n            client_related = variable in {"userinput", "user_input", "input", "payload", "requestinput", "request_input", "cmd", "command"} or any(field and (field == variable or field in variable or variable in field) for field in all_fields)\n            if client_related:\n                _emit(result, "command_injection", "process_execution_surface", "raw_source", "Stored source contains a process execution primitive.", source_group="execution_surface", weight=18, basis="stored_process_sink")\n                _emit(result, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input exists on the process execution surface.", source_group="input_surface", weight=10, basis="stored_process_sink")\n                _emit(result, "command_injection", "process_execution_reached", "raw_source_dataflow", "Stored source directly passes a client-related input variable into a process execution primitive.", source_group="command_behavior", weight=38, basis="passive_direct_input_to_process_sink")\n                break\n\n    # Race condition: require explicit stored evidence that multiple concurrent attempts both succeeded.\n    concurrency_surface = any(token in surface for token in ("concurrent", "parallel", "simultaneous", "race", "single-use", "single use", "redeem", "claim", "transfer", "refund"))\n    duplicate_success = bool(re.search(r"(?is)\\b(?:two|both|multiple|duplicate)\\b.{0,120}\\b(?:concurrent|parallel|simultaneous)\\b.{0,160}\\b(?:success|succeeded|accepted)\\b", text)) or bool(re.search(r"(?is)\\b(?:concurrent|parallel|simultaneous)\\b.{0,160}\\b(?:both|two|multiple)\\b.{0,120}\\b(?:success|succeeded|accepted)\\b", text))\n    if concurrency_surface and method in {"POST", "PUT", "PATCH", "DELETE"} and status in SUCCESS_STATUSES and duplicate_success:\n        _emit(result, "race_condition", "state_change", "endpoint_contract", "Stored operation is state-changing.", source_group="state_change", weight=12, basis="concurrent_state_change")\n        _emit(result, "race_condition", "single_use_semantics", "endpoint_semantic", "Stored operation has single-use or duplicate-sensitive business semantics.", source_group="single_use", weight=14, basis="concurrent_state_change")\n        _emit(result, "race_condition", "duplicate_effect_observed", "raw_response", "Stored artifact explicitly records multiple concurrent attempts both succeeding on a duplicate-sensitive operation.", source_group="concurrency_behavior", weight=38, basis="stored_duplicate_concurrent_success")\n\n    # Resource consumption: require a successful high-amplification request plus a material stored cost signal.\n    requested_amplifier = _number(flat, "requested_limit", "requested_count", "requested_size", "batch_size", "page_size", "limit")\n    duration_ms = _number(flat, "duration_ms", "elapsed_ms", "response_time_ms")\n    response_length = _number(flat, "response_length", "body_length", "content_length")\n    high_request = requested_amplifier is not None and requested_amplifier >= 10000\n    high_latency = duration_ms is not None and duration_ms >= 5000\n    high_output = response_length is not None and response_length >= 1000000\n    if status in SUCCESS_STATUSES and high_request and (high_latency or high_output):\n        _emit(result, "unrestricted_resource_consumption", "resource_control_parameter", "endpoint_schema", "Stored request exposes a high-amplification resource control parameter.", source_group="resource_surface", weight=16, basis="stored_resource_amplifier")\n        _emit(result, "unrestricted_resource_consumption", "resource_exhaustion_differential", "stored_resource_observation", "A successful high-amplification request is paired with a material stored latency or response-size cost signal.", source_group="resource_behavior", weight=36, basis="high_amplification_material_cost")\n\n    # Routing-only family identity from semantically strong stored raw context. These\n    # never create a final vulnerability condition.\n'''
-          replace_once('app/raw_condition_reconstruction.py', marker, added)
-
-          Path('tests/test_raw_precision_calibration_v6140.py').write_text(r'''from __future__ import annotations
-
-import unittest
-
-from app.family_detectors.execution import execute_detector_intelligence
-from app.hypothesis_admission import assess_admission
-
-
-def packet(raw):
-    return execute_detector_intelligence(**raw)
-
-
-def admitted(family, result):
-    p = result.get(family, {"support": [], "contradict": []})
-    return assess_admission(family, p.get("support") or [], p.get("contradict") or [])["admitted"]
-
-
-def types(family, result):
-    return {str(x.get("type") or "") for x in result.get(family, {}).get("support", [])}
-
-
-class RawPrecisionCalibrationV6140Tests(unittest.TestCase):
-    def test_account_enumeration_requires_opposite_identity_context_and_material_timing(self):
-        base = dict(target="fixture.invalid", endpoint="/api/login", method="POST", endpoint_schema={"body_fields": ["username", "password"]}, category="login username lookup", business_context="identity")
-        positive = packet(**base, details={"context_observations": [{"context": "existing_username", "duration_ms": 52.0, "status_code": 401}, {"context": "absent_username", "duration_ms": 1.2, "status_code": 401}]})
-        near = packet(**base, details={"context_observations": [{"context": "existing_username", "duration_ms": 51.0, "status_code": 401}, {"context": "another_existing_username", "duration_ms": 52.0, "status_code": 401}]})
-        secure = packet(**base, details={"context_observations": [{"context": "existing_username", "duration_ms": 50.0, "status_code": 401}, {"context": "absent_username", "duration_ms": 50.0, "status_code": 401}]})
-        self.assertIn("response_difference", types("account_enumeration", positive))
-        self.assertNotIn("response_difference", types("account_enumeration", near))
-        self.assertNotIn("response_difference", types("account_enumeration", secure))
-        self.assertTrue(admitted("account_enumeration", positive))
-        self.assertFalse(admitted("account_enumeration", near))
-
-    def test_nosql_generic_query_prose_is_not_error_condition(self):
-        base = dict(target="fixture.invalid", endpoint="/api/search", method="POST", endpoint_schema={"body_fields": ["filter"]}, category="mongodb nosql document query filter", business_context="general")
-        positive = packet(**base, details={"response_text": "MongoError: unknown operator $fixture in document query", "status_code": 500})
-        near = packet(**base, details={"response_text": "document query returned zero results", "status_code": 200})
-        self.assertIn("nosql_error_observed", types("nosql_injection", positive))
-        self.assertNotIn("nosql_error_observed", types("nosql_injection", near))
-        self.assertTrue(admitted("nosql_injection", positive))
-        self.assertFalse(admitted("nosql_injection", near))
-
-    def test_cors_context_is_condition_only_with_unsafe_origin_policy(self):
-        base = dict(target="fixture.invalid", endpoint="/api/data", method="GET", endpoint_schema={"authentication_hints": ["session"]}, category="cors cross-origin authenticated response", business_context="customer_data")
-        positive = packet(**base, details={"request_headers": {"Origin": "https://untrusted.fixture.invalid"}, "response_headers": {"Access-Control-Allow-Origin": "https://untrusted.fixture.invalid", "Access-Control-Allow-Credentials": "true"}, "status_code": 200})
-        safe = packet(**base, details={"request_headers": {"Origin": "https://untrusted.fixture.invalid"}, "response_headers": {"Access-Control-Allow-Origin": "https://trusted.fixture.invalid"}, "status_code": 200})
-        self.assertIn("credentials_allowed", types("cors_misconfiguration", positive))
-        self.assertIn("authenticated_context", types("cors_misconfiguration", positive))
-        self.assertNotIn("credentials_allowed", types("cors_misconfiguration", safe))
-        self.assertNotIn("authenticated_context", types("cors_misconfiguration", safe))
-        self.assertTrue(admitted("cors_misconfiguration", positive))
-        self.assertFalse(admitted("cors_misconfiguration", safe))
-
-    def test_command_direct_input_to_process_sink_is_condition_but_fixed_command_is_not(self):
-        base = dict(target="fixture.invalid", endpoint="/api/run", method="POST", endpoint_schema={"body_fields": ["input"]}, category="command process execution surface", business_context="general")
-        positive = packet(**base, details={"source_code": "child_process.exec(userInput);", "status_code": 200})
-        fixed = packet(**base, details={"source_code": "child_process.exec(fixedCommand);", "status_code": 200})
-        structured = packet(**base, details={"source_code": "spawn(binary, validatedArgs);", "status_code": 400})
-        self.assertIn("process_execution_reached", types("command_injection", positive))
-        self.assertNotIn("process_execution_reached", types("command_injection", fixed))
-        self.assertNotIn("process_execution_reached", types("command_injection", structured))
-        self.assertTrue(admitted("command_injection", positive))
-        self.assertFalse(admitted("command_injection", fixed))
-
-    def test_race_requires_explicit_multi_request_success(self):
-        base = dict(target="fixture.invalid", endpoint="/redeem", method="POST", endpoint_schema={"body_fields": ["coupon"]}, category="redeem single-use concurrent business flow", business_context="payment")
-        positive = packet(**base, details={"response_text": "two concurrent fixture requests both returned success", "status_code": 200})
-        near = packet(**base, details={"response_text": "single fixture request returned success", "status_code": 200})
-        secure = packet(**base, details={"response_text": "second concurrent fixture request rejected", "status_code": 409})
-        self.assertIn("duplicate_effect_observed", types("race_condition", positive))
-        self.assertNotIn("duplicate_effect_observed", types("race_condition", near))
-        self.assertNotIn("duplicate_effect_observed", types("race_condition", secure))
-        self.assertTrue(admitted("race_condition", positive))
-        self.assertFalse(admitted("race_condition", near))
-
-    def test_resource_condition_requires_high_amplification_and_material_cost(self):
-        base = dict(target="fixture.invalid", endpoint="/api/export", method="GET", endpoint_schema={"query_parameters": ["limit"]}, category="bulk export expensive operation", business_context="general")
-        positive = packet(**base, details={"duration_ms": 12000.0, "requested_limit": 1000000, "response_length": 5000000, "status_code": 200})
-        near = packet(**base, details={"duration_ms": 45.0, "requested_limit": 100, "response_length": 5000, "status_code": 200})
-        blocked = packet(**base, details={"requested_limit": 1000000, "response_text": "rate limited", "status_code": 429})
-        self.assertIn("resource_exhaustion_differential", types("unrestricted_resource_consumption", positive))
-        self.assertNotIn("resource_exhaustion_differential", types("unrestricted_resource_consumption", near))
-        self.assertIn("rate_limit_enforced", {str(x.get("type") or "") for x in blocked.get("unrestricted_resource_consumption", {}).get("contradict", [])})
-        self.assertTrue(admitted("unrestricted_resource_consumption", positive))
-        self.assertFalse(admitted("unrestricted_resource_consumption", near))
-        self.assertFalse(admitted("unrestricted_resource_consumption", blocked))
-
-    def test_versions(self):
-        from app import analysis_engine, bug_candidates, security_reasoning
-        from app.raw_condition_reconstruction import RECONSTRUCTION_ENGINE_VERSION, RECONSTRUCTION_RULE_VERSION
-        from app.family_detectors.execution import EXECUTION_ENGINE_VERSION, EXECUTION_RULE_VERSION
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.14.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.14.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.14.0")
-        self.assertEqual(RECONSTRUCTION_ENGINE_VERSION, "1.1.0")
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.2.0")
-        self.assertEqual(RECONSTRUCTION_RULE_VERSION, "2026.08.12.6.14")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.12.6.14")
-
-
-if __name__ == "__main__":
-    unittest.main()
-''', encoding='utf-8')
-
-          Path('docs/ANALYSIS_ENGINE_6_14_RAW_PRECISION_CALIBRATION.md').write_text('''# Analysis Engine 6.14 — Raw Precision Calibration\n\nAnalysis 6.14 calibrates raw-artifact evidence boundaries using the already-consumed Analysis 6.13 raw v2 result as a development diagnostic only. It does not alter the v2 corpus, lower admission thresholds, or make a new fresh/blind claim.\n\n## Changes\n\n- Account enumeration now requires semantically opposite present/absent identity contexts and a material observable differential; timing-only evidence must exceed both an absolute and relative jitter floor.\n- NoSQL error evidence no longer treats generic database/query prose as an error signature.\n- CORS sensitive/authenticated context is condition evidence only when an unsafe origin policy is directly observed.\n- Command injection gains passive direct input-to-process-sink reconstruction without executing a command.\n- Race-condition reconstruction requires explicit stored evidence that multiple concurrent attempts both succeeded.\n- Resource-consumption reconstruction requires a successful high-amplification request plus a material stored latency or output-size cost signal.\n- Generic login fields no longer make account enumeration outrank authentication unless an explicit enumeration surface or controlled present/absent contexts exist.\n\n## Scientific boundary\n\nThe consumed v2 corpus is regression-only. Improvements on it are evidence that known failure modes were repaired, not evidence of fresh generalization. A future independent raw holdout is required for a new blind claim.\n''', encoding='utf-8')
-          PY
+      - name: Apply calibrated raw boundaries
+        run: python scripts/apply_analysis_614.py
 
       - name: Syntax and focused calibration tests
         shell: bash
         run: |
           set -euo pipefail
           python -m py_compile app/raw_condition_reconstruction.py app/family_detectors/execution.py
-          PYTHONPATH=. python -m unittest tests.test_raw_precision_calibration_v6140 -v
-
-      - name: Existing detector and reasoning regressions
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m unittest discover -s tests -p 'test_detector_execution_intelligence_v6100.py' -q
-          python -m unittest discover -s tests -p 'test_physical_family_detectors_v690.py' -q
-          python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q || true
-          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
-          python -m unittest discover -s tests -p 'test_family_confusion_matrix_v670.py' -q
+          PYTHONPATH=app python -m unittest tests.test_raw_precision_calibration_v6140 -v
 
       - name: Consumed v2 development regression only
-        shell: bash
         env:
           PYTHONPATH: app
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from raw_recon_benchmark import run_raw_benchmark
-          from raw_recon_corpus import load_raw_cases
-          from raw_recon_v2_corpus import validate_v2_corpus
-
-          corpus = Path('benchmarks/raw/analysis_raw_v2.jsonl')
-          cases = load_raw_cases(corpus)
-          validation = validate_v2_corpus(cases)
-          assert validation['passed'], validation['errors']
-          report = run_raw_benchmark(cases, validation=validation)
-          metrics = report['metrics']
-          envelope = {
-              'evaluation_status': 'consumed_diagnostic_regression_only',
-              'fresh_or_blind_claim_allowed': False,
-              'source_evaluation_run': '31471744115',
-              'engine_version': '6.14.0',
-              'metrics': metrics,
-              'quality_gate': report['quality_gate'],
-              'case_results': report['case_results'],
-              'note': 'Analysis raw v2 was consumed by the single Analysis 6.13 fresh evaluation. This is development regression only and must never be described as fresh or blind.',
-          }
-          Path('benchmarks/raw/results/analysis_raw_v2_6_14_regression.json').write_text(json.dumps(envelope, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-          print(json.dumps(metrics, indent=2, sort_keys=True))
-          assert metrics['condition_extraction_precision'] >= 0.90, metrics
-          assert metrics['condition_extraction_recall'] >= 0.875, metrics
-          assert metrics['admission_precision'] >= 0.93, metrics
-          assert metrics['admission_recall'] >= 0.875, metrics
-          assert metrics['abstention_accuracy'] >= 0.972222, metrics
-          assert metrics['false_promotion_rate'] <= 0.027778, metrics
-          assert metrics['wrong_family_promotion_rate'] == 0.0, metrics
-          PY
+        run: python scripts/evaluate_analysis_614.py
 
       - name: Full project regression
         shell: bash
@@ -251,11 +49,10 @@ if __name__ == "__main__":
         run: |
           set -euo pipefail
           rm .github/workflows/analysis-614-implement.yml
-          {
-            git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
-              if [[ -f "$f" ]]; then sha256sum "$f"; fi
-            done
-          } | LC_ALL=C sort -k2 > MANIFEST.sha256
+          rm scripts/apply_analysis_614.py scripts/evaluate_analysis_614.py
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
           sha256sum -c MANIFEST.sha256
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
