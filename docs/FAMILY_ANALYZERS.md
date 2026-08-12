@@ -1,22 +1,34 @@
-# Dedicated Family Analyzer Architecture
+# Dedicated Family Analyzers
 
-This document describes the dedicated vulnerability-family reasoning layer used by Recon Monitor. Family analyzers consume stored target evidence, apply family-specific false-positive and confirmation rules, and feed the existing hypothesis/admission/candidate workflow. External knowledge, taxonomy and public write-up patterns are reasoning context only and never create target evidence.
+## Goal
 
-## Core principles
+Recon Monitor is migrating from shared heuristic detection to a shared evidence core plus independently versioned analyzers for each vulnerability family.
 
-- A signal is not a vulnerability.
-- Potential Finding and analyst-confirmed finding remain distinct states.
-- Each canonical family has an explicit Family Reasoning contract and an independently versioned dedicated analyzer.
-- Unknown families fail closed.
-- Write-up similarity, CWE/OWASP/WSTG context, historical feedback, correlation and LLM advice remain non-evidentiary.
-- Direct evidence must come from stored target observations and satisfy the family-specific safety/ownership constraints.
-- Analyzers do not perform exploit execution or destructive/state-changing validation.
+```text
+stored target observations
+        ↓
+shared normalization / evidence vocabulary
+        ↓
+explicit family router
+        ↓
+family-specific analyzer
+        ↓
+hidden hypothesis
+        ↓
+Family Reasoning admission
+        ↓
+Potential Finding
+        ↓
+family-specific confirmation requirements
+```
 
-## Family analyzer framework
+There is deliberately no generic analyzer fallback. A family is routed to a dedicated analyzer only after its implementation, production integration and regression tests exist.
 
-`app/family_analyzers/base.py` provides the common analyzer context and metadata contract. `app/family_analyzers/router.py` explicitly registers canonical families; there is no generic analyzer fallback.
+## Knowledge boundary
 
-The public Candidate Engine compatibility layer remains `app/bug_candidates.py`, while the historical implementation remains in `app/bug_candidates_core.py`. Dedicated analyzers are additive reasoning modules layered before promotion/admission decisions.
+CWE, OWASP WSTG, OWASP API Security guidance, CAPEC and vulnerability write-ups may influence what relationships an analyzer models, which evidence it requests next, how it separates neighboring families, which false positives it checks, and how it explains a hypothesis.
+
+They may **not** create supporting target evidence, count as an independent evidence root, satisfy Family Reasoning admission, raise target-evidence confidence, or confirm a vulnerability.
 
 ## 1. BOLA / IDOR
 
@@ -25,10 +37,12 @@ The public Candidate Engine compatibility layer remains `app/bug_candidates.py`,
 Primary reasoning references:
 
 - CWE-639 — Authorization Bypass Through User-Controlled Key
-- OWASP API1 — Broken Object Level Authorization
-- WSTG-ATHZ-02 / WSTG-ATHZ-04 / WSTG-APIT-02
+- OWASP API1:2023 — Broken Object Level Authorization
+- WSTG-ATHZ-04 — Testing for Insecure Direct Object References
+- WSTG-ATHZ-02 — Testing for Bypassing Authorization Schema
+- WSTG-APIT-02 — API Broken Object Level Authorization
 
-Object identifiers, path parameters and response status are structural evidence only. Confirmation requires target-specific cross-identity, cross-tenant, unauthorized-object or authorization-differential evidence. Public/shared-object context and observed ownership enforcement are false-positive controls.
+The algorithm separates object reference, expected authorization boundary, horizontal comparison, behavioral authorization failure and contradiction review. An identifier alone remains a hypothesis surface.
 
 ## 2. Broken Function Level Authorization
 
@@ -37,11 +51,12 @@ Object identifiers, path parameters and response status are structural evidence 
 Primary reasoning references:
 
 - CWE-862 — Missing Authorization
-- related CWE-285 / CWE-863 / CWE-269
-- OWASP API5:2023
-- WSTG-APIT-04 / WSTG-ATHZ-02
+- related CWE-285 / CWE-863 / CWE-269 concepts
+- OWASP API5:2023 — Broken Function Level Authorization
+- WSTG-ATHZ-02
+- WSTG-APIT-04
 
-Privileged-looking routes and HTTP status do not prove BFLA. Direct target evidence requires stored behavior such as unauthorized privileged-function success or a role authorization differential. Observed role enforcement, permission checks and lower-privilege denial are contradictions.
+The algorithm separates privileged-function discovery, role/function policy, vertical comparison, method/scope differentials, behavioral success and explicit enforcement controls. An `/admin` route alone is not confirmation.
 
 ## 3. Mass Assignment / Object Property Authorization
 
@@ -49,11 +64,12 @@ Privileged-looking routes and HTTP status do not prove BFLA. Direct target evide
 
 Primary reasoning references:
 
-- CWE-915 — Improperly Controlled Modification of Dynamically-Determined Object Attributes
-- OWASP API3:2023 / API6:2019
+- CWE-915
+- OWASP API3:2023 — Broken Object Property Level Authorization
+- OWASP API6:2019 — Mass Assignment
 - WSTG-INPV-20
 
-Writable request bodies plus privileged-looking fields remain a hypothesis. Direct evidence requires target behavior showing a protected property was accepted/mutated or a property-authorization differential. Rejected/ignored sensitive fields and observed server allow-lists are contradictions.
+The algorithm separates property surface, writable contract, property authorization, behavioral acceptance, persistence and contradiction review. Sensitive property names such as `role` or `is_admin` are only surface clues; direct evidence requires accepted/persisted policy-sensitive mutation or a property authorization differential.
 
 ## 4. Authentication / Session
 
@@ -61,12 +77,13 @@ Writable request bodies plus privileged-looking fields remain a hypothesis. Dire
 
 Primary reasoning references:
 
-- CWE-287 — Improper Authentication
-- related CWE-613 / CWE-384 / CWE-640
+- CWE-287
+- related CWE-613 / CWE-384 / CWE-640 lifecycle concepts
 - OWASP A07:2021
-- WSTG-ATHN-04 / WSTG-SESS-01
+- WSTG-ATHN-04
+- WSTG-SESS-01
 
-Authentication-looking surfaces are separated from lifecycle/state violations. Direct evidence includes session reuse after logout, explicitly expected token rotation failure, recovery bypass or an authentication-state violation. Session rotation, recovery verification and expired-session rejection are contradictions.
+The algorithm models authentication state transitions and token/session lifecycle. Direct evidence is limited to stored lifecycle failures such as session reuse after logout, required rotation failure, recovery bypass or an explicit authentication-state violation. Authentication-looking routes, token strings and HTTP 2xx are insufficient by themselves.
 
 ## 5. Account Enumeration
 
@@ -74,10 +91,13 @@ Authentication-looking surfaces are separated from lifecycle/state violations. D
 
 Primary reasoning references:
 
-- CWE-204 / CWE-208
 - WSTG-IDNT-04
+- CWE-204
+- CWE-208
+- related CWE-203 concepts
+- OWASP A07:2021
 
-The analyzer compares only explicitly controlled known-existing and deliberately non-existing test identities. Direct response or timing differentials require stable, repeated stored evidence; one timing sample is never direct. Uniform responses/timing and rate-limit confounding prevent promotion.
+Direct comparison evidence requires explicitly controlled test identities. Response comparisons normalize status, shape and semantic message class; timing requires repeated controlled samples and rejects rate-limit/challenge confounders. Real-user probing is outside the analyzer contract.
 
 ## 6. DOM-based XSS
 
@@ -85,11 +105,30 @@ The analyzer compares only explicitly controlled known-existing and deliberately
 
 Primary reasoning references:
 
-- CWE-79
-- OWASP A03:2021
-- WSTG-CLNT-01; related WSTG-CLNT-02 / WSTG-CLNT-06
+- CWE-79 — Improper Neutralization of Input During Web Page Generation
+- OWASP A03:2021 — Injection
+- WSTG-CLNT-01 — Testing for DOM-Based Cross Site Scripting
+- related WSTG-CLNT-02 / WSTG-CLNT-06 client-side execution and resource-manipulation concepts
 
-Static source-to-sink proximity is one correlated evidence root, not confirmation. Runtime sink reachability proves only reachability. `unsanitized_dom_flow` is the decisive condition and requires stored runtime reachability, a dangerous/executable context and explicit absence of effective neutralization. Sanitization, Trusted Types, safe DOM APIs and runtime unreachability are controls/contradictions. The analyzer performs no live payload execution.
+The algorithm is deliberately source-to-sink and runtime aware:
+
+1. **Source classification** — determine whether the browser value is actually user-influenced.
+2. **Flow / transformation** — preserve the source-to-sink relation and distinguish one static flow from independent evidence.
+3. **Sink / context** — separate HTML-rendering and executable JavaScript contexts from safe text sinks and neighboring navigation/postMessage families.
+4. **Neutralization controls** — model context-appropriate sanitization, encoding, Trusted Types and safe DOM APIs as evidence against the vulnerability condition.
+5. **Runtime reachability** — accept only stored observations showing a controlled harmless marker reaching the identified dangerous sink.
+6. **Vulnerability condition** — direct DOM-XSS condition evidence requires runtime reachability into an executable/script-capable context plus explicit absence of effective neutralization.
+
+Static source/sink proximity is intentionally **one correlated evidence root**. A row such as `location.search → innerHTML` therefore becomes a hidden hypothesis, not a Potential Finding.
+
+Family-specific direct evidence:
+
+- `runtime_dom_sink_reached` — runtime reachability only; not sufficient for confirmation by itself.
+- `unsanitized_dom_flow` — runtime-reachable dangerous/executable context with effective neutralization explicitly absent; decisive family condition.
+
+Contradicting controls include `sanitization_observed` and `runtime_unreachable`.
+
+The Candidate Engine static JavaScript path is migrated for DOM-XSS: legacy direct insertion is filtered out, the flow is first recorded in `analysis_hypotheses`, and a Potential Finding is created only when independent stored runtime condition evidence is present. No payload execution or active browser validation is performed by the analyzer.
 
 ## 7. postMessage Trust / Web Messaging
 
@@ -100,7 +139,27 @@ Primary reasoning references:
 - WSTG-CLNT-11 — Testing Web Messaging
 - CWE-346 — Origin Validation Error
 
-Message handlers, `event.data` and `postMessage` calls are discovery surface only. Direct target evidence requires stored runtime behavior showing an untrusted sender/origin can reach a sensitive consumer without effective origin/source validation. Strict origin/source checks and effective message validation are contradiction evidence. No cross-origin exploit delivery is performed.
+The algorithm separates five independent questions:
+
+1. **Handler surface** — does client code consume `postMessage` / `MessageEvent` data?
+2. **Origin/source policy** — which sender origins or source windows are intended to be trusted, and is that trust decision actually enforced?
+3. **Message schema** — is `event.data` validated as untrusted input independently of sender trust?
+4. **Sensitive consumer** — does accepted message data reach a DOM, navigation, network, storage, authentication or state-changing consumer?
+5. **Runtime trust decision** — did stored target evidence show an explicitly untrusted sender being accepted and reaching that sensitive consumer?
+
+Static message-handler and sink proximity is intentionally **one correlated evidence root**. The existence of `addEventListener('message', ...)`, `event.data`, a sensitive-looking sink, or a missing origin check does not by itself confirm a vulnerability.
+
+Family-specific evidence:
+
+- `origin_validation_absent` — stored evidence that an effective origin check was absent; useful support, but not confirmation by itself.
+- `untrusted_message_reached_handler` — an explicitly untrusted sender was accepted by the handler, but no sensitive effect is established yet.
+- `untrusted_message_accepted` — an explicitly untrusted sender was accepted and reached the identified sensitive consumer without an effective origin/source trust control; this is the decisive direct condition.
+
+Contradicting controls include `origin_check_observed`, `trusted_origin_only` and `message_schema_rejected`.
+
+Exact origin allow-lists and verified source-window controls are treated as evidence against an unsafe trust decision. A wildcard `targetOrigin` on the sending side is not automatically treated as a receiving-side trust failure. DOM execution is also not inferred from postMessage trust failure alone; DOM-XSS remains a neighboring family with its own confirmation contract.
+
+The Candidate Engine static JavaScript path is migrated for postMessage Trust as well. No automatic cross-origin message injection, exploit payload execution or active browser exploitation is performed by the analyzer.
 
 ## 8. Open Redirect / Navigation Injection
 
@@ -108,21 +167,109 @@ Message handlers, `event.data` and `postMessage` calls are discovery surface onl
 
 Primary reasoning references:
 
-- CWE-601
-- WSTG-CLNT-04 / WSTG-CLNT-06
+- CWE-601 — URL Redirection to Untrusted Site ('Open Redirect')
+- WSTG-CLNT-04 — Testing for Client-side URL Redirect
 
-A user-influenced value near a navigation sink remains a hidden hypothesis. Direct evidence requires a stored controlled external-destination acceptance or equivalent navigation differential. Trusted allow-lists and blocked external destinations are contradictions.
+The algorithm separates five questions:
 
-## 9. Server-Side Request Forgery
+1. **Input surface** — which user-influenced parameter or browser value controls the candidate destination?
+2. **Navigation sink** — does that value reach an actual navigation primitive rather than merely URL parsing, display or logging?
+3. **Destination policy** — is navigation constrained by an exact allow-list, same-origin rule, relative-path-only policy, scheme restriction or normalization step?
+4. **Runtime destination** — did stored target evidence show the user-controlled destination being accepted and the resulting navigation reaching an external origin?
+5. **False-positive review** — do parsed origin semantics, allow-list enforcement or same-origin/relative-only behavior contradict the hypothesis?
+
+Static destination-to-navigation proximity is intentionally **one correlated evidence root**. Parameter names such as `next`, `url`, `returnUrl`, `callback` or `redirect_uri`, and a static `location.href` assignment, do not by themselves create a Potential Finding.
+
+Family-specific evidence:
+
+- `navigation_validation_absent` — stored evidence that effective destination validation was absent; support only, not confirmation.
+- `external_navigation_observed` — an external navigation was stored, but user control of its destination has not been established; not direct evidence.
+- `external_destination_accepted` — a user-controlled destination was accepted and navigation reached an external origin outside the intended trust boundary; this is the decisive direct condition.
+
+Contradicting controls include:
+
+- `destination_allowlist_observed`
+- `same_origin_navigation_enforced`
+- `unsafe_scheme_rejected`
+
+Destination comparisons use parsed scheme/hostname/port semantics rather than substring matching, so a host such as `example.com.evil.test` is not treated as trusted merely because it contains `example.com`. Relative paths and same-origin absolute URLs are not external redirect evidence.
+
+The Candidate Engine static JavaScript path is migrated for Open Redirect:
+
+```text
+static destination → navigation flow
+        ↓
+hidden hypothesis
+        ↓
+dedicated Open Redirect analyzer
+        ↓
+Family Reasoning admission
+        ↓
+independent stored external-navigation condition
+        ↓
+Potential Finding
+```
+
+No automatic redirect request, browser navigation, exploit payload or active validation is performed by the analyzer.
+
+## 9. Server-Side Request Forgery (SSRF)
 
 `family_analyzers.ssrf.SsrfFamilyAnalyzer`
 
 Primary reasoning references:
 
-- CWE-918
-- OWASP SSRF guidance / WSTG server-side request methodology
+- CWE-918 — Server-Side Request Forgery (SSRF)
+- WSTG-INPV-19 — Testing for Server-Side Request Forgery
 
-Remote-destination inputs and server-fetch semantics are structural. Direct evidence is restricted to stored, scope-authorized, controlled callback or server-fetch observations. The analyzer does not probe internal/metadata addresses or generate unrestricted SSRF payloads.
+The algorithm separates five independent questions:
+
+1. **Destination surface** — does the endpoint expose a user-controlled URL/URI/destination field?
+2. **Execution location** — is the network request performed by the server/backend rather than by browser JavaScript?
+3. **Destination policy** — are scheme/host allow-lists, private-network restrictions, redirect revalidation or egress controls actually enforced?
+4. **Stored outbound observation** — does stored target evidence tie the user-controlled destination to an outbound request performed by the server, or to a tester-controlled correlated callback explicitly attributed to server execution?
+5. **Boundary failure** — did the same stored observation show an intended destination restriction being bypassed or a destination expected to be restricted being accepted?
+
+A URL-looking field plus webhook/import/preview/proxy semantics is intentionally **one structural evidence root**. It is useful for recall and hunting, but does not by itself create a Potential Finding. Browser-side fetches are explicitly contradictory evidence for SSRF.
+
+Family-specific evidence is deliberately split by certainty:
+
+- `server_fetch_capability_observed` — server-side remote fetching exists, but user control of that destination is not established; not direct SSRF evidence.
+- `server_fetch_observed` — stored evidence ties a user-controlled destination to a server-side outbound request. This is sufficient for a **Potential Finding**, but not by itself for family-level confirmation.
+- `controlled_callback_observed` — a tester-controlled destination produced a correlated callback that is explicitly attributed to server/backend execution. This may promote a Potential Finding, but still does not by itself prove that a destination trust boundary was bypassed.
+- `destination_policy_bypass_observed` — the same direct server-fetch observation establishes bypass of an intended destination restriction; decisive confirmation condition.
+- `restricted_destination_accepted` — the same direct server-fetch observation records that a destination expected to be restricted was accepted; decisive confirmation condition.
+
+Contradicting controls include:
+
+- `browser_side_fetch_observed`
+- `server_fetch_not_observed`
+- `destination_validation_observed`
+
+`destination_validation_observed` covers stored enforcement of destination/host/scheme allow-lists, private-network or metadata blocking, redirect revalidation and egress policy. A missing visible validation branch is only supporting context and cannot confirm SSRF.
+
+Literal IP destinations may be classified offline as public/private/loopback/link-local/reserved using parsing only. The analyzer performs **no DNS resolution**, no internal or metadata endpoint probing, no arbitrary third-party request, and no automatic active validation.
+
+The Candidate Engine alert/endpoint path is now hypothesis-first for SSRF:
+
+```text
+remote destination + server-fetch semantics
+        ↓
+hidden hypothesis
+        ↓
+dedicated SSRF analyzer
+        ↓
+Family Reasoning admission
+        ↓
+independent stored server-side outbound observation
+        ↓
+Potential Finding
+        ↓
+stored destination-boundary failure
+        ↓
+family confirmation-ready state
+```
+
+This preserves recall while preventing `url`, `webhook`, `preview`, `import`, `proxy` or HTTP 2xx clues from becoming findings without server-side execution evidence.
 
 ## 10. File Upload / Import
 
@@ -130,10 +277,53 @@ Remote-destination inputs and server-fetch semantics are structural. Direct evid
 
 Primary reasoning references:
 
-- CWE-434
-- WSTG-BUSL / file upload security guidance
+- CWE-434 — Unrestricted Upload of File with Dangerous Type
+- WSTG-BUSL-08 — Test Upload of Unexpected File Types
+- WSTG-BUSL-09 — Test Upload of Malicious Files
+- WSTG-CONF-03 — Test File Extensions Handling for Sensitive Information
 
-File inputs and upload/import routes are surface only. Promotion requires stored target behavior such as unsafe-file acceptance, a file-policy differential or content-type bypass using safe test material. Executable-upload evidence is never produced by executing uploaded content.
+The algorithm deliberately separates an upload surface from unsafe acceptance and from the stricter storage/processing condition:
+
+1. **Upload/import surface** — identify a concrete file input plus upload/import operation. `multipart/form-data`, a filename, or an `/upload` route alone is structural context.
+2. **Expected file policy** — model which extensions, MIME/signatures, sizes, names, archive/content types and authorization contexts are intended to be accepted or rejected.
+3. **Controlled inert observation** — direct promotion evidence is accepted only from stored behavior for an explicitly tester-controlled, inert/benign test file that the documented policy says should be rejected.
+4. **Processing/storage boundary** — distinguish simple acceptance from persistence, safe isolation, generated naming, forced-download serving, content scanning, or an execution-capable handler.
+5. **Confirmation boundary** — confirmation is stricter than promotion and requires stored evidence that the file-type/content validation boundary was actually bypassed or that the accepted content reached an execution-capable unsafe serving/storage context.
+
+Structural evidence such as `file_input` plus `upload_operation` / `import_operation` intentionally shares **one evidence root** (`file_upload_structural_surface`). This preserves recall but prevents upload-looking contracts from becoming Potential Findings by themselves.
+
+Family-specific evidence is split by certainty:
+
+- `unsafe_file_accepted` — a controlled inert test file that should have been rejected by policy was accepted. This can promote a **Potential Finding**, but is not confirmation by itself.
+- `file_policy_differential` — expected-reject versus observed-accept behavior for that same controlled inert file.
+- `unsafe_file_persisted` — the same policy-disallowed controlled inert file was stored after acceptance; useful impact context, still not sufficient alone for confirmation.
+- `content_type_bypass_observed` — stored evidence shows the relevant extension/MIME/signature/content validation policy was bypassed for the controlled inert file; confirmation-ready condition.
+- `executable_upload_observed` — stored evidence already records execution-capable or executable handling of the accepted content; confirmation-ready context. The analyzer does not execute or upload a payload itself.
+
+Contradicting controls include:
+
+- `file_type_enforcement_observed` — policy-disallowed file was rejected or extension/MIME/signature/content-scanning controls were actually enforced.
+- `safe_storage_observed` — evidence of isolation/outside-web-root storage, disabled execution, generated filenames, attachment disposition or equivalent serving controls.
+
+The Candidate Engine alert/endpoint path is hypothesis-first for File Upload / Import:
+
+```text
+file input + upload/import operation
+        ↓
+hidden hypothesis
+        ↓
+dedicated File Upload analyzer
+        ↓
+controlled inert expected-reject file accepted
+        ↓
+Potential Finding
+        ↓
+file-type/content bypass or execution-capable unsafe handling
+        ↓
+family confirmation-ready state
+```
+
+The analyzer is strictly read-only over stored observations. It performs **no active upload**, no payload execution, no malware or weaponized sample delivery, no arbitrary filesystem write, and no automatic serving/navigation test. Path/filename escape remains a neighboring Path Traversal family unless independently established.
 
 ## 11. Path Traversal
 
@@ -141,11 +331,38 @@ File inputs and upload/import routes are surface only. Promotion requires stored
 
 Primary reasoning references:
 
-- CWE-22 — Improper Limitation of a Pathname to a Restricted Directory
-- related CWE-23 / CWE-36
-- WSTG-ATHZ-01
+- CWE-22 — Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)
+- related CWE-23 — Relative Path Traversal
+- related CWE-36 — Absolute Path Traversal
+- WSTG-ATHZ-01 — Testing Directory Traversal File Include
 
-Path/filename input plus a file operation shares one structural evidence root. `path_escape_observed` requires stored behavior from an explicitly controlled, non-sensitive test resource. Stronger confirmation requires canonicalization-boundary bypass or out-of-root controlled access/write evidence. Canonicalization/base-directory enforcement are contradictions. No sensitive-path request or filesystem exploit is generated.
+The algorithm separates path/filename surface, expected root policy, controlled boundary observation, canonicalization/root enforcement, and a stricter confirmation boundary. Structural path input plus a file operation intentionally shares one evidence root, so it remains a hidden hypothesis by itself.
+
+`path_escape_observed` requires stored behavior from an explicitly controlled, non-sensitive test resource showing that a path expected to remain contained or be rejected resolved outside the intended root and reached the relevant file operation. This may promote a Potential Finding, but does not by itself make the family confirmation-ready.
+
+Confirmation requires the same controlled observation to establish at least one stronger filesystem-boundary condition:
+
+- `canonicalization_bypass_observed`
+- `out_of_root_file_access_observed`
+- `out_of_root_file_write_observed`
+
+`canonicalization_enforced` and `base_directory_enforced` are contradiction evidence when the relevant containment controls are actually observed. Confirmation signals cannot hitchhike from a different uncontrolled observation.
+
+```text
+path/filename + file operation
+        ↓
+hidden hypothesis
+        ↓
+controlled non-sensitive root escape
+        ↓
+Potential Finding
+        ↓
+out-of-root access/write or canonicalization-boundary bypass
+        ↓
+family confirmation-ready state
+```
+
+The analyzer is read-only over stored observations. It performs **no active request**, no filesystem read/write, no archive extraction, no sensitive-path request and no traversal-payload generation. File Upload and Information Disclosure remain neighboring families and are not inferred from traversal surface alone.
 
 ## 12. Information Disclosure
 
@@ -153,11 +370,34 @@ Path/filename input plus a file operation shares one structural evidence root. `
 
 Primary reasoning references:
 
-- CWE-200
-- related CWE-209 / CWE-497 / CWE-1295
-- WSTG-ERRH-01 / WSTG-ERRH-02 / WSTG-INFO-05
+- CWE-200 — Exposure of Sensitive Information to an Unauthorized Actor
+- related CWE-209 — Generation of Error Message Containing Sensitive Information
+- related CWE-497 — Exposure of Sensitive System Information to an Unauthorized Control Sphere
+- related CWE-1295 — Debug Messages Revealing Unnecessary Information
+- WSTG-ERRH-01 — Testing for Improper Error Handling
+- WSTG-ERRH-02 — Testing for Stack Traces
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
 
-Debug strings, stack markers, internal-looking paths, versions and sensitive names remain structural. Direct evidence requires stored response behavior showing non-public information outside its intended audience. Intended-public metadata and redaction enforcement are contradictions. Raw sensitive values are not copied into analyzer output.
+The analyzer separates marker discovery from actual visibility-boundary evidence. Debug strings, stack-trace markers, framework/server versions, internal-looking paths, `token`/`secret` names and source-map references remain structural surface only. `sensitive_marker` and `stored_evidence` deliberately share one evidence root, so marker persistence alone cannot promote a Potential Finding.
+
+Direct target evidence requires stored response behavior showing explicitly sensitive/private information outside its intended audience. The canonical direct types are `sensitive_response_observed` and `private_field_publicly_observed`; error/debug disclosure may additionally emit `error_detail_exposure_observed` when the stored category is actually sensitive internal detail rather than a generic error status.
+
+`intended_public_metadata` and `redaction_enforced` are contradictions. Authorized-owner visibility does not become disclosure. Secret/token-only observations prefer `secret_exposure`, source-map-only observations prefer `source_map_exposure`, and GraphQL-specific excessive-field exposure remains a neighboring GraphQL family.
+
+```text
+debug/internal/sensitive-looking marker
+        ↓
+hidden hypothesis
+        ↓
+stored response + explicit non-public policy + public/unauthorized visibility
+        ↓
+Sensitive Information Disclosure Potential Finding
+        ↓
+analyst confirmation using minimal redacted evidence
+```
+
+The analyzer stores field names, categories and booleans only. It performs no active request, credential validation, private-data retrieval or payload generation, and it never copies raw sensitive values into analyzer output.
+
 
 ## 13. Source-map Exposure
 
@@ -165,10 +405,19 @@ Debug strings, stack markers, internal-looking paths, versions and sensitive nam
 
 Primary reasoning references:
 
-- CWE-200 / CWE-497 / CWE-540
-- WSTG-INFO-05
+- CWE-200 — Exposure of Sensitive Information to an Unauthorized Actor
+- related CWE-497 — Exposure of Sensitive System Information to an Unauthorized Control Sphere
+- related CWE-540 — Inclusion of Sensitive Information in Source Code
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
 
-A `sourceMappingURL`, `.map` filename or source-map URL is discovery surface only. Promotion requires stored evidence that the passive collector actually retrieved the map without credentials and that the same map contains meaningful internal source structure, or explicit stored sensitive-source review evidence. The legacy static direct-candidate path is closed.
+A `sourceMappingURL` directive, `.map` filename or source-map URL is discovery surface only. Promotion requires stored evidence that the passive collector actually retrieved the map without credentials and that the same map contains internal source structure, or explicit stored review evidence of sensitive source content.
+
+The static Candidate Engine path is hypothesis-first: `source_map_intelligence → dedicated analyzer → Family Reasoning admission → promotion`. The legacy direct `_insert_candidate()` path is filtered out.
+
+`source_map_publicly_reachable` is emitted only when the same stored map contains meaningful internal source structure. `sensitive_source_content_observed` can strengthen or promote a hypothesis, but it is not confirmation-ready until public reachability of the same map is established.
+
+The analyzer performs no active or credentialed request and never copies raw source contents, internal paths or secret values into analyzer output.
+
 
 ## 14. Secret Exposure
 
@@ -177,76 +426,73 @@ A `sourceMappingURL`, `.map` filename or source-map URL is discovery surface onl
 Primary reasoning references:
 
 - CWE-798 — Use of Hard-coded Credentials
-- related CWE-321 / CWE-540 / CWE-200
-- WSTG-INFO-05
+- related CWE-321 — Use of Hard-coded Cryptographic Key
+- related CWE-540 / CWE-200 — sensitive information in source / exposure boundary concepts
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
 - OWASP Secrets Management Cheat Sheet
 
-Secret-looking field names are discovery surface only. Stored JavaScript is classified offline; matched material is fingerprinted/redacted and raw credential values are discarded. Complete private-key structures, paired cloud credential material and strong provider-specific secret formats may produce `credential_material_confirmed`. JWT syntax remains a candidate rather than proof of a live or privileged token. Placeholders, templates, provider test credentials and publishable/public client identifiers are filtered before promotion. No online credential validation is performed.
+The analyzer separates a secret-looking name from credential material, exposure context, placeholder/public-client-identifier controls, and lifecycle evidence. `apiKey`, `clientSecret`, `accessToken`, `authToken` and `password` names are discovery surface only.
 
-## 15. GraphQL Authorization
+Stored JavaScript blobs are classified **offline**. The detector fingerprints and immediately discards matched material; it persists only the normalized kind, opaque fingerprint, confidence, assessment and safe reason text. Complete private-key blocks, paired cloud credential material and strong provider-specific secret formats may emit `credential_material_confirmed`. JWT syntax remains a candidate rather than proof of a live or privileged token.
 
-`family_analyzers.graphql_authorization.GraphqlAuthorizationFamilyAnalyzer`
+Examples, templates, provider test credentials and explicitly publishable/public client identifiers are filtered before promotion. `live_secret_context` is accepted only from already-authorized stored lifecycle evidence. The analyzer performs no provider/API request, credential-use request or online validity check.
 
-GraphQL object identifiers and operations share one static evidence root and remain hidden by themselves. Direct evidence requires controlled test identities and test-owned objects showing `graphql_unauthorized_object_response` or `graphql_authorization_differential`. Resolver authorization and controlled out-of-scope denial are contradictions. The historical GraphQL static direct-insertion path is migrated to hypothesis-first admission.
+```text
+secret-looking marker / redacted pattern
+        ↓
+hidden hypothesis
+        ↓
+concrete credential-shaped material + client exposure context
+        ↓
+Potential Finding
+        ↓
+structurally confirmed credential material OR authorized stored live-status evidence
+        ↓
+family confirmation-ready state
+```
 
-## 16. GraphQL Data Exposure
+The historical `secret_intelligence → _insert_candidate()` static bypass is migrated to `dedicated analyzer → record_hypothesis → Family Reasoning admission → promotion`. Potential Finding and confirmation remain separate states. Raw credentials, tokens, passwords and private-key bodies are never copied into analyzer output.
 
-`family_analyzers.graphql_data_exposure.GraphqlDataExposureFamilyAnalyzer`
 
-Sensitive-looking GraphQL fields are structural only. Direct evidence requires a controlled role context, an explicit restricted-field policy and stored response-shape evidence such as `sensitive_graphql_response_observed` or `field_authorization_differential`. Raw PII/tokens/financial values are not copied into analyzer output.
+## 15–21. Completed Dedicated Family Analyzers
 
-## 17. Business Logic
+The remaining seven Family Reasoning contracts are now production-routed through independent analyzers:
 
-`family_analyzers.business_logic.BusinessLogicFamilyAnalyzer`
+15. `graphql_authorization` — GraphQL resolver/object authorization. Static identifiers and operations share one evidence root; direct evidence requires controlled test identities and test-owned objects.
+16. `graphql_data_exposure` — GraphQL field/property exposure. Sensitive field names are structural only; controlled role/field-policy response evidence is authoritative.
+17. `business_logic` — workflow/state-machine reasoning backed by an offline sequence miner over stored endpoints. Direct evidence requires a documented invariant plus reversible controlled test behavior.
+18. `race_condition` — single-use/idempotency/atomicity reasoning. The analyzer never launches concurrency and accepts direct evidence only from previously authorized concurrency observations on test-owned resources.
+19. `websocket_authorization` — channel/topic/resource authorization. Client WebSocket surfaces remain hidden until independent channel policy or controlled authorization evidence exists.
+20. `cors_misconfiguration` — exact CORS policy + independent sensitive-response context + controlled-origin behavior. Wildcard/reflection headers alone are not confirmation.
+21. `sensitive_caching` — cache policy + independent sensitive-response context + redacted shared-cache behavior. No response bodies or unrelated-user content are stored by the analyzer.
 
-Business Logic uses the offline `workflow_intelligence` substrate to correlate stored workflow endpoints, state-changing methods, workflow markers and server-controlled values. Keywords such as checkout, refund, transfer, coupon or confirm are not vulnerabilities. Direct evidence requires a documented expected invariant and reversible controlled test behavior showing `workflow_invariant_violation`, `invalid_transition_accepted` or `server_value_override_observed`. No workflow action is executed by the analyzer.
+Business Logic and Race Condition share only the offline `workflow_intelligence` substrate for normalization/correlation; each keeps separate direct-evidence contracts and false-positive rules. `remaining_common` similarly provides policy-state normalization but is not a registered analyzer and cannot create target evidence.
 
-## 18. Race Condition
+Static GraphQL and WebSocket Candidate Engine bypasses are migrated to hypothesis-first handling. GraphQL/WebSocket/cache protocol findings remain correlation surfaces and no longer bypass Family Reasoning via protocol-severity direct insertion.
 
-`family_analyzers.race_condition.RaceConditionFamilyAnalyzer`
+## Family Analyzer completion status
 
-Race reasoning models single-use/idempotency/atomicity semantics from stored workflow context. It never launches concurrent requests. Direct evidence is accepted only from already-authorized stored concurrency observations using test-owned resources, such as `duplicate_operation_observed` or `non_atomic_transition_observed`. Observed idempotency and atomic transitions are contradictions.
-
-## 19. WebSocket Authorization
-
-`family_analyzers.websocket_authorization.WebsocketAuthorizationFamilyAnalyzer`
-
-WebSocket URLs, channel names, topics and subscription messages are discovery surface. Direct evidence requires controlled test identities and test-owned channels/resources showing an unauthorized subscription or channel authorization differential. The analyzer opens no socket, sends no message and performs no channel enumeration. Legacy static WebSocket direct insertion is closed.
-
-## 20. CORS Misconfiguration
-
-`family_analyzers.cors_misconfiguration.CorsMisconfigurationFamilyAnalyzer`
-
-CORS headers are policy surface, not exploitability. Wildcard or reflected-looking ACAO values do not confirm a finding. Promotion requires an independent sensitive/authenticated response context; direct evidence requires already-stored controlled unintended-origin behavior such as `untrusted_origin_allowed` or `credentialed_cross_origin_read`. Trusted-origin-only policy, disabled credentials and browser-blocked reads are contradictions. No credentialed cross-origin request is performed by the analyzer.
-
-## 21. Sensitive Caching
-
-`family_analyzers.sensitive_caching.SensitiveCachingFamilyAnalyzer`
-
-Cacheability metadata is separated from sensitive/user-specific response context. Direct evidence requires redacted, controlled shared-cache behavior such as `shared_cache_sensitive_response` or `cross_user_cache_observed` using controlled test identities. Private/no-store policy, user-specific cache-key separation and shared-cache bypass are contradictions. The analyzer stores no sensitive response body and performs no cache poisoning or cross-user request.
-
-## Shared reasoning substrates
-
-`remaining_common.py` provides normalization and canonical Family Reasoning policy-state evaluation for the final dedicated analyzers. It is not a registered analyzer and cannot create target evidence.
-
-`workflow_intelligence.py` provides offline workflow/sequence correlation for Business Logic and Race Condition. It reads stored analysis results only; it performs no network request or business action. The two families keep separate direct-evidence and contradiction contracts.
-
-## Candidate Engine compatibility
-
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the production integration layer.
-
-All **21 canonical families** now have dedicated analyzers. Static client/intelligence families that formerly had direct legacy insertion paths are routed through dedicated hypothesis/admission handling where migrated. GraphQL and WebSocket static bypasses are closed, and high-priority GraphQL/WebSocket/cache protocol findings remain correlation surfaces instead of bypassing Family Reasoning.
-
-## Write-up pattern library
-
-Family analyzers may use the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only indicates resemblance to a known pattern. It never adds support evidence, satisfies admission/confirmation, or raises target-evidence confidence.
-
-## Router status
-
-Production-routed dedicated analyzers: **21 / 21**.
+Production-routed analyzers: **21 / 21**.
 
 Pending dedicated analyzers: **0**.
 
-Generic Family Analyzer fallback: **disabled**.
+The router has no generic family-analyzer fallback. Every canonical family in `FAMILY_ORDER` resolves to an independently versioned analyzer. Knowledge/write-up similarity remains non-evidentiary for every family.
 
-Every canonical family in `FAMILY_ORDER` resolves to an independently versioned analyzer. Dedicated Family Analyzer migration is complete; subsequent work is calibration, shared-pipeline cleanup and evidence-quality refinement rather than adding missing family algorithms.
+## Write-up pattern library
+
+Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
+
+## Compatibility
+
+`app/bola_intelligence.py` remains the BOLA compatibility import surface.
+
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust, Open Redirect, Source-map Exposure and Secret Exposure additionally migrate their static JavaScript/intelligence paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+
+
+## Router status
+
+All **21 / 21** canonical families are production-routed through dedicated analyzers. Pending: **0**. Generic fallback: **disabled**.
+
+## Migration order
+
+Dedicated Family Analyzer migration is complete. Further work is refinement, calibration and shared-pipeline cleanup rather than adding missing family algorithms.
