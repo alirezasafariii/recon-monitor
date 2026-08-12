@@ -24,18 +24,32 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          from pathlib import Path
           from raw_recon_corpus import prior_source_index
           from raw_recon_v3_corpus import V3_PRIOR_CORPORA
           prior = prior_source_index(V3_PRIOR_CORPORA)
+          v2 = json.loads(Path('benchmarks/raw/sources/v2_candidates.json').read_text())
+          v2_roots, v2_urls = set(), set()
+          for rows in (v2.get('candidates_by_family') or {}).values():
+              for row in rows if isinstance(rows, list) else []:
+                  if not isinstance(row, dict):
+                      continue
+                  if row.get('source_root'): v2_roots.add(str(row['source_root']))
+                  if row.get('canonical_advisory_url'): v2_urls.add(str(row['canonical_advisory_url']))
           candidates = [
             ("GHSL-2023-234", "https://securitylab.github.com/advisories/GHSL-2023-232_GHSL-2023-234_Flowise/"),
-            ("GHSL-2024-034", "https://securitylab.github.com/advisories/GHSL-2024-034_memos/"),
-            ("GHSL-2023-259", "https://securitylab.github.com/advisories/GHSL-2023-258_GHSL-2023-259_tamagui/"),
-            ("GHSL-2023-045", "https://securitylab.github.com/advisories/GHSL-2023-045_Bouncy_Castle_For_Java/"),
+            ("CVE-2020-8164", "https://groups.google.com/g/rubyonrails-security/c/f6ioe4sdpbY"),
             ("GHSL-2020-067", "https://securitylab.github.com/advisories/GHSL-2020-067-apache_ofbiz/"),
           ]
           report = []
           for root, url in candidates:
-            report.append({"root": root, "url": url, "root_overlap": root in prior["roots"], "url_overlap": url in prior["urls"]})
+              report.append({
+                  "root": root,
+                  "url": url,
+                  "prior_root_overlap": root in prior["roots"],
+                  "prior_url_overlap": url in prior["urls"],
+                  "v2_candidate_root_seen": root in v2_roots,
+                  "v2_candidate_url_seen": url in v2_urls,
+              })
           print(json.dumps(report, indent=2))
           PY
