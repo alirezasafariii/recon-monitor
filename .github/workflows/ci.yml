@@ -1,4 +1,4 @@
-name: Recon Monitor Family Completion
+name: Recon Monitor Family Completion Diagnose
 
 on:
   push:
@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  complete:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Recover validated migration scripts
+      - name: Recover migration scripts
         shell: bash
         run: |
           set -euo pipefail
@@ -39,10 +39,8 @@ jobs:
           Path('/tmp/bootstrap.py').write_text(code, encoding='utf-8')
           PY
           python /tmp/bootstrap.py
-
           cat > /tmp/protocol.py <<'PY'
           from pathlib import Path
-
           p = Path("app/behavioral_intelligence.py")
           text = p.read_text(encoding="utf-8")
           fn = text.index("def generate_behavioral_candidates(")
@@ -54,7 +52,7 @@ jobs:
           p.write_text(text, encoding="utf-8")
           PY
 
-      - name: Apply production cutover
+      - name: Apply and print transformed context
         shell: bash
         run: |
           set -euo pipefail
@@ -62,39 +60,7 @@ jobs:
           python /tmp/protocol.py
           python /tmp/tests.py
           python /tmp/docs.py
-
-      - name: Compile and run focused completion regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m py_compile app/family_analyzers/*.py app/bug_candidates.py app/behavioral_intelligence.py tests/test_family_analyzers_completion_v888.py
-          python -m unittest tests.test_family_analyzers_completion_v888 -q
-
-      - name: Run full unit suite
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-
-      - name: Run integration
-        run: python tests/integration_runner.py
-
-      - name: Normalize manifest and commit completion
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import pathlib
-          import subprocess
-
-          standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
-          names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
-          lines = []
-          for name in sorted(set(x for x in names if x and x != 'MANIFEST.sha256')):
-              digest = standard_ci if name == '.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
-              lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/bug_candidates.py app/behavioral_intelligence.py app/family_analyzers tests docs/FAMILY_ANALYZERS.md MANIFEST.sha256
-          git commit -m 'Complete all 21 dedicated family analyzers'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
+          echo '--- bug_candidates.py 1210-1270 ---'
+          nl -ba app/bug_candidates.py | sed -n '1210,1270p'
+          echo '--- syntax result ---'
+          python -m py_compile app/bug_candidates.py || true
