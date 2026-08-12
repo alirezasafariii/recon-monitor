@@ -21,122 +21,36 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build completion migration scripts
+      - name: Recover validated migration scripts
         shell: bash
         run: |
           set -euo pipefail
-          git show 9bb4e8a55bc44bad9e91e4dd74f69a5e8f9c6122:.github/workflows/ci.yml > /tmp/original-completion.yml
+          git show d2b57f0dacba73d2ed6119a6662207e0288f712c:.github/workflows/ci.yml > /tmp/validated-bootstrap.yml
           python - <<'PY'
           from pathlib import Path
-
-          text = Path('/tmp/original-completion.yml').read_text(encoding='utf-8')
+          text = Path('/tmp/validated-bootstrap.yml').read_text(encoding='utf-8')
           marker = "          python - <<'PY'\n"
           end_marker = "\n          PY"
-          blocks = []
-          pos = 0
-          while True:
-              try:
-                  start = text.index(marker, pos) + len(marker)
-              except ValueError:
-                  break
-              end = text.index(end_marker, start)
-              raw = text[start:end]
-              blocks.append('\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n')
-              pos = end + len(end_marker)
-          if len(blocks) < 5:
-              raise SystemExit(f'expected at least five python blocks, got {len(blocks)}')
+          start = text.index(marker) + len(marker)
+          end = text.index(end_marker, start)
+          raw = text[start:end]
+          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
+          Path('/tmp/bootstrap.py').write_text(code, encoding='utf-8')
+          PY
+          python /tmp/bootstrap.py
 
-          apply = blocks[0]
+          cat > /tmp/protocol.py <<'PY'
+          from pathlib import Path
 
-          def replace_section(code: str, start_marker: str, end_marker: str, replacement: str) -> str:
-              start = code.index(start_marker)
-              end = code.index(end_marker, start) + len(end_marker)
-              return code[:start] + replacement + code[end:]
-
-          apply = replace_section(
-              apply,
-              "direct_anchor = '''",
-              "replace_once(direct_anchor, direct_new)\n",
-              '''direct_start = text.index("_FAMILY_DIRECT_TYPES = {")
-          direct_end = text.index("\\n}\\n\\n_base.FAMILY_EVIDENCE_SCHEMAS", direct_start)
-          direct_entries = """
-              \"graphql_authorization\": {\"graphql_unauthorized_object_response\", \"graphql_authorization_differential\"},
-              \"graphql_data_exposure\": {\"sensitive_graphql_response_observed\", \"field_authorization_differential\"},
-              \"business_logic\": {\"workflow_invariant_violation\", \"invalid_transition_accepted\", \"server_value_override_observed\"},
-              \"race_condition\": {\"duplicate_operation_observed\", \"non_atomic_transition_observed\"},
-              \"websocket_authorization\": {\"unauthorized_subscription_observed\", \"channel_authorization_differential\"},
-              \"cors_misconfiguration\": {\"untrusted_origin_allowed\", \"credentialed_cross_origin_read\"},
-              \"sensitive_caching\": {\"shared_cache_sensitive_response\", \"cross_user_cache_observed\"},
-          """
-          text = text[:direct_end] + direct_entries + text[direct_end:]
-          '''.replace('          ', ''),
-          )
-
-          set_start = apply.index("replace_once(\n    '    \\\"information_disclosure\\\",\\n}\\n\\n_INCOMPLETE_STATIC_GROUPS'") if "replace_once(\n    '    \\\"information_disclosure\\\"" in apply else apply.index("replace_once(\n    '    \"information_disclosure\"")
-          set_end = apply.index("\n)\n", set_start) + 3
-          set_replacement = '''dedicated_start = text.index("_DEDICATED_ALERT_FAMILIES = {")
-          dedicated_end = text.index("\\n}\\n\\n_INCOMPLETE_STATIC_GROUPS", dedicated_start)
-          dedicated_entries = """
-              \"business_logic\",
-              \"race_condition\",
-              \"cors_misconfiguration\",
-              \"sensitive_caching\",
-          """
-          text = text[:dedicated_end] + dedicated_entries + text[dedicated_end:]
-          '''.replace('          ', '')
-          apply = apply[:set_start] + set_replacement + apply[set_end:]
-
-          apply = replace_section(
-              apply,
-              "alert_anchor = '''",
-              "replace_once(alert_anchor, alert_new)\n",
-              '''dedicated_fn_start = text.index("def _dedicated_family_result(")
-          dedicated_return = text.index("\\n    return None\\n", dedicated_fn_start)
-          alert_branches = """
-
-              if family == \"business_logic\":
-                  return analyze_business_logic_signal(
-                      db, analysis_id=analysis_id, target=target, endpoint=stored[\"endpoint\"], method=stored[\"method\"],
-                      body_fields=stored[\"body_fields\"], query_fields=stored[\"query_fields\"], path_fields=stored[\"path_fields\"],
-                      details=details, business_context=stored[\"business_context\"], semantic_text=stored[\"semantic_text\"],
-                  )
-              if family == \"race_condition\":
-                  return analyze_race_condition_signal(
-                      db, analysis_id=analysis_id, target=target, endpoint=stored[\"endpoint\"], method=stored[\"method\"],
-                      body_fields=stored[\"body_fields\"], query_fields=stored[\"query_fields\"], path_fields=stored[\"path_fields\"],
-                      details=details, business_context=stored[\"business_context\"], semantic_text=stored[\"semantic_text\"],
-                  )
-              if family == \"cors_misconfiguration\":
-                  return analyze_cors_misconfiguration_signal(
-                      db, analysis_id=analysis_id, target=target, endpoint=stored[\"endpoint\"], details=details,
-                      business_context=stored[\"business_context\"], semantic_text=stored[\"semantic_text\"],
-                  )
-              if family == \"sensitive_caching\":
-                  return analyze_sensitive_caching_signal(
-                      db, analysis_id=analysis_id, target=target, endpoint=stored[\"endpoint\"], details=details,
-                      business_context=stored[\"business_context\"], semantic_text=stored[\"semantic_text\"],
-                  )
-          """
-          text = text[:dedicated_return] + alert_branches + text[dedicated_return:]
-          '''.replace('          ', ''),
-          )
-
-          protocol = '''from pathlib import Path
           p = Path("app/behavioral_intelligence.py")
           text = p.read_text(encoding="utf-8")
           fn = text.index("def generate_behavioral_candidates(")
-          anchor = "        if not family:\\n            continue\\n"
+          anchor = "        if not family:\n            continue\n"
           pos = text.index(anchor, fn) + len(anchor)
-          guard = "        if family in {\\\"graphql_authorization\\\", \\\"websocket_authorization\\\", \\\"sensitive_caching\\\"}:\\n            continue\\n"
+          guard = "        if family in {\"graphql_authorization\", \"websocket_authorization\", \"sensitive_caching\"}:\n            continue\n"
           if guard not in text[fn:]:
               text = text[:pos] + guard + text[pos:]
           p.write_text(text, encoding="utf-8")
-          '''.replace('          ', '')
-
-          Path('/tmp/apply.py').write_text(apply, encoding='utf-8')
-          Path('/tmp/protocol.py').write_text(protocol, encoding='utf-8')
-          Path('/tmp/tests.py').write_text(blocks[2], encoding='utf-8')
-          Path('/tmp/docs.py').write_text(blocks[3], encoding='utf-8')
           PY
 
       - name: Apply production cutover
@@ -169,6 +83,7 @@ jobs:
           import hashlib
           import pathlib
           import subprocess
+
           standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
           names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
           lines = []
