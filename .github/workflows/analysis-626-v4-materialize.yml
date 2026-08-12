@@ -53,7 +53,7 @@ jobs:
           from raw_recon_v4_corpus import validate_v4_corpus
 
           shortlist = json.loads(Path('benchmarks/raw/sources/v4_shortlist.json').read_text(encoding='utf-8'))
-          cases = load_raw_cases([Path('benchmarks/raw/analysis_raw_v4.jsonl')])
+          cases = load_raw_cases(Path('benchmarks/raw/analysis_raw_v4.jsonl'))
           report = json.loads(Path('benchmarks/raw/sources/v4_materialization_report.json').read_text(encoding='utf-8'))
           validation = validate_v4_corpus(cases, shortlist=shortlist)
           print(json.dumps({
@@ -67,7 +67,7 @@ jobs:
               'grounding_overlap': validation['grounding_writeup_overlap_count'],
               'raw_collisions': validation['positive_control_raw_collision_count'],
               'observable_delta_rate': validation['positive_observable_delta_rate'],
-              'base_label_leakage': validation.get('label_leakage_count', 0),
+              'label_leakage': validation['label_leakage_count'],
               'scoring_executed': report['scoring_executed'],
               'corpus_sha256': report['corpus_sha256'],
           }, indent=2, sort_keys=True))
@@ -82,6 +82,7 @@ jobs:
           assert validation['grounding_writeup_overlap_count'] == 0
           assert validation['positive_control_raw_collision_count'] == 0
           assert validation['positive_observable_delta_rate'] == 1.0
+          assert validation['label_leakage_count'] == 0
           assert report['scoring_executed'] is False
           PY
 
