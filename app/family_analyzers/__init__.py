@@ -10,6 +10,7 @@ from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .path_traversal import PathTraversalFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
+from .source_map_exposure import SourceMapExposureFamilyAnalyzer
 from .ssrf import SsrfFamilyAnalyzer
 from .router import analyzer_for_family, pending_families, registered_families, router_status
 
@@ -29,6 +30,7 @@ __all__ = [
     "FileUploadFamilyAnalyzer",
     "PathTraversalFamilyAnalyzer",
     "InformationDisclosureFamilyAnalyzer",
+    "SourceMapExposureFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
