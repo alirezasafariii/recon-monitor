@@ -32,15 +32,15 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "source_map_exposure": {
-        "source_root": "GHSA-4w7w-66w2-5vf9",
-        "source_project": "vitejs/vite",
-        "fetch_url": "https://api.github.com/repos/vitejs/vite/security-advisories/GHSA-4w7w-66w2-5vf9",
-        "canonical_advisory_url": "https://github.com/vitejs/vite/security/advisories/GHSA-4w7w-66w2-5vf9",
+        "source_root": "GHSA-4x5r-pxfx-6jf8",
+        "source_project": "babel/babel",
+        "fetch_url": "https://api.github.com/advisories/GHSA-4x5r-pxfx-6jf8",
+        "canonical_advisory_url": "https://github.com/babel/babel/security/advisories/GHSA-4x5r-pxfx-6jf8",
         "expected_cwes": {"CWE-200", "CWE-22"},
         "required_groups": (
-            ("source map", "sourcemap", ".map"),
-            ("returned to the browser", "retrieve", "returned"),
-            ("outside the project root", "outside the project", "sensitive content"),
+            ("source map", "sourcemap", "sourcemappingurl"),
+            ("read any source map", "read the output source code", "allow an attacker to read"),
+            ("input source map", "inputsourcemap", "#sourcemappingurl", "source map file"),
         ),
     },
     "improper_inventory_management": {
