@@ -66,13 +66,38 @@
     "case_count": 96,
     "path": "benchmarks/raw/analysis_raw_v3.jsonl",
     "positive_family_count": 18,
-    "scored": false,
+    "scored": true,
     "sealed": true,
     "sha256": "ee17e481dd543a8cd0a9c35c07e2eab32f6cbac8e15d62016c9b953799e6d10f",
     "source_project_count": 24,
     "source_root_count": 24
   },
-  "evaluation_status": "sealed_unscored",
+  "evaluation": {
+    "evaluated_at": "2026-08-12",
+    "evaluation_trigger_sha": "4fb15070d2c084bcf14f5cbf91d8f798bf483713",
+    "first_and_only_fresh_run_id": "31559204156",
+    "fresh_run_consumed": true,
+    "metrics": {
+      "abstention_accuracy": 1.0,
+      "admission_precision": 1.0,
+      "admission_recall": 1.0,
+      "condition_extraction_precision": 1.0,
+      "condition_extraction_recall": 1.0,
+      "end_to_end_accuracy": 1.0,
+      "false_promotion_rate": 0.0,
+      "prior_source_root_overlap_rate": 0.0,
+      "raw_label_leakage_rate": 0.0,
+      "routing_top1_accuracy": 0.930556,
+      "routing_top3_accuracy": 0.958333,
+      "wrong_family_promotion_rate": 0.0
+    },
+    "quality_gate": {
+      "failures": [],
+      "passed": true
+    },
+    "result_path": "benchmarks/raw/results/analysis_raw_v3_first_blind.json"
+  },
+  "evaluation_status": "evaluated_once_consumed",
   "frozen_engine": {
     "analysis_engine_version": "6.14.0",
     "detector_execution_engine_version": "1.2.0",
@@ -141,10 +166,27 @@
   "reuse_policy": "After the first fresh evaluation, v3 is consumed. Every later run must be explicitly labeled regression-only and must never be described as fresh or blind.",
   "schema_version": "1.0",
   "seal": {
+    "consumed_at": "2026-08-12",
     "corpus_materialized": true,
     "corpus_sealed_at": "2026-08-12",
     "corpus_sha256": "ee17e481dd543a8cd0a9c35c07e2eab32f6cbac8e15d62016c9b953799e6d10f",
-    "note": "Raw v3 corpus validated and cryptographically sealed before any detector benchmark scoring.",
+    "evaluation_trigger_sha": "4fb15070d2c084bcf14f5cbf91d8f798bf483713",
+    "first_and_only_fresh_run_id": "31559204156",
+    "metrics": {
+      "abstention_accuracy": 1.0,
+      "admission_precision": 1.0,
+      "admission_recall": 1.0,
+      "condition_extraction_precision": 1.0,
+      "condition_extraction_recall": 1.0,
+      "end_to_end_accuracy": 1.0,
+      "false_promotion_rate": 0.0,
+      "prior_source_root_overlap_rate": 0.0,
+      "raw_label_leakage_rate": 0.0,
+      "routing_top1_accuracy": 0.930556,
+      "routing_top3_accuracy": 0.958333,
+      "wrong_family_promotion_rate": 0.0
+    },
+    "note": "Raw v3 was scored exactly once as a fresh holdout and is now permanently consumed. Any future execution is regression-only and must never be described as fresh or blind.",
     "positive_control_raw_collision_count": 0,
     "positive_families": [
       "account_enumeration",
@@ -167,7 +209,9 @@
       "unrestricted_resource_consumption"
     ],
     "positive_observable_delta_rate": 1.0,
-    "scored": false,
+    "quality_gate_passed": true,
+    "result_path": "benchmarks/raw/results/analysis_raw_v3_first_blind.json",
+    "scored": true,
     "source_projects": [
       "FlowiseAI/Flowise",
       "MervinPraison/PraisonAI",

@@ -1,0 +1,3657 @@
+{
+  "admission_errors": [],
+  "by_kind": {
+    "near_miss": {
+      "count": 24,
+      "end_to_end_pass": 24,
+      "end_to_end_pass_rate": 1.0
+    },
+    "positive": {
+      "count": 24,
+      "end_to_end_pass": 24,
+      "end_to_end_pass_rate": 1.0
+    },
+    "secure_negative": {
+      "count": 24,
+      "end_to_end_pass": 24,
+      "end_to_end_pass_rate": 1.0
+    },
+    "sparse_noisy": {
+      "count": 24,
+      "end_to_end_pass": 24,
+      "end_to_end_pass_rate": 1.0
+    }
+  },
+  "case_count": 96,
+  "cases": [
+    {
+      "admitted_families": [
+        "account_enumeration"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "response_difference"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "account_enumeration",
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "account_enumeration"
+      ],
+      "expected_condition_signals": [
+        "response_difference"
+      ],
+      "family": "account_enumeration",
+      "id": "GHSA-434h-p4gx-jm89-positive",
+      "predicted_condition_families": [
+        "account_enumeration"
+      ],
+      "rank_required": true,
+      "source_project": "dpgaspar/Flask-AppBuilder",
+      "source_root": "GHSA-434h-p4gx-jm89",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "response_difference"
+      ],
+      "target_state": "admitted",
+      "top1": "account_enumeration",
+      "top1_correct": true,
+      "top3": [
+        "account_enumeration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "account_enumeration",
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "account_enumeration",
+      "id": "GHSA-434h-p4gx-jm89-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "dpgaspar/Flask-AppBuilder",
+      "source_root": "GHSA-434h-p4gx-jm89",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "account_enumeration",
+      "top1_correct": true,
+      "top3": [
+        "account_enumeration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "account_enumeration",
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "account_enumeration",
+      "id": "GHSA-434h-p4gx-jm89-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "dpgaspar/Flask-AppBuilder",
+      "source_root": "GHSA-434h-p4gx-jm89",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "account_enumeration",
+      "top1_correct": true,
+      "top3": [
+        "account_enumeration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "account_enumeration",
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "account_enumeration",
+      "id": "GHSA-434h-p4gx-jm89-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "dpgaspar/Flask-AppBuilder",
+      "source_root": "GHSA-434h-p4gx-jm89",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "account_enumeration",
+      "top1_correct": true,
+      "top3": [
+        "account_enumeration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "authentication_session"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "authentication_boundary_regression"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "authentication_session"
+      ],
+      "expected_condition_signals": [
+        "authentication_boundary_regression"
+      ],
+      "family": "authentication_session",
+      "id": "GHSA-68qg-g8mg-6pr7-positive",
+      "predicted_condition_families": [
+        "authentication_session"
+      ],
+      "rank_required": true,
+      "source_project": "paperclipai/paperclip",
+      "source_root": "GHSA-68qg-g8mg-6pr7",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "authentication_boundary_regression"
+      ],
+      "target_state": "admitted",
+      "top1": "authentication_session",
+      "top1_correct": true,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "authentication_session",
+      "id": "GHSA-68qg-g8mg-6pr7-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "paperclipai/paperclip",
+      "source_root": "GHSA-68qg-g8mg-6pr7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "authentication_session",
+      "top1_correct": true,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "authentication_session",
+      "id": "GHSA-68qg-g8mg-6pr7-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "paperclipai/paperclip",
+      "source_root": "GHSA-68qg-g8mg-6pr7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "authentication_session",
+      "top1_correct": true,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "authentication_session",
+      "id": "GHSA-68qg-g8mg-6pr7-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "paperclipai/paperclip",
+      "source_root": "GHSA-68qg-g8mg-6pr7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "authentication_session",
+      "top1_correct": true,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "broken_function_authorization"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "unauthorized_function_response"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "broken_function_authorization"
+      ],
+      "expected_condition_signals": [
+        "unauthorized_function_response"
+      ],
+      "family": "broken_function_authorization",
+      "id": "GHSA-m8xg-8xg9-mxhm-positive",
+      "predicted_condition_families": [
+        "broken_function_authorization"
+      ],
+      "rank_required": true,
+      "source_project": "nuclio/nuclio",
+      "source_root": "GHSA-m8xg-8xg9-mxhm",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "lower_privilege_success",
+        "unauthorized_function_response"
+      ],
+      "target_state": "admitted",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-m8xg-8xg9-mxhm-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "nuclio/nuclio",
+      "source_root": "GHSA-m8xg-8xg9-mxhm",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-m8xg-8xg9-mxhm-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "nuclio/nuclio",
+      "source_root": "GHSA-m8xg-8xg9-mxhm",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-m8xg-8xg9-mxhm-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "nuclio/nuclio",
+      "source_root": "GHSA-m8xg-8xg9-mxhm",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "broken_object_authorization"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "unauthorized_object_response"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_object_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "broken_object_authorization"
+      ],
+      "expected_condition_signals": [
+        "unauthorized_object_response"
+      ],
+      "family": "broken_object_authorization",
+      "id": "GHSA-h8q5-cp56-rr65-positive",
+      "predicted_condition_families": [
+        "broken_object_authorization"
+      ],
+      "rank_required": true,
+      "source_project": "MervinPraison/PraisonAI",
+      "source_root": "GHSA-h8q5-cp56-rr65",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "unauthorized_object_response"
+      ],
+      "target_state": "admitted",
+      "top1": "broken_object_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_object_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_object_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_object_authorization",
+      "id": "GHSA-h8q5-cp56-rr65-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "MervinPraison/PraisonAI",
+      "source_root": "GHSA-h8q5-cp56-rr65",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_object_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_object_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_object_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_object_authorization",
+      "id": "GHSA-h8q5-cp56-rr65-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "MervinPraison/PraisonAI",
+      "source_root": "GHSA-h8q5-cp56-rr65",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "broken_object_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_object_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_object_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_object_authorization",
+      "id": "GHSA-h8q5-cp56-rr65-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "MervinPraison/PraisonAI",
+      "source_root": "GHSA-h8q5-cp56-rr65",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_object_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_object_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "command_injection"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "process_execution_reached"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "command_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "command_injection"
+      ],
+      "expected_condition_signals": [
+        "process_execution_reached"
+      ],
+      "family": "command_injection",
+      "id": "GHSA-p8mm-644p-phmh-positive",
+      "predicted_condition_families": [
+        "command_injection"
+      ],
+      "rank_required": true,
+      "source_project": "pinchtab/pinchtab",
+      "source_root": "GHSA-p8mm-644p-phmh",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "process_execution_reached"
+      ],
+      "target_state": "admitted",
+      "top1": "command_injection",
+      "top1_correct": true,
+      "top3": [
+        "command_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "command_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "command_injection",
+      "id": "GHSA-p8mm-644p-phmh-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "pinchtab/pinchtab",
+      "source_root": "GHSA-p8mm-644p-phmh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "command_injection",
+      "top1_correct": true,
+      "top3": [
+        "command_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "command_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "command_injection",
+      "id": "GHSA-p8mm-644p-phmh-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "pinchtab/pinchtab",
+      "source_root": "GHSA-p8mm-644p-phmh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "command_injection",
+      "top1_correct": true,
+      "top3": [
+        "command_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "command_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "command_injection",
+      "id": "GHSA-p8mm-644p-phmh-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "pinchtab/pinchtab",
+      "source_root": "GHSA-p8mm-644p-phmh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "command_injection",
+      "top1_correct": true,
+      "top3": [
+        "command_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "cors_misconfiguration"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "credentials_allowed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session",
+        "cors_misconfiguration"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "cors_misconfiguration"
+      ],
+      "expected_condition_signals": [
+        "credentials_allowed"
+      ],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-positive",
+      "predicted_condition_families": [
+        "cors_misconfiguration"
+      ],
+      "rank_required": true,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "authenticated_context",
+        "credentials_allowed"
+      ],
+      "target_state": "admitted",
+      "top1": "cors_misconfiguration",
+      "top1_correct": true,
+      "top3": [
+        "cors_misconfiguration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "authentication_session",
+      "top1_correct": false,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "authentication_session",
+      "top1_correct": false,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "authentication_session",
+      "top1_correct": false,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "file_upload"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "dangerous_type_accepted"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "file_upload"
+      ],
+      "expected_condition_signals": [
+        "dangerous_type_accepted"
+      ],
+      "family": "file_upload",
+      "id": "GHSA-3f7w-p8vr-4v5f-positive",
+      "predicted_condition_families": [
+        "file_upload"
+      ],
+      "rank_required": true,
+      "source_project": "pyload/pyload",
+      "source_root": "GHSA-3f7w-p8vr-4v5f",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "dangerous_type_accepted"
+      ],
+      "target_state": "admitted",
+      "top1": "file_upload",
+      "top1_correct": true,
+      "top3": [
+        "file_upload",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "file_upload",
+      "id": "GHSA-3f7w-p8vr-4v5f-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "pyload/pyload",
+      "source_root": "GHSA-3f7w-p8vr-4v5f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "file_upload",
+      "top1_correct": true,
+      "top3": [
+        "file_upload",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "file_upload",
+      "id": "GHSA-3f7w-p8vr-4v5f-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "pyload/pyload",
+      "source_root": "GHSA-3f7w-p8vr-4v5f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "file_upload",
+      "top1_correct": true,
+      "top3": [
+        "file_upload",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "file_upload",
+      "id": "GHSA-3f7w-p8vr-4v5f-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "pyload/pyload",
+      "source_root": "GHSA-3f7w-p8vr-4v5f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "file_upload",
+      "top1_correct": true,
+      "top3": [
+        "file_upload",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "information_disclosure"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "public_observation"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "information_disclosure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "information_disclosure"
+      ],
+      "expected_condition_signals": [
+        "public_observation"
+      ],
+      "family": "information_disclosure",
+      "id": "GHSA-jr33-mw75-7j8f-positive",
+      "predicted_condition_families": [
+        "information_disclosure"
+      ],
+      "rank_required": true,
+      "source_project": "dbt-labs/dbt-mcp",
+      "source_root": "GHSA-jr33-mw75-7j8f",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "public_observation"
+      ],
+      "target_state": "admitted",
+      "top1": "information_disclosure",
+      "top1_correct": true,
+      "top3": [
+        "information_disclosure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "information_disclosure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "information_disclosure",
+      "id": "GHSA-jr33-mw75-7j8f-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "dbt-labs/dbt-mcp",
+      "source_root": "GHSA-jr33-mw75-7j8f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "information_disclosure",
+      "top1_correct": true,
+      "top3": [
+        "information_disclosure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "information_disclosure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "information_disclosure",
+      "id": "GHSA-jr33-mw75-7j8f-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "dbt-labs/dbt-mcp",
+      "source_root": "GHSA-jr33-mw75-7j8f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "information_disclosure",
+      "top1_correct": true,
+      "top3": [
+        "information_disclosure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "information_disclosure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "information_disclosure",
+      "id": "GHSA-jr33-mw75-7j8f-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "dbt-labs/dbt-mcp",
+      "source_root": "GHSA-jr33-mw75-7j8f",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "information_disclosure",
+      "top1_correct": true,
+      "top3": [
+        "information_disclosure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "mass_assignment"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "privileged_property_accepted"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "mass_assignment"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "mass_assignment"
+      ],
+      "expected_condition_signals": [
+        "privileged_property_accepted"
+      ],
+      "family": "mass_assignment",
+      "id": "CVE-2020-8164-positive",
+      "predicted_condition_families": [
+        "mass_assignment"
+      ],
+      "rank_required": true,
+      "source_project": "rails/rails",
+      "source_root": "CVE-2020-8164",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "privileged_property_accepted"
+      ],
+      "target_state": "admitted",
+      "top1": "mass_assignment",
+      "top1_correct": true,
+      "top3": [
+        "mass_assignment",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "mass_assignment"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "mass_assignment",
+      "id": "CVE-2020-8164-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "rails/rails",
+      "source_root": "CVE-2020-8164",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "mass_assignment",
+      "top1_correct": true,
+      "top3": [
+        "mass_assignment",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "mass_assignment"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "mass_assignment",
+      "id": "CVE-2020-8164-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "rails/rails",
+      "source_root": "CVE-2020-8164",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "mass_assignment",
+      "top1_correct": true,
+      "top3": [
+        "mass_assignment",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "mass_assignment"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "mass_assignment",
+      "id": "CVE-2020-8164-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "rails/rails",
+      "source_root": "CVE-2020-8164",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "mass_assignment",
+      "top1_correct": true,
+      "top3": [
+        "mass_assignment",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "open_redirect"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "external_destination"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "open_redirect"
+      ],
+      "expected_condition_signals": [
+        "external_destination"
+      ],
+      "family": "open_redirect",
+      "id": "GHSA-xph5-278p-26qx-positive",
+      "predicted_condition_families": [
+        "open_redirect"
+      ],
+      "rank_required": true,
+      "source_project": "lobehub/lobe-chat",
+      "source_root": "GHSA-xph5-278p-26qx",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "external_destination"
+      ],
+      "target_state": "admitted",
+      "top1": "open_redirect",
+      "top1_correct": true,
+      "top3": [
+        "open_redirect",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "open_redirect",
+      "id": "GHSA-xph5-278p-26qx-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "lobehub/lobe-chat",
+      "source_root": "GHSA-xph5-278p-26qx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "open_redirect",
+      "top1_correct": true,
+      "top3": [
+        "open_redirect",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "open_redirect",
+      "id": "GHSA-xph5-278p-26qx-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "lobehub/lobe-chat",
+      "source_root": "GHSA-xph5-278p-26qx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "open_redirect",
+      "top1_correct": true,
+      "top3": [
+        "open_redirect",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "open_redirect",
+      "id": "GHSA-xph5-278p-26qx-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "lobehub/lobe-chat",
+      "source_root": "GHSA-xph5-278p-26qx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "open_redirect",
+      "top1_correct": true,
+      "top3": [
+        "open_redirect",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "path_traversal"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "path_escape_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "path_traversal"
+      ],
+      "expected_condition_signals": [
+        "path_escape_observed"
+      ],
+      "family": "path_traversal",
+      "id": "GHSA-5c25-7vpj-9mqh-positive",
+      "predicted_condition_families": [
+        "path_traversal"
+      ],
+      "rank_required": true,
+      "source_project": "nezhahq/nezha",
+      "source_root": "GHSA-5c25-7vpj-9mqh",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "path_escape_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "path_traversal",
+      "top1_correct": true,
+      "top3": [
+        "path_traversal",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "path_traversal",
+      "id": "GHSA-5c25-7vpj-9mqh-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "nezhahq/nezha",
+      "source_root": "GHSA-5c25-7vpj-9mqh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": true,
+      "top3": [
+        "path_traversal",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "path_traversal",
+      "id": "GHSA-5c25-7vpj-9mqh-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "nezhahq/nezha",
+      "source_root": "GHSA-5c25-7vpj-9mqh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": true,
+      "top3": [
+        "path_traversal",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "path_traversal",
+      "id": "GHSA-5c25-7vpj-9mqh-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "nezhahq/nezha",
+      "source_root": "GHSA-5c25-7vpj-9mqh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": true,
+      "top3": [
+        "path_traversal",
+        "unrestricted_resource_consumption",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "race_condition"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "duplicate_effect_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "business_logic",
+        "race_condition",
+        "sensitive_business_flow_abuse"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "race_condition"
+      ],
+      "expected_condition_signals": [
+        "duplicate_effect_observed"
+      ],
+      "family": "race_condition",
+      "id": "GHSA-pqqp-xmhj-wgcw-positive",
+      "predicted_condition_families": [
+        "race_condition"
+      ],
+      "rank_required": true,
+      "source_project": "crossbeam-rs/crossbeam",
+      "source_root": "GHSA-pqqp-xmhj-wgcw",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "duplicate_effect_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "race_condition",
+      "top1_correct": true,
+      "top3": [
+        "race_condition",
+        "sensitive_business_flow_abuse",
+        "business_logic"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "business_logic",
+        "race_condition",
+        "sensitive_business_flow_abuse"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "race_condition",
+      "id": "GHSA-pqqp-xmhj-wgcw-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "crossbeam-rs/crossbeam",
+      "source_root": "GHSA-pqqp-xmhj-wgcw",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "race_condition",
+      "top1_correct": true,
+      "top3": [
+        "race_condition",
+        "sensitive_business_flow_abuse",
+        "business_logic"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "business_logic",
+        "race_condition",
+        "sensitive_business_flow_abuse"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "race_condition",
+      "id": "GHSA-pqqp-xmhj-wgcw-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "crossbeam-rs/crossbeam",
+      "source_root": "GHSA-pqqp-xmhj-wgcw",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "race_condition",
+      "top1_correct": true,
+      "top3": [
+        "race_condition",
+        "sensitive_business_flow_abuse",
+        "business_logic"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "business_logic",
+        "race_condition",
+        "sensitive_business_flow_abuse"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "race_condition",
+      "id": "GHSA-pqqp-xmhj-wgcw-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "crossbeam-rs/crossbeam",
+      "source_root": "GHSA-pqqp-xmhj-wgcw",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "race_condition",
+      "top1_correct": true,
+      "top3": [
+        "race_condition",
+        "sensitive_business_flow_abuse",
+        "business_logic"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "secret_exposure"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "high_entropy_value"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "secret_exposure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "secret_exposure"
+      ],
+      "expected_condition_signals": [
+        "high_entropy_value"
+      ],
+      "family": "secret_exposure",
+      "id": "GHSA-8x8h-hcq8-jwwx-positive",
+      "predicted_condition_families": [
+        "secret_exposure"
+      ],
+      "rank_required": true,
+      "source_project": "gravitl/netmaker",
+      "source_root": "GHSA-8x8h-hcq8-jwwx",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "high_entropy_value"
+      ],
+      "target_state": "admitted",
+      "top1": "secret_exposure",
+      "top1_correct": true,
+      "top3": [
+        "secret_exposure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "secret_exposure"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "secret_exposure",
+      "id": "GHSA-8x8h-hcq8-jwwx-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "gravitl/netmaker",
+      "source_root": "GHSA-8x8h-hcq8-jwwx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "secret_exposure",
+      "top1_correct": true,
+      "top3": [
+        "secret_exposure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "secret_exposure",
+      "id": "GHSA-8x8h-hcq8-jwwx-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "gravitl/netmaker",
+      "source_root": "GHSA-8x8h-hcq8-jwwx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "websocket_authorization",
+      "top1_correct": false,
+      "top3": [
+        "websocket_authorization",
+        "unsafe_api_consumption",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "secret_exposure",
+      "id": "GHSA-8x8h-hcq8-jwwx-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "gravitl/netmaker",
+      "source_root": "GHSA-8x8h-hcq8-jwwx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "websocket_authorization",
+      "top1_correct": false,
+      "top3": [
+        "websocket_authorization",
+        "unsafe_api_consumption",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "security_misconfiguration"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "stack_trace_exposed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "information_disclosure",
+        "security_misconfiguration"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "security_misconfiguration"
+      ],
+      "expected_condition_signals": [
+        "stack_trace_exposed"
+      ],
+      "family": "security_misconfiguration",
+      "id": "GHSA-58c7-px5v-82hh-positive",
+      "predicted_condition_families": [
+        "security_misconfiguration"
+      ],
+      "rank_required": true,
+      "source_project": "ubernostrum/django-registration",
+      "source_root": "GHSA-58c7-px5v-82hh",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "stack_trace_exposed"
+      ],
+      "target_state": "admitted",
+      "top1": "security_misconfiguration",
+      "top1_correct": true,
+      "top3": [
+        "security_misconfiguration",
+        "information_disclosure",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "security_misconfiguration"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "security_misconfiguration",
+      "id": "GHSA-58c7-px5v-82hh-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "ubernostrum/django-registration",
+      "source_root": "GHSA-58c7-px5v-82hh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "security_misconfiguration",
+      "top1_correct": true,
+      "top3": [
+        "security_misconfiguration",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "security_misconfiguration"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "security_misconfiguration",
+      "id": "GHSA-58c7-px5v-82hh-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "ubernostrum/django-registration",
+      "source_root": "GHSA-58c7-px5v-82hh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "security_misconfiguration",
+      "top1_correct": true,
+      "top3": [
+        "security_misconfiguration",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "security_misconfiguration"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "security_misconfiguration",
+      "id": "GHSA-58c7-px5v-82hh-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "ubernostrum/django-registration",
+      "source_root": "GHSA-58c7-px5v-82hh",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "security_misconfiguration",
+      "top1_correct": true,
+      "top3": [
+        "security_misconfiguration",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "server_side_template_injection"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "template_engine_error_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "server_side_template_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "server_side_template_injection"
+      ],
+      "expected_condition_signals": [
+        "template_engine_error_observed"
+      ],
+      "family": "server_side_template_injection",
+      "id": "GHSL-2020-067-positive",
+      "predicted_condition_families": [
+        "server_side_template_injection"
+      ],
+      "rank_required": true,
+      "source_project": "apache/ofbiz-framework",
+      "source_root": "GHSL-2020-067",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "template_engine_error_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "server_side_template_injection",
+      "top1_correct": true,
+      "top3": [
+        "server_side_template_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "server_side_template_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "server_side_template_injection",
+      "id": "GHSL-2020-067-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "apache/ofbiz-framework",
+      "source_root": "GHSL-2020-067",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "server_side_template_injection",
+      "top1_correct": true,
+      "top3": [
+        "server_side_template_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "server_side_template_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "server_side_template_injection",
+      "id": "GHSL-2020-067-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "apache/ofbiz-framework",
+      "source_root": "GHSL-2020-067",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "server_side_template_injection",
+      "top1_correct": true,
+      "top3": [
+        "server_side_template_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "server_side_template_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "server_side_template_injection",
+      "id": "GHSL-2020-067-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "apache/ofbiz-framework",
+      "source_root": "GHSL-2020-067",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "server_side_template_injection",
+      "top1_correct": true,
+      "top3": [
+        "server_side_template_injection",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "sql_injection"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "database_error_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "sql_injection"
+      ],
+      "expected_condition_signals": [
+        "database_error_observed"
+      ],
+      "family": "sql_injection",
+      "id": "GHSA-2fr7-cc4f-wh98-positive",
+      "predicted_condition_families": [
+        "sql_injection"
+      ],
+      "rank_required": true,
+      "source_project": "devcode-it/openstamanager",
+      "source_root": "GHSA-2fr7-cc4f-wh98",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "database_error_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-2fr7-cc4f-wh98-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "devcode-it/openstamanager",
+      "source_root": "GHSA-2fr7-cc4f-wh98",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-2fr7-cc4f-wh98-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "devcode-it/openstamanager",
+      "source_root": "GHSA-2fr7-cc4f-wh98",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-2fr7-cc4f-wh98-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "devcode-it/openstamanager",
+      "source_root": "GHSA-2fr7-cc4f-wh98",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "ssrf"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "server_fetch_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "ssrf"
+      ],
+      "expected_condition_signals": [
+        "server_fetch_observed"
+      ],
+      "family": "ssrf",
+      "id": "GHSA-q59x-jc9f-gfqf-positive",
+      "predicted_condition_families": [
+        "ssrf"
+      ],
+      "rank_required": true,
+      "source_project": "SignalK/signalk-server",
+      "source_root": "GHSA-q59x-jc9f-gfqf",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "server_fetch_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-q59x-jc9f-gfqf-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "SignalK/signalk-server",
+      "source_root": "GHSA-q59x-jc9f-gfqf",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-q59x-jc9f-gfqf-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "SignalK/signalk-server",
+      "source_root": "GHSA-q59x-jc9f-gfqf",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-q59x-jc9f-gfqf-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "SignalK/signalk-server",
+      "source_root": "GHSA-q59x-jc9f-gfqf",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "resource_exhaustion_differential"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "expected_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w7vc-732c-9m39-positive",
+      "predicted_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "rank_required": true,
+      "source_project": "jpadilla/pyjwt",
+      "source_root": "GHSA-w7vc-732c-9m39",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "target_state": "admitted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w7vc-732c-9m39-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "jpadilla/pyjwt",
+      "source_root": "GHSA-w7vc-732c-9m39",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w7vc-732c-9m39-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "jpadilla/pyjwt",
+      "source_root": "GHSA-w7vc-732c-9m39",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w7vc-732c-9m39-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "jpadilla/pyjwt",
+      "source_root": "GHSA-w7vc-732c-9m39",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "resource_exhaustion_differential"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "expected_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w5fm-68j4-fpc4-positive",
+      "predicted_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "rank_required": true,
+      "source_project": "filebrowser/filebrowser",
+      "source_root": "GHSA-w5fm-68j4-fpc4",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "target_state": "admitted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w5fm-68j4-fpc4-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "filebrowser/filebrowser",
+      "source_root": "GHSA-w5fm-68j4-fpc4",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w5fm-68j4-fpc4-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "filebrowser/filebrowser",
+      "source_root": "GHSA-w5fm-68j4-fpc4",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-w5fm-68j4-fpc4-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "filebrowser/filebrowser",
+      "source_root": "GHSA-w5fm-68j4-fpc4",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "broken_function_authorization"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "unauthorized_function_response"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "broken_function_authorization"
+      ],
+      "expected_condition_signals": [
+        "unauthorized_function_response"
+      ],
+      "family": "broken_function_authorization",
+      "id": "GHSA-p4fx-23fq-jfg6-positive",
+      "predicted_condition_families": [
+        "broken_function_authorization"
+      ],
+      "rank_required": true,
+      "source_project": "open-webui/open-webui",
+      "source_root": "GHSA-p4fx-23fq-jfg6",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "lower_privilege_success",
+        "unauthorized_function_response"
+      ],
+      "target_state": "admitted",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-p4fx-23fq-jfg6-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "open-webui/open-webui",
+      "source_root": "GHSA-p4fx-23fq-jfg6",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-p4fx-23fq-jfg6-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "open-webui/open-webui",
+      "source_root": "GHSA-p4fx-23fq-jfg6",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "broken_function_authorization"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "broken_function_authorization",
+      "id": "GHSA-p4fx-23fq-jfg6-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "open-webui/open-webui",
+      "source_root": "GHSA-p4fx-23fq-jfg6",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_function_authorization",
+      "top1_correct": true,
+      "top3": [
+        "broken_function_authorization",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "resource_exhaustion_differential"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "expected_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-xcqx-9jf5-w339-positive",
+      "predicted_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "rank_required": true,
+      "source_project": "ihor-sokoliuk/mcp-searxng",
+      "source_root": "GHSA-xcqx-9jf5-w339",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "target_state": "admitted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-xcqx-9jf5-w339-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "ihor-sokoliuk/mcp-searxng",
+      "source_root": "GHSA-xcqx-9jf5-w339",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-xcqx-9jf5-w339-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "ihor-sokoliuk/mcp-searxng",
+      "source_root": "GHSA-xcqx-9jf5-w339",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-xcqx-9jf5-w339-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "ihor-sokoliuk/mcp-searxng",
+      "source_root": "GHSA-xcqx-9jf5-w339",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "sql_injection"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "database_error_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "sql_injection"
+      ],
+      "expected_condition_signals": [
+        "database_error_observed"
+      ],
+      "family": "sql_injection",
+      "id": "GHSA-j7wh-x834-p3r7-positive",
+      "predicted_condition_families": [
+        "sql_injection"
+      ],
+      "rank_required": true,
+      "source_project": "siyuan-note/siyuan",
+      "source_root": "GHSA-j7wh-x834-p3r7",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "database_error_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-j7wh-x834-p3r7-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "siyuan-note/siyuan",
+      "source_root": "GHSA-j7wh-x834-p3r7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-j7wh-x834-p3r7-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "siyuan-note/siyuan",
+      "source_root": "GHSA-j7wh-x834-p3r7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "graphql_authorization",
+        "sql_injection"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "sql_injection",
+      "id": "GHSA-j7wh-x834-p3r7-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "siyuan-note/siyuan",
+      "source_root": "GHSA-j7wh-x834-p3r7",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sql_injection",
+      "top1_correct": true,
+      "top3": [
+        "sql_injection",
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "resource_exhaustion_differential"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "expected_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-positive",
+      "predicted_condition_families": [
+        "unrestricted_resource_consumption"
+      ],
+      "rank_required": true,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "resource_exhaustion_differential"
+      ],
+      "target_state": "admitted",
+      "top1": "unrestricted_resource_consumption",
+      "top1_correct": true,
+      "top3": [
+        "unrestricted_resource_consumption",
+        "path_traversal",
+        "file_upload"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": false,
+      "top3": [
+        "path_traversal",
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "path_traversal",
+      "top1_correct": false,
+      "top3": [
+        "path_traversal",
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": false,
+      "top3": [
+        "path_traversal",
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [
+        "ssrf"
+      ],
+      "case_kind": "positive",
+      "condition_signal_hits": [
+        "server_fetch_observed"
+      ],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect",
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": true,
+      "expected_condition_families": [
+        "ssrf"
+      ],
+      "expected_condition_signals": [
+        "server_fetch_observed"
+      ],
+      "family": "ssrf",
+      "id": "GHSA-5g86-85rp-f9hx-positive",
+      "predicted_condition_families": [
+        "ssrf"
+      ],
+      "rank_required": true,
+      "source_project": "papra-hq/papra",
+      "source_root": "GHSA-5g86-85rp-f9hx",
+      "target_admitted": true,
+      "target_condition_signals": [
+        "server_fetch_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "open_redirect",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect",
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-5g86-85rp-f9hx-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "papra-hq/papra",
+      "source_root": "GHSA-5g86-85rp-f9hx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "open_redirect",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect",
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-5g86-85rp-f9hx-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "papra-hq/papra",
+      "source_root": "GHSA-5g86-85rp-f9hx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "open_redirect",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "sparse_noisy",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "open_redirect",
+        "ssrf"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "ssrf",
+      "id": "GHSA-5g86-85rp-f9hx-sparse_noisy",
+      "predicted_condition_families": [],
+      "rank_required": false,
+      "source_project": "papra-hq/papra",
+      "source_root": "GHSA-5g86-85rp-f9hx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "ssrf",
+      "top1_correct": true,
+      "top3": [
+        "ssrf",
+        "open_redirect",
+        "websocket_authorization"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    }
+  ],
+  "confusion_matrix": {
+    "account_enumeration": {
+      "account_enumeration": 3
+    },
+    "authentication_session": {
+      "authentication_session": 3
+    },
+    "broken_function_authorization": {
+      "broken_function_authorization": 6
+    },
+    "broken_object_authorization": {
+      "broken_object_authorization": 3
+    },
+    "command_injection": {
+      "command_injection": 3
+    },
+    "cors_misconfiguration": {
+      "authentication_session": 2,
+      "cors_misconfiguration": 1
+    },
+    "file_upload": {
+      "file_upload": 3
+    },
+    "information_disclosure": {
+      "information_disclosure": 3
+    },
+    "mass_assignment": {
+      "mass_assignment": 3
+    },
+    "open_redirect": {
+      "open_redirect": 3
+    },
+    "path_traversal": {
+      "path_traversal": 3
+    },
+    "race_condition": {
+      "race_condition": 3
+    },
+    "secret_exposure": {
+      "secret_exposure": 2,
+      "websocket_authorization": 1
+    },
+    "security_misconfiguration": {
+      "security_misconfiguration": 3
+    },
+    "server_side_template_injection": {
+      "server_side_template_injection": 3
+    },
+    "sql_injection": {
+      "sql_injection": 6
+    },
+    "ssrf": {
+      "ssrf": 6
+    },
+    "unrestricted_resource_consumption": {
+      "path_traversal": 2,
+      "unrestricted_resource_consumption": 10
+    }
+  },
+  "corpus": "/home/runner/work/recon-monitor/recon-monitor/benchmarks/raw/analysis_raw_v3.jsonl",
+  "corpus_validation": {
+    "case_count": 96,
+    "case_kind_counts": {
+      "near_miss": 24,
+      "positive": 24,
+      "secure_negative": 24,
+      "sparse_noisy": 24
+    },
+    "errors": [],
+    "passed": true,
+    "positive_control_raw_collision_count": 0,
+    "positive_family_count": 18,
+    "positive_family_roots": {
+      "account_enumeration": 1,
+      "authentication_session": 1,
+      "broken_function_authorization": 2,
+      "broken_object_authorization": 1,
+      "command_injection": 1,
+      "cors_misconfiguration": 1,
+      "file_upload": 1,
+      "information_disclosure": 1,
+      "mass_assignment": 1,
+      "open_redirect": 1,
+      "path_traversal": 1,
+      "race_condition": 1,
+      "secret_exposure": 1,
+      "security_misconfiguration": 1,
+      "server_side_template_injection": 1,
+      "sql_injection": 2,
+      "ssrf": 2,
+      "unrestricted_resource_consumption": 4
+    },
+    "positive_observable_delta_count": 24,
+    "positive_observable_delta_rate": 1.0,
+    "prior_source_root_overlap_count": 0,
+    "prior_url_overlap_count": 0,
+    "raw_label_leakage_forbidden_key_count": 394,
+    "source_kind_counts": {
+      "github_reviewed_advisory": 84,
+      "project_security_advisory": 8,
+      "vendor_advisory": 4
+    },
+    "source_project_count": 24,
+    "source_root_count": 24,
+    "v3_prior_corpus_count": 4,
+    "validator_version": "1.0.0"
+  },
+  "evaluation_date": "2026-08-12",
+  "evaluation_run_id": "31559204156",
+  "evaluation_semantics": "first_and_only_fresh_raw_v3",
+  "evaluation_status_at_start": "sealed_unscored",
+  "evaluation_trigger_sha": "4fb15070d2c084bcf14f5cbf91d8f798bf483713",
+  "family_positive_recall": {
+    "account_enumeration": 1.0,
+    "authentication_session": 1.0,
+    "broken_function_authorization": 1.0,
+    "broken_object_authorization": 1.0,
+    "command_injection": 1.0,
+    "cors_misconfiguration": 1.0,
+    "file_upload": 1.0,
+    "information_disclosure": 1.0,
+    "mass_assignment": 1.0,
+    "open_redirect": 1.0,
+    "path_traversal": 1.0,
+    "race_condition": 1.0,
+    "secret_exposure": 1.0,
+    "security_misconfiguration": 1.0,
+    "server_side_template_injection": 1.0,
+    "sql_injection": 1.0,
+    "ssrf": 1.0,
+    "unrestricted_resource_consumption": 1.0
+  },
+  "freeze_validation": {
+    "errors": [],
+    "passed": true,
+    "protected_file_count": 13,
+    "protected_tree_count": 1
+  },
+  "fresh_or_blind_claim_allowed_for_this_run": true,
+  "manifest": "/home/runner/work/recon-monitor/recon-monitor/benchmarks/raw/splits/v3.json",
+  "metrics": {
+    "abstention_accuracy": 1.0,
+    "admission_precision": 1.0,
+    "admission_recall": 1.0,
+    "condition_extraction_precision": 1.0,
+    "condition_extraction_recall": 1.0,
+    "end_to_end_accuracy": 1.0,
+    "false_promotion_rate": 0.0,
+    "prior_source_root_overlap_rate": 0.0,
+    "raw_label_leakage_rate": 0.0,
+    "routing_top1_accuracy": 0.930556,
+    "routing_top3_accuracy": 0.958333,
+    "wrong_family_promotion_rate": 0.0
+  },
+  "negative_count": 72,
+  "positive_count": 24,
+  "quality_gate": {
+    "failures": [],
+    "passed": true
+  },
+  "rank_required_count": 72,
+  "ranking_errors": [
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "authentication_session",
+      "top1_correct": false,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "authentication_session"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "cors_misconfiguration",
+      "id": "GHSL-2023-234-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "FlowiseAI/Flowise",
+      "source_root": "GHSL-2023-234",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "authentication_session",
+      "top1_correct": false,
+      "top3": [
+        "authentication_session",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "secret_exposure",
+      "id": "GHSA-8x8h-hcq8-jwwx-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "gravitl/netmaker",
+      "source_root": "GHSA-8x8h-hcq8-jwwx",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "websocket_authorization",
+      "top1_correct": false,
+      "top3": [
+        "websocket_authorization",
+        "unsafe_api_consumption",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": false,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "near_miss",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-near_miss",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "path_traversal",
+      "top1_correct": false,
+      "top3": [
+        "path_traversal",
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    },
+    {
+      "admitted_families": [],
+      "case_kind": "secure_negative",
+      "condition_signal_hits": [],
+      "condition_signal_misses": [],
+      "emitted_families": [
+        "file_upload",
+        "path_traversal",
+        "unrestricted_resource_consumption"
+      ],
+      "end_to_end_pass": true,
+      "expected_admitted": false,
+      "expected_condition_families": [],
+      "expected_condition_signals": [],
+      "family": "unrestricted_resource_consumption",
+      "id": "GHSA-qwqc-p3q8-wcg9-secure_negative",
+      "predicted_condition_families": [],
+      "rank_required": true,
+      "source_project": "langflow-ai/langflow",
+      "source_root": "GHSA-qwqc-p3q8-wcg9",
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_contradicted",
+      "top1": "path_traversal",
+      "top1_correct": false,
+      "top3": [
+        "path_traversal",
+        "file_upload",
+        "unrestricted_resource_consumption"
+      ],
+      "top3_correct": true,
+      "wrong_promotions": []
+    }
+  ],
+  "raw_recon_benchmark_version": "1.0.0",
+  "raw_recon_v2_benchmark_version": "1.0.0",
+  "raw_recon_v2_rule_version": "2026.08.12.6.15",
+  "rule_version": "2026.08.11.6.11"
+}
