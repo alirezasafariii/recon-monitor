@@ -98,6 +98,14 @@
     "result_path": "benchmarks/raw/results/analysis_raw_v3_first_blind.json"
   },
   "evaluation_status": "evaluated_once_consumed",
+  "finalizer": {
+    "date": "2026-08-12",
+    "full_unit_regression_passed": true,
+    "golden_regression_passed": true,
+    "integration_regression_passed": true,
+    "rescored_raw_v3": false,
+    "run_id": "31559361422"
+  },
   "frozen_engine": {
     "analysis_engine_version": "6.14.0",
     "detector_execution_engine_version": "1.2.0",
@@ -117,6 +125,13 @@
       "direction": "min",
       "threshold": 1.0
     }
+  },
+  "post_consumption_maintenance": {
+    "changed_after_consumption": true,
+    "current_lifecycle_test_blob_sha": "648ab81d334a9db7ae8781e0cd78fe3df4c7187d",
+    "lifecycle_test_path": "tests/test_raw_recon_v3_protocol_v6150.py",
+    "reason": "The pre-score protocol test asserted the unscored lifecycle state. After the one-shot evaluation consumed v3, only that test was made lifecycle-aware. Frozen benchmark gates, engine code, corpus, benchmark harness, and original sealed protocol hash remain unchanged.",
+    "sealed_protocol_test_blob_sha": "b58cd34b2783ced3d026d36c0472a90739864417"
   },
   "pre_freeze_exclusions": {
     "reason": "No new v3 advisory roots were queried or inspected before protocol sealing.",
