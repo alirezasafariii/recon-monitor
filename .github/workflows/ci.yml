@@ -28,13 +28,13 @@ jobs:
           git show a37904e9c3dcb6e600f57e372909dabb047729d7:.github/workflows/ci.yml > /tmp/embedded.yml
           python - <<'EXTRACT'
           from pathlib import Path
-          import textwrap
           text = Path('/tmp/embedded.yml').read_text(encoding='utf-8')
           start_marker = "          python - <<'PY'\n"
           end_marker = "\n          PY\n\n      - name: Run unit tests"
           start = text.index(start_marker) + len(start_marker)
           end = text.index(end_marker, start)
-          code = textwrap.dedent(text[start:end])
+          raw = text[start:end]
+          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
           Path('/tmp/path_patch.py').write_text(code, encoding='utf-8')
           EXTRACT
           python /tmp/path_patch.py
