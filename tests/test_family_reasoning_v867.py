@@ -161,6 +161,35 @@ class FamilyReasoningV867Tests(unittest.TestCase):
         self.assertTrue(confirmation_gaps("race_condition", {"workflow_markers", "stateful_operation", "single_use_semantics"}))
         self.assertEqual(confirmation_gaps("source_map_exposure", {"source_map_publicly_reachable"}), [])
 
+    def test_confirmation_contracts_match_dedicated_analyzer_decisive_conditions(self):
+        # DOM reachability alone is promotion context; an unsanitized executable
+        # flow is the stricter confirmation condition.
+        self.assertTrue(confirmation_gaps("dom_xss", {"runtime_dom_sink_reached"}))
+        self.assertEqual(confirmation_gaps("dom_xss", {"unsanitized_dom_flow"}), [])
+
+        # Missing origin validation alone is support; the untrusted message must
+        # actually reach the sensitive consumer for confirmation.
+        self.assertTrue(confirmation_gaps("postmessage_trust", {"origin_validation_absent"}))
+        self.assertEqual(confirmation_gaps("postmessage_trust", {"untrusted_message_accepted"}), [])
+
+        # Missing redirect validation alone is support; an external controlled
+        # destination must actually be accepted.
+        self.assertTrue(confirmation_gaps("open_redirect", {"navigation_validation_absent"}))
+        self.assertEqual(confirmation_gaps("open_redirect", {"external_destination_accepted"}), [])
+
+        # A user-controlled server fetch or correlated callback can promote SSRF,
+        # but confirmation requires the destination trust boundary to fail.
+        self.assertTrue(confirmation_gaps("ssrf", {"server_fetch_observed"}))
+        self.assertTrue(confirmation_gaps("ssrf", {"controlled_callback_observed"}))
+        self.assertEqual(confirmation_gaps("ssrf", {"destination_policy_bypass_observed"}), [])
+        self.assertEqual(confirmation_gaps("ssrf", {"restricted_destination_accepted"}), [])
+
+        # Acceptance of a controlled inert file can promote an upload finding;
+        # confirmation requires validation bypass or execution-capable handling.
+        self.assertTrue(confirmation_gaps("file_upload", {"unsafe_file_accepted"}))
+        self.assertEqual(confirmation_gaps("file_upload", {"content_type_bypass_observed"}), [])
+        self.assertEqual(confirmation_gaps("file_upload", {"executable_upload_observed"}), [])
+
 
 if __name__ == "__main__":
     unittest.main()
