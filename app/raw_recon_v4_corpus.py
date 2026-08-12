@@ -4,15 +4,53 @@ import json
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
-from raw_recon_corpus import validate_raw_corpus
+from family_detectors.registry import DETECTOR_SPECS
+from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 from raw_recon_v4_source_discovery import _canonical_url, _grounding_writeup_urls, _prior_exposure_index
 
-RAW_V4_CORPUS_VALIDATOR_VERSION = "1.0.0"
+RAW_V4_CORPUS_VALIDATOR_VERSION = "1.1.0"
 RAW_V4_CORPUS_VALIDATOR_RULE_VERSION = "2026.08.12.6.26"
 V4_EXACT_SOURCE_ROOTS = 36
 V4_EXACT_SOURCE_PROJECTS = 36
 V4_EXACT_POSITIVE_FAMILIES = 36
 V4_VARIANTS = ("positive", "near_miss", "secure_negative", "sparse_noisy")
+V4_ALLOWED_SOURCE_KINDS = frozenset({
+    "github_reviewed_advisory",
+    "project_security_advisory",
+    "vendor_advisory",
+    "primary_security_advisory",
+})
+V4_VALID_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "UNKNOWN"})
+
+# v3 intentionally rejected every key that happened to share a name with any
+# detector surface/condition. That becomes incorrect in v4 because new families
+# consume real normalized artifacts whose natural field names include things like
+# source-map documents, dependency inventories and WebSocket endpoints. v4 bans
+# only engine control-plane labels plus the case's expected condition itself.
+V4_FORBIDDEN_RAW_KEYS = frozenset({
+    "family_scope",
+    "evidence_namespace",
+    "extractor_id",
+    "extractor_version",
+    "detector_signal_class",
+    "detector_counts_as_target_evidence",
+    "execution_family",
+    "execution_strategy",
+    "execution_basis",
+    "admitted",
+    "bug_family",
+    "vulnerability_family",
+    "condition_signals",
+    "target_signal",
+    "target_signals",
+    "rule_ids",
+    "cwe",
+    "wstg",
+    "owasp",
+    "writeup",
+    "evidence_for",
+    "evidence_against",
+})
 
 
 def _norm(value: Any) -> str:
@@ -21,6 +59,18 @@ def _norm(value: Any) -> str:
 
 def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _walk_keys(value: Any) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            keys.add(_norm(key))
+            keys.update(_walk_keys(child))
+    elif isinstance(value, list):
+        for child in value:
+            keys.update(_walk_keys(child))
+    return keys
 
 
 def _details(case: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -42,8 +92,7 @@ def validate_v4_corpus(
 ) -> dict[str, Any]:
     """Validate Analysis 6.26 corpus integrity without detector scoring."""
     rows = [dict(row) for row in cases]
-    base = validate_raw_corpus(rows, require_collection_floor=False, enforce_prior_independence=False)
-    errors = list(base.get("errors") or [])
+    errors: list[str] = []
     prior = _prior_exposure_index()
     grounding = _grounding_writeup_urls()
     groups = _variant_groups(rows)
@@ -63,13 +112,94 @@ def validate_v4_corpus(
     bad_variant_roots: set[str] = set()
     collision_roots: set[str] = set()
     missing_observable_delta: set[str] = set()
+    label_leakage_cases: dict[str, list[str]] = {}
 
     prior_projects_lower = {value.lower() for value in prior["projects"]}
+    seen_ids: set[str] = set()
+
     for row in rows:
+        cid = _norm(row.get("id"))
+        family = _norm(row.get("family"))
+        kind = _norm(row.get("case_kind"))
         root = _norm(row.get("source_root"))
         project = _norm(row.get("source_project"))
+        source_date = _norm(row.get("source_date"))
+        split = _norm(row.get("split"))
         provenance = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
+        source_kind = _norm(provenance.get("source_kind"))
+        raw = row.get("raw") if isinstance(row.get("raw"), Mapping) else {}
+        expected = row.get("expected") if isinstance(row.get("expected"), Mapping) else {}
         url = _canonical_url(_norm(provenance.get("url")))
+
+        if not cid:
+            errors.append("v4 case missing id")
+        elif cid in seen_ids:
+            errors.append(f"duplicate v4 case id: {cid}")
+        else:
+            seen_ids.add(cid)
+
+        if family not in FAMILY_ADMISSION_POLICIES or family not in DETECTOR_SPECS:
+            errors.append(f"{cid}: unknown or unsealed family {family!r}")
+        if kind not in V4_VARIANTS:
+            errors.append(f"{cid}: invalid case_kind {kind!r}")
+        if split != "postfreeze_holdout":
+            errors.append(f"{cid}: split must be postfreeze_holdout")
+        if not root:
+            errors.append(f"{cid}: missing source_root")
+        if not project:
+            errors.append(f"{cid}: missing source_project")
+        if not source_date:
+            errors.append(f"{cid}: missing source_date")
+        if source_kind not in V4_ALLOWED_SOURCE_KINDS:
+            errors.append(f"{cid}: unsupported v4 source_kind {source_kind!r}")
+        if not url.startswith("https://"):
+            errors.append(f"{cid}: provenance URL must be HTTPS")
+        if provenance.get("primary_source") is not True:
+            errors.append(f"{cid}: provenance.primary_source must be true")
+
+        if _norm(expected.get("family")) != family:
+            errors.append(f"{cid}: expected.family must equal family")
+        expected_admitted = bool(expected.get("admitted"))
+        if kind == "positive" and not expected_admitted:
+            errors.append(f"{cid}: positive case must expect admission")
+        if kind != "positive" and expected_admitted:
+            errors.append(f"{cid}: non-positive case must expect abstention for target family")
+
+        expected_conditions = expected.get("condition_signals") or []
+        if not isinstance(expected_conditions, list):
+            errors.append(f"{cid}: expected.condition_signals must be a list")
+            expected_conditions = []
+        elif family in DETECTOR_SPECS:
+            allowed = set(DETECTOR_SPECS[family].condition_signals)
+            unknown = sorted({_norm(value) for value in expected_conditions if _norm(value)} - allowed)
+            if unknown:
+                errors.append(f"{cid}: expected condition signals are not canonical for {family}: {unknown}")
+
+        if not raw:
+            errors.append(f"{cid}: missing raw artifact")
+        else:
+            target = _norm(raw.get("target"))
+            endpoint = _norm(raw.get("endpoint"))
+            method = _norm(raw.get("method")).upper()
+            if not target:
+                errors.append(f"{cid}: raw.target missing")
+            if not endpoint:
+                errors.append(f"{cid}: raw.endpoint missing")
+            if method not in V4_VALID_METHODS:
+                errors.append(f"{cid}: invalid raw.method {method!r}")
+            if not isinstance(raw.get("endpoint_schema", {}), Mapping):
+                errors.append(f"{cid}: raw.endpoint_schema must be an object")
+            if not isinstance(raw.get("details", {}), Mapping):
+                errors.append(f"{cid}: raw.details must be an object")
+
+            raw_keys = _walk_keys(raw)
+            leaked = sorted(raw_keys & V4_FORBIDDEN_RAW_KEYS)
+            direct_expected_leaks = sorted(raw_keys & {_norm(value) for value in expected_conditions if _norm(value)})
+            leakage = sorted(set(leaked) | set(direct_expected_leaks))
+            if leakage:
+                label_leakage_cases[cid] = leakage
+                errors.append(f"{cid}: engine control/expected labels leaked into raw artifact: {leakage}")
+
         if root in prior["roots"]:
             prior_roots.add(root)
         if project and (project in prior["projects"] or project.lower() in prior_projects_lower):
@@ -84,14 +214,28 @@ def validate_v4_corpus(
         if len(group) != 4 or set(kinds) != set(V4_VARIANTS) or len(kinds) != len(set(kinds)):
             bad_variant_roots.add(root)
             continue
+        projects_for_root = {_norm(row.get("source_project")) for row in group}
+        families_for_root = {_norm(row.get("family")) for row in group}
+        urls_for_root = {
+            _canonical_url(_norm((row.get("provenance") or {}).get("url")))
+            for row in group
+            if isinstance(row.get("provenance"), Mapping)
+        }
+        if len(projects_for_root) != 1:
+            errors.append(f"{root}: source root spans multiple projects {sorted(projects_for_root)}")
+        if len(families_for_root) != 1:
+            errors.append(f"{root}: source root spans multiple families {sorted(families_for_root)}")
+        if len(urls_for_root) != 1:
+            errors.append(f"{root}: source root must have one canonical provenance URL")
+
         by_kind = {_norm(row.get("case_kind")): row for row in group}
         positive = by_kind["positive"]
         positive_raw = positive.get("raw") if isinstance(positive.get("raw"), Mapping) else {}
         positive_details = _details(positive)
         if not positive_details:
             missing_observable_delta.add(root)
-        for kind in ("near_miss", "secure_negative"):
-            control = by_kind[kind]
+        for control_kind in ("near_miss", "secure_negative"):
+            control = by_kind[control_kind]
             control_raw = control.get("raw") if isinstance(control.get("raw"), Mapping) else {}
             if _canonical(positive_raw) == _canonical(control_raw):
                 collision_roots.add(root)
@@ -141,7 +285,6 @@ def validate_v4_corpus(
 
     observable_count = max(0, len(roots) - len(missing_observable_delta))
     return {
-        **base,
         "validator_version": RAW_V4_CORPUS_VALIDATOR_VERSION,
         "validator_rule_version": RAW_V4_CORPUS_VALIDATOR_RULE_VERSION,
         "passed": not errors,
@@ -158,6 +301,8 @@ def validate_v4_corpus(
         "positive_control_raw_collision_count": len(collision_roots),
         "positive_observable_delta_count": observable_count,
         "positive_observable_delta_rate": round(observable_count / len(roots), 6) if roots else 0.0,
+        "label_leakage_count": len(label_leakage_cases),
+        "label_leakage_cases": label_leakage_cases,
         "audited_shortlist_root_count": len(shortlist_roots),
         "audited_shortlist_project_count": len(shortlist_projects),
         "audited_shortlist_family_count": len(shortlist_families),
@@ -172,5 +317,7 @@ __all__ = [
     "V4_EXACT_SOURCE_PROJECTS",
     "V4_EXACT_POSITIVE_FAMILIES",
     "V4_VARIANTS",
+    "V4_ALLOWED_SOURCE_KINDS",
+    "V4_FORBIDDEN_RAW_KEYS",
     "validate_v4_corpus",
 ]
