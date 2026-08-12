@@ -74,7 +74,7 @@ class RawReconV4Materialization6260Tests(unittest.TestCase):
     def test_lineage_is_exact(self) -> None:
         self.assertEqual(MATERIALIZER_VERSION, "1.0.0")
         self.assertEqual(MATERIALIZER_RULE_VERSION, "2026.08.12.6.26")
-        self.assertEqual(RAW_V4_CORPUS_VALIDATOR_VERSION, "1.0.0")
+        self.assertEqual(RAW_V4_CORPUS_VALIDATOR_VERSION, "1.1.0")
         self.assertEqual(RAW_V4_CORPUS_VALIDATOR_RULE_VERSION, "2026.08.12.6.26")
 
 
