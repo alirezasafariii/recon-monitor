@@ -15,7 +15,7 @@ from typing import Any, Iterable, Mapping
 
 
 FAMILY_REASONING_VERSION = "2.0.0"
-FAMILY_REASONING_RULE_VERSION = "2026.08.10.1"
+FAMILY_REASONING_RULE_VERSION = "2026.08.12.2"
 
 FAMILY_ORDER = (
     "broken_object_authorization",
@@ -306,13 +306,13 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         ),
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"canonicalization_enforced", "base_directory_enforced"}),
-        "override_signals": frozenset({"path_escape_observed", "canonicalization_bypass_observed"}),
-        "confirmation_required": _groups({"path_escape_observed", "canonicalization_bypass_observed"}),
+        "override_signals": frozenset({"path_escape_observed", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}),
+        "confirmation_required": _groups({"canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Map path construction, canonicalization and base-directory enforcement.",
-            "Determine whether user-controlled path data reaches a file-system operation.",
-            "Do not request sensitive filesystem paths during validation.",
+            "Determine whether user-controlled path data reaches a file-system operation and can resolve outside the intended root.",
+            "Use only explicitly test-owned, non-sensitive sentinel resources; do not request sensitive filesystem paths.",
         ),
         "validation_level": "manual_only",
     },

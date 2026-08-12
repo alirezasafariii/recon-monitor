@@ -23,6 +23,7 @@ from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_si
 from family_analyzers.file_upload import analyze_file_upload_signal
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
+from family_analyzers.path_traversal import analyze_path_traversal_signal
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
 from family_analyzers.ssrf import analyze_ssrf_signal
 
@@ -33,7 +34,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.8.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.9.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -81,6 +82,13 @@ _FAMILY_DIRECT_TYPES = {
         "file_policy_differential",
         "content_type_bypass_observed",
         "executable_upload_observed",
+    },
+    "path_traversal": {
+        "path_escape_observed",
+        "path_boundary_differential",
+        "canonicalization_bypass_observed",
+        "out_of_root_file_access_observed",
+        "out_of_root_file_write_observed",
     },
 }
 
@@ -188,6 +196,13 @@ _base.FAMILY_EVIDENCE_SCHEMAS["file_upload"] = {
     ),
     "label": "concrete file input plus upload/import operation or stored file-policy differential",
 }
+_base.FAMILY_EVIDENCE_SCHEMAS["path_traversal"] = {
+    "required_any": (
+        ("path_parameter", "filename_field", "storage_path"),
+        ("file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation", "path_escape_observed", "path_boundary_differential", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"),
+    ),
+    "label": "user-influenced path/filename plus file operation or stored filesystem-boundary differential",
+}
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
 _DEDICATED_ALERT_FAMILIES = {
@@ -200,6 +215,7 @@ _DEDICATED_ALERT_FAMILIES = {
     "open_redirect",
     "ssrf",
     "file_upload",
+    "path_traversal",
 }
 
 _INCOMPLETE_STATIC_GROUPS = {
@@ -432,6 +448,13 @@ def _dedicated_family_result(
             details=details,
             business_context=stored["business_context"],
             semantic_text=stored["semantic_text"],
+        )
+
+    if family == "path_traversal":
+        return analyze_path_traversal_signal(
+            db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+            body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+            details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
         )
 
     return None

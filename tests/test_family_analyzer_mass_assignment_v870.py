@@ -49,11 +49,11 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
             business_context="identity",
         )
 
-    def test_router_registers_ten_dedicated_families_without_fallback(self):
+    def test_router_registers_eleven_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 10)
-        self.assertEqual(status["pending_count"], 11)
+        self.assertEqual(status["registered_count"], 11)
+        self.assertEqual(status["pending_count"], 10)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
@@ -65,6 +65,7 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
             "open_redirect",
             "ssrf",
             "file_upload",
+            "path_traversal",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
@@ -75,7 +76,8 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
         self.assertIsNotNone(analyzer_for_family("open_redirect"))
         self.assertIsNotNone(analyzer_for_family("ssrf"))
         self.assertIsNotNone(analyzer_for_family("file_upload"))
-        self.assertIsNone(analyzer_for_family("path_traversal"))
+        self.assertIsNotNone(analyzer_for_family("path_traversal"))
+        self.assertIsNone(analyzer_for_family("information_disclosure"))
 
     def test_methodology_grounding_is_non_evidentiary(self):
         result = self.analyze({})
