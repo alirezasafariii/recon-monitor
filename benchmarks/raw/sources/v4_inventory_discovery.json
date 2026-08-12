@@ -1,0 +1,260 @@
+{
+  "inventory_discovery_rule_version": "2026.08.12.6.26",
+  "inventory_discovery_version": "1.0.0",
+  "max_pages_per_cwe": 50,
+  "novelty_rejection_count": 6,
+  "novelty_rejections": [
+    {
+      "cwe": "CWE-200",
+      "page": 1,
+      "project": "gitpython-developers/GitPython",
+      "reasons": [
+        "prior_root",
+        "prior_project",
+        "prior_url"
+      ],
+      "root": "GHSA-rwj8-pgh3-r573",
+      "semantic_groups": {
+        "api_surface": [
+          " api "
+        ],
+        "lifecycle": [
+          "is deprecated"
+        ],
+        "reachable_or_exposed": [
+          "unauthenticated"
+        ],
+        "weaker_control": [
+          "arbitrary",
+          "bypass",
+          "unauthenticated"
+        ]
+      },
+      "summary": "GitPython: Environment-variable exfiltration via os.path.expandvars() on Repo.clone_from() URL"
+    },
+    {
+      "cwe": "CWE-200",
+      "page": 2,
+      "project": "langflow-ai/langflow",
+      "reasons": [
+        "prior_root",
+        "prior_project",
+        "prior_url"
+      ],
+      "root": "GHSA-x223-p2gf-v735",
+      "semantic_groups": {
+        "api_surface": [
+          " endpoint",
+          " route",
+          "/api/",
+          "/api/v1",
+          "endpoint "
+        ],
+        "lifecycle": [
+          "deprecated=true"
+        ],
+        "reachable_or_exposed": [
+          "no authentication",
+          "unauthenticated"
+        ],
+        "weaker_control": [
+          "no authentication",
+          "unauthenticated"
+        ]
+      },
+      "summary": "Langflow: Unauthenticated file upload leads to DoS (space exhaustion) and information leak"
+    },
+    {
+      "cwe": "CWE-306",
+      "page": 1,
+      "project": "MervinPraison/PraisonAI",
+      "reasons": [
+        "prior_project"
+      ],
+      "root": "GHSA-9752-mhqh-h34f",
+      "semantic_groups": {
+        "api_surface": [
+          " api ",
+          " endpoint",
+          " route",
+          "/api/",
+          "endpoint "
+        ],
+        "lifecycle": [
+          "legacy api"
+        ],
+        "reachable_or_exposed": [
+          "exposed",
+          "no authentication",
+          "unauthenticated"
+        ],
+        "weaker_control": [
+          "arbitrary",
+          "no authentication",
+          "unauthenticated"
+        ]
+      },
+      "summary": "npm PraisonAI AgentOS exposes unauthenticated agent listing and invocation"
+    },
+    {
+      "cwe": "CWE-306",
+      "page": 1,
+      "project": "MervinPraison/PraisonAI",
+      "reasons": [
+        "prior_root",
+        "prior_project",
+        "prior_url"
+      ],
+      "root": "GHSA-5qw8-f2g9-ff29",
+      "semantic_groups": {
+        "api_surface": [
+          " api ",
+          " endpoint",
+          " route",
+          "handler"
+        ],
+        "lifecycle": [
+          "marked deprecated"
+        ],
+        "reachable_or_exposed": [
+          "can access",
+          "no authentication",
+          "unauthenticated"
+        ],
+        "weaker_control": [
+          "arbitrary",
+          "bypass",
+          "no authentication",
+          "unauthenticated"
+        ]
+      },
+      "summary": "PraisonAI recipe serve Typer command bypasses the non-localhost authentication guard"
+    },
+    {
+      "cwe": "CWE-306",
+      "page": 1,
+      "project": "langflow-ai/langflow",
+      "reasons": [
+        "prior_root",
+        "prior_project",
+        "prior_url"
+      ],
+      "root": "GHSA-x223-p2gf-v735",
+      "semantic_groups": {
+        "api_surface": [
+          " endpoint",
+          " route",
+          "/api/",
+          "/api/v1",
+          "endpoint "
+        ],
+        "lifecycle": [
+          "deprecated=true"
+        ],
+        "reachable_or_exposed": [
+          "no authentication",
+          "unauthenticated"
+        ],
+        "weaker_control": [
+          "no authentication",
+          "unauthenticated"
+        ]
+      },
+      "summary": "Langflow: Unauthenticated file upload leads to DoS (space exhaustion) and information leak"
+    },
+    {
+      "cwe": "CWE-306",
+      "page": 1,
+      "project": "MervinPraison/PraisonAI",
+      "reasons": [
+        "prior_project"
+      ],
+      "root": "GHSA-6rmh-7xcm-cpxj",
+      "semantic_groups": {
+        "api_surface": [
+          " api ",
+          " endpoint",
+          " route",
+          "handler"
+        ],
+        "lifecycle": [
+          "legacy api"
+        ],
+        "reachable_or_exposed": [
+          "can access",
+          "unauthenticated",
+          "without authentication"
+        ],
+        "weaker_control": [
+          "arbitrary",
+          "bypass",
+          "unauthenticated",
+          "without authentication"
+        ]
+      },
+      "summary": "PraisonAI ships and generates a legacy API server with authentication disabled by default, allowing unauthenticated workflow execution"
+    }
+  ],
+  "reviewed_advisory_rows": 1720,
+  "search_cwes": [
+    "CWE-200",
+    "CWE-306",
+    "CWE-862",
+    "CWE-284",
+    "CWE-400"
+  ],
+  "selected": {
+    "canonical_advisory_url": "https://github.com/phpvms/phpvms/security/advisories/GHSA-fv26-4939-62fh",
+    "description": "# Security Advisory: Unauthenticated Access to Legacy Import Feature\n\n**Severity:** Critical\n**Affected versions:** phpVMS 7.x (up to 7.0.5)\n**Fixed in:** v7.0.6\n**Component:** Legacy importer\n\n## Summary\n\nA critical vulnerability in phpVMS 7.x allowed unauthenticated access to a legacy import feature. Although this feature is deprecated, parts of it remained accessible and operational.\n\n## Impact\n\nA remote attacker could trigger internal processes that modify or delete application data, potentially resulting in:\n\n- Data loss\n- Service disruption\n\nNo authentication was required.\n\n## Remediation\n\n- **Update immediately** to [the latest patched version](https://github.com/phpvms/phpvms/releases/tag/7.0.7)\n- If unable to update:\n  - The release link has instructions on how to fix it (it's a one-line fix to comment out the routes)\n\n## Affected Versions\n\n* Affected: phpVMS 7.x \u2264 7.0.5\n* Not affected: phpVMS >= 7.0.6, v8 (feature removed from public access)",
+    "discovered_from_cwe": "CWE-306",
+    "discovered_page": 2,
+    "family": "improper_inventory_management",
+    "freshness_validated": true,
+    "inventory_semantic_groups": {
+      "api_surface": [
+        " route"
+      ],
+      "lifecycle": [
+        "is deprecated"
+      ],
+      "reachable_or_exposed": [
+        "no authentication",
+        "remote attacker",
+        "unauthenticated"
+      ],
+      "weaker_control": [
+        "bypass",
+        "no authentication",
+        "unauthenticated"
+      ]
+    },
+    "inventory_semantic_score": 24,
+    "matched_cwes": [
+      "CWE-284",
+      "CWE-306",
+      "CWE-862"
+    ],
+    "published_at": "2026-05-04T21:20:40Z",
+    "references": [
+      "https://github.com/phpvms/phpvms/security/advisories/GHSA-fv26-4939-62fh",
+      "https://github.com/phpvms/phpvms/commit/f59ba8e0e8fc25c60c3faf14e526cfd49df3f7dc",
+      "https://github.com/phpvms/phpvms/releases/tag/7.0.7",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-42569",
+      "https://github.com/phpvms/phpvms/releases/tag/7.0.6",
+      "https://github.com/advisories/GHSA-fv26-4939-62fh"
+    ],
+    "repository_advisory_url": "https://api.github.com/repos/phpvms/phpvms/security-advisories/GHSA-fv26-4939-62fh",
+    "selection_basis": "reviewed_advisory_exact_api_lifecycle_exposure_semantics_plus_complete_v4_novelty_firewall_pre_scoring",
+    "severity": "critical",
+    "source_code_location": "https://github.com/phpvms/phpvms",
+    "source_project": "phpvms/phpvms",
+    "source_root": "GHSA-fv26-4939-62fh",
+    "summary": "phpVMS has an /importer authorization bypass causing full database wipe",
+    "updated_at": "2026-05-13T13:42:26Z"
+  },
+  "selection_executes_analysis_engine": false,
+  "selection_uses_admission_results": false,
+  "selection_uses_benchmark_results": false,
+  "selection_uses_detector_scores": false,
+  "semantic_match_count_before_novelty": 7
+}
