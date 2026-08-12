@@ -23,6 +23,8 @@ class RawReconV4SourceAudit6260Tests(unittest.TestCase):
         self.assertIn("postmessage", HARD_ANCHORS["postmessage_trust"][0])
         self.assertTrue(any("source map" in group for group in HARD_ANCHORS["source_map_exposure"]))
         self.assertTrue(any("dom xss" in group for group in HARD_ANCHORS["dom_xss"]))
+        self.assertTrue(any("deprecated endpoint" in group for group in HARD_ANCHORS["improper_inventory_management"]))
+        self.assertTrue(any("hostname validation" in group for group in HARD_ANCHORS["unsafe_api_consumption"]))
 
     def test_audit_is_pre_scoring_by_construction(self) -> None:
         source = (ROOT / "app" / "raw_recon_v4_source_audit.py").read_text(encoding="utf-8")
@@ -40,7 +42,7 @@ class RawReconV4SourceAudit6260Tests(unittest.TestCase):
         self.assertNotIn("hypothesis_admission", source)
 
     def test_audit_lineage_is_exact(self) -> None:
-        self.assertEqual(AUDIT_VERSION, "1.0.0")
+        self.assertEqual(AUDIT_VERSION, "1.1.0")
         self.assertEqual(AUDIT_RULE_VERSION, "2026.08.12.6.26")
 
 
