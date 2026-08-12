@@ -18,45 +18,79 @@ jobs:
         with:
           ref: agent/analysis-engine-6.26-fresh-raw-holdout-v4
           fetch-depth: 0
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Audit protocol contract
+
+      - name: Apply pinned source-audit reconstruction
+        run: python scripts/analysis_626_source_audit_fix.py
+
+      - name: Exact source supplement contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_raw_recon_v4_exact_source_supplement_v6260.py' -q
+
+      - name: Validate exact primary sources through novelty firewall
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python app/raw_recon_v4_exact_source_supplement.py
+
+      - name: Source audit protocol contract
         env:
           PYTHONPATH: app
         run: python -m unittest discover -s tests -p 'test_raw_recon_v4_source_audit_v6260.py' -q
+
+      - name: Discovery and shortlist protocol regressions
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_discovery_protocol_v6260.py' -q
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_shortlist_protocol_v6260.py' -q
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_primary_supplement_v6260.py' -q
+
       - name: Run strict pre-scoring source-family audit
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v4_source_audit.py
-      - name: Print audit result
+
+      - name: Verify exact 36-family audited shortlist
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          d=json.loads(Path('benchmarks/raw/sources/v4_source_family_audit.json').read_text())
+          audit=json.loads(Path('benchmarks/raw/sources/v4_source_family_audit.json').read_text())
+          rebuilt=json.loads(Path('benchmarks/raw/sources/v4_shortlist_audited.json').read_text())
+          exact=json.loads(Path('benchmarks/raw/sources/v4_exact_source_supplement.json').read_text())
           print(json.dumps({
-            'initial_failed_families':d['initial_failed_families'],
-            'eligible_family_counts':d['eligible_family_counts'],
-            'rebuilt_family_count':d['rebuilt_family_count'],
-            'rebuilt_root_count':d['rebuilt_root_count'],
-            'rebuilt_project_count':d['rebuilt_project_count'],
-            'missing_families':d['missing_families'],
-            'changed_selections':d['changed_selections'],
+            'initial_failed_families':audit['initial_failed_families'],
+            'pinned_passing_family_count':audit['pinned_passing_family_count'],
+            'repaired_family_count':audit['repaired_family_count'],
+            'eligible_family_counts':audit['eligible_family_counts'],
+            'rebuilt_family_count':audit['rebuilt_family_count'],
+            'rebuilt_root_count':audit['rebuilt_root_count'],
+            'rebuilt_project_count':audit['rebuilt_project_count'],
+            'missing_families':audit['missing_families'],
+            'changed_selections':audit['changed_selections'],
+            'exact_supplement':[{k:r[k] for k in ('family','source_root','source_project')} for r in exact['selected']],
           },indent=2,sort_keys=True))
+          assert audit['rebuilt_family_count']==36
+          assert audit['rebuilt_root_count']==36
+          assert audit['rebuilt_project_count']==36
+          assert not audit['missing_families']
+          assert len(rebuilt['selected'])==36
+          assert len({r['family'] for r in rebuilt['selected']})==36
+          assert len({r['source_root'] for r in rebuilt['selected']})==36
+          assert len({r['source_project'].lower() for r in rebuilt['selected']})==36
+          exact_by_family={r['family']:r for r in exact['selected']}
+          final_by_family={r['family']:r for r in rebuilt['selected']}
+          for family in ('nosql_injection','source_map_exposure','improper_inventory_management','unsafe_api_consumption'):
+              assert final_by_family[family]['source_root']==exact_by_family[family]['source_root'], (family, final_by_family[family]['source_root'])
+              assert exact_by_family[family]['freshness_validated'] is True
           PY
-      - name: Stop before mutation if audit cannot rebuild exact 36
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          d=json.loads(Path('benchmarks/raw/sources/v4_source_family_audit.json').read_text())
-          assert d['rebuilt_family_count']==36
-          assert d['rebuilt_root_count']==36
-          assert d['rebuilt_project_count']==36
-          assert not d['missing_families']
-          PY
+
       - name: Promote audited shortlist and update manifest
         run: |
           mv benchmarks/raw/sources/v4_shortlist_audited.json benchmarks/raw/sources/v4_shortlist.json
@@ -73,8 +107,11 @@ jobs:
               if p.is_file():
                   entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
           for name in (
+              'app/raw_recon_v4_exact_source_supplement.py',
               'app/raw_recon_v4_source_audit.py',
+              'tests/test_raw_recon_v4_exact_source_supplement_v6260.py',
               'tests/test_raw_recon_v4_source_audit_v6260.py',
+              'benchmarks/raw/sources/v4_exact_source_supplement.json',
               'benchmarks/raw/sources/v4_source_family_audit.json',
               'benchmarks/raw/sources/v4_shortlist.json',
           ):
@@ -84,13 +121,17 @@ jobs:
                   if name not in order: order.append(name)
           manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
           PY
+
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
-      - name: Commit audited shortlist and remove one-shot workflow
+
+      - name: Commit audited shortlist and remove one-shot helpers
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-626-v4-source-audit.yml
+          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Audit Analysis 6.26 raw v4 source-family fit"
