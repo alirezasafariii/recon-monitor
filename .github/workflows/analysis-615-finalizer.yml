@@ -1,0 +1,173 @@
+name: Finalize Analysis 6.15 Without Rescoring Raw v3
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.15-fresh-raw-holdout-v3
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.15-fresh-raw-holdout-v3
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify consumed result, freeze, and corpus without scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from raw_recon_corpus import load_raw_cases
+          from raw_recon_v3_benchmark import verify_v3_freeze
+          from raw_recon_v3_corpus import validate_v3_corpus
+
+          manifest_path = Path('benchmarks/raw/splits/v3.json')
+          result_path = Path('benchmarks/raw/results/analysis_raw_v3_first_blind.json')
+          corpus_path = Path('benchmarks/raw/analysis_raw_v3.jsonl')
+          manifest = json.loads(manifest_path.read_text())
+          result = json.loads(result_path.read_text())
+
+          assert manifest['evaluation_status'] == 'evaluated_once_consumed'
+          assert manifest['corpus']['sealed'] is True
+          assert manifest['corpus']['scored'] is True
+          assert manifest['seal']['scored'] is True
+          assert manifest['evaluation']['fresh_run_consumed'] is True
+          assert manifest['evaluation']['first_and_only_fresh_run_id'] == '31559204156'
+          assert result['evaluation_run_id'] == '31559204156'
+          assert result['evaluation_trigger_sha'] == '4fb15070d2c084bcf14f5cbf91d8f798bf483713'
+          assert result['evaluation_status_at_start'] == 'sealed_unscored'
+          assert result['evaluation_semantics'] == 'first_and_only_fresh_raw_v3'
+          assert result['quality_gate']['passed'] is True
+          assert result['quality_gate']['failures'] == []
+          assert result['metrics'] == manifest['evaluation']['metrics'] == manifest['seal']['metrics']
+
+          expected_metrics = {
+              'condition_extraction_precision': 1.0,
+              'condition_extraction_recall': 1.0,
+              'routing_top1_accuracy': 0.930556,
+              'routing_top3_accuracy': 0.958333,
+              'admission_precision': 1.0,
+              'admission_recall': 1.0,
+              'abstention_accuracy': 1.0,
+              'false_promotion_rate': 0.0,
+              'wrong_family_promotion_rate': 0.0,
+              'end_to_end_accuracy': 1.0,
+              'prior_source_root_overlap_rate': 0.0,
+              'raw_label_leakage_rate': 0.0,
+          }
+          assert result['metrics'] == expected_metrics, result['metrics']
+
+          expected_sha = 'ee17e481dd543a8cd0a9c35c07e2eab32f6cbac8e15d62016c9b953799e6d10f'
+          actual_sha = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
+          assert actual_sha == expected_sha
+          assert manifest['corpus']['sha256'] == expected_sha
+          assert manifest['seal']['corpus_sha256'] == expected_sha
+
+          freeze = verify_v3_freeze(manifest_path)
+          assert freeze['passed'], freeze['errors']
+          cases = load_raw_cases(corpus_path)
+          validation = validate_v3_corpus(cases)
+          assert validation['passed'], validation['errors']
+          assert validation['source_root_count'] == 24
+          assert validation['source_project_count'] == 24
+          assert validation['positive_family_count'] == 18
+          assert validation['prior_source_root_overlap_count'] == 0
+          assert validation['prior_url_overlap_count'] == 0
+          assert validation['positive_control_raw_collision_count'] == 0
+          assert validation['positive_observable_delta_rate'] == 1.0
+          print(json.dumps({'consumed': True, 'fresh_run_id': result['evaluation_run_id'], 'metrics': result['metrics'], 'corpus_sha256': actual_sha}, indent=2, sort_keys=True))
+          PY
+
+      - name: Focused Analysis 6.15 lifecycle and calibration tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest tests.test_raw_recon_v3_protocol_v6150 -v
+          python -m unittest tests.test_raw_precision_calibration_v6140 -v
+
+      - name: Full unit regression
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration regression
+        run: python tests/integration_runner.py
+
+      - name: Record post-consumption maintenance provenance
+        env:
+          FINALIZER_RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+
+          manifest_path = Path('benchmarks/raw/splits/v3.json')
+          test_path = Path('tests/test_raw_recon_v3_protocol_v6150.py')
+          manifest = json.loads(manifest_path.read_text())
+          data = test_path.read_bytes()
+          current_blob = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+          sealed_blob = manifest['protocol_files']['tests/test_raw_recon_v3_protocol_v6150.py']
+          assert sealed_blob == 'b58cd34b2783ced3d026d36c0472a90739864417'
+          assert current_blob != sealed_blob
+          manifest['post_consumption_maintenance'] = {
+              'lifecycle_test_path': 'tests/test_raw_recon_v3_protocol_v6150.py',
+              'sealed_protocol_test_blob_sha': sealed_blob,
+              'current_lifecycle_test_blob_sha': current_blob,
+              'changed_after_consumption': True,
+              'reason': 'The pre-score protocol test asserted the unscored lifecycle state. After the one-shot evaluation consumed v3, only that test was made lifecycle-aware. Frozen benchmark gates, engine code, corpus, benchmark harness, and original sealed protocol hash remain unchanged.',
+          }
+          manifest['finalizer'] = {
+              'run_id': str(os.environ['FINALIZER_RUN_ID']),
+              'date': '2026-08-12',
+              'rescored_raw_v3': False,
+              'full_unit_regression_passed': True,
+              'golden_regression_passed': True,
+              'integration_regression_passed': True,
+          }
+          manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Re-verify freeze and consumed metadata without scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v3_benchmark import verify_v3_freeze
+          manifest = json.loads(Path('benchmarks/raw/splits/v3.json').read_text())
+          assert manifest['evaluation_status'] == 'evaluated_once_consumed'
+          assert manifest['finalizer']['rescored_raw_v3'] is False
+          assert manifest['post_consumption_maintenance']['changed_after_consumption'] is True
+          r = verify_v3_freeze('benchmarks/raw/splits/v3.json')
+          assert r['passed'], r['errors']
+          PY
+
+      - name: Cleanup finalizer, regenerate MANIFEST, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/analysis-615-finalizer.yml
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize Analysis 6.15 fresh raw v3 generalization audit'
+          git push origin HEAD:agent/analysis-engine-6.15-fresh-raw-holdout-v3
