@@ -74,11 +74,12 @@ TEMPLATE_MARKERS = ("render_template", "template(", "jinja", "twig", "freemarker
 LDAP_MARKERS = ("ldap", "directory search", "distinguishedname", "dn=", "ou=", "memberof", "search_filter")
 GRAPHQL_MARKERS = ("graphql", "query ", "mutation ", "__typename", "__schema")
 WEBSOCKET_MARKERS = ("ws://", "wss://", "websocket", "subscribe", "subscription")
-THIRD_PARTY_MARKERS = ("third-party", "third_party", "integration", "upstream", "vendor", "partner api", "external api")
-BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "redeem", "claim", "coupon", "promo")
+THIRD_PARTY_MARKERS = ("third-party", "third_party", "integration", "upstream", "vendor", "partner api", "external api", "webhook")
+BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "invite", "create account", "redeem", "claim", "coupon", "promo", "comment", "post", "message", "review")
 SINGLE_USE_MARKERS = ("redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund")
 AUTH_MARKERS = ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso", "saml")
 VERSION_MARKERS = ("legacy", "deprecated", "staging", "stage", "beta", "alpha", "/dev/", "/test/")
+CONFIG_SURFACE_MARKERS = ("debug", "stacktrace", "stack_trace", "traceback", "swagger", "actuator", "phpinfo", "directory listing", "server-status", "options method", "http://")
 FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extract", "/unpack", "/files", "/attachment")
 PATH_OPERATION_MARKERS = ("/download", "/archive", "/extract", "/unpack", "/files")
 CLI_EXECUTION_MARKERS = ("npm ", "npx ", "node ", "python ", "python3 ", "bash ", "sh ", "powershell ", "cmd.exe ", "git ", "curl ", "wget ", "jsii-diff ")
@@ -539,7 +540,7 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "ldap_injection"); _add_identity(packet, "ldap_injection", "input_parameter", "endpoint_schema", "Client-controlled directory/search input is present.", "input_surface", 10); _add_identity(packet, "ldap_injection", "ldap_query_surface", "endpoint_semantic", "LDAP/directory query semantics are present.", "query_surface", 16)
         if any(pattern in text_lower for pattern in LDAP_ERROR_PATTERNS): _add(packet, "support", _signal("ldap_injection", "ldap_error_observed", "raw_response", "Stored response contains an LDAP/directory error signature.", source_group="ldap_behavior", weight=28, basis="passive_error_signature"))
 
-    if all_fields & RESOURCE_FIELDS or any(token in surface_text for token in ("batch", "bulk", "export", "report", "generate", "thumbnail", "upload", "download", "sms", "email", "otp")):
+    if all_fields & RESOURCE_FIELDS or any(token in surface_text for token in ("batch", "bulk", "export", "report", "generate", "pdf", "thumbnail", "upload", "download", "sms", "email", "otp", "biometric")):
         packet = _packet_for(result, "unrestricted_resource_consumption")
         if all_fields & RESOURCE_FIELDS: _add_identity(packet, "unrestricted_resource_consumption", "resource_control_parameter", "endpoint_schema", "Client-visible resource amplification parameter is present.", "resource_surface", 16)
         else: _add_identity(packet, "unrestricted_resource_consumption", "expensive_operation", "endpoint_semantic", "Potentially expensive operation is exposed.", "resource_surface", 12)
@@ -553,6 +554,16 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "race_condition"); _add_identity(packet, "race_condition", "state_change", "endpoint_contract", "State-changing business operation is present.", "state_change", 12); _add_identity(packet, "race_condition", "single_use_semantics", "endpoint_semantic", "Operation has single-use/balance-changing semantics.", "single_use", 14)
     if flow_hits and method in {"POST", "PUT", "PATCH", "DELETE"}:
         packet = _packet_for(result, "business_logic"); _add_identity(packet, "business_logic", "business_operation", "endpoint_semantic", "State-changing business workflow operation is present.", "business_operation", 14)
+
+    config_hits = [marker for marker in CONFIG_SURFACE_MARKERS if marker in surface_text]
+    explicit_misconfig = any(_flag(flat, signal) for signal in EXECUTION_PROFILES["security_misconfiguration"].condition_signals)
+    if config_hits or explicit_misconfig:
+        packet = _packet_for(result, "security_misconfiguration")
+        _add_identity(packet, "security_misconfiguration", "misconfiguration_surface", "raw_configuration", "Stored artifacts expose configuration-sensitive deployment/application behavior.", "configuration_surface", 10)
+        if any(token in config_hits for token in ("debug", "stacktrace", "stack_trace", "traceback", "phpinfo")):
+            _add_identity(packet, "security_misconfiguration", "debug_surface", "raw_configuration", "Stored artifacts expose a debug/error configuration surface.", "configuration_surface", 10)
+        if "http://" in config_hits:
+            _add_identity(packet, "security_misconfiguration", "transport_surface", "raw_configuration", "Stored artifacts contain a cleartext HTTP configuration surface.", "configuration_surface", 10)
 
     if endpoint.lower().startswith("http://"):
         packet = _packet_for(result, "security_misconfiguration"); _add_identity(packet, "security_misconfiguration", "transport_surface", "endpoint", "Cleartext HTTP endpoint is present.", "configuration_surface", 14); _add(packet, "support", _signal("security_misconfiguration", "insecure_http_enabled", "endpoint", "Stored target endpoint uses cleartext HTTP.", source_group="configuration_behavior", weight=28, basis="endpoint_scheme"))
@@ -585,10 +596,24 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         if len(raw) >= 16 and entropy >= 3.0: _add(packet, "support", _signal("secret_exposure", "high_entropy_value", "secret_fingerprint", "Redacted credential-like material has non-trivial length and character entropy.", source_group="secret_assessment", weight=18, basis="redacted_entropy"))
         break
 
-    if any(token in surface_text for token in VERSION_MARKERS):
-        packet = _packet_for(result, "improper_inventory_management"); _add_identity(packet, "improper_inventory_management", "api_version_surface", "endpoint", "Versioned, legacy, or non-production API surface is present.", "inventory_surface", 16)
-        if status in SUCCESS_STATUSES and any(token in endpoint.lower() for token in ("legacy", "deprecated", "old")): _add(packet, "support", _signal("improper_inventory_management", "deprecated_version_still_reachable", "http_response", "Stored legacy/deprecated API endpoint remains reachable.", source_group="inventory_behavior", weight=28, basis="legacy_route_success"))
-        if status in SUCCESS_STATUSES and any(token in endpoint.lower() for token in ("staging", "stage", "dev", "test", "beta", "alpha")): _add(packet, "support", _signal("improper_inventory_management", "undocumented_host_observed", "http_response", "Stored non-production/pre-release API surface is reachable.", source_group="inventory_behavior", weight=22, basis="nonproduction_route_success"))
+    version_hits = re.findall(r"(?:^|[/_.-])(v\d+(?:\.\d+)?|beta|alpha|legacy|old|deprecated|staging|stage|dev|test)(?:[/_.-]|$)", surface_text, re.I)
+    normalized_versions = {str(token).lower() for token in version_hits}
+    risky_inventory_markers = normalized_versions & {"legacy", "old", "deprecated", "staging", "stage", "dev", "test", "beta", "alpha"}
+    explicit_inventory_condition = any(
+        _flag(flat, signal)
+        for signal in EXECUTION_PROFILES["improper_inventory_management"].condition_signals
+    )
+    if version_hits and (risky_inventory_markers or explicit_inventory_condition):
+        packet = _packet_for(result, "improper_inventory_management")
+        _add_identity(packet, "improper_inventory_management", "api_version_surface", "endpoint", "Versioned inventory is combined with legacy/non-production semantics or explicit stored drift evidence.", "inventory_surface", 16)
+        if normalized_versions & {"legacy", "old", "deprecated"}:
+            _add_identity(packet, "improper_inventory_management", "legacy_endpoint_surface", "endpoint", "Legacy/deprecated API inventory semantics are present.", "inventory_surface", 12)
+        if normalized_versions & {"staging", "stage", "dev", "test", "beta", "alpha"}:
+            _add_identity(packet, "improper_inventory_management", "nonproduction_surface", "endpoint", "Non-production/pre-release API inventory semantics are present.", "inventory_surface", 12)
+        if status in SUCCESS_STATUSES and normalized_versions & {"legacy", "old", "deprecated"}:
+            _add(packet, "support", _signal("improper_inventory_management", "deprecated_version_still_reachable", "http_response", "Stored legacy/deprecated API endpoint remains reachable.", source_group="inventory_behavior", weight=28, basis="legacy_route_success"))
+        if status in SUCCESS_STATUSES and normalized_versions & {"staging", "stage", "dev", "test", "beta", "alpha"}:
+            _add(packet, "support", _signal("improper_inventory_management", "undocumented_host_observed", "http_response", "Stored non-production/pre-release API surface is reachable.", source_group="inventory_behavior", weight=22, basis="nonproduction_route_success"))
 
 
 def execute_detector_intelligence(*, target: str, endpoint: str, method: str, endpoint_schema: Mapping[str, Any] | None, details: Mapping[str, Any] | None, evidence_for: Iterable[Any] | None = None, evidence_against: Iterable[Any] | None = None, category: str = "", business_context: str = "general") -> dict[str, dict[str, Any]]:

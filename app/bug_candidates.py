@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_authorization_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_api_configuration_observations, collect_authorization_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.19.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.19"
@@ -493,6 +493,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.20 — physical API/configuration collector ownership.
+    # WSTG/OWASP/CWE/write-ups define detector criteria only; target evidence
+    # remains owned by passive execution/reconstruction and admission.
+    for observation in collect_api_configuration_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -550,11 +567,6 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     # raw_family_collectors.client_side owns emission metadata; detector execution
     # owns redirect input/sink/external-destination target evidence.
 
-    # Shared remote-destination surface metadata is retained for API10 correlation.
-    # Analysis 6.18 removes SSRF emission; detector execution owns SSRF target evidence.
-    ssrf_tokens = _contains_any(haystack, ("webhook", "fetchurl", "fetch_url", "imageurl", "image_url", "importurl", "import_url", "previewurl", "proxyurl", "callbackurl", "destinationurl", "remoteurl"))
-    generic_url_fields = [field for field in query_fields + body_fields if field.lower() in {"url", "uri", "endpoint", "destination", "callback", "webhook"}]
-
     # Analysis 6.18: SSRF/File Upload/Path Traversal legacy collection was physically
     # removed. raw_family_collectors.file_remote_resource owns emission metadata;
     # detector execution/reconstruction remains the sole source of target evidence.
@@ -563,142 +575,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     # removed from this orchestrator. Dedicated raw_family_collectors now own emission
     # metadata while detector execution/reconstruction owns all target evidence.
 
-    # API4:2023 — resource consumption.
-    resource_fields = [field for field in query_fields + body_fields if field.lower().replace("_", "") in {"limit", "pagesize", "size", "count", "batch", "batchsize", "first", "take", "perpage", "maxresults", "filesize"}]
-    resource_markers = _contains_any(haystack, ("batch", "bulk", "export", "report", "generate", "pdf", "upload", "download", "sms", "email", "otp", "biometric", "thumbnail"))
-    if resource_fields or resource_markers:
-        support = []
-        if resource_fields:
-            support.append({"type": "resource_control_parameter", "source": "endpoint_schema", "weight": 16, "text": f"Resource-amplifying controls are client visible: {', '.join(resource_fields[:8])}"})
-            if any("page" in field.lower() or field.lower() in {"limit", "first", "take", "perpage"} for field in resource_fields):
-                support.append({"type": "pagination_control", "source": "endpoint_schema", "weight": 10, "text": "Pagination/record-count control is client visible"})
-        if any(token in resource_markers for token in ("batch", "bulk")):
-            support.append({"type": "batch_operation", "source": "semantic", "weight": 12, "text": "Batch/bulk operation semantics are visible"})
-        if any(token in resource_markers for token in ("sms", "email", "otp", "biometric")):
-            support.append({"type": "paid_provider_operation", "source": "semantic", "weight": 14, "text": "The operation may trigger a per-request third-party service cost"})
-        if any(token in resource_markers for token in ("export", "report", "generate", "pdf", "thumbnail", "upload", "download")):
-            support.append({"type": "expensive_operation", "source": "semantic", "weight": 10, "text": "Potentially expensive processing/storage/bandwidth operation is visible"})
-        for flag, signal in (
-            ("rate_limit_absent_observed", "rate_limit_absent_observed"),
-            ("unbounded_page_size_observed", "unbounded_page_size_observed"),
-            ("batch_limit_absent_observed", "batch_limit_absent_observed"),
-            ("oversized_payload_accepted", "oversized_payload_accepted"),
-            ("cost_amplification_observed", "cost_amplification_observed"),
-            ("timeout_limit_absent", "timeout_limit_absent"),
-            ("resource_exhaustion_differential", "resource_exhaustion_differential"),
-        ):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "resource_behavior", "weight": 30, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        if support:
-            emit("unrestricted_resource_consumption", "missing_resource_limit", 16, support, [],
-                 ["Maximum page/batch/payload size", "Per-client operation rate", "Execution timeout and provider spending limit"],
-                 ["candidate-resource-surface", "admission-resource-limit-failure"],
-                 "The API exposes a resource-amplifying control or costly operation; promotion requires observed missing or ineffective limits.")
-
-    # API6:2023 — unrestricted access to sensitive business flows.
-    flow_map = {
-        "purchase_flow": ("purchase", "buy", "checkout", "ticket", "order"),
-        "reservation_flow": ("reserve", "reservation", "booking", "slot"),
-        "posting_flow": ("comment", "post", "message", "review"),
-        "signup_flow": ("signup", "register", "invite", "create account"),
-        "redemption_flow": ("redeem", "claim", "coupon", "promo"),
-    }
-    flow_signals = [(signal, _contains_any(haystack, tokens)) for signal, tokens in flow_map.items()]
-    flow_signals = [(signal, tokens) for signal, tokens in flow_signals if tokens]
-    if flow_signals:
-        support = [{"type": "sensitive_business_flow", "source": "semantic", "weight": 12, "text": "A potentially abuse-sensitive business flow is exposed"}]
-        for signal, tokens in flow_signals[:3]:
-            support.append({"type": signal, "source": "semantic", "weight": 12, "text": f"Flow semantics observed: {', '.join(tokens[:5])}"})
-        for flag, signal in (
-            ("automation_limit_absent", "automation_limit_absent"),
-            ("anti_bot_control_absent", "anti_bot_control_absent"),
-            ("per_user_limit_absent", "per_user_limit_absent"),
-            ("bulk_abuse_observed", "bulk_abuse_observed"),
-            ("scalping_control_absent", "scalping_control_absent"),
-            ("reservation_abuse_observed", "reservation_abuse_observed"),
-            ("workflow_frequency_unrestricted", "workflow_frequency_unrestricted"),
-            ("business_flow_limit_bypass", "business_flow_limit_bypass"),
-        ):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "business_flow_behavior", "weight": 28, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("sensitive_business_flow_abuse", "automation_abuse_boundary", 15, support, [],
-             ["Per-user/business frequency limits", "Anti-automation controls", "Scarce-inventory or reservation abuse controls"],
-             ["candidate-sensitive-business-flow", "admission-business-flow-limit"],
-             "A sensitive business flow may be automatable at harmful scale; promotion requires observed missing or bypassable abuse controls.")
-
-    # API8:2023 — security misconfiguration.
-    misconfig_markers = _contains_any(haystack, ("debug", "stacktrace", "stack_trace", "traceback", "swagger", "actuator", "phpinfo", "directory listing", "server-status", "options method", "http://"))
-    misconfig_flags = []
-    for flag, signal in (
-        ("stack_trace_exposed", "stack_trace_exposed"),
-        ("debug_mode_exposed", "debug_mode_exposed"),
-        ("insecure_http_enabled", "insecure_http_enabled"),
-        ("unnecessary_method_enabled", "unnecessary_method_enabled"),
-        ("directory_listing_observed", "directory_listing_observed"),
-        ("security_header_missing_on_sensitive_response", "security_header_missing_on_sensitive_response"),
-        ("desync_processing_difference", "desync_processing_difference"),
-        ("unsafe_default_configuration", "unsafe_default_configuration"),
-    ):
-        if _explicit_flag(details, flag):
-            misconfig_flags.append({"type": signal, "source": "stored_behavior", "source_group": "configuration_behavior", "weight": 30, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-    if misconfig_markers or misconfig_flags:
-        support = [{"type": "misconfiguration_surface", "source": "semantic", "weight": 10, "text": f"Configuration-sensitive surface observed: {', '.join(misconfig_markers[:6]) or 'explicit stored configuration evidence'}"}] + misconfig_flags
-        if any(token in misconfig_markers for token in ("debug", "stacktrace", "stack_trace", "traceback", "phpinfo")):
-            support.append({"type": "debug_surface", "source": "semantic", "weight": 10, "text": "Debug/error surface is externally observable"})
-        if "http://" in haystack:
-            support.append({"type": "transport_surface", "source": "endpoint", "weight": 10, "text": "Cleartext HTTP surface is present"})
-        emit("security_misconfiguration", "deployment_hardening", 17, support, [],
-             ["Expected hardening baseline", "Production transport/method policy", "Whether debug/default functionality is intentionally exposed"],
-             ["candidate-misconfiguration-surface", "admission-direct-misconfiguration"],
-             "A configuration-sensitive surface is visible; promotion requires directly observed insecure configuration behavior.")
-
-    # API9:2023 — improper inventory management.
-    version_tokens = re.findall(r"(?:^|[/_.-])(v\d+|v\d+\.\d+|beta|alpha|legacy|old|deprecated|staging|stage|dev|test)(?:[/_.-]|$)", haystack, re.I)
-    if version_tokens:
-        normalized = [str(x).lower() for x in version_tokens]
-        support = [{"type": "api_version_surface", "source": "semantic", "weight": 14, "text": f"Version/non-production inventory markers observed: {', '.join(normalized[:8])}"}]
-        if any(x in {"legacy", "old", "deprecated"} for x in normalized):
-            support.append({"type": "legacy_endpoint_surface", "source": "semantic", "weight": 12, "text": "Legacy/deprecated endpoint naming is visible"})
-        if any(x in {"staging", "stage", "dev", "test", "beta", "alpha"} for x in normalized):
-            support.append({"type": "nonproduction_surface", "source": "semantic", "weight": 12, "text": "Non-production/pre-release deployment naming is visible"})
-        for flag, signal in (
-            ("deprecated_version_still_reachable", "deprecated_version_still_reachable"),
-            ("older_version_weaker_controls", "older_version_weaker_controls"),
-            ("undocumented_host_observed", "undocumented_host_observed"),
-            ("nonproduction_with_production_data", "nonproduction_with_production_data"),
-            ("retired_endpoint_active", "retired_endpoint_active"),
-            ("inventory_drift_observed", "inventory_drift_observed"),
-            ("unprotected_legacy_endpoint", "unprotected_legacy_endpoint"),
-        ):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "inventory_behavior", "weight": 28, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("improper_inventory_management", "legacy_or_nonproduction_exposure", 14, support, [],
-             ["Current API inventory and retirement plan", "Control parity with current production API", "Whether non-production hosts use production data"],
-             ["candidate-api-inventory-surface", "admission-inventory-drift"],
-             "Version or non-production API surface is visible; promotion requires observed active legacy/undocumented exposure with security relevance.")
-
-    # API10:2023 — unsafe consumption of third-party APIs.
-    upstream_markers = _contains_any(haystack, ("third-party", "third_party", "provider", "integration", "upstream", "webhook", "external api", "external_api", "vendor", "partner api"))
-    if upstream_markers:
-        support = [{"type": "third_party_integration", "source": "semantic", "weight": 16, "text": f"External/upstream integration markers observed: {', '.join(upstream_markers[:6])}"}]
-        if ssrf_tokens or generic_url_fields:
-            support.append({"type": "upstream_api_surface", "source": "endpoint_schema", "weight": 10, "text": "A remote/upstream destination is client or application visible"})
-        for flag, signal in (
-            ("upstream_tls_missing", "upstream_tls_missing"),
-            ("third_party_data_unsanitized", "third_party_data_unsanitized"),
-            ("upstream_redirect_followed_unrestricted", "upstream_redirect_followed_unrestricted"),
-            ("upstream_timeout_absent", "upstream_timeout_absent"),
-            ("upstream_response_unbounded", "upstream_response_unbounded"),
-            ("third_party_auth_weak", "third_party_auth_weak"),
-            ("unsafe_upstream_data_reaches_sink", "unsafe_upstream_data_reaches_sink"),
-        ):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "upstream_behavior", "weight": 30, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("unsafe_api_consumption", "upstream_trust_boundary", 17, support, [],
-             ["TLS and authentication to upstream service", "Redirect/timeout/response-size controls", "Validation and sanitization of third-party response data"],
-             ["candidate-upstream-integration", "admission-unsafe-api-consumption"],
-             "A third-party/upstream API dependency is visible; promotion requires observed unsafe trust, transport, redirect, resource, auth, or validation behavior.")
-
+    # Analysis 6.20: API4/API6/API8/API9/API10 legacy alert emission was physically removed.
+    # raw_family_collectors.api_configuration owns emission metadata; detector execution and
+    # raw-condition reconstruction remain the sole source of target evidence and controls.
 
     # Information exposure / headers
     disclosure_markers = _contains_any(haystack, ("debug", "internal", "stacktrace", "stack_trace", "exception", "sourceMappingURL", "apikey", "api_key", "secret", "token"))

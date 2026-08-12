@@ -120,9 +120,11 @@ class PhysicalRawCollectorFileRemote6180Tests(unittest.TestCase):
         self.assertNotIn('emit("ssrf", "remote_fetch"', source)
         self.assertNotIn('emit("file_upload", "file_validation"', source)
         self.assertNotIn('emit("path_traversal", "path_construction"', source)
-        self.assertIn("ssrf_tokens = _contains_any", source)
-        self.assertIn("generic_url_fields =", source)
-        self.assertIn("if ssrf_tokens or generic_url_fields:", source)
+        # Analysis 6.20 removed the API10 inline correlation variables; SSRF itself
+        # remains owned by the 6.18 physical file/remote collector.
+        self.assertNotIn("ssrf_tokens = _contains_any", source)
+        self.assertNotIn("generic_url_fields =", source)
+        self.assertNotIn("if ssrf_tokens or generic_url_fields:", source)
 
     def test_run_analysis_routes_all_three_families_through_physical_collector(self):
         with tempfile.TemporaryDirectory() as td:

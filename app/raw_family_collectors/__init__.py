@@ -1,4 +1,12 @@
 from raw_family_collectors.base import RawFamilyObservation
+from raw_family_collectors.api_configuration import (
+    API_CONFIGURATION_COLLECTOR_RULE_VERSION,
+    API_CONFIGURATION_COLLECTOR_VERSION,
+    API_CONFIGURATION_FAMILIES,
+    API_CONFIGURATION_OBSERVATIONS,
+    collect_api_configuration_observations,
+    validate_api_configuration_collectors,
+)
 from raw_family_collectors.authorization import (
     AUTHORIZATION_COLLECTOR_RULE_VERSION,
     AUTHORIZATION_COLLECTOR_VERSION,
@@ -34,6 +42,12 @@ from raw_family_collectors.injection import (
 
 __all__ = [
     "RawFamilyObservation",
+    "API_CONFIGURATION_COLLECTOR_VERSION",
+    "API_CONFIGURATION_COLLECTOR_RULE_VERSION",
+    "API_CONFIGURATION_FAMILIES",
+    "API_CONFIGURATION_OBSERVATIONS",
+    "collect_api_configuration_observations",
+    "validate_api_configuration_collectors",
     "CLIENT_SIDE_COLLECTOR_VERSION",
     "CLIENT_SIDE_COLLECTOR_RULE_VERSION",
     "CLIENT_SIDE_FAMILIES",
