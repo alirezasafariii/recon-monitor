@@ -21,275 +21,34 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Recover migration scripts
+      - name: Reuse validated cutover without whitespace stripping
         shell: bash
         run: |
           set -euo pipefail
-          git show d2b57f0dacba73d2ed6119a6662207e0288f712c:.github/workflows/ci.yml > /tmp/validated-bootstrap.yml
-          git show 9bb4e8a55bc44bad9e91e4dd74f69a5e8f9c6122:.github/workflows/ci.yml > /tmp/original-completion.yml
-          python - <<'PY'
-          from pathlib import Path
-          text = Path('/tmp/validated-bootstrap.yml').read_text(encoding='utf-8')
-          marker = "          python - <<'PY'\n"
-          end_marker = "\n          PY"
-          start = text.index(marker) + len(marker)
-          end = text.index(end_marker, start)
-          raw = text[start:end]
-          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
-          Path('/tmp/bootstrap.py').write_text(code, encoding='utf-8')
-          PY
-          python /tmp/bootstrap.py
-
-          cat > /tmp/protocol.py <<'PY'
-          from pathlib import Path
-          p = Path("app/behavioral_intelligence.py")
-          text = p.read_text(encoding="utf-8")
-          fn = text.index("def generate_behavioral_candidates(")
-          anchor = "        if not family:\n            continue\n"
-          pos = text.index(anchor, fn) + len(anchor)
-          guard = "        if family in {\"graphql_authorization\", \"websocket_authorization\", \"sensitive_caching\"}:\n            continue\n"
-          if guard not in text[fn:]:
-              text = text[:pos] + guard + text[pos:]
-          p.write_text(text, encoding="utf-8")
-          PY
-
-      - name: Apply cutover and repair helper block
-        shell: bash
-        run: |
-          set -euo pipefail
-          python /tmp/apply.py
-          python /tmp/protocol.py
-          python /tmp/tests.py
-          python /tmp/docs.py
+          git show ee7dbef7f06663f344b3d486a5bb8c9044e6f284:.github/workflows/ci.yml > /tmp/previous.yml
           python - <<'PY'
           from pathlib import Path
 
-          p = Path('app/bug_candidates.py')
-          text = p.read_text(encoding='utf-8')
-          start = text.index('def _graphql_runtime_details(')
-          end = text.index('class _MigratedStaticFilteredDatabase:', start)
-          clean = r'''def _graphql_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
-              return _semantic_runtime_details(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  js_url=js_url,
-                  unit_types=(
-                      "graphql_authorization_observation",
-                      "graphql_data_exposure_observation",
-                      "graphql_field_observation",
-                      "graphql_runtime_observation",
-                  ),
-                  result_key="graphql_runtime_observations",
-              )
+          text = Path('/tmp/previous.yml').read_text(encoding='utf-8')
 
+          def run_block(step_name: str, next_step_name: str) -> str:
+              start_marker = f"      - name: {step_name}\n"
+              end_marker = f"      - name: {next_step_name}\n"
+              start = text.index(start_marker)
+              run_pos = text.index("        run: |\n", start) + len("        run: |\n")
+              end = text.index(end_marker, run_pos)
+              raw = text[run_pos:end]
+              lines = raw.splitlines()
+              return "\n".join(line[10:] if line.startswith("          ") else line for line in lines) + "\n"
 
-          def _websocket_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
-              return _semantic_runtime_details(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  js_url=js_url,
-                  unit_types=(
-                      "websocket_authorization_observation",
-                      "websocket_runtime_observation",
-                      "subscription_observation",
-                      "channel_authorization_observation",
-                  ),
-                  result_key="websocket_runtime_observations",
-              )
-
-
-          def _promote_static_family_result(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              target: str,
-              endpoint: str,
-              source_ref: str,
-              family: str,
-              dedicated: Mapping[str, Any],
-              confidence: int,
-          ) -> bool:
-              family_meta = dict(dedicated.get("family_analyzer") or {})
-              support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
-              contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
-              hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
-                  db,
-                  analysis_id=analysis_id,
-                  source_run_id=run_id,
-                  target=target,
-                  alert_id=None,
-                  asset="",
-                  endpoint=endpoint,
-                  source_ref=source_ref,
-                  family=family,
-                  variant=str(dedicated.get("variant") or "stored_surface"),
-                  support=support,
-                  contradict=contradict,
-                  missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
-                  rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
-                  summary=str(dedicated.get("summary") or f"{family} hypothesis."),
-              )
-              if family_meta:
-                  hypothesis = _persist_family_meta(db, hypothesis, family_meta)
-              if not bool(hypothesis.get("assessment", {}).get("admitted")):
-                  return False
-              support = hypothesis["support"]
-              contradict = hypothesis["contradict"]
-              direct = bool(dedicated.get("direct"))
-              candidate_id = _base._insert_candidate(
-                  db,
-                  analysis_id=analysis_id,
-                  source_run_id=run_id,
-                  target=target,
-                  alert_id=None,
-                  asset="",
-                  endpoint=endpoint,
-                  source_ref=source_ref,
-                  family=family,
-                  variant=str(dedicated.get("variant") or "stored_surface"),
-                  likelihood=_base._clamp(
-                      30
-                      + confidence * 0.32
-                      + (12 if direct else 0)
-                      + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
-                  ),
-                  evidence_strength=_evidence_strength_with_family_directness(
-                      confidence, support, contradict, direct=direct
-                  ),
-                  impact_potential=_base._impact(_base.BUG_FAMILIES[family]["impact"], "general"),
-                  support=support,
-                  contradict=contradict,
-                  missing=hypothesis["missing"],
-                  rule_ids=hypothesis["rule_ids"],
-                  summary=str(dedicated.get("summary") or f"{family} hypothesis."),
-              )
-              _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
-              return True
-
-
-          def _record_graphql_static_hypotheses(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              row: Mapping[str, Any],
-          ) -> int:
-              target = str(row["target"] or "")
-              js_url = str(row["js_url"] or "")
-              operation_name = str(row["operation_name"] or "")
-              operation_type = str(row["operation_type"] or "query")
-              confidence = _base.parse_int(row["confidence"], 0)
-              raw_identifiers = _base._loads(row["identifiers_json"], [])
-              raw_sensitive = _base._loads(row["sensitive_fields_json"], [])
-              identifiers = [str(value) for value in raw_identifiers] if isinstance(raw_identifiers, list) else []
-              sensitive = [str(value) for value in raw_sensitive] if isinstance(raw_sensitive, list) else []
-              runtime = _graphql_runtime_details(
-                  db, analysis_id=analysis_id, target=target, js_url=js_url
-              )
-              promoted = 0
-              if identifiers:
-                  dedicated = analyze_graphql_authorization_signal(
-                      db,
-                      analysis_id=analysis_id,
-                      target=target,
-                      endpoint="/graphql",
-                      js_url=js_url,
-                      operation_name=operation_name,
-                      operation_type=operation_type,
-                      identifiers=identifiers,
-                      details=runtime,
-                      business_context="general",
-                  )
-                  if dedicated and _promote_static_family_result(
-                      db,
-                      analysis_id=analysis_id,
-                      run_id=run_id,
-                      target=target,
-                      endpoint="/graphql",
-                      source_ref=f"graphql:{js_url}:{operation_name}",
-                      family="graphql_authorization",
-                      dedicated=dedicated,
-                      confidence=confidence,
-                  ):
-                      promoted += 1
-              if sensitive:
-                  dedicated = analyze_graphql_data_exposure_signal(
-                      db,
-                      analysis_id=analysis_id,
-                      target=target,
-                      endpoint="/graphql",
-                      js_url=js_url,
-                      operation_name=operation_name,
-                      operation_type=operation_type,
-                      sensitive_fields=sensitive,
-                      details=runtime,
-                      business_context="general",
-                  )
-                  if dedicated and _promote_static_family_result(
-                      db,
-                      analysis_id=analysis_id,
-                      run_id=run_id,
-                      target=target,
-                      endpoint="/graphql",
-                      source_ref=f"graphql-data:{js_url}:{operation_name}",
-                      family="graphql_data_exposure",
-                      dedicated=dedicated,
-                      confidence=confidence,
-                  ):
-                      promoted += 1
-              return promoted
-
-
-          def _record_websocket_static_hypothesis(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              row: Mapping[str, Any],
-          ) -> bool:
-              target = str(row["target"] or "")
-              js_url = str(row["js_url"] or "")
-              source = str(row["source_kind"] or "")
-              sink = str(row["sink_kind"] or "")
-              confidence = _base.parse_int(row["confidence"], 0)
-              dedicated = analyze_websocket_authorization_signal(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  endpoint=js_url,
-                  js_url=js_url,
-                  source_kind=source,
-                  sink_kind=sink,
-                  operation="websocket construction or messaging",
-                  details=_websocket_runtime_details(
-                      db, analysis_id=analysis_id, target=target, js_url=js_url
-                  ),
-                  semantic_text=str(row["snippet"] or ""),
-                  business_context="general",
-              )
-              if not dedicated:
-                  return False
-              return _promote_static_family_result(
-                  db,
-                  analysis_id=analysis_id,
-                  run_id=run_id,
-                  target=target,
-                  endpoint=js_url,
-                  source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
-                  family="websocket_authorization",
-                  dedicated=dedicated,
-                  confidence=confidence,
-              )
-
-
-          '''
-          clean = clean.replace('          ', '')
-          text = text[:start] + clean + text[end:]
-          p.write_text(text, encoding='utf-8')
+          recover = run_block("Recover migration scripts", "Apply cutover and repair helper block")
+          apply = run_block("Apply cutover and repair helper block", "Compile and run focused completion regression")
+          apply = apply.replace("clean = clean.replace('          ', '')\n", "")
+          Path('/tmp/recover.sh').write_text(recover, encoding='utf-8')
+          Path('/tmp/apply.sh').write_text(apply, encoding='utf-8')
           PY
+          bash /tmp/recover.sh
+          bash /tmp/apply.sh
 
       - name: Compile and run focused completion regression
         shell: bash
@@ -312,6 +71,7 @@ jobs:
           import hashlib
           import pathlib
           import subprocess
+
           standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
           names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
           lines = []
