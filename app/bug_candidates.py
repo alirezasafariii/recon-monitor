@@ -16,6 +16,8 @@ independent stored target behavior before promotion.
 import importlib
 from typing import Any, Callable, Mapping
 
+from family_reasoning import candidate_evidence_schema_map
+
 from family_analyzers.account_enumeration import analyze_account_enumeration_signal
 from family_analyzers.authentication_session import analyze_authentication_session_signal
 from family_analyzers.bfla import analyze_bfla_signal
@@ -44,7 +46,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "2.0.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "2.1.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -123,138 +125,9 @@ _FAMILY_DIRECT_TYPES = {
 
 }
 
-_base.FAMILY_EVIDENCE_SCHEMAS["broken_function_authorization"] = {
-    "required_any": (
-        ("privileged_function", "privileged_classification"),
-        (
-            "state_change",
-            "role_property",
-            "privileged_read_operation",
-            "privileged_operation_semantic",
-            "unauthorized_function_success",
-            "role_authorization_differential",
-            "permission_scope_mismatch",
-        ),
-    ),
-    "label": "privileged function plus role/permission-sensitive operation context",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["mass_assignment"] = {
-    "required_any": (
-        ("privileged_property", "privileged_fields"),
-        (
-            "write_method",
-            "body_schema",
-            "object_update",
-            "protected_property_accepted",
-            "protected_property_mutated",
-            "property_authorization_differential",
-        ),
-    ),
-    "label": "policy-sensitive property plus writable object/property operation context",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["authentication_session"] = {
-    "required_any": (
-        ("authentication_surface",),
-        (
-            "client_operation",
-            "state_change",
-            "auth_boundary",
-            "session_reuse_after_logout",
-            "token_not_rotated",
-            "recovery_bypass",
-            "authentication_state_violation",
-        ),
-    ),
-    "label": "authentication/session surface plus concrete lifecycle or boundary operation context",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["account_enumeration"] = {
-    "required_any": (
-        ("identity_lookup",),
-        (
-            "authentication_surface",
-            "client_operation",
-            "identity_response_differential",
-            "identity_timing_differential",
-        ),
-    ),
-    "label": "identity lookup surface plus authentication/client comparison context",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["dom_xss"] = {
-    "required_any": (
-        ("dataflow_source",),
-        ("dataflow_sink",),
-    ),
-    "label": "user-influenced browser source plus dangerous DOM/execution sink",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["postmessage_trust"] = {
-    "required_any": (
-        ("postmessage_source", "dataflow_source"),
-        ("message_handler", "sensitive_sink", "dataflow_sink"),
-    ),
-    "label": "Web Messaging source/handler plus sensitive message consumer context",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["open_redirect"] = {
-    "required_any": (
-        ("redirect_parameter", "dataflow_source"),
-        ("navigation_context", "dataflow_sink"),
-    ),
-    "label": "user-influenced redirect destination plus concrete navigation sink",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["ssrf"] = {
-    "required_any": (
-        ("remote_destination", "url_parameter"),
-        (
-            "server_feature",
-            "server_fetch_semantic",
-            "server_request_function",
-            "server_fetch_observed",
-            "controlled_callback_observed",
-        ),
-    ),
-    "label": "user-influenced remote destination plus server-fetch semantics or stored server-side outbound observation",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["file_upload"] = {
-    "required_any": (
-        ("file_input",),
-        (
-            "upload_operation",
-            "import_operation",
-            "unsafe_file_accepted",
-            "file_policy_differential",
-            "content_type_bypass_observed",
-            "executable_upload_observed",
-        ),
-    ),
-    "label": "concrete file input plus upload/import operation or stored file-policy differential",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["path_traversal"] = {
-    "required_any": (
-        ("path_parameter", "filename_field", "storage_path"),
-        ("file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation", "path_escape_observed", "path_boundary_differential", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"),
-    ),
-    "label": "user-influenced path/filename plus file operation or stored filesystem-boundary differential",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["information_disclosure"] = {
-    "required_any": (
-        ("sensitive_marker",),
-        ("stored_evidence", "sensitive_response_observed", "private_field_publicly_observed"),
-    ),
-    "label": "sensitive/debug/internal marker plus stored response context or direct visibility-boundary exposure",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["source_map_exposure"] = {
-    "required_any": (
-        ("source_map", "source_map_publicly_reachable"),
-        ("internal_sources", "sensitive_source_content_observed"),
-    ),
-    "label": "source-map surface/public reachability plus internal source structure or sensitive source-content evidence",
-}
-_base.FAMILY_EVIDENCE_SCHEMAS["secret_exposure"] = {
-    "required_any": (
-        ("secret_pattern",),
-        ("context", "credential_material_confirmed", "live_secret_context"),
-    ),
-    "label": "redacted secret-pattern evidence plus concrete exposure context or confirmed credential material",
-}
+# Single source of truth: Candidate Engine consumes the canonical 21-family
+# promotion contract directly from Family Reasoning.
+_base.FAMILY_EVIDENCE_SCHEMAS = candidate_evidence_schema_map()
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
 _DEDICATED_ALERT_FAMILIES = {

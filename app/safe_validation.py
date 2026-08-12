@@ -29,8 +29,9 @@ from core import (
     sha256_text,
     utc_now,
 )
+from family_reasoning import FAMILY_REASONING, validation_level_for_family
 
-VALIDATION_VERSION = "6.0.4"
+VALIDATION_VERSION = "6.1.0"
 VALIDATION_LEVELS = ["offline", "passive_live", "controlled", "manual_only"]
 PLAN_STATES = ["plan_ready", "awaiting_approval", "approved", "running", "completed", "stopped_for_safety", "failed", "not_eligible"]
 VALIDATION_RESULTS = ["strengthened", "weakened", "inconclusive", "manual_only", "offline_only", "blocked_by_scope", "stopped_for_safety"]
@@ -70,15 +71,15 @@ SENSITIVE_PATTERNS = {
     "private_key": re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 }
 
-MANUAL_FAMILY_HINTS = {
+LEGACY_MANUAL_FAMILY_HINTS = {
     "ssrf", "server side request", "xss", "cross site scripting", "file upload", "path traversal", "race",
     "business logic", "payment", "refund", "account recovery", "role modification", "stored xss", "command",
 }
-CONTROLLED_FAMILY_HINTS = {
+LEGACY_CONTROLLED_FAMILY_HINTS = {
     "bola", "idor", "object authorization", "bfla", "function authorization", "mass assignment",
     "graphql authorization", "websocket authorization", "cross tenant", "cross-tenant",
 }
-PASSIVE_FAMILY_HINTS = {
+LEGACY_PASSIVE_FAMILY_HINTS = {
     "authentication", "session", "information disclosure", "excessive data", "cors", "redirect", "cache",
     "source map", "secret exposure", "graphql data", "enumeration",
 }
@@ -112,27 +113,76 @@ def _family_text(case: dict[str, Any], candidates: Iterable[dict[str, Any]]) -> 
     return " ".join(values).lower()
 
 
+def _canonical_family_id(case: dict[str, Any], candidates: Iterable[dict[str, Any]]) -> str:
+    values = [str(case.get("primary_family") or "")]
+    values.extend(str(row.get("bug_family") or "") for row in candidates)
+    for raw in values:
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        if value in FAMILY_REASONING:
+            return value
+        normalized = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+        if normalized in FAMILY_REASONING:
+            return normalized
+        lower = value.lower()
+        for family, policy in FAMILY_REASONING.items():
+            if lower == str(policy.get("label") or "").strip().lower():
+                return family
+    aliases = {
+        "bola": "broken_object_authorization",
+        "idor": "broken_object_authorization",
+        "bola / idor": "broken_object_authorization",
+        "bfla": "broken_function_authorization",
+        "xss": "dom_xss",
+        "dom xss": "dom_xss",
+        "source map exposure": "source_map_exposure",
+        "secret exposure": "secret_exposure",
+        "graphql authorization": "graphql_authorization",
+        "graphql data exposure": "graphql_data_exposure",
+        "websocket authorization": "websocket_authorization",
+        "cors": "cors_misconfiguration",
+        "sensitive caching": "sensitive_caching",
+    }
+    for raw in values:
+        resolved = aliases.get(str(raw or "").strip().lower())
+        if resolved:
+            return resolved
+    return ""
+
+
 def validation_eligibility(db: Database, case_id: str) -> dict[str, Any]:
     case, candidates = _case(db, case_id)
-    family = _family_text(case, candidates)
+    family_text = _family_text(case, candidates)
+    canonical_family = _canonical_family_id(case, candidates)
     reasons: list[str] = []
-    level = "offline"
-    if any(hint in family for hint in MANUAL_FAMILY_HINTS):
+    if canonical_family:
+        level = validation_level_for_family(canonical_family)
+        reason_by_level = {
+            "offline": "Family Reasoning defines this family as offline-only for automatic validation.",
+            "passive_live": "Family Reasoning permits only bounded passive-live observation for this family.",
+            "controlled": "Family Reasoning requires explicitly controlled test identities/resources for this family.",
+            "manual_only": "Family Reasoning requires manual-only validation because active automation could cause unsafe effects.",
+        }
+        reasons.append(reason_by_level.get(level, "Family Reasoning did not define a live validation recipe."))
+    elif any(hint in family_text for hint in LEGACY_MANUAL_FAMILY_HINTS):
         level = "manual_only"
-        reasons.append("The candidate family can cause state changes, external interaction, code execution, data modification or destructive effects.")
-    elif any(hint in family for hint in CONTROLLED_FAMILY_HINTS):
+        reasons.append("Legacy family text maps to a manual-only safety class; no canonical family identifier was available.")
+    elif any(hint in family_text for hint in LEGACY_CONTROLLED_FAMILY_HINTS):
         level = "controlled"
-        reasons.append("Safe validation requires explicitly registered test identities and test-owned objects; automatic cross-user guessing is forbidden.")
-    elif any(hint in family for hint in PASSIVE_FAMILY_HINTS):
+        reasons.append("Legacy family text maps to controlled validation; canonical family metadata should be added.")
+    elif any(hint in family_text for hint in LEGACY_PASSIVE_FAMILY_HINTS):
         level = "passive_live"
-        reasons.append("The candidate can be observed with bounded anonymous GET/HEAD/OPTIONS requests and redacted response metadata.")
+        reasons.append("Legacy family text maps to passive-live validation; canonical family metadata should be added.")
     else:
-        reasons.append("No low-risk live recipe is defined; offline provenance and consistency checks remain available.")
+        level = "offline"
+        reasons.append("Unknown/non-canonical family fails closed to offline validation.")
     executable = level in {"offline", "passive_live"}
     return {
         "case_id": case_id,
         "target": case["target"],
         "primary_family": case["primary_family"],
+        "canonical_family": canonical_family,
         "recommended_level": level,
         "executable_in_this_release": executable,
         "reasons": reasons,
@@ -214,21 +264,24 @@ def _url_safety(url: str, policy: TargetPolicy | None) -> tuple[bool, str]:
 
 
 def _request_recipe(family: str, url: str) -> list[dict[str, Any]]:
-    family = family.lower()
-    if "cors" in family:
+    family_id = str(family or "").strip().lower()
+    if family_id == "cors_misconfiguration" or "cors" in family_id:
         return [
             {"method": "OPTIONS", "url": url, "headers": {"Origin": SAFE_ORIGIN, "Access-Control-Request-Method": "GET"}, "purpose": "Observe preflight policy"},
             {"method": "GET", "url": url, "headers": {"Origin": SAFE_ORIGIN}, "purpose": "Observe CORS response headers"},
         ]
-    if "source map" in family or url.endswith(".map"):
+    if family_id == "source_map_exposure" or "source map" in family_id or url.endswith(".map"):
         return [{"method": "GET", "url": url, "headers": {}, "purpose": "Presence and metadata check only"}]
-    if "redirect" in family:
+    if family_id == "open_redirect" or "redirect" in family_id:
         return [{"method": "GET", "url": url, "headers": {}, "purpose": "Inspect Location without following redirect"}]
-    if "authentication" in family or "session" in family:
+    if family_id == "authentication_session" or "authentication" in family_id or "session" in family_id:
         return [{"method": "GET", "url": url, "headers": {}, "purpose": "Anonymous boundary observation"}]
-    if "cache" in family:
+    if family_id == "sensitive_caching" or "cache" in family_id or "caching" in family_id:
         return [{"method": "GET", "url": url, "headers": {}, "purpose": "Observe cache directives and redacted response shape"}]
-    return [{"method": "HEAD", "url": url, "headers": {}, "purpose": "Reachability and response metadata"}, {"method": "GET", "url": url, "headers": {}, "purpose": "Redacted response-shape observation"}]
+    return [
+        {"method": "HEAD", "url": url, "headers": {}, "purpose": "Reachability and response metadata"},
+        {"method": "GET", "url": url, "headers": {}, "purpose": "Redacted response-shape observation"},
+    ]
 
 
 def create_validation_plan(paths: AppPaths, db: Database, case_id: str, *, requested_level: str = "", actor: str = "analyst") -> dict[str, Any]:
@@ -258,7 +311,7 @@ def create_validation_plan(paths: AppPaths, db: Database, case_id: str, *, reque
             safe_urls.append(url)
         else:
             blocked.append({"url": url, "reason": reason})
-    family = _family_text(case, candidates)
+    family = str(eligibility.get("canonical_family") or "") or _family_text(case, candidates)
     requests: list[dict[str, Any]] = []
     if level == "passive_live":
         for url in safe_urls:

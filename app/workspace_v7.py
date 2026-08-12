@@ -15,44 +15,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now
+from family_reasoning import DEFAULT_CASE_REQUIREMENTS, FAMILY_REASONING, case_requirement_map
 
 WORKSPACE_V7_VERSION = APP_VERSION
 
-BUG_FAMILY_REQUIREMENTS: dict[str, list[dict[str, str]]] = {
-    "broken_object_authorization": [
-        {"key": "authenticated_context", "label": "Authenticated test identity", "why": "The endpoint must be observed in an authorized authenticated context."},
-        {"key": "second_identity", "label": "Second authorized test identity", "why": "Ownership boundaries cannot be compared with a single identity."},
-        {"key": "ownership_map", "label": "Object ownership relationship", "why": "The tested object must be tied to a known authorized identity."},
-        {"key": "comparable_response", "label": "Comparable response observation", "why": "A status/shape/field comparison is required before concluding an authorization difference."},
-    ],
-    "broken_function_authorization": [
-        {"key": "authenticated_context", "label": "Authenticated test identity", "why": "The function must be observed in an authorized authenticated context."},
-        {"key": "second_identity", "label": "Second authorized role context", "why": "Role or function authorization needs a comparison context."},
-        {"key": "role_map", "label": "Role relationship", "why": "The intended role boundary must be documented."},
-        {"key": "comparable_response", "label": "Comparable response observation", "why": "A like-for-like comparison is needed."},
-    ],
-    "authentication_session": [
-        {"key": "authenticated_context", "label": "Authenticated test identity", "why": "Session behavior requires an authenticated context."},
-        {"key": "auth_boundary", "label": "Authentication boundary", "why": "The expected session boundary must be known."},
-        {"key": "comparable_response", "label": "Comparable response observation", "why": "A before/after or authenticated/anonymous comparison is needed."},
-    ],
-    "graphql_authorization": [
-        {"key": "authenticated_context", "label": "Authenticated test identity", "why": "GraphQL authorization requires an authenticated observation."},
-        {"key": "operation_context", "label": "Operation or field context", "why": "The relevant query/field relationship must be known."},
-        {"key": "comparable_response", "label": "Comparable response observation", "why": "A field or shape comparison is needed."},
-    ],
-    "websocket_authorization": [
-        {"key": "authenticated_context", "label": "Authenticated test identity", "why": "The websocket/session context must be known."},
-        {"key": "channel_context", "label": "Channel/topic relationship", "why": "Expected authorization needs a channel/topic mapping."},
-        {"key": "comparable_response", "label": "Comparable observation", "why": "A like-for-like authorized comparison is needed."},
-    ],
-}
-
-DEFAULT_REQUIREMENTS = [
-    {"key": "endpoint", "label": "Affected endpoint or asset", "why": "A concrete affected surface is needed."},
-    {"key": "evidence", "label": "Direct supporting evidence", "why": "At least one direct observation should support the candidate."},
-    {"key": "expected_behavior", "label": "Expected behavior", "why": "The security expectation should be explicit."},
-]
+FAMILY_CASE_REQUIREMENTS = case_requirement_map()
 
 BUG_FAMILY_ALIASES = {
     "bola": "broken_object_authorization",
@@ -71,6 +38,8 @@ BUG_FAMILY_ALIASES = {
     "websocket authorization": "websocket_authorization",
     "websocket_authorization": "websocket_authorization",
 }
+BUG_FAMILY_ALIASES.update({family: family for family in FAMILY_REASONING})
+BUG_FAMILY_ALIASES.update({str(policy.get("label") or "").strip().lower(): family for family, policy in FAMILY_REASONING.items()})
 
 def _canonical_family(value: str) -> str:
     raw = str(value or "").strip()
@@ -224,8 +193,7 @@ def evidence_gap_for_case(db: Database, case_id: str, *, persist: bool = True) -
     case, candidates = _case_and_candidates(db, case_id)
     family_raw = str(case.get("primary_family") or (candidates[0].get("bug_family") if candidates else ""))
     family = _canonical_family(family_raw)
-    requirements = list(DEFAULT_REQUIREMENTS)
-    requirements.extend(BUG_FAMILY_REQUIREMENTS.get(family, []))
+    requirements = [dict(item) for item in FAMILY_CASE_REQUIREMENTS.get(family, DEFAULT_CASE_REQUIREMENTS)]
     present = _evidence_presence(db, case, candidates)
     items = []
     for req in requirements:
