@@ -398,10 +398,10 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
         "required": [
             {"cache_header", "public_cache", "cacheable_response_context"},
             {"sensitive_fields", "authenticated_context", "response_data", "sensitive_context"},
-            {"shared_cache_risk", "missing_vary", "cdn_cache", "cache_key_missing_auth_context"},
+            {"shared_cache_risk", "missing_vary", "cdn_cache", "cache_key_missing_auth_context", "browser_cache_no_store_missing"},
         ],
         "min_independent_sources": 2,
-        "label": "cacheable response + sensitive/authenticated data + shared-cache isolation weakness",
+        "label": "cacheable response + sensitive/authenticated data + browser/shared-cache isolation weakness",
         "blocking_contradictions": {"no_store", "private_cache", "vary_authorization"},
     },
     "business_logic": {

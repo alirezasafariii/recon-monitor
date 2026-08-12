@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.22.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.22"
@@ -544,6 +544,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.23 — physical information-disclosure/CORS/cache collector ownership.
+    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive stored target
+    # evidence remains owned by execution/reconstruction and family admission.
+    for observation in collect_exposure_headers_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -594,50 +611,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     # raw_family_collectors.api_configuration owns emission metadata; detector execution and
     # raw-condition reconstruction remain the sole source of target evidence and controls.
 
-    # Information exposure / headers
-    disclosure_markers = _contains_any(haystack, ("debug", "internal", "stacktrace", "stack_trace", "exception", "sourceMappingURL", "apikey", "api_key", "secret", "token"))
-    if disclosure_markers:
-        support = [
-            {"type": "sensitive_marker", "source": "semantic", "weight": 16, "text": f"Sensitive or internal markers observed: {', '.join(disclosure_markers[:6])}"},
-            {"type": "stored_evidence", "source": "analysis", "weight": 8, "text": "The marker was preserved in normalized, redacted analysis evidence"},
-        ]
-        emit("information_disclosure", "sensitive_metadata", 18, support, [],
-             ["Whether the information is publicly reachable", "Whether the value is intended or a placeholder", "Minimum affected data scope"],
-             ["candidate-sensitive-marker", "candidate-public-metadata"],
-             "Sensitive, debug or internal metadata may be exposed; public reachability and sensitivity remain unverified.")
-
-    headers_text = json_dumps(details).lower()
-    response_headers, request_headers = _header_maps(details)
-    acao = response_headers.get("access-control-allow-origin", "").strip()
-    acac = response_headers.get("access-control-allow-credentials", "").strip().lower()
-    request_origin = request_headers.get("origin", "").strip()
-    reflected = bool(request_origin and acao and acao == request_origin and _explicit_flag(details, "origin_reflection_observed", "reflected_origin"))
-    wildcard = acao == "*"
-    null_origin = acao.lower() == "null" and _explicit_flag(details, "null_origin_accepted")
-    if wildcard or reflected or null_origin:
-        support = [{"type": "cors_header", "source": "http_headers", "weight": 10, "text": f"Access-Control-Allow-Origin observed as {acao!r}"}]
-        if wildcard: support.append({"type": "wildcard_origin", "source": "http_headers", "source_group": "cors_policy", "weight": 18, "text": "Wildcard ACAO policy observed"})
-        if reflected: support.append({"type": "reflected_origin", "source": "stored_behavior", "source_group": "cors_policy", "weight": 22, "text": "Stored target evidence records request-origin reflection"})
-        if null_origin: support.append({"type": "null_origin_accepted", "source": "stored_behavior", "source_group": "cors_policy", "weight": 22, "text": "Stored target evidence records null-origin acceptance"})
-        if acac == "true": support.append({"type": "credentials_allowed", "source": "http_headers", "source_group": "cors_credentials", "weight": 24, "text": "Access-Control-Allow-Credentials: true observed"})
-        if _explicit_flag(details, "sensitive_cross_origin_response"):
-            support.append({"type": "sensitive_cross_origin_response", "source": "stored_behavior", "source_group": "cors_exposure", "weight": 28, "text": "Stored target evidence records sensitive cross-origin response readability"})
-        emit("cors_misconfiguration", "origin_policy", 18, support, [],
-             ["Exact origin allow-list policy", "Credential behavior", "Whether sensitive response data is readable cross-origin"],
-             ["candidate-cors-header", "admission-cors-origin-exposure"],
-             "An unsafe CORS origin pattern is retained; promotion requires credentialed or sensitive cross-origin exposure evidence.")
-    if "cache-control" in headers_text and context in SENSITIVE_CONTEXTS and any(token in headers_text for token in ("public", "s-maxage", "max-age")):
-        support = [
-            {"type": "cache_header", "source": "http_headers", "weight": 18, "text": "Cacheable response directives were observed"},
-            {"type": "sensitive_context", "source": "context", "weight": 14, "text": f"The response is associated with {context.replace('_',' ')} context"},
-        ]
-        for flag, signal in (("shared_cache_risk", "shared_cache_risk"), ("missing_vary", "missing_vary"), ("cdn_cache", "cdn_cache"), ("cache_key_missing_auth_context", "cache_key_missing_auth_context")):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "cache_behavior", "weight": 24, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("sensitive_caching", "cache_policy", 20, support, [],
-             ["Authentication context", "Cache key and Vary behavior", "Whether response content is user-specific"],
-             ["candidate-cache-header", "candidate-sensitive-response"],
-             "A security-relevant response may be cacheable; user specificity and cache-key behavior are unknown.")
+    # Analysis 6.23: Information Disclosure, CORS, and Sensitive Caching legacy alert emission was physically removed.
+    # raw_family_collectors.exposure_headers owns emission metadata; execution/reconstruction
+    # remains the sole source of target evidence, blockers, and condition signals.
 
     # Analysis 6.21: Business Logic and Race Condition legacy alert emission was physically removed.
     # raw_family_collectors.business_logic owns emission metadata; execution/reconstruction

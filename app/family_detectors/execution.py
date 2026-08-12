@@ -510,18 +510,38 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
             _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)
         if unsafe_origin_policy and acac == "true":
             _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Unsafe observed origin policy is combined with Access-Control-Allow-Credentials: true.", source_group="cors_credentials", weight=26, basis="unsafe_origin_with_credentials"))
-        if unsafe_origin_policy and (auth_hints or business_context in {"identity", "customer_data", "payment", "administration"}):
-            _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_context", "Unsafe observed CORS origin policy is associated with an authenticated or sensitive application context.", source_group="cors_sensitive_context", weight=18, basis="unsafe_origin_with_sensitive_context"))
+        if unsafe_origin_policy and auth_hints:
+            _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_schema", "Unsafe observed CORS origin policy is tied to an authenticated/session-bearing request context.", source_group="cors_sensitive_context", weight=18, basis="unsafe_origin_with_authenticated_context"))
 
     cache_control = response_headers.get("cache-control", "").lower(); vary = response_headers.get("vary", "").lower()
-    if cache_control and any(token in cache_control for token in ("public", "s-maxage", "max-age")):
+    cacheable_directive = bool(cache_control and any(token in cache_control for token in ("public", "s-maxage", "max-age")))
+    sensitive_body = bool(text_lower and any(word in text_lower for word in SENSITIVE_FIELD_WORDS))
+    explicit_sensitive = _flag(flat, "sensitive_context") or _flag(flat, "sensitive_response") or _flag(flat, "response_data")
+    authenticated_response = bool(auth_hints)
+    sensitive_response = sensitive_body or explicit_sensitive or authenticated_response
+    cache_surface = cacheable_directive or (status in SUCCESS_STATUSES and sensitive_response)
+    if cache_surface:
         packet = _packet_for(result, "sensitive_caching")
-        _add_identity(packet, "sensitive_caching", "cache_header", "http_headers", "Cacheable response directive is present.", "cache_policy", 16)
-        sensitive_context = bool(auth_hints) or business_context in {"identity", "customer_data", "payment", "administration"} or any(word in surface_text for word in SENSITIVE_FIELD_WORDS)
-        if sensitive_context:
-            _add_identity(packet, "sensitive_caching", "sensitive_context", "endpoint_context", "Cacheable response is associated with sensitive/authenticated context.", "cache_context", 16)
-            if "authorization" not in vary and "cookie" not in vary: _add(packet, "support", _signal("sensitive_caching", "missing_vary", "http_headers", "Sensitive cacheable response lacks Vary on Authorization/Cookie.", source_group="shared_cache_behavior", weight=24, basis="cache_header_interaction"))
-        if _flag(flat, "cdn_cache") or any(header in response_headers for header in ("age", "x-cache", "cf-cache-status")): _add(packet, "support", _signal("sensitive_caching", "cdn_cache", "http_headers", "Stored response contains shared/CDN cache evidence.", source_group="shared_cache_behavior", weight=22, basis="cache_header_interaction"))
+        if cacheable_directive:
+            _add_identity(packet, "sensitive_caching", "cache_header", "http_headers", "Cacheable response directive is present.", "cache_policy", 16)
+        else:
+            _add_identity(packet, "sensitive_caching", "cacheable_response_context", "http_response", "Stored sensitive/authenticated response has no explicit no-store cache prohibition.", "cache_policy", 12)
+        if authenticated_response:
+            _add_identity(packet, "sensitive_caching", "authenticated_context", "endpoint_schema", "Stored response is tied to an authenticated/session-bearing request context.", "cache_context", 18)
+        if sensitive_body or explicit_sensitive:
+            _add_identity(packet, "sensitive_caching", "sensitive_context", "raw_response", "Stored response contains sensitive data/context indicators.", "cache_context", 18)
+        if sensitive_response and status in SUCCESS_STATUSES and "no-store" not in cache_control:
+            _add(packet, "support", _signal("sensitive_caching", "browser_cache_no_store_missing", "http_headers", "Sensitive/authenticated successful response lacks Cache-Control: no-store.", source_group="browser_cache_behavior", weight=26, basis="wstg_athn_06_cache_policy"))
+        if sensitive_response and cacheable_directive and "authorization" not in vary and "cookie" not in vary:
+            _add(packet, "support", _signal("sensitive_caching", "missing_vary", "http_headers", "Sensitive cacheable response lacks Vary on Authorization/Cookie.", source_group="shared_cache_behavior", weight=24, basis="cache_header_interaction"))
+        if _flag(flat, "cdn_cache") or any(header in response_headers for header in ("age", "x-cache", "cf-cache-status")):
+            _add(packet, "support", _signal("sensitive_caching", "cdn_cache", "http_headers", "Stored response contains shared/CDN cache evidence.", source_group="shared_cache_behavior", weight=22, basis="cache_header_interaction"))
+        if "no-store" in cache_control:
+            _add(packet, "contradict", _signal("sensitive_caching", "no_store", "http_headers", "Cache-Control: no-store is present.", source_group="cache_control", weight=-30, basis="cache_control_header"))
+        if "private" in cache_control:
+            _add(packet, "contradict", _signal("sensitive_caching", "private_cache", "http_headers", "Cache-Control marks the response private.", source_group="cache_control", weight=-22, basis="cache_control_header"))
+        if "authorization" in vary or "cookie" in vary:
+            _add(packet, "contradict", _signal("sensitive_caching", "vary_authorization", "http_headers", "Vary includes Authorization or Cookie context.", source_group="cache_control", weight=-22, basis="vary_header"))
 
     if all_fields and any(token in surface_text for token in ("query", "search", "filter", "where", "sort", "sql", "database")):
         packet = _packet_for(result, "sql_injection")
@@ -572,6 +592,10 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     if any(pattern in text_lower for pattern in DIRECTORY_LISTING_PATTERNS):
         packet = _packet_for(result, "security_misconfiguration"); _add_identity(packet, "security_misconfiguration", "misconfiguration_surface", "raw_response", "Stored response resembles a directory listing.", "configuration_surface", 14); _add(packet, "support", _signal("security_misconfiguration", "directory_listing_observed", "raw_response", "Stored response exposes directory-listing behavior.", source_group="configuration_behavior", weight=30, basis="passive_response_signature"))
 
+    disclosure_surface_hits = [marker for marker in ("debug", "internal", "stacktrace", "stack_trace", "exception", "apikey", "api_key", "secret", "token") if marker in surface_text]
+    if text and disclosure_surface_hits:
+        packet = _packet_for(result, "information_disclosure")
+        _add_identity(packet, "information_disclosure", "sensitive_marker", "stored_semantic", "Stored artifacts contain sensitive/debug disclosure terminology; this is a hypothesis surface only.", "sensitive_material", 6)
     if text and any(pattern in text_lower for pattern in STACK_TRACE_PATTERNS):
         packet = _packet_for(result, "information_disclosure"); _add_identity(packet, "information_disclosure", "debug_information", "raw_response", "Stored response contains debug/stack-trace material.", "sensitive_material", 18)
         if status in SUCCESS_STATUSES and not auth_hints: _add(packet, "support", _signal("information_disclosure", "public_observation", "http_response", "Debug material was stored from a successful response without an authentication hint.", source_group="exposure_context", weight=22, basis="anonymous_success_context"))

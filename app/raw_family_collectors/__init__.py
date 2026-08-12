@@ -39,6 +39,14 @@ from raw_family_collectors.client_side import (
     collect_client_side_observations,
     validate_client_side_collectors,
 )
+from raw_family_collectors.exposure_headers import (
+    EXPOSURE_HEADERS_COLLECTOR_RULE_VERSION,
+    EXPOSURE_HEADERS_COLLECTOR_VERSION,
+    EXPOSURE_HEADERS_FAMILIES,
+    EXPOSURE_HEADERS_OBSERVATIONS,
+    collect_exposure_headers_observations,
+    validate_exposure_headers_collectors,
+)
 from raw_family_collectors.file_remote_resource import (
     FILE_REMOTE_COLLECTOR_RULE_VERSION,
     FILE_REMOTE_COLLECTOR_VERSION,
@@ -88,6 +96,12 @@ __all__ = [
     "AUTHORIZATION_OBSERVATIONS",
     "collect_authorization_observations",
     "validate_authorization_collectors",
+    "EXPOSURE_HEADERS_COLLECTOR_VERSION",
+    "EXPOSURE_HEADERS_COLLECTOR_RULE_VERSION",
+    "EXPOSURE_HEADERS_FAMILIES",
+    "EXPOSURE_HEADERS_OBSERVATIONS",
+    "collect_exposure_headers_observations",
+    "validate_exposure_headers_collectors",
     "FILE_REMOTE_COLLECTOR_VERSION",
     "FILE_REMOTE_COLLECTOR_RULE_VERSION",
     "FILE_REMOTE_FAMILIES",

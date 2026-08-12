@@ -233,7 +233,7 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
         ],
         'cwe': [
             _cwe('CWE-524', 'Use of Cache Containing Sensitive Information', mapping='contextual', auto_assign=True, when_any=('shared_cache_risk', 'cdn_cache', 'cache_key_missing_auth_context')),
-            _cwe('CWE-525', 'Use of Web Browser Cache Containing Sensitive Information', mapping='contextual', auto_assign=True, when_any=('public_cache',)),
+            _cwe('CWE-525', 'Use of Web Browser Cache Containing Sensitive Information', mapping='contextual', auto_assign=True, when_any=('public_cache', 'browser_cache_no_store_missing')),
         ],
     },
     'sql_injection': {
