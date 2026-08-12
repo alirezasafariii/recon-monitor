@@ -11,19 +11,26 @@ from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .base import FamilyAnalyzer
 from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
+from .business_logic import BusinessLogicFamilyAnalyzer
+from .cors_misconfiguration import CorsMisconfigurationFamilyAnalyzer
 from .dom_xss import DomXssFamilyAnalyzer
 from .file_upload import FileUploadFamilyAnalyzer
+from .graphql_authorization import GraphqlAuthorizationFamilyAnalyzer
+from .graphql_data_exposure import GraphqlDataExposureFamilyAnalyzer
 from .information_disclosure import InformationDisclosureFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .path_traversal import PathTraversalFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
+from .race_condition import RaceConditionFamilyAnalyzer
 from .secret_exposure import SecretExposureFamilyAnalyzer
+from .sensitive_caching import SensitiveCachingFamilyAnalyzer
 from .source_map_exposure import SourceMapExposureFamilyAnalyzer
 from .ssrf import SsrfFamilyAnalyzer
+from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.13.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "2.0.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -40,6 +47,13 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "information_disclosure": InformationDisclosureFamilyAnalyzer,
     "source_map_exposure": SourceMapExposureFamilyAnalyzer,
     "secret_exposure": SecretExposureFamilyAnalyzer,
+    "graphql_authorization": GraphqlAuthorizationFamilyAnalyzer,
+    "graphql_data_exposure": GraphqlDataExposureFamilyAnalyzer,
+    "business_logic": BusinessLogicFamilyAnalyzer,
+    "race_condition": RaceConditionFamilyAnalyzer,
+    "websocket_authorization": WebsocketAuthorizationFamilyAnalyzer,
+    "cors_misconfiguration": CorsMisconfigurationFamilyAnalyzer,
+    "sensitive_caching": SensitiveCachingFamilyAnalyzer,
 }
 
 
