@@ -5,8 +5,8 @@ from __future__ import annotations
 This module normalizes already-collected observations and evaluates the canonical
 Family Reasoning contract.  It does not discover vulnerabilities by itself and
 is never registered in the Family Analyzer router.  Every registered family
-keeps its own detector, taxonomy, false-positive checks and direct-evidence
-rules in a dedicated module.
+keeps its own detector, false-positive checks and direct-evidence rules while
+phase-one taxonomy is normalized through the canonical OWASP family catalog.
 """
 
 import json
@@ -14,6 +14,7 @@ import re
 from typing import Any, Iterable, Mapping, Sequence
 
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from owasp_family_catalog import CANONICAL_TAXONOMY
 
 
 def normalize(value: Any) -> str:
@@ -164,8 +165,9 @@ def finalize_result(
     observed = set(state["observed_types"])
     direct = bool(observed & set(direct_types))
     meta = analyzer.metadata()
+    effective_taxonomy = CANONICAL_TAXONOMY.get(family, taxonomy)
     meta.update({
-        "taxonomy": {key: list(values) for key, values in taxonomy.items()},
+        "taxonomy": {key: list(values) for key, values in effective_taxonomy.items()},
         "methodology": [dict(step) for step in methodology],
         "false_positive_checks": list(false_positive_checks),
         "writeup_patterns": [dict(item, non_evidentiary=True) for item in writeup_patterns],
