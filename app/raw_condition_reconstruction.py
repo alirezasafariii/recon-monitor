@@ -8,10 +8,10 @@ from typing import Any, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
 
-RECONSTRUCTION_ENGINE_VERSION = "1.0.0"
-RECONSTRUCTION_RULE_VERSION = "2026.08.11.6.12"
-EXECUTION_ENGINE_VERSION = "1.1.0"
-EXECUTION_RULE_VERSION = "2026.08.11.6.12"
+RECONSTRUCTION_ENGINE_VERSION = "1.1.0"
+RECONSTRUCTION_RULE_VERSION = "2026.08.12.6.14"
+EXECUTION_ENGINE_VERSION = "1.2.0"
+EXECUTION_RULE_VERSION = "2026.08.12.6.14"
 
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_WORDS = {"false", "0", "deny", "denied", "unauthorized", "forbidden", "blocked"}
@@ -240,6 +240,48 @@ def _is_auth_surface(endpoint: str, category: str, business_context: str, auth_h
     return bool(auth_hints) or any(term in hay for term in AUTH_TERMS)
 
 
+def _identity_context_class(context: Mapping[str, Any]) -> str:
+    flat = _flatten(context)
+    values: list[str] = []
+    for key in ("context", "identity_state", "account_state", "existence", "user_state", "expected_identity"):
+        values.extend(str(value).strip().lower() for value in flat.get(key, []) if str(value).strip())
+    hay = " ".join(values)
+    absent = ("absent", "nonexistent", "non_existent", "missing_user", "unknown_user", "invalid_user", "does_not_exist")
+    present = ("existing", "known_user", "valid_user", "present_user", "account_exists")
+    if any(token in hay for token in absent):
+        return "absent"
+    if any(token in hay for token in present):
+        return "present"
+    return ""
+
+
+def _material_identity_difference(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
+    if {_identity_context_class(left), _identity_context_class(right)} != {"present", "absent"}:
+        return False
+    a = _context_observable(left)
+    b = _context_observable(right)
+    if a[0] != b[0] and a[0] and b[0]:
+        return True
+    if a[1] != b[1] and (a[1] or b[1]):
+        return True
+    if a[2] != b[2] and a[2] is not None and b[2] is not None:
+        return True
+    if a[3] is not None and b[3] is not None and a[3] > 0 and b[3] > 0:
+        slower, faster = max(a[3], b[3]), min(a[3], b[3])
+        return (slower - faster) >= 10.0 and (slower / faster) >= 2.0
+    return False
+
+
+def _number(flat: Mapping[str, list[Any]], *keys: str) -> float | None:
+    for key in keys:
+        for value in flat.get(_norm(key), []):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def reconstruct_raw_evidence(
     *,
     target: str,
@@ -295,13 +337,16 @@ def reconstruct_raw_evidence(
         if any(_expected_denied(row) and _context_observable(row)[0] in SUCCESS_STATUSES for row in contexts):
             _emit(result, "authentication_session", "authentication_boundary_regression", "stored_context", "A stored authentication/session context expected to be denied received a successful response.", source_group="authentication_behavior", weight=34, basis="expected_deny_success")
 
-    # Account enumeration requires a controlled stored response differential.
+    # Account enumeration requires opposite identity-existence contexts plus a material observable differential.
     if (all_fields & IDENTITY_FIELDS) and any(term in surface for term in ("login", "signin", "forgot", "reset", "recover", "lookup", "username", "email")):
-        _emit(result, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity input participates in a stored lookup/authentication surface.", source_group="identity_lookup", weight=15, basis="raw_identity_surface")
-        observables = [_context_observable(row) for row in contexts]
-        meaningful = [value for value in observables if any(part not in (0, "", None) for part in value)]
-        if len(meaningful) >= 2 and len(set(meaningful)) >= 2:
-            _emit(result, "account_enumeration", "response_difference", "stored_context", "Stored controlled identity contexts have a directly observable response/status/length/timing differential.", source_group="identity_differential", weight=34, basis="stored_context_differential")
+        controlled_pair = any(
+            _material_identity_difference(left, right)
+            for index, left in enumerate(contexts)
+            for right in contexts[index + 1:]
+        )
+        if controlled_pair:
+            _emit(result, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity input is observed across controlled present-versus-absent identity contexts.", source_group="identity_lookup", weight=15, basis="controlled_identity_surface")
+            _emit(result, "account_enumeration", "response_difference", "stored_context", "Controlled present-versus-absent identity contexts have a material status/body/length/timing differential.", source_group="identity_differential", weight=34, basis="material_identity_differential")
 
     # Mass assignment requires the privileged property to be visible in both the
     # stored request and a successful response or post-write state.
@@ -348,6 +393,40 @@ def reconstruct_raw_evidence(
         escaped = any(not resolved.startswith(base.rstrip("/\\") + "/") and resolved != base for resolved in resolved_paths for base in base_paths)
         if escaped:
             _emit(result, "path_traversal", "path_escape_observed", "stored_path_resolution", "Stored path-resolution evidence shows traversal input resolving outside the configured base path.", source_group="filesystem_behavior", weight=38, basis="stored_path_escape")
+
+    # Command injection: passive static data-flow into a process execution primitive.
+    # No command is executed; this only records direct client-input-to-sink reachability in stored source.
+    if all_fields and text:
+        for match in re.finditer(r"(?i)(?:child_process\.)?(?:exec|execsync|system)\s*\(\s*([A-Za-z_$][A-Za-z0-9_.$]*)", text):
+            variable = _norm(match.group(1).split(".")[-1])
+            client_related = (
+                variable in {"userinput", "user_input", "input", "payload", "requestinput", "request_input", "cmd", "command"}
+                or any(field and (field == variable or field in variable or variable in field) for field in all_fields)
+            )
+            if client_related:
+                _emit(result, "command_injection", "process_execution_surface", "raw_source", "Stored source contains a process execution primitive.", source_group="execution_surface", weight=18, basis="stored_process_sink")
+                _emit(result, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input exists on the process execution surface.", source_group="input_surface", weight=10, basis="stored_process_sink")
+                _emit(result, "command_injection", "process_execution_reached", "raw_source_dataflow", "Stored source directly passes a client-related input variable into a process execution primitive.", source_group="command_behavior", weight=38, basis="passive_direct_input_to_process_sink")
+                break
+
+    # Race condition: require explicit stored evidence that multiple concurrent attempts both succeeded.
+    concurrency_surface = any(token in surface for token in ("concurrent", "parallel", "simultaneous", "race", "single-use", "single use", "redeem", "claim", "transfer", "refund"))
+    duplicate_success = bool(re.search(r"(?is)\b(?:two|both|multiple|duplicate)\b.{0,120}\b(?:concurrent|parallel|simultaneous)\b.{0,160}\b(?:success|succeeded|accepted)\b", text)) or bool(re.search(r"(?is)\b(?:concurrent|parallel|simultaneous)\b.{0,160}\b(?:both|two|multiple)\b.{0,120}\b(?:success|succeeded|accepted)\b", text))
+    if concurrency_surface and method in {"POST", "PUT", "PATCH", "DELETE"} and status in SUCCESS_STATUSES and duplicate_success:
+        _emit(result, "race_condition", "state_change", "endpoint_contract", "Stored operation is state-changing.", source_group="state_change", weight=12, basis="concurrent_state_change")
+        _emit(result, "race_condition", "single_use_semantics", "endpoint_semantic", "Stored operation has single-use or duplicate-sensitive business semantics.", source_group="single_use", weight=14, basis="concurrent_state_change")
+        _emit(result, "race_condition", "duplicate_effect_observed", "raw_response", "Stored artifact explicitly records multiple concurrent attempts both succeeding on a duplicate-sensitive operation.", source_group="concurrency_behavior", weight=38, basis="stored_duplicate_concurrent_success")
+
+    # Resource consumption: require successful high amplification plus a material stored cost signal.
+    requested_amplifier = _number(flat, "requested_limit", "requested_count", "requested_size", "batch_size", "page_size", "limit")
+    duration_ms = _number(flat, "duration_ms", "elapsed_ms", "response_time_ms")
+    response_length = _number(flat, "response_length", "body_length", "content_length")
+    high_request = requested_amplifier is not None and requested_amplifier >= 10000
+    high_latency = duration_ms is not None and duration_ms >= 5000
+    high_output = response_length is not None and response_length >= 1000000
+    if status in SUCCESS_STATUSES and high_request and (high_latency or high_output):
+        _emit(result, "unrestricted_resource_consumption", "resource_control_parameter", "endpoint_schema", "Stored request exposes a high-amplification resource control parameter.", source_group="resource_surface", weight=16, basis="stored_resource_amplifier")
+        _emit(result, "unrestricted_resource_consumption", "resource_exhaustion_differential", "stored_resource_observation", "A successful high-amplification request is paired with a material stored latency or response-size cost signal.", source_group="resource_behavior", weight=36, basis="high_amplification_material_cost")
 
     # Routing-only family identity from semantically strong stored raw context. These
     # never create a final vulnerability condition.

@@ -99,9 +99,11 @@ class RawConditionReconstruction6120Tests(unittest.TestCase):
             endpoint_schema={"body_fields": ["email"]},
             business_context="identity",
         )
-        no_diff = execute_detector_intelligence(**base, details={"context_observations": [{"context": "a", "status_code": 200}, {"context": "b", "status_code": 200}]})
+        no_diff = execute_detector_intelligence(**base, details={"context_observations": [{"context": "existing_identity", "status_code": 200}, {"context": "absent_identity", "status_code": 200}]})
         self.assertNotIn("response_difference", types(no_diff, "account_enumeration"))
-        with_diff = execute_detector_intelligence(**base, details={"context_observations": [{"context": "a", "status_code": 200, "response_text": "sent"}, {"context": "b", "status_code": 404, "response_text": "unknown"}]})
+        same_class_diff = execute_detector_intelligence(**base, details={"context_observations": [{"context": "existing_identity", "status_code": 200, "response_text": "sent"}, {"context": "another_existing_identity", "status_code": 404, "response_text": "unknown"}]})
+        self.assertNotIn("response_difference", types(same_class_diff, "account_enumeration"))
+        with_diff = execute_detector_intelligence(**base, details={"context_observations": [{"context": "existing_identity", "status_code": 200, "response_text": "sent"}, {"context": "absent_identity", "status_code": 404, "response_text": "unknown"}]})
         self.assertIn("response_difference", types(with_diff, "account_enumeration"))
         self.assertTrue(admitted(with_diff, "account_enumeration"))
 
@@ -194,8 +196,8 @@ class RawConditionReconstruction6120Tests(unittest.TestCase):
         self.assertFalse(any("expected" in str(row.get("status")) for row in report["rows"]))
 
     def test_versions(self):
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.1.0")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.11.6.12")
+        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.2.0")
+        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.12.6.14")
         self.assertEqual(OBSERVABILITY_ENGINE_VERSION, "1.0.0")
         self.assertEqual(OBSERVABILITY_RULE_VERSION, "2026.08.11.6.12")
 

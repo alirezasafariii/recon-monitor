@@ -11,8 +11,8 @@ from hypothesis_admission import assess_admission, mark_promoted, record_hypothe
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
 
-CANDIDATE_ENGINE_VERSION = "6.12.0"
-CANDIDATE_RULE_VERSION = "2026.08.11.6.12"
+CANDIDATE_ENGINE_VERSION = "6.14.0"
+CANDIDATE_RULE_VERSION = "2026.08.12.6.14"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")

@@ -12,8 +12,8 @@ from typing import Any, Iterable, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_condition_reconstruction import reconstruct_raw_evidence
 
-EXECUTION_ENGINE_VERSION = "1.1.0"
-EXECUTION_RULE_VERSION = "2026.08.11.6.12"
+EXECUTION_ENGINE_VERSION = "1.2.0"
+EXECUTION_RULE_VERSION = "2026.08.12.6.14"
 MAX_TEXT_CHARS = 65536
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -48,7 +48,11 @@ SQL_ERROR_PATTERNS = (
     "sql syntax", "syntax error at or near", "unterminated quoted string",
     "mysql", "postgresql", "sqlite", "ora-", "odbc sql", "sqlstate",
 )
-NOSQL_ERROR_PATTERNS = ("mongoerror", "mongodb", "unknown operator", "badvalue", "bson", "document query")
+NOSQL_ERROR_PATTERNS = (
+    "mongoerror", "mongodb error", "mongodb exception", "unknown operator",
+    "badvalue", "bson error", "bsonexception", "failed to parse query",
+    "failed to parse filter", "invalid mongodb operator",
+)
 LDAP_ERROR_PATTERNS = ("ldap", "invalid dn syntax", "bad search filter", "filter error", "directory service")
 TEMPLATE_ERROR_PATTERNS = (
     "jinja2", "templatesyntaxerror", "twig", "freemarker", "velocity", "template error",
@@ -378,9 +382,13 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     if any(token in surface_text for token in AUTH_MARKERS) or auth_hints:
         packet = _packet_for(result, "authentication_session")
         _add_identity(packet, "authentication_session", "authentication_surface", "endpoint_semantic", "Authentication/session lifecycle surface is present.", "authentication_surface", 14)
-    if (all_fields & IDENTITY_FIELDS) and any(token in surface_text for token in ("forgot", "reset", "recover", "lookup", "login", "signin", "username", "email")):
+    context_labels = " ".join(str(row.get("context") or "") for row in _contexts(details)).lower()
+    enum_present = any(token in context_labels for token in ("existing", "known_user", "valid_user", "present_user"))
+    enum_absent = any(token in context_labels for token in ("absent", "nonexistent", "non_existent", "missing_user", "unknown_user", "invalid_user"))
+    explicit_enum_surface = any(token in surface_text for token in ("forgot", "reset", "recover", "lookup", "enumerat", "account exists", "username availability", "email availability"))
+    if (all_fields & IDENTITY_FIELDS) and (explicit_enum_surface or (enum_present and enum_absent)):
         packet = _packet_for(result, "account_enumeration")
-        _add_identity(packet, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity field participates in a lookup/authentication flow.", "identity_lookup", 15)
+        _add_identity(packet, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity field participates in a controlled existence/lookup surface.", "identity_lookup", 15)
 
     if any(source in text_lower for source in DOM_SOURCES) and any(sink in text_lower for sink in DOM_SINKS):
         packet = _packet_for(result, "dom_xss")
@@ -454,11 +462,20 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     acao = response_headers.get("access-control-allow-origin", "").strip(); acac = response_headers.get("access-control-allow-credentials", "").strip().lower(); origin = request_headers.get("origin", "").strip()
     if acao:
         packet = _packet_for(result, "cors_misconfiguration")
-        if acao == "*": _add_identity(packet, "cors_misconfiguration", "wildcard_origin", "http_headers", "Access-Control-Allow-Origin wildcard is present.", "cors_policy", 22)
-        elif origin and acao == origin: _add_identity(packet, "cors_misconfiguration", "reflected_origin", "http_headers", "Stored response reflects the supplied Origin value.", "cors_policy", 24)
-        elif acao.lower() == "null": _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)
-        if acac == "true": _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Access-Control-Allow-Credentials: true is present.", source_group="cors_credentials", weight=26, basis="response_header"))
-        if auth_hints or business_context in {"identity", "customer_data", "payment", "administration"}: _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_context", "CORS response is associated with an authenticated or sensitive application context.", source_group="cors_credentials", weight=18, basis="endpoint_auth_or_sensitive_context"))
+        unsafe_origin_policy = False
+        if acao == "*":
+            unsafe_origin_policy = True
+            _add_identity(packet, "cors_misconfiguration", "wildcard_origin", "http_headers", "Access-Control-Allow-Origin wildcard is present.", "cors_policy", 22)
+        elif origin and acao == origin:
+            unsafe_origin_policy = True
+            _add_identity(packet, "cors_misconfiguration", "reflected_origin", "http_headers", "Stored response reflects the supplied Origin value.", "cors_policy", 24)
+        elif acao.lower() == "null":
+            unsafe_origin_policy = True
+            _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)
+        if unsafe_origin_policy and acac == "true":
+            _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Unsafe observed origin policy is combined with Access-Control-Allow-Credentials: true.", source_group="cors_credentials", weight=26, basis="unsafe_origin_with_credentials"))
+        if unsafe_origin_policy and (auth_hints or business_context in {"identity", "customer_data", "payment", "administration"}):
+            _add(packet, "support", _signal("cors_misconfiguration", "authenticated_context", "endpoint_context", "Unsafe observed CORS origin policy is associated with an authenticated or sensitive application context.", source_group="cors_sensitive_context", weight=18, basis="unsafe_origin_with_sensitive_context"))
 
     cache_control = response_headers.get("cache-control", "").lower(); vary = response_headers.get("vary", "").lower()
     if cache_control and any(token in cache_control for token in ("public", "s-maxage", "max-age")):
