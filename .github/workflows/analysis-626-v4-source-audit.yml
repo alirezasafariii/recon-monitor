@@ -27,6 +27,9 @@ jobs:
       - name: Apply pinned source-audit reconstruction
         run: python scripts/analysis_626_source_audit_fix.py
 
+      - name: Apply fresh Astro source-map coordinate
+        run: python scripts/analysis_626_astro_source_map_fix.py
+
       - name: Exact source supplement contract
         env:
           PYTHONPATH: app
@@ -131,7 +134,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py
+          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py scripts/analysis_626_astro_source_map_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Audit Analysis 6.26 raw v4 source-family fit"
