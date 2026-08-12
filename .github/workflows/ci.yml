@@ -1,111 +1,60 @@
-name: Recon Monitor Secret Migration
+name: Recon Monitor CI
 
 on:
   push:
-    branches: [agent/vulnerability-intelligence-8.6.0]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  migrate:
+  test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          ref: agent/vulnerability-intelligence-8.6.0
-          fetch-depth: 0
+          python-version: ${{ matrix.python-version }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Reapply validated migration patch
+      - name: Verify source hygiene
         shell: bash
         run: |
           set -euo pipefail
-          git show 02838ff337da5078f72611ffc9cbb839a650aaf6:.github/workflows/ci.yml > /tmp/secret-migration.yml
-          python - <<'PY'
-          from pathlib import Path
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-          text = Path('/tmp/secret-migration.yml').read_text(encoding='utf-8')
-          marker = "          python - <<'PY'\n"
-          end_marker = "\n          PY"
-          blocks = []
-          pos = 0
-          while True:
-              try:
-                  start = text.index(marker, pos) + len(marker)
-              except ValueError:
-                  break
-              end = text.index(end_marker, start)
-              raw = text[start:end]
-              code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
-              blocks.append(code)
-              pos = end + len(end_marker)
-          if len(blocks) < 2:
-              raise SystemExit(f'expected at least two migration blocks, got {len(blocks)}')
-          Path('/tmp/apply.py').write_text(blocks[0], encoding='utf-8')
-          Path('/tmp/docs.py').write_text(blocks[1], encoding='utf-8')
-          PY
-          python /tmp/apply.py
-          python /tmp/docs.py
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
 
-      - name: Fix placeholder grammar and non-placeholder fixtures
+      - name: Verify version consistency
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
 
-          p = Path('app/family_analyzers/secret_exposure.py')
-          text = p.read_text(encoding='utf-8')
-          old = 'your[_-]?(?:api[_-]?key|token|secret|password)'
-          new = 'your[_-]?(?:api[_-]?key|token|client[_-]?secret|secret|password)'
-          if old not in text:
-              raise SystemExit('placeholder grammar anchor missing')
-          p.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-          p = Path('tests/test_family_analyzer_secret_exposure_v881.py')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('access = "AKIA1234567890ABCDEF"', 'access = "AKIAQ7W8E9R0T1Y2U3I4"')
-          text = text.replace('token = "eyJAbCdEfGhIjKlMnOpQr.StUvWxYz0123456789.A1b2C3d4E5f6G7h8"', 'token = "eyJAbCdEfGhIjKlMnOpQr.Z9y8X7w6V5u4T3s2R1q0.A1b2C3d4E5f6G7h8"')
-          p.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Compile and run Secret regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m py_compile app/family_analyzers/secret_exposure.py app/analysis_engine.py app/bug_candidates.py tests/test_family_analyzer_secret_exposure_v881.py
-          python -m unittest tests.test_family_analyzer_secret_exposure_v881 -q
-
-      - name: Run full unit suite
+      - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
 
-      - name: Run integration
+      - name: Integration test
         run: python tests/integration_runner.py
-
-      - name: Normalize manifest and commit migration
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import pathlib
-          import subprocess
-
-          standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
-          names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
-          lines = []
-          for name in sorted(set(x for x in names if x and x != 'MANIFEST.sha256')):
-              digest = standard_ci if name == '.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
-              lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/analysis_engine.py app/bug_candidates.py app/family_analyzers/secret_exposure.py tests docs/FAMILY_ANALYZERS.md MANIFEST.sha256
-          git commit -m 'Wire Secret Exposure family analyzer'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
