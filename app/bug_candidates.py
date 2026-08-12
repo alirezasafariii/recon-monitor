@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_api_configuration_observations, collect_authorization_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_api_configuration_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.20.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.20"
@@ -510,6 +510,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.21 — physical business-logic/race collector ownership.
+    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive target
+    # evidence remains owned by execution/reconstruction and family admission.
+    for observation in collect_business_logic_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -624,30 +641,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              ["candidate-cache-header", "candidate-sensitive-response"],
              "A security-relevant response may be cacheable; user specificity and cache-key behavior are unknown.")
 
-    # Business logic and race watchlist: deliberately low-confidence without behavior evidence.
-    business_tokens = _contains_any(haystack, ("coupon", "discount", "price", "quantity", "balance", "refund", "checkout", "order", "redeem", "claim", "transfer", "withdraw", "reserve", "confirm"))
-    if len(set(business_tokens)) >= 2:
-        support = [
-            {"type": "workflow_markers", "source": "semantic", "weight": 12, "text": f"Business workflow markers observed: {', '.join(business_tokens[:7])}"},
-            {"type": "stateful_operation", "source": "method", "weight": 8, "text": f"The workflow is associated with {method} or client-visible state transitions"},
-        ]
-        for flag, signal in (("workflow_invariant_violation", "workflow_invariant_violation"), ("value_constraint_bypass", "value_constraint_bypass"), ("invalid_transition_accepted", "invalid_transition_accepted"), ("server_calculation_mismatch", "server_calculation_mismatch"), ("business_rule_bypass", "business_rule_bypass")):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "business_behavior", "weight": 28, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("business_logic", "workflow_invariant", 12, support, [],
-             ["Intended workflow and invariants", "Server-side value calculation", "Allowed transition order"],
-             ["candidate-business-workflow", "candidate-state-invariant"],
-             "The endpoint participates in a business workflow where server-side invariants may be security-relevant.", impact=72)
-        race_tokens = [x for x in business_tokens if x in {"redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund"}]
-        if race_tokens:
-            support2 = support + [{"type": "single_use_semantics", "source": "semantic", "weight": 10, "text": f"Potential single-use or balance-changing actions observed: {', '.join(race_tokens)}"}]
-            for flag, signal in (("duplicate_effect_observed", "duplicate_effect_observed"), ("atomicity_failure", "atomicity_failure"), ("concurrency_invariant_violation", "concurrency_invariant_violation"), ("double_spend_observed", "double_spend_observed")):
-                if _explicit_flag(details, flag):
-                    support2.append({"type": signal, "source": "stored_behavior", "source_group": "concurrency_behavior", "weight": 32, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            emit("race_condition", "duplicate_operation", 10, support2, [],
-                 ["Idempotency key or transaction guard", "Atomic state transition behavior", "Whether the action is intended to be single-use"],
-                 ["candidate-single-use-operation", "candidate-idempotency"],
-                 "A balance-changing or single-use workflow may require idempotency and atomicity controls; no concurrency test has been performed.", impact=80)
+    # Analysis 6.21: Business Logic and Race Condition legacy alert emission was physically removed.
+    # raw_family_collectors.business_logic owns emission metadata; execution/reconstruction
+    # remains the sole source of target evidence, blockers, and condition signals.
 
     # Execution-only families still enter the hidden hypothesis ledger even when
     # legacy surface heuristics did not emit them. Admission remains the only promotion gate.
