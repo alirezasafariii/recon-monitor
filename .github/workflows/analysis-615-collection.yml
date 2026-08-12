@@ -1,0 +1,94 @@
+name: Analysis 6.15 Raw v3 Collection
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.15-fresh-raw-holdout-v3
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.15-fresh-raw-holdout-v3
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify frozen unscored protocol
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          from raw_recon_v3_benchmark import verify_v3_freeze
+          r = verify_v3_freeze()
+          assert r['passed'], r['errors']
+          assert r['manifest']['evaluation_status'] == 'protocol_sealed_collection_open'
+          assert r['manifest']['seal']['scored'] is False
+          PY
+
+      - name: Stage deterministic shortlist and materializer
+        run: python scripts/stage_analysis_615_collection.py
+
+      - name: Build source shortlist without scoring
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v3_shortlist.py --target-roots 24
+
+      - name: Materialize and validate raw v3 without scoring
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v3_materialize.py
+
+      - name: Verify collection helpers contain no scoring execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'run_raw_benchmark|rank_families|assess_admission|execute_detector_intelligence' app/raw_recon_v3_shortlist.py
+          ! grep -Eq 'run_raw_benchmark|rank_families|assess_admission|execute_detector_intelligence' app/raw_recon_v3_materialize.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('benchmarks/raw/sources/v3_materialization_report.json').read_text())
+          v = report['validation']
+          assert report['scoring_executed'] is False
+          assert v['passed'], v['errors']
+          assert v['source_root_count'] >= 24
+          assert v['source_project_count'] >= 20
+          assert v['positive_family_count'] >= 18
+          assert v['prior_source_root_overlap_count'] == 0
+          assert v['prior_url_overlap_count'] == 0
+          assert v['positive_control_raw_collision_count'] == 0
+          assert v['positive_observable_delta_rate'] == 1.0
+          print(json.dumps({
+              'case_count': report['case_count'],
+              'root_count': v['source_root_count'],
+              'project_count': v['source_project_count'],
+              'family_count': v['positive_family_count'],
+              'collision_count': v['positive_control_raw_collision_count'],
+              'observable_delta_rate': v['positive_observable_delta_rate'],
+              'corpus_sha256': report['corpus_sha256'],
+          }, indent=2))
+          PY
+
+      - name: Clean and commit unscored corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/analysis-615-collection.yml
+          rm scripts/stage_analysis_615_collection.py
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Materialize Analysis 6.15 unscored raw v3 corpus'
+          git push origin HEAD:agent/analysis-engine-6.15-fresh-raw-holdout-v3
