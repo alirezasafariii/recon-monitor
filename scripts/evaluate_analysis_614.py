@@ -22,7 +22,7 @@ envelope = {
     "engine_version": "6.14.0",
     "metrics": metrics,
     "quality_gate": report["quality_gate"],
-    "case_results": report["case_results"],
+    "case_results": report["cases"],
     "note": "Analysis raw v2 was consumed by the single Analysis 6.13 fresh evaluation. This run is development regression only and must never be described as fresh or blind.",
 }
 output = Path("benchmarks/raw/results/analysis_raw_v2_6_14_regression.json")
