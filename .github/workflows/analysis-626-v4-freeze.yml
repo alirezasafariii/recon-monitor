@@ -1,0 +1,127 @@
+name: Analysis 6.26 Raw v4 Freeze
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.26-fresh-raw-holdout-v4
+
+permissions:
+  contents: write
+
+jobs:
+  freeze:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.26-fresh-raw-holdout-v4
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Freeze contract tests
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_materialization_v6260.py' -q
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_freeze_v6260.py' -q
+
+      - name: Build pre-first-blind freeze artifact
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/raw_recon_v4_freeze.py \
+            --materialization-commit 0bfc7cdc2fec0e43bff16a3175bdebe596a48bc6
+
+      - name: Verify freeze hashes and invariants
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          freeze = json.loads(Path('benchmarks/raw/sources/v4_freeze.json').read_text(encoding='utf-8'))
+          paths = {
+              'corpus_sha256': Path('benchmarks/raw/analysis_raw_v4.jsonl'),
+              'shortlist_sha256': Path('benchmarks/raw/sources/v4_shortlist.json'),
+              'source_family_audit_sha256': Path('benchmarks/raw/sources/v4_source_family_audit.json'),
+              'materialization_report_sha256': Path('benchmarks/raw/sources/v4_materialization_report.json'),
+          }
+          for key, path in paths.items():
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              assert freeze[key] == actual, (key, freeze[key], actual)
+          assert freeze['status'] == 'frozen_pre_first_blind'
+          assert freeze['materialization_commit'] == '0bfc7cdc2fec0e43bff16a3175bdebe596a48bc6'
+          assert freeze['case_count'] == 144
+          assert freeze['source_root_count'] == 36
+          assert freeze['source_project_count'] == 36
+          assert freeze['positive_family_count'] == 36
+          assert freeze['variant_count_per_root'] == 4
+          assert freeze['corpus_sha256'] == 'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6'
+          assert freeze['prior_source_root_overlap_count'] == 0
+          assert freeze['prior_source_project_overlap_count'] == 0
+          assert freeze['prior_url_overlap_count'] == 0
+          assert freeze['grounding_writeup_overlap_count'] == 0
+          assert freeze['label_leakage_count'] == 0
+          assert freeze['positive_control_raw_collision_count'] == 0
+          assert freeze['positive_observable_delta_rate'] == 1.0
+          assert freeze['first_blind_scoring_executed'] is False
+          print(json.dumps(freeze, indent=2, sort_keys=True))
+          PY
+
+      - name: Register freeze artifacts in manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          root = Path('.')
+          manifest = root / 'MANIFEST.sha256'
+          entries = {}
+          order = []
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' not in line:
+                  continue
+              _, name = line.split('  ', 1)
+              path = root / name
+              if path.is_file():
+                  entries[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+                  order.append(name)
+
+          for name in (
+              'app/raw_recon_v4_freeze.py',
+              'tests/test_raw_recon_v4_freeze_v6260.py',
+              'benchmarks/raw/sources/v4_freeze.json',
+          ):
+              path = root / name
+              entries[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+              if name not in order:
+                  order.append(name)
+
+          manifest.write_text(
+              ''.join(f'{entries[name]}  {name}\n' for name in order),
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Verify manifest
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit frozen corpus identity and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-626-v4-freeze.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Freeze Analysis 6.26 raw v4 holdout before first blind run"
+          git push origin HEAD:agent/analysis-engine-6.26-fresh-raw-holdout-v4
