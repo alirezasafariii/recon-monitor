@@ -2,41 +2,59 @@ name: Recon Monitor CI
 
 on:
   push:
-    branches: [agent/vulnerability-intelligence-8.6.0]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  consolidate:
+  test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          ref: agent/vulnerability-intelligence-8.6.0
-          fetch-depth: 2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Apply consolidation
-        run: python .ci-consolidate.py apply
-      - name: Syntax check
-        run: python -m py_compile app/bug_candidates.py app/workspace_v7.py app/safe_validation.py tests/test_architecture_single_source_v883.py
-      - name: Focused regression
-        run: python -m unittest tests.test_architecture_single_source_v883 -v
-      - name: Full unit suite
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
-      - name: Integration
-        run: python tests/integration_runner.py
-      - name: Finalize tree and manifest
-        run: python .ci-consolidate.py finalize
-      - name: Commit consolidated architecture
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify source hygiene
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Consolidate family policy single sources'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Integration test
+        run: python tests/integration_runner.py
