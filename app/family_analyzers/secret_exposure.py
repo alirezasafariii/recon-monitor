@@ -99,7 +99,7 @@ SECRET_EXPOSURE_WRITEUP_PATTERNS = (
 )
 
 _PLACEHOLDER_RE = re.compile(
-    r"(?i)(?:example|sample|placeholder|changeme|change_me|replace[_-]?me|dummy|fake|test[_-]?only|your[_-]?(?:api[_-]?key|token|secret|password)|xxxx+|aaaa+|123456|password123)"
+    r"(?i)(?:example|sample|placeholder|changeme|change_me|replace[_-]?me|dummy|fake|test[_-]?only|your[_-]?(?:api[_-]?key|token|client[_-]?secret|secret|password)|xxxx+|aaaa+|123456|password123)"
 )
 _TEMPLATE_RE = re.compile(r"(?:\$\{[^}]+\}|<%[^%]+%>|process\.env\.|import\.meta\.env\.|config\s*\()", re.I)
 
@@ -351,7 +351,8 @@ def analyze_secret_exposure_signal(
     details = dict(details or {})
     normalized = _normalize_observations(observations)
     markers = {str(value).strip().lower() for value in (marker_classes or []) if str(value).strip()}
-    for value in details.get("marker_classes", []) if isinstance(details.get("marker_classes"), list) else []:
+    detail_markers = details.get("marker_classes", [])
+    for value in (detail_markers if isinstance(detail_markers, list) else []):
         marker = _safe_marker_class(str(value))
         if marker:
             markers.add(marker)

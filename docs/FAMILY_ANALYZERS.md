@@ -418,6 +418,41 @@ The static Candidate Engine path is hypothesis-first: `source_map_intelligence �
 
 The analyzer performs no active or credentialed request and never copies raw source contents, internal paths or secret values into analyzer output.
 
+
+## 14. Secret Exposure
+
+`family_analyzers.secret_exposure.SecretExposureFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-798 — Use of Hard-coded Credentials
+- related CWE-321 — Use of Hard-coded Cryptographic Key
+- related CWE-540 / CWE-200 — sensitive information in source / exposure boundary concepts
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
+- OWASP Secrets Management Cheat Sheet
+
+The analyzer separates a secret-looking name from credential material, exposure context, placeholder/public-client-identifier controls, and lifecycle evidence. `apiKey`, `clientSecret`, `accessToken`, `authToken` and `password` names are discovery surface only.
+
+Stored JavaScript blobs are classified **offline**. The detector fingerprints and immediately discards matched material; it persists only the normalized kind, opaque fingerprint, confidence, assessment and safe reason text. Complete private-key blocks, paired cloud credential material and strong provider-specific secret formats may emit `credential_material_confirmed`. JWT syntax remains a candidate rather than proof of a live or privileged token.
+
+Examples, templates, provider test credentials and explicitly publishable/public client identifiers are filtered before promotion. `live_secret_context` is accepted only from already-authorized stored lifecycle evidence. The analyzer performs no provider/API request, credential-use request or online validity check.
+
+```text
+secret-looking marker / redacted pattern
+        ↓
+hidden hypothesis
+        ↓
+concrete credential-shaped material + client exposure context
+        ↓
+Potential Finding
+        ↓
+structurally confirmed credential material OR authorized stored live-status evidence
+        ↓
+family confirmation-ready state
+```
+
+The historical `secret_intelligence → _insert_candidate()` static bypass is migrated to `dedicated analyzer → record_hypothesis → Family Reasoning admission → promotion`. Potential Finding and confirmation remain separate states. Raw credentials, tokens, passwords and private-key bodies are never copied into analyzer output.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -426,7 +461,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust, Open Redirect, Source-map Exposure and Secret Exposure additionally migrate their static JavaScript/intelligence paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
 ## Router status
 
@@ -445,20 +480,20 @@ Currently production-routed:
 11. Path Traversal
 12. Information Disclosure
 13. Source-map Exposure
+14. Secret Exposure
 
-Pending dedicated analyzers: **8**.
+Pending dedicated analyzers: **7**.
 
 ## Migration order
 
 Next analyzers:
 
-1. Secret Exposure
-2. GraphQL Authorization
-3. GraphQL Data Exposure
-4. Business Logic
-5. Race Condition
-6. WebSocket Authorization
-7. CORS
-8. Sensitive Caching
+1. GraphQL Authorization
+2. GraphQL Data Exposure
+3. Business Logic
+4. Race Condition
+5. WebSocket Authorization
+6. CORS
+7. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.

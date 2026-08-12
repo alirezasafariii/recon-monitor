@@ -136,8 +136,8 @@ class SecretExposureFamilyAnalyzerV881Tests(unittest.TestCase):
         self.assertEqual(confirmation_gaps("secret_exposure", observed), [])
 
     def test_paired_aws_credential_is_confirmed_without_provider_request(self):
-        access = "AKIA" + "A" * 16
-        secret = "B" * 40
+        access = "AKIAQ7W8E9R0T1Y2U3I4"
+        secret = "Ab3dEf5hIj7lMn9pQr2tUv4xYz6Bcd8Fgh0Jkl2N"
         raw = f'const cfg={{accessKeyId:"{access}", secretAccessKey:"{secret}"}};'
         observations = detect_redacted_secret_material(raw)
         pair = next(row for row in observations if row["secret_kind"] == "aws_credential_pair")
@@ -161,7 +161,7 @@ class SecretExposureFamilyAnalyzerV881Tests(unittest.TestCase):
         self.assertFalse(self.analyze(observations=observations)["direct"])
 
     def test_jwt_shape_is_candidate_not_live(self):
-        token = "eyJ" + "A" * 20 + "." + "B" * 20 + "." + "C" * 20
+        token = "eyJAbCdEfGhIjKlMnOpQr.Z9y8X7w6V5u4T3s2R1q0.A1b2C3d4E5f6G7h8"
         observations = detect_redacted_secret_material(f'const access_token="{token}";')
         jwt = next(row for row in observations if row["secret_kind"] == "jwt_token_material")
         self.assertEqual(jwt["assessment"], "candidate")

@@ -26,6 +26,7 @@ from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.path_traversal import analyze_path_traversal_signal
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
+from family_analyzers.secret_exposure import analyze_secret_exposure_signal
 from family_analyzers.source_map_exposure import analyze_source_map_exposure_signal
 from family_analyzers.ssrf import analyze_ssrf_signal
 
@@ -36,7 +37,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.11.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.12.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -100,6 +101,10 @@ _FAMILY_DIRECT_TYPES = {
     "source_map_exposure": {
         "source_map_publicly_reachable",
         "sensitive_source_content_observed",
+    },
+    "secret_exposure": {
+        "credential_material_confirmed",
+        "live_secret_context",
     },
 }
 
@@ -227,6 +232,13 @@ _base.FAMILY_EVIDENCE_SCHEMAS["source_map_exposure"] = {
         ("internal_sources", "sensitive_source_content_observed"),
     ),
     "label": "source-map surface/public reachability plus internal source structure or sensitive source-content evidence",
+}
+_base.FAMILY_EVIDENCE_SCHEMAS["secret_exposure"] = {
+    "required_any": (
+        ("secret_pattern",),
+        ("context", "credential_material_confirmed", "live_secret_context"),
+    ),
+    "label": "redacted secret-pattern evidence plus concrete exposure context or confirmed credential material",
 }
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
@@ -939,6 +951,113 @@ def _record_source_map_static_hypothesis(
     _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
     return True
 
+def _secret_marker_classes(db: Any, *, target: str, js_url: str) -> list[str]:
+    rows = db.all(
+        "SELECT value FROM js_indicators WHERE target=? AND js_url=? AND kind='sensitive_marker'",
+        (target, js_url),
+    )
+    classes: set[str] = set()
+    for row in rows:
+        label = str(row["value"] or "").split(":count=", 1)[0].strip().lower()
+        if label:
+            classes.add(label)
+    return sorted(classes)
+
+
+def _record_secret_static_hypothesis(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    rows: list[Mapping[str, Any]],
+) -> bool:
+    if not rows:
+        return False
+    target = str(rows[0]["target"] or "")
+    js_url = str(rows[0]["js_url"] or "")
+    observations: list[dict[str, Any]] = []
+    max_confidence = 0
+    for row in rows:
+        confidence = _base.parse_int(row["confidence"], 0)
+        max_confidence = max(max_confidence, confidence)
+        reasons = _base._loads(row["reasons_json"], [])
+        observations.append({
+            "secret_kind": str(row["secret_kind"] or ""),
+            "value_fingerprint": str(row["value_fingerprint"] or ""),
+            "confidence": confidence,
+            "assessment": str(row["assessment"] or "candidate"),
+            "reasons": reasons if isinstance(reasons, list) else [],
+        })
+    dedicated = analyze_secret_exposure_signal(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        observations=observations,
+        marker_classes=_secret_marker_classes(db, target=target, js_url=js_url),
+        details={},
+        business_context="general",
+    )
+    if not dedicated:
+        return False
+    family_meta = dict(dedicated.get("family_analyzer") or {})
+    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
+    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
+    source_ref = f"secret:{js_url}"
+    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=js_url,
+        source_ref=source_ref,
+        family="secret_exposure",
+        variant=str(dedicated.get("variant") or "secret_pattern_surface"),
+        support=support,
+        contradict=contradict,
+        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
+        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
+        summary=str(dedicated.get("summary") or "Credential/token exposure hypothesis."),
+    )
+    if family_meta:
+        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
+    if not bool(hypothesis.get("assessment", {}).get("admitted")):
+        return False
+
+    support = hypothesis["support"]
+    contradict = hypothesis["contradict"]
+    direct = bool(dedicated.get("direct"))
+    likelihood = _base._clamp(
+        34 + max_confidence * 0.45 + (18 if direct else 0)
+        + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
+    )
+    candidate_id = _base._insert_candidate(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=js_url,
+        source_ref=source_ref,
+        family="secret_exposure",
+        variant=str(dedicated.get("variant") or "credential_material_candidate"),
+        likelihood=likelihood,
+        evidence_strength=_evidence_strength_with_family_directness(
+            max_confidence, support, contradict, direct=direct
+        ),
+        impact_potential=_base._impact(_base.BUG_FAMILIES["secret_exposure"]["impact"], "general"),
+        support=support,
+        contradict=contradict,
+        missing=hypothesis["missing"],
+        rule_ids=hypothesis["rule_ids"],
+        summary=str(dedicated.get("summary") or "Redacted credential/token material is exposed in client-delivered JavaScript."),
+    )
+    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
+    return True
+
 class _MigratedStaticFilteredDatabase:
     """Delegate DB access while hiding migrated client-side rows from legacy insertion."""
 
@@ -949,6 +1068,8 @@ class _MigratedStaticFilteredDatabase:
         rows = self._db.all(query, params)
         lowered = str(query).lower()
         if "from source_map_intelligence" in lowered:
+            return []
+        if "from secret_intelligence" in lowered:
             return []
         if "from js_dataflows" not in lowered:
             return rows
@@ -975,8 +1096,16 @@ def _static_candidates_with_family_analyzers(db: Any, analysis_id: str, run_id: 
     if target:
         target_clause = " AND target=?"
         params.append(target)
-    source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
+    secret_rows = db.all(f"SELECT * FROM secret_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
+    grouped_secrets: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    for row in secret_rows:
+        grouped_secrets.setdefault((str(row["target"] or ""), str(row["js_url"] or "")), []).append(row)
     migrated_count = 0
+    for grouped_rows in grouped_secrets.values():
+        if _record_secret_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, rows=grouped_rows):
+            migrated_count += 1
+
+    source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
     for row in source_map_rows:
         if _record_source_map_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
             migrated_count += 1

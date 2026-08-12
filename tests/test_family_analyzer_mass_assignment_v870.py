@@ -49,11 +49,11 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
             business_context="identity",
         )
 
-    def test_router_registers_thirteen_dedicated_families_without_fallback(self):
+    def test_router_registers_fourteen_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 13)
-        self.assertEqual(status["pending_count"], 8)
+        self.assertEqual(status["registered_count"], 14)
+        self.assertEqual(status["pending_count"], 7)
         self.assertEqual(status["registered"], [
             "broken_object_authorization",
             "broken_function_authorization",
@@ -67,7 +67,7 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
             "file_upload",
             "path_traversal",
             "information_disclosure",
-            "source_map_exposure",
+            "source_map_exposure", "secret_exposure",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("mass_assignment"))
@@ -81,7 +81,8 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
         self.assertIsNotNone(analyzer_for_family("path_traversal"))
         self.assertIsNotNone(analyzer_for_family("information_disclosure"))
         self.assertIsNotNone(analyzer_for_family("source_map_exposure"))
-        self.assertIsNone(analyzer_for_family("secret_exposure"))
+        self.assertIsNotNone(analyzer_for_family("secret_exposure"))
+        self.assertIsNone(analyzer_for_family("graphql_authorization"))
 
     def test_methodology_grounding_is_non_evidentiary(self):
         result = self.analyze({})

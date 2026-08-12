@@ -15,6 +15,7 @@ from core import APP_VERSION, AppPaths, Database, json_dumps, parse_int, sha256_
 from bug_candidates import generate_bug_candidates
 from candidate_intelligence import analysis_profile, build_candidate_bundles, enhance_candidates, generate_semantic_intelligence
 from behavioral_intelligence import generate_behavioral_candidates, generate_behavioral_intelligence
+from family_analyzers.secret_exposure import detect_redacted_secret_material
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
 
@@ -432,6 +433,20 @@ def _scan_js_intelligence(paths: AppPaths, db: Database, run_id: str, target: st
         except OSError:
             continue
         compact = text[:5_000_000]
+        for observation in detect_redacted_secret_material(compact):
+            db.execute(
+                "INSERT OR REPLACE INTO secret_intelligence(analysis_id,target,run_id,js_url,secret_kind,value_fingerprint,confidence,assessment,reasons_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    analysis_id, target, run_id, row["url"],
+                    str(observation.get("secret_kind") or "credential_material"),
+                    str(observation.get("value_fingerprint") or ""),
+                    parse_int(observation.get("confidence"), 0),
+                    str(observation.get("assessment") or "candidate"),
+                    json_dumps(observation.get("reasons") if isinstance(observation.get("reasons"), list) else []),
+                    utc_now(),
+                ),
+            )
+            secret_count += 1
         sources = [(name, match.start()) for name, pattern in source_patterns.items() for match in pattern.finditer(compact)]
         sinks = [(name, match.start()) for name, pattern in sink_patterns.items() for match in pattern.finditer(compact)]
         for source_name, source_pos in sources[:200]:
