@@ -201,7 +201,7 @@ def analyze_source_map_exposure_signal(
     observed = {str(item.get("type") or "") for item in support}
     blockers = {str(item.get("type") or "") for item in contradict}
     promotion_ready = "source_map_publicly_reachable" in observed or "sensitive_source_content_observed" in observed
-    confirmation_ready = promotion_ready and not bool(blockers & {"source_map_not_public"})
+    confirmation_ready = "source_map_publicly_reachable" in observed and not bool(blockers & {"source_map_not_public"})
     confirmation_missing = list(confirmation_gaps("source_map_exposure", observed))
     if confirmation_ready:
         confirmation_missing = []

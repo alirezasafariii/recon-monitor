@@ -26,6 +26,7 @@ from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.path_traversal import analyze_path_traversal_signal
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
+from family_analyzers.source_map_exposure import analyze_source_map_exposure_signal
 from family_analyzers.ssrf import analyze_ssrf_signal
 
 _base = importlib.import_module("bug_candidates_core")
@@ -35,7 +36,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.10.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.11.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -95,6 +96,10 @@ _FAMILY_DIRECT_TYPES = {
         "sensitive_response_observed",
         "private_field_publicly_observed",
         "error_detail_exposure_observed",
+    },
+    "source_map_exposure": {
+        "source_map_publicly_reachable",
+        "sensitive_source_content_observed",
     },
 }
 
@@ -215,6 +220,13 @@ _base.FAMILY_EVIDENCE_SCHEMAS["information_disclosure"] = {
         ("stored_evidence", "sensitive_response_observed", "private_field_publicly_observed"),
     ),
     "label": "sensitive/debug/internal marker plus stored response context or direct visibility-boundary exposure",
+}
+_base.FAMILY_EVIDENCE_SCHEMAS["source_map_exposure"] = {
+    "required_any": (
+        ("source_map", "source_map_publicly_reachable"),
+        ("internal_sources", "sensitive_source_content_observed"),
+    ),
+    "label": "source-map surface/public reachability plus internal source structure or sensitive source-content evidence",
 }
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
@@ -842,6 +854,91 @@ def _record_open_redirect_static_hypothesis(
     )
 
 
+
+def _record_source_map_static_hypothesis(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    row: Mapping[str, Any],
+) -> bool:
+    target = str(row["target"] or "")
+    js_url = str(row["js_url"] or "")
+    source_map_url = str(row["source_map_url"] or "")
+    source_count = _base.parse_int(row["source_count"], 0)
+    internal_count = _base.parse_int(row["internal_source_count"], 0)
+    details = {
+        "source_map_url": source_map_url,
+        "js_url": js_url,
+        "source_count": source_count,
+        "internal_source_count": internal_count,
+        "collector_download_succeeded": source_count > 0,
+    }
+    dedicated = analyze_source_map_exposure_signal(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        source_map_url=source_map_url,
+        js_url=js_url,
+        source_count=source_count,
+        internal_source_count=internal_count,
+        details=details,
+        business_context="general",
+    )
+    if not dedicated:
+        return False
+    family_meta = dict(dedicated.get("family_analyzer") or {})
+    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
+    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
+    source_ref = f"source-map:{js_url}"
+    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=source_map_url,
+        source_ref=source_ref,
+        family="source_map_exposure",
+        variant=str(dedicated.get("variant") or "source_map_reference_only"),
+        support=support,
+        contradict=contradict,
+        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
+        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
+        summary=str(dedicated.get("summary") or "Source-map exposure hypothesis."),
+    )
+    if family_meta:
+        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
+    if not bool(hypothesis.get("assessment", {}).get("admitted")):
+        return False
+    if not bool(family_meta.get("confirmation_ready_from_stored_target_evidence")):
+        return False
+    support = hypothesis["support"]
+    contradict = hypothesis["contradict"]
+    candidate_id = _base._insert_candidate(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=source_map_url,
+        source_ref=source_ref,
+        family="source_map_exposure",
+        variant=str(dedicated.get("variant") or "public_internal_source_map"),
+        likelihood=_base._clamp(48 + min(24, internal_count * 3) + (12 if source_count else 0)),
+        evidence_strength=_evidence_strength_with_family_directness(86, support, contradict, direct=bool(dedicated.get("direct"))),
+        impact_potential=_base._impact(_base.BUG_FAMILIES["source_map_exposure"]["impact"], "general"),
+        support=support,
+        contradict=contradict,
+        missing=hypothesis["missing"],
+        rule_ids=hypothesis["rule_ids"],
+        summary=str(dedicated.get("summary") or "A publicly reachable source map exposes internal source structure."),
+    )
+    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
+    return True
+
 class _MigratedStaticFilteredDatabase:
     """Delegate DB access while hiding migrated client-side rows from legacy insertion."""
 
@@ -850,7 +947,10 @@ class _MigratedStaticFilteredDatabase:
 
     def all(self, query: str, params: tuple[Any, ...] = ()) -> list[Any]:
         rows = self._db.all(query, params)
-        if "from js_dataflows" not in str(query).lower():
+        lowered = str(query).lower()
+        if "from source_map_intelligence" in lowered:
+            return []
+        if "from js_dataflows" not in lowered:
             return rows
         filtered: list[Any] = []
         for row in rows:
@@ -875,8 +975,13 @@ def _static_candidates_with_family_analyzers(db: Any, analysis_id: str, run_id: 
     if target:
         target_clause = " AND target=?"
         params.append(target)
-    rows = db.all(f"SELECT * FROM js_dataflows WHERE analysis_id=?{target_clause}", tuple(params))
+    source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
     migrated_count = 0
+    for row in source_map_rows:
+        if _record_source_map_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
+            migrated_count += 1
+
+    rows = db.all(f"SELECT * FROM js_dataflows WHERE analysis_id=?{target_clause}", tuple(params))
     for row in rows:
         source = str(row["source_kind"] or "")
         sink = str(row["sink_kind"] or "")

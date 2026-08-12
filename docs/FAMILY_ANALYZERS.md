@@ -398,6 +398,26 @@ analyst confirmation using minimal redacted evidence
 
 The analyzer stores field names, categories and booleans only. It performs no active request, credential validation, private-data retrieval or payload generation, and it never copies raw sensitive values into analyzer output.
 
+
+## 13. Source-map Exposure
+
+`family_analyzers.source_map_exposure.SourceMapExposureFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-200 — Exposure of Sensitive Information to an Unauthorized Actor
+- related CWE-497 — Exposure of Sensitive System Information to an Unauthorized Control Sphere
+- related CWE-540 — Inclusion of Sensitive Information in Source Code
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
+
+A `sourceMappingURL` directive, `.map` filename or source-map URL is discovery surface only. Promotion requires stored evidence that the passive collector actually retrieved the map without credentials and that the same map contains internal source structure, or explicit stored review evidence of sensitive source content.
+
+The static Candidate Engine path is hypothesis-first: `source_map_intelligence → dedicated analyzer → Family Reasoning admission → promotion`. The legacy direct `_insert_candidate()` path is filtered out.
+
+`source_map_publicly_reachable` is emitted only when the same stored map contains meaningful internal source structure. `sensitive_source_content_observed` can strengthen or promote a hypothesis, but it is not confirmation-ready until public reachability of the same map is established.
+
+The analyzer performs no active or credentialed request and never copies raw source contents, internal paths or secret values into analyzer output.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -424,21 +444,21 @@ Currently production-routed:
 10. File Upload / Import
 11. Path Traversal
 12. Information Disclosure
+13. Source-map Exposure
 
-Pending dedicated analyzers: **9**.
+Pending dedicated analyzers: **8**.
 
 ## Migration order
 
 Next analyzers:
 
-1. Source-map Exposure
-2. Secret Exposure
-3. GraphQL Authorization
-4. GraphQL Data Exposure
-5. Business Logic
-6. Race Condition
-7. WebSocket Authorization
-8. CORS
-9. Sensitive Caching
+1. Secret Exposure
+2. GraphQL Authorization
+3. GraphQL Data Exposure
+4. Business Logic
+5. Race Condition
+6. WebSocket Authorization
+7. CORS
+8. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
