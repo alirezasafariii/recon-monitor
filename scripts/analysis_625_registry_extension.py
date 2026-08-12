@@ -21,6 +21,41 @@ def insert_before(rel: str, marker: str, addition: str) -> None:
     write(rel, text.replace(marker, addition + marker, 1))
 
 
+def soften_historical_family_counts() -> None:
+    """Preserve historical lineage tests while 6.25 owns the exact 36-family count.
+
+    Older 6.x contracts were intended to prove complete coverage at that milestone,
+    not permanently cap later registries at 31 families. Their set-equality and
+    behavioral assertions stay intact; only literal cardinality caps are relaxed.
+    """
+    registry_names = (
+        "FAMILY_ADMISSION_POLICIES",
+        "FAMILY_EVIDENCE_EXTRACTOR_PROFILES",
+        "FAMILY_EXTRACTION_IDENTITY_GATES",
+        "FAMILY_REASONER_PROFILES",
+        "FAMILY_IDENTITY_GATES",
+        "DETECTOR_SPECS",
+        "FAMILY_MODULES",
+    )
+    for path in (ROOT / "tests").glob("test_*.py"):
+        # Current Analysis 6.25 owns the exact 36-family cardinality contract.
+        if path.name == "test_owasp_top10_2025_completion_v6250.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        updated = text
+        for name in registry_names:
+            updated = updated.replace(
+                f"self.assertEqual(len({name}), 31)",
+                f"self.assertGreaterEqual(len({name}), 31)",
+            )
+            updated = updated.replace(
+                f"self.assertEqual(31, len({name}))",
+                f"self.assertLessEqual(31, len({name}))",
+            )
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+
+
 def update_manifest() -> None:
     manifest = ROOT / "MANIFEST.sha256"
     rows = []
@@ -63,4 +98,5 @@ insert_before(
     reasoner_profiles,
 )
 
+soften_historical_family_counts()
 update_manifest()
