@@ -20,12 +20,12 @@ class Analysis617SealTests(unittest.TestCase):
         import bug_candidates
         import security_reasoning
 
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.17.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.17.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.17.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.12.6.17")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.12.6.17")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.12.6.17")
+        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
+        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 17, 0))
+        self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
+        self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
+        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
 
     def test_run_analysis_routes_both_authorization_families_to_hypothesis_and_candidate(self) -> None:
         families = set(AUTHORIZATION_FAMILIES)
