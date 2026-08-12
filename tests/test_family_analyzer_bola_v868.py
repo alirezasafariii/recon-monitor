@@ -18,6 +18,7 @@ from family_analyzers.bola import (
 )
 from family_analyzers.bola_core import analyze_bola_signal as core_analyze_bola_signal
 from family_analyzers.router import analyzer_for_family, router_status
+from family_reasoning import FAMILY_ORDER
 
 
 class BolaFamilyAnalyzerV868Tests(unittest.TestCase):
@@ -61,42 +62,13 @@ class BolaFamilyAnalyzerV868Tests(unittest.TestCase):
     def test_router_is_explicit_and_has_no_generic_family_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(
-            status["registered"],
-            [
-                "broken_object_authorization",
-                "broken_function_authorization",
-                "mass_assignment",
-                "authentication_session",
-                "account_enumeration",
-                "dom_xss",
-                "postmessage_trust",
-                "open_redirect",
-                "ssrf",
-                "file_upload",
-                "path_traversal",
-                "information_disclosure",
-                "source_map_exposure", "secret_exposure",
-            ],
-        )
-        self.assertEqual(status["registered_count"], 14)
-        self.assertEqual(status["pending_count"], 7)
+        self.assertEqual(status["registered"], list(FAMILY_ORDER))
+        self.assertEqual(status["registered_count"], 21)
+        self.assertEqual(status["pending_count"], 0)
+        self.assertEqual(status["pending"], [])
         self.assertFalse(status["generic_family_analyzer_fallback"])
-        self.assertIsNotNone(analyzer_for_family("broken_object_authorization"))
-        self.assertIsNotNone(analyzer_for_family("broken_function_authorization"))
-        self.assertIsNotNone(analyzer_for_family("mass_assignment"))
-        self.assertIsNotNone(analyzer_for_family("authentication_session"))
-        self.assertIsNotNone(analyzer_for_family("account_enumeration"))
-        self.assertIsNotNone(analyzer_for_family("dom_xss"))
-        self.assertIsNotNone(analyzer_for_family("postmessage_trust"))
-        self.assertIsNotNone(analyzer_for_family("open_redirect"))
-        self.assertIsNotNone(analyzer_for_family("ssrf"))
-        self.assertIsNotNone(analyzer_for_family("file_upload"))
-        self.assertIsNotNone(analyzer_for_family("path_traversal"))
-        self.assertIsNotNone(analyzer_for_family("information_disclosure"))
-        self.assertIsNotNone(analyzer_for_family("source_map_exposure"))
-        self.assertIsNotNone(analyzer_for_family("secret_exposure"))
-        self.assertIsNone(analyzer_for_family("graphql_authorization"))
+        for family in FAMILY_ORDER:
+            self.assertIsNotNone(analyzer_for_family(family), family)
 
     def test_cwe_wstg_and_writeups_shape_reasoning_not_target_evidence(self):
         details = {
