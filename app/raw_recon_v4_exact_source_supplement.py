@@ -32,15 +32,15 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "source_map_exposure": {
-        "source_root": "GHSA-4x5r-pxfx-6jf8",
-        "source_project": "babel/babel",
-        "fetch_url": "https://api.github.com/advisories/GHSA-4x5r-pxfx-6jf8",
-        "canonical_advisory_url": "https://github.com/babel/babel/security/advisories/GHSA-4x5r-pxfx-6jf8",
-        "expected_cwes": {"CWE-200", "CWE-22"},
+        "source_root": "GHSA-r28c-9q8g-f849",
+        "source_project": "postcss/postcss",
+        "fetch_url": "https://api.github.com/advisories/GHSA-r28c-9q8g-f849",
+        "canonical_advisory_url": "https://github.com/postcss/postcss/security/advisories/GHSA-r28c-9q8g-f849",
+        "expected_cwes": {"CWE-22"},
         "required_groups": (
             ("source map", "sourcemap", "sourcemappingurl"),
-            ("read any source map", "read the output source code", "allow an attacker to read"),
-            ("input source map", "inputsourcemap", "#sourcemappingurl", "source map file"),
+            ("arbitrary .map file disclosure", "disclosure of the contents of arbitrary `.map` files", "reads that `.map` file"),
+            ("sourcescontent", "result.map", "returned to the caller", "attacker retrieves the emitted map"),
         ),
     },
     "improper_inventory_management": {
