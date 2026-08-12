@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Relax stale historical version pins
+        run: python scripts/analysis_617_fix_stale_version_tests.py
+
       - name: Apply deterministic Analysis 6.17 seal
         run: python scripts/analysis_617_seal.py
 
@@ -53,8 +56,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-617-seal-one-shot.yml scripts/analysis_617_seal.py
-          git add MANIFEST.sha256 app/analysis_engine.py app/bug_candidates.py app/security_reasoning.py tests/test_physical_raw_collector_injection_v6160.py tests/test_analysis_617_seal.py docs/ANALYSIS_ENGINE_6_17_SEAL.md
+          git rm .github/workflows/analysis-617-seal-one-shot.yml scripts/analysis_617_seal.py scripts/analysis_617_fix_stale_version_tests.py
+          git add MANIFEST.sha256 app/analysis_engine.py app/bug_candidates.py app/security_reasoning.py tests/test_physical_raw_collector_injection_v6160.py tests/test_analysis_coverage_v610.py tests/test_analysis_ranking_v650.py tests/test_raw_precision_calibration_v6140.py tests/test_analysis_617_seal.py docs/ANALYSIS_ENGINE_6_17_SEAL.md
           git diff --cached --check
           git commit -m "Seal Analysis 6.17 authorization raw collectors"
           git push origin HEAD:agent/analysis-engine-6.17-authorization-raw-collectors
