@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations, collect_owasp_top10_2025_observations
 from static_family_collectors import collect_specialized_static_observations
 
 CANDIDATE_ENGINE_VERSION = "6.24.0"
@@ -43,6 +43,11 @@ FAMILY_EVIDENCE_SCHEMAS: dict[str, dict[str, Any]] = {
     "security_misconfiguration": {"required_any": (("misconfiguration_surface", "debug_surface", "transport_surface", "http_method_surface", "deployment_configuration_surface"), ("stack_trace_exposed", "debug_mode_exposed", "insecure_http_enabled", "unnecessary_method_enabled", "directory_listing_observed", "security_header_missing_on_sensitive_response", "desync_processing_difference", "unsafe_default_configuration")), "label": "configuration surface plus directly observed insecure configuration"},
     "improper_inventory_management": {"required_any": (("api_version_surface", "legacy_endpoint_surface", "nonproduction_surface", "undocumented_host_surface"), ("deprecated_version_still_reachable", "older_version_weaker_controls", "undocumented_host_observed", "nonproduction_with_production_data", "retired_endpoint_active", "inventory_drift_observed", "unprotected_legacy_endpoint")), "label": "API inventory surface plus observed active legacy/undocumented exposure"},
     "unsafe_api_consumption": {"required_any": (("third_party_integration", "upstream_api_surface", "external_service_dependency"), ("upstream_tls_missing", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink")), "label": "third-party API dependency plus observed unsafe upstream consumption"},
+    "software_supply_chain_failure": {"required_any": (("component_inventory", "dependency_manifest", "build_pipeline", "artifact_repository", "component_fingerprint"), ("known_vulnerable_component_observed", "unmaintained_component_confirmed", "untrusted_component_source", "privileged_pipeline_executes_untrusted_code", "component_update_path_compromised")), "label": "supply-chain surface plus observed vulnerable/untrusted component or pipeline condition"},
+    "cryptographic_failure": {"required_any": (("cryptographic_surface", "transport_crypto_surface", "key_generation_surface", "sensitive_transport"), ("weak_crypto_algorithm_observed", "weak_tls_observed", "cryptographic_key_reuse", "predictable_randomness_observed", "crypto_downgrade_observed", "plaintext_sensitive_transport")), "label": "crypto/transport surface plus observed cryptographic control failure"},
+    "software_data_integrity_failure": {"required_any": (("integrity_boundary", "update_artifact", "serialized_input", "external_code_dependency"), ("unsigned_update_accepted", "integrity_check_missing", "untrusted_code_executed", "unsafe_deserialization_observed", "unsigned_serialized_data_trusted")), "label": "code/data integrity boundary plus observed missing verification or unsafe trust"},
+    "security_logging_alerting_failure": {"required_any": (("auditable_security_event", "logging_surface", "security_control_event"), ("security_event_not_logged", "alerting_absent_observed", "sensitive_data_logged", "log_injection_observed", "log_integrity_missing")), "label": "security-event/logging surface plus stored logging/alerting failure evidence"},
+    "exceptional_condition_mishandling": {"required_any": (("exception_surface", "abnormal_input_context", "transactional_operation"), ("unhandled_exception_observed", "fail_open_observed", "state_corruption_after_error", "partial_commit_after_error", "crash_on_exception", "exception_control_bypass")), "label": "exception surface plus observed unsafe exceptional-condition outcome"},
 }
 
 BUG_FAMILIES: dict[str, dict[str, Any]] = {
@@ -77,6 +82,11 @@ BUG_FAMILIES: dict[str, dict[str, Any]] = {
     "security_misconfiguration": {"label": "Security Misconfiguration", "impact": 78, "category": "configuration"},
     "improper_inventory_management": {"label": "Improper API Inventory Management", "impact": 68, "category": "api_inventory"},
     "unsafe_api_consumption": {"label": "Unsafe Consumption of Third-Party APIs", "impact": 84, "category": "supply_chain"},
+    "software_supply_chain_failure": {"label": "Software Supply Chain Failure", "impact": 88, "category": "supply_chain"},
+    "cryptographic_failure": {"label": "Cryptographic Failure", "impact": 84, "category": "cryptography"},
+    "software_data_integrity_failure": {"label": "Software or Data Integrity Failure", "impact": 90, "category": "integrity"},
+    "security_logging_alerting_failure": {"label": "Security Logging and Alerting Failure", "impact": 64, "category": "observability"},
+    "exceptional_condition_mishandling": {"label": "Mishandling of Exceptional Conditions", "impact": 82, "category": "error_handling"},
 }
 
 SAFE_ACTIONS = {
@@ -111,6 +121,11 @@ SAFE_ACTIONS = {
     "security_misconfiguration": "Capture the minimum configuration evidence needed (headers, transport, methods, errors). Do not exploit exposed administrative/debug functionality.",
     "improper_inventory_management": "Compare documented/current API versions with observed legacy or non-production endpoints. Do not access unrelated environments or production data beyond authorization.",
     "unsafe_api_consumption": "Trace upstream service trust boundaries, transport, redirects, response limits, and validation. Do not target or manipulate third-party systems without explicit authorization.",
+    "software_supply_chain_failure": "Review SBOM/dependency/build provenance and deployment reachability. Do not execute untrusted pipeline code or modify third-party registries; confirm only from stored, authorized artifacts.",
+    "cryptographic_failure": "Review stored TLS/algorithm/key-generation evidence and the sensitivity of protected data. Do not attempt downgrade or key-recovery attacks unless explicitly authorized.",
+    "software_data_integrity_failure": "Trace update, plugin, serialization, and signature/integrity boundaries from stored artifacts. Do not load untrusted code or destructive serialized payloads.",
+    "security_logging_alerting_failure": "Use existing authorized logs, telemetry, and configuration to compare expected security events with recorded/alerted events. Never infer missing logging merely because it is invisible to the client.",
+    "exceptional_condition_mishandling": "Review stored abnormal/error outcomes for fail-open, crash, rollback, or state inconsistency. Do not intentionally crash services or corrupt state; active fault injection requires explicit authorization.",
 }
 
 PRIVILEGED_FIELDS = {"role", "roles", "isadmin", "admin", "permissions", "permission", "ownerid", "tenantid", "accounttype", "status", "verified", "isstaff"}
@@ -549,6 +564,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     # WSTG/OWASP/CWE/write-ups define detector criteria only; passive stored target
     # evidence remains owned by execution/reconstruction and family admission.
     for observation in collect_exposure_headers_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
+    # Analysis 6.25 — physical OWASP Top 10:2025 completion collector ownership.
+    # The collector is metadata-only. WSTG/OWASP/CWE/write-ups define criteria;
+    # target evidence remains solely in passive execution/reconstruction and admission.
+    for observation in collect_owasp_top10_2025_observations(execution_map):
         emit(
             observation.family,
             observation.variant,

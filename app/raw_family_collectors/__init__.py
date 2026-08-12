@@ -64,6 +64,15 @@ from raw_family_collectors.injection import (
     validate_injection_collectors,
 )
 
+from raw_family_collectors.owasp_top10_2025 import (
+    OWASP_TOP10_2025_COLLECTOR_RULE_VERSION,
+    OWASP_TOP10_2025_COLLECTOR_VERSION,
+    OWASP_TOP10_2025_FAMILIES,
+    OWASP_TOP10_2025_OBSERVATIONS,
+    collect_owasp_top10_2025_observations,
+    validate_owasp_top10_2025_collectors,
+)
+
 __all__ = [
     "RawFamilyObservation",
     "API_CONFIGURATION_COLLECTOR_VERSION",
@@ -114,4 +123,10 @@ __all__ = [
     "INJECTION_OBSERVATIONS",
     "collect_injection_observations",
     "validate_injection_collectors",
+    "OWASP_TOP10_2025_COLLECTOR_VERSION",
+    "OWASP_TOP10_2025_COLLECTOR_RULE_VERSION",
+    "OWASP_TOP10_2025_FAMILIES",
+    "OWASP_TOP10_2025_OBSERVATIONS",
+    "collect_owasp_top10_2025_observations",
+    "validate_owasp_top10_2025_collectors",
 ]

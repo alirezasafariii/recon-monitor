@@ -58,6 +58,11 @@ FAMILY_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
     "unsafe_api_consumption": (0,),
     "source_map_exposure": (0,),
     "secret_exposure": (0, 1),
+    "software_supply_chain_failure": (0,),
+    "cryptographic_failure": (0,),
+    "software_data_integrity_failure": (0,),
+    "security_logging_alerting_failure": (0,),
+    "exceptional_condition_mishandling": (0,),
 }
 
 
@@ -245,6 +250,36 @@ FAMILY_REASONER_PROFILES: dict[str, FamilyReasonerProfile] = {
         (0.18, 0.20, 0.42),
         ("information_disclosure", "source_map_exposure", "authentication_session"),
         confounder_penalty=0.20,
+    ),
+    "software_supply_chain_failure": FamilyReasonerProfile(
+        "Does a deployed dependency, artifact, registry, or privileged build path rely on a vulnerable, unmaintained, untrusted, or compromised supply-chain component?",
+        (0.30, 0.50),
+        ("unsafe_api_consumption", "improper_inventory_management", "software_data_integrity_failure", "security_misconfiguration"),
+        confounder_penalty=0.22,
+    ),
+    "cryptographic_failure": FamilyReasonerProfile(
+        "Does a security-sensitive cryptographic or transport boundary actually use weak, predictable, reused, downgraded, or plaintext protection?",
+        (0.30, 0.50),
+        ("security_misconfiguration", "authentication_session", "secret_exposure", "sensitive_caching"),
+        confounder_penalty=0.20,
+    ),
+    "software_data_integrity_failure": FamilyReasonerProfile(
+        "Does untrusted code, update material, or serialized data cross an integrity boundary without effective authenticity/integrity verification?",
+        (0.28, 0.52),
+        ("software_supply_chain_failure", "mass_assignment", "command_injection", "unsafe_api_consumption"),
+        confounder_penalty=0.22,
+    ),
+    "security_logging_alerting_failure": FamilyReasonerProfile(
+        "Do stored logging, telemetry, or configuration artifacts show that a security event is missed, unsafe to log, not alerted, or not integrity-protected?",
+        (0.30, 0.50),
+        ("information_disclosure", "security_misconfiguration", "exceptional_condition_mishandling"),
+        confounder_penalty=0.20,
+    ),
+    "exceptional_condition_mishandling": FamilyReasonerProfile(
+        "Does an exceptional condition produce an unsafe fail-open, crash, state corruption, partial commit, or control-bypass outcome?",
+        (0.28, 0.52),
+        ("information_disclosure", "security_misconfiguration", "business_logic", "race_condition", "security_logging_alerting_failure"),
+        confounder_penalty=0.22,
     ),
 }
 

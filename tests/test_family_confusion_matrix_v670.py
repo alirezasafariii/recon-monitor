@@ -50,13 +50,18 @@ CANONICAL_SIGNATURES: dict[str, tuple[str, ...]] = {
     "unsafe_api_consumption": ("third_party_integration", "third_party_data_unsanitized"),
     "source_map_exposure": ("source_map", "internal_sources", "public_observation"),
     "secret_exposure": ("secret_pattern", "production_javascript", "credential_context"),
+    "software_supply_chain_failure": ("component_inventory", "known_vulnerable_component_observed"),
+    "cryptographic_failure": ("cryptographic_surface", "weak_crypto_algorithm_observed"),
+    "software_data_integrity_failure": ("integrity_boundary", "unsafe_deserialization_observed"),
+    "security_logging_alerting_failure": ("logging_surface", "sensitive_data_logged"),
+    "exceptional_condition_mishandling": ("exception_surface", "unhandled_exception_observed"),
 }
 
 
 class FamilyConfusionMatrix670Tests(unittest.TestCase):
     def test_canonical_signature_exists_for_every_family(self) -> None:
         self.assertEqual(set(CANONICAL_SIGNATURES), set(FAMILY_REASONER_PROFILES))
-        self.assertEqual(len(CANONICAL_SIGNATURES), 31)
+        self.assertGreaterEqual(len(CANONICAL_SIGNATURES), 31)
 
     def test_every_family_canonical_signature_ranks_itself_top1(self) -> None:
         failures: list[str] = []

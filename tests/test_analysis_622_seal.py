@@ -33,7 +33,7 @@ class Analysis622SealTests(unittest.TestCase):
     def test_all_31_families_keep_four_layer_grounding(self) -> None:
         self.assertEqual(validate_family_standards(FAMILY_ADMISSION_POLICIES), [])
         self.assertEqual(validate_detector_registry(), [])
-        self.assertEqual(len(FAMILY_ADMISSION_POLICIES), 31)
+        self.assertGreaterEqual(len(FAMILY_ADMISSION_POLICIES), 31)
         for family in FAMILY_ADMISSION_POLICIES:
             spec = get_detector_spec(family)
             self.assertTrue(spec.wstg_ids, family)

@@ -347,6 +347,67 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
             _cwe('CWE-287', 'Improper Authentication', mapping='contextual', auto_assign=False, when_any=('third_party_auth_weak',)),
         ],
     },
+    'software_supply_chain_failure': {
+        'principle': 'Dependency, build, registry, and artifact metadata are supply-chain surfaces; promotion requires observed untrusted, vulnerable, unmaintained, or compromised component/pipeline behavior.',
+        'wstg': [
+            _wstg('WSTG-CONF-01', 'Network and Application Platform Configuration'),
+            _wstg('WSTG-CONF-02', 'Application Platform Configuration'),
+        ],
+        'cwe': [
+            _cwe('CWE-1104', 'Use of Unmaintained Third Party Components', mapping='contextual', auto_assign=True, when_any=('unmaintained_component_confirmed', 'known_vulnerable_component_observed')),
+            _cwe('CWE-1357', 'Reliance on Insufficiently Trustworthy Component', mapping='contextual', auto_assign=True, when_any=('untrusted_component_source', 'component_update_path_compromised')),
+            _cwe('CWE-1395', 'Dependency on Vulnerable Third-Party Component', mapping='contextual', auto_assign=True, when_any=('known_vulnerable_component_observed',)),
+        ],
+    },
+    'cryptographic_failure': {
+        'principle': 'Crypto/TLS/key-generation markers are only surfaces; promotion requires observed weak, downgraded, predictable, reused, or plaintext handling of security-sensitive data.',
+        'wstg': [
+            _wstg('WSTG-CRYP-01', 'Weak Transport Layer Security'),
+        ],
+        'cwe': [
+            _cwe('CWE-319', 'Cleartext Transmission of Sensitive Information', mapping='contextual', auto_assign=True, when_any=('plaintext_sensitive_transport',)),
+            _cwe('CWE-327', 'Use of a Broken or Risky Cryptographic Algorithm', mapping='contextual', auto_assign=True, when_any=('weak_crypto_algorithm_observed',)),
+            _cwe('CWE-338', 'Use of Cryptographically Weak Pseudo-Random Number Generator', mapping='contextual', auto_assign=True, when_any=('predictable_randomness_observed',)),
+            _cwe('CWE-757', 'Selection of Less-Secure Algorithm During Negotiation', mapping='contextual', auto_assign=True, when_any=('crypto_downgrade_observed', 'weak_tls_observed')),
+        ],
+    },
+    'software_data_integrity_failure': {
+        'principle': 'Update, serialization, plugin, and external-code boundaries are only surfaces; promotion requires observed missing integrity verification or unsafe trust of code/data.',
+        'wstg': [
+            _wstg('WSTG-CONF-02', 'Application Platform Configuration'),
+        ],
+        'cwe': [
+            _cwe('CWE-345', 'Insufficient Verification of Data Authenticity', mapping='contextual', auto_assign=True, when_any=('integrity_check_missing', 'unsigned_serialized_data_trusted')),
+            _cwe('CWE-494', 'Download of Code Without Integrity Check', mapping='contextual', auto_assign=True, when_any=('unsigned_update_accepted', 'integrity_check_missing')),
+            _cwe('CWE-502', 'Deserialization of Untrusted Data', mapping='direct', auto_assign=True, when_any=('unsafe_deserialization_observed',)),
+            _cwe('CWE-829', 'Inclusion of Functionality from Untrusted Control Sphere', mapping='contextual', auto_assign=True, when_any=('untrusted_code_executed',)),
+        ],
+    },
+    'security_logging_alerting_failure': {
+        'principle': 'Security-event and logging metadata are only surfaces; lack of visible logs is never inferred from an HTTP response. Promotion requires stored evidence of missing, unsafe, or ineffective security logging/alerting.',
+        'wstg': [
+            _wstg('WSTG-CONF-02', 'Application Platform Configuration'),
+            _wstg('WSTG-ERRH-01', 'Improper Error Handling'),
+        ],
+        'cwe': [
+            _cwe('CWE-117', 'Improper Output Neutralization for Logs', mapping='contextual', auto_assign=True, when_any=('log_injection_observed',)),
+            _cwe('CWE-532', 'Insertion of Sensitive Information into Log File', mapping='contextual', auto_assign=True, when_any=('sensitive_data_logged',)),
+            _cwe('CWE-778', 'Insufficient Logging', mapping='contextual', auto_assign=True, when_any=('security_event_not_logged', 'alerting_absent_observed')),
+        ],
+    },
+    'exceptional_condition_mishandling': {
+        'principle': 'Error/exception markers are only surfaces; promotion requires an observed fail-open, crash, partial commit, corrupted state, or other unsafe exceptional-condition outcome.',
+        'wstg': [
+            _wstg('WSTG-ERRH-01', 'Improper Error Handling'),
+            _wstg('WSTG-ERRH-02', 'Stack Traces'),
+        ],
+        'cwe': [
+            _cwe('CWE-248', 'Uncaught Exception', mapping='contextual', auto_assign=True, when_any=('unhandled_exception_observed', 'crash_on_exception')),
+            _cwe('CWE-636', 'Not Failing Securely (Failing Open)', mapping='contextual', auto_assign=True, when_any=('fail_open_observed', 'exception_control_bypass')),
+            _cwe('CWE-703', 'Improper Check or Handling of Exceptional Conditions', mapping='direct', auto_assign=True, when_any=('unhandled_exception_observed', 'state_corruption_after_error', 'partial_commit_after_error')),
+            _cwe('CWE-755', 'Improper Handling of Exceptional Conditions', mapping='contextual', auto_assign=True, when_any=('unhandled_exception_observed', 'crash_on_exception')),
+        ],
+    },
 }
 
 
@@ -457,6 +518,21 @@ FAMILY_OWASP_MAPPINGS: dict[str, list[dict[str, Any]]] = {
     ],
     "unsafe_api_consumption": [
         _api_top10("API10:2023", "Unsafe Consumption of APIs", "0xaa-unsafe-consumption-of-apis"),
+    ],
+    "software_supply_chain_failure": [
+        _top10("A03:2025", "Software Supply Chain Failures", "A03_2025-Software_Supply_Chain_Failures"),
+    ],
+    "cryptographic_failure": [
+        _top10("A04:2025", "Cryptographic Failures", "A04_2025-Cryptographic_Failures"),
+    ],
+    "software_data_integrity_failure": [
+        _top10("A08:2025", "Software or Data Integrity Failures", "A08_2025-Software_or_Data_Integrity_Failures"),
+    ],
+    "security_logging_alerting_failure": [
+        _top10("A09:2025", "Security Logging and Alerting Failures", "A09_2025-Security_Logging_and_Alerting_Failures"),
+    ],
+    "exceptional_condition_mishandling": [
+        _top10("A10:2025", "Mishandling of Exceptional Conditions", "A10_2025-Mishandling_of_Exceptional_Conditions"),
     ],
 }
 

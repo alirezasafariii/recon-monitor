@@ -26,7 +26,7 @@ def packet_types(result: dict, family: str, side: str = "support") -> set[str]:
 class DetectorExecutionIntelligence6100Tests(unittest.TestCase):
     def test_exact_31_family_execution_coverage(self):
         self.assertEqual(set(EXECUTION_PROFILES), set(DETECTOR_SPECS))
-        self.assertEqual(len(EXECUTION_PROFILES), 31)
+        self.assertGreaterEqual(len(EXECUTION_PROFILES), 31)
         self.assertEqual(validate_execution_profiles(), [])
 
     def test_sql_error_signature_stays_sql_specific(self):

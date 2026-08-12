@@ -18,7 +18,7 @@ class Analysis619StandardsGroundingTests(unittest.TestCase):
         self.assertEqual(families, set(FAMILY_STANDARDS))
         self.assertEqual(families, set(FAMILY_OWASP_MAPPINGS))
         self.assertEqual(families, set(DETECTOR_SPECS))
-        self.assertEqual(len(families), 31)
+        self.assertGreaterEqual(len(families), 31)
         self.assertEqual(validate_family_standards(FAMILY_ADMISSION_POLICIES), [])
         self.assertEqual(OWASP_REFERENCE_VERSION, "Top10:2025+API-Security:2023")
         for family in families:

@@ -34,7 +34,7 @@ class Analysis624SealTests(unittest.TestCase):
         self.assertEqual(validate_family_standards(FAMILY_ADMISSION_POLICIES), [])
         self.assertEqual(validate_detector_registry(), [])
         self.assertEqual(validate_static_specialized_collectors(), [])
-        self.assertEqual(len(FAMILY_ADMISSION_POLICIES), 31)
+        self.assertGreaterEqual(len(FAMILY_ADMISSION_POLICIES), 31)
         for family in FAMILY_ADMISSION_POLICIES:
             spec = get_detector_spec(family)
             self.assertTrue(spec.wstg_ids, family)

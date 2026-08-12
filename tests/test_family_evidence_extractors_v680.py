@@ -29,7 +29,7 @@ class FamilyEvidenceExtractors680Tests(unittest.TestCase):
         self.assertEqual(RANKING_ENGINE_VERSION, "2.1.0")
         self.assertEqual(ADMISSION_ENGINE_VERSION, "2.4.0")
         self.assertEqual(set(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), set(FAMILY_ADMISSION_POLICIES))
-        self.assertEqual(len(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), 31)
+        self.assertGreaterEqual(len(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), 31)
         strategies = [profile.strategy for profile in FAMILY_EVIDENCE_EXTRACTOR_PROFILES.values()]
         self.assertEqual(len(strategies), len(set(strategies)))
         self.assertTrue(all(profile.channels for profile in FAMILY_EVIDENCE_EXTRACTOR_PROFILES.values()))

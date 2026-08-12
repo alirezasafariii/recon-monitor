@@ -84,6 +84,13 @@ FILE_OPERATION_MARKERS = ("/download", "/upload", "/import", "/archive", "/extra
 PATH_OPERATION_MARKERS = ("/download", "/archive", "/extract", "/unpack", "/files")
 CLI_EXECUTION_MARKERS = ("npm ", "npx ", "node ", "python ", "python3 ", "bash ", "sh ", "powershell ", "cmd.exe ", "git ", "curl ", "wget ", "jsii-diff ")
 
+SUPPLY_CHAIN_SURFACE_MARKERS = ("package-lock", "yarn.lock", "pnpm-lock", "requirements.txt", "poetry.lock", "pom.xml", "build.gradle", "sbom", "dependency", "dependencies", "github actions", ".github/workflows", "ci/cd", "artifact registry", "container image")
+CRYPTO_SURFACE_MARKERS = ("tls", "ssl", "cipher", "crypto", "encrypt", "decrypt", "signature", "nonce", "random", "md5", "sha1", "sha-1", "aes", "rsa", "ecdsa")
+INTEGRITY_SURFACE_MARKERS = ("deserialize", "deserialization", "objectinputstream", "readobject", "pickle.loads", "yaml.load(", "fastjson", "autotype", "enabledefaulttyping", "firmware update", "software update", "plugin update", "signature verification", "checksum", "integrity")
+LOGGING_SURFACE_MARKERS = ("audit log", "audit_log", "security log", "logger", "logging", "alerting", "telemetry", "monitoring", "security event")
+EXCEPTION_SURFACE_MARKERS = ("uncaught exception", "unhandled exception", "nullpointerexception", "panic:", "segmentation fault", "fatal exception", "rollback", "fail open", "fail-open")
+LOG_CONTENT_KEYS = {"log_entry", "log_message", "logger_output", "audit_log", "audit_entry", "debug_log", "telemetry_event", "security_event"}
+
 
 @dataclass(frozen=True)
 class ExecutionProfile:
@@ -619,6 +626,82 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
                 p = count / len(raw); entropy -= p * math.log2(p)
         if len(raw) >= 16 and entropy >= 3.0: _add(packet, "support", _signal("secret_exposure", "high_entropy_value", "secret_fingerprint", "Redacted credential-like material has non-trivial length and character entropy.", source_group="secret_assessment", weight=18, basis="redacted_entropy"))
         break
+
+    # Analysis 6.25: OWASP Top 10:2025 completion families. These rules remain
+    # passive/offline and only use stored target artifacts. In particular, missing
+    # client-visible logging is never interpreted as a logging failure.
+    supply_dependency_keys = {"package", "package_name", "package_version", "dependency", "dependencies", "component", "component_version", "sbom", "artifact", "repository", "image"}
+    supply_keys = sorted(set(flat) & supply_dependency_keys)
+    supply_surface = bool(supply_keys) or any(marker in surface_text for marker in SUPPLY_CHAIN_SURFACE_MARKERS)
+    if supply_surface:
+        packet = _packet_for(result, "software_supply_chain_failure")
+        if any(marker in surface_text for marker in ("github actions", ".github/workflows", "ci/cd", "workflow", "pipeline")):
+            _add_identity(packet, "software_supply_chain_failure", "build_pipeline", "stored_build_artifact", "Stored artifacts expose a build/CI pipeline trust surface.", "supply_chain_surface", 14)
+        else:
+            _add_identity(packet, "software_supply_chain_failure", "component_inventory", "stored_component_artifact", "Stored dependency/component metadata exposes a supply-chain inventory surface.", "supply_chain_surface", 14)
+
+    crypto_surface = any(marker in surface_text for marker in CRYPTO_SURFACE_MARKERS) or endpoint.lower().startswith("http://")
+    if crypto_surface:
+        packet = _packet_for(result, "cryptographic_failure")
+        _add_identity(packet, "cryptographic_failure", "cryptographic_surface", "stored_crypto_artifact", "Stored artifacts contain cryptographic/TLS/key-generation semantics.", "crypto_surface", 12)
+        if endpoint.lower().startswith("http://"):
+            _add_identity(packet, "cryptographic_failure", "transport_crypto_surface", "endpoint", "Stored target endpoint uses cleartext HTTP transport.", "crypto_surface", 14)
+        security_sensitive_transport = bool(auth_hints) or bool(all_fields & SENSITIVE_FIELD_WORDS) or any(word in text_lower for word in SENSITIVE_FIELD_WORDS)
+        if endpoint.lower().startswith("http://") and security_sensitive_transport:
+            _add_identity(packet, "cryptographic_failure", "sensitive_transport", "endpoint_context", "Cleartext endpoint carries an authentication or sensitive-data context.", "crypto_context", 16)
+            _add(packet, "support", _signal("cryptographic_failure", "plaintext_sensitive_transport", "endpoint_transport", "Stored target evidence shows security-sensitive traffic exposed over cleartext HTTP.", source_group="crypto_behavior", weight=30, basis="sensitive_cleartext_endpoint"))
+        weak_algo = any(token in text_lower for token in ("md5(", "md5.new", "sha1(", "sha-1")) and any(token in text_lower for token in ("password", "secret", "token", "signature", "key", "credential", "auth"))
+        if weak_algo:
+            _add(packet, "support", _signal("cryptographic_failure", "weak_crypto_algorithm_observed", "stored_source", "Stored source uses MD5/SHA-1 in a security-sensitive credential/key/signature context.", source_group="crypto_behavior", weight=28, basis="security_context_weak_algorithm"))
+        weak_random = any(token in text_lower for token in ("math.random", "random.random(", "rand()")) and any(token in text_lower for token in ("token", "secret", "key", "nonce", "session", "password reset"))
+        if weak_random:
+            _add_identity(packet, "cryptographic_failure", "key_generation_surface", "stored_source", "Stored source uses a random generator in a security-token/key/nonce context.", "crypto_context", 14)
+            _add(packet, "support", _signal("cryptographic_failure", "predictable_randomness_observed", "stored_source", "Stored source ties a non-cryptographic random primitive to a security-token/key/nonce context.", source_group="crypto_behavior", weight=28, basis="security_context_weak_randomness"))
+
+    unsafe_deser = any(marker in text_lower for marker in ("objectinputstream", "readobject(", "pickle.loads", "yaml.load(", "fastjson", "autotype", "enabledefaulttyping"))
+    integrity_surface = unsafe_deser or any(marker in surface_text for marker in INTEGRITY_SURFACE_MARKERS)
+    if integrity_surface:
+        packet = _packet_for(result, "software_data_integrity_failure")
+        if unsafe_deser:
+            _add_identity(packet, "software_data_integrity_failure", "serialized_input", "stored_source", "Stored source exposes an object deserialization boundary.", "integrity_surface", 16)
+            _add_identity(packet, "software_data_integrity_failure", "integrity_boundary", "stored_source", "Deserialized data crosses a code/data trust boundary.", "integrity_context", 12)
+            if all_fields:
+                _add(packet, "support", _signal("software_data_integrity_failure", "unsafe_deserialization_observed", "stored_source_relation", "Client-controlled request fields are present on an endpoint whose stored source uses an unsafe deserialization primitive.", source_group="integrity_behavior", weight=30, basis="client_input_to_unsafe_deserialization_surface"))
+        else:
+            signal = "update_artifact" if any(token in surface_text for token in ("update", "firmware", "plugin")) else "integrity_boundary"
+            _add_identity(packet, "software_data_integrity_failure", signal, "stored_integrity_artifact", "Stored artifacts expose an update/code/data integrity trust boundary.", "integrity_surface", 14)
+
+    log_values: list[str] = []
+    for key in LOG_CONTENT_KEYS:
+        for value in flat.get(key, []):
+            if isinstance(value, str):
+                log_values.append(value[:16384])
+            elif isinstance(value, Mapping):
+                try:
+                    log_values.append(json.dumps(value, ensure_ascii=False, sort_keys=True)[:16384])
+                except (TypeError, ValueError):
+                    pass
+    log_text = "\n".join(log_values).lower()
+    logging_surface = bool(log_values) or any(marker in surface_text for marker in LOGGING_SURFACE_MARKERS)
+    if logging_surface:
+        packet = _packet_for(result, "security_logging_alerting_failure")
+        _add_identity(packet, "security_logging_alerting_failure", "logging_surface", "stored_logging_artifact", "Stored target artifacts expose a logging/audit/alerting/telemetry surface.", "logging_surface", 14)
+        if any(token in surface_text for token in AUTH_MARKERS) or admin or flow_hits:
+            _add_identity(packet, "security_logging_alerting_failure", "auditable_security_event", "endpoint_semantic", "The stored endpoint represents an authentication, privileged, or sensitive business event that should be auditable.", "security_event_surface", 10)
+        if log_text and any(token in log_text for token in ("authorization: bearer", "bearer eyj", "password=", "password:", "access_token=", "refresh_token=", "api_key=", "client_secret=")):
+            _add(packet, "support", _signal("security_logging_alerting_failure", "sensitive_data_logged", "stored_log_content", "Stored log/telemetry content contains credential- or secret-bearing material.", source_group="logging_behavior", weight=30, basis="stored_sensitive_log_content"))
+
+    exception_surface = any(marker in surface_text for marker in EXCEPTION_SURFACE_MARKERS) or _flag(flat, "exception_unhandled") or _flag(flat, "process_crashed")
+    if exception_surface:
+        packet = _packet_for(result, "exceptional_condition_mishandling")
+        _add_identity(packet, "exceptional_condition_mishandling", "exception_surface", "stored_error_artifact", "Stored target artifacts expose an exceptional/error-handling surface.", "exception_surface", 14)
+        if method in {"POST", "PUT", "PATCH", "DELETE"} and flow_hits:
+            _add_identity(packet, "exceptional_condition_mishandling", "transactional_operation", "endpoint_contract", "Exceptional behavior occurs on a state-changing business operation.", "exception_context", 12)
+        strong_unhandled = any(marker in text_lower for marker in ("uncaught exception", "unhandled exception", "nullpointerexception", "panic:", "segmentation fault", "fatal exception"))
+        if status >= 500 and strong_unhandled:
+            _add(packet, "support", _signal("exceptional_condition_mishandling", "unhandled_exception_observed", "stored_error_response", "Stored server-error response records an unhandled/fatal exceptional condition.", source_group="exception_behavior", weight=28, basis="server_error_with_unhandled_exception"))
+        if status >= 500 and any(marker in text_lower for marker in ("panic:", "segmentation fault")):
+            _add(packet, "support", _signal("exceptional_condition_mishandling", "crash_on_exception", "stored_error_response", "Stored error artifact contains a process-crash signature under an exceptional condition.", source_group="exception_behavior", weight=30, basis="crash_signature_in_server_error"))
 
     version_hits = re.findall(r"(?:^|[/_.-])(v\d+(?:\.\d+)?|beta|alpha|legacy|old|deprecated|staging|stage|dev|test)(?:[/_.-]|$)", surface_text, re.I)
     normalized_versions = {str(token).lower() for token in version_hits}

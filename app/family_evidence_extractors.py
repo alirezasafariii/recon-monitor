@@ -44,6 +44,11 @@ FAMILY_EXTRACTION_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
     "unsafe_api_consumption": (0,),
     "source_map_exposure": (0,),
     "secret_exposure": (0, 1),
+    "software_supply_chain_failure": (0,),
+    "cryptographic_failure": (0,),
+    "software_data_integrity_failure": (0,),
+    "security_logging_alerting_failure": (0,),
+    "exceptional_condition_mishandling": (0,),
 }
 
 
@@ -93,6 +98,11 @@ FAMILY_EVIDENCE_EXTRACTOR_PROFILES: dict[str, FamilyEvidenceExtractorProfile] = 
     "unsafe_api_consumption": FamilyEvidenceExtractorProfile(("upstream_api", "server_fetch", "stored_behavior"), "upstream_trust_boundary"),
     "source_map_exposure": FamilyEvidenceExtractorProfile(("source_map", "http", "javascript"), "public_internal_source_map"),
     "secret_exposure": FamilyEvidenceExtractorProfile(("javascript", "secret_intelligence", "runtime_context"), "non_placeholder_client_secret"),
+    "software_supply_chain_failure": FamilyEvidenceExtractorProfile(("component_inventory", "dependency_manifest", "build_pipeline", "artifact_repository", "stored_behavior"), "supply_chain_provenance_and_component_lifecycle"),
+    "cryptographic_failure": FamilyEvidenceExtractorProfile(("transport", "cryptography", "stored_source", "stored_behavior"), "cryptographic_control_failure"),
+    "software_data_integrity_failure": FamilyEvidenceExtractorProfile(("integrity", "serialization", "update_artifact", "stored_source", "stored_behavior"), "software_data_integrity_boundary"),
+    "security_logging_alerting_failure": FamilyEvidenceExtractorProfile(("logging", "audit", "telemetry", "configuration", "stored_behavior"), "security_event_logging_and_alerting"),
+    "exceptional_condition_mishandling": FamilyEvidenceExtractorProfile(("error_handling", "response_shape", "workflow", "stored_behavior"), "exception_fail_closed_behavior"),
 }
 
 

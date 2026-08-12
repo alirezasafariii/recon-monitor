@@ -530,6 +530,51 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
         "label": "secret-like material in production client context + evidence it is non-placeholder credential material",
         "blocking_contradictions": {"placeholder", "example_value", "redacted_only"},
     },
+    "software_supply_chain_failure": {
+        "required": [
+            {"component_inventory", "dependency_manifest", "build_pipeline", "artifact_repository", "component_fingerprint"},
+            {"known_vulnerable_component_observed", "unmaintained_component_confirmed", "untrusted_component_source", "privileged_pipeline_executes_untrusted_code", "component_update_path_compromised"},
+        ],
+        "min_independent_sources": 2,
+        "label": "component/build supply-chain surface + observed vulnerable, unmaintained, untrusted, or compromised dependency/pipeline condition",
+        "blocking_contradictions": {"component_current_and_supported", "trusted_component_source", "pipeline_untrusted_code_isolated", "component_not_deployed"},
+    },
+    "cryptographic_failure": {
+        "required": [
+            {"cryptographic_surface", "transport_crypto_surface", "key_generation_surface", "sensitive_transport"},
+            {"weak_crypto_algorithm_observed", "weak_tls_observed", "cryptographic_key_reuse", "predictable_randomness_observed", "crypto_downgrade_observed", "plaintext_sensitive_transport"},
+        ],
+        "min_independent_sources": 2,
+        "label": "cryptographic/transport surface + observed weak, predictable, reused, downgraded, or plaintext security control",
+        "blocking_contradictions": {"strong_tls_enforced", "approved_crypto_observed", "unique_nonce_observed", "secure_randomness_observed"},
+    },
+    "software_data_integrity_failure": {
+        "required": [
+            {"integrity_boundary", "update_artifact", "serialized_input", "external_code_dependency"},
+            {"unsigned_update_accepted", "integrity_check_missing", "untrusted_code_executed", "unsafe_deserialization_observed", "unsigned_serialized_data_trusted"},
+        ],
+        "min_independent_sources": 2,
+        "label": "code/data integrity boundary + observed missing verification or unsafe trust of update, code, or serialized data",
+        "blocking_contradictions": {"signature_verified", "integrity_check_present", "trusted_repository_only", "safe_deserializer"},
+    },
+    "security_logging_alerting_failure": {
+        "required": [
+            {"auditable_security_event", "logging_surface", "security_control_event"},
+            {"security_event_not_logged", "alerting_absent_observed", "sensitive_data_logged", "log_injection_observed", "log_integrity_missing"},
+        ],
+        "min_independent_sources": 2,
+        "label": "auditable security/logging surface + stored evidence of missing, unsafe, or ineffective logging/alerting",
+        "blocking_contradictions": {"security_event_logged", "alert_triggered", "log_encoding_present", "log_integrity_protected"},
+    },
+    "exceptional_condition_mishandling": {
+        "required": [
+            {"exception_surface", "abnormal_input_context", "transactional_operation"},
+            {"unhandled_exception_observed", "fail_open_observed", "state_corruption_after_error", "partial_commit_after_error", "crash_on_exception", "exception_control_bypass"},
+        ],
+        "min_independent_sources": 2,
+        "label": "exception/error surface + observed unsafe fail-open, crash, state, transaction, or control outcome",
+        "blocking_contradictions": {"centralized_error_handling", "fail_closed_observed", "transaction_rollback_observed", "generic_error_response"},
+    },
 }
 
 _STANDARD_GROUNDING_ERRORS = validate_family_standards(FAMILY_ADMISSION_POLICIES)
