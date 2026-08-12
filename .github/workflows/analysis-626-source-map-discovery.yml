@@ -1,0 +1,97 @@
+name: Analysis 6.26 Source Map Discovery
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.26-fresh-raw-holdout-v4
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.26-fresh-raw-holdout-v4
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Source-map discovery protocol contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_raw_recon_v4_source_map_discovery_v6260.py' -q
+
+      - name: Discover exact fresh source-map primary source
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python app/raw_recon_v4_source_map_discovery.py --max-pages-per-cwe 60
+
+      - name: Verify discovered source is exact and fresh
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v4_source_map_discovery.json').read_text(encoding='utf-8'))
+          assert d['selected'] is not None, d
+          s=d['selected']
+          assert s['family']=='source_map_exposure'
+          assert s['freshness_validated'] is True
+          assert len(s['source_map_semantic_hits'])==3
+          assert all(s['source_map_semantic_hits'])
+          print(json.dumps({
+              'reviewed_rows':d['reviewed_advisory_rows'],
+              'semantic_matches':d['semantic_match_count_before_novelty'],
+              'novelty_rejections':d['novelty_rejection_count'],
+              'selected':{k:s[k] for k in ('source_root','source_project','canonical_advisory_url','matched_cwes','summary')},
+          },indent=2,ensure_ascii=False,sort_keys=True))
+          PY
+
+      - name: Register discovery artifact in manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.')
+          manifest=root/'MANIFEST.sha256'
+          entries={}; order=[]
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' not in line: continue
+              _,name=line.split('  ',1)
+              p=root/name
+              if p.is_file():
+                  entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          for name in (
+              'app/raw_recon_v4_source_map_discovery.py',
+              'tests/test_raw_recon_v4_source_map_discovery_v6260.py',
+              'benchmarks/raw/sources/v4_source_map_discovery.json',
+          ):
+              p=root/name
+              if p.is_file():
+                  entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+                  if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
+          PY
+
+      - name: Verify manifest
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit source-map discovery snapshot and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-626-source-map-discovery.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Discover fresh Analysis 6.26 source-map holdout source"
+          git push origin HEAD:agent/analysis-engine-6.26-fresh-raw-holdout-v4
