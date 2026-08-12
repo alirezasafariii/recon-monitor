@@ -38,45 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Diagnostic manifest delta hashes
-        shell: bash
-        run: |
-          sha256sum \
-            app/owasp_family_catalog.py \
-            app/family_analyzers/remaining_common.py \
-            app/vulnerability_knowledge.py \
-            app/vulnerability_writeups_phase1.py \
-            tests/test_owasp_taxonomy_writeups_v891.py \
-            tests/_router_31_test_adapter.py \
-            tests/_test_family_analyzer_account_enumeration_v872_legacy.py \
-            tests/_test_family_analyzer_authentication_session_v871_legacy.py \
-            tests/_test_family_analyzer_bfla_v869_legacy.py \
-            tests/_test_family_analyzer_bola_v868_legacy.py \
-            tests/_test_family_analyzer_dom_xss_v873_legacy.py \
-            tests/_test_family_analyzer_file_upload_v877_legacy.py \
-            tests/_test_family_analyzer_information_disclosure_v879_legacy.py \
-            tests/_test_family_analyzer_mass_assignment_v870_legacy.py \
-            tests/_test_family_analyzer_open_redirect_v875_legacy.py \
-            tests/_test_family_analyzer_path_traversal_v878_legacy.py \
-            tests/_test_family_analyzer_postmessage_v874_legacy.py \
-            tests/_test_family_analyzer_secret_exposure_v881_legacy.py \
-            tests/_test_family_analyzer_source_map_exposure_v880_legacy.py \
-            tests/_test_family_analyzer_ssrf_v876_legacy.py \
-            tests/test_family_analyzer_account_enumeration_v872.py \
-            tests/test_family_analyzer_authentication_session_v871.py \
-            tests/test_family_analyzer_bfla_v869.py \
-            tests/test_family_analyzer_bola_v868.py \
-            tests/test_family_analyzer_dom_xss_v873.py \
-            tests/test_family_analyzer_file_upload_v877.py \
-            tests/test_family_analyzer_information_disclosure_v879.py \
-            tests/test_family_analyzer_mass_assignment_v870.py \
-            tests/test_family_analyzer_open_redirect_v875.py \
-            tests/test_family_analyzer_path_traversal_v878.py \
-            tests/test_family_analyzer_postmessage_v874.py \
-            tests/test_family_analyzer_secret_exposure_v881.py \
-            tests/test_family_analyzer_source_map_exposure_v880.py \
-            tests/test_family_analyzer_ssrf_v876.py
-
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
