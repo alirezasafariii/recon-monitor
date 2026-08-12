@@ -86,3 +86,5 @@ jobs:
           git add app/bug_candidates.py app/behavioral_intelligence.py app/family_analyzers tests docs/FAMILY_ANALYZERS.md MANIFEST.sha256
           git commit -m 'Complete all 21 dedicated family analyzers'
           git push origin HEAD:agent/vulnerability-intelligence-8.6.0
+
+# Completion rerun after BOLA router fixture synchronization.
