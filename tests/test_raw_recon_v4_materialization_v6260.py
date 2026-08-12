@@ -26,6 +26,7 @@ from raw_recon_v4_materialize import (
 
 class RawReconV4Materialization6260Tests(unittest.TestCase):
     def test_materializer_exactly_covers_all_36_sealed_families(self) -> None:
+        self.maxDiff = None
         self.assertEqual(len(DETECTOR_SPECS), 36)
         self.assertEqual(set(EXPECTED_CONDITION), set(DETECTOR_SPECS))
         self.assertEqual(len(EXPECTED_CONDITION), 36)
