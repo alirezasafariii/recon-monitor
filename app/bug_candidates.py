@@ -10,9 +10,10 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
+from raw_family_collectors import collect_injection_observations
 
-CANDIDATE_ENGINE_VERSION = "6.14.0"
-CANDIDATE_RULE_VERSION = "2026.08.12.6.14"
+CANDIDATE_ENGINE_VERSION = "6.16.0"
+CANDIDATE_RULE_VERSION = "2026.08.12.6.16"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -425,6 +426,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
             count += 1
 
+    # Analysis 6.16 — physical raw collector ownership for server-side injection families.
+    # The collector contributes emission metadata only; target evidence is still owned
+    # by execute_detector_intelligence() and merged inside emit().
+    for observation in collect_injection_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -644,100 +662,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              "Path/file clues are retained for correlation; promotion requires structured path/filename control plus a file-relevant operation.")
 
 
-    # Analysis 6.1 — OWASP A03 Injection coverage. Surface clues remain hidden
-    # until stored target evidence shows interpreter/query semantics were affected.
-    input_fields = [str(x) for x in (query_fields + body_fields + path_fields)]
-    if input_fields:
-        generic_input = {"type": "input_parameter", "source": "endpoint_schema", "weight": 8, "text": f"Client-controlled input fields are present: {', '.join(input_fields[:8])}"}
-
-        sql_markers = _contains_any(haystack, ("sql", "query", "where", "filter", "search", "sort", "order", "table", "column", "report"))
-        if sql_markers:
-            support = [generic_input, {"type": "sql_query_surface", "source": "semantic", "weight": 14, "text": f"Database/query semantics observed: {', '.join(sql_markers[:6])}"}]
-            for flag, signal in (
-                ("sql_error_differential", "sql_error_differential"),
-                ("boolean_response_differential", "boolean_response_differential"),
-                ("database_time_delay_observed", "database_time_delay_observed"),
-                ("query_structure_influence", "query_structure_influence"),
-                ("database_error_observed", "database_error_observed"),
-                ("unsafe_query_construction", "unsafe_query_construction"),
-            ):
-                if _explicit_flag(details, flag):
-                    support.append({"type": signal, "source": "stored_behavior", "source_group": "sql_behavior", "weight": 32, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            contradict = []
-            if _explicit_flag(details, "parameterized_query"):
-                contradict.append({"type": "parameterized_query", "source": "stored_code_evidence", "weight": -30, "text": "Stored evidence shows parameterized query binding"})
-            emit("sql_injection", "query_semantic_influence", 18, support, contradict,
-                 ["Whether input reaches dynamic SQL construction", "Controlled error/boolean/timing differential", "Parameter binding behavior"],
-                 ["candidate-sql-query-surface", "admission-sql-query-influence"],
-                 "A client-controlled input reaches a database/query-shaped surface; promotion requires stored evidence that SQL semantics are influenced.")
-
-        nosql_markers = _contains_any(haystack, ("mongo", "mongodb", "nosql", "documentdb", "findone", "aggregate", "operator", "$where", "$regex", "json filter", "json_query"))
-        if nosql_markers:
-            support = [generic_input, {"type": "nosql_query_surface", "source": "semantic", "weight": 15, "text": f"NoSQL/document-query semantics observed: {', '.join(nosql_markers[:6])}"}]
-            for flag, signal in (
-                ("nosql_operator_accepted", "nosql_operator_accepted"),
-                ("query_operator_influence", "query_operator_influence"),
-                ("nosql_auth_bypass_observed", "nosql_auth_bypass_observed"),
-                ("nosql_response_differential", "nosql_response_differential"),
-                ("nosql_error_observed", "nosql_error_observed"),
-            ):
-                if _explicit_flag(details, flag):
-                    support.append({"type": signal, "source": "stored_behavior", "source_group": "nosql_behavior", "weight": 32, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            emit("nosql_injection", "operator_influence", 18, support, [],
-                 ["Whether structured input is interpreted as query operators", "Typed schema/operator allowlist", "Controlled result differential"],
-                 ["candidate-nosql-query-surface", "admission-nosql-operator-influence"],
-                 "Structured client input appears in a NoSQL/document-query surface; promotion requires observed operator or query-result influence.")
-
-        cmd_markers = _contains_any(haystack, ("cmd", "command", "exec", "shell", "ping", "traceroute", "nslookup", "diagnostic", "convert", "ffmpeg", "imagemagick", "process"))
-        if cmd_markers:
-            support = [generic_input, {"type": "command_execution_surface", "source": "semantic", "weight": 17, "text": f"Process/command semantics observed: {', '.join(cmd_markers[:6])}"}]
-            for flag, signal in (
-                ("command_output_observed", "command_output_observed"),
-                ("command_time_delay_observed", "command_time_delay_observed"),
-                ("shell_metacharacter_effect", "shell_metacharacter_effect"),
-                ("process_execution_reached", "process_execution_reached"),
-                ("unsafe_command_construction", "unsafe_command_construction"),
-            ):
-                if _explicit_flag(details, flag):
-                    support.append({"type": signal, "source": "stored_behavior", "source_group": "command_behavior", "weight": 36, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            emit("command_injection", "process_execution_influence", 20, support, [],
-                 ["Whether input reaches a shell/process API", "Argument-array vs shell-string construction", "Harmless output/timing execution evidence"],
-                 ["candidate-command-surface", "admission-command-execution-effect"],
-                 "Client-controlled input appears in process/diagnostic functionality; promotion requires an observed command-execution effect.")
-
-        template_markers = _contains_any(haystack, ("template", "render", "preview", "freemarker", "velocity", "mustache", "handlebars", "jinja", "twig", "expression", "email body", "theme"))
-        if template_markers:
-            support = [generic_input, {"type": "template_render_surface", "source": "semantic", "weight": 16, "text": f"Server-render/template semantics observed: {', '.join(template_markers[:6])}"}]
-            if any("template" in field.lower() or "body" == field.lower() for field in input_fields):
-                support.append({"type": "template_input", "source": "endpoint_schema", "weight": 10, "text": "A client-controlled template/content field is visible"})
-            for flag, signal in (
-                ("template_expression_evaluated", "template_expression_evaluated"),
-                ("template_output_differential", "template_output_differential"),
-                ("template_engine_error_observed", "template_engine_error_observed"),
-                ("server_template_execution", "server_template_execution"),
-            ):
-                if _explicit_flag(details, flag):
-                    support.append({"type": signal, "source": "stored_behavior", "source_group": "template_behavior", "weight": 36, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            emit("server_side_template_injection", "server_expression_evaluation", 20, support, [],
-                 ["Whether rendering occurs server-side", "Expression evaluation behavior", "Template sandbox/escaping controls"],
-                 ["candidate-template-render-surface", "admission-template-evaluation"],
-                 "Client-controlled content appears in a template/rendering surface; promotion requires observed server-side expression evaluation.")
-
-        ldap_markers = _contains_any(haystack, ("ldap", "directory", "distinguishedname", "dn=", "ou=", "memberOf", "directory search", "ldap filter"))
-        if ldap_markers:
-            support = [generic_input, {"type": "ldap_query_surface", "source": "semantic", "weight": 16, "text": f"LDAP/directory-query semantics observed: {', '.join(ldap_markers[:6])}"}]
-            for flag, signal in (
-                ("ldap_filter_influence", "ldap_filter_influence"),
-                ("ldap_response_differential", "ldap_response_differential"),
-                ("ldap_auth_bypass_observed", "ldap_auth_bypass_observed"),
-                ("ldap_error_observed", "ldap_error_observed"),
-            ):
-                if _explicit_flag(details, flag):
-                    support.append({"type": signal, "source": "stored_behavior", "source_group": "ldap_behavior", "weight": 32, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-            emit("ldap_injection", "filter_influence", 18, support, [],
-                 ["Whether input changes an LDAP filter", "Filter escaping/binding", "Controlled search/authentication differential"],
-                 ["candidate-ldap-surface", "admission-ldap-filter-influence"],
-                 "Client-controlled input appears in a directory/LDAP surface; promotion requires observed filter or result influence.")
+    # Analysis 6.16: SQL/NoSQL/Command/SSTI/LDAP legacy collection was physically
+    # removed from this orchestrator. Dedicated raw_family_collectors now own emission
+    # metadata while detector execution/reconstruction owns all target evidence.
 
     # API4:2023 — resource consumption.
     resource_fields = [field for field in query_fields + body_fields if field.lower().replace("_", "") in {"limit", "pagesize", "size", "count", "batch", "batchsize", "first", "take", "perpage", "maxresults", "filesize"}]

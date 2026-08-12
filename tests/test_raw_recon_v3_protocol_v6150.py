@@ -41,9 +41,23 @@ class RawReconV3Protocol6150Tests(unittest.TestCase):
             self.assertFalse(manifest["seal"]["scored"])
             self.assertFalse(manifest["corpus"]["scored"])
 
-    def test_freeze_verifier_passes(self):
+    def test_consumed_freeze_detects_postfreeze_engine_mutation(self):
+        manifest = json.loads((ROOT / "benchmarks/raw/splits/v3.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["evaluation_status"], "evaluated_once_consumed")
+        self.assertTrue(manifest["evaluation"]["fresh_run_consumed"])
         report = verify_v3_freeze(ROOT / "benchmarks/raw/splits/v3.json")
-        self.assertTrue(report["passed"], report["errors"])
+        self.assertFalse(report["passed"], report["errors"])
+        errors = [str(value) for value in report["errors"]]
+        expected_paths = {"app/analysis_engine.py", "app/bug_candidates.py", "app/security_reasoning.py"}
+        changed_paths = {
+            path
+            for path in expected_paths
+            if any(f"protected file changed after v3 freeze: {path}" in error for error in errors)
+        }
+        self.assertEqual(changed_paths, expected_paths, errors)
+        self.assertFalse(any("benchmarks/raw/analysis_raw_v3.jsonl" in error for error in errors), errors)
+        self.assertFalse(any("app/raw_recon_v3_benchmark.py" in error for error in errors), errors)
+        self.assertFalse(any("app/raw_recon_v3_corpus.py" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
