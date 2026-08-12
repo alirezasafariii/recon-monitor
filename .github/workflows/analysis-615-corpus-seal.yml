@@ -1,0 +1,138 @@
+name: Seal Analysis 6.15 Raw v3 Corpus
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.15-fresh-raw-holdout-v3
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.15-fresh-raw-holdout-v3
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify frozen engine and unscored corpus
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from raw_recon_corpus import load_raw_cases
+          from raw_recon_v3_benchmark import verify_v3_freeze
+          from raw_recon_v3_corpus import validate_v3_corpus
+
+          root = Path('.')
+          manifest_path = root / 'benchmarks/raw/splits/v3.json'
+          corpus_path = root / 'benchmarks/raw/analysis_raw_v3.jsonl'
+          report_path = root / 'benchmarks/raw/sources/v3_materialization_report.json'
+          manifest = json.loads(manifest_path.read_text())
+          assert manifest['evaluation_status'] == 'protocol_sealed_collection_open'
+          assert manifest['seal']['scored'] is False
+          freeze = verify_v3_freeze(manifest_path)
+          assert freeze['passed'], freeze['errors']
+          cases = load_raw_cases(corpus_path)
+          validation = validate_v3_corpus(cases)
+          assert validation['passed'], validation['errors']
+          report = json.loads(report_path.read_text())
+          digest = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
+          assert digest == report['corpus_sha256']
+          assert validation['source_root_count'] == 24
+          assert validation['source_project_count'] >= 20
+          assert validation['positive_family_count'] >= 18
+          assert validation['positive_control_raw_collision_count'] == 0
+          assert validation['positive_observable_delta_rate'] == 1.0
+          print(json.dumps({'corpus_sha256': digest, 'case_count': len(cases), 'validation': validation}, indent=2))
+          PY
+
+      - name: Seal corpus metadata without scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from raw_recon_corpus import load_raw_cases
+          from raw_recon_v3_corpus import validate_v3_corpus
+
+          root = Path('.')
+          manifest_path = root / 'benchmarks/raw/splits/v3.json'
+          corpus_path = root / 'benchmarks/raw/analysis_raw_v3.jsonl'
+          manifest = json.loads(manifest_path.read_text())
+          cases = load_raw_cases(corpus_path)
+          validation = validate_v3_corpus(cases)
+          digest = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
+          data = corpus_path.read_bytes()
+          blob = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+          roots = sorted({str(case.get('source_root') or '') for case in cases if str(case.get('source_root') or '')})
+          projects = sorted({str(case.get('source_project') or '') for case in cases if str(case.get('source_project') or '')})
+          families = sorted({str(case.get('family') or '') for case in cases if case.get('case_kind') == 'positive'})
+
+          manifest['evaluation_status'] = 'sealed_unscored'
+          manifest['corpus'].update({
+              'sealed': True,
+              'scored': False,
+              'sha256': digest,
+              'case_count': len(cases),
+              'source_root_count': validation['source_root_count'],
+              'source_project_count': validation['source_project_count'],
+              'positive_family_count': validation['positive_family_count'],
+          })
+          manifest['seal'].update({
+              'corpus_materialized': True,
+              'corpus_sealed_at': '2026-08-12',
+              'scored': False,
+              'corpus_sha256': digest,
+              'source_roots': roots,
+              'source_projects': projects,
+              'positive_families': families,
+              'positive_control_raw_collision_count': validation['positive_control_raw_collision_count'],
+              'positive_observable_delta_rate': validation['positive_observable_delta_rate'],
+              'note': 'Raw v3 corpus validated and cryptographically sealed before any detector benchmark scoring.',
+          })
+          manifest.setdefault('protected_files', {})['benchmarks/raw/analysis_raw_v3.jsonl'] = blob
+          manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          print(json.dumps({'status': manifest['evaluation_status'], 'corpus_sha256': digest, 'source_root_count': len(roots), 'project_count': len(projects), 'family_count': len(families)}, indent=2))
+          PY
+
+      - name: Verify sealed state still matches frozen engine
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v3_benchmark import verify_v3_freeze
+          manifest = json.loads(Path('benchmarks/raw/splits/v3.json').read_text())
+          assert manifest['evaluation_status'] == 'sealed_unscored'
+          assert manifest['corpus']['sealed'] is True
+          assert manifest['corpus']['scored'] is False
+          assert manifest['seal']['scored'] is False
+          r = verify_v3_freeze('benchmarks/raw/splits/v3.json')
+          assert r['passed'], r['errors']
+          PY
+
+      - name: Clean seal workflow and commit immutable unscored state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/analysis-615-corpus-seal.yml
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Seal Analysis 6.15 raw v3 corpus unscored'
+          git push origin HEAD:agent/analysis-engine-6.15-fresh-raw-holdout-v3
