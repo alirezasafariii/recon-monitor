@@ -27,6 +27,9 @@ jobs:
       - name: Apply pinned source-audit reconstruction
         run: python scripts/analysis_626_source_audit_fix.py
 
+      - name: Limit exact supplements to failed audit families
+        run: python scripts/analysis_626_exact_scope_fix.py
+
       - name: Apply discovered esm.sh source-map coordinate
         run: python scripts/analysis_626_esm_source_map_fix.py
 
@@ -94,7 +97,9 @@ jobs:
           assert len({r['source_project'].lower() for r in rebuilt['selected']})==36
           exact_by_family={r['family']:r for r in exact['selected']}
           final_by_family={r['family']:r for r in rebuilt['selected']}
-          for family in ('nosql_injection','source_map_exposure','improper_inventory_management','unsafe_api_consumption'):
+          self_check=('nosql_injection','source_map_exposure','unsafe_api_consumption')
+          assert set(exact_by_family)==set(self_check), sorted(exact_by_family)
+          for family in self_check:
               assert final_by_family[family]['source_root']==exact_by_family[family]['source_root'], (family, final_by_family[family]['source_root'])
               assert exact_by_family[family]['freshness_validated'] is True
           assert exact_by_family['source_map_exposure']['source_root']==discovered['selected']['source_root']
@@ -141,7 +146,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py scripts/analysis_626_astro_source_map_fix.py scripts/analysis_626_claude_source_map_fix.py scripts/analysis_626_esm_source_map_fix.py scripts/analysis_626_source_map_anchor_fix.py
+          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py scripts/analysis_626_exact_scope_fix.py scripts/analysis_626_astro_source_map_fix.py scripts/analysis_626_claude_source_map_fix.py scripts/analysis_626_esm_source_map_fix.py scripts/analysis_626_source_map_anchor_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Audit Analysis 6.26 raw v4 source-family fit"
