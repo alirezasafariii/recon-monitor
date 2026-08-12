@@ -1,0 +1,57 @@
+name: Seal Analysis 6.15 Raw Holdout v3 Protocol
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.15-fresh-raw-holdout-v3
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.15-fresh-raw-holdout-v3
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Materialize protocol before source discovery
+        env:
+          PYTHONPATH: app
+        run: python scripts/stage_analysis_615_protocol.py
+
+      - name: Focused protocol contracts
+        env:
+          PYTHONPATH: app
+        run: python -m unittest tests.test_raw_recon_v3_protocol_v6150 -v
+
+      - name: Full regression before protocol seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          PYTHONPATH=app python app/analysis_benchmark.py --strict
+          python tests/integration_runner.py
+
+      - name: Seal and clean protocol tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/analysis-615-protocol-seal.yml
+          rm scripts/stage_analysis_615_protocol.py
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+          PYTHONPATH=app python -m unittest tests.test_raw_recon_v3_protocol_v6150 -v
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Seal Analysis 6.15 fresh raw v3 protocol'
+          git push origin HEAD:agent/analysis-engine-6.15-fresh-raw-holdout-v3
