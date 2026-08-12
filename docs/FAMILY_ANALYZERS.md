@@ -325,6 +325,45 @@ family confirmation-ready state
 
 The analyzer is strictly read-only over stored observations. It performs **no active upload**, no payload execution, no malware or weaponized sample delivery, no arbitrary filesystem write, and no automatic serving/navigation test. Path/filename escape remains a neighboring Path Traversal family unless independently established.
 
+## 11. Path Traversal
+
+`family_analyzers.path_traversal.PathTraversalFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-22 — Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)
+- related CWE-23 — Relative Path Traversal
+- related CWE-36 — Absolute Path Traversal
+- WSTG-ATHZ-01 — Testing Directory Traversal File Include
+
+The algorithm separates path/filename surface, expected root policy, controlled boundary observation, canonicalization/root enforcement, and a stricter confirmation boundary. Structural path input plus a file operation intentionally shares one evidence root, so it remains a hidden hypothesis by itself.
+
+`path_escape_observed` requires stored behavior from an explicitly controlled, non-sensitive test resource showing that a path expected to remain contained or be rejected resolved outside the intended root and reached the relevant file operation. This may promote a Potential Finding, but does not by itself make the family confirmation-ready.
+
+Confirmation requires the same controlled observation to establish at least one stronger filesystem-boundary condition:
+
+- `canonicalization_bypass_observed`
+- `out_of_root_file_access_observed`
+- `out_of_root_file_write_observed`
+
+`canonicalization_enforced` and `base_directory_enforced` are contradiction evidence when the relevant containment controls are actually observed. Confirmation signals cannot hitchhike from a different uncontrolled observation.
+
+```text
+path/filename + file operation
+        ↓
+hidden hypothesis
+        ↓
+controlled non-sensitive root escape
+        ↓
+Potential Finding
+        ↓
+out-of-root access/write or canonicalization-boundary bypass
+        ↓
+family confirmation-ready state
+```
+
+The analyzer is read-only over stored observations. It performs **no active request**, no filesystem read/write, no archive extraction, no sensitive-path request and no traversal-payload generation. File Upload and Information Disclosure remain neighboring families and are not inferred from traversal surface alone.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -333,7 +372,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF and File Upload / Import migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch or upload/import semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF, File Upload / Import and Path Traversal migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import or path/file-operation semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
 ## Router status
 
@@ -349,23 +388,23 @@ Currently production-routed:
 8. Open Redirect / Navigation Injection
 9. Server-Side Request Forgery (SSRF)
 10. File Upload / Import
+11. Path Traversal
 
-Pending dedicated analyzers: **11**.
+Pending dedicated analyzers: **10**.
 
 ## Migration order
 
 Next analyzers:
 
-1. Path Traversal
-2. Information Disclosure
-3. Source-map Exposure
-4. Secret Exposure
-5. GraphQL Authorization
-6. GraphQL Data Exposure
-7. Business Logic
-8. Race Condition
-9. WebSocket Authorization
-10. CORS
-11. Sensitive Caching
+1. Information Disclosure
+2. Source-map Exposure
+3. Secret Exposure
+4. GraphQL Authorization
+5. GraphQL Data Exposure
+6. Business Logic
+7. Race Condition
+8. WebSocket Authorization
+9. CORS
+10. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
