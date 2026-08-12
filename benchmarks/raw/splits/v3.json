@@ -63,11 +63,16 @@
     "variants_per_root": 4
   },
   "corpus": {
+    "case_count": 96,
     "path": "benchmarks/raw/analysis_raw_v3.jsonl",
+    "positive_family_count": 18,
     "scored": false,
-    "sealed": false
+    "sealed": true,
+    "sha256": "ee17e481dd543a8cd0a9c35c07e2eab32f6cbac8e15d62016c9b953799e6d10f",
+    "source_project_count": 24,
+    "source_root_count": 24
   },
-  "evaluation_status": "protocol_sealed_collection_open",
+  "evaluation_status": "sealed_unscored",
   "frozen_engine": {
     "analysis_engine_version": "6.14.0",
     "detector_execution_engine_version": "1.2.0",
@@ -119,7 +124,8 @@
     "app/raw_recon_v3_benchmark.py": "c5413255497b265435eb5abab4d396376b307e1b",
     "app/raw_recon_v3_corpus.py": "1a89c7a0b8a428f566db2c6bddcf7fbe25fd9014",
     "app/security_family_ranker.py": "027ebf9d8bd93a49c61981f7c4b2b16a2c4aec41",
-    "app/security_reasoning.py": "c4015a86fbe4ada47f058ef787f0cc5f4d9079a5"
+    "app/security_reasoning.py": "c4015a86fbe4ada47f058ef787f0cc5f4d9079a5",
+    "benchmarks/raw/analysis_raw_v3.jsonl": "4ae71972c65f7b801f5eca5f4ee9f302ca353a3b"
   },
   "protected_trees": {
     "app/family_detectors": "7c8edd0e0e2177e4afea641262c691984e937355"
@@ -135,9 +141,85 @@
   "reuse_policy": "After the first fresh evaluation, v3 is consumed. Every later run must be explicitly labeled regression-only and must never be described as fresh or blind.",
   "schema_version": "1.0",
   "seal": {
-    "corpus_materialized": false,
-    "note": "Production logic, benchmark gates, v3 observability rules, and benchmark harness were frozen before any new v3 advisory source discovery.",
-    "scored": false
+    "corpus_materialized": true,
+    "corpus_sealed_at": "2026-08-12",
+    "corpus_sha256": "ee17e481dd543a8cd0a9c35c07e2eab32f6cbac8e15d62016c9b953799e6d10f",
+    "note": "Raw v3 corpus validated and cryptographically sealed before any detector benchmark scoring.",
+    "positive_control_raw_collision_count": 0,
+    "positive_families": [
+      "account_enumeration",
+      "authentication_session",
+      "broken_function_authorization",
+      "broken_object_authorization",
+      "command_injection",
+      "cors_misconfiguration",
+      "file_upload",
+      "information_disclosure",
+      "mass_assignment",
+      "open_redirect",
+      "path_traversal",
+      "race_condition",
+      "secret_exposure",
+      "security_misconfiguration",
+      "server_side_template_injection",
+      "sql_injection",
+      "ssrf",
+      "unrestricted_resource_consumption"
+    ],
+    "positive_observable_delta_rate": 1.0,
+    "scored": false,
+    "source_projects": [
+      "FlowiseAI/Flowise",
+      "MervinPraison/PraisonAI",
+      "SignalK/signalk-server",
+      "apache/ofbiz-framework",
+      "crossbeam-rs/crossbeam",
+      "dbt-labs/dbt-mcp",
+      "devcode-it/openstamanager",
+      "dpgaspar/Flask-AppBuilder",
+      "filebrowser/filebrowser",
+      "gravitl/netmaker",
+      "ihor-sokoliuk/mcp-searxng",
+      "jpadilla/pyjwt",
+      "langflow-ai/langflow",
+      "lobehub/lobe-chat",
+      "nezhahq/nezha",
+      "nuclio/nuclio",
+      "open-webui/open-webui",
+      "paperclipai/paperclip",
+      "papra-hq/papra",
+      "pinchtab/pinchtab",
+      "pyload/pyload",
+      "rails/rails",
+      "siyuan-note/siyuan",
+      "ubernostrum/django-registration"
+    ],
+    "source_roots": [
+      "CVE-2020-8164",
+      "GHSA-2fr7-cc4f-wh98",
+      "GHSA-3f7w-p8vr-4v5f",
+      "GHSA-434h-p4gx-jm89",
+      "GHSA-58c7-px5v-82hh",
+      "GHSA-5c25-7vpj-9mqh",
+      "GHSA-5g86-85rp-f9hx",
+      "GHSA-68qg-g8mg-6pr7",
+      "GHSA-8x8h-hcq8-jwwx",
+      "GHSA-h8q5-cp56-rr65",
+      "GHSA-j7wh-x834-p3r7",
+      "GHSA-jr33-mw75-7j8f",
+      "GHSA-m8xg-8xg9-mxhm",
+      "GHSA-p4fx-23fq-jfg6",
+      "GHSA-p8mm-644p-phmh",
+      "GHSA-pqqp-xmhj-wgcw",
+      "GHSA-q59x-jc9f-gfqf",
+      "GHSA-qwqc-p3q8-wcg9",
+      "GHSA-w5fm-68j4-fpc4",
+      "GHSA-w7vc-732c-9m39",
+      "GHSA-xcqx-9jf5-w339",
+      "GHSA-xph5-278p-26qx",
+      "GHSL-2020-067",
+      "GHSL-2023-234"
+    ]
   },
   "source_buckets": [
     {
