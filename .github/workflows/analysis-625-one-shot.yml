@@ -27,11 +27,20 @@ jobs:
       - name: Apply deterministic Analysis 6.25 cutover
         run: python scripts/analysis_625_cutover.py
 
+      - name: Extend Analysis 6.25 evidence/reasoner registries
+        run: python scripts/analysis_625_registry_extension.py
+
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
       - name: OWASP Top 10 2025 completion contract
         run: python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
+
+      - name: Family evidence extractor regression
+        run: python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
+
+      - name: Family reasoner regression
+        run: python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
 
       - name: Four-layer standards grounding contract
         run: python -m unittest discover -s tests -p 'test_analysis_619_standards_grounding.py' -q
@@ -58,7 +67,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-625-one-shot.yml scripts/analysis_625_cutover.py
+          git rm .github/workflows/analysis-625-one-shot.yml scripts/analysis_625_cutover.py scripts/analysis_625_registry_extension.py
           git add -A
           git diff --cached --check
           git commit -m "Complete OWASP Top 10 2025 coverage in Analysis 6.25"
