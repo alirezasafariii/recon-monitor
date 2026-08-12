@@ -15,7 +15,7 @@ from typing import Any, Iterable, Mapping
 
 
 FAMILY_REASONING_VERSION = "2.0.0"
-FAMILY_REASONING_RULE_VERSION = "2026.08.12.2"
+FAMILY_REASONING_RULE_VERSION = "2026.08.12.3"
 
 FAMILY_ORDER = (
     "broken_object_authorization",
@@ -212,7 +212,7 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"sanitization_observed", "runtime_unreachable"}),
         "override_signals": frozenset({"runtime_dom_sink_reached", "unsanitized_dom_flow"}),
-        "confirmation_required": _groups({"runtime_dom_sink_reached", "unsanitized_dom_flow"}),
+        "confirmation_required": _groups({"unsanitized_dom_flow"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Establish runtime reachability from the user-influenced source to the DOM/executable sink.",
@@ -231,7 +231,7 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"origin_check_observed", "trusted_origin_only"}),
         "override_signals": frozenset({"untrusted_message_accepted", "origin_validation_absent"}),
-        "confirmation_required": _groups({"untrusted_message_accepted", "origin_validation_absent"}),
+        "confirmation_required": _groups({"untrusted_message_accepted"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Map message handlers, expected origins and accepted message schema.",
@@ -250,7 +250,7 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"destination_allowlist_observed", "same_origin_navigation_enforced"}),
         "override_signals": frozenset({"external_destination_accepted", "navigation_validation_absent"}),
-        "confirmation_required": _groups({"external_destination_accepted", "navigation_validation_absent"}),
+        "confirmation_required": _groups({"external_destination_accepted"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Trace the user-influenced destination to the final navigation sink.",
@@ -269,7 +269,7 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"browser_side_fetch_observed", "destination_validation_observed", "server_fetch_not_observed"}),
         "override_signals": frozenset({"server_fetch_observed", "controlled_callback_observed"}),
-        "confirmation_required": _groups({"server_fetch_observed", "controlled_callback_observed"}),
+        "confirmation_required": _groups({"destination_policy_bypass_observed", "restricted_destination_accepted"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Determine whether the server, not the browser, performs the outbound request.",
@@ -288,7 +288,7 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"file_type_enforcement_observed", "safe_storage_observed"}),
         "override_signals": frozenset({"unsafe_file_accepted", "executable_upload_observed", "content_type_bypass_observed"}),
-        "confirmation_required": _groups({"unsafe_file_accepted", "executable_upload_observed", "content_type_bypass_observed"}),
+        "confirmation_required": _groups({"executable_upload_observed", "content_type_bypass_observed"}),
         "case_requirements": DEFAULT_CASE_REQUIREMENTS,
         "next_evidence": (
             "Document accepted type, size, filename and storage controls.",
