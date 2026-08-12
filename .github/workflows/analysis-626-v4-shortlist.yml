@@ -37,7 +37,27 @@ jobs:
       - name: Build 36-family pre-scoring shortlist
         env:
           PYTHONPATH: app
-        run: python app/raw_recon_v4_shortlist.py
+        run: python app/raw_recon_v4_shortlist.py || true
+
+      - name: Diagnose semantic gaps before any scoring
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          shortlist = json.loads(Path('benchmarks/raw/sources/v4_shortlist.json').read_text(encoding='utf-8'))
+          candidates = json.loads(Path('benchmarks/raw/sources/v4_candidates.json').read_text(encoding='utf-8'))
+          for family in shortlist['missing_families']:
+              print(f'=== {family} ===')
+              rows = candidates['candidates_by_family'].get(family, [])[:12]
+              for row in rows:
+                  print(json.dumps({
+                      'root': row.get('source_root'),
+                      'project': row.get('source_project'),
+                      'summary': row.get('summary'),
+                      'url': row.get('canonical_advisory_url'),
+                      'cwes': row.get('matched_cwes'),
+                  }, ensure_ascii=False, sort_keys=True))
+          PY
 
       - name: Verify shortlist invariants
         run: |
