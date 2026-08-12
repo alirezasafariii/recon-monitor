@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_authorization_observations, collect_injection_observations
+from raw_family_collectors import collect_authorization_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.17.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.17"
@@ -460,6 +460,22 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.18 — physical raw collector ownership for file/remote-resource families.
+    # Target evidence remains owned by execute_detector_intelligence() and reconstruction.
+    for observation in collect_file_remote_resource_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -531,103 +547,14 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
              ["candidate-redirect-parameter", "candidate-navigation-context"],
              "A user-influenced destination may be used for navigation; validation and allow-list behavior are not established.")
 
-    # SSRF
+    # Shared remote-destination surface metadata is retained for API10 correlation.
+    # Analysis 6.18 removes SSRF emission; detector execution owns SSRF target evidence.
     ssrf_tokens = _contains_any(haystack, ("webhook", "fetchurl", "fetch_url", "imageurl", "image_url", "importurl", "import_url", "previewurl", "proxyurl", "callbackurl", "destinationurl", "remoteurl"))
     generic_url_fields = [field for field in query_fields + body_fields if field.lower() in {"url", "uri", "endpoint", "destination", "callback", "webhook"}]
-    if ssrf_tokens or generic_url_fields:
-        support = [
-            {"type": "remote_destination", "source": "schema", "weight": 18, "text": f"Remote destination input observed: {', '.join((ssrf_tokens + generic_url_fields)[:6])}"},
-            {"type": "server_feature", "source": "semantic", "weight": 8, "text": "Import, preview, proxy, callback or webhook semantics may involve server-side fetching; execution location is not assumed"},
-        ]
-        for flag, signal in (("server_fetch_observed", "server_fetch_observed"), ("backend_fetch", "backend_fetch"), ("webhook_delivery_observed", "webhook_delivery_observed"), ("remote_import_fetch", "remote_import_fetch")):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "server_fetch", "weight": 30, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
-        contradict = [{"type": "execution_location", "source": "missing", "weight": -8, "text": "The evidence does not establish whether the browser or server performs the request"}]
-        emit("ssrf", "remote_fetch", 20, support, contradict,
-             ["Whether the server performs the outbound request", "Destination validation and scheme restrictions", "Network egress policy"],
-             ["candidate-remote-destination", "candidate-server-fetch"],
-             "A remote-destination input may trigger server-side fetching, but execution location and destination controls are unknown.")
 
-    # File handling. Hypothesis generation is deliberately recall-oriented, while
-    # admission is based only on structural file/path evidence. Generic metadata such
-    # as Content-Type is retained in the hidden hypothesis ledger but cannot promote.
-    structured_fields = [str(value) for value in body_fields + query_fields + path_fields]
-    normalized_fields = {re.sub(r"[^a-z0-9]", "", value.lower()): value for value in structured_fields}
-    file_input_names = {"file", "files", "filename", "file_name", "attachment", "attachments", "avatar", "document", "documents", "upload", "uploadfile", "upload_file"}
-    file_input_norm = {re.sub(r"[^a-z0-9]", "", value) for value in file_input_names}
-    path_names = {"path", "filepath", "file_path", "filename", "file_name", "directory", "dir", "folder", "storage_path", "storagepath"}
-    path_norm = {re.sub(r"[^a-z0-9]", "", value) for value in path_names}
-    filename_norm = {"filename", "file_name"}
-    filename_norm = {re.sub(r"[^a-z0-9]", "", value) for value in filename_norm}
-    endpoint_lower = endpoint.lower()
-    write_method = method in {"POST", "PUT", "PATCH"}
-    upload_route = any(token in endpoint_lower for token in ("/upload", "/uploads", "/attachment", "/attachments", "/avatar", "/document", "/documents"))
-    import_route = "/import" in endpoint_lower or endpoint_lower.rstrip("/").endswith("import")
-    download_route = any(token in endpoint_lower for token in ("/download", "/downloads", "/file", "/files", "/attachment", "/export"))
-    archive_route = any(token in endpoint_lower for token in ("/archive", "/zip", "/tar", "/extract", "/unpack"))
-    multipart = "multipart/form-data" in haystack or "multipart/form-data" in str(details.get("content_type") or "").lower()
-    generic_file_markers = _contains_any(haystack, ("upload", "attachment", "avatar", "document", "multipart", "filename", "file_name", "contenttype", "content_type", "import"))
-    file_fields = [original for normalized, original in normalized_fields.items() if normalized in file_input_norm]
-    path_fields_structured = [original for normalized, original in normalized_fields.items() if normalized in path_norm]
-    filename_fields = [original for normalized, original in normalized_fields.items() if normalized in filename_norm]
-
-    if generic_file_markers or file_fields or multipart or upload_route or import_route:
-        support: list[dict[str, Any]] = []
-        if generic_file_markers:
-            support.append({"type": "file_surface", "source": "semantic", "weight": 7, "text": f"File-related markers observed: {', '.join(generic_file_markers[:6])}"})
-        if file_fields:
-            support.append({"type": "file_input", "source": "schema", "weight": 20, "text": f"Structured file input observed: {', '.join(file_fields[:6])}"})
-        elif multipart and upload_route:
-            support.append({"type": "file_input", "source": "http_contract", "weight": 18, "text": "Multipart request semantics are tied to an explicit upload route"})
-        if multipart:
-            support.append({"type": "content_type_field", "source": "http_contract", "weight": 7, "text": "multipart/form-data semantics are present"})
-        elif "content_type" in haystack or "contenttype" in haystack:
-            support.append({"type": "content_type_field", "source": "semantic", "weight": 3, "text": "Content-Type metadata is present; this does not by itself establish file upload"})
-        if write_method and (upload_route or file_fields or multipart):
-            support.append({"type": "upload_operation", "source": "endpoint", "weight": 18, "text": f"{method} operation is tied to an upload-capable route or structured file input"})
-        if write_method and import_route:
-            support.append({"type": "import_operation", "source": "endpoint", "weight": 18, "text": f"{method} operation is tied to an import route"})
-        if write_method:
-            support.append({"type": "write_method", "source": "method", "weight": 5, "text": f"State-changing method observed: {method}"})
-        for flag, signal in (("dangerous_type_accepted", "dangerous_type_accepted"), ("content_type_mismatch_accepted", "content_type_mismatch_accepted"), ("active_content_served", "active_content_served"), ("unsafe_storage", "unsafe_storage"), ("executable_upload", "executable_upload"), ("filename_control_reaches_storage", "filename_control_reaches_storage"), ("upload_validation_bypass", "upload_validation_bypass")):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "upload_behavior", "weight": 28, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
-        emit("file_upload", "file_validation", 18, support, [],
-             ["Allowed file types and size", "Storage and serving behavior", "Server-generated filenames and content disposition"],
-             ["candidate-file-surface", "candidate-file-validation", "admission-file-input-operation"],
-             "File-handling evidence is retained for correlation; promotion requires an actual file input plus upload/import operation.")
-
-    generic_path_markers = _contains_any(haystack, ("filepath", "file_path", "path", "directory", "folder", "download", "archive", "extract"))
-    if generic_path_markers or path_fields_structured or download_route or archive_route:
-        path_support: list[dict[str, Any]] = []
-        if generic_path_markers:
-            path_support.append({"type": "path_surface", "source": "semantic", "weight": 5, "text": f"Path/file markers observed: {', '.join(generic_path_markers[:6])}"})
-        if filename_fields:
-            path_support.append({"type": "filename_field", "source": "schema", "weight": 20, "text": f"Structured filename input observed: {', '.join(filename_fields[:5])}"})
-        structured_nonfilename = [value for value in path_fields_structured if value not in filename_fields]
-        if structured_nonfilename:
-            path_support.append({"type": "path_parameter", "source": "schema", "weight": 20, "text": f"Structured path input observed: {', '.join(structured_nonfilename[:5])}"})
-        if any(re.sub(r"[^a-z0-9]", "", value.lower()) == "storagepath" for value in path_fields_structured):
-            path_support.append({"type": "storage_path", "source": "schema", "weight": 18, "text": "Structured storage path field is client-visible"})
-        if method == "GET" and download_route:
-            path_support.append({"type": "download_operation", "source": "endpoint", "weight": 18, "text": "GET operation is tied to an explicit download/file route"})
-        if archive_route:
-            path_support.append({"type": "archive_operation", "source": "endpoint", "weight": 17, "text": "Archive/extract operation is visible in the endpoint"})
-        if write_method and import_route:
-            path_support.append({"type": "import_operation", "source": "endpoint", "weight": 16, "text": f"{method} import operation may consume a path or archive entry"})
-        if write_method and (upload_route or file_fields or multipart):
-            path_support.append({"type": "upload_operation", "source": "endpoint", "weight": 15, "text": f"{method} upload operation may consume a client-controlled filename"})
-        explicit_file_operation = download_route or archive_route or upload_route or import_route
-        if explicit_file_operation and method in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
-            path_support.append({"type": "file_operation", "source": "endpoint_contract", "weight": 10, "text": "Endpoint semantics identify an explicit file-related operation"})
-        for flag, signal in (("filesystem_path_reachability", "filesystem_path_reachability"), ("path_escape_observed", "path_escape_observed"), ("canonicalization_bypass", "canonicalization_bypass"), ("base_directory_escape", "base_directory_escape"), ("archive_entry_escape", "archive_entry_escape"), ("path_join_user_controlled", "path_join_user_controlled")):
-            if _explicit_flag(details, flag):
-                path_support.append({"type": signal, "source": "stored_behavior", "source_group": "filesystem_behavior", "weight": 30, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
-        emit("path_traversal", "path_construction", 16, path_support, [],
-             ["Path canonicalization", "Base-directory enforcement", "Whether user-controlled path data reaches filesystem APIs"],
-             ["candidate-path-input", "candidate-file-path", "admission-path-input-operation"],
-             "Path/file clues are retained for correlation; promotion requires structured path/filename control plus a file-relevant operation.")
-
+    # Analysis 6.18: SSRF/File Upload/Path Traversal legacy collection was physically
+    # removed. raw_family_collectors.file_remote_resource owns emission metadata;
+    # detector execution/reconstruction remains the sole source of target evidence.
 
     # Analysis 6.16: SQL/NoSQL/Command/SSTI/LDAP legacy collection was physically
     # removed from this orchestrator. Dedicated raw_family_collectors now own emission

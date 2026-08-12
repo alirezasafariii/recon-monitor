@@ -427,6 +427,41 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         if any(url.lower().startswith("http://") for url in upstream_urls):
             _add(packet, "support", _signal("unsafe_api_consumption", "upstream_tls_missing", "stored_configuration", "Stored upstream service URL uses cleartext HTTP.", source_group="upstream_transport", weight=30, basis="explicit_upstream_url_scheme"))
 
+    # Analysis 6.18 recall-preserving surface signals. These clues intentionally
+    # remain surface-only: they keep hidden hypotheses alive without satisfying
+    # file/path admission identity or vulnerability-condition requirements.
+    if flat.get("content_type") or flat.get("contenttype"):
+        packet = _packet_for(result, "file_upload")
+        _add(
+            packet,
+            "support",
+            _signal(
+                "file_upload",
+                "content_type_field",
+                "raw_metadata",
+                "Stored metadata contains a Content-Type field; this is only a file-handling clue.",
+                source_group="file_surface_metadata",
+                weight=3,
+                basis="passive_raw_surface_metadata",
+            ),
+        )
+    raw_path_metadata = sorted(set(flat) & PATH_FIELDS)
+    if raw_path_metadata:
+        packet = _packet_for(result, "path_traversal")
+        _add(
+            packet,
+            "support",
+            _signal(
+                "path_traversal",
+                "path_surface",
+                "raw_metadata",
+                "Stored metadata contains path/file terminology without structured filesystem reachability.",
+                source_group="path_surface_metadata",
+                weight=3,
+                basis="passive_raw_surface_metadata",
+            ),
+        )
+
     if (all_fields & FILE_FIELDS) or "multipart/form-data" in surface_text or any(token in endpoint.lower() for token in ("/upload", "/attachment", "/import")):
         packet = _packet_for(result, "file_upload")
         _add_identity(packet, "file_upload", "file_input", "endpoint_schema", "Structured file input or multipart upload contract is present.", "file_input", 18)
