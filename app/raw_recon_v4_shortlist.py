@@ -12,6 +12,7 @@ SHORTLIST_VERSION = "1.0.0"
 SHORTLIST_RULE_VERSION = "2026.08.12.6.26"
 DEFAULT_CANDIDATES = ROOT / "benchmarks" / "raw" / "sources" / "v4_candidates.json"
 DEFAULT_OUTPUT = ROOT / "benchmarks" / "raw" / "sources" / "v4_shortlist.json"
+DEFAULT_SUPPLEMENT = ROOT / "benchmarks" / "raw" / "sources" / "v4_primary_supplement.json"
 TARGET_FAMILY_COUNT = 36
 TARGET_ROOT_COUNT = 36
 TARGET_PROJECT_COUNT = 36
@@ -37,15 +38,15 @@ SEMANTIC_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
     "websocket_authorization": (("websocket", "web socket", "ws://", "wss://"), ("authorization", "channel", "subscription", "room", "message", "permission", "tenant")),
     "cors_misconfiguration": (("cors", "cross-origin", "cross origin", "access-control-allow-origin"), ("origin", "credential", "allow-credentials", "response", "read")),
     "sensitive_caching": (("cache", "cache-control", "caching", "cdn"), ("sensitive", "authenticated", "authorization", "cookie", "private", "public", "vary")),
-    "business_logic": (("business logic", "workflow", "state transition", "sequence", "process flow"), ("bypass", "invariant", "price", "value", "limit", "step", "transition")),
-    "race_condition": (("race condition", "race", "concurrent", "simultaneous", "parallel", "atomic"), ("double", "duplicate", "single-use", "single use", "balance", "redeem", "claim", "transfer")),
+    "business_logic": (("business logic", "workflow", "state transition", "sequence", "process flow", "payment status", "digital products", "download"), ("bypass", "invariant", "price", "value", "limit", "step", "transition", "payment status", "status check", "proper payment")),
+    "race_condition": (("race condition", "race", "concurrent", "simultaneous", "parallel", "atomic", "time-of-check", "time of check", "toctou"), ("double", "duplicate", "single-use", "single use", "balance", "redeem", "claim", "transfer", "time-of-check", "time of check", "toctou", "file upload", "overwrite")),
     "sql_injection": (("sql injection", "sqli"), ("query", "database", "sql", "select", "where")),
     "nosql_injection": (("nosql", "mongodb", "mongo", "document database"), ("injection", "operator", "query", "$where", "$regex", "filter")),
     "command_injection": (("command injection", "os command", "shell injection"), ("shell", "command", "exec", "process", "spawn", "system(")),
     "server_side_template_injection": (("template injection", "ssti", "server-side template", "server side template"), ("template", "render", "expression", "jinja", "twig", "freemarker")),
     "ldap_injection": (("ldap",), ("injection", "filter", "directory", "search", "distinguished name")),
     "unrestricted_resource_consumption": (("resource", "denial of service", " dos", "memory", "cpu", "exhaust"), ("unbounded", "large", "size", "runtime", "limit", "amplif", "request")),
-    "sensitive_business_flow_abuse": (("automation", "bot", "scalp", "abuse", "business flow", "reservation", "booking", "signup", "redeem", "coupon", "purchase"), ("limit", "frequency", "bulk", "multiple", "unrestricted", "rate", "bypass")),
+    "sensitive_business_flow_abuse": (("automation", "bot", "scalp", "abuse", "business flow", "reservation", "booking", "signup", "redeem", "coupon", "purchase", "password reset", "flood"), ("limit", "frequency", "bulk", "multiple", "unrestricted", "rate", "bypass", "flood control", "flooding")),
     "security_misconfiguration": (("misconfiguration", "configuration", "debug", "stack trace", "directory listing", "security header", "http method"), ("exposed", "enabled", "unsafe", "default", "response", "cleartext", "trace")),
     "improper_inventory_management": (("legacy", "deprecated", "old version", "api version", "staging", "development", "non-production", "nonproduction"), ("api", "endpoint", "version", "reachable", "active", "exposed", "inventory")),
     "unsafe_api_consumption": (("third-party", "third party", "upstream", "vendor", "external api", "external service", "integration"), ("validation", "tls", "redirect", "timeout", "trust", "response", "sanitize")),
@@ -92,8 +93,24 @@ def _semantic_score(family: str, row: Mapping[str, Any]) -> tuple[bool, int, lis
     return True, score, sorted(set(hits))
 
 
-def build_shortlist(candidates: Mapping[str, Any]) -> dict[str, Any]:
-    pools = candidates.get("candidates_by_family") if isinstance(candidates.get("candidates_by_family"), Mapping) else {}
+def build_shortlist(candidates: Mapping[str, Any], supplemental: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    raw_pools = candidates.get("candidates_by_family") if isinstance(candidates.get("candidates_by_family"), Mapping) else {}
+    pools: dict[str, list[dict[str, Any]]] = {
+        str(family): [dict(row) for row in rows if isinstance(row, Mapping)]
+        for family, rows in raw_pools.items()
+        if isinstance(rows, list)
+    }
+    if supplemental is not None:
+        for raw in supplemental.get("selected") or []:
+            if not isinstance(raw, Mapping):
+                continue
+            row = dict(raw)
+            family = str(row.get("family") or "")
+            if family not in pools:
+                raise RuntimeError(f"supplement family is outside candidate registry: {family}")
+            if not bool(row.get("freshness_validated")):
+                raise RuntimeError(f"supplement source is not freshness-validated: {family}")
+            pools[family].append(row)
     if set(pools) != set(SEMANTIC_GROUPS):
         missing = sorted(set(SEMANTIC_GROUPS) - set(pools))
         extra = sorted(set(pools) - set(SEMANTIC_GROUPS))
@@ -179,9 +196,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build the pre-scoring Analysis 6.26 raw v4 36-family shortlist")
     parser.add_argument("--candidates", default=str(DEFAULT_CANDIDATES))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--supplement", default=str(DEFAULT_SUPPLEMENT))
     args = parser.parse_args()
     candidates = json.loads(Path(args.candidates).read_text(encoding="utf-8"))
-    report = build_shortlist(candidates)
+    supplement_path = Path(args.supplement)
+    supplemental = json.loads(supplement_path.read_text(encoding="utf-8")) if supplement_path.exists() else None
+    report = build_shortlist(candidates, supplemental)
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
