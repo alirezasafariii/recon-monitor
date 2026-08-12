@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-"""Canonical metadata for OWASP expansion phase 1."""
+"""Canonical metadata for OWASP expansion phase 1.
+
+Taxonomy identifiers in this module are the single authoritative mapping for
+phase-one families.  Individual analyzers may keep local descriptive metadata
+for readability, but emitted analyzer metadata and knowledge profiles consume
+this canonical map so WSTG/CWE/CAPEC identifiers cannot drift independently.
+"""
 
 NEW_FAMILY_ORDER = (
     "sql_injection",
@@ -14,6 +20,77 @@ NEW_FAMILY_ORDER = (
     "improper_inventory_management",
     "unsafe_api_consumption",
 )
+
+CANONICAL_TAXONOMY = {
+    "sql_injection": {
+        "owasp": ["Injection"],
+        "wstg": ["WSTG-INPV-05"],
+        "cwe": ["CWE-89"],
+        "capec": ["CAPEC-66"],
+    },
+    "nosql_injection": {
+        "owasp": ["Injection"],
+        # NoSQL is section 4.7.5.6 of the SQL Injection WSTG scenario; the
+        # stable scenario identifier remains WSTG-INPV-05 (not INPV-05.6).
+        "wstg": ["WSTG-INPV-05"],
+        "cwe": ["CWE-943"],
+        "capec": [],
+    },
+    "command_injection": {
+        "owasp": ["Injection"],
+        "wstg": ["WSTG-INPV-12"],
+        "cwe": ["CWE-78"],
+        "capec": ["CAPEC-88"],
+    },
+    "ssti": {
+        "owasp": ["Injection"],
+        "wstg": ["WSTG-INPV-18"],
+        "cwe": ["CWE-1336"],
+        "capec": [],
+    },
+    "ldap_injection": {
+        "owasp": ["Injection"],
+        "wstg": ["WSTG-INPV-06"],
+        "cwe": ["CWE-90"],
+        "capec": ["CAPEC-136"],
+    },
+    "unrestricted_resource_consumption": {
+        "owasp": ["API4:2023 Unrestricted Resource Consumption"],
+        "wstg": ["WSTG-BUSL-05"],
+        "cwe": ["CWE-770", "CWE-400"],
+        "capec": [],
+    },
+    "sensitive_business_flow_abuse": {
+        "owasp": ["API6:2023 Unrestricted Access to Sensitive Business Flows"],
+        "wstg": ["WSTG-BUSL-05", "WSTG-BUSL-07"],
+        "cwe": ["CWE-841"],
+        "capec": [],
+    },
+    "security_misconfiguration": {
+        "owasp": ["A02:2025 Security Misconfiguration", "API8:2023 Security Misconfiguration"],
+        "wstg": ["WSTG-CONF-02", "WSTG-CONF-06", "WSTG-CRYP-01"],
+        # CWE-16 is a category and is prohibited for vulnerability mapping.
+        # These base weaknesses correspond to the concrete subtypes emitted by
+        # this analyzer: active debug, directory listing, exposed dangerous
+        # methods/management functions, and cleartext transport.
+        "cwe": ["CWE-489", "CWE-548", "CWE-749", "CWE-319"],
+        "capec": [],
+    },
+    "improper_inventory_management": {
+        "owasp": ["API9:2023 Improper Inventory Management"],
+        "wstg": ["WSTG-APIT-01"],
+        "cwe": [],
+        "capec": [],
+    },
+    "unsafe_api_consumption": {
+        "owasp": ["API10:2023 Unsafe Consumption of APIs"],
+        # There is no single WSTG scenario equivalent to API10. Do not invent
+        # a generic WSTG-APIT identifier; map specific observed subtypes to CWE.
+        "wstg": [],
+        "cwe": ["CWE-319", "CWE-400"],
+        "capec": [],
+    },
+}
 
 BUG_FAMILY_METADATA = {
     "sql_injection": {"label": "SQL Injection", "impact": 92, "category": "server_injection"},
@@ -69,3 +146,5 @@ DIRECT_TYPES = {
         "upstream_response_limit_bypass_observed",
     },
 }
+
+assert tuple(CANONICAL_TAXONOMY) == NEW_FAMILY_ORDER
