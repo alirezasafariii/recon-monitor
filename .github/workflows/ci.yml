@@ -49,6 +49,7 @@ jobs:
           PY
           bash /tmp/recover.sh
           bash /tmp/apply.sh
+          git show HEAD:tests/test_family_analyzers_completion_v888.py > tests/test_family_analyzers_completion_v888.py
 
       - name: Compile and run focused completion regression
         shell: bash
