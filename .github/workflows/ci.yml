@@ -16,28 +16,74 @@ jobs:
         with:
           ref: agent/vulnerability-intelligence-8.6.0
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Extract and apply migration patch
+      - name: Apply migration from preserved source
         shell: bash
         run: |
           set -euo pipefail
           git show a37904e9c3dcb6e600f57e372909dabb047729d7:.github/workflows/ci.yml > /tmp/embedded.yml
-          python - <<'EXTRACT'
+          python - <<'PY'
           from pathlib import Path
-          text = Path('/tmp/embedded.yml').read_text(encoding='utf-8')
-          start_marker = "          python - <<'PY'\n"
-          end_marker = "\n          PY\n\n      - name: Run unit tests"
-          start = text.index(start_marker) + len(start_marker)
-          end = text.index(end_marker, start)
-          raw = text[start:end]
-          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
-          Path('/tmp/path_patch.py').write_text(code, encoding='utf-8')
-          EXTRACT
-          python /tmp/path_patch.py
+
+          old = Path('/tmp/embedded.yml').read_text(encoding='utf-8')
+          analyzer_marker = "          analyzer = r'''"
+          tests_marker = "          tests = r'''"
+          a0 = old.index(analyzer_marker) + len(analyzer_marker)
+          a1 = old.index("\n'''\n\n          tests = r'''", a0)
+          t0 = old.index(tests_marker, a1) + len(tests_marker)
+          t1 = old.index("\n'''\n\n          Path(\"app/family_analyzers/path_traversal.py\")", t0)
+          Path('app/family_analyzers/path_traversal.py').write_text(old[a0:a1] + '\n', encoding='utf-8')
+          Path('tests/test_family_analyzer_path_traversal_v878.py').write_text(old[t0:t1] + '\n', encoding='utf-8')
+
+          def replace_once(path, old_text, new_text):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old_text not in text:
+                  raise SystemExit(f'missing anchor in {path}: {old_text[:100]!r}')
+              p.write_text(text.replace(old_text, new_text, 1), encoding='utf-8')
+
+          replace_once('app/family_reasoning.py', 'FAMILY_REASONING_RULE_VERSION = "2026.08.10.1"', 'FAMILY_REASONING_RULE_VERSION = "2026.08.12.2"')
+          replace_once('app/family_reasoning.py',
+              '        "override_signals": frozenset({"path_escape_observed", "canonicalization_bypass_observed"}),\n        "confirmation_required": _groups({"path_escape_observed", "canonicalization_bypass_observed"}),',
+              '        "override_signals": frozenset({"path_escape_observed", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}),\n        "confirmation_required": _groups({"canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}),')
+          replace_once('app/family_reasoning.py',
+              '            "Map path construction, canonicalization and base-directory enforcement.",\n            "Determine whether user-controlled path data reaches a file-system operation.",\n            "Do not request sensitive filesystem paths during validation.",',
+              '            "Map path construction, canonicalization and base-directory enforcement.",\n            "Determine whether user-controlled path data reaches a file-system operation and can resolve outside the intended root.",\n            "Use only explicitly test-owned, non-sensitive sentinel resources; do not request sensitive filesystem paths.",')
+
+          replace_once('app/bug_candidates.py', 'from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink\n', 'from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink\nfrom family_analyzers.path_traversal import analyze_path_traversal_signal\n')
+          replace_once('app/bug_candidates.py', 'CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.8.0"', 'CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.9.0"')
+          replace_once('app/bug_candidates.py',
+              '    "file_upload": {\n        "unsafe_file_accepted",\n        "file_policy_differential",\n        "content_type_bypass_observed",\n        "executable_upload_observed",\n    },\n}',
+              '    "file_upload": {\n        "unsafe_file_accepted",\n        "file_policy_differential",\n        "content_type_bypass_observed",\n        "executable_upload_observed",\n    },\n    "path_traversal": {\n        "path_escape_observed",\n        "path_boundary_differential",\n        "canonicalization_bypass_observed",\n        "out_of_root_file_access_observed",\n        "out_of_root_file_write_observed",\n    },\n}')
+          replace_once('app/bug_candidates.py',
+              '_base.FAMILY_EVIDENCE_SCHEMAS["file_upload"] = {\n    "required_any": (\n        ("file_input",),\n        (\n            "upload_operation",\n            "import_operation",\n            "unsafe_file_accepted",\n            "file_policy_differential",\n            "content_type_bypass_observed",\n            "executable_upload_observed",\n        ),\n    ),\n    "label": "concrete file input plus upload/import operation or stored file-policy differential",\n}\nFAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS',
+              '_base.FAMILY_EVIDENCE_SCHEMAS["file_upload"] = {\n    "required_any": (\n        ("file_input",),\n        (\n            "upload_operation",\n            "import_operation",\n            "unsafe_file_accepted",\n            "file_policy_differential",\n            "content_type_bypass_observed",\n            "executable_upload_observed",\n        ),\n    ),\n    "label": "concrete file input plus upload/import operation or stored file-policy differential",\n}\n_base.FAMILY_EVIDENCE_SCHEMAS["path_traversal"] = {\n    "required_any": (\n        ("path_parameter", "filename_field", "storage_path"),\n        ("file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation", "path_escape_observed", "path_boundary_differential", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"),\n    ),\n    "label": "user-influenced path/filename plus file operation or stored filesystem-boundary differential",\n}\nFAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS')
+          replace_once('app/bug_candidates.py', '    "ssrf",\n    "file_upload",\n}', '    "ssrf",\n    "file_upload",\n    "path_traversal",\n}')
+          replace_once('app/bug_candidates.py',
+              '    if family == "file_upload":\n        return analyze_file_upload_signal(\n            db,\n            analysis_id=analysis_id,\n            target=target,\n            endpoint=stored["endpoint"],\n            method=stored["method"],\n            body_fields=stored["body_fields"],\n            query_fields=stored["query_fields"],\n            details=details,\n            business_context=stored["business_context"],\n            semantic_text=stored["semantic_text"],\n        )\n\n    return None',
+              '    if family == "file_upload":\n        return analyze_file_upload_signal(\n            db,\n            analysis_id=analysis_id,\n            target=target,\n            endpoint=stored["endpoint"],\n            method=stored["method"],\n            body_fields=stored["body_fields"],\n            query_fields=stored["query_fields"],\n            details=details,\n            business_context=stored["business_context"],\n            semantic_text=stored["semantic_text"],\n        )\n\n    if family == "path_traversal":\n        return analyze_path_traversal_signal(\n            db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],\n            body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],\n            details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],\n        )\n\n    return None')
+
+          replace_once('app/family_analyzers/router.py', 'from .open_redirect import OpenRedirectFamilyAnalyzer\n', 'from .open_redirect import OpenRedirectFamilyAnalyzer\nfrom .path_traversal import PathTraversalFamilyAnalyzer\n')
+          replace_once('app/family_analyzers/router.py', 'FAMILY_ANALYZER_ROUTER_VERSION = "1.9.0"', 'FAMILY_ANALYZER_ROUTER_VERSION = "1.10.0"')
+          replace_once('app/family_analyzers/router.py', '    "file_upload": FileUploadFamilyAnalyzer,\n}', '    "file_upload": FileUploadFamilyAnalyzer,\n    "path_traversal": PathTraversalFamilyAnalyzer,\n}')
+          replace_once('app/family_analyzers/__init__.py', 'from .open_redirect import OpenRedirectFamilyAnalyzer\n', 'from .open_redirect import OpenRedirectFamilyAnalyzer\nfrom .path_traversal import PathTraversalFamilyAnalyzer\n')
+          replace_once('app/family_analyzers/__init__.py', '    "FileUploadFamilyAnalyzer",\n', '    "FileUploadFamilyAnalyzer",\n    "PathTraversalFamilyAnalyzer",\n')
+
+          for p in sorted(Path('tests').glob('test_family_analyzer_*_v*.py')):
+              if p.name == 'test_family_analyzer_path_traversal_v878.py':
+                  continue
+              text = p.read_text(encoding='utf-8')
+              text = text.replace('test_router_registers_ten_dedicated_families_without_fallback', 'test_router_registers_eleven_dedicated_families_without_fallback')
+              text = text.replace('self.assertEqual(status["registered_count"], 10)', 'self.assertEqual(status["registered_count"], 11)')
+              text = text.replace('self.assertEqual(status["pending_count"], 11)', 'self.assertEqual(status["pending_count"], 10)')
+              text = text.replace('            "file_upload",\n        ])', '            "file_upload",\n            "path_traversal",\n        ])')
+              text = text.replace('self.assertIsNone(analyzer_for_family("path_traversal"))', 'self.assertIsNotNone(analyzer_for_family("path_traversal"))\n        self.assertIsNone(analyzer_for_family("information_disclosure"))')
+              p.write_text(text, encoding='utf-8')
+          PY
+          python -m py_compile app/family_analyzers/path_traversal.py tests/test_family_analyzer_path_traversal_v878.py app/bug_candidates.py app/family_reasoning.py
 
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
@@ -47,19 +93,17 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib
-          import pathlib
-          import subprocess
+          import hashlib, pathlib, subprocess
           standard_ci_sha256 = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
           names = subprocess.check_output(['git','ls-files','-co','--exclude-standard','-z']).decode().split('\0')
-          lines = []
+          lines=[]
           for name in sorted(set(x for x in names if x and x != 'MANIFEST.sha256')):
               digest = standard_ci_sha256 if name == '.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
               lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines)+'\n', encoding='utf-8')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/family_reasoning.py app/bug_candidates.py app/family_analyzers docs/FAMILY_ANALYZERS.md tests MANIFEST.sha256
+          git add app/family_reasoning.py app/bug_candidates.py app/family_analyzers tests MANIFEST.sha256
           git commit -m 'Add dedicated Path Traversal family analyzer'
           git push origin HEAD:agent/vulnerability-intelligence-8.6.0
