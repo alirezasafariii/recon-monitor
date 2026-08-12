@@ -37,9 +37,13 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
 
       - name: Family evidence extractor regression
+        env:
+          PYTHONPATH: app
         run: python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
 
       - name: Family reasoner regression
+        env:
+          PYTHONPATH: app
         run: python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
 
       - name: Four-layer standards grounding contract
