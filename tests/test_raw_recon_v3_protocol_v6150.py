@@ -24,15 +24,22 @@ class RawReconV3Protocol6150Tests(unittest.TestCase):
         self.assertIn("analysis_raw_v1.jsonl", names)
         self.assertIn("analysis_raw_v2.jsonl", names)
 
-    def test_manifest_is_pre_registered_and_unscored(self):
+    def test_manifest_preserves_preregistered_gates_across_lifecycle(self):
         manifest = json.loads((ROOT / "benchmarks/raw/splits/v3.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["evaluation_status"], "protocol_sealed_collection_open")
-        self.assertFalse(manifest["seal"]["scored"])
-        self.assertFalse(manifest["corpus"]["scored"])
+        self.assertIn(manifest["evaluation_status"], {"protocol_sealed_collection_open", "sealed_unscored", "evaluated_once_consumed"})
         expected = {metric: {"direction": direction, "threshold": threshold} for metric, (direction, threshold) in RAW_QUALITY_GATES.items()}
         self.assertEqual(manifest["acceptance_gates"], expected)
         self.assertEqual(manifest["observability_gates"]["positive_control_raw_collision_count"]["threshold"], 0)
         self.assertEqual(manifest["observability_gates"]["positive_observable_delta_rate"]["threshold"], 1.0)
+        if manifest["evaluation_status"] == "evaluated_once_consumed":
+            self.assertTrue(manifest["seal"]["scored"])
+            self.assertTrue(manifest["corpus"]["scored"])
+            self.assertTrue(manifest["evaluation"]["fresh_run_consumed"])
+            self.assertEqual(manifest["evaluation"]["first_and_only_fresh_run_id"], "31559204156")
+            self.assertEqual(manifest["evaluation"]["result_path"], "benchmarks/raw/results/analysis_raw_v3_first_blind.json")
+        else:
+            self.assertFalse(manifest["seal"]["scored"])
+            self.assertFalse(manifest["corpus"]["scored"])
 
     def test_freeze_verifier_passes(self):
         report = verify_v3_freeze(ROOT / "benchmarks/raw/splits/v3.json")
