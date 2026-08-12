@@ -112,32 +112,25 @@ class PathTraversalFamilyAnalyzerV878Tests(unittest.TestCase):
             "item": endpoint,
         }
 
-    def test_router_registers_fourteen_dedicated_families_without_fallback(self):
+    def test_router_registers_all_twenty_one_dedicated_families_without_fallback(self):
         status = router_status()
         self.assertEqual(status["target_family_count"], 21)
-        self.assertEqual(status["registered_count"], 14)
-        self.assertEqual(status["pending_count"], 7)
+        self.assertEqual(status["registered_count"], 21)
+        self.assertEqual(status["pending_count"], 0)
         self.assertEqual(status["registered"], [
-            "broken_object_authorization",
-            "broken_function_authorization",
-            "mass_assignment",
-            "authentication_session",
-            "account_enumeration",
-            "dom_xss",
-            "postmessage_trust",
-            "open_redirect",
-            "ssrf",
-            "file_upload",
-            "path_traversal",
-            "information_disclosure",
-            "source_map_exposure", "secret_exposure",
+  "broken_object_authorization", "broken_function_authorization", "mass_assignment",
+  "authentication_session", "account_enumeration", "dom_xss", "postmessage_trust",
+  "open_redirect", "ssrf", "file_upload", "path_traversal", "information_disclosure",
+  "source_map_exposure", "secret_exposure", "graphql_authorization", "graphql_data_exposure",
+  "business_logic", "race_condition", "websocket_authorization", "cors_misconfiguration",
+  "sensitive_caching",
         ])
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertIsNotNone(analyzer_for_family("path_traversal"))
         self.assertIsNotNone(analyzer_for_family("information_disclosure"))
         self.assertIsNotNone(analyzer_for_family("source_map_exposure"))
         self.assertIsNotNone(analyzer_for_family("secret_exposure"))
-        self.assertIsNone(analyzer_for_family("graphql_authorization"))
+        self.assertIsNotNone(analyzer_for_family("graphql_authorization"))
 
     def test_methodology_grounding_is_non_evidentiary(self):
         result = self.analyze()

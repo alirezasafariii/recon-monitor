@@ -19,16 +19,23 @@ from typing import Any, Callable, Mapping
 from family_analyzers.account_enumeration import analyze_account_enumeration_signal
 from family_analyzers.authentication_session import analyze_authentication_session_signal
 from family_analyzers.bfla import analyze_bfla_signal
+from family_analyzers.business_logic import analyze_business_logic_signal
+from family_analyzers.cors_misconfiguration import analyze_cors_misconfiguration_signal
 from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_sink
 from family_analyzers.file_upload import analyze_file_upload_signal
+from family_analyzers.graphql_authorization import analyze_graphql_authorization_signal
+from family_analyzers.graphql_data_exposure import analyze_graphql_data_exposure_signal
 from family_analyzers.information_disclosure import analyze_information_disclosure_signal
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.path_traversal import analyze_path_traversal_signal
 from family_analyzers.postmessage_trust import analyze_postmessage_trust_signal, is_postmessage_source
+from family_analyzers.race_condition import analyze_race_condition_signal
 from family_analyzers.secret_exposure import analyze_secret_exposure_signal
+from family_analyzers.sensitive_caching import analyze_sensitive_caching_signal
 from family_analyzers.source_map_exposure import analyze_source_map_exposure_signal
 from family_analyzers.ssrf import analyze_ssrf_signal
+from family_analyzers.websocket_authorization import analyze_websocket_authorization_signal
 
 _base = importlib.import_module("bug_candidates_core")
 
@@ -37,7 +44,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.12.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "2.0.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -106,6 +113,14 @@ _FAMILY_DIRECT_TYPES = {
         "credential_material_confirmed",
         "live_secret_context",
     },
+    "graphql_authorization": {"graphql_unauthorized_object_response", "graphql_authorization_differential"},
+    "graphql_data_exposure": {"sensitive_graphql_response_observed", "field_authorization_differential"},
+    "business_logic": {"workflow_invariant_violation", "invalid_transition_accepted", "server_value_override_observed"},
+    "race_condition": {"duplicate_operation_observed", "non_atomic_transition_observed"},
+    "websocket_authorization": {"unauthorized_subscription_observed", "channel_authorization_differential"},
+    "cors_misconfiguration": {"untrusted_origin_allowed", "credentialed_cross_origin_read"},
+    "sensitive_caching": {"shared_cache_sensitive_response", "cross_user_cache_observed"},
+
 }
 
 _base.FAMILY_EVIDENCE_SCHEMAS["broken_function_authorization"] = {
@@ -254,6 +269,11 @@ _DEDICATED_ALERT_FAMILIES = {
     "file_upload",
     "path_traversal",
     "information_disclosure",
+    "business_logic",
+    "race_condition",
+    "cors_misconfiguration",
+    "sensitive_caching",
+
 }
 
 _INCOMPLETE_STATIC_GROUPS = {
@@ -500,6 +520,30 @@ def _dedicated_family_result(
             db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
             body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
             details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+        )
+
+
+    if family == "business_logic":
+        return analyze_business_logic_signal(
+  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+        )
+    if family == "race_condition":
+        return analyze_race_condition_signal(
+  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+        )
+    if family == "cors_misconfiguration":
+        return analyze_cors_misconfiguration_signal(
+  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], details=details,
+  business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+        )
+    if family == "sensitive_caching":
+        return analyze_sensitive_caching_signal(
+  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], details=details,
+  business_context=stored["business_context"], semantic_text=stored["semantic_text"],
         )
 
     return None
@@ -1058,6 +1102,224 @@ def _record_secret_static_hypothesis(
     _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
     return True
 
+
+def _graphql_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
+    return _semantic_runtime_details(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        unit_types=(
+            "graphql_authorization_observation",
+            "graphql_data_exposure_observation",
+            "graphql_field_observation",
+            "graphql_runtime_observation",
+        ),
+        result_key="graphql_runtime_observations",
+    )
+
+
+def _websocket_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
+    return _semantic_runtime_details(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        js_url=js_url,
+        unit_types=(
+            "websocket_authorization_observation",
+            "websocket_runtime_observation",
+            "subscription_observation",
+            "channel_authorization_observation",
+        ),
+        result_key="websocket_runtime_observations",
+    )
+
+
+def _promote_static_family_result(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    target: str,
+    endpoint: str,
+    source_ref: str,
+    family: str,
+    dedicated: Mapping[str, Any],
+    confidence: int,
+) -> bool:
+    family_meta = dict(dedicated.get("family_analyzer") or {})
+    support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
+    contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
+    hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=endpoint,
+        source_ref=source_ref,
+        family=family,
+        variant=str(dedicated.get("variant") or "stored_surface"),
+        support=support,
+        contradict=contradict,
+        missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
+        rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
+        summary=str(dedicated.get("summary") or f"{family} hypothesis."),
+    )
+    if family_meta:
+        hypothesis = _persist_family_meta(db, hypothesis, family_meta)
+    if not bool(hypothesis.get("assessment", {}).get("admitted")):
+        return False
+    support = hypothesis["support"]
+    contradict = hypothesis["contradict"]
+    direct = bool(dedicated.get("direct"))
+    candidate_id = _base._insert_candidate(
+        db,
+        analysis_id=analysis_id,
+        source_run_id=run_id,
+        target=target,
+        alert_id=None,
+        asset="",
+        endpoint=endpoint,
+        source_ref=source_ref,
+        family=family,
+        variant=str(dedicated.get("variant") or "stored_surface"),
+        likelihood=_base._clamp(
+            30
+            + confidence * 0.32
+            + (12 if direct else 0)
+            + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
+        ),
+        evidence_strength=_evidence_strength_with_family_directness(
+            confidence, support, contradict, direct=direct
+        ),
+        impact_potential=_base._impact(_base.BUG_FAMILIES[family]["impact"], "general"),
+        support=support,
+        contradict=contradict,
+        missing=hypothesis["missing"],
+        rule_ids=hypothesis["rule_ids"],
+        summary=str(dedicated.get("summary") or f"{family} hypothesis."),
+    )
+    _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
+    return True
+
+
+def _record_graphql_static_hypotheses(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    row: Mapping[str, Any],
+) -> int:
+    target = str(row["target"] or "")
+    js_url = str(row["js_url"] or "")
+    operation_name = str(row["operation_name"] or "")
+    operation_type = str(row["operation_type"] or "query")
+    confidence = _base.parse_int(row["confidence"], 0)
+    raw_identifiers = _base._loads(row["identifiers_json"], [])
+    raw_sensitive = _base._loads(row["sensitive_fields_json"], [])
+    identifiers = [str(value) for value in raw_identifiers] if isinstance(raw_identifiers, list) else []
+    sensitive = [str(value) for value in raw_sensitive] if isinstance(raw_sensitive, list) else []
+    runtime = _graphql_runtime_details(
+        db, analysis_id=analysis_id, target=target, js_url=js_url
+    )
+    promoted = 0
+    if identifiers:
+        dedicated = analyze_graphql_authorization_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint="/graphql",
+            js_url=js_url,
+            operation_name=operation_name,
+            operation_type=operation_type,
+            identifiers=identifiers,
+            details=runtime,
+            business_context="general",
+        )
+        if dedicated and _promote_static_family_result(
+            db,
+            analysis_id=analysis_id,
+            run_id=run_id,
+            target=target,
+            endpoint="/graphql",
+            source_ref=f"graphql:{js_url}:{operation_name}",
+            family="graphql_authorization",
+            dedicated=dedicated,
+            confidence=confidence,
+        ):
+            promoted += 1
+    if sensitive:
+        dedicated = analyze_graphql_data_exposure_signal(
+            db,
+            analysis_id=analysis_id,
+            target=target,
+            endpoint="/graphql",
+            js_url=js_url,
+            operation_name=operation_name,
+            operation_type=operation_type,
+            sensitive_fields=sensitive,
+            details=runtime,
+            business_context="general",
+        )
+        if dedicated and _promote_static_family_result(
+            db,
+            analysis_id=analysis_id,
+            run_id=run_id,
+            target=target,
+            endpoint="/graphql",
+            source_ref=f"graphql-data:{js_url}:{operation_name}",
+            family="graphql_data_exposure",
+            dedicated=dedicated,
+            confidence=confidence,
+        ):
+            promoted += 1
+    return promoted
+
+
+def _record_websocket_static_hypothesis(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    row: Mapping[str, Any],
+) -> bool:
+    target = str(row["target"] or "")
+    js_url = str(row["js_url"] or "")
+    source = str(row["source_kind"] or "")
+    sink = str(row["sink_kind"] or "")
+    confidence = _base.parse_int(row["confidence"], 0)
+    dedicated = analyze_websocket_authorization_signal(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        endpoint=js_url,
+        js_url=js_url,
+        source_kind=source,
+        sink_kind=sink,
+        operation="websocket construction or messaging",
+        details=_websocket_runtime_details(
+            db, analysis_id=analysis_id, target=target, js_url=js_url
+        ),
+        semantic_text=str(row["snippet"] or ""),
+        business_context="general",
+    )
+    if not dedicated:
+        return False
+    return _promote_static_family_result(
+        db,
+        analysis_id=analysis_id,
+        run_id=run_id,
+        target=target,
+        endpoint=js_url,
+        source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
+        family="websocket_authorization",
+        dedicated=dedicated,
+        confidence=confidence,
+    )
+
+
 class _MigratedStaticFilteredDatabase:
     """Delegate DB access while hiding migrated client-side rows from legacy insertion."""
 
@@ -1071,6 +1333,8 @@ class _MigratedStaticFilteredDatabase:
             return []
         if "from secret_intelligence" in lowered:
             return []
+        if "from graphql_intelligence" in lowered:
+            return []
         if "from js_dataflows" not in lowered:
             return rows
         filtered: list[Any] = []
@@ -1082,6 +1346,8 @@ class _MigratedStaticFilteredDatabase:
             if is_dangerous_dom_sink(sink):
                 continue
             if is_navigation_sink(sink):
+                continue
+            if sink.strip().lower() == "websocket":
                 continue
             filtered.append(row)
         return filtered
@@ -1105,6 +1371,10 @@ def _static_candidates_with_family_analyzers(db: Any, analysis_id: str, run_id: 
         if _record_secret_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, rows=grouped_rows):
             migrated_count += 1
 
+    graphql_rows = db.all(f"SELECT * FROM graphql_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
+    for row in graphql_rows:
+        migrated_count += _record_graphql_static_hypotheses(db, analysis_id=analysis_id, run_id=run_id, row=row)
+
     source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
     for row in source_map_rows:
         if _record_source_map_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
@@ -1124,6 +1394,10 @@ def _static_candidates_with_family_analyzers(db: Any, analysis_id: str, run_id: 
             continue
         if is_navigation_sink(sink):
             if _record_open_redirect_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
+                migrated_count += 1
+            continue
+        if sink.strip().lower() == "websocket":
+            if _record_websocket_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):
                 migrated_count += 1
             continue
 

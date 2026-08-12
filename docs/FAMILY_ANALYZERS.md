@@ -453,6 +453,31 @@ family confirmation-ready state
 
 The historical `secret_intelligence → _insert_candidate()` static bypass is migrated to `dedicated analyzer → record_hypothesis → Family Reasoning admission → promotion`. Potential Finding and confirmation remain separate states. Raw credentials, tokens, passwords and private-key bodies are never copied into analyzer output.
 
+
+## 15–21. Completed Dedicated Family Analyzers
+
+The remaining seven Family Reasoning contracts are now production-routed through independent analyzers:
+
+15. `graphql_authorization` — GraphQL resolver/object authorization. Static identifiers and operations share one evidence root; direct evidence requires controlled test identities and test-owned objects.
+16. `graphql_data_exposure` — GraphQL field/property exposure. Sensitive field names are structural only; controlled role/field-policy response evidence is authoritative.
+17. `business_logic` — workflow/state-machine reasoning backed by an offline sequence miner over stored endpoints. Direct evidence requires a documented invariant plus reversible controlled test behavior.
+18. `race_condition` — single-use/idempotency/atomicity reasoning. The analyzer never launches concurrency and accepts direct evidence only from previously authorized concurrency observations on test-owned resources.
+19. `websocket_authorization` — channel/topic/resource authorization. Client WebSocket surfaces remain hidden until independent channel policy or controlled authorization evidence exists.
+20. `cors_misconfiguration` — exact CORS policy + independent sensitive-response context + controlled-origin behavior. Wildcard/reflection headers alone are not confirmation.
+21. `sensitive_caching` — cache policy + independent sensitive-response context + redacted shared-cache behavior. No response bodies or unrelated-user content are stored by the analyzer.
+
+Business Logic and Race Condition share only the offline `workflow_intelligence` substrate for normalization/correlation; each keeps separate direct-evidence contracts and false-positive rules. `remaining_common` similarly provides policy-state normalization but is not a registered analyzer and cannot create target evidence.
+
+Static GraphQL and WebSocket Candidate Engine bypasses are migrated to hypothesis-first handling. GraphQL/WebSocket/cache protocol findings remain correlation surfaces and no longer bypass Family Reasoning via protocol-severity direct insertion.
+
+## Family Analyzer completion status
+
+Production-routed analyzers: **21 / 21**.
+
+Pending dedicated analyzers: **0**.
+
+The router has no generic family-analyzer fallback. Every canonical family in `FAMILY_ORDER` resolves to an independently versioned analyzer. Knowledge/write-up similarity remains non-evidentiary for every family.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -463,37 +488,11 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust, Open Redirect, Source-map Exposure and Secret Exposure additionally migrate their static JavaScript/intelligence paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
+
 ## Router status
 
-Currently production-routed:
-
-1. BOLA / IDOR
-2. Broken Function Level Authorization
-3. Mass Assignment / Object Property Authorization
-4. Authentication / Session
-5. Account Enumeration
-6. DOM-based XSS
-7. postMessage Trust / Web Messaging
-8. Open Redirect / Navigation Injection
-9. Server-Side Request Forgery (SSRF)
-10. File Upload / Import
-11. Path Traversal
-12. Information Disclosure
-13. Source-map Exposure
-14. Secret Exposure
-
-Pending dedicated analyzers: **7**.
+All **21 / 21** canonical families are production-routed through dedicated analyzers. Pending: **0**. Generic fallback: **disabled**.
 
 ## Migration order
 
-Next analyzers:
-
-1. GraphQL Authorization
-2. GraphQL Data Exposure
-3. Business Logic
-4. Race Condition
-5. WebSocket Authorization
-6. CORS
-7. Sensitive Caching
-
-Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
+Dedicated Family Analyzer migration is complete. Further work is refinement, calibration and shared-pipeline cleanup rather than adding missing family algorithms.
