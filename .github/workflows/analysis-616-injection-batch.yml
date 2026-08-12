@@ -1,0 +1,69 @@
+name: Analysis 6.16 Injection Collector Decomposition
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.16-physical-raw-collector-decomposition
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.16-physical-raw-collector-decomposition
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply injection collector decomposition
+        run: python scripts/apply_analysis_616_injection_decomposition.py
+
+      - name: Syntax and focused 6.16 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/raw_family_collectors/base.py app/raw_family_collectors/injection.py app/bug_candidates.py
+          PYTHONPATH=app python -m unittest tests.test_physical_raw_collector_injection_v6160 -v
+
+      - name: Existing execution, firewall, reasoner, and candidate regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_detector_execution_intelligence_v6100.py' -q
+          python -m unittest discover -s tests -p 'test_physical_family_detectors_v690.py' -q
+          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_confusion_matrix_v670.py' -q
+          python -m unittest discover -s tests -p 'test_bug_candidates_v41.py' -q
+
+      - name: Full unit regression
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden regression
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration regression
+        run: python tests/integration_runner.py
+
+      - name: Finalize clean implementation tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/analysis-616-injection-batch.yml
+          rm scripts/apply_analysis_616_injection_decomposition.py
+          git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
+            if [[ -f "$f" ]]; then sha256sum "$f"; fi
+          done | LC_ALL=C sort -k2 > MANIFEST.sha256
+          sha256sum -c MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Analysis 6.16 physical injection collector decomposition'
+          git push origin HEAD:agent/analysis-engine-6.16-physical-raw-collector-decomposition
