@@ -22,7 +22,9 @@ jobs:
           python-version: '3.11'
 
       - name: Apply calibrated raw boundaries
-        run: python scripts/apply_analysis_614.py
+        run: |
+          python scripts/apply_analysis_614.py
+          python scripts/update_analysis_614_tests.py
 
       - name: Syntax and focused calibration tests
         shell: bash
@@ -49,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           rm .github/workflows/analysis-614-implement.yml
-          rm scripts/apply_analysis_614.py scripts/evaluate_analysis_614.py
+          rm scripts/apply_analysis_614.py scripts/evaluate_analysis_614.py scripts/update_analysis_614_tests.py
           git ls-files | grep -v '^MANIFEST.sha256$' | while IFS= read -r f; do
             if [[ -f "$f" ]]; then sha256sum "$f"; fi
           done | LC_ALL=C sort -k2 > MANIFEST.sha256
