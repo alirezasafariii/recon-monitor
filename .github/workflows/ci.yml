@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build formatting-independent migration scripts
+      - name: Build completion migration scripts
         shell: bash
         run: |
           set -euo pipefail
@@ -121,8 +121,20 @@ jobs:
           '''.replace('          ', ''),
           )
 
+          protocol = '''from pathlib import Path
+          p = Path("app/behavioral_intelligence.py")
+          text = p.read_text(encoding="utf-8")
+          fn = text.index("def generate_behavioral_candidates(")
+          anchor = "        if not family:\\n            continue\\n"
+          pos = text.index(anchor, fn) + len(anchor)
+          guard = "        if family in {\\\"graphql_authorization\\\", \\\"websocket_authorization\\\", \\\"sensitive_caching\\\"}:\\n            continue\\n"
+          if guard not in text[fn:]:
+              text = text[:pos] + guard + text[pos:]
+          p.write_text(text, encoding="utf-8")
+          '''.replace('          ', '')
+
           Path('/tmp/apply.py').write_text(apply, encoding='utf-8')
-          Path('/tmp/protocol.py').write_text(blocks[1], encoding='utf-8')
+          Path('/tmp/protocol.py').write_text(protocol, encoding='utf-8')
           Path('/tmp/tests.py').write_text(blocks[2], encoding='utf-8')
           Path('/tmp/docs.py').write_text(blocks[3], encoding='utf-8')
           PY
