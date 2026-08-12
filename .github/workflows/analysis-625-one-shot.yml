@@ -30,6 +30,9 @@ jobs:
       - name: Extend Analysis 6.25 evidence/reasoner registries
         run: python scripts/analysis_625_registry_extension.py
 
+      - name: Generalize historical 31-family cardinality tests
+        run: python scripts/analysis_625_historical_test_compat.py
+
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
@@ -71,7 +74,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-625-one-shot.yml scripts/analysis_625_cutover.py scripts/analysis_625_registry_extension.py
+          git rm .github/workflows/analysis-625-one-shot.yml scripts/analysis_625_cutover.py scripts/analysis_625_registry_extension.py scripts/analysis_625_historical_test_compat.py
           git add -A
           git diff --cached --check
           git commit -m "Complete OWASP Top 10 2025 coverage in Analysis 6.25"
