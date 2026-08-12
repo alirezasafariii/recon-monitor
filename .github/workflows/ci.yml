@@ -26,6 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           git show d2b57f0dacba73d2ed6119a6662207e0288f712c:.github/workflows/ci.yml > /tmp/validated-bootstrap.yml
+          git show 9bb4e8a55bc44bad9e91e4dd74f69a5e8f9c6122:.github/workflows/ci.yml > /tmp/original-completion.yml
           python - <<'PY'
           from pathlib import Path
           text = Path('/tmp/validated-bootstrap.yml').read_text(encoding='utf-8')
