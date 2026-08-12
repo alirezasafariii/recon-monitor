@@ -1,58 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def replace_once(path: Path, old: str, new: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    count = text.count(old)
-    if count != 1:
-        raise RuntimeError(f"{path}: expected one replacement target, found {count}")
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
-for relative, replacements in {
-    "app/analysis_engine.py": [
-        ('ENGINE_VERSION = "6.23.0"', 'ENGINE_VERSION = "6.24.0"'),
-        ('RULE_VERSION = "2026.08.12.6.23"', 'RULE_VERSION = "2026.08.12.6.24"'),
-    ],
-    "app/bug_candidates.py": [
-        ('CANDIDATE_ENGINE_VERSION = "6.23.0"', 'CANDIDATE_ENGINE_VERSION = "6.24.0"'),
-        ('CANDIDATE_RULE_VERSION = "2026.08.12.6.23"', 'CANDIDATE_RULE_VERSION = "2026.08.12.6.24"'),
-    ],
-    "app/security_reasoning.py": [
-        ('REASONING_ENGINE_VERSION = "6.23.0"', 'REASONING_ENGINE_VERSION = "6.24.0"'),
-        ('REASONING_RULE_VERSION = "2026.08.12.6.23"', 'REASONING_RULE_VERSION = "2026.08.12.6.24"'),
-    ],
-}.items():
-    path = ROOT / relative
-    for old, new in replacements:
-        replace_once(path, old, new)
-
-old_test = ROOT / "tests" / "test_analysis_623_seal.py"
-replace_once(
-    old_test,
-    '''        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.23.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.23.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.23.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.12.6.23")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.12.6.23")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.12.6.23")
-''',
-    '''        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
-        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
-        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 23, 0))
-        self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
-        self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
-''',
-)
-
-seal_test = '''from __future__ import annotations
-
 import sys
 import unittest
 from pathlib import Path
@@ -129,30 +76,3 @@ class Analysis624SealTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-'''
-(ROOT / "tests" / "test_analysis_624_seal.py").write_text(seal_test, encoding="utf-8")
-
-doc = '''# Analysis Engine 6.24 Seal
-
-Analysis 6.24 seals the specialized static collector decomposition after dedicated collector, full-unit, Golden benchmark, and integration validation.
-
-Sealed lineage:
-- Analysis Engine: `6.24.0`
-- Candidate Engine: `6.24.0`
-- Security Reasoning Engine: `6.24.0`
-- Rule lineage: `2026.08.12.6.24`
-- Specialized static collector lineage: `2026.08.12.6.24`
-
-All 31 vulnerability families now have explicit family ownership: 25 physical raw-collector families, BOLA through dedicated BOLA intelligence, and five specialized static families. Every family remains grounded in WSTG + OWASP + CWE + real write-up references, while external knowledge remains excluded from target evidence.
-'''
-(ROOT / "docs" / "ANALYSIS_ENGINE_6_24_SEAL.md").write_text(doc, encoding="utf-8")
-
-manifest = ROOT / "MANIFEST.sha256"
-entries: set[str] = set()
-for line in manifest.read_text(encoding="utf-8").splitlines():
-    if not line.strip():
-        continue
-    _, rel = line.split("  ", 1)
-    entries.add(rel.strip())
-entries.update({"tests/test_analysis_624_seal.py", "docs/ANALYSIS_ENGINE_6_24_SEAL.md"})
-manifest.write_text("\n".join(f"{hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()}  {rel}" for rel in sorted(entries)) + "\n", encoding="utf-8")

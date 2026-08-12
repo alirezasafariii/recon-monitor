@@ -13,8 +13,8 @@ from family_detectors import detector_rule_ids, evaluate_family_detector, execut
 from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations
 from static_family_collectors import collect_specialized_static_observations
 
-CANDIDATE_ENGINE_VERSION = "6.23.0"
-CANDIDATE_RULE_VERSION = "2026.08.12.6.23"
+CANDIDATE_ENGINE_VERSION = "6.24.0"
+CANDIDATE_RULE_VERSION = "2026.08.12.6.24"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
