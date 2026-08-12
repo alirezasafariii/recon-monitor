@@ -30,8 +30,15 @@ class RawReconV4Materialization6260Tests(unittest.TestCase):
         self.assertEqual(set(EXPECTED_CONDITION), set(DETECTOR_SPECS))
         self.assertEqual(len(EXPECTED_CONDITION), 36)
         self.assertEqual(len(LEGACY_TEMPLATE_FAMILIES), 20)
-        for family, condition in EXPECTED_CONDITION.items():
-            self.assertIn(condition, DETECTOR_SPECS[family].condition_signals, family)
+        mismatches = []
+        for family, condition in sorted(EXPECTED_CONDITION.items()):
+            if condition not in DETECTOR_SPECS[family].condition_signals:
+                mismatches.append({
+                    "family": family,
+                    "configured": condition,
+                    "canonical": sorted(DETECTOR_SPECS[family].condition_signals),
+                })
+        self.assertEqual(mismatches, [])
 
     def test_v4_collection_contract_is_exact(self) -> None:
         self.assertEqual(V4_EXACT_SOURCE_ROOTS, 36)
