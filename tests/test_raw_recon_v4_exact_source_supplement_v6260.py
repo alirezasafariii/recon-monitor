@@ -23,8 +23,8 @@ class RawReconV4ExactSourceSupplement6260Tests(unittest.TestCase):
             "unsafe_api_consumption",
         })
         self.assertEqual(EXACT_SOURCE_SPECS["nosql_injection"]["source_root"], "GHSA-hgq6-9jg2-wf3f")
-        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_root"], "GHSA-4x5r-pxfx-6jf8")
-        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_project"], "babel/babel")
+        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_root"], "GHSA-r28c-9q8g-f849")
+        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_project"], "postcss/postcss")
         self.assertEqual(EXACT_SOURCE_SPECS["improper_inventory_management"]["source_root"], "GHSA-x223-p2gf-v735")
         self.assertEqual(EXACT_SOURCE_SPECS["unsafe_api_consumption"]["source_root"], "CVE-2020-13482")
 
