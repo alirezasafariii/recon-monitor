@@ -21,13 +21,41 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Wire remaining analyzers into Candidate Engine
+      - name: Extract completion regression and docs blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 9bb4e8a55bc44bad9e91e4dd74f69a5e8f9c6122:.github/workflows/ci.yml > /tmp/previous-completion.yml
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/previous-completion.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY"
+          blocks = []
+          pos = 0
+          while True:
+              try:
+                  start = text.index(marker, pos) + len(marker)
+              except ValueError:
+                  break
+              end = text.index(end_marker, start)
+              raw = text[start:end]
+              code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
+              blocks.append(code)
+              pos = end + len(end_marker)
+          if len(blocks) < 5:
+              raise SystemExit(f'expected >=5 python blocks, found {len(blocks)}')
+          Path('/tmp/protocol.py').write_text(blocks[1], encoding='utf-8')
+          Path('/tmp/tests.py').write_text(blocks[2], encoding='utf-8')
+          Path('/tmp/docs.py').write_text(blocks[3], encoding='utf-8')
+          PY
+
+      - name: Wire all remaining analyzers structurally
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import re
 
           p = Path('app/bug_candidates.py')
           text = p.read_text(encoding='utf-8')
@@ -35,11 +63,11 @@ jobs:
           def replace_once(old: str, new: str) -> None:
               global text
               if old not in text:
-                  raise SystemExit(f'missing bug_candidates anchor: {old[:160]!r}')
+                  raise SystemExit(f'missing anchor: {old[:180]!r}')
               text = text.replace(old, new, 1)
 
           replace_once(
-              'from family_analyzers.bola import BolaFamilyAnalyzer\n' if False else 'from family_analyzers.bfla import analyze_bfla_signal\n',
+              'from family_analyzers.bfla import analyze_bfla_signal\n',
               'from family_analyzers.bfla import analyze_bfla_signal\nfrom family_analyzers.business_logic import analyze_business_logic_signal\nfrom family_analyzers.cors_misconfiguration import analyze_cors_misconfiguration_signal\n',
           )
           replace_once(
@@ -58,164 +86,86 @@ jobs:
               'from family_analyzers.ssrf import analyze_ssrf_signal\n',
               'from family_analyzers.ssrf import analyze_ssrf_signal\nfrom family_analyzers.websocket_authorization import analyze_websocket_authorization_signal\n',
           )
-          replace_once(
-              'CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.12.0"',
-              'CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "2.0.0"',
-          )
+          replace_once('CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.12.0"', 'CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "2.0.0"')
 
-          direct_anchor = '''    "secret_exposure": {
-                  "credential_material_confirmed",
-                  "live_secret_context",
-              },
-          }'''.replace('          ', '')
-          direct_new = '''    "secret_exposure": {
+          old = '''    "secret_exposure": {
               "credential_material_confirmed",
               "live_secret_context",
           },
-          "graphql_authorization": {
-              "graphql_unauthorized_object_response",
-              "graphql_authorization_differential",
-          },
-          "graphql_data_exposure": {
-              "sensitive_graphql_response_observed",
-              "field_authorization_differential",
-          },
-          "business_logic": {
-              "workflow_invariant_violation",
-              "invalid_transition_accepted",
-              "server_value_override_observed",
-          },
-          "race_condition": {
-              "duplicate_operation_observed",
-              "non_atomic_transition_observed",
-          },
-          "websocket_authorization": {
-              "unauthorized_subscription_observed",
-              "channel_authorization_differential",
-          },
-          "cors_misconfiguration": {
-              "untrusted_origin_allowed",
-              "credentialed_cross_origin_read",
-          },
-          "sensitive_caching": {
-              "shared_cache_sensitive_response",
-              "cross_user_cache_observed",
-          },
           }'''.replace('          ', '')
-          replace_once(direct_anchor, direct_new)
+          new = '''    "secret_exposure": {
+              "credential_material_confirmed",
+              "live_secret_context",
+          },
+          "graphql_authorization": {"graphql_unauthorized_object_response", "graphql_authorization_differential"},
+          "graphql_data_exposure": {"sensitive_graphql_response_observed", "field_authorization_differential"},
+          "business_logic": {"workflow_invariant_violation", "invalid_transition_accepted", "server_value_override_observed"},
+          "race_condition": {"duplicate_operation_observed", "non_atomic_transition_observed"},
+          "websocket_authorization": {"unauthorized_subscription_observed", "channel_authorization_differential"},
+          "cors_misconfiguration": {"untrusted_origin_allowed", "credentialed_cross_origin_read"},
+          "sensitive_caching": {"shared_cache_sensitive_response", "cross_user_cache_observed"},
+          }'''.replace('          ', '')
+          replace_once(old, new)
 
           replace_once(
               '    "information_disclosure",\n}\n\n_INCOMPLETE_STATIC_GROUPS',
               '    "information_disclosure",\n    "business_logic",\n    "race_condition",\n    "cors_misconfiguration",\n    "sensitive_caching",\n}\n\n_INCOMPLETE_STATIC_GROUPS',
           )
 
-          alert_anchor = '''    if family == "information_disclosure":
-              return analyze_information_disclosure_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
-                  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
+          start = text.index('def _dedicated_family_result(')
+          return_pos = text.index('\n    return None\n', start)
+          alert_branches = '''
 
-              return None
+              if family == "business_logic":
+                  return analyze_business_logic_signal(
+                      db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+                      body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+                      details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+                  )
+              if family == "race_condition":
+                  return analyze_race_condition_signal(
+                      db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+                      body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+                      details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+                  )
+              if family == "cors_misconfiguration":
+                  return analyze_cors_misconfiguration_signal(
+                      db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], details=details,
+                      business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+                  )
+              if family == "sensitive_caching":
+                  return analyze_sensitive_caching_signal(
+                      db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], details=details,
+                      business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+                  )
           '''.replace('          ', '')
-          alert_new = '''    if family == "information_disclosure":
-              return analyze_information_disclosure_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
-                  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
-
-          if family == "business_logic":
-              return analyze_business_logic_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
-                  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
-
-          if family == "race_condition":
-              return analyze_race_condition_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
-                  body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
-
-          if family == "cors_misconfiguration":
-              return analyze_cors_misconfiguration_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
-
-          if family == "sensitive_caching":
-              return analyze_sensitive_caching_signal(
-                  db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"],
-                  details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
-              )
-
-          return None
-          '''.replace('          ', '')
-          replace_once(alert_anchor, alert_new)
+          text = text[:return_pos] + alert_branches + text[return_pos:]
 
           helper = r'''
           def _graphql_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
               return _semantic_runtime_details(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  js_url=js_url,
-                  unit_types=(
-                      "graphql_authorization_observation",
-                      "graphql_data_exposure_observation",
-                      "graphql_field_observation",
-                      "graphql_runtime_observation",
-                  ),
+                  db, analysis_id=analysis_id, target=target, js_url=js_url,
+                  unit_types=("graphql_authorization_observation", "graphql_data_exposure_observation", "graphql_field_observation", "graphql_runtime_observation"),
                   result_key="graphql_runtime_observations",
               )
 
 
           def _websocket_runtime_details(db: Any, *, analysis_id: str, target: str, js_url: str) -> dict[str, Any]:
               return _semantic_runtime_details(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  js_url=js_url,
-                  unit_types=(
-                      "websocket_authorization_observation",
-                      "websocket_runtime_observation",
-                      "subscription_observation",
-                      "channel_authorization_observation",
-                  ),
+                  db, analysis_id=analysis_id, target=target, js_url=js_url,
+                  unit_types=("websocket_authorization_observation", "websocket_runtime_observation", "subscription_observation", "channel_authorization_observation"),
                   result_key="websocket_runtime_observations",
               )
 
 
-          def _promote_static_family_result(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              target: str,
-              endpoint: str,
-              source_ref: str,
-              family: str,
-              dedicated: Mapping[str, Any],
-              confidence: int,
-          ) -> bool:
+          def _promote_static_family_result(db: Any, *, analysis_id: str, run_id: str, target: str, endpoint: str, source_ref: str, family: str, dedicated: Mapping[str, Any], confidence: int) -> bool:
               family_meta = dict(dedicated.get("family_analyzer") or {})
               support = [dict(item) for item in dedicated.get("support", []) if isinstance(item, Mapping)]
               contradict = [dict(item) for item in dedicated.get("contradict", []) if isinstance(item, Mapping)]
               hypothesis = _ORIGINAL_RECORD_HYPOTHESIS(
-                  db,
-                  analysis_id=analysis_id,
-                  source_run_id=run_id,
-                  target=target,
-                  alert_id=None,
-                  asset="",
-                  endpoint=endpoint,
-                  source_ref=source_ref,
-                  family=family,
-                  variant=str(dedicated.get("variant") or "stored_surface"),
-                  support=support,
-                  contradict=contradict,
+                  db, analysis_id=analysis_id, source_run_id=run_id, target=target, alert_id=None, asset="",
+                  endpoint=endpoint, source_ref=source_ref, family=family,
+                  variant=str(dedicated.get("variant") or "stored_surface"), support=support, contradict=contradict,
                   missing=[str(item) for item in dedicated.get("missing", []) if str(item)],
                   rule_ids=[str(item) for item in dedicated.get("rule_ids", []) if str(item)],
                   summary=str(dedicated.get("summary") or f"{family} hypothesis."),
@@ -227,130 +177,74 @@ jobs:
               support = hypothesis["support"]
               contradict = hypothesis["contradict"]
               direct = bool(dedicated.get("direct"))
-              likelihood = _base._clamp(
-                  30 + confidence * 0.32 + (12 if direct else 0)
-                  + sum(_base.parse_int(item.get("weight"), 0) for item in contradict)
-              )
               candidate_id = _base._insert_candidate(
-                  db,
-                  analysis_id=analysis_id,
-                  source_run_id=run_id,
-                  target=target,
-                  alert_id=None,
-                  asset="",
-                  endpoint=endpoint,
-                  source_ref=source_ref,
-                  family=family,
+                  db, analysis_id=analysis_id, source_run_id=run_id, target=target, alert_id=None, asset="",
+                  endpoint=endpoint, source_ref=source_ref, family=family,
                   variant=str(dedicated.get("variant") or "stored_surface"),
-                  likelihood=likelihood,
-                  evidence_strength=_evidence_strength_with_family_directness(
-                      confidence, support, contradict, direct=direct
-                  ),
+                  likelihood=_base._clamp(30 + confidence * 0.32 + (12 if direct else 0) + sum(_base.parse_int(x.get("weight"), 0) for x in contradict)),
+                  evidence_strength=_evidence_strength_with_family_directness(confidence, support, contradict, direct=direct),
                   impact_potential=_base._impact(_base.BUG_FAMILIES[family]["impact"], "general"),
-                  support=support,
-                  contradict=contradict,
-                  missing=hypothesis["missing"],
-                  rule_ids=hypothesis["rule_ids"],
+                  support=support, contradict=contradict, missing=hypothesis["missing"], rule_ids=hypothesis["rule_ids"],
                   summary=str(dedicated.get("summary") or f"{family} hypothesis."),
               )
               _base.mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
               return True
 
 
-          def _record_graphql_static_hypotheses(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              row: Mapping[str, Any],
-          ) -> int:
+          def _record_graphql_static_hypotheses(db: Any, *, analysis_id: str, run_id: str, row: Mapping[str, Any]) -> int:
               target = str(row["target"] or "")
               js_url = str(row["js_url"] or "")
               operation_name = str(row["operation_name"] or "")
               operation_type = str(row["operation_type"] or "query")
               confidence = _base.parse_int(row["confidence"], 0)
-              identifiers = [str(value) for value in _base._list(_base._loads(row["identifiers_json"], []))]
-              sensitive = [str(value) for value in _base._list(_base._loads(row["sensitive_fields_json"], []))]
+              identifiers = [str(v) for v in _base._list(_base._loads(row["identifiers_json"], []))]
+              sensitive = [str(v) for v in _base._list(_base._loads(row["sensitive_fields_json"], []))]
               runtime = _graphql_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url)
               promoted = 0
               if identifiers:
                   dedicated = analyze_graphql_authorization_signal(
-                      db,
-                      analysis_id=analysis_id,
-                      target=target,
-                      endpoint="/graphql",
-                      js_url=js_url,
-                      operation_name=operation_name,
-                      operation_type=operation_type,
-                      identifiers=identifiers,
-                      details=runtime,
-                      business_context="general",
+                      db, analysis_id=analysis_id, target=target, endpoint="/graphql", js_url=js_url,
+                      operation_name=operation_name, operation_type=operation_type, identifiers=identifiers,
+                      details=runtime, business_context="general",
                   )
                   if dedicated and _promote_static_family_result(
                       db, analysis_id=analysis_id, run_id=run_id, target=target, endpoint="/graphql",
-                      source_ref=f"graphql:{js_url}:{operation_name}", family="graphql_authorization",
-                      dedicated=dedicated, confidence=confidence,
+                      source_ref=f"graphql:{js_url}:{operation_name}", family="graphql_authorization", dedicated=dedicated, confidence=confidence,
                   ):
                       promoted += 1
               if sensitive:
                   dedicated = analyze_graphql_data_exposure_signal(
-                      db,
-                      analysis_id=analysis_id,
-                      target=target,
-                      endpoint="/graphql",
-                      js_url=js_url,
-                      operation_name=operation_name,
-                      operation_type=operation_type,
-                      sensitive_fields=sensitive,
-                      details=runtime,
-                      business_context="general",
+                      db, analysis_id=analysis_id, target=target, endpoint="/graphql", js_url=js_url,
+                      operation_name=operation_name, operation_type=operation_type, sensitive_fields=sensitive,
+                      details=runtime, business_context="general",
                   )
                   if dedicated and _promote_static_family_result(
                       db, analysis_id=analysis_id, run_id=run_id, target=target, endpoint="/graphql",
-                      source_ref=f"graphql-data:{js_url}:{operation_name}", family="graphql_data_exposure",
-                      dedicated=dedicated, confidence=confidence,
+                      source_ref=f"graphql-data:{js_url}:{operation_name}", family="graphql_data_exposure", dedicated=dedicated, confidence=confidence,
                   ):
                       promoted += 1
               return promoted
 
 
-          def _record_websocket_static_hypothesis(
-              db: Any,
-              *,
-              analysis_id: str,
-              run_id: str,
-              row: Mapping[str, Any],
-          ) -> bool:
+          def _record_websocket_static_hypothesis(db: Any, *, analysis_id: str, run_id: str, row: Mapping[str, Any]) -> bool:
               target = str(row["target"] or "")
               js_url = str(row["js_url"] or "")
               source = str(row["source_kind"] or "")
               sink = str(row["sink_kind"] or "")
               confidence = _base.parse_int(row["confidence"], 0)
-              runtime = _websocket_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url)
               dedicated = analyze_websocket_authorization_signal(
-                  db,
-                  analysis_id=analysis_id,
-                  target=target,
-                  endpoint=js_url,
-                  js_url=js_url,
-                  source_kind=source,
-                  sink_kind=sink,
-                  operation="websocket construction or messaging",
-                  details=runtime,
-                  semantic_text=str(row["snippet"] or ""),
-                  business_context="general",
+                  db, analysis_id=analysis_id, target=target, endpoint=js_url, js_url=js_url,
+                  source_kind=source, sink_kind=sink, operation="websocket construction or messaging",
+                  details=_websocket_runtime_details(db, analysis_id=analysis_id, target=target, js_url=js_url),
+                  semantic_text=str(row["snippet"] or ""), business_context="general",
               )
-              if not dedicated:
-                  return False
-              return _promote_static_family_result(
+              return bool(dedicated and _promote_static_family_result(
                   db, analysis_id=analysis_id, run_id=run_id, target=target, endpoint=js_url,
-                  source_ref=f"js-dataflow:{js_url}:{source}:{sink}", family="websocket_authorization",
-                  dedicated=dedicated, confidence=confidence,
-              )
+                  source_ref=f"js-dataflow:{js_url}:{source}:{sink}", family="websocket_authorization", dedicated=dedicated, confidence=confidence,
+              ))
 
 
-          '''
-          helper = helper.replace('          ', '')
+          '''.replace('          ', '')
           replace_once('\nclass _MigratedStaticFilteredDatabase:\n', '\n' + helper + 'class _MigratedStaticFilteredDatabase:\n')
 
           replace_once(
@@ -361,7 +255,6 @@ jobs:
               '            if is_navigation_sink(sink):\n                continue\n            filtered.append(row)\n',
               '            if is_navigation_sink(sink):\n                continue\n            if sink.strip().lower() == "websocket":\n                continue\n            filtered.append(row)\n',
           )
-
           replace_once(
               '    source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))\n',
               '    graphql_rows = db.all(f"SELECT * FROM graphql_intelligence WHERE analysis_id=?{target_clause}", tuple(params))\n    for row in graphql_rows:\n        migrated_count += _record_graphql_static_hypotheses(db, analysis_id=analysis_id, run_id=run_id, row=row)\n\n    source_map_rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))\n',
@@ -370,362 +263,22 @@ jobs:
               '        if is_navigation_sink(sink):\n            if _record_open_redirect_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):\n                migrated_count += 1\n            continue\n\n    legacy_count',
               '        if is_navigation_sink(sink):\n            if _record_open_redirect_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):\n                migrated_count += 1\n            continue\n        if sink.strip().lower() == "websocket":\n            if _record_websocket_static_hypothesis(db, analysis_id=analysis_id, run_id=run_id, row=row):\n                migrated_count += 1\n            continue\n\n    legacy_count',
           )
-
           p.write_text(text, encoding='utf-8')
           PY
 
-      - name: Remove remaining protocol direct-candidate bypasses
+      - name: Apply protocol bypass, tests and docs completion
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          python /tmp/protocol.py
+          python /tmp/tests.py
+          python /tmp/docs.py
 
-          p = Path('app/behavioral_intelligence.py')
-          text = p.read_text(encoding='utf-8')
-          old = '''        if not family:
-                      continue
-                  support = [
-          '''.replace('          ', '')
-          new = '''        if not family:
-                      continue
-                  # Protocol findings are stored correlation surfaces. Dedicated Family
-                  # Analyzers now own promotion/admission for GraphQL, WebSocket and cache
-                  # families; do not bypass them with a protocol-severity direct insert.
-                  if family in {"graphql_authorization", "websocket_authorization", "sensitive_caching"}:
-                      continue
-                  support = [
-          '''.replace('          ', '')
-          if old not in text:
-              raise SystemExit('behavioral protocol bypass anchor missing')
-          p.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
-
-      - name: Migrate router regression contracts and add completion tests
+      - name: Compile and run completion regression
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          full_list = '''[
-                      "broken_object_authorization", "broken_function_authorization", "mass_assignment",
-                      "authentication_session", "account_enumeration", "dom_xss", "postmessage_trust",
-                      "open_redirect", "ssrf", "file_upload", "path_traversal", "information_disclosure",
-                      "source_map_exposure", "secret_exposure", "graphql_authorization", "graphql_data_exposure",
-                      "business_logic", "race_condition", "websocket_authorization", "cors_misconfiguration",
-                      "sensitive_caching",
-                  ]'''.replace('          ', '')
-
-          for p in sorted(Path('tests').glob('test_family_analyzer*_v*.py')):
-              text = p.read_text(encoding='utf-8')
-              text = re.sub(r'test_router_registers_[A-Za-z0-9_]+_dedicated_families_without_fallback', 'test_router_registers_all_twenty_one_dedicated_families_without_fallback', text)
-              text = re.sub(r'self\.assertEqual\(status\["registered_count"\],\s*\d+\)', 'self.assertEqual(status["registered_count"], 21)', text)
-              text = re.sub(r'self\.assertEqual\(status\["pending_count"\],\s*\d+\)', 'self.assertEqual(status["pending_count"], 0)', text)
-              text = re.sub(r'self\.assertEqual\(status\["registered"\],\s*\[(?:.|\n)*?\n\s*\]\)', f'self.assertEqual(status["registered"], {full_list})', text)
-              text = re.sub(r'self\.assertIsNone\(analyzer_for_family\("(graphql_authorization|graphql_data_exposure|business_logic|race_condition|websocket_authorization|cors_misconfiguration|sensitive_caching)"\)\)', r'self.assertIsNotNone(analyzer_for_family("\1"))', text)
-              p.write_text(text, encoding='utf-8')
-
-          test = r'''from __future__ import annotations
-
-          import json
-          import sys
-          import tempfile
-          import unittest
-          from pathlib import Path
-
-          ROOT = Path(__file__).resolve().parents[1]
-          sys.path.insert(0, str(ROOT / "app"))
-
-          import bug_candidates
-          from core import APP_VERSION, Database, utc_now
-          from family_analyzers.business_logic import analyze_business_logic_signal
-          from family_analyzers.cors_misconfiguration import analyze_cors_misconfiguration_signal
-          from family_analyzers.graphql_authorization import analyze_graphql_authorization_signal
-          from family_analyzers.graphql_data_exposure import analyze_graphql_data_exposure_signal
-          from family_analyzers.race_condition import analyze_race_condition_signal
-          from family_analyzers.router import analyzer_for_family, router_status
-          from family_analyzers.sensitive_caching import analyze_sensitive_caching_signal
-          from family_analyzers.websocket_authorization import analyze_websocket_authorization_signal
-          from family_reasoning import FAMILY_ORDER
-
-
-          class RemainingFamilyCompletionV888Tests(unittest.TestCase):
-              def setUp(self):
-                  self.tmp = tempfile.TemporaryDirectory()
-                  self.db = Database(Path(self.tmp.name) / "recon.db")
-                  now = utc_now()
-                  self.db.execute(
-                      "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) VALUES('RUN-FINAL-FAMILY',?,'success',?,?, 'example.com',1)",
-                      (APP_VERSION, now, now),
-                  )
-                  self.db.execute(
-                      "INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,mode,status,started_at,finished_at,summary_json) VALUES('AN-FINAL-FAMILY','RUN-FINAL-FAMILY','example.com','8.6','family-final','analysis','success',?,?, '{}')",
-                      (now, now),
-                  )
-
-              def tearDown(self):
-                  self.db.close()
-                  self.tmp.cleanup()
-
-              def test_router_is_21_of_21_without_fallback(self):
-                  status = router_status()
-                  self.assertEqual(status["registered_count"], 21)
-                  self.assertEqual(status["pending_count"], 0)
-                  self.assertEqual(status["registered"], list(FAMILY_ORDER))
-                  self.assertEqual(status["pending"], [])
-                  self.assertFalse(status["generic_family_analyzer_fallback"])
-                  for family in FAMILY_ORDER:
-                      self.assertIsNotNone(analyzer_for_family(family), family)
-
-              def test_graphql_authorization_static_surface_is_one_root_and_hidden(self):
-                  result = analyze_graphql_authorization_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', js_url='https://example.com/app.js',
-                      operation_name='GetOrder', operation_type='query', identifiers=['orderId'], details={},
-                  )
-                  self.assertFalse(result['direct'])
-                  self.assertFalse(result['family_analyzer']['promotion_ready_from_stored_target_evidence'])
-                  self.assertEqual(result['family_analyzer']['independent_evidence_roots'], 1)
-
-              def test_graphql_authorization_controlled_test_object_can_confirm(self):
-                  result = analyze_graphql_authorization_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', operation_name='GetOrder', identifiers=['orderId'],
-                      details={'graphql_authorization_observations': [{
-                          'controlled_test_context': True, 'test_owned_object': True,
-                          'graphql_authorization_differential': True,
-                      }]},
-                  )
-                  self.assertTrue(result['direct'])
-                  self.assertTrue(result['family_analyzer']['confirmation_ready_from_stored_target_evidence'])
-
-              def test_graphql_data_static_fields_are_not_response_evidence(self):
-                  result = analyze_graphql_data_exposure_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', operation_name='Profile',
-                      sensitive_fields=['email', 'balance'], details={},
-                  )
-                  self.assertFalse(result['direct'])
-                  self.assertFalse(result['family_analyzer']['promotion_ready_from_stored_target_evidence'])
-                  self.assertEqual(result['family_analyzer']['independent_evidence_roots'], 1)
-
-              def test_graphql_data_requires_controlled_role_and_field_policy_for_directness(self):
-                  result = analyze_graphql_data_exposure_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', operation_name='Profile', sensitive_fields=['email'],
-                      details={'graphql_data_exposure_observations': [{
-                          'controlled_test_context': True, 'field_policy_expected_restricted': True,
-                          'sensitive_graphql_response_observed': True,
-                      }]},
-                  )
-                  self.assertTrue(result['direct'])
-                  self.assertTrue(result['family_analyzer']['confirmation_ready_from_stored_target_evidence'])
-
-              def test_business_keywords_alone_are_not_direct(self):
-                  result = analyze_business_logic_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/checkout/order/confirm', method='POST',
-                      details={}, semantic_text='checkout order confirm price quantity',
-                  )
-                  self.assertFalse(result['direct'])
-                  self.assertFalse(result['family_analyzer']['state_changing_request_performed'])
-
-              def test_business_direct_requires_controlled_reversible_documented_invariant(self):
-                  result = analyze_business_logic_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/checkout/order/confirm', method='POST',
-                      details={'workflow_observations': [{
-                          'controlled_test_context': True, 'reversible_test_data': True,
-                          'expected_invariant_documented': True, 'invalid_transition_accepted': True,
-                      }]}, semantic_text='checkout order confirm price quantity',
-                  )
-                  self.assertTrue(result['direct'])
-                  self.assertTrue(result['family_analyzer']['confirmation_ready_from_stored_target_evidence'])
-
-              def test_race_never_launches_concurrency_and_requires_authorized_stored_evidence(self):
-                  result = analyze_race_condition_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/coupon/redeem', method='POST',
-                      details={'race_condition_observations': [{
-                          'concurrency_test_authorized': True, 'test_owned_resource': True,
-                          'duplicate_operation_observed': True,
-                      }]}, semantic_text='coupon redeem claim',
-                  )
-                  self.assertTrue(result['direct'])
-                  self.assertFalse(result['family_analyzer']['concurrent_requests_performed'])
-                  self.assertTrue(result['family_analyzer']['confirmation_ready_from_stored_target_evidence'])
-
-              def test_websocket_static_surface_hidden_and_controlled_test_channel_direct(self):
-                  static = analyze_websocket_authorization_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', js_url='https://example.com/app.js',
-                      sink_kind='websocket', operation='subscribe channel', channel_identifiers=['roomId'], details={},
-                  )
-                  self.assertFalse(static['direct'])
-                  self.assertFalse(static['family_analyzer']['promotion_ready_from_stored_target_evidence'])
-                  direct = analyze_websocket_authorization_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', sink_kind='websocket',
-                      operation='subscribe channel', channel_identifiers=['roomId'], details={'websocket_authorization_observations': [{
-                          'controlled_test_context': True, 'test_owned_channel': True,
-                          'unauthorized_subscription_observed': True,
-                      }]},
-                  )
-                  self.assertTrue(direct['direct'])
-                  self.assertFalse(direct['family_analyzer']['socket_connection_performed'])
-
-              def test_cors_wildcard_is_not_direct_but_controlled_credentialed_read_is(self):
-                  surface = analyze_cors_misconfiguration_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/api/me',
-                      details={'headers': {'Access-Control-Allow-Origin': '*'}, 'authenticated_response': True},
-                      business_context='identity',
-                  )
-                  self.assertFalse(surface['direct'])
-                  direct = analyze_cors_misconfiguration_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/api/me',
-                      details={'headers': {'Access-Control-Allow-Origin': 'https://controlled.invalid'}, 'authenticated_response': True,
-                               'cors_observations': [{
-                                   'controlled_origin': True, 'origin_untrusted_by_policy': True,
-                                   'credentials_included': True, 'cross_origin_response_readable': True,
-                                   'sensitive_response': True,
-                               }]}, business_context='identity',
-                  )
-                  self.assertTrue(direct['direct'])
-                  self.assertFalse(direct['family_analyzer']['credentialed_request_performed'])
-
-              def test_sensitive_cache_private_is_contradiction_and_redacted_cross_identity_can_confirm(self):
-                  private = analyze_sensitive_caching_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/api/me',
-                      details={'headers': {'Cache-Control': 'private, no-store'}, 'authenticated_response': True}, business_context='identity',
-                  )
-                  self.assertIn('private_cache_control_observed', {x['type'] for x in private['contradict']})
-                  direct = analyze_sensitive_caching_signal(
-                      self.db, analysis_id='AN-FINAL-FAMILY', target='example.com', endpoint='/api/me',
-                      details={'headers': {'Cache-Control': 'public, max-age=60'}, 'authenticated_response': True,
-                               'shared_cache_observations': [{
-                                   'controlled_test_context': True, 'response_body_redacted': True,
-                                   'sensitive_response': True, 'shared_cache_hit': True,
-                                   'cross_user_cache_observed': True, 'two_controlled_test_identities': True,
-                               }]}, business_context='identity',
-                  )
-                  self.assertTrue(direct['direct'])
-                  self.assertFalse(direct['family_analyzer']['response_body_stored'])
-
-              def _insert_graphql(self):
-                  cols = {row['name'] for row in self.db.all('PRAGMA table_info(graphql_intelligence)')}
-                  values = {
-                      'analysis_id': 'AN-FINAL-FAMILY', 'target': 'example.com', 'run_id': 'RUN-FINAL-FAMILY',
-                      'js_url': 'https://example.com/app.js', 'operation_type': 'query', 'operation_name': 'GetOrder',
-                      'identifiers_json': json.dumps(['orderId']), 'sensitive_fields_json': json.dumps(['email']),
-                      'variables_json': '{}', 'confidence': 80, 'created_at': utc_now(),
-                  }
-                  keys = [key for key in values if key in cols]
-                  self.db.execute(
-                      f"INSERT INTO graphql_intelligence({','.join(keys)}) VALUES({','.join('?' for _ in keys)})",
-                      tuple(values[key] for key in keys),
-                  )
-
-              def test_legacy_graphql_static_direct_insert_is_closed(self):
-                  self._insert_graphql()
-                  bug_candidates._static_candidates(self.db, 'AN-FINAL-FAMILY', 'RUN-FINAL-FAMILY', 'example.com')
-                  auth_h = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='graphql_authorization'", ('AN-FINAL-FAMILY',))
-                  data_h = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='graphql_data_exposure'", ('AN-FINAL-FAMILY',))
-                  self.assertIsNotNone(auth_h)
-                  self.assertIsNotNone(data_h)
-                  self.assertFalse(json.loads(auth_h['admission_json'])['admitted'])
-                  self.assertFalse(json.loads(data_h['admission_json'])['admitted'])
-                  self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family IN ('graphql_authorization','graphql_data_exposure')", ('AN-FINAL-FAMILY',)))
-
-              def test_legacy_websocket_static_direct_insert_is_closed(self):
-                  cols = {row['name'] for row in self.db.all('PRAGMA table_info(js_dataflows)')}
-                  values = {
-                      'analysis_id': 'AN-FINAL-FAMILY', 'target': 'example.com', 'run_id': 'RUN-FINAL-FAMILY',
-                      'js_url': 'https://example.com/socket.js', 'source_kind': 'location.search', 'sink_kind': 'websocket',
-                      'snippet': 'new WebSocket(url)', 'confidence': 80, 'created_at': utc_now(),
-                  }
-                  keys = [key for key in values if key in cols]
-                  self.db.execute(
-                      f"INSERT INTO js_dataflows({','.join(keys)}) VALUES({','.join('?' for _ in keys)})",
-                      tuple(values[key] for key in keys),
-                  )
-                  bug_candidates._static_candidates(self.db, 'AN-FINAL-FAMILY', 'RUN-FINAL-FAMILY', 'example.com')
-                  hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='websocket_authorization'", ('AN-FINAL-FAMILY',))
-                  self.assertIsNotNone(hypothesis)
-                  self.assertFalse(json.loads(hypothesis['admission_json'])['admitted'])
-                  self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE analysis_id=? AND bug_family='websocket_authorization'", ('AN-FINAL-FAMILY',)))
-
-
-          if __name__ == '__main__':
-              unittest.main()
-          '''
-          Path('tests/test_family_analyzers_completion_v888.py').write_text(test.replace('          ', ''), encoding='utf-8')
-          PY
-
-      - name: Update family analyzer documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          p = Path('docs/FAMILY_ANALYZERS.md')
-          text = p.read_text(encoding='utf-8')
-          section = r'''
-          ## 15–21. Completed Dedicated Family Analyzers
-
-          The remaining seven Family Reasoning contracts are now production-routed through independent analyzers:
-
-          15. `graphql_authorization` — GraphQL resolver/object authorization. Static identifiers and operations share one evidence root; direct evidence requires controlled test identities and test-owned objects.
-          16. `graphql_data_exposure` — GraphQL field/property exposure. Sensitive field names are structural only; controlled role/field-policy response evidence is authoritative.
-          17. `business_logic` — workflow/state-machine reasoning backed by an offline sequence miner over stored endpoints. Direct evidence requires a documented invariant plus reversible controlled test behavior.
-          18. `race_condition` — single-use/idempotency/atomicity reasoning. The analyzer never launches concurrency and accepts direct evidence only from previously authorized concurrency observations on test-owned resources.
-          19. `websocket_authorization` — channel/topic/resource authorization. Client WebSocket surfaces remain hidden until independent channel policy or controlled authorization evidence exists.
-          20. `cors_misconfiguration` — exact CORS policy + independent sensitive-response context + controlled-origin behavior. Wildcard/reflection headers alone are not confirmation.
-          21. `sensitive_caching` — cache policy + independent sensitive-response context + redacted shared-cache behavior. No response bodies or unrelated-user content are stored by the analyzer.
-
-          Business Logic and Race Condition share only the offline `workflow_intelligence` substrate for normalization/correlation; each keeps separate direct-evidence contracts and false-positive rules. `remaining_common` similarly provides policy-state normalization but is not a registered analyzer and cannot create target evidence.
-
-          Static GraphQL and WebSocket Candidate Engine bypasses are migrated to hypothesis-first handling. GraphQL/WebSocket/cache protocol findings remain correlation surfaces and no longer bypass Family Reasoning via protocol-severity direct insertion.
-
-          ## Family Analyzer completion status
-
-          Production-routed analyzers: **21 / 21**.
-
-          Pending dedicated analyzers: **0**.
-
-          The router has no generic family-analyzer fallback. Every canonical family in `FAMILY_ORDER` resolves to an independently versioned analyzer. Knowledge/write-up similarity remains non-evidentiary for every family.
-
-          '''
-          if '## 15–21. Completed Dedicated Family Analyzers' not in text:
-              marker = '## Write-up pattern library\n'
-              if marker not in text:
-                  raise SystemExit('docs write-up marker missing')
-              text = text.replace(marker, section.replace('          ', '') + marker, 1)
-          # Replace old status/migration tail conservatively.
-          status_index = text.find('\n## Router status\n')
-          if status_index >= 0:
-              text = text[:status_index] + '''
-
-          ## Router status
-
-          All **21 / 21** canonical families are production-routed through dedicated analyzers. Pending: **0**. Generic fallback: **disabled**.
-
-          ## Migration order
-
-          Dedicated Family Analyzer migration is complete. Further work is refinement, calibration and shared-pipeline cleanup rather than adding missing family algorithms.
-          '''.replace('          ', '')
-          p.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Compile completion modules and run focused regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m py_compile \
-            app/family_analyzers/remaining_common.py \
-            app/family_analyzers/workflow_intelligence.py \
-            app/family_analyzers/graphql_authorization.py \
-            app/family_analyzers/graphql_data_exposure.py \
-            app/family_analyzers/business_logic.py \
-            app/family_analyzers/race_condition.py \
-            app/family_analyzers/websocket_authorization.py \
-            app/family_analyzers/cors_misconfiguration.py \
-            app/family_analyzers/sensitive_caching.py \
-            app/family_analyzers/router.py app/bug_candidates.py app/behavioral_intelligence.py \
-            tests/test_family_analyzers_completion_v888.py
+          python -m py_compile app/family_analyzers/*.py app/bug_candidates.py app/behavioral_intelligence.py tests/test_family_analyzers_completion_v888.py
           python -m unittest tests.test_family_analyzers_completion_v888 -q
 
       - name: Run full unit suite
@@ -734,7 +287,7 @@ jobs:
       - name: Run integration
         run: python tests/integration_runner.py
 
-      - name: Normalize manifest and commit completion
+      - name: Commit completed 21-family migration
         shell: bash
         run: |
           set -euo pipefail
@@ -742,7 +295,6 @@ jobs:
           import hashlib
           import pathlib
           import subprocess
-
           standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
           names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
           lines = []
