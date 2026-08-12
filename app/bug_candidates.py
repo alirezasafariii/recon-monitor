@@ -11,6 +11,7 @@ from hypothesis_admission import assess_admission, mark_promoted, record_hypothe
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
 from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations
+from static_family_collectors import collect_specialized_static_observations
 
 CANDIDATE_ENGINE_VERSION = "6.23.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.23"
@@ -676,9 +677,6 @@ def _static_candidates(db: Database, analysis_id: str, run_id: str, target: str 
         elif sink == "navigation":
             family, variant = "open_redirect", "source_to_navigation_sink"
             summary = "A user-influenced browser source appears near a navigation sink; destination validation is unknown."
-        elif sink == "websocket":
-            family, variant = "websocket_authorization", "client_channel_construction"
-            summary = "User-influenced data appears in WebSocket construction or messaging; channel authorization remains unknown."
         if not family:
             continue
         _insert_candidate(
@@ -691,56 +689,23 @@ def _static_candidates(db: Database, analysis_id: str, run_id: str, target: str 
         )
         count += 1
 
-    # Source maps.
-    rows = db.all(f"SELECT * FROM source_map_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
-    for row in rows:
-        internal_count = parse_int(row["internal_source_count"], 0)
-        if internal_count <= 0:
-            continue
-        support = [
-            {"type": "source_map", "source": "source_map", "weight": 22, "text": f"Publicly referenced source map contains {parse_int(row['source_count'],0)} source entries"},
-            {"type": "internal_sources", "source": "source_paths", "weight": 16, "text": f"{internal_count} internal-looking source paths were identified"},
-        ]
-        _insert_candidate(db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint=str(row["source_map_url"]), source_ref=f"source-map:{row['js_url']}", family="source_map_exposure", variant="internal_source_paths", likelihood=62, evidence_strength=78, impact_potential=52, support=support, contradict=[], missing=["Direct public reachability of the source-map URL", "Whether the source contents include secrets or proprietary server logic"], rule_ids=["candidate-source-map", "candidate-internal-source-path"], summary="A referenced source map exposes internal-looking source paths and may reveal implementation details.")
-        count += 1
-
-    # Secret candidates.
-    rows = db.all(f"SELECT * FROM secret_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
-    for row in rows:
-        assessment = str(row["assessment"]); confidence = parse_int(row["confidence"], 0)
-        support = [
-            {"type": "secret_pattern", "source": "secret_intelligence", "weight": 26, "text": f"A redacted {row['secret_kind']} pattern was detected in production JavaScript"},
-            {"type": "context", "source": "javascript", "weight": 10, "text": "The candidate was found in client-delivered code and stored only as a fingerprint"},
-        ]
-        support.append({"type": "production_javascript", "source": "javascript", "source_group": "client_context", "weight": 10, "text": "The secret-like material was observed in client-delivered JavaScript"})
-        contradict = []
-        if assessment == "likely_placeholder":
-            contradict.append({"type": "placeholder", "source": "secret_intelligence", "weight": -24, "text": "Context suggests an example, test or placeholder value"})
-        else:
-            support.append({"type": "non_placeholder_secret", "source": "secret_intelligence", "source_group": "secret_assessment", "weight": 18, "text": "Secret intelligence did not classify the redacted value as a known placeholder"})
-        _insert_candidate(db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint=str(row["js_url"]), source_ref=f"secret:{row['js_url']}:{row['value_fingerprint']}", family="secret_exposure", variant=str(row["secret_kind"]), likelihood=_clamp(24 + confidence * 0.5 + sum(parse_int(x.get("weight"),0) for x in contradict)), evidence_strength=_evidence_strength(confidence, support, contradict, direct=True), impact_potential=90, support=support, contradict=contradict, missing=["Whether the value is live or a placeholder", "Intended exposure and privilege", "Rotation or revocation status"], rule_ids=["candidate-secret-pattern", "candidate-client-secret"], summary="A redacted credential- or token-like value may be exposed in client-delivered JavaScript; validity has not been tested.")
-        count += 1
-
-    # GraphQL operations.
-    rows = db.all(f"SELECT * FROM graphql_intelligence WHERE analysis_id=?{target_clause}", tuple(params))
-    for row in rows:
-        identifiers = [str(x) for x in _list(_loads(row["identifiers_json"], []))]
-        sensitive = [str(x) for x in _list(_loads(row["sensitive_fields_json"], []))]
-        confidence = parse_int(row["confidence"], 0)
-        if identifiers:
-            support = [
-                {"type": "graphql_identifier", "source": "graphql", "weight": 20, "text": f"GraphQL object identifiers observed: {', '.join(identifiers[:6])}"},
-                {"type": "graphql_operation", "source": "javascript", "weight": 12, "text": f"Client-visible {row['operation_type']} operation: {row['operation_name']}"},
-            ]
-            _insert_candidate(db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint="/graphql", source_ref=f"graphql:{row['js_url']}:{row['operation_name']}", family="graphql_authorization", variant="object_boundary", likelihood=_clamp(32 + confidence * 0.35 + len(identifiers)*3), evidence_strength=_evidence_strength(confidence, support, [], direct=True), impact_potential=80, support=support, contradict=[], missing=["Resolver-level authorization", "Expected object ownership or role boundary", "Behavior with authorized test objects"], rule_ids=["candidate-graphql-identifier", "candidate-graphql-authorization"], summary="A client-visible GraphQL operation accepts object identifiers; resolver-level authorization remains unknown.")
+    # Analysis 6.24 — specialized static family ownership for Source Map, Secret,
+    # GraphQL authorization/data exposure, and WebSocket authorization. Evidence is
+    # extracted only from persisted static-intelligence rows; standards/write-ups are
+    # detector knowledge and are never inserted as target evidence.
+    for observation in collect_specialized_static_observations(db, analysis_id, target):
+        candidate_id = _insert_candidate(
+            db, analysis_id=analysis_id, source_run_id=run_id, target=observation.target,
+            alert_id=None, asset="", endpoint=observation.endpoint, source_ref=observation.source_ref,
+            family=observation.family, variant=observation.variant,
+            likelihood=observation.likelihood, evidence_strength=observation.evidence_strength,
+            impact_potential=observation.impact, support=[dict(item) for item in observation.support],
+            contradict=[dict(item) for item in observation.contradict], missing=list(observation.missing),
+            rule_ids=list(observation.rules), summary=observation.summary,
+        )
+        if candidate_id:
             count += 1
-        if sensitive:
-            support = [
-                {"type": "sensitive_fields", "source": "graphql", "weight": 20, "text": f"Sensitive GraphQL fields observed: {', '.join(sensitive[:8])}"},
-                {"type": "client_operation", "source": "javascript", "weight": 10, "text": f"The fields are referenced by client operation {row['operation_name']}"},
-            ]
-            _insert_candidate(db, analysis_id=analysis_id, source_run_id=run_id, target=str(row["target"]), alert_id=None, asset="", endpoint="/graphql", source_ref=f"graphql-data:{row['js_url']}:{row['operation_name']}", family="graphql_data_exposure", variant="sensitive_fields", likelihood=_clamp(24 + confidence * 0.32 + len(sensitive)*2), evidence_strength=_evidence_strength(confidence, support, [], direct=True), impact_potential=68, support=support, contradict=[], missing=["Field-level authorization", "Whether the fields are returned to the current role", "Intended minimum response shape"], rule_ids=["candidate-graphql-sensitive-field", "candidate-graphql-data"], summary="A GraphQL operation references sensitive fields; field-level authorization and actual response exposure are unknown.")
-            count += 1
+
     return count
 
 
