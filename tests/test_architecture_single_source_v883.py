@@ -16,29 +16,25 @@ from family_reasoning import FAMILY_ORDER, candidate_evidence_schema_map, case_r
 
 
 class _FakeCaseDB:
-    def __init__(self, family: str):
-        self.family = family
-
+    def __init__(self, family: str): self.family = family
     def one(self, sql, params=()):
         if "FROM security_cases" in sql:
             return {"case_id": "CASE-SINGLE-SOURCE", "target": "example.com", "primary_family": self.family}
         return None
-
-    def all(self, sql, params=()):
-        return []
+    def all(self, sql, params=()): return []
 
 
 class ArchitectureSingleSourceV883Tests(unittest.TestCase):
-    def test_candidate_engine_uses_exact_canonical_schema_map_for_all_21(self):
+    def test_candidate_engine_uses_exact_canonical_schema_map_for_all_31(self):
         expected = candidate_evidence_schema_map()
         self.assertEqual(set(expected), set(FAMILY_ORDER))
-        self.assertEqual(len(expected), 21)
+        self.assertEqual(len(expected), 31)
         self.assertEqual(bug_candidates.FAMILY_EVIDENCE_SCHEMAS, expected)
-        self.assertEqual(bug_candidates._base.FAMILY_EVIDENCE_SCHEMAS, expected)
-        self.assertEqual(bug_candidates.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "2.1.0")
+        self.assertEqual(bug_candidates._core.FAMILY_EVIDENCE_SCHEMAS, expected)
+        self.assertEqual(bug_candidates.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "3.0.0")
         source = inspect.getsource(bug_candidates)
-        self.assertNotIn('_base.FAMILY_EVIDENCE_SCHEMAS["broken_function_authorization"]', source)
-        self.assertIn('candidate_evidence_schema_map()', source)
+        self.assertIn("candidate_evidence_schema_map()", source)
+        self.assertIn("NEW_FAMILY_ORDER", source)
 
     def test_workspace_case_requirements_are_exact_canonical_map(self):
         expected = case_requirement_map()
@@ -46,6 +42,7 @@ class ArchitectureSingleSourceV883Tests(unittest.TestCase):
         self.assertEqual(workspace_v7.FAMILY_CASE_REQUIREMENTS, expected)
         self.assertEqual([row["key"] for row in expected["broken_object_authorization"]], ["authenticated_context", "second_identity", "ownership_map", "comparable_response"])
         self.assertEqual(workspace_v7._canonical_family("Sensitive Response Caching"), "sensitive_caching")
+        self.assertEqual(workspace_v7._canonical_family("SQL Injection"), "sql_injection")
         source = inspect.getsource(workspace_v7)
         self.assertNotIn("BUG_FAMILY_REQUIREMENTS", source)
         self.assertNotIn("DEFAULT_REQUIREMENTS =", source)
@@ -58,19 +55,25 @@ class ArchitectureSingleSourceV883Tests(unittest.TestCase):
         self.assertEqual(result["canonical_family"], "account_enumeration")
         self.assertEqual(result["recommended_level"], "manual_only")
 
-    def test_safe_validation_matches_all_21_canonical_levels(self):
+    def test_safe_validation_matches_all_31_canonical_levels(self):
         self.assertEqual(safe_validation.VALIDATION_VERSION, "6.1.0")
         for family in FAMILY_ORDER:
             result = safe_validation.validation_eligibility(_FakeCaseDB(family), "CASE-SINGLE-SOURCE")
             self.assertEqual(result["canonical_family"], family)
             self.assertEqual(result["recommended_level"], validation_level_for_family(family))
 
+    def test_new_injection_and_api_abuse_families_fail_closed_for_live_validation(self):
+        for family in ("sql_injection", "nosql_injection", "command_injection", "ssti", "ldap_injection", "unrestricted_resource_consumption", "sensitive_business_flow_abuse", "unsafe_api_consumption"):
+            self.assertEqual(validation_level_for_family(family), "manual_only")
+        self.assertEqual(validation_level_for_family("security_misconfiguration"), "passive_live")
+        self.assertEqual(validation_level_for_family("improper_inventory_management"), "passive_live")
+
     def test_safe_validation_canonicalizes_family_labels_before_legacy_hints(self):
         result = safe_validation.validation_eligibility(_FakeCaseDB("BOLA / IDOR"), "CASE-SINGLE-SOURCE")
         self.assertEqual(result["canonical_family"], "broken_object_authorization")
         self.assertEqual(result["recommended_level"], "controlled")
-        result = safe_validation.validation_eligibility(_FakeCaseDB("Unsafe postMessage Trust"), "CASE-SINGLE-SOURCE")
-        self.assertEqual(result["canonical_family"], "postmessage_trust")
+        result = safe_validation.validation_eligibility(_FakeCaseDB("SQL Injection"), "CASE-SINGLE-SOURCE")
+        self.assertEqual(result["canonical_family"], "sql_injection")
         self.assertEqual(result["recommended_level"], "manual_only")
 
     def test_unknown_family_fails_closed_to_offline(self):
@@ -85,5 +88,4 @@ class ArchitectureSingleSourceV883Tests(unittest.TestCase):
         self.assertEqual([row["method"] for row in safe_validation._request_recipe("source_map_exposure", "https://example.com/app.js.map")], ["GET"])
 
 
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()
