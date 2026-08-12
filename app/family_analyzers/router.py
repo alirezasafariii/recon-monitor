@@ -18,10 +18,11 @@ from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .path_traversal import PathTraversalFamilyAnalyzer
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
+from .source_map_exposure import SourceMapExposureFamilyAnalyzer
 from .ssrf import SsrfFamilyAnalyzer
 
 
-FAMILY_ANALYZER_ROUTER_VERSION = "1.11.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "1.12.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -36,6 +37,7 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "file_upload": FileUploadFamilyAnalyzer,
     "path_traversal": PathTraversalFamilyAnalyzer,
     "information_disclosure": InformationDisclosureFamilyAnalyzer,
+    "source_map_exposure": SourceMapExposureFamilyAnalyzer,
 }
 
 
