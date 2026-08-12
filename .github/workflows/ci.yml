@@ -2,74 +2,59 @@ name: Recon Monitor CI
 
 on:
   push:
-    branches: [agent/vulnerability-intelligence-8.6.0]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  migrate:
+  test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/vulnerability-intelligence-8.6.0
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
 
-      - name: Reuse validated migration scripts with docs import fix
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify source hygiene
         shell: bash
         run: |
           set -euo pipefail
-          git show d6c06173a159977fe8d15099b0a31780aa130cd4:.github/workflows/ci.yml > /tmp/source-map-migration.yml
-          python - <<'EXTRACT'
-          from pathlib import Path
-          text = Path('/tmp/source-map-migration.yml').read_text(encoding='utf-8')
-          marker = "          python - <<'PY'\n"
-          end_marker = "\n          PY"
-          blocks = []
-          pos = 0
-          while True:
-              try:
-                  start = text.index(marker, pos) + len(marker)
-              except ValueError:
-                  break
-              end = text.index(end_marker, start)
-              raw = text[start:end]
-              code = '\n'.join(line[10:] if line.startswith('          ') else line for line in raw.splitlines()) + '\n'
-              blocks.append(code)
-              pos = end + len(end_marker)
-          if len(blocks) < 2:
-              raise SystemExit(f'expected migration blocks, got {len(blocks)}')
-          Path('/tmp/migrate.py').write_text(blocks[0], encoding='utf-8')
-          Path('/tmp/docs.py').write_text('import textwrap\n' + blocks[1], encoding='utf-8')
-          EXTRACT
-          python /tmp/migrate.py
-          python /tmp/docs.py
-          python -m py_compile app/bug_candidates.py app/family_analyzers/source_map_exposure.py tests/test_family_analyzer_source_map_exposure_v880.py
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
 
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
 
-      - name: Normalize manifest and commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib,pathlib,subprocess
-          standard='540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
-          names=subprocess.check_output(['git','ls-files','-co','--exclude-standard','-z']).decode().split('\0')
-          lines=[]
-          for name in sorted(set(x for x in names if x and x!='MANIFEST.sha256')):
-              digest=standard if name=='.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
-              lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines)+'\n',encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/bug_candidates.py app/family_analyzers/source_map_exposure.py tests docs/FAMILY_ANALYZERS.md MANIFEST.sha256
-          git commit -m 'Wire Source-map Exposure family analyzer'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
+      - name: Integration test
+        run: python tests/integration_runner.py
