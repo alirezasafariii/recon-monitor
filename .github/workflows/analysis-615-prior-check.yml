@@ -1,0 +1,41 @@
+name: Analysis 6.15 Prior Provenance Check
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.15-fresh-raw-holdout-v3
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.15-fresh-raw-holdout-v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check candidate roots and URLs
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from raw_recon_corpus import prior_source_index
+          from raw_recon_v3_corpus import V3_PRIOR_CORPORA
+          prior = prior_source_index(V3_PRIOR_CORPORA)
+          candidates = [
+            ("GHSL-2023-234", "https://securitylab.github.com/advisories/GHSL-2023-232_GHSL-2023-234_Flowise/"),
+            ("GHSL-2024-034", "https://securitylab.github.com/advisories/GHSL-2024-034_memos/"),
+            ("GHSL-2023-259", "https://securitylab.github.com/advisories/GHSL-2023-258_GHSL-2023-259_tamagui/"),
+            ("GHSL-2023-045", "https://securitylab.github.com/advisories/GHSL-2023-045_Bouncy_Castle_For_Java/"),
+            ("GHSL-2020-067", "https://securitylab.github.com/advisories/GHSL-2020-067-apache_ofbiz/"),
+          ]
+          report = []
+          for root, url in candidates:
+            report.append({"root": root, "url": url, "root_overlap": root in prior["roots"], "url_overlap": url in prior["urls"]})
+          print(json.dumps(report, indent=2))
+          PY
