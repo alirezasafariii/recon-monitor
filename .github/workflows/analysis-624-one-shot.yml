@@ -27,6 +27,9 @@ jobs:
       - name: Apply deterministic Analysis 6.24 cutover
         run: python scripts/analysis_624_cutover.py
 
+      - name: Fix Analysis 6.24 static pipeline fixture
+        run: python scripts/analysis_624_fixture_fix.py
+
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
@@ -58,7 +61,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-624-one-shot.yml scripts/analysis_624_cutover.py
+          git rm .github/workflows/analysis-624-one-shot.yml scripts/analysis_624_cutover.py scripts/analysis_624_fixture_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Cut over Analysis 6.24 specialized static collectors"
