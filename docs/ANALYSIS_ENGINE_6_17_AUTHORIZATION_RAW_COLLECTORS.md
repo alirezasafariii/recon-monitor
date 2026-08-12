@@ -25,18 +25,19 @@ A privileged-looking route or writable `role` field remains a hypothesis surface
 - WebSocket authorization remains in static/client intelligence.
 - Authentication/session and account-enumeration are a later identity-lifecycle batch rather than function/property authorization.
 
-## Stage-one contract
+## Cutover contract
 
-The first 6.17 commit establishes and tests the physical authorization collector registry without changing production candidate routing. This gives the cutover a regression-safe equivalence point.
+The 6.17 cutover now routes both legacy raw authorization families through `collect_authorization_observations(execution_map)` and the existing `emit()` firewall. The old Function/Role Authorization and Mass Assignment collection blocks are physically removed from `_alert_candidates()`.
 
-The subsequent cutover must:
+The cutover preserves:
 
-1. call `collect_authorization_observations(execution_map)` from `_alert_candidates()`;
-2. route both families through the existing `emit()` firewall;
-3. remove the legacy Function/Role Authorization and Mass Assignment collector blocks;
-4. preserve admission thresholds, ranking, detector conditions, reconstruction, and independent-source guards;
-5. prove that near misses remain hidden hypotheses and positive stored-condition fixtures still promote;
-6. keep BOLA, GraphQL and static authorization behavior unchanged.
+1. admission thresholds and family-specific decisive-condition requirements;
+2. detector execution and raw-condition reconstruction ownership of target evidence;
+3. independent-source guards and hidden-hypothesis behavior;
+4. BOLA, GraphQL and static authorization behavior;
+5. the existing ranking and impact model.
+
+Surface-only privileged routes and writable privileged fields still remain hidden hypotheses until stored target evidence satisfies the corresponding authorization/property condition.
 
 ## Non-goals
 

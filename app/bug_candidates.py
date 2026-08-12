@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_injection_observations
+from raw_family_collectors import collect_authorization_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.16.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.16"
@@ -443,6 +443,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.17 — physical raw collector ownership for function/property authorization.
+    # The collector contributes emission metadata only; target evidence remains owned
+    # by execute_detector_intelligence() and raw-condition reconstruction.
+    for observation in collect_authorization_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -470,58 +487,8 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             direct=bool(bola["direct"]),
         )
 
-    # Function / role authorization
-    admin_markers = _contains_any(haystack, ("/admin", "admin/", "backoffice", "staff", "role", "permission", "privilege", "management"))
-    if admin_markers:
-        support = [
-            {"type": "privileged_function", "source": "semantic", "weight": 20, "text": f"Privileged-function markers observed: {', '.join(admin_markers[:5])}"},
-        ]
-        classification_text = json_dumps(details.get("endpoint_classification") or details.get("diff_summary") or {}).lower()
-        if "admin" in classification_text or "authorization" in classification_text:
-            support.append({"type": "privileged_classification", "source": "classification", "weight": 14, "text": "Independent endpoint classification indicates an administrative or authorization function"})
-        if method in {"POST", "PUT", "PATCH", "DELETE"}:
-            support.append({"type": "state_change", "source": "method", "weight": 12, "text": f"The operation uses state-changing method {method}"})
-        if any(field.lower().replace("_", "") in PRIVILEGED_FIELDS for field in body_fields):
-            support.append({"type": "role_property", "source": "schema", "weight": 12, "text": "The client-visible schema includes role or privilege properties"})
-        contradict = []
-        if auth_hints:
-            contradict.append({"type": "auth_hint", "source": "client", "weight": -4, "text": "Authentication hints are present, but server-side role enforcement is unknown"})
-        for observed in _stored_contexts(details):
-            status = parse_int(observed.get("status_code"), 0)
-            expected = observed.get("expected_access", observed.get("authorization_expected"))
-            role = str(observed.get("role") or observed.get("auth_state") or observed.get("context") or "").lower()
-            if expected is False and 200 <= status < 300:
-                support.append({"type": "unauthorized_function_response", "source": "stored_context", "source_group": "role_behavior", "weight": 30, "text": f"A stored context expected to be denied executed the privileged function successfully ({status})"})
-                if any(token in role for token in ("low", "user", "member", "viewer", "unpriv", "anonymous")):
-                    support.append({"type": "lower_privilege_success", "source": "stored_context", "source_group": "role_behavior", "weight": 28, "text": "A lower-privilege stored context successfully executed the privileged function"})
-            elif expected is False and status in {401, 403, 404}:
-                contradict.append({"type": "lower_privilege_denied", "source": "stored_context", "source_group": "role_behavior", "weight": -22, "text": f"The stored unauthorized/lower-privilege context was denied ({status})"})
-        emit("broken_function_authorization", "role_boundary", 22, support, contradict,
-             ["Expected role matrix", "Server-side permission enforcement", "Behavior for an authorized lower-privilege test role"],
-             ["candidate-privileged-function", "candidate-role-boundary"],
-             "A privileged function may depend on role enforcement that is not visible in the collected evidence.")
-
-    # Mass assignment / property-level authorization
-    privileged = sorted({field for field in body_fields if field.lower().replace("_", "") in PRIVILEGED_FIELDS} | {token for token in PRIVILEGED_FIELDS if token in _words(haystack)})
-    if method in {"POST", "PUT", "PATCH"} and privileged:
-        support = [
-            {"type": "write_method", "source": "method", "weight": 15, "text": f"Client-visible write operation uses {method}"},
-            {"type": "privileged_property", "source": "schema", "weight": 24, "text": f"Privilege-sensitive properties are visible: {', '.join(privileged[:6])}"},
-        ]
-        if object_ids:
-            support.append({"type": "object_update", "source": "endpoint_schema", "weight": 8, "text": "The update is associated with an object identifier"})
-        for flag, signal, weight in (
-            ("privileged_property_accepted", "privileged_property_accepted", 30),
-            ("unauthorized_property_change", "unauthorized_property_change", 32),
-            ("property_authorization_differential", "property_authorization_differential", 28),
-            ("response_reflects_privileged_change", "response_reflects_privileged_change", 24),
-        ):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "property_behavior", "weight": weight, "text": f"Stored target evidence explicitly records {signal.replace('_', ' ')}"})
-        emit("mass_assignment", "privileged_properties", 24, support, [],
-             ["Server allow-list of writable fields", "Whether sensitive properties are ignored or rejected", "Expected property-level authorization"],
-             ["candidate-write-schema", "candidate-privileged-property"],
-             "A client-visible write schema includes privilege-sensitive properties; server-side field allow-listing remains unknown.")
+    # Analysis 6.17: Function Authorization and Mass Assignment legacy collection was physically
+    # removed after equivalent execution/admission coverage moved to raw_family_collectors.authorization.
 
     # Authentication / recovery / enumeration
     auth_markers = _contains_any(haystack, ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso"))
