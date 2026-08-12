@@ -11,18 +11,24 @@ Family Reasoning. No new analyzer performs active validation.
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
-import bug_candidates_family21 as _legacy
-import bug_candidates_core as _compat
-import bug_candidates_legacy_core as _core
+import bug_candidates_family21 as _family21_import
 from family_analyzers.base import FamilyAnalyzerContext
 from family_analyzers.router import analyzer_for_family
 from family_reasoning import candidate_evidence_schema_map
 from owasp_family_catalog import BUG_FAMILY_METADATA, DIRECT_TYPES, NEW_FAMILY_ORDER, SAFE_ACTIONS as OWASP_SAFE_ACTIONS
 
 # Preserve the complete existing public surface first.
-for _name, _value in vars(_legacy).items():
+for _name, _value in vars(_family21_import).items():
     if not _name.startswith("__"):
         globals()[_name] = _value
+
+# Re-bind compatibility modules after re-exporting the legacy surface. The
+# legacy module itself exposes private names such as `_legacy`/`_core`; doing
+# this afterwards prevents those names from shadowing the modules used by this
+# extension layer.
+import bug_candidates_family21 as _legacy
+import bug_candidates_core as _compat
+import bug_candidates_legacy_core as _core
 
 CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "3.0.0"
 _legacy.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION
@@ -42,7 +48,6 @@ _schema_map = candidate_evidence_schema_map()
 _core.FAMILY_EVIDENCE_SCHEMAS = _schema_map
 _compat.FAMILY_EVIDENCE_SCHEMAS = _schema_map
 _legacy.FAMILY_EVIDENCE_SCHEMAS = _schema_map
-_legacy._base.FAMILY_EVIDENCE_SCHEMAS = _schema_map
 FAMILY_EVIDENCE_SCHEMAS = _schema_map
 
 _legacy._FAMILY_DIRECT_TYPES.update({family: set(values) for family, values in DIRECT_TYPES.items()})
@@ -270,12 +275,10 @@ record_hypothesis = _legacy.record_hypothesis
 _evidence_strength = _legacy._evidence_strength
 _static_candidates = _legacy._static_candidates
 
-# Re-export the now-mutated deep engine after all extension hooks are installed.
-for _name, _value in vars(_legacy).items():
-    if not _name.startswith("__"):
-        globals()[_name] = _value
-for _name in ("BUG_FAMILIES", "SAFE_ACTIONS", "FAMILY_EVIDENCE_SCHEMAS"):
-    globals()[_name] = getattr(_core, _name)
+# Publish the mutated catalogs and preserve the existing 21-family hooks.
+BUG_FAMILIES = _core.BUG_FAMILIES
+SAFE_ACTIONS = _core.SAFE_ACTIONS
+FAMILY_EVIDENCE_SCHEMAS = _schema_map
 CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "3.0.0"
 record_hypothesis = _legacy.record_hypothesis
 _evidence_strength = _legacy._evidence_strength
