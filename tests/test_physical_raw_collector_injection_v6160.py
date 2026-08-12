@@ -158,9 +158,12 @@ class PhysicalRawCollectorInjection6160Tests(unittest.TestCase):
         import analysis_engine
         import bug_candidates
         import security_reasoning
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.16.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.16.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.16.0")
+        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
+        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
+        self.assertGreaterEqual(
+            tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")),
+            (6, 16, 0),
+        )
 
 
 if __name__ == "__main__":

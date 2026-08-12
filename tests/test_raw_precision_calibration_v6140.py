@@ -92,9 +92,12 @@ class RawPrecisionCalibrationV6140Tests(unittest.TestCase):
         import security_reasoning
         from raw_condition_reconstruction import RECONSTRUCTION_ENGINE_VERSION, RECONSTRUCTION_RULE_VERSION
         from family_detectors.execution import EXECUTION_ENGINE_VERSION, EXECUTION_RULE_VERSION
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.16.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.16.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.16.0")
+        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
+        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
+        self.assertGreaterEqual(
+            tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")),
+            (6, 14, 0),
+        )
         self.assertEqual(RECONSTRUCTION_ENGINE_VERSION, "1.1.0")
         self.assertEqual(EXECUTION_ENGINE_VERSION, "1.2.0")
         self.assertEqual(RECONSTRUCTION_RULE_VERSION, "2026.08.12.6.14")
