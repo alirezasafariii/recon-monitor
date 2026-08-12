@@ -27,8 +27,11 @@ jobs:
       - name: Apply pinned source-audit reconstruction
         run: python scripts/analysis_626_source_audit_fix.py
 
-      - name: Apply Claude Code source-map coordinate
-        run: python scripts/analysis_626_claude_source_map_fix.py
+      - name: Apply discovered esm.sh source-map coordinate
+        run: python scripts/analysis_626_esm_source_map_fix.py
+
+      - name: Align source-map hard audit semantics
+        run: python scripts/analysis_626_source_map_anchor_fix.py
 
       - name: Exact source supplement contract
         env:
@@ -53,6 +56,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_raw_recon_v4_discovery_protocol_v6260.py' -q
           python -m unittest discover -s tests -p 'test_raw_recon_v4_shortlist_protocol_v6260.py' -q
           python -m unittest discover -s tests -p 'test_raw_recon_v4_primary_supplement_v6260.py' -q
+          python -m unittest discover -s tests -p 'test_raw_recon_v4_source_map_discovery_v6260.py' -q
 
       - name: Run strict pre-scoring source-family audit
         env:
@@ -67,6 +71,7 @@ jobs:
           audit=json.loads(Path('benchmarks/raw/sources/v4_source_family_audit.json').read_text())
           rebuilt=json.loads(Path('benchmarks/raw/sources/v4_shortlist_audited.json').read_text())
           exact=json.loads(Path('benchmarks/raw/sources/v4_exact_source_supplement.json').read_text())
+          discovered=json.loads(Path('benchmarks/raw/sources/v4_source_map_discovery.json').read_text())
           print(json.dumps({
             'initial_failed_families':audit['initial_failed_families'],
             'pinned_passing_family_count':audit['pinned_passing_family_count'],
@@ -92,6 +97,8 @@ jobs:
           for family in ('nosql_injection','source_map_exposure','improper_inventory_management','unsafe_api_consumption'):
               assert final_by_family[family]['source_root']==exact_by_family[family]['source_root'], (family, final_by_family[family]['source_root'])
               assert exact_by_family[family]['freshness_validated'] is True
+          assert exact_by_family['source_map_exposure']['source_root']==discovered['selected']['source_root']
+          assert exact_by_family['source_map_exposure']['source_project']==discovered['selected']['source_project']
           PY
 
       - name: Promote audited shortlist and update manifest
@@ -134,7 +141,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py scripts/analysis_626_astro_source_map_fix.py scripts/analysis_626_claude_source_map_fix.py
+          git rm .github/workflows/analysis-626-v4-source-audit.yml scripts/analysis_626_source_audit_fix.py scripts/analysis_626_astro_source_map_fix.py scripts/analysis_626_claude_source_map_fix.py scripts/analysis_626_esm_source_map_fix.py scripts/analysis_626_source_map_anchor_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Audit Analysis 6.26 raw v4 source-family fit"
