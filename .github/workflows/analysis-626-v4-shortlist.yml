@@ -24,40 +24,34 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Apply exact shortlist semantic fixes
+        run: python scripts/analysis_626_shortlist_fix.py
+
       - name: Discovery protocol regression
         env:
           PYTHONPATH: app
         run: python -m unittest discover -s tests -p 'test_raw_recon_v4_discovery_protocol_v6260.py' -q
+
+      - name: Primary supplement protocol contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_raw_recon_v4_primary_supplement_v6260.py' -q
 
       - name: Shortlist protocol contract
         env:
           PYTHONPATH: app
         run: python -m unittest discover -s tests -p 'test_raw_recon_v4_shortlist_protocol_v6260.py' -q
 
+      - name: Validate specialized primary sources against novelty firewall
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python app/raw_recon_v4_primary_supplement.py
+
       - name: Build 36-family pre-scoring shortlist
         env:
           PYTHONPATH: app
-        run: python app/raw_recon_v4_shortlist.py || true
-
-      - name: Diagnose semantic gaps before any scoring
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          shortlist = json.loads(Path('benchmarks/raw/sources/v4_shortlist.json').read_text(encoding='utf-8'))
-          candidates = json.loads(Path('benchmarks/raw/sources/v4_candidates.json').read_text(encoding='utf-8'))
-          for family in shortlist['missing_families']:
-              print(f'=== {family} ===')
-              rows = candidates['candidates_by_family'].get(family, [])[:12]
-              for row in rows:
-                  print(json.dumps({
-                      'root': row.get('source_root'),
-                      'project': row.get('source_project'),
-                      'summary': row.get('summary'),
-                      'url': row.get('canonical_advisory_url'),
-                      'cwes': row.get('matched_cwes'),
-                  }, ensure_ascii=False, sort_keys=True))
-          PY
+        run: python app/raw_recon_v4_shortlist.py
 
       - name: Verify shortlist invariants
         run: |
@@ -66,6 +60,7 @@ jobs:
           from pathlib import Path
           p = Path('benchmarks/raw/sources/v4_shortlist.json')
           d = json.loads(p.read_text(encoding='utf-8'))
+          supplement = json.loads(Path('benchmarks/raw/sources/v4_primary_supplement.json').read_text(encoding='utf-8'))
           assert d['selected_family_count'] == 36, d['missing_families']
           assert d['selected_root_count'] == 36
           assert d['selected_project_count'] == 36
@@ -74,11 +69,20 @@ jobs:
           assert len({r['source_root'] for r in d['selected']}) == 36
           assert len({r['source_project'] for r in d['selected']}) == 36
           assert all(r['shortlist_semantic_score'] > 0 for r in d['selected'])
+          supplemental = {r['family']: r for r in supplement['selected']}
+          selected = {r['family']: r for r in d['selected']}
+          assert selected['graphql_authorization']['source_root'] == supplemental['graphql_authorization']['source_root']
+          assert selected['websocket_authorization']['source_root'] == supplemental['websocket_authorization']['source_root']
+          assert all(r['freshness_validated'] for r in supplement['selected'])
           print(json.dumps({
               'families': d['selected_family_count'],
               'roots': d['selected_root_count'],
               'projects': d['selected_project_count'],
               'missing': d['missing_families'],
+              'supplement': [
+                  {'family': r['family'], 'root': r['source_root'], 'project': r['source_project']}
+                  for r in supplement['selected']
+              ],
               'eligible_family_counts': d['eligible_family_counts'],
           }, indent=2, sort_keys=True))
           PY
@@ -102,7 +106,10 @@ jobs:
                   order.append(name)
           for name in (
               'app/raw_recon_v4_shortlist.py',
+              'app/raw_recon_v4_primary_supplement.py',
               'tests/test_raw_recon_v4_shortlist_protocol_v6260.py',
+              'tests/test_raw_recon_v4_primary_supplement_v6260.py',
+              'benchmarks/raw/sources/v4_primary_supplement.json',
               'benchmarks/raw/sources/v4_shortlist.json',
           ):
               path = root / name
@@ -116,13 +123,13 @@ jobs:
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
-      - name: Commit shortlist snapshot and remove one-shot workflow
+      - name: Commit shortlist snapshot and remove one-shot helpers
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-626-v4-shortlist.yml
+          git rm .github/workflows/analysis-626-v4-shortlist.yml scripts/analysis_626_shortlist_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Freeze Analysis 6.26 raw v4 shortlist"
