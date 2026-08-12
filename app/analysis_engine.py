@@ -18,8 +18,8 @@ from behavioral_intelligence import generate_behavioral_candidates, generate_beh
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
 
-ENGINE_VERSION = "6.21.0"
-RULE_VERSION = "2026.08.12.6.21"
+ENGINE_VERSION = "6.22.0"
+RULE_VERSION = "2026.08.12.6.22"
 
 RULES: dict[str, dict[str, Any]] = {
     "evidence-public-200": {"weight": 8, "description": "Public HTTP 200 observation"},
