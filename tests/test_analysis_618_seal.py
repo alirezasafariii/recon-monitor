@@ -17,12 +17,12 @@ class Analysis618SealTests(unittest.TestCase):
         import bug_candidates
         import security_reasoning
 
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.18.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.18.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.18.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.12.6.18")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.12.6.18")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.12.6.18")
+        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
+        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 18, 0))
+        self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
+        self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
+        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
         self.assertEqual(FILE_REMOTE_COLLECTOR_RULE_VERSION, "2026.08.12.6.18")
 
     def test_file_remote_families_remain_standards_and_writeup_grounded(self) -> None:
@@ -30,6 +30,7 @@ class Analysis618SealTests(unittest.TestCase):
         for family in FILE_REMOTE_FAMILIES:
             spec = get_detector_spec(family)
             self.assertTrue(spec.wstg_ids, family)
+            self.assertTrue(spec.owasp_ids, family)
             self.assertTrue(spec.cwe_ids, family)
             self.assertTrue(spec.writeups, family)
             self.assertTrue(spec.principle.strip(), family)

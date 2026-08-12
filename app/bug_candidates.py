@@ -12,8 +12,8 @@ from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
 from raw_family_collectors import collect_authorization_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
 
-CANDIDATE_ENGINE_VERSION = "6.18.0"
-CANDIDATE_RULE_VERSION = "2026.08.12.6.18"
+CANDIDATE_ENGINE_VERSION = "6.19.0"
+CANDIDATE_RULE_VERSION = "2026.08.12.6.19"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
