@@ -1,0 +1,109 @@
+name: Analysis 6.26 Raw v4 Shortlist
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.26-fresh-raw-holdout-v4
+
+permissions:
+  contents: write
+
+jobs:
+  shortlist:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.26-fresh-raw-holdout-v4
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Discovery protocol regression
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_raw_recon_v4_discovery_protocol_v6260.py' -q
+
+      - name: Shortlist protocol contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_raw_recon_v4_shortlist_protocol_v6260.py' -q
+
+      - name: Build 36-family pre-scoring shortlist
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v4_shortlist.py
+
+      - name: Verify shortlist invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('benchmarks/raw/sources/v4_shortlist.json')
+          d = json.loads(p.read_text(encoding='utf-8'))
+          assert d['selected_family_count'] == 36, d['missing_families']
+          assert d['selected_root_count'] == 36
+          assert d['selected_project_count'] == 36
+          assert not d['missing_families']
+          assert len({r['family'] for r in d['selected']}) == 36
+          assert len({r['source_root'] for r in d['selected']}) == 36
+          assert len({r['source_project'] for r in d['selected']}) == 36
+          assert all(r['shortlist_semantic_score'] > 0 for r in d['selected'])
+          print(json.dumps({
+              'families': d['selected_family_count'],
+              'roots': d['selected_root_count'],
+              'projects': d['selected_project_count'],
+              'missing': d['missing_families'],
+              'eligible_family_counts': d['eligible_family_counts'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Update manifest for shortlist artifacts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root = Path('.')
+          manifest = root / 'MANIFEST.sha256'
+          entries = {}
+          order = []
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' not in line:
+                  continue
+              _, name = line.split('  ', 1)
+              path = root / name
+              if path.is_file():
+                  entries[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+                  order.append(name)
+          for name in (
+              'app/raw_recon_v4_shortlist.py',
+              'tests/test_raw_recon_v4_shortlist_protocol_v6260.py',
+              'benchmarks/raw/sources/v4_shortlist.json',
+          ):
+              path = root / name
+              if path.is_file():
+                  entries[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+                  if name not in order:
+                      order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order), encoding='utf-8')
+          PY
+
+      - name: Verify manifest
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit shortlist snapshot and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-626-v4-shortlist.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Freeze Analysis 6.26 raw v4 shortlist"
+          git push origin HEAD:agent/analysis-engine-6.26-fresh-raw-holdout-v4
