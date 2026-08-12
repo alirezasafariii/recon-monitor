@@ -144,12 +144,12 @@ class PhysicalRawCollectorInjection6160Tests(unittest.TestCase):
                 for title, endpoint, details in alerts:
                     db.upsert_alert(target, f"616:{title}", "new_endpoint", "HIGH", 85, title, endpoint, details, run_id)
                 result = run_analysis(paths, db, run_id, target)
-                rows = db.all("SELECT bug_family,variant,rule_ids_json FROM analysis_hypotheses WHERE analysis_id=?", (result["analysis_id"],))
+                rows = db.all("SELECT bug_family,bug_variant,rule_ids_json FROM analysis_hypotheses WHERE analysis_id=?", (result["analysis_id"],))
                 by_family = {str(row["bug_family"]): row for row in rows if str(row["bug_family"]) in set(INJECTION_FAMILIES)}
                 self.assertEqual(set(by_family), set(INJECTION_FAMILIES), rows)
                 for family, expected in INJECTION_OBSERVATIONS.items():
                     row = by_family[family]
-                    self.assertEqual(str(row["variant"]), expected.variant)
+                    self.assertEqual(str(row["bug_variant"]), expected.variant)
                     self.assertIn("raw-collector-injection-v1", json.loads(row["rule_ids_json"]))
             finally:
                 db.close()
