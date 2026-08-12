@@ -1,79 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-EPHEMERAL = {
-    ".github/workflows/analysis-625-seal-one-shot.yml",
-    "scripts/analysis_625_seal.py",
-}
-NEW_PERSISTENT = {
-    "tests/test_analysis_625_seal.py",
-    "docs/ANALYSIS_ENGINE_6_25_SEAL.md",
-}
-
-
-def read(rel: str) -> str:
-    return (ROOT / rel).read_text(encoding="utf-8")
-
-
-def write(rel: str, text: str) -> None:
-    path = ROOT / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
-def replace_once(rel: str, old: str, new: str) -> None:
-    text = read(rel)
-    if old not in text:
-        raise SystemExit(f"anchor not found in {rel}: {old!r}")
-    write(rel, text.replace(old, new, 1))
-
-
-def update_manifest() -> None:
-    manifest = ROOT / "MANIFEST.sha256"
-    names: set[str] = set()
-    for line in manifest.read_text(encoding="utf-8").splitlines():
-        if "  " not in line:
-            continue
-        _, name = line.split("  ", 1)
-        if name and name not in EPHEMERAL:
-            names.add(name)
-    names.update(NEW_PERSISTENT)
-    rows: list[str] = []
-    for name in sorted(names):
-        path = ROOT / name
-        if not path.is_file() or name in EPHEMERAL:
-            continue
-        rows.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {name}")
-    manifest.write_text("\n".join(rows) + "\n", encoding="utf-8")
-
-
-# Seal all three analysis layers on the same lineage.
-replace_once("app/analysis_engine.py", 'ENGINE_VERSION = "6.24.0"\nRULE_VERSION = "2026.08.12.6.24"', 'ENGINE_VERSION = "6.25.0"\nRULE_VERSION = "2026.08.12.6.25"')
-replace_once("app/bug_candidates.py", 'CANDIDATE_ENGINE_VERSION = "6.24.0"\nCANDIDATE_RULE_VERSION = "2026.08.12.6.24"', 'CANDIDATE_ENGINE_VERSION = "6.25.0"\nCANDIDATE_RULE_VERSION = "2026.08.12.6.25"')
-replace_once("app/security_reasoning.py", 'REASONING_ENGINE_VERSION = "6.24.0"\nREASONING_RULE_VERSION = "2026.08.12.6.24"', 'REASONING_ENGINE_VERSION = "6.25.0"\nREASONING_RULE_VERSION = "2026.08.12.6.25"')
-
-# Historical 6.24 seal remains a lineage floor rather than pinning the current
-# engine forever, while its specialized-static collector rule stays exact 6.24.
-old_versions = '''        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.24.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.24.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.24.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.12.6.24")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.12.6.24")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.12.6.24")
-'''
-new_versions = '''        self.assertGreaterEqual(tuple(map(int, analysis_engine.ENGINE_VERSION.split("."))), (6, 24, 0))
-        self.assertGreaterEqual(tuple(map(int, bug_candidates.CANDIDATE_ENGINE_VERSION.split("."))), (6, 24, 0))
-        self.assertGreaterEqual(tuple(map(int, security_reasoning.REASONING_ENGINE_VERSION.split("."))), (6, 24, 0))
-        self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
-        self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-'''
-replace_once("tests/test_analysis_624_seal.py", old_versions, new_versions)
-
-write("tests/test_analysis_625_seal.py", r'''from __future__ import annotations
-
 import sys
 import unittest
 from pathlib import Path
@@ -179,8 +105,3 @@ class Analysis625SealTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-''')
-
-write("docs/ANALYSIS_ENGINE_6_25_SEAL.md", '''# Analysis Engine 6.25 Seal\n\nAnalysis 6.25 seals OWASP Top 10:2025 coverage completion.\n\nSealed lineage:\n- Analysis Engine: `6.25.0`\n- Candidate Engine: `6.25.0`\n- Security Reasoning Engine: `6.25.0`\n- Rule lineage: `2026.08.12.6.25`\n- OWASP Top 10:2025 completion collector lineage: `2026.08.12.6.25`\n\nThe engine now has 36 vulnerability families. The five Analysis 6.25 families add first-class coverage for A03 Software Supply Chain Failures, A04 Cryptographic Failures, A08 Software or Data Integrity Failures, A09 Security Logging and Alerting Failures, and A10 Mishandling of Exceptional Conditions. Together with the existing families, OWASP Top 10:2025 and OWASP API Security Top 10:2023 are both explicitly mapped 10/10.\n\nAll 36 families retain cross-layer admission, evidence-extractor, reasoner, physical-detector, WSTG, OWASP, CWE, and real-write-up ownership. External standards/write-ups remain detector criteria only and never count as target evidence. Supply-chain/logging absence is not inferred from client visibility, and exceptional/cryptographic/integrity families require concrete stored target conditions before admission.\n''')
-
-update_manifest()
