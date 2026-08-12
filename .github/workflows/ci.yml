@@ -1,90 +1,60 @@
-name: Recon Monitor Family Completion
+name: Recon Monitor CI
 
 on:
   push:
-    branches: [agent/vulnerability-intelligence-8.6.0]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  complete:
+  test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/vulnerability-intelligence-8.6.0
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
-      - name: Reuse validated cutover without whitespace stripping
+      - name: Verify source hygiene
         shell: bash
         run: |
           set -euo pipefail
-          git show ee7dbef7f06663f344b3d486a5bb8c9044e6f284:.github/workflows/ci.yml > /tmp/previous.yml
-          python - <<'PY'
-          from pathlib import Path
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-          text = Path('/tmp/previous.yml').read_text(encoding='utf-8')
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
 
-          def run_block(step_name: str, next_step_name: str) -> str:
-              start_marker = f"      - name: {step_name}\n"
-              end_marker = f"      - name: {next_step_name}\n"
-              start = text.index(start_marker)
-              run_pos = text.index("        run: |\n", start) + len("        run: |\n")
-              end = text.index(end_marker, run_pos)
-              raw = text[run_pos:end]
-              lines = raw.splitlines()
-              return "\n".join(line[10:] if line.startswith("          ") else line for line in lines) + "\n"
-
-          recover = run_block("Recover migration scripts", "Apply cutover and repair helper block")
-          apply = run_block("Apply cutover and repair helper block", "Compile and run focused completion regression")
-          apply = apply.replace("clean = clean.replace('          ', '')\n", "")
-          Path('/tmp/recover.sh').write_text(recover, encoding='utf-8')
-          Path('/tmp/apply.sh').write_text(apply, encoding='utf-8')
-          PY
-          bash /tmp/recover.sh
-          bash /tmp/apply.sh
-          git show HEAD:tests/test_family_analyzers_completion_v888.py > tests/test_family_analyzers_completion_v888.py
-
-      - name: Compile and run focused completion regression
+      - name: Verify version consistency
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile app/family_analyzers/*.py app/bug_candidates.py app/behavioral_intelligence.py tests/test_family_analyzers_completion_v888.py
-          python -m unittest tests.test_family_analyzers_completion_v888 -q
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
 
-      - name: Run full unit suite
+      - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
 
-      - name: Run integration
+      - name: Integration test
         run: python tests/integration_runner.py
-
-      - name: Normalize manifest and commit completion
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import pathlib
-          import subprocess
-
-          standard_ci = '540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
-          names = subprocess.check_output(['git', 'ls-files', '-co', '--exclude-standard', '-z']).decode().split('\0')
-          lines = []
-          for name in sorted(set(x for x in names if x and x != 'MANIFEST.sha256')):
-              digest = standard_ci if name == '.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
-              lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/bug_candidates.py app/behavioral_intelligence.py app/family_analyzers tests docs/FAMILY_ANALYZERS.md MANIFEST.sha256
-          git commit -m 'Complete all 21 dedicated family analyzers'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
-
-# Completion rerun after BOLA router fixture synchronization.
