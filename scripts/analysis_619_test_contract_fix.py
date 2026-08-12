@@ -4,9 +4,12 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# 1) Correct the client-side end-to-end contract: multiple hypotheses from the
+# same family may coexist. Near-misses stay hidden; a distinct decisive target
+# observation must still promote with a family-specific condition signal.
 test_path = ROOT / "tests" / "test_physical_raw_collector_client_side_v6190.py"
 text = test_path.read_text(encoding="utf-8")
-
 old = '''                hypotheses = db.all("SELECT bug_family,bug_variant,state,rule_ids_json FROM analysis_hypotheses WHERE analysis_id=?", (result["analysis_id"],))
                 routed = {}
                 for row in hypotheses:
@@ -52,18 +55,50 @@ if text.count(old) != 1:
     raise RuntimeError(f"expected one Analysis 6.19 routed-hypothesis block, found {text.count(old)}")
 test_path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
+# 2) Make the historical physical-detector regression independently runnable.
+# It previously relied on another discovered test mutating sys.path first.
+physical_path = ROOT / "tests" / "test_physical_family_detectors_v690.py"
+physical = physical_path.read_text(encoding="utf-8")
+old_imports = '''import importlib
+import unittest
+from pathlib import Path
+
+from analysis_standards import FAMILY_STANDARDS, STANDARDS_ENGINE_VERSION
+'''
+new_imports = '''import importlib
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "app"))
+
+from analysis_standards import FAMILY_STANDARDS, STANDARDS_ENGINE_VERSION
+'''
+if physical.count(old_imports) != 1:
+    raise RuntimeError(f"expected one physical-detector import block, found {physical.count(old_imports)}")
+physical_path.write_text(physical.replace(old_imports, new_imports, 1), encoding="utf-8")
+
+# 3) Refresh only the manifest entries touched by this post-generation contract fix.
 manifest = ROOT / "MANIFEST.sha256"
 lines = manifest.read_text(encoding="utf-8").splitlines()
-relative = "tests/test_physical_raw_collector_client_side_v6190.py"
-digest = hashlib.sha256(test_path.read_bytes()).hexdigest()
+replacements = {
+    "tests/test_physical_raw_collector_client_side_v6190.py": hashlib.sha256(test_path.read_bytes()).hexdigest(),
+    "tests/test_physical_family_detectors_v690.py": hashlib.sha256(physical_path.read_bytes()).hexdigest(),
+}
 updated = []
-seen = False
+seen: set[str] = set()
 for line in lines:
-    if line.endswith("  " + relative):
-        updated.append(f"{digest}  {relative}")
-        seen = True
-    else:
+    replaced = False
+    for relative, digest in replacements.items():
+        if line.endswith("  " + relative):
+            updated.append(f"{digest}  {relative}")
+            seen.add(relative)
+            replaced = True
+            break
+    if not replaced:
         updated.append(line)
-if not seen:
-    updated.append(f"{digest}  {relative}")
+for relative, digest in replacements.items():
+    if relative not in seen:
+        updated.append(f"{digest}  {relative}")
 manifest.write_text("\n".join(updated) + "\n", encoding="utf-8")
