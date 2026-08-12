@@ -19,13 +19,11 @@ class RawReconV4ExactSourceSupplement6260Tests(unittest.TestCase):
         self.assertEqual(set(EXACT_SOURCE_SPECS), {
             "nosql_injection",
             "source_map_exposure",
-            "improper_inventory_management",
             "unsafe_api_consumption",
         })
         self.assertEqual(EXACT_SOURCE_SPECS["nosql_injection"]["source_root"], "GHSA-hgq6-9jg2-wf3f")
-        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_root"], "GHSA-r28c-9q8g-f849")
-        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_project"], "postcss/postcss")
-        self.assertEqual(EXACT_SOURCE_SPECS["improper_inventory_management"]["source_root"], "GHSA-x223-p2gf-v735")
+        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_root"], "GHSA-rg65-45m7-hq57")
+        self.assertEqual(EXACT_SOURCE_SPECS["source_map_exposure"]["source_project"], "esm-dev/esm.sh")
         self.assertEqual(EXACT_SOURCE_SPECS["unsafe_api_consumption"]["source_root"], "CVE-2020-13482")
 
     def test_exact_sources_use_complete_novelty_firewall(self) -> None:

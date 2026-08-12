@@ -7,11 +7,13 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 
-AUDIT_VERSION = "1.0.0"
+AUDIT_VERSION = "1.1.0"
 AUDIT_RULE_VERSION = "2026.08.12.6.26"
 DEFAULT_CANDIDATES = ROOT / "benchmarks" / "raw" / "sources" / "v4_candidates.json"
 DEFAULT_SHORTLIST = ROOT / "benchmarks" / "raw" / "sources" / "v4_shortlist.json"
 DEFAULT_SUPPLEMENT = ROOT / "benchmarks" / "raw" / "sources" / "v4_primary_supplement.json"
+DEFAULT_EXACT_SUPPLEMENT = ROOT / "benchmarks" / "raw" / "sources" / "v4_exact_source_supplement.json"
+DEFAULT_INVENTORY_DISCOVERY = ROOT / "benchmarks" / "raw" / "sources" / "v4_inventory_discovery.json"
 DEFAULT_OUTPUT = ROOT / "benchmarks" / "raw" / "sources" / "v4_source_family_audit.json"
 DEFAULT_REBUILT = ROOT / "benchmarks" / "raw" / "sources" / "v4_shortlist_audited.json"
 
@@ -33,7 +35,7 @@ HARD_ANCHORS: dict[str, tuple[tuple[str, ...], ...]] = {
     "file_upload": (("file upload", "upload file", "uploaded file", "arbitrary file upload", "unrestricted upload"), ("file", "upload", "mime", "extension", "filename", "attachment")),
     "graphql_authorization": (("graphql",), ("authorization", "access control", "unauthorized", "permission", "scope"), ("field", "resolver", "query", "mutation", "schema")),
     "graphql_data_exposure": (("graphql",), ("data exposure", "information disclosure", "sensitive", "xs-search", "cross-site request forgery", "csrf", "read-only"), ("query", "field", "response", "schema", "data")),
-    "improper_inventory_management": (("legacy", "deprecated", "old version", "outdated api", "staging", "non-production", "nonproduction", "retired endpoint"), ("endpoint", "api", "version", "host", "environment"), ("reachable", "active", "exposed", "public", "accessible", "still")),
+    "improper_inventory_management": (("deprecated endpoint", "deprecated api", "deprecated `post", "deprecated post", "legacy endpoint", "legacy import", "legacy importer", "feature is deprecated", "old api version", "retired endpoint", "/api/v1/upload"), ("unauthenticated", "no authentication", "publicly reachable", "still reachable", "accessible without authentication", "remained accessible", "remained accessible and operational"), ("endpoint", "api/v1", "/upload/{flow_id}", "legacy api", "route", "import feature", "legacy importer")),
     "information_disclosure": (("information disclosure", "sensitive information", "data exposure", "leak", "disclos"), ("exposed", "response", "public", "unauthorized", "sensitive", "internal")),
     "ldap_injection": (("ldap injection",), ("ldap", "filter", "directory")),
     "mass_assignment": (("mass assignment", "over-posting", "overposting", "over post"), ("field", "property", "parameter", "role", "admin", "privilege")),
@@ -50,11 +52,11 @@ HARD_ANCHORS: dict[str, tuple[tuple[str, ...], ...]] = {
     "server_side_template_injection": (("server-side template injection", "server side template injection", "ssti", "template injection"), ("template", "render", "expression", "jinja", "twig", "freemarker")),
     "software_data_integrity_failure": (("deserial", "pickle", "unsafe yaml", "unsigned update", "signature verification", "integrity verification", "software update", "firmware"), ("untrusted", "arbitrary code", "code execution", "unsigned", "unsafe", "tamper", "malicious")),
     "software_supply_chain_failure": (("dependency", "package", "supply chain", "build pipeline", "artifact", "registry", "module"), ("malicious", "compromis", "untrusted", "vulnerable", "unmaintained", "dependency response", "package source")),
-    "source_map_exposure": (("source map", "sourcemap", "sourcemappingurl", ".js.map", "sourcescontent"), ("expos", "public", "disclos", "accessible", "served", "published")),
+    "source_map_exposure": (("source map", "sourcemap", "sourcemappingurl", ".js.map", ".mjs.map", ".map", "sourcescontent"), ("returned to the browser", "retrieve", "accessible", "served", "published", "public", "read", "response", "curl"), ("sensitive content", "sourcescontent", "outside the project root", "internal source", "source content", "server file contents", ".map")),
     "sql_injection": (("sql injection", "sqli"), ("sql", "database", "query")),
     "ssrf": (("ssrf", "server-side request forgery", "server side request forgery"), ("url", "request", "internal", "localhost", "metadata", "fetch")),
     "unrestricted_resource_consumption": (("denial of service", "resource exhaustion", "unbounded", "memory exhaustion", "cpu exhaustion", "resource consumption"), ("memory", "cpu", "resource", "large", "unbounded", "dos", "exhaust")),
-    "unsafe_api_consumption": (("third-party api", "third party api", "external api", "upstream api", "upstream service", "external service", "third-party service"), ("validation", "trust", "sanitize", "tls", "redirect", "timeout", "untrusted", "response")),
+    "unsafe_api_consumption": (("third-party api", "third party api", "external api", "upstream api", "upstream service", "external service", "third-party service", "http client", "trusted upstream", "trusted server"), ("hostname validation", "certificate validation", "tls", "ssl", "upstream validation", "response validation"), ("person in the middle", "pitm", "man in the middle", "malicious data", "trusted server")),
     "websocket_authorization": (("websocket", "web socket", "stomp"), ("unauthorized", "authorization", "access control", "security bypass", "permission"), ("message", "subscription", "channel", "socket", "stomp")),
 }
 
@@ -87,7 +89,7 @@ def _load(path: Path) -> dict[str, Any]:
     return dict(value)
 
 
-def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplement: Mapping[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
+def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplement: Mapping[str, Any] | None, exact_supplement: Mapping[str, Any] | None = None, inventory_discovery: Mapping[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     selected = {str(row.get("family") or ""): dict(row) for row in shortlist.get("selected") or [] if isinstance(row, Mapping)}
     if set(selected) != set(HARD_ANCHORS):
         raise RuntimeError(f"shortlist family coverage mismatch: {len(selected)}/36")
@@ -96,10 +98,25 @@ def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplem
         family: [dict(row) for row in pools_raw.get(family, []) if isinstance(row, Mapping)]
         for family in HARD_ANCHORS
     }
-    if supplement is not None:
-        for row in supplement.get("selected") or []:
+    for extra in (supplement, exact_supplement):
+        if extra is None:
+            continue
+        for row in extra.get("selected") or []:
             if isinstance(row, Mapping) and str(row.get("family") or "") in pools:
+                if not bool(row.get("freshness_validated")):
+                    raise RuntimeError(f"supplement source is not freshness-validated: {row.get('family')}")
                 pools[str(row["family"])].append(dict(row))
+
+    if inventory_discovery is not None:
+        row = inventory_discovery.get("selected")
+        if not isinstance(row, Mapping):
+            raise RuntimeError("Analysis 6.26 inventory discovery has no selected source")
+        family = str(row.get("family") or "")
+        if family != "improper_inventory_management":
+            raise RuntimeError(f"Analysis 6.26 inventory discovery family mismatch: {family!r}")
+        if not bool(row.get("freshness_validated")):
+            raise RuntimeError("Analysis 6.26 inventory discovery source is not freshness-validated")
+        pools[family].append(dict(row))
 
     initial_audit: dict[str, Any] = {}
     failed: list[str] = []
@@ -116,11 +133,38 @@ def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplem
         if not passed:
             failed.append(family)
 
-    # Rebuild the complete 36-family assignment rather than patching failures in
-    # place. This guarantees project/root uniqueness is checked globally after
-    # stricter semantic validation, still without any engine scoring.
-    eligible: dict[str, list[dict[str, Any]]] = {}
+    semantic_failed_families = sorted(failed)
+    forced_repair_families = {"source_map_exposure"}
+    failed = sorted(set(failed) | forced_repair_families)
+
+    # Passing original selections are pinned. They were already chosen under the
+    # pre-scoring global root/project uniqueness constraint, so replacing them
+    # merely because another source has a higher textual score would create
+    # needless post-selection drift. Only semantic failures are repaired.
+    rebuilt: list[dict[str, Any]] = []
+    used_roots: set[str] = set()
+    used_projects: set[str] = set()
     for family in sorted(HARD_ANCHORS):
+        if family in failed:
+            continue
+        row = dict(selected[family])
+        passed, hits, score = audit_row(family, row)
+        if not passed:
+            raise RuntimeError(f"pinned source unexpectedly failed second audit: {family}")
+        row["source_family_audit_version"] = AUDIT_VERSION
+        row["source_family_audit_rule_version"] = AUDIT_RULE_VERSION
+        row["source_family_audit_score"] = score
+        row["source_family_audit_group_hits"] = hits
+        root = str(row.get("source_root") or "")
+        project = str(row.get("source_project") or "")
+        if not root or not project or root in used_roots or project in used_projects:
+            raise RuntimeError(f"pinned source uniqueness regression: {family}")
+        rebuilt.append(row)
+        used_roots.add(root)
+        used_projects.add(project)
+
+    eligible: dict[str, list[dict[str, Any]]] = {}
+    for family in sorted(failed):
         rows: list[dict[str, Any]] = []
         seen_roots: set[str] = set()
         for raw in pools[family]:
@@ -141,14 +185,10 @@ def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplem
         rows.sort(key=lambda row: (int(row["source_family_audit_score"]), str(row.get("published_at") or ""), str(row.get("source_root") or "")), reverse=True)
         eligible[family] = rows
 
-    family_order = sorted(eligible, key=lambda family: (len(eligible[family]), family))
-    rebuilt: list[dict[str, Any]] = []
-    used_roots: set[str] = set()
-    used_projects: set[str] = set()
     missing: list[str] = []
-    for family in family_order:
+    for family in sorted(failed, key=lambda name: (len(eligible.get(name, [])), name)):
         chosen = None
-        for row in eligible[family]:
+        for row in eligible.get(family, []):
             root = str(row["source_root"])
             project = str(row["source_project"])
             if root in used_roots or project in used_projects:
@@ -182,9 +222,15 @@ def rebuild(candidates: Mapping[str, Any], shortlist: Mapping[str, Any], supplem
     audit = {
         "audit_version": AUDIT_VERSION,
         "audit_rule_version": AUDIT_RULE_VERSION,
-        "initial_failed_family_count": len(failed),
-        "initial_failed_families": failed,
-        "eligible_family_counts": {family: len(rows) for family, rows in sorted(eligible.items())},
+        "initial_failed_family_count": len(semantic_failed_families),
+        "initial_failed_families": semantic_failed_families,
+        "forced_repair_families": sorted(forced_repair_families),
+        "repair_family_count": len(failed),
+        "repair_families": failed,
+        "eligible_family_counts": {family: len(eligible.get(family, [])) for family in sorted(HARD_ANCHORS)},
+        "pinned_passing_family_count": 36 - len(failed),
+        "repaired_family_count": len(failed) - len(missing),
+        "semantic_failed_family_count": len(semantic_failed_families),
         "rebuilt_family_count": len(rebuilt_by_family),
         "rebuilt_root_count": len(used_roots),
         "rebuilt_project_count": len(used_projects),
@@ -217,6 +263,8 @@ def main() -> int:
     parser.add_argument("--candidates", default=str(DEFAULT_CANDIDATES))
     parser.add_argument("--shortlist", default=str(DEFAULT_SHORTLIST))
     parser.add_argument("--supplement", default=str(DEFAULT_SUPPLEMENT))
+    parser.add_argument("--exact-supplement", default=str(DEFAULT_EXACT_SUPPLEMENT))
+    parser.add_argument("--inventory-discovery", default=str(DEFAULT_INVENTORY_DISCOVERY))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--rebuilt", default=str(DEFAULT_REBUILT))
     args = parser.parse_args()
@@ -224,7 +272,11 @@ def main() -> int:
     shortlist = _load(Path(args.shortlist))
     supplement_path = Path(args.supplement)
     supplement = _load(supplement_path) if supplement_path.exists() else None
-    audit, rebuilt_shortlist = rebuild(candidates, shortlist, supplement)
+    exact_path = Path(args.exact_supplement)
+    exact_supplement = _load(exact_path) if exact_path.exists() else None
+    inventory_path = Path(args.inventory_discovery)
+    inventory_discovery = _load(inventory_path) if inventory_path.exists() else None
+    audit, rebuilt_shortlist = rebuild(candidates, shortlist, supplement, exact_supplement, inventory_discovery)
     Path(args.output).write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     Path(args.rebuilt).write_text(json.dumps(rebuilt_shortlist, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({

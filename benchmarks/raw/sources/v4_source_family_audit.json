@@ -1,0 +1,797 @@
+{
+  "audit_rule_version": "2026.08.12.6.26",
+  "audit_version": "1.1.0",
+  "changed_selection_count": 7,
+  "changed_selections": [
+    {
+      "after_project": "i18next/i18nextify",
+      "after_root": "GHSA-6457-mxpq-4fqq",
+      "after_summary": "i18nextify has DOM XSS via javascript:/data: URL schemes in translated href/src attributes",
+      "before_project": "github/secure_headers",
+      "before_root": "GHSA-rqq5-2gf9-4w4q",
+      "before_summary": "Secure Headers: CSP directive injection via sandbox, plugin_types, and report_to when given untrusted input",
+      "family": "dom_xss"
+    },
+    {
+      "after_project": "phpvms/phpvms",
+      "after_root": "GHSA-fv26-4939-62fh",
+      "after_summary": "phpVMS has an /importer authorization bypass causing full database wipe",
+      "before_project": "pimcore/admin-ui-classic-bundle",
+      "before_root": "GHSA-fx6j-9pp6-ph36",
+      "before_summary": "Pimcore vulnerable to disclosure of system and database information behind /admin firewall",
+      "family": "improper_inventory_management"
+    },
+    {
+      "after_project": "apache/camel",
+      "after_root": "GHSA-w66j-xc7r-m2jv",
+      "after_summary": "camel-ldap component allows LDAP Injection when using the filter option",
+      "before_project": "mattermost/mattermost",
+      "before_root": "GHSA-4r67-4x4p-fprg",
+      "before_summary": "Mattermost allows authenticated administrator to execute LDAP search filter injection",
+      "family": "ldap_injection"
+    },
+    {
+      "after_project": "owen2345/camaleon-cms",
+      "after_root": "GHSA-rp28-mvq3-wf8j",
+      "after_summary": "Camaleon CMS Vulnerable to Privilege Escalation through a Mass Assignment",
+      "before_project": "apache/camel",
+      "before_root": "GHSA-695c-x5gc-94gj",
+      "before_summary": "Apache camel-coap allows header injection that can lead to remote code execution",
+      "family": "mass_assignment"
+    },
+    {
+      "after_project": "RocketChat/Rocket.Chat",
+      "after_root": "GHSA-hgq6-9jg2-wf3f",
+      "after_summary": "NoSQL injection in the EE ddp-streamer-service",
+      "before_project": "spring-projects/spring-data-mongodb",
+      "before_root": "GHSA-hc43-m36c-8v33",
+      "before_summary": "Spring Data MongoDB Has Regex Parameter Binding Injection in @Query Repository Methods",
+      "family": "nosql_injection"
+    },
+    {
+      "after_project": "esm-dev/esm.sh",
+      "after_root": "GHSA-rg65-45m7-hq57",
+      "after_summary": "esm.sh: Path Traversal via package.json browser field allows reading arbitrary server files",
+      "before_project": "apollographql/router",
+      "before_root": "GHSA-hff2-gcpx-8f4p",
+      "before_summary": "Apollo Router Core: Browser Bug Enables Bypass of XS-Search Prevention via Read-Only Cross-Site Request Forgery",
+      "family": "source_map_exposure"
+    },
+    {
+      "after_project": "igrigorik/em-http-request",
+      "after_root": "CVE-2020-13482",
+      "after_summary": "Missing SSL/TLS certificate hostname validation in em-http-request",
+      "before_project": "opencost/opencost",
+      "before_root": "GHSA-wmj8-9953-vff5",
+      "before_summary": "OpenCost ServiceKey Endpoint Unauthorized Credential Overwrite/Injection",
+      "family": "unsafe_api_consumption"
+    }
+  ],
+  "eligible_family_counts": {
+    "account_enumeration": 0,
+    "authentication_session": 0,
+    "broken_function_authorization": 0,
+    "broken_object_authorization": 0,
+    "business_logic": 0,
+    "command_injection": 0,
+    "cors_misconfiguration": 0,
+    "cryptographic_failure": 0,
+    "dom_xss": 2,
+    "exceptional_condition_mishandling": 0,
+    "file_upload": 0,
+    "graphql_authorization": 0,
+    "graphql_data_exposure": 0,
+    "improper_inventory_management": 1,
+    "information_disclosure": 0,
+    "ldap_injection": 5,
+    "mass_assignment": 2,
+    "nosql_injection": 1,
+    "open_redirect": 0,
+    "path_traversal": 0,
+    "postmessage_trust": 0,
+    "race_condition": 0,
+    "secret_exposure": 0,
+    "security_logging_alerting_failure": 0,
+    "security_misconfiguration": 0,
+    "sensitive_business_flow_abuse": 0,
+    "sensitive_caching": 0,
+    "server_side_template_injection": 0,
+    "software_data_integrity_failure": 0,
+    "software_supply_chain_failure": 0,
+    "source_map_exposure": 2,
+    "sql_injection": 0,
+    "ssrf": 0,
+    "unrestricted_resource_consumption": 0,
+    "unsafe_api_consumption": 1,
+    "websocket_authorization": 0
+  },
+  "forced_repair_families": [
+    "source_map_exposure"
+  ],
+  "initial_audit": {
+    "account_enumeration": {
+      "group_hits": [
+        [
+          "enumerat",
+          "registered email"
+        ],
+        [
+          "account",
+          "email",
+          "user",
+          "username"
+        ]
+      ],
+      "passed": true,
+      "score": 19,
+      "source_project": "LemmyNet/lemmy",
+      "source_root": "GHSA-qxrw-f6fh-34r7",
+      "summary": "Lemmy resend-verification endpoint exposes registered email addresses to unauthenticated users"
+    },
+    "authentication_session": {
+      "group_hits": [
+        [
+          "authentication",
+          "login",
+          "saml",
+          "token"
+        ],
+        [
+          "impersonat"
+        ]
+      ],
+      "passed": true,
+      "score": 18,
+      "source_project": "rancher/rancher",
+      "source_root": "GHSA-mq23-vvg7-xfm4",
+      "summary": "Rancher does not Properly Validate Account Bindings in SAML Authentication Enables User Impersonation on First Login"
+    },
+    "broken_function_authorization": {
+      "group_hits": [
+        [
+          "admin",
+          "permission",
+          "privilege",
+          "role"
+        ],
+        [
+          "low privilege",
+          "unauthorized"
+        ]
+      ],
+      "passed": true,
+      "score": 19,
+      "source_project": "devtron-labs/devtron",
+      "source_root": "GHSA-8wpc-j9q9-j5m2",
+      "summary": "Devtron Attributes API Unauthorized Access Leading to API Token Signing Key Leakage"
+    },
+    "broken_object_authorization": {
+      "group_hits": [
+        [
+          "idor",
+          "ownership"
+        ],
+        [
+          "access control",
+          "authorization",
+          "bypass",
+          "unauthorized"
+        ]
+      ],
+      "passed": true,
+      "score": 19,
+      "source_project": "spree/spree",
+      "source_root": "GHSA-87fh-rc96-6fr6",
+      "summary": "Unauthenticated Spree Commerce users can access all guest addresses"
+    },
+    "business_logic": {
+      "group_hits": [
+        [
+          "payment status"
+        ],
+        [
+          "without proper"
+        ]
+      ],
+      "passed": true,
+      "score": 15,
+      "source_project": "aimeos/ai-client-html",
+      "source_root": "GHSA-v4g2-cm5v-cxv7",
+      "summary": "Digital products download without proper payment status check"
+    },
+    "command_injection": {
+      "group_hits": [
+        [
+          "command injection",
+          "os command injection"
+        ],
+        [
+          "command",
+          "exec",
+          "process",
+          "shell",
+          "system"
+        ]
+      ],
+      "passed": true,
+      "score": 20,
+      "source_project": "hiyouga/LLaMA-Factory",
+      "source_root": "GHSA-hj3w-wrh4-44vp",
+      "summary": "LLama Factory Remote OS Command Injection Vulnerability"
+    },
+    "cors_misconfiguration": {
+      "group_hits": [
+        [
+          "cors"
+        ],
+        [
+          "origin"
+        ]
+      ],
+      "passed": true,
+      "score": 13,
+      "source_project": "casdoor/casdoor",
+      "source_root": "GHSA-mchx-7j67-8mcf",
+      "summary": "Casdoor CORS misconfiguration (GHSL-2024-035)"
+    },
+    "cryptographic_failure": {
+      "group_hits": [
+        [
+          "cipher",
+          "crypto",
+          "cryptograph",
+          "hash",
+          "pbkdf",
+          "random"
+        ],
+        [
+          "insecure",
+          "iteration",
+          "plaintext",
+          "weak"
+        ]
+      ],
+      "passed": true,
+      "score": 23,
+      "source_project": "brix/crypto-js",
+      "source_root": "GHSA-xwcq-pm8m-c4vf",
+      "summary": "crypto-js PBKDF2 1,000 times weaker than specified in 1993 and 1.3M times weaker than current standard"
+    },
+    "dom_xss": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "github/secure_headers",
+      "source_root": "GHSA-rqq5-2gf9-4w4q",
+      "summary": "Secure Headers: CSP directive injection via sandbox, plugin_types, and report_to when given untrusted input"
+    },
+    "exceptional_condition_mishandling": {
+      "group_hits": [
+        [
+          "crash",
+          "fail open",
+          "fail-open",
+          "panic"
+        ],
+        [
+          "bypass",
+          "crash",
+          "panic"
+        ]
+      ],
+      "passed": true,
+      "score": 20,
+      "source_project": "grpc/grpc-go",
+      "source_root": "GHSA-hrxh-6v49-42gf",
+      "summary": "gRPC-Go: xDS RBAC and HTTP/2 Vulnerabilities"
+    },
+    "file_upload": {
+      "group_hits": [
+        [
+          "unrestricted upload",
+          "uploaded file"
+        ],
+        [
+          "extension",
+          "file",
+          "filename",
+          "mime",
+          "upload"
+        ]
+      ],
+      "passed": true,
+      "score": 18,
+      "source_project": "drupal/core",
+      "source_root": "GHSA-68jc-v27h-vhmw",
+      "summary": "Drupal core Unrestricted Upload of File with Dangerous Type"
+    },
+    "graphql_authorization": {
+      "group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "access control",
+          "authorization",
+          "scope"
+        ],
+        [
+          "field",
+          "query",
+          "schema"
+        ]
+      ],
+      "passed": true,
+      "score": 25,
+      "source_project": "apollographql/federation",
+      "source_root": "GHSA-m8jr-fxqx-8xx6",
+      "summary": "Apollo Federation has Improper Enforcement of Access Control on Transitive Fields"
+    },
+    "graphql_data_exposure": {
+      "group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "cross-site request forgery",
+          "csrf",
+          "read-only",
+          "xs-search"
+        ],
+        [
+          "field",
+          "response"
+        ]
+      ],
+      "passed": true,
+      "score": 25,
+      "source_project": "apollographql/apollo-server",
+      "source_root": "GHSA-9q82-xgwf-vj6h",
+      "summary": "Apollo Server: Browser bug allows for bypass of XS-Search (read-only Cross-Site Request Forgery) prevention"
+    },
+    "improper_inventory_management": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "pimcore/admin-ui-classic-bundle",
+      "source_root": "GHSA-fx6j-9pp6-ph36",
+      "summary": "Pimcore vulnerable to disclosure of system and database information behind /admin firewall"
+    },
+    "information_disclosure": {
+      "group_hits": [
+        [
+          "disclos",
+          "leak",
+          "sensitive information"
+        ],
+        [
+          "public",
+          "sensitive"
+        ]
+      ],
+      "passed": true,
+      "score": 18,
+      "source_project": "keras-team/keras",
+      "source_root": "GHSA-3m4q-jmj6-r34q",
+      "summary": "Keras has a Local File Disclosure via HDF5 External Storage During Keras Weight Loading"
+    },
+    "ldap_injection": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "mattermost/mattermost",
+      "source_root": "GHSA-4r67-4x4p-fprg",
+      "summary": "Mattermost allows authenticated administrator to execute LDAP search filter injection"
+    },
+    "mass_assignment": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "apache/camel",
+      "source_root": "GHSA-695c-x5gc-94gj",
+      "summary": "Apache camel-coap allows header injection that can lead to remote code execution"
+    },
+    "nosql_injection": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "spring-projects/spring-data-mongodb",
+      "source_root": "GHSA-hc43-m36c-8v33",
+      "summary": "Spring Data MongoDB Has Regex Parameter Binding Injection in @Query Repository Methods"
+    },
+    "open_redirect": {
+      "group_hits": [
+        [
+          "open redirect"
+        ],
+        [
+          "location",
+          "redirect",
+          "url"
+        ]
+      ],
+      "passed": true,
+      "score": 17,
+      "source_project": "Flask-Middleware/flask-security",
+      "source_root": "GHSA-6qmf-fj6m-686c",
+      "summary": "Open Redirect in Flask-Security-Too"
+    },
+    "path_traversal": {
+      "group_hits": [
+        [
+          "directory traversal",
+          "path traversal",
+          "zip slip"
+        ],
+        [
+          "archive",
+          "directory",
+          "extract",
+          "file",
+          "path"
+        ]
+      ],
+      "passed": true,
+      "score": 21,
+      "source_project": "openmrs/openmrs-core",
+      "source_root": "GHSA-78fc-9688-w8xw",
+      "summary": "OpenMRS Module Upload Vulnerable to Path Traversal (Zip Slip)"
+    },
+    "postmessage_trust": {
+      "group_hits": [
+        [
+          "postmessage"
+        ],
+        [
+          "cross-origin",
+          "e.origin",
+          "origin validation"
+        ],
+        [
+          "handler",
+          "iframe",
+          "message",
+          "window"
+        ]
+      ],
+      "passed": true,
+      "score": 26,
+      "source_project": "locize/locize",
+      "source_root": "GHSA-w937-fg2h-xhq2",
+      "summary": "locize Client SDK: Cross-origin DOM XSS & Handler Hijack Through Missing e.origin Validation in InContext Editor"
+    },
+    "race_condition": {
+      "group_hits": [
+        [
+          "concurrent",
+          "race condition"
+        ],
+        [
+          "concurrent",
+          "overwrite",
+          "race"
+        ]
+      ],
+      "passed": true,
+      "score": 16,
+      "source_project": "zenml-io/zenml",
+      "source_root": "GHSA-c546-8jmq-hprj",
+      "summary": "Race condition in zenml"
+    },
+    "secret_exposure": {
+      "group_hits": [
+        [
+          "api key",
+          "credential",
+          "secret",
+          "token"
+        ],
+        [
+          "client",
+          "public",
+          "source"
+        ]
+      ],
+      "passed": true,
+      "score": 20,
+      "source_project": "quarkiverse/quarkus-openapi-generator",
+      "source_root": "GHSA-fr8f-rwjx-f32v",
+      "summary": "quarkus-openapi-generator has overly broad path-parameter matching that sends authentication headers to unintended operations"
+    },
+    "security_logging_alerting_failure": {
+      "group_hits": [
+        [
+          "log",
+          "logging"
+        ],
+        [
+          "api key",
+          "password",
+          "secret",
+          "sensitive",
+          "token"
+        ]
+      ],
+      "passed": true,
+      "score": 20,
+      "source_project": "jeremylong/DependencyCheck",
+      "source_root": "GHSA-qqhq-8r2c-c3f5",
+      "summary": "nvdApiKey is logged in debug mode"
+    },
+    "security_misconfiguration": {
+      "group_hits": [
+        [
+          "configuration",
+          "debug",
+          "stack trace"
+        ],
+        [
+          "default",
+          "enabled",
+          "exposed"
+        ]
+      ],
+      "passed": true,
+      "score": 19,
+      "source_project": "obsidianforensics/unfurl",
+      "source_root": "GHSA-vg9h-jx4v-cwx2",
+      "summary": "Unfurl's debug mode cannot be disabled due to string config parsing (Werkzeug debugger exposure)"
+    },
+    "sensitive_business_flow_abuse": {
+      "group_hits": [
+        [
+          "functionality misuse",
+          "password reset"
+        ],
+        [
+          "flood",
+          "limit"
+        ]
+      ],
+      "passed": true,
+      "score": 15,
+      "source_project": "goalgorilla/open_social",
+      "source_root": "GHSA-63wg-87qv-rw4r",
+      "summary": "Drupal Open Social allows Functionality Misuse"
+    },
+    "sensitive_caching": {
+      "group_hits": [
+        [
+          "cache",
+          "caching",
+          "cdn"
+        ],
+        [
+          "authenticated",
+          "authentication",
+          "cookie",
+          "sensitive",
+          "session"
+        ],
+        [
+          "cache-control",
+          "cached",
+          "cdn"
+        ]
+      ],
+      "passed": true,
+      "score": 29,
+      "source_project": "workos/authkit-nextjs",
+      "source_root": "GHSA-p8pf-44ff-93gf",
+      "summary": "authkit-nextjs may let session cookies be cached in CDNs"
+    },
+    "server_side_template_injection": {
+      "group_hits": [
+        [
+          "server-side template injection",
+          "ssti",
+          "template injection"
+        ],
+        [
+          "expression",
+          "freemarker",
+          "template"
+        ]
+      ],
+      "passed": true,
+      "score": 17,
+      "source_project": "opensagres/xdocreport",
+      "source_root": "GHSA-r8w2-w357-9pjv",
+      "summary": "XDocReport affected by a Server-Side Template Injection (SSTI) vulnerability"
+    },
+    "software_data_integrity_failure": {
+      "group_hits": [
+        [
+          "deserial",
+          "integrity verification",
+          "pickle"
+        ],
+        [
+          "arbitrary code",
+          "code execution",
+          "malicious",
+          "untrusted"
+        ]
+      ],
+      "passed": true,
+      "score": 20,
+      "source_project": "funstory-ai/BabelDOC",
+      "source_root": "GHSA-m8gf-v64p-gfmg",
+      "summary": "BabelDOC: Arbitrary Code Execution via CMap Pickle Deserialization in babeldoc/pdfminer/cmapdb.py"
+    },
+    "software_supply_chain_failure": {
+      "group_hits": [
+        [
+          "artifact",
+          "dependency",
+          "module",
+          "package",
+          "registry"
+        ],
+        [
+          "dependency response",
+          "malicious",
+          "untrusted"
+        ]
+      ],
+      "passed": true,
+      "score": 21,
+      "source_project": "opentofu/opentofu",
+      "source_root": "GHSA-hw5x-4r37-72w7",
+      "summary": "OpenTofu has unbounded memory usage, high CPU usage, or deadlock in \"tofu init\" with maliciously-crafted dependency responses"
+    },
+    "source_map_exposure": {
+      "group_hits": [
+        [
+          ".map"
+        ],
+        [
+          "read",
+          "response"
+        ],
+        [
+          ".map"
+        ]
+      ],
+      "passed": true,
+      "score": 22,
+      "source_project": "apollographql/router",
+      "source_root": "GHSA-hff2-gcpx-8f4p",
+      "summary": "Apollo Router Core: Browser Bug Enables Bypass of XS-Search Prevention via Read-Only Cross-Site Request Forgery"
+    },
+    "sql_injection": {
+      "group_hits": [
+        [
+          "sql injection"
+        ],
+        [
+          "database",
+          "query",
+          "sql"
+        ]
+      ],
+      "passed": true,
+      "score": 17,
+      "source_project": "prest/prest",
+      "source_root": "GHSA-p46v-f2x8-qp98",
+      "summary": "pREST has a Systemic SQL Injection Vulnerability"
+    },
+    "ssrf": {
+      "group_hits": [
+        [
+          "server-side request forgery",
+          "ssrf"
+        ],
+        [
+          "fetch",
+          "internal",
+          "localhost",
+          "metadata",
+          "request",
+          "url"
+        ]
+      ],
+      "passed": true,
+      "score": 21,
+      "source_project": "LearningCircuit/local-deep-research",
+      "source_root": "GHSA-fj2m-qvh9-jq4q",
+      "summary": "local-deep-research is Vulnerable to HTML Injection via Unescaped User Input in PDF Export (`pdf_service.py:_markdown_to_html`)"
+    },
+    "unrestricted_resource_consumption": {
+      "group_hits": [
+        [
+          "denial of service",
+          "memory exhaustion",
+          "resource exhaustion",
+          "unbounded"
+        ],
+        [
+          "dos",
+          "exhaust",
+          "large",
+          "memory",
+          "resource",
+          "unbounded"
+        ]
+      ],
+      "passed": true,
+      "score": 23,
+      "source_project": "gopacket/gopacket",
+      "source_root": "GHSA-g6v3-7xmc-w563",
+      "summary": "GoPacket's sFlow ExtendedGatewayFlow decoder: unbounded attacker-controlled allocation (104-byte UDP datagram -> up to 16 GiB make) -> unauthenticated remote DoS"
+    },
+    "unsafe_api_consumption": {
+      "group_hits": [
+        []
+      ],
+      "passed": false,
+      "score": 0,
+      "source_project": "opencost/opencost",
+      "source_root": "GHSA-wmj8-9953-vff5",
+      "summary": "OpenCost ServiceKey Endpoint Unauthorized Credential Overwrite/Injection"
+    },
+    "websocket_authorization": {
+      "group_hits": [
+        [
+          "stomp",
+          "websocket"
+        ],
+        [
+          "security bypass",
+          "unauthorized"
+        ],
+        [
+          "message",
+          "socket",
+          "stomp"
+        ]
+      ],
+      "passed": true,
+      "score": 23,
+      "source_project": "spring-projects/spring-framework",
+      "source_root": "GHSA-7fch-4f2f-jcgm",
+      "summary": "Spring Framework STOMP over WebSocket applications may allow attackers to send unauthorized messages"
+    }
+  },
+  "initial_failed_families": [
+    "dom_xss",
+    "improper_inventory_management",
+    "ldap_injection",
+    "mass_assignment",
+    "nosql_injection",
+    "unsafe_api_consumption"
+  ],
+  "initial_failed_family_count": 6,
+  "missing_families": [],
+  "note": "Hard source-family semantic audit executed before raw corpus materialization and before any Analysis Engine scoring.",
+  "pinned_passing_family_count": 29,
+  "rebuilt_family_count": 36,
+  "rebuilt_project_count": 36,
+  "rebuilt_root_count": 36,
+  "repair_families": [
+    "dom_xss",
+    "improper_inventory_management",
+    "ldap_injection",
+    "mass_assignment",
+    "nosql_injection",
+    "source_map_exposure",
+    "unsafe_api_consumption"
+  ],
+  "repair_family_count": 7,
+  "repaired_family_count": 7,
+  "selection_executes_analysis_engine": false,
+  "selection_uses_admission_results": false,
+  "selection_uses_benchmark_results": false,
+  "selection_uses_detector_scores": false,
+  "semantic_failed_family_count": 6
+}
