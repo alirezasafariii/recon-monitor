@@ -2,53 +2,59 @@ name: Recon Monitor CI
 
 on:
   push:
-    branches: [agent/vulnerability-intelligence-8.6.0]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  docs:
+  test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/vulnerability-intelligence-8.6.0
-      - name: Update analyzer documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/FAMILY_ANALYZERS.md')
-          text=p.read_text(encoding='utf-8')
-          section='''## 11. Path Traversal\n\n`family_analyzers.path_traversal.PathTraversalFamilyAnalyzer`\n\nPrimary reasoning references:\n\n- CWE-22 — Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)\n- related CWE-23 — Relative Path Traversal\n- related CWE-36 — Absolute Path Traversal\n- WSTG-ATHZ-01 — Testing Directory Traversal File Include\n\nThe algorithm separates path/filename surface, expected root policy, controlled boundary observation, canonicalization/root enforcement, and a stricter confirmation boundary. Structural path input plus a file operation intentionally shares one evidence root, so it remains a hidden hypothesis by itself.\n\n`path_escape_observed` requires stored behavior from an explicitly controlled, non-sensitive test resource showing that a path expected to remain contained or be rejected resolved outside the intended root and reached the relevant file operation. This may promote a Potential Finding, but does not by itself make the family confirmation-ready.\n\nConfirmation requires the same controlled observation to establish at least one stronger filesystem-boundary condition:\n\n- `canonicalization_bypass_observed`\n- `out_of_root_file_access_observed`\n- `out_of_root_file_write_observed`\n\n`canonicalization_enforced` and `base_directory_enforced` are contradiction evidence when the relevant containment controls are actually observed. Confirmation signals cannot hitchhike from a different uncontrolled observation.\n\n```text\npath/filename + file operation\n        ↓\nhidden hypothesis\n        ↓\ncontrolled non-sensitive root escape\n        ↓\nPotential Finding\n        ↓\nout-of-root access/write or canonicalization-boundary bypass\n        ↓\nfamily confirmation-ready state\n```\n\nThe analyzer is read-only over stored observations. It performs **no active request**, no filesystem read/write, no archive extraction, no sensitive-path request and no traversal-payload generation. File Upload and Information Disclosure remain neighboring families and are not inferred from traversal surface alone.\n\n'''
-          anchor='## Write-up pattern library\n'
-          if '## 11. Path Traversal\n' not in text:
-              text=text.replace(anchor,section+anchor,1)
-          text=text.replace('SSRF and File Upload / Import migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch or upload/import semantics remain hidden until independent stored target behavior exists.','SSRF, File Upload / Import and Path Traversal migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import or path/file-operation semantics remain hidden until independent stored target behavior exists.')
-          text=text.replace('10. File Upload / Import\n\nPending dedicated analyzers: **11**.','10. File Upload / Import\n11. Path Traversal\n\nPending dedicated analyzers: **10**.')
-          text=text.replace('1. Path Traversal\n2. Information Disclosure\n3. Source-map Exposure\n4. Secret Exposure\n5. GraphQL Authorization\n6. GraphQL Data Exposure\n7. Business Logic\n8. Race Condition\n9. WebSocket Authorization\n10. CORS\n11. Sensitive Caching','1. Information Disclosure\n2. Source-map Exposure\n3. Secret Exposure\n4. GraphQL Authorization\n5. GraphQL Data Exposure\n6. Business Logic\n7. Race Condition\n8. WebSocket Authorization\n9. CORS\n10. Sensitive Caching')
-          p.write_text(text,encoding='utf-8')
-          PY
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
 
-      - name: Normalize manifest and commit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify source hygiene
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import hashlib,pathlib,subprocess
-          standard='540637cb95ca3a2d6577a0d222a6cdb5d5d892244b305d66f6c1b962bc10484d'
-          names=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
-          lines=[]
-          for name in sorted(x for x in names if x and x!='MANIFEST.sha256'):
-              digest=standard if name=='.github/workflows/ci.yml' else hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
-              lines.append(f'{digest}  {name}')
-          pathlib.Path('MANIFEST.sha256').write_text('\n'.join(lines)+'\n',encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/FAMILY_ANALYZERS.md MANIFEST.sha256
-          git commit -m 'Document Path Traversal analyzer and refresh manifest'
-          git push origin HEAD:agent/vulnerability-intelligence-8.6.0
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+
+      - name: Verify manifest
+        shell: bash
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$CLI_VERSION"
+          fi
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Integration test
+        run: python tests/integration_runner.py
