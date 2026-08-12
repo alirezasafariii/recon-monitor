@@ -5,6 +5,7 @@ from .bfla import BflaFamilyAnalyzer
 from .bola import BolaFamilyAnalyzer
 from .dom_xss import DomXssFamilyAnalyzer
 from .file_upload import FileUploadFamilyAnalyzer
+from .information_disclosure import InformationDisclosureFamilyAnalyzer
 from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .path_traversal import PathTraversalFamilyAnalyzer
@@ -27,6 +28,7 @@ __all__ = [
     "SsrfFamilyAnalyzer",
     "FileUploadFamilyAnalyzer",
     "PathTraversalFamilyAnalyzer",
+    "InformationDisclosureFamilyAnalyzer",
     "analyzer_for_family",
     "registered_families",
     "pending_families",
