@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_api_configuration_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.21.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.21"
@@ -527,6 +527,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.22 — physical authentication/account-enumeration collector ownership.
+    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive stored target
+    # evidence remains owned by execution/reconstruction and family admission.
+    for observation in collect_authentication_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -557,28 +574,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     # Analysis 6.17: Function Authorization and Mass Assignment legacy collection was physically
     # removed after equivalent execution/admission coverage moved to raw_family_collectors.authorization.
 
-    # Authentication / recovery / enumeration
-    auth_markers = _contains_any(haystack, ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso"))
-    if auth_markers:
-        support = [
-            {"type": "authentication_surface", "source": "semantic", "weight": 16, "text": f"Authentication or recovery markers observed: {', '.join(auth_markers[:6])}"},
-            {"type": "client_operation", "source": "endpoint", "weight": 9, "text": "The operation is exposed in client-observable application behavior"},
-        ]
-        if method in {"POST", "PUT", "PATCH"}:
-            support.append({"type": "state_change", "source": "method", "weight": 7, "text": f"Authentication state may change through {method}"})
-        emit("authentication_session", "auth_lifecycle", 20, support, [],
-             ["Expected authentication state machine", "Token rotation and expiration behavior", "Rate limiting and recovery verification behavior"],
-             ["candidate-auth-surface", "candidate-auth-lifecycle"],
-             "The collected endpoint and client context expose an authentication or session lifecycle that warrants controlled review.")
-        if any(token in haystack for token in ("forgot", "reset", "recover", "lookup", "check-email", "username")):
-            enum_support = support[:2] + [{"type": "identity_lookup", "source": "semantic", "weight": 12, "text": "The flow appears to accept an account identity or recovery identifier"}]
-            for flag, signal in (("response_difference", "response_difference"), ("timing_difference", "timing_difference"), ("distinct_error", "distinct_error"), ("account_existence_differential", "account_existence_differential")):
-                if _explicit_flag(details, flag):
-                    enum_support.append({"type": signal, "source": "stored_behavior", "source_group": "enumeration_behavior", "weight": 24, "text": f"Stored controlled-account evidence records {signal.replace('_', ' ')}"})
-            emit("account_enumeration", "identity_response_difference", 15, enum_support, [],
-                 ["Response-shape consistency for test identities", "Timing consistency", "Rate limiting"],
-                 ["candidate-recovery-identity", "candidate-response-difference"],
-                 "An identity or recovery lookup may reveal whether a test account exists through response differences.", impact=48)
+    # Analysis 6.22: Authentication/Session and Account Enumeration legacy alert emission was physically removed.
+    # raw_family_collectors.authentication owns emission metadata; execution/reconstruction
+    # remains the sole source of target evidence, blockers, and condition signals.
 
     # Analysis 6.19: legacy Open Redirect alert emission was physically removed.
     # raw_family_collectors.client_side owns emission metadata; detector execution

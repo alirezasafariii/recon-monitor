@@ -49,8 +49,8 @@ class FamilyDetectorSpec:
         return groups | self.blocking_controls | self.override_signals
 
 
-def writeup(ref: str, url: str, relation: str, lesson: str) -> WriteupReference:
-    return WriteupReference(ref=ref, url=url, relation=relation, lesson=lesson)
+def writeup(ref: str, url: str, relation: str, lesson: str, *, source: str = "GitHub Security Lab") -> WriteupReference:
+    return WriteupReference(ref=ref, url=url, relation=relation, lesson=lesson, source=source)
 
 
 def make_spec(

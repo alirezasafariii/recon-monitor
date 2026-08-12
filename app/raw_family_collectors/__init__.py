@@ -15,6 +15,14 @@ from raw_family_collectors.authorization import (
     collect_authorization_observations,
     validate_authorization_collectors,
 )
+from raw_family_collectors.authentication import (
+    AUTHENTICATION_COLLECTOR_RULE_VERSION,
+    AUTHENTICATION_COLLECTOR_VERSION,
+    AUTHENTICATION_FAMILIES,
+    AUTHENTICATION_OBSERVATIONS,
+    collect_authentication_observations,
+    validate_authentication_collectors,
+)
 from raw_family_collectors.business_logic import (
     BUSINESS_LOGIC_COLLECTOR_RULE_VERSION,
     BUSINESS_LOGIC_COLLECTOR_VERSION,
@@ -56,6 +64,12 @@ __all__ = [
     "API_CONFIGURATION_OBSERVATIONS",
     "collect_api_configuration_observations",
     "validate_api_configuration_collectors",
+    "AUTHENTICATION_COLLECTOR_VERSION",
+    "AUTHENTICATION_COLLECTOR_RULE_VERSION",
+    "AUTHENTICATION_FAMILIES",
+    "AUTHENTICATION_OBSERVATIONS",
+    "collect_authentication_observations",
+    "validate_authentication_collectors",
     "BUSINESS_LOGIC_COLLECTOR_VERSION",
     "BUSINESS_LOGIC_COLLECTOR_RULE_VERSION",
     "BUSINESS_LOGIC_FAMILIES",
