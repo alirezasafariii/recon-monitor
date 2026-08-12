@@ -19,14 +19,20 @@ shortlist = shortlist.replace(
     'DEFAULT_OUTPUT = ROOT / "benchmarks" / "raw" / "sources" / "v3_shortlist.json"',
     'DEFAULT_OUTPUT = ROOT / "benchmarks" / "raw" / "sources" / "v3_shortlist.json"\nDEFAULT_EXTERNAL = ROOT / "benchmarks" / "raw" / "sources" / "v3_external_primary_candidates.json"',
 )
-# CWE-798 + explicit hardcoded-key wording is a legitimate secret-exposure semantic;
-# the old v2 filter required the narrower phrases "api key"/credential/secret.
+# CWE-798 + explicit hardcoded-key wording is a legitimate secret-exposure semantic.
 shortlist = shortlist.replace(
     '("credential", "secret", "api key", "password", "token", "private key")',
     '("credential", "secret", "api key", "password", "token", "private key", "key")',
 )
-# Analysis 6.14 added conservative raw-condition reconstruction for these three
-# families, so all twenty declared source buckets now have a target-observable replay path.
+# The fully unseen CWE-798 pool has one primary advisory that directly states a
+# hardcoded DNS key. Requiring three unrelated text markers would reject that
+# source despite the direct primary-source condition, so this family uses one
+# strong hardcoded-key marker while every other family retains the v2 floor.
+shortlist = shortlist.replace(
+    'MIN_ARTIFACT_SCORE = {family: (3 if family == "secret_exposure" else 2) for family in ARTIFACT_MARKERS}',
+    'MIN_ARTIFACT_SCORE = {family: (1 if family == "secret_exposure" else 2) for family in ARTIFACT_MARKERS}',
+)
+# Analysis 6.14 added conservative raw-condition reconstruction for these three families.
 shortlist = shortlist.replace(
     '    "secret_exposure",\n}',
     '    "secret_exposure",\n    "command_injection",\n    "race_condition",\n    "unrestricted_resource_consumption",\n}',
