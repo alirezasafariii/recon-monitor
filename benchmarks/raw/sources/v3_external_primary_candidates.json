@@ -2,39 +2,39 @@
   "candidates_by_family": {
     "cors_misconfiguration": [
       {
-        "source_root": "GHSL-2024-035",
-        "source_project": "casdoor/casdoor",
+        "source_root": "GHSL-2024-162",
+        "source_project": "danielgatis/rembg",
         "family": "cors_misconfiguration",
         "cwe": "CWE-942",
-        "published_at": "2024-08-14T00:00:00Z",
-        "updated_at": "2024-08-14T00:00:00Z",
-        "severity": "high",
-        "summary": "Casdoor CORS misconfiguration permits cross-origin actions in signed-in context",
-        "description": "GitHub Security Lab reported a CORS misconfiguration in Casdoor. The vulnerable CORS filter accepted attacker-controlled Origin values that matched unsafe prefixes and then reflected that origin through Access-Control-Allow-Origin while also enabling Access-Control-Allow-Credentials. The primary advisory shows the response header logic and explains that a malicious cross-origin website could make requests as the current signed-in user. This source is used only to define inert reflected-Origin versus trusted-Origin response fixtures; no live request is sent.",
-        "repository_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/",
-        "source_code_location": "https://github.com/casdoor/casdoor",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/",
-        "references": ["https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/"],
-        "observable_term_hits": ["cors", "origin", "access-control-allow-origin", "access-control-allow-credentials", "cross-origin"],
+        "published_at": "2025-02-27T00:00:00Z",
+        "updated_at": "2025-02-27T00:00:00Z",
+        "severity": "medium",
+        "summary": "rembg weak default CORS configuration allows arbitrary cross-origin API access",
+        "description": "GitHub Security Lab reported a weak default CORS configuration in rembg. The server configures CORSMiddleware with allow_origins=[\"*\"], allow_credentials=True, allow_methods=[\"*\"], and allow_headers=[\"*\"]. The advisory explains that all origins are reflected/allowed so any website can send cross-origin requests to the server, and credentialed cross-origin requests would also be permitted if authentication is enabled. This primary advisory gives a direct unsafe Access-Control-Allow-Origin/credential policy artifact for an inert raw CORS fixture.",
+        "repository_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/",
+        "source_code_location": "https://github.com/danielgatis/rembg",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/",
+        "references": ["https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/"],
+        "observable_term_hits": ["cors", "origin", "access-control-allow-origin", "credential", "cross-origin"],
         "source_kind": "project_security_advisory"
       }
     ],
-    "ldap_injection": [
+    "nosql_injection": [
       {
-        "source_root": "GHSL-2024-009",
-        "source_project": "getredash/redash",
-        "family": "ldap_injection",
-        "cwe": "CWE-90",
-        "published_at": "2024-05-23T00:00:00Z",
-        "updated_at": "2024-05-23T00:00:00Z",
-        "severity": "high",
-        "summary": "Redash LDAP authentication filter can be altered by unauthenticated user input",
-        "description": "GitHub Security Lab reported LDAP injection in Redash authentication. User-controlled identity input was formatted into an LDAP search filter, allowing crafted input to alter directory filter semantics and authentication/search behavior. The primary advisory includes the vulnerable auth_ldap_user flow and an example injected LDAP filter. This source is translated only into inert raw LDAP query/error/control fixtures; no live directory request is executed.",
-        "repository_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-009_Redash/",
-        "source_code_location": "https://github.com/getredash/redash",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-009_Redash/",
-        "references": ["https://securitylab.github.com/advisories/GHSL-2024-009_Redash/"],
-        "observable_term_hits": ["ldap", "filter", "directory", "search"],
+        "source_root": "GHSL-2026-005",
+        "source_project": "RocketChat/Rocket.Chat",
+        "family": "nosql_injection",
+        "cwe": "CWE-943",
+        "published_at": "2026-03-12T00:00:00Z",
+        "updated_at": "2026-03-12T00:00:00Z",
+        "severity": "critical",
+        "summary": "Rocket.Chat ddp-streamer username flow is vulnerable to MongoDB NoSQL injection",
+        "description": "GitHub Security Lab reported a NoSQL injection in Rocket.Chat's account service. Unauthenticated client-controlled username input is embedded directly into a MongoDB findOne selector without type or content validation. The primary advisory shows that a MongoDB operator expression such as { $regex: '.*' } can be supplied in place of a username string, causing the database query to match unintended user records. This is a direct NoSQL/Mongo query-operator manipulation condition and is translated only into inert raw query/error/control fixtures.",
+        "repository_advisory_url": "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat/",
+        "source_code_location": "https://github.com/RocketChat/Rocket.Chat",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat/",
+        "references": ["https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat/"],
+        "observable_term_hits": ["nosql", "mongodb", "mongo", "operator", "query", "$regex"],
         "source_kind": "project_security_advisory"
       }
     ],
@@ -58,5 +58,5 @@
       }
     ]
   },
-  "note": "Primary GitHub Security Lab research advisories used only where the fully unseen GitHub Reviewed Advisory pool had no remaining family source after excluding all prior v2 candidate roots. No detector scoring was used to select these sources."
+  "note": "Primary GitHub Security Lab research advisories used only where the fully unseen GitHub Reviewed Advisory pool had no remaining family source after excluding all prior v2 candidate roots. Casdoor and Redash candidates were removed after the v3 validator detected prior benchmark overlap. No detector scoring was used to select these sources."
 }
