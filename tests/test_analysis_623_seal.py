@@ -1,58 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def replace_once(path: Path, old: str, new: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    count = text.count(old)
-    if count != 1:
-        raise RuntimeError(f"{path}: expected one replacement target, found {count}")
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
-for relative, replacements in {
-    "app/analysis_engine.py": [
-        ('ENGINE_VERSION = "6.22.0"', 'ENGINE_VERSION = "6.23.0"'),
-        ('RULE_VERSION = "2026.08.12.6.22"', 'RULE_VERSION = "2026.08.12.6.23"'),
-    ],
-    "app/bug_candidates.py": [
-        ('CANDIDATE_ENGINE_VERSION = "6.22.0"', 'CANDIDATE_ENGINE_VERSION = "6.23.0"'),
-        ('CANDIDATE_RULE_VERSION = "2026.08.12.6.22"', 'CANDIDATE_RULE_VERSION = "2026.08.12.6.23"'),
-    ],
-    "app/security_reasoning.py": [
-        ('REASONING_ENGINE_VERSION = "6.22.0"', 'REASONING_ENGINE_VERSION = "6.23.0"'),
-        ('REASONING_RULE_VERSION = "2026.08.12.6.22"', 'REASONING_RULE_VERSION = "2026.08.12.6.23"'),
-    ],
-}.items():
-    path = ROOT / relative
-    for old, new in replacements:
-        replace_once(path, old, new)
-
-old_test = ROOT / "tests" / "test_analysis_622_seal.py"
-replace_once(
-    old_test,
-    '''        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.22.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.22.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.22.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.12.6.22")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.12.6.22")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.12.6.22")
-''',
-    '''        self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
-        self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
-        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 22, 0))
-        self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
-        self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
-''',
-)
-
-seal_test = '''from __future__ import annotations
-
 import sys
 import unittest
 from pathlib import Path
@@ -128,36 +75,3 @@ class Analysis623SealTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-'''
-(ROOT / "tests" / "test_analysis_623_seal.py").write_text(seal_test, encoding="utf-8")
-
-doc = '''# Analysis Engine 6.23 Seal
-
-Analysis 6.23 seals the physical decomposition of Information Disclosure, CORS Misconfiguration, and Sensitive Caching after collector, routing-boundary, raw-reconstruction, full-unit, Golden benchmark, and integration validation.
-
-Sealed production lineage:
-
-- Analysis Engine: `6.23.0`
-- Candidate Engine: `6.23.0`
-- Security Reasoning Engine: `6.23.0`
-- Rule lineage: `2026.08.12.6.23`
-- Exposure/header collector lineage: `2026.08.12.6.23`
-
-All 31 vulnerability families retain mandatory WSTG + OWASP + CWE + real-write-up grounding. Standards and write-ups remain detector knowledge only and never target evidence.
-
-The seal additionally locks two precision boundaries: route/category words such as `token` do not create Information Disclosure without a stored response/source artifact, and browser-cache promotion requires sensitive/authenticated response context plus an actual cache-isolation weakness such as missing `no-store`; protected `no-store` remains blocking evidence.
-'''
-(ROOT / "docs" / "ANALYSIS_ENGINE_6_23_SEAL.md").write_text(doc, encoding="utf-8")
-
-manifest = ROOT / "MANIFEST.sha256"
-entries: set[str] = set()
-for line in manifest.read_text(encoding="utf-8").splitlines():
-    if not line.strip():
-        continue
-    _, rel = line.split("  ", 1)
-    entries.add(rel.strip())
-entries.update({"tests/test_analysis_623_seal.py", "docs/ANALYSIS_ENGINE_6_23_SEAL.md"})
-manifest.write_text(
-    "\n".join(f"{hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()}  {rel}" for rel in sorted(entries)) + "\n",
-    encoding="utf-8",
-)
