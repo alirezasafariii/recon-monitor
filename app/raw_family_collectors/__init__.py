@@ -7,6 +7,14 @@ from raw_family_collectors.authorization import (
     collect_authorization_observations,
     validate_authorization_collectors,
 )
+from raw_family_collectors.file_remote_resource import (
+    FILE_REMOTE_COLLECTOR_RULE_VERSION,
+    FILE_REMOTE_COLLECTOR_VERSION,
+    FILE_REMOTE_FAMILIES,
+    FILE_REMOTE_OBSERVATIONS,
+    collect_file_remote_resource_observations,
+    validate_file_remote_collectors,
+)
 from raw_family_collectors.injection import (
     INJECTION_COLLECTOR_RULE_VERSION,
     INJECTION_COLLECTOR_VERSION,
@@ -24,6 +32,12 @@ __all__ = [
     "AUTHORIZATION_OBSERVATIONS",
     "collect_authorization_observations",
     "validate_authorization_collectors",
+    "FILE_REMOTE_COLLECTOR_VERSION",
+    "FILE_REMOTE_COLLECTOR_RULE_VERSION",
+    "FILE_REMOTE_FAMILIES",
+    "FILE_REMOTE_OBSERVATIONS",
+    "collect_file_remote_resource_observations",
+    "validate_file_remote_collectors",
     "INJECTION_COLLECTOR_VERSION",
     "INJECTION_COLLECTOR_RULE_VERSION",
     "INJECTION_FAMILIES",
