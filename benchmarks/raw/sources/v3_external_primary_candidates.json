@@ -10,12 +10,12 @@
         "updated_at": "2024-08-14T00:00:00Z",
         "severity": "high",
         "summary": "Casdoor CORS misconfiguration permits cross-origin actions in signed-in context",
-        "description": "GitHub Security Lab reported a CORS misconfiguration in Casdoor. The application accepted unsafe cross-origin access patterns that could allow an attacker-controlled origin to act in the context of a signed-in user. The primary advisory describes the CORS/origin trust problem, credentialed application context, affected response behavior, and remediation. This source is used only to define an inert raw cross-origin fixture with an unsafe reflected Origin response versus trusted-origin controls.",
+        "description": "GitHub Security Lab reported a CORS misconfiguration in Casdoor. The vulnerable CORS filter accepted attacker-controlled Origin values that matched unsafe prefixes and then reflected that origin through Access-Control-Allow-Origin while also enabling Access-Control-Allow-Credentials. The primary advisory shows the response header logic and explains that a malicious cross-origin website could make requests as the current signed-in user. This source is used only to define inert reflected-Origin versus trusted-Origin response fixtures; no live request is sent.",
         "repository_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/",
         "source_code_location": "https://github.com/casdoor/casdoor",
         "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/",
         "references": ["https://securitylab.github.com/advisories/GHSL-2024-035_GHSL-2024-036_casdoor/"],
-        "observable_term_hits": ["cors", "origin", "cross-origin"],
+        "observable_term_hits": ["cors", "origin", "access-control-allow-origin", "access-control-allow-credentials", "cross-origin"],
         "source_kind": "project_security_advisory"
       }
     ],
