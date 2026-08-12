@@ -27,11 +27,11 @@ jobs:
       - name: Apply deterministic Analysis 6.19 cutover
         run: python scripts/analysis_619_cutover.py
 
+      - name: Correct multi-hypothesis client test contract
+        run: python scripts/analysis_619_test_contract_fix.py
+
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
-
-      - name: Add diagnostic assertion context
-        run: python scripts/analysis_619_diagnostic_patch.py
 
       - name: Four-layer standards grounding contract
         run: python -m unittest discover -s tests -p 'test_analysis_619_standards_grounding.py' -q
@@ -62,9 +62,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-619-one-shot.yml scripts/analysis_619_cutover.py scripts/analysis_619_diagnostic_patch.py
-          git checkout -- tests/test_physical_raw_collector_client_side_v6190.py
-          python scripts/analysis_619_cutover.py >/dev/null 2>&1 || true
+          git rm .github/workflows/analysis-619-one-shot.yml scripts/analysis_619_cutover.py scripts/analysis_619_diagnostic_patch.py scripts/analysis_619_test_contract_fix.py
           git add MANIFEST.sha256 app/analysis_standards.py app/hypothesis_admission.py app/family_detectors/base.py app/family_detectors/registry.py app/family_detectors/postmessage_trust.py app/raw_family_collectors/__init__.py app/raw_family_collectors/client_side.py app/bug_candidates.py docs/ANALYSIS_ENGINE_6_19_CLIENT_SIDE_STANDARDS_GROUNDING.md tests/test_analysis_standards_v630.py tests/test_physical_family_detectors_v690.py tests/test_analysis_619_standards_grounding.py tests/test_physical_raw_collector_client_side_v6190.py
           git diff --cached --check
           git commit -m "Cut over Analysis 6.19 client-side standards-grounded collectors"
