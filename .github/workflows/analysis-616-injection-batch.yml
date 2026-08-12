@@ -12,6 +12,8 @@ jobs:
   implement:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: app
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile app/raw_family_collectors/base.py app/raw_family_collectors/injection.py app/bug_candidates.py
-          PYTHONPATH=app python -m unittest tests.test_physical_raw_collector_injection_v6160 -v
+          python -m unittest tests.test_physical_raw_collector_injection_v6160 -v
 
       - name: Existing execution, firewall, reasoner, and candidate regressions
         shell: bash
@@ -45,8 +47,6 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py' -q
 
       - name: Golden regression
-        env:
-          PYTHONPATH: app
         run: python app/analysis_benchmark.py --strict
 
       - name: Integration regression
