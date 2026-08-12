@@ -21,6 +21,7 @@ from family_analyzers.authentication_session import analyze_authentication_sessi
 from family_analyzers.bfla import analyze_bfla_signal
 from family_analyzers.dom_xss import analyze_dom_xss_signal, is_dangerous_dom_sink
 from family_analyzers.file_upload import analyze_file_upload_signal
+from family_analyzers.information_disclosure import analyze_information_disclosure_signal
 from family_analyzers.mass_assignment import analyze_mass_assignment_signal
 from family_analyzers.open_redirect import analyze_open_redirect_signal, is_navigation_sink
 from family_analyzers.path_traversal import analyze_path_traversal_signal
@@ -34,7 +35,7 @@ for _name, _value in vars(_base).items():
         globals()[_name] = _value
 
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.9.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "1.10.0"
 _ORIGINAL_RECORD_HYPOTHESIS = _base.record_hypothesis
 _ORIGINAL_EVIDENCE_STRENGTH = _base._evidence_strength
 _ORIGINAL_STATIC_CANDIDATES = _base._static_candidates
@@ -89,6 +90,11 @@ _FAMILY_DIRECT_TYPES = {
         "canonicalization_bypass_observed",
         "out_of_root_file_access_observed",
         "out_of_root_file_write_observed",
+    },
+    "information_disclosure": {
+        "sensitive_response_observed",
+        "private_field_publicly_observed",
+        "error_detail_exposure_observed",
     },
 }
 
@@ -203,6 +209,13 @@ _base.FAMILY_EVIDENCE_SCHEMAS["path_traversal"] = {
     ),
     "label": "user-influenced path/filename plus file operation or stored filesystem-boundary differential",
 }
+_base.FAMILY_EVIDENCE_SCHEMAS["information_disclosure"] = {
+    "required_any": (
+        ("sensitive_marker",),
+        ("stored_evidence", "sensitive_response_observed", "private_field_publicly_observed"),
+    ),
+    "label": "sensitive/debug/internal marker plus stored response context or direct visibility-boundary exposure",
+}
 FAMILY_EVIDENCE_SCHEMAS = _base.FAMILY_EVIDENCE_SCHEMAS
 
 _DEDICATED_ALERT_FAMILIES = {
@@ -216,6 +229,7 @@ _DEDICATED_ALERT_FAMILIES = {
     "ssrf",
     "file_upload",
     "path_traversal",
+    "information_disclosure",
 }
 
 _INCOMPLETE_STATIC_GROUPS = {
@@ -452,6 +466,13 @@ def _dedicated_family_result(
 
     if family == "path_traversal":
         return analyze_path_traversal_signal(
+            db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
+            body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
+            details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],
+        )
+
+    if family == "information_disclosure":
+        return analyze_information_disclosure_signal(
             db, analysis_id=analysis_id, target=target, endpoint=stored["endpoint"], method=stored["method"],
             body_fields=stored["body_fields"], query_fields=stored["query_fields"], path_fields=stored["path_fields"],
             details=details, business_context=stored["business_context"], semantic_text=stored["semantic_text"],

@@ -364,6 +364,40 @@ family confirmation-ready state
 
 The analyzer is read-only over stored observations. It performs **no active request**, no filesystem read/write, no archive extraction, no sensitive-path request and no traversal-payload generation. File Upload and Information Disclosure remain neighboring families and are not inferred from traversal surface alone.
 
+## 12. Information Disclosure
+
+`family_analyzers.information_disclosure.InformationDisclosureFamilyAnalyzer`
+
+Primary reasoning references:
+
+- CWE-200 — Exposure of Sensitive Information to an Unauthorized Actor
+- related CWE-209 — Generation of Error Message Containing Sensitive Information
+- related CWE-497 — Exposure of Sensitive System Information to an Unauthorized Control Sphere
+- related CWE-1295 — Debug Messages Revealing Unnecessary Information
+- WSTG-ERRH-01 — Testing for Improper Error Handling
+- WSTG-ERRH-02 — Testing for Stack Traces
+- WSTG-INFO-05 — Review Web Page Content for Information Leakage
+
+The analyzer separates marker discovery from actual visibility-boundary evidence. Debug strings, stack-trace markers, framework/server versions, internal-looking paths, `token`/`secret` names and source-map references remain structural surface only. `sensitive_marker` and `stored_evidence` deliberately share one evidence root, so marker persistence alone cannot promote a Potential Finding.
+
+Direct target evidence requires stored response behavior showing explicitly sensitive/private information outside its intended audience. The canonical direct types are `sensitive_response_observed` and `private_field_publicly_observed`; error/debug disclosure may additionally emit `error_detail_exposure_observed` when the stored category is actually sensitive internal detail rather than a generic error status.
+
+`intended_public_metadata` and `redaction_enforced` are contradictions. Authorized-owner visibility does not become disclosure. Secret/token-only observations prefer `secret_exposure`, source-map-only observations prefer `source_map_exposure`, and GraphQL-specific excessive-field exposure remains a neighboring GraphQL family.
+
+```text
+debug/internal/sensitive-looking marker
+        ↓
+hidden hypothesis
+        ↓
+stored response + explicit non-public policy + public/unauthorized visibility
+        ↓
+Sensitive Information Disclosure Potential Finding
+        ↓
+analyst confirmation using minimal redacted evidence
+```
+
+The analyzer stores field names, categories and booleans only. It performs no active request, credential validation, private-data retrieval or payload generation, and it never copies raw sensitive values into analyzer output.
+
 ## Write-up pattern library
 
 Family analyzers may use either the shared non-evidentiary corpus in `vulnerability_knowledge.py` or family-specific curated pattern records. A matched write-up only tells the analyst which known pattern the stored target evidence resembles. It never adds support evidence, satisfies admission, or raises target-evidence confidence.
@@ -372,7 +406,7 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF, File Upload / Import and Path Traversal migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import or path/file-operation semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust and Open Redirect additionally migrate their static JavaScript paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
 
 ## Router status
 
@@ -389,22 +423,22 @@ Currently production-routed:
 9. Server-Side Request Forgery (SSRF)
 10. File Upload / Import
 11. Path Traversal
+12. Information Disclosure
 
-Pending dedicated analyzers: **10**.
+Pending dedicated analyzers: **9**.
 
 ## Migration order
 
 Next analyzers:
 
-1. Information Disclosure
-2. Source-map Exposure
-3. Secret Exposure
-4. GraphQL Authorization
-5. GraphQL Data Exposure
-6. Business Logic
-7. Race Condition
-8. WebSocket Authorization
-9. CORS
-10. Sensitive Caching
+1. Source-map Exposure
+2. Secret Exposure
+3. GraphQL Authorization
+4. GraphQL Data Exposure
+5. Business Logic
+6. Race Condition
+7. WebSocket Authorization
+8. CORS
+9. Sensitive Caching
 
 Each migration must add a dedicated analyzer, source-specific reasoning rules, false-positive tests, admission/confirmation regression coverage, production routing and green CI before the router is allowed to register that family.
