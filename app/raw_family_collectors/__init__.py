@@ -7,6 +7,14 @@ from raw_family_collectors.authorization import (
     collect_authorization_observations,
     validate_authorization_collectors,
 )
+from raw_family_collectors.client_side import (
+    CLIENT_SIDE_COLLECTOR_RULE_VERSION,
+    CLIENT_SIDE_COLLECTOR_VERSION,
+    CLIENT_SIDE_FAMILIES,
+    CLIENT_SIDE_OBSERVATIONS,
+    collect_client_side_observations,
+    validate_client_side_collectors,
+)
 from raw_family_collectors.file_remote_resource import (
     FILE_REMOTE_COLLECTOR_RULE_VERSION,
     FILE_REMOTE_COLLECTOR_VERSION,
@@ -26,6 +34,12 @@ from raw_family_collectors.injection import (
 
 __all__ = [
     "RawFamilyObservation",
+    "CLIENT_SIDE_COLLECTOR_VERSION",
+    "CLIENT_SIDE_COLLECTOR_RULE_VERSION",
+    "CLIENT_SIDE_FAMILIES",
+    "CLIENT_SIDE_OBSERVATIONS",
+    "collect_client_side_observations",
+    "validate_client_side_collectors",
     "AUTHORIZATION_COLLECTOR_VERSION",
     "AUTHORIZATION_COLLECTOR_RULE_VERSION",
     "AUTHORIZATION_FAMILIES",

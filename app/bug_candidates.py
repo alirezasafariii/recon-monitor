@@ -10,7 +10,7 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_authorization_observations, collect_file_remote_resource_observations, collect_injection_observations
+from raw_family_collectors import collect_authorization_observations, collect_client_side_observations, collect_file_remote_resource_observations, collect_injection_observations
 
 CANDIDATE_ENGINE_VERSION = "6.18.0"
 CANDIDATE_RULE_VERSION = "2026.08.12.6.18"
@@ -476,6 +476,23 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             impact=observation.impact,
         )
 
+    # Analysis 6.19 — physical raw collector ownership for client-side families.
+    # WSTG/OWASP/CWE/write-ups define detector criteria only; all target evidence
+    # still comes from passive execution/reconstruction and passes admission.
+    for observation in collect_client_side_observations(execution_map):
+        emit(
+            observation.family,
+            observation.variant,
+            observation.base,
+            [],
+            [],
+            list(observation.missing),
+            list(observation.rules),
+            observation.summary,
+            direct=observation.direct,
+            impact=observation.impact,
+        )
+
     # BOLA / IDOR 2.0 — object reference is a hypothesis surface, not a finding.
     # Promotion requires stored target evidence that the identity/scope-to-object authorization relation failed.
     structural_fields = [str(field) for field in path_fields + query_fields + body_fields]
@@ -529,23 +546,9 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
                  ["candidate-recovery-identity", "candidate-response-difference"],
                  "An identity or recovery lookup may reveal whether a test account exists through response differences.", impact=48)
 
-    # Redirect
-    redirect_tokens = _contains_any(haystack, ("redirect", "returnurl", "return_url", "callbackurl", "callback_url", "continue", "nexturl", "next="))
-    navigation = _contains_any(haystack, ("window.location", "location.href", "location.assign", "location.replace"))
-    if redirect_tokens and (query_fields or navigation):
-        support = [
-            {"type": "redirect_parameter", "source": "endpoint_schema", "weight": 18, "text": f"Navigation parameter markers observed: {', '.join(redirect_tokens[:5])}"},
-            {"type": "navigation_context", "source": "client", "weight": 14, "text": "The value appears in a client or callback navigation context"},
-        ]
-        if navigation or _explicit_flag(details, "navigation_sink", "redirect_response"):
-            support.append({"type": "navigation_sink", "source": "stored_flow", "source_group": "navigation", "weight": 16, "text": "Stored evidence identifies a navigation/redirect sink"})
-        for flag, signal in (("external_redirect_observed", "external_destination"), ("allowlist_bypass", "allowlist_bypass"), ("same_origin_bypass", "same_origin_bypass"), ("unrestricted_destination", "unrestricted_destination")):
-            if _explicit_flag(details, flag):
-                support.append({"type": signal, "source": "stored_behavior", "source_group": "redirect_behavior", "weight": 26, "text": f"Stored target evidence records {signal.replace('_', ' ')}"})
-        emit("open_redirect", "unvalidated_destination", 20, support, [],
-             ["Destination allow-list or same-origin validation", "Whether the parameter reaches the final navigation sink"],
-             ["candidate-redirect-parameter", "candidate-navigation-context"],
-             "A user-influenced destination may be used for navigation; validation and allow-list behavior are not established.")
+    # Analysis 6.19: legacy Open Redirect alert emission was physically removed.
+    # raw_family_collectors.client_side owns emission metadata; detector execution
+    # owns redirect input/sink/external-destination target evidence.
 
     # Shared remote-destination surface metadata is retained for API10 correlation.
     # Analysis 6.18 removes SSRF emission; detector execution owns SSRF target evidence.

@@ -6,8 +6,8 @@ from typing import Any, Iterable, Mapping
 from analysis_standards import FAMILY_STANDARDS
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-DETECTOR_ENGINE_VERSION = "1.0.0"
-DETECTOR_RULE_VERSION = "2026.08.10.6.9"
+DETECTOR_ENGINE_VERSION = "1.1.0"
+DETECTOR_RULE_VERSION = "2026.08.12.6.19"
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,7 @@ class FamilyDetectorSpec:
     surface_fields: tuple[str, ...]
     confounders: tuple[str, ...]
     wstg_ids: tuple[str, ...]
+    owasp_ids: tuple[str, ...]
     cwe_ids: tuple[str, ...]
     writeups: tuple[WriteupReference, ...]
     principle: str
@@ -66,11 +67,14 @@ def make_spec(
     policy = FAMILY_ADMISSION_POLICIES[family]
     standards = FAMILY_STANDARDS[family]
     actual_wstg = tuple(str(x["id"]) for x in standards.get("wstg", []))
+    actual_owasp = tuple(str(x["id"]) for x in standards.get("owasp", []))
     actual_cwe = tuple(str(x["id"]) for x in standards.get("cwe", []))
     expected_wstg = tuple(expected_wstg)
     expected_cwe = tuple(expected_cwe)
     if actual_wstg != expected_wstg:
         raise RuntimeError(f"{family}: detector/WSTG drift expected={expected_wstg} actual={actual_wstg}")
+    if not actual_owasp:
+        raise RuntimeError(f"{family}: detector/OWASP grounding is required")
     if actual_cwe != expected_cwe:
         raise RuntimeError(f"{family}: detector/CWE drift expected={expected_cwe} actual={actual_cwe}")
     required = tuple(frozenset(str(v) for v in group) for group in policy.get("required", []))
@@ -89,6 +93,7 @@ def make_spec(
         surface_fields=tuple(surface_fields),
         confounders=tuple(confounders),
         wstg_ids=actual_wstg,
+        owasp_ids=actual_owasp,
         cwe_ids=actual_cwe,
         writeups=refs,
         principle=str(standards.get("principle") or ""),

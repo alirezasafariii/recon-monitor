@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import importlib
+import sys
 import unittest
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "app"))
 
 from analysis_standards import FAMILY_STANDARDS, STANDARDS_ENGINE_VERSION
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
@@ -25,12 +29,14 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
             self.assertEqual(module.SPEC.family, family)
             self.assertTrue(module.SPEC.strategy)
 
-    def test_wstg_and_cwe_are_exactly_bound_to_canonical_standards(self):
+    def test_wstg_owasp_and_cwe_are_exactly_bound_to_canonical_standards(self):
         for family, spec in DETECTOR_SPECS.items():
             standards = FAMILY_STANDARDS[family]
             self.assertEqual(spec.wstg_ids, tuple(x["id"] for x in standards["wstg"]))
+            self.assertEqual(spec.owasp_ids, tuple(x["id"] for x in standards["owasp"]))
             self.assertEqual(spec.cwe_ids, tuple(x["id"] for x in standards["cwe"]))
             self.assertTrue(spec.wstg_ids)
+            self.assertTrue(spec.owasp_ids)
             self.assertTrue(spec.cwe_ids)
 
     def test_bfla_uses_current_explicit_api_wstg(self):
@@ -51,6 +57,7 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
         self.assertNotIn("securitylab.github.com", serialized_support)
         self.assertNotIn("WSTG-INPV-19", serialized_support)
         self.assertNotIn("CWE-918", serialized_support)
+        self.assertNotIn("A01:2025", serialized_support)
 
     def test_condition_and_control_contract_comes_from_admission_policy(self):
         for family, spec in DETECTOR_SPECS.items():
@@ -113,11 +120,14 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
         rules = detector_rule_ids("broken_object_authorization")
         self.assertTrue(any(x.startswith("physical-detector:") for x in rules))
         self.assertIn("wstg:WSTG-APIT-02", rules)
+        self.assertIn("owasp:API1:2023", rules)
+        self.assertIn("owasp:A01:2025", rules)
         self.assertIn("cwe:CWE-639", rules)
+        self.assertTrue(any(rule.startswith("writeup:") for rule in rules))
 
     def test_versions(self):
-        self.assertEqual(DETECTOR_ENGINE_VERSION, "1.0.0")
-        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.2.0")
+        self.assertEqual(DETECTOR_ENGINE_VERSION, "1.1.0")
+        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.3.0")
 
 
 if __name__ == "__main__":

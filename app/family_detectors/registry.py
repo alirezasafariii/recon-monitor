@@ -36,6 +36,8 @@ def validate_detector_registry() -> list[str]:
     for family, spec in DETECTOR_SPECS.items():
         if not spec.wstg_ids:
             errors.append(f"{family}:missing_wstg")
+        if not spec.owasp_ids:
+            errors.append(f"{family}:missing_owasp")
         if not spec.cwe_ids:
             errors.append(f"{family}:missing_cwe")
         if not spec.writeups:
@@ -62,7 +64,9 @@ def detector_rule_ids(family: str) -> list[str]:
     return [
         f"physical-detector:{family}:{DETECTOR_RULE_VERSION}",
         *[f"wstg:{ref}" for ref in spec.wstg_ids],
+        *[f"owasp:{ref}" for ref in spec.owasp_ids],
         *[f"cwe:{ref}" for ref in spec.cwe_ids],
+        *[f"writeup:{ref.ref}" for ref in spec.writeups],
     ]
 
 
@@ -75,7 +79,7 @@ def evaluate_family_detector(
 ) -> dict[str, Any]:
     """Apply the physical 6.9 detector contract before the 6.8 evidence firewall.
 
-    WSTG, CWE and write-up material defines detector criteria and confounders only.
+    WSTG, OWASP, CWE and write-up material define detector criteria and confounders only.
     None of it is inserted into target evidence, satisfies source-count requirements,
     or overrides target contradictions.
     """
@@ -89,10 +93,11 @@ def evaluate_family_detector(
         "version": DETECTOR_ENGINE_VERSION,
         "rule_version": DETECTOR_RULE_VERSION,
         "wstg_ids": list(spec.wstg_ids),
+        "owasp_ids": list(spec.owasp_ids),
         "cwe_ids": list(spec.cwe_ids),
         "confounders": list(spec.confounders),
         "writeups": [
-            {"ref": ref.ref, "url": ref.url, "relation": ref.relation, "source": ref.source, "counts_as_target_evidence": False}
+            {"ref": ref.ref, "url": ref.url, "relation": ref.relation, "source": ref.source, "lesson": ref.lesson, "counts_as_target_evidence": False}
             for ref in spec.writeups
         ],
     }

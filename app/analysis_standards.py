@@ -2,10 +2,13 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable, Mapping
 
-STANDARDS_ENGINE_VERSION = "1.2.0"
+STANDARDS_ENGINE_VERSION = "1.3.0"
 WSTG_REFERENCE_VERSION = "latest@2026-08-10"
+OWASP_REFERENCE_VERSION = "Top10:2025+API-Security:2023"
 CWE_REFERENCE_VERSION = "4.20"
 WSTG_BASE_URL = 'https://owasp.org/www-project-web-security-testing-guide/latest/'
+OWASP_TOP10_2025_BASE_URL = "https://owasp.org/Top10/2025/"
+OWASP_API_2023_BASE_URL = "https://owasp.org/API-Security/editions/2023/en/"
 CWE_BASE_URL = "https://cwe.mitre.org/data/definitions/"
 
 def _wstg(ref_id: str, title: str) -> dict[str, Any]:
@@ -14,6 +17,18 @@ def _wstg(ref_id: str, title: str) -> dict[str, Any]:
 def _cwe(ref_id: str, title: str, *, mapping: str = "direct", auto_assign: bool = True, when_any: Iterable[str] = ()) -> dict[str, Any]:
     number = ref_id.split("-", 1)[1]
     return {"id": ref_id, "title": title, "url": f"{CWE_BASE_URL}{number}.html", "source": "MITRE CWE", "mapping": mapping, "auto_assign": bool(auto_assign), "when_any": list(when_any)}
+
+def _owasp(ref_id: str, title: str, url: str, *, source: str, mapping: str = "direct") -> dict[str, Any]:
+    return {"id": ref_id, "title": title, "url": url, "source": source, "mapping": mapping}
+
+
+def _top10(ref_id: str, title: str, slug: str, *, mapping: str = "direct") -> dict[str, Any]:
+    return _owasp(ref_id, title, f"{OWASP_TOP10_2025_BASE_URL}{slug}/", source="OWASP Top 10", mapping=mapping)
+
+
+def _api_top10(ref_id: str, title: str, slug: str, *, mapping: str = "direct") -> dict[str, Any]:
+    return _owasp(ref_id, title, f"{OWASP_API_2023_BASE_URL}{slug}/", source="OWASP API Security Top 10", mapping=mapping)
+
 
 FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
     'broken_object_authorization': {
@@ -82,7 +97,8 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
             _wstg('WSTG-CLNT-11', 'Web Messaging'),
         ],
         'cwe': [
-            _cwe('CWE-346', 'Origin Validation Error', mapping='contextual', auto_assign=True, when_any=('missing_origin_check', 'wildcard_origin', 'missing_source_window_check')),
+            _cwe('CWE-940', 'Improper Verification of Source of a Communication Channel', mapping='direct', auto_assign=True, when_any=('missing_origin_check', 'missing_source_window_check', 'message_schema_unvalidated')),
+            _cwe('CWE-346', 'Origin Validation Error', mapping='contextual', auto_assign=False, when_any=('missing_origin_check', 'wildcard_origin', 'missing_source_window_check')),
         ],
     },
     'open_redirect': {
@@ -333,6 +349,124 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
     },
 }
 
+
+# Analysis 6.19 makes OWASP taxonomy grounding a first-class, mandatory part of
+# every physical family detector. WSTG remains the testing-method source; OWASP
+# Top 10 / API Security Top 10 provides risk taxonomy; CWE provides weakness
+# taxonomy. None of these references are target evidence.
+FAMILY_OWASP_MAPPINGS: dict[str, list[dict[str, Any]]] = {
+    "broken_object_authorization": [
+        _api_top10("API1:2023", "Broken Object Level Authorization", "0xa1-broken-object-level-authorization"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "broken_function_authorization": [
+        _api_top10("API5:2023", "Broken Function Level Authorization", "0xa5-broken-function-level-authorization"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "mass_assignment": [
+        _api_top10("API3:2023", "Broken Object Property Level Authorization", "0xa3-broken-object-property-level-authorization"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control", mapping="contextual"),
+    ],
+    "authentication_session": [
+        _top10("A07:2025", "Authentication Failures", "A07_2025-Authentication_Failures"),
+        _api_top10("API2:2023", "Broken Authentication", "0xa2-broken-authentication", mapping="contextual"),
+    ],
+    "account_enumeration": [
+        _top10("A07:2025", "Authentication Failures", "A07_2025-Authentication_Failures", mapping="contextual"),
+        _api_top10("API2:2023", "Broken Authentication", "0xa2-broken-authentication", mapping="contextual"),
+    ],
+    "dom_xss": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "postmessage_trust": [
+        _top10("A07:2025", "Authentication Failures", "A07_2025-Authentication_Failures"),
+    ],
+    "open_redirect": [
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "ssrf": [
+        _api_top10("API7:2023", "Server Side Request Forgery", "0xa7-server-side-request-forgery"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "file_upload": [
+        _top10("A06:2025", "Insecure Design", "A06_2025-Insecure_Design"),
+    ],
+    "path_traversal": [
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "information_disclosure": [
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "source_map_exposure": [
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control", mapping="contextual"),
+    ],
+    "secret_exposure": [
+        _top10("A07:2025", "Authentication Failures", "A07_2025-Authentication_Failures", mapping="contextual"),
+    ],
+    "graphql_authorization": [
+        _api_top10("API1:2023", "Broken Object Level Authorization", "0xa1-broken-object-level-authorization"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "graphql_data_exposure": [
+        _api_top10("API3:2023", "Broken Object Property Level Authorization", "0xa3-broken-object-property-level-authorization"),
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control", mapping="contextual"),
+    ],
+    "business_logic": [
+        _top10("A06:2025", "Insecure Design", "A06_2025-Insecure_Design"),
+    ],
+    "race_condition": [
+        _top10("A06:2025", "Insecure Design", "A06_2025-Insecure_Design"),
+    ],
+    "websocket_authorization": [
+        _top10("A01:2025", "Broken Access Control", "A01_2025-Broken_Access_Control"),
+    ],
+    "cors_misconfiguration": [
+        _top10("A02:2025", "Security Misconfiguration", "A02_2025-Security_Misconfiguration"),
+    ],
+    "sensitive_caching": [
+        _top10("A06:2025", "Insecure Design", "A06_2025-Insecure_Design", mapping="contextual"),
+    ],
+    "sql_injection": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "nosql_injection": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "command_injection": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "server_side_template_injection": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "ldap_injection": [
+        _top10("A05:2025", "Injection", "A05_2025-Injection"),
+    ],
+    "unrestricted_resource_consumption": [
+        _api_top10("API4:2023", "Unrestricted Resource Consumption", "0xa4-unrestricted-resource-consumption"),
+    ],
+    "sensitive_business_flow_abuse": [
+        _api_top10("API6:2023", "Unrestricted Access to Sensitive Business Flows", "0xa6-unrestricted-access-to-sensitive-business-flows"),
+        _top10("A06:2025", "Insecure Design", "A06_2025-Insecure_Design", mapping="contextual"),
+    ],
+    "security_misconfiguration": [
+        _api_top10("API8:2023", "Security Misconfiguration", "0xa8-security-misconfiguration"),
+        _top10("A02:2025", "Security Misconfiguration", "A02_2025-Security_Misconfiguration"),
+    ],
+    "improper_inventory_management": [
+        _api_top10("API9:2023", "Improper Inventory Management", "0xa9-improper-inventory-management"),
+    ],
+    "unsafe_api_consumption": [
+        _api_top10("API10:2023", "Unsafe Consumption of APIs", "0xaa-unsafe-consumption-of-apis"),
+    ],
+}
+
+if set(FAMILY_OWASP_MAPPINGS) != set(FAMILY_STANDARDS):
+    missing = sorted(set(FAMILY_STANDARDS) - set(FAMILY_OWASP_MAPPINGS))
+    extra = sorted(set(FAMILY_OWASP_MAPPINGS) - set(FAMILY_STANDARDS))
+    raise RuntimeError(f"OWASP family mapping coverage drift missing={missing} extra={extra}")
+for _family, _refs in FAMILY_OWASP_MAPPINGS.items():
+    FAMILY_STANDARDS[_family]["owasp"] = list(_refs)
+
 def standards_for_family(
     family: str,
     *,
@@ -341,11 +475,12 @@ def standards_for_family(
 ) -> dict[str, Any]:
     """Return standards grounding without turning standards into target evidence.
 
-    WSTG and CWE describe the security condition and taxonomy. They never satisfy
-    an admission evidence group or independent-source requirement.
+    WSTG, OWASP Top 10 / API Security Top 10, and CWE describe the testing method,
+    risk taxonomy, and weakness taxonomy. They never satisfy an admission evidence
+    group or independent-source requirement.
     """
     raw = FAMILY_STANDARDS.get(str(family) or "", {})
-    data = deepcopy(raw) if raw else {"principle": "", "wstg": [], "cwe": []}
+    data = deepcopy(raw) if raw else {"principle": "", "wstg": [], "owasp": [], "cwe": []}
     signals = {str(item) for item in (decisive_signals or [])}
     assigned: list[str] = []
     if admitted:
@@ -360,6 +495,7 @@ def standards_for_family(
         "family": str(family),
         "standards_engine_version": STANDARDS_ENGINE_VERSION,
         "wstg_reference_version": WSTG_REFERENCE_VERSION,
+        "owasp_reference_version": OWASP_REFERENCE_VERSION,
         "cwe_reference_version": CWE_REFERENCE_VERSION,
         "assigned_cwe": [value for value in assigned if value],
         "assignment_state": "assigned" if assigned else ("manual_root_cause_review" if admitted else "not_admitted"),
@@ -377,8 +513,18 @@ def validate_family_standards(families: Mapping[str, Any] | Iterable[str]) -> li
             continue
         if not entry.get("wstg"):
             errors.append(f"{family}:missing_wstg")
+        if not entry.get("owasp"):
+            errors.append(f"{family}:missing_owasp")
         if not entry.get("cwe"):
             errors.append(f"{family}:missing_cwe")
+        for item in entry.get("owasp", []):
+            ref_id = str(item.get("id") or "")
+            if not (ref_id.startswith("A") or ref_id.startswith("API")):
+                errors.append(f"{family}:invalid_owasp_id")
+            if item.get("mapping") not in {"direct", "contextual"}:
+                errors.append(f"{family}:invalid_owasp_mapping_mode")
+            if not str(item.get("url") or "").startswith("https://owasp.org/"):
+                errors.append(f"{family}:invalid_owasp_url")
         for item in entry.get("cwe", []):
             if not str(item.get("id") or "").startswith("CWE-"):
                 errors.append(f"{family}:invalid_cwe_id")

@@ -173,7 +173,7 @@ KNOWLEDGE_REFERENCES.update({
 # references never count as target evidence.
 KNOWLEDGE_REFERENCES.update({
     "sql_injection": [{
-        "source": "OWASP Top 10 / WSTG", "ref": "A03:2021 Injection / WSTG-INPV-05 SQL Injection",
+        "source": "OWASP Top 10 / WSTG", "ref": "A05:2025 Injection / WSTG-INPV-05 SQL Injection",
         "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection",
         "principle": "A parameter or search endpoint is only an injection surface; a candidate needs evidence that user-controlled input changes SQL query semantics, database errors, boolean results, or database timing."
     }, {
@@ -573,6 +573,13 @@ def knowledge_for_family(family: str) -> list[dict[str, str]]:
         refs.append({
             "source": "OWASP WSTG",
             "ref": str(item.get("id") or ""),
+            "url": str(item.get("url") or ""),
+            "principle": str(standards.get("principle") or ""),
+        })
+    for item in standards.get("owasp", []):
+        refs.append({
+            "source": str(item.get("source") or "OWASP"),
+            "ref": f"{item.get('id')} / {item.get('title')}",
             "url": str(item.get("url") or ""),
             "principle": str(standards.get("principle") or ""),
         })
