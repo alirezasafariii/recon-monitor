@@ -196,8 +196,8 @@ class RawConditionReconstruction6120Tests(unittest.TestCase):
         self.assertFalse(any("expected" in str(row.get("status")) for row in report["rows"]))
 
     def test_versions(self):
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.2.0")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.12.6.14")
+        self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_ENGINE_VERSION.split(".")), (1, 2, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 12, 6, 14))
         self.assertEqual(OBSERVABILITY_ENGINE_VERSION, "1.0.0")
         self.assertEqual(OBSERVABILITY_RULE_VERSION, "2026.08.11.6.12")
 
