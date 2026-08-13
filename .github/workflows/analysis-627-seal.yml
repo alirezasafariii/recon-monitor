@@ -1,0 +1,189 @@
+name: Analysis 6.27 Seal
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.27-blind-failure-calibration
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sealed branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.27-blind-failure-calibration
+          fetch-depth: 0
+
+      - name: Verify formal cutover lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor a3f39f62a92f62a439d71496ba1bb3cdd8c13e3c HEAD
+          test ! -e .github/workflows/analysis-627-cutover.yml
+          test ! -e scripts/analysis_627_cutover.py
+          test ! -e scripts/analysis_627_cutover_compat.py
+          test ! -e scripts/analysis_627_cutover_compat2.py
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Exact Analysis 6.27 seal contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
+
+      - name: Calibration and grounding contracts
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_analysis_627_blind_failure_calibration.py' -q
+          python -m unittest discover -s tests -p 'test_analysis_627_precision_routing.py' -q
+          python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
+          python -m unittest discover -s tests -p 'test_family_confusion_matrix_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
+
+      - name: Verify immutable consumed-v4 boundary and regression classification
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          expected={
+            'benchmarks/raw/analysis_raw_v4.jsonl':'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+            'benchmarks/raw/sources/v4_shortlist.json':'d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+            'benchmarks/raw/sources/v4_first_blind_report.json':'5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name,wanted in expected.items():
+            actual=hashlib.sha256(Path(name).read_bytes()).hexdigest(); assert actual==wanted,(name,wanted,actual)
+          receipt=json.loads(Path('benchmarks/raw/sources/v4_first_blind_receipt.json').read_text())
+          assert receipt['status']=='first_blind_consumed'
+          assert receipt['evaluation_kind']=='first_blind_single_consumption'
+          regression=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_regression.json').read_text())
+          assert regression['evaluation_kind']=='post_first_blind_regression'
+          assert regression['quality_gate']['passed'], regression['quality_gate']['failures']
+          PY
+
+      - name: Re-run consumed-v4 regression as regression only
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/raw_recon_v4_regression.py
+          python app/raw_recon_v4_regression_diagnostic.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_regression.json').read_text())
+          diag=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json').read_text())
+          assert reg['evaluation_kind']=='post_first_blind_regression'
+          assert reg['quality_gate']['passed'], reg['quality_gate']['failures']
+          assert diag['condition_false_positive_family_counts']=={}
+          assert diag['wrong_promotion_family_counts']=={}
+          assert reg['metrics']['condition_extraction_precision']==1.0
+          assert reg['metrics']['condition_extraction_recall']==1.0
+          assert reg['metrics']['admission_precision']==1.0
+          assert reg['metrics']['admission_recall']==1.0
+          assert reg['metrics']['false_promotion_rate']==0.0
+          assert reg['metrics']['wrong_family_promotion_rate']==0.0
+          assert reg['metrics']['end_to_end_accuracy']==1.0
+          print(json.dumps(reg['metrics'],indent=2,sort_keys=True))
+          PY
+
+      - name: Full unit suite on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.11
+        run: python tests/integration_runner.py
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Exact Analysis 6.27 seal contract on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
+
+      - name: Full unit suite on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.13
+        run: python tests/integration_runner.py
+
+      - name: Final immutable-v4 verification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected={
+            'benchmarks/raw/analysis_raw_v4.jsonl':'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+            'benchmarks/raw/sources/v4_shortlist.json':'d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+            'benchmarks/raw/sources/v4_first_blind_report.json':'5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name,wanted in expected.items():
+            actual=hashlib.sha256(Path(name).read_bytes()).hexdigest(); assert actual==wanted,(name,wanted,actual)
+          print('Analysis 6.27 seal immutable-v4 verification: PASS')
+          PY
+
+      - name: Update manifest for seal artifacts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.'); manifest=root/'MANIFEST.sha256'; entries={}; order=[]
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+            if '  ' not in line: continue
+            _,name=line.split('  ',1); p=root/name
+            if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          permanent=(
+            'docs/ANALYSIS_ENGINE_6_27_BLIND_FAILURE_CALIBRATION.md',
+            'docs/ANALYSIS_ENGINE_6_27_SEAL.md',
+            'tests/test_analysis_627_seal.py',
+            'benchmarks/raw/results/analysis_raw_v4_6_27_regression.json',
+            'benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json',
+          )
+          for name in permanent:
+            p=root/name
+            if not p.is_file(): raise SystemExit(f'missing seal file: {name}')
+            entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+            if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
+          PY
+
+      - name: Verify manifest
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit Analysis 6.27 seal and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-627-seal.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Seal Analysis Engine 6.27 blind failure calibration"
+          git push origin HEAD:agent/analysis-engine-6.27-blind-failure-calibration
