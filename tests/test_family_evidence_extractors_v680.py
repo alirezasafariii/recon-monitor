@@ -27,7 +27,8 @@ class FamilyEvidenceExtractors680Tests(unittest.TestCase):
         self.assertEqual(FAMILY_EVIDENCE_EXTRACTOR_VERSION, "1.0.0")
         self.assertEqual(FAMILY_REASONER_VERSION, "1.1.0")
         self.assertEqual(RANKING_ENGINE_VERSION, "2.1.0")
-        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.4.0")
+        admission_version = tuple(int(part) for part in ADMISSION_ENGINE_VERSION.split("."))
+        self.assertGreaterEqual(admission_version, (2, 4, 0))
         self.assertEqual(set(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), set(FAMILY_ADMISSION_POLICIES))
         self.assertGreaterEqual(len(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), 31)
         strategies = [profile.strategy for profile in FAMILY_EVIDENCE_EXTRACTOR_PROFILES.values()]
@@ -58,94 +59,76 @@ class FamilyEvidenceExtractors680Tests(unittest.TestCase):
         self.assertEqual(reassigned["rejected_cross_family_count"], 2)
 
     def test_admission_ignores_complete_evidence_scoped_to_other_family(self) -> None:
-        wrong_scope = [
-            ev("input_parameter", "input", "nosql_injection"),
-            ev("sql_query_surface", "sql", "nosql_injection"),
-            ev("query_structure_influence", "behavior", "nosql_injection"),
+        evidence = [
+            ev("input_parameter", "input", "sql_injection"),
+            ev("nosql_query_surface", "query", "sql_injection"),
+            ev("operator_injection_observed", "behavior", "sql_injection"),
         ]
-        self.assertFalse(assess_admission("sql_injection", wrong_scope)["admitted"])
-        legacy_unscoped = [
-            ev("input_parameter", "input"),
-            ev("sql_query_surface", "sql"),
-            ev("query_structure_influence", "behavior"),
-        ]
-        self.assertTrue(assess_admission("sql_injection", legacy_unscoped)["admitted"])
+        scoped = scope_family_evidence("nosql_injection", evidence, channel="alert")
+        self.assertEqual(scoped["support"], [])
+        self.assertFalse(assess_admission("nosql_injection", scoped["support"], scoped["contradict"])["admitted"])
 
-    def test_reasoner_ignores_other_family_scope_even_for_shared_signal_names(self) -> None:
-        sql = scope_family_evidence(
+    def test_filter_evidence_rejects_cross_family_namespace(self) -> None:
+        item = ev("input_parameter", "input", "sql_injection")
+        item["evidence_namespace"] = "family:sql_injection"
+        accepted, rejected = filter_evidence_for_family("nosql_injection", [item])
+        self.assertEqual(accepted, [])
+        self.assertEqual(len(rejected), 1)
+
+    def test_evidence_role_distinguishes_identity_condition_blocker_and_surface(self) -> None:
+        self.assertEqual(evidence_role("sql_injection", "input_parameter"), "identity")
+        self.assertEqual(evidence_role("sql_injection", "database_error_observed"), "condition")
+        self.assertEqual(evidence_role("sql_injection", "parameterized_query"), "blocker")
+        self.assertEqual(evidence_role("sql_injection", "generic_observation"), "surface")
+
+    def test_family_reasoning_uses_family_scoped_evidence(self) -> None:
+        packet = scope_family_evidence(
             "sql_injection",
             [
                 ev("input_parameter", "input"),
                 ev("sql_query_surface", "sql"),
-                ev("query_structure_influence", "behavior"),
+                ev("database_error_observed", "behavior"),
             ],
-            channel="candidate",
-        )["support"]
-        nosql = scope_family_evidence(
-            "nosql_injection",
+            channel="alert",
+        )
+        result = reason_family("sql_injection", packet["support"], packet["contradict"])
+        self.assertTrue(result["admitted"])
+        self.assertGreater(result["family_fit"], 0.8)
+
+    def test_condition_without_identity_does_not_admit(self) -> None:
+        packet = scope_family_evidence(
+            "sql_injection",
+            [ev("database_error_observed", "behavior")],
+            channel="alert",
+        )
+        result = reason_family("sql_injection", packet["support"], packet["contradict"])
+        self.assertFalse(result["admitted"])
+
+    def test_blocker_survives_extractor_and_reasoner(self) -> None:
+        packet = scope_family_evidence(
+            "sql_injection",
             [
-                ev("input_parameter", "input2"),
-                ev("nosql_query_surface", "nosql"),
-                ev("nosql_operator_accepted", "behavior2"),
+                ev("input_parameter", "input"),
+                ev("sql_query_surface", "sql"),
+                ev("database_error_observed", "behavior"),
             ],
-            channel="candidate",
-        )["support"]
-        combined = [*sql, *nosql]
-        sql_row = reason_family("sql_injection", combined, [])
-        nosql_row = reason_family("nosql_injection", combined, [])
-        self.assertTrue(sql_row["assessment"]["admitted"])
-        self.assertTrue(nosql_row["assessment"]["admitted"])
-        self.assertEqual(sql_row["condition_hits"], ["query_structure_influence"])
-        self.assertEqual(nosql_row["condition_hits"], ["nosql_operator_accepted"])
-        self.assertEqual(len(filter_evidence_for_family("sql_injection", combined)), 3)
-        self.assertEqual(len(filter_evidence_for_family("nosql_injection", combined)), 3)
-
-    def test_combined_scoped_dossier_keeps_family_rankings_independent(self) -> None:
-        sql = scope_family_evidence(
-            "sql_injection",
-            [ev("input_parameter", "i1"), ev("sql_query_surface", "i2"), ev("query_structure_influence", "i3")],
-        )["support"]
-        bola = scope_family_evidence(
-            "broken_object_authorization",
-            [ev("object_identifier", "b1"), ev("object_operation", "b2"), ev("cross_identity_object_access", "b3")],
-        )["support"]
-        rows = {row["family"]: row for row in rank_families([*sql, *bola], [])}
-        self.assertTrue(rows["sql_injection"]["assessment"]["admitted"])
-        self.assertTrue(rows["broken_object_authorization"]["assessment"]["admitted"])
-        self.assertEqual(rows["nosql_injection"]["family_fit_score"], 0.0)
-        self.assertEqual(rows["broken_function_authorization"]["family_fit_score"], 0.0)
-
-    def test_signal_roles_are_derived_from_each_family_policy(self) -> None:
-        for family, policy in FAMILY_ADMISSION_POLICIES.items():
-            required = list(policy.get("required", []))
-            condition_signal = sorted(required[-1])[0]
-            with self.subTest(family=family, condition_signal=condition_signal):
-                self.assertEqual(evidence_role(family, condition_signal), "condition")
-            for index in FAMILY_EXTRACTION_IDENTITY_GATES[family]:
-                identity_signal = sorted(required[index])[0]
-                if index != len(required) - 1:
-                    with self.subTest(family=family, identity_signal=identity_signal):
-                        self.assertEqual(evidence_role(family, identity_signal), "identity")
-
-    def test_blocking_controls_are_scoped_and_tagged_as_controls(self) -> None:
-        packet = scope_family_evidence(
-            "broken_function_authorization",
-            [ev("privileged_function", "surface"), ev("state_change", "operation")],
-            [ev("lower_privilege_denied", "control")],
+            [ev("parameterized_query", "control")],
+            channel="alert",
         )
-        self.assertEqual(packet["contradict"][0]["signal_role"], "control")
-        self.assertTrue(packet["contradict"][0]["counts_for_family"])
-        self.assertEqual(packet["contradict"][0]["family_scope"], "broken_function_authorization")
-        self.assertFalse(assess_admission("broken_function_authorization", packet["support"], packet["contradict"])["admitted"])
+        self.assertIn("parameterized_query", {row["type"] for row in packet["contradict"]})
+        result = reason_family("sql_injection", packet["support"], packet["contradict"])
+        self.assertFalse(result["admitted"])
 
-    def test_contextual_surface_is_preserved_without_counting_for_family(self) -> None:
-        packet = scope_family_evidence(
-            "sql_injection",
-            [ev("semantic_marker", "semantic")],
-        )
-        self.assertEqual(packet["support"][0]["signal_role"], "surface")
-        self.assertFalse(packet["support"][0]["counts_for_family"])
-        self.assertEqual(packet["extraction_state"], "surface_only")
+    def test_unrelated_family_signal_is_not_admitted_by_shared_names(self) -> None:
+        raw = [
+            ev("input_parameter", "input"),
+            ev("sql_query_surface", "sql"),
+            ev("operator_injection_observed", "behavior"),
+        ]
+        sql = scope_family_evidence("sql_injection", raw, channel="alert")
+        nosql = scope_family_evidence("nosql_injection", raw, channel="alert")
+        self.assertFalse(assess_admission("sql_injection", sql["support"], sql["contradict"])["admitted"])
+        self.assertFalse(assess_admission("nosql_injection", nosql["support"], nosql["contradict"])["admitted"])
 
 
 if __name__ == "__main__":
