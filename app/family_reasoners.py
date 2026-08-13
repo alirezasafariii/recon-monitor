@@ -32,7 +32,7 @@ FAMILY_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
     "mass_assignment": (1,),
     "authentication_session": (0,),
     "account_enumeration": (0,),
-    "dom_xss": (0, 1),
+    "dom_xss": (0,),
     "postmessage_trust": (0,),
     "open_redirect": (0, 1),
     "ssrf": (0,),
@@ -156,8 +156,8 @@ FAMILY_REASONER_PROFILES: dict[str, FamilyReasonerProfile] = {
         confounder_penalty=0.20,
     ),
     "cors_misconfiguration": FamilyReasonerProfile(
-        "Does an unsafe CORS origin policy expose credentialed or sensitive cross-origin data?",
-        (0.30, 0.50),
+        "Does an explicit CORS policy accept an unsafe origin and expose credentialed or sensitive cross-origin data?",
+        (0.34, 0.14, 0.32),
         ("information_disclosure", "security_misconfiguration"),
         confounder_penalty=0.20,
     ),
@@ -169,7 +169,7 @@ FAMILY_REASONER_PROFILES: dict[str, FamilyReasonerProfile] = {
     ),
     "business_logic": FamilyReasonerProfile(
         "Does the server accept a workflow, value, or state transition that violates the intended business invariant?",
-        (0.26, 0.54),
+        (0.34, 0.46),
         ("race_condition", "sensitive_business_flow_abuse", "broken_function_authorization"),
         confounder_penalty=0.20,
     ),

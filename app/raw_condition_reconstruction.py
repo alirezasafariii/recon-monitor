@@ -8,10 +8,10 @@ from typing import Any, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
 
-RECONSTRUCTION_ENGINE_VERSION = "1.1.0"
-RECONSTRUCTION_RULE_VERSION = "2026.08.12.6.14"
-EXECUTION_ENGINE_VERSION = "1.2.0"
-EXECUTION_RULE_VERSION = "2026.08.12.6.14"
+RECONSTRUCTION_ENGINE_VERSION = "1.2.0"
+RECONSTRUCTION_RULE_VERSION = "2026.08.13.6.27"
+EXECUTION_ENGINE_VERSION = "1.3.0"
+EXECUTION_RULE_VERSION = "2026.08.13.6.27"
 
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_WORDS = {"false", "0", "deny", "denied", "unauthorized", "forbidden", "blocked"}
@@ -27,7 +27,6 @@ STACK_TRACE_PATTERNS = (
     re.compile(r"(?im)\btraceback\s*\(most recent call last\)"),
     re.compile(r"(?im)\bfile\s+[\"'][^\"']+[\"']\s*,\s*line\s+\d+"),
     re.compile(r"(?im)(?:^|\n)\s*at\s+[A-Za-z0-9_.$]+\([^\n)]*:\d+\)"),
-    re.compile(r"(?im)\b(?:uncaught|unhandled)\s+(?:exception|error)\b"),
 )
 DIAGNOSTIC_PATTERNS = (
     "sensitive diagnostic material",
@@ -240,6 +239,23 @@ def _is_auth_surface(endpoint: str, category: str, business_context: str, auth_h
     return bool(auth_hints) or any(term in hay for term in AUTH_TERMS)
 
 
+def _auth_denial_context(context: Mapping[str, Any]) -> bool:
+    flat = _flatten(context)
+    values: list[str] = []
+    for key in ("context", "auth_state", "authentication_state", "session_state", "token_state", "credential_state"):
+        values.extend(str(value).strip().lower() for value in flat.get(key, []) if str(value).strip())
+    hay = " ".join(values)
+    auth_state_markers = (
+        "unauthenticated", "anonymous", "invalid_session", "expired_session", "missing_session",
+        "invalid_token", "expired_token", "missing_token", "invalid_credential", "bad_password",
+        "logged_out", "no_session", "no_token", "invalid_auth", "authentication_failed",
+    )
+    object_scope_markers = ("other_account", "other_object", "other_tenant", "low_privilege", "channel", "room", "resolver")
+    if any(marker in hay for marker in object_scope_markers):
+        return False
+    return any(marker in hay for marker in auth_state_markers)
+
+
 def _identity_context_class(context: Mapping[str, Any]) -> str:
     flat = _flatten(context)
     values: list[str] = []
@@ -334,8 +350,8 @@ def reconstruct_raw_evidence(
     # stored boundary regression; route names alone are never enough.
     if _is_auth_surface(endpoint, category_lower, business_context, auth_hints):
         _emit(result, "authentication_session", "authentication_surface", "endpoint_semantic", "Authentication/session lifecycle surface is present.", source_group="authentication_surface", weight=14, basis="raw_auth_surface")
-        if any(_expected_denied(row) and _context_observable(row)[0] in SUCCESS_STATUSES for row in contexts):
-            _emit(result, "authentication_session", "authentication_boundary_regression", "stored_context", "A stored authentication/session context expected to be denied received a successful response.", source_group="authentication_behavior", weight=34, basis="expected_deny_success")
+        if any(_expected_denied(row) and _auth_denial_context(row) and _context_observable(row)[0] in SUCCESS_STATUSES for row in contexts):
+            _emit(result, "authentication_session", "authentication_boundary_regression", "stored_context", "A stored authentication/session lifecycle context expected to be denied received a successful response.", source_group="authentication_behavior", weight=34, basis="auth_lifecycle_expected_deny_success")
 
     # Account enumeration requires opposite identity-existence contexts plus a material observable differential.
     if (all_fields & IDENTITY_FIELDS) and any(term in surface for term in ("login", "signin", "forgot", "reset", "recover", "lookup", "username", "email")):
@@ -434,7 +450,7 @@ def reconstruct_raw_evidence(
         _emit(result, "command_injection", "process_execution_surface", "category_semantic", "Stored category identifies a process/shell execution surface.", source_group="execution_surface", weight=16, basis="routing_semantic")
         if all_fields:
             _emit(result, "command_injection", "input_parameter", "endpoint_schema", "Client-controlled input exists on the process-execution surface.", source_group="input_surface", weight=10, basis="routing_semantic")
-    if any(token in category_lower for token in ("template", "render", "ssti")):
+    if any(token in category_lower for token in ("template", "ssti", "server-side render", "server side render", "server render", "template render")):
         _emit(result, "server_side_template_injection", "template_render_surface", "category_semantic", "Stored category identifies a server-side rendering/template surface.", source_group="render_surface", weight=16, basis="routing_semantic")
         if all_fields:
             _emit(result, "server_side_template_injection", "template_input", "endpoint_schema", "Client-controlled input exists on the rendering/template surface.", source_group="template_input", weight=10, basis="routing_semantic")

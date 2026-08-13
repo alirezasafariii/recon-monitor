@@ -389,15 +389,18 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     endpoint_host = urllib.parse.urlsplit(endpoint if "://" in endpoint else f"https://{target_host}{endpoint if endpoint.startswith('/') else '/' + endpoint}").hostname or target_host
     method = str(method or "UNKNOWN").upper()
 
-    if object_ids or any(field.endswith("_id") or field == "id" for field in all_fields):
+    is_graphql_surface = any(marker in surface_text for marker in GRAPHQL_MARKERS) or endpoint.lower().rstrip("/").endswith("graphql")
+    route_object_fields = query_fields | path_fields
+    explicit_object_surface = bool(object_ids) or any(field.endswith("_id") or field == "id" for field in route_object_fields)
+    if explicit_object_surface:
         packet = _packet_for(result, "broken_object_authorization")
-        _add_identity(packet, "broken_object_authorization", "object_identifier", "endpoint_schema", "Client-controlled object identifier is present in the endpoint contract.", "object_reference", 14)
+        _add_identity(packet, "broken_object_authorization", "object_identifier", "endpoint_schema", "Client-controlled object selector is explicitly declared or appears in a path/query object reference.", "object_reference", 14)
         _add_identity(packet, "broken_object_authorization", "object_operation", "endpoint_contract", f"{method} operates on the referenced object surface.", "object_operation", 9)
         for context in _contexts(details):
             cflat = _flatten(context); cstatus = _status(context)
             expected_false = any(str(v).strip().lower() in {"false", "0", "deny", "denied", "unauthorized"} for key in ("expected_access", "authorization_expected", "should_allow") for v in cflat.get(key, []))
             explicit_denial = _explicit_denial_payload(context)
-            if expected_false and cstatus in SUCCESS_STATUSES and not explicit_denial:
+            if expected_false and cstatus in SUCCESS_STATUSES and not explicit_denial and not is_graphql_surface:
                 _add(packet, "support", _signal("broken_object_authorization", "unauthorized_object_response", "stored_context", "A stored context expected to be denied received a successful object response.", source_group="authorization_context", weight=34, basis="context_expectation_vs_response"))
             elif expected_false and (cstatus in DENY_STATUSES or explicit_denial):
                 _add(packet, "contradict", _signal("broken_object_authorization", "cross_context_denied", "stored_context", "A stored unauthorized object context was denied or returned an explicit authorization error payload.", source_group="authorization_context", weight=-26, basis="context_expectation_vs_response"))
@@ -437,12 +440,19 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "account_enumeration")
         _add_identity(packet, "account_enumeration", "identity_lookup", "endpoint_schema", "Account identity field participates in a controlled existence/lookup surface.", "identity_lookup", 15)
 
-    if any(source in text_lower for source in DOM_SOURCES) and any(sink in text_lower for sink in DOM_SINKS):
+    browser_observation = details.get("browser_observation") if isinstance(details.get("browser_observation"), Mapping) else {}
+    observed_browser_source = str(browser_observation.get("input_channel") or "").lower()
+    observed_render_target = str(browser_observation.get("render_target") or "").strip()
+    has_dom_source = any(source in text_lower for source in DOM_SOURCES) or any(source in observed_browser_source for source in DOM_SOURCES)
+    has_dangerous_dom_sink = any(sink in text_lower for sink in DOM_SINKS)
+    if has_dom_source and (has_dangerous_dom_sink or observed_render_target):
         packet = _packet_for(result, "dom_xss")
-        _add_identity(packet, "dom_xss", "source_sink", "raw_javascript", "Stored JavaScript contains both a browser-controlled source and an executable/HTML sink.", "static_flow", 18)
-        _add_identity(packet, "dom_xss", "dangerous_sink", "raw_javascript", "Stored JavaScript contains a dangerous DOM/JavaScript sink.", "static_sink", 18)
-        browser_observation = details.get("browser_observation") if isinstance(details.get("browser_observation"), Mapping) else {}
-        if _truthy(browser_observation.get("rendered_as_html")) and not _truthy(browser_observation.get("sanitized")):
+        _add_identity(packet, "dom_xss", "source_sink", "stored_browser_flow", "Stored browser artifacts trace a browser-controlled input channel to a concrete DOM render target.", "static_flow", 18)
+        if has_dangerous_dom_sink:
+            _add_identity(packet, "dom_xss", "dangerous_sink", "raw_javascript", "Stored JavaScript contains a dangerous DOM/JavaScript sink.", "static_sink", 18)
+        else:
+            _add(packet, "contradict", _signal("dom_xss", "text_only_sink", "stored_browser_observation", "Stored browser flow uses a non-executable/text-only rendering path rather than an HTML/JavaScript sink.", source_group="dom_control", weight=-28, basis="stored_safe_render_path"))
+        if _truthy(browser_observation.get("rendered_as_html")) and not _truthy(browser_observation.get("sanitized")) and has_dangerous_dom_sink:
             input_channel = str(browser_observation.get("input_channel") or "").lower()
             if any(source in input_channel or source in text_lower for source in DOM_SOURCES):
                 _add(packet, "support", _signal("dom_xss", "runtime_reachable_flow", "stored_browser_observation", "Stored browser observation confirms attacker-influenced DOM input reaches an HTML/executable sink without effective sanitization.", source_group="dom_runtime_behavior", weight=34, basis="stored_browser_source_sink_observation"))
@@ -589,6 +599,7 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     acao = response_headers.get("access-control-allow-origin", "").strip(); acac = response_headers.get("access-control-allow-credentials", "").strip().lower(); origin = request_headers.get("origin", "").strip()
     if acao:
         packet = _packet_for(result, "cors_misconfiguration")
+        _add_identity(packet, "cors_misconfiguration", "cors_policy_surface", "http_headers", "Stored response contains an explicit CORS origin policy.", "cors_surface", 18)
         unsafe_origin_policy = False
         if acao == "*":
             unsafe_origin_policy = True
@@ -599,6 +610,8 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         elif acao.lower() == "null":
             unsafe_origin_policy = True
             _add_identity(packet, "cors_misconfiguration", "null_origin_accepted", "http_headers", "Stored CORS policy accepts the null origin.", "cors_policy", 22)
+        else:
+            _add(packet, "contradict", _signal("cors_misconfiguration", "strict_origin_allowlist", "http_headers", "Stored CORS response uses a fixed origin policy that does not reflect the supplied untrusted Origin.", source_group="cors_control", weight=-28, basis="fixed_non_reflective_origin_policy"))
         if unsafe_origin_policy and acac == "true":
             _add(packet, "support", _signal("cors_misconfiguration", "credentials_allowed", "http_headers", "Unsafe observed origin policy is combined with Access-Control-Allow-Credentials: true.", source_group="cors_credentials", weight=26, basis="unsafe_origin_with_credentials"))
         if unsafe_origin_policy and auth_hints:
@@ -712,14 +725,24 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     if source_map_surface:
         packet = _packet_for(result, "source_map_exposure"); _add_identity(packet, "source_map_exposure", "source_map", "raw_asset", "Source-map asset or sourceMappingURL reference is present.", "source_map", 18)
         source_map = details.get("source_map") if isinstance(details.get("source_map"), Mapping) else {}
+        if not source_map:
+            raw_body = details.get("response_body")
+            if isinstance(raw_body, str):
+                try:
+                    parsed_map = json.loads(raw_body)
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    parsed_map = {}
+                if isinstance(parsed_map, Mapping):
+                    source_map = parsed_map
         source_contents = source_map.get("sourcesContent") if isinstance(source_map.get("sourcesContent"), list) else []
         source_paths = source_map.get("sources") if isinstance(source_map.get("sources"), list) else []
         if source_contents or source_paths or '"sources"' in text_lower or '"sourcescontent"' in text_lower:
             _add_identity(packet, "source_map_exposure", "internal_sources", "stored_source_map", "Stored source-map response contains source path/content metadata.", "source_contents", 18)
         if source_contents:
             _add_identity(packet, "source_map_exposure", "source_contents", "stored_source_map", "Stored source map embeds source content.", "source_contents", 20)
-        if status in SUCCESS_STATUSES:
-            _add(packet, "support", _signal("source_map_exposure", "direct_reachability", "http_response", "Stored source-map request returned a successful response.", source_group="public_reachability", weight=22, basis="http_status"))
+        meaningful_internal_paths = any(str(path).startswith(("../", "..\\", "/")) for path in source_paths)
+        if status in SUCCESS_STATUSES and (source_contents or meaningful_internal_paths):
+            _add(packet, "support", _signal("source_map_exposure", "direct_reachability", "http_response", "Stored source-map request successfully returned meaningful embedded/internal source material.", source_group="public_reachability", weight=22, basis="successful_map_with_meaningful_source_material"))
         if status in SUCCESS_STATUSES and _flag(flat, "public_fetch") and source_contents:
             _add(packet, "support", _signal("source_map_exposure", "public_observation", "stored_source_map", "Stored target observation confirms the source map with embedded source content is publicly fetchable.", source_group="public_reachability", weight=32, basis="public_fetch_with_embedded_source_content"))
         if status in SUCCESS_STATUSES and _flag(flat, "public_fetch") and not source_contents:
@@ -831,10 +854,18 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         elif security_event_present and log_store_checked and matching_entries is not None and matching_entries > 0:
             _add(packet, "contradict", _signal("security_logging_alerting_failure", "security_event_logged", "stored_audit_observation", "Stored audit observation found matching log entries for the security event.", source_group="logging_control", weight=-30, basis="checked_log_store_with_matching_event_entries"))
 
-    exception_surface = any(marker in surface_text for marker in EXCEPTION_SURFACE_MARKERS) or _flag(flat, "exception_unhandled") or _flag(flat, "process_crashed")
+    exception_observation = details.get("exception_observation") if isinstance(details.get("exception_observation"), Mapping) else {}
+    exception_surface = bool(exception_observation) or any(marker in surface_text for marker in EXCEPTION_SURFACE_MARKERS) or _flag(flat, "exception_unhandled") or _flag(flat, "process_crashed")
     if exception_surface:
         packet = _packet_for(result, "exceptional_condition_mishandling")
         _add_identity(packet, "exceptional_condition_mishandling", "exception_surface", "stored_error_artifact", "Stored target artifacts expose an exceptional/error-handling surface.", "exception_surface", 14)
+        if exception_observation and _truthy(exception_observation.get("handled")):
+            if _truthy(exception_observation.get("rollback_completed")):
+                _add(packet, "contradict", _signal("exceptional_condition_mishandling", "transaction_rollback_observed", "stored_exception_observation", "Stored exceptional-condition observation confirms the failed transaction was rolled back safely.", source_group="exception_control", weight=-30, basis="stored_exception_rollback"))
+            elif not _truthy(exception_observation.get("process_crashed")):
+                _add(packet, "contradict", _signal("exceptional_condition_mishandling", "centralized_error_handling", "stored_exception_observation", "Stored exceptional-condition observation confirms the exception was handled without process crash.", source_group="exception_control", weight=-26, basis="stored_handled_exception"))
+        if exception_observation and _falsey(exception_observation.get("handled")) and _truthy(exception_observation.get("process_crashed")):
+            _add(packet, "support", _signal("exceptional_condition_mishandling", "crash_on_exception", "stored_exception_observation", "Stored target observation explicitly records an unhandled exception causing the process to crash.", source_group="exception_behavior", weight=36, basis="stored_unhandled_exception_process_crash"))
         if method in {"POST", "PUT", "PATCH", "DELETE"} and flow_hits:
             _add_identity(packet, "exceptional_condition_mishandling", "transactional_operation", "endpoint_contract", "Exceptional behavior occurs on a state-changing business operation.", "exception_context", 12)
         strong_unhandled = any(marker in text_lower for marker in ("uncaught exception", "unhandled exception", "nullpointerexception", "panic:", "segmentation fault", "fatal exception"))

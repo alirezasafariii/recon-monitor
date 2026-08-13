@@ -387,6 +387,7 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
     },
     "cors_misconfiguration": {
         "required": [
+            {"cors_policy_surface"},
             {"wildcard_origin", "reflected_origin", "null_origin_accepted", "unsafe_origin_policy"},
             {"credentials_allowed", "sensitive_cross_origin_response", "authenticated_context"},
         ],

@@ -18,7 +18,7 @@ FAMILY_EXTRACTION_IDENTITY_GATES: dict[str, tuple[int, ...]] = {
     "mass_assignment": (1,),
     "authentication_session": (0,),
     "account_enumeration": (0,),
-    "dom_xss": (0, 1),
+    "dom_xss": (0,),
     "postmessage_trust": (0,),
     "open_redirect": (0, 1),
     "ssrf": (0,),

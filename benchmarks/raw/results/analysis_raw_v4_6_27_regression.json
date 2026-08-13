@@ -1,148 +1,5 @@
 {
-  "admission_errors": [
-    {
-      "admitted_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
-      ],
-      "case_kind": "positive",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [
-        "crash_on_exception"
-      ],
-      "emitted_families": [
-        "exceptional_condition_mishandling",
-        "information_disclosure",
-        "security_misconfiguration"
-      ],
-      "end_to_end_pass": false,
-      "expected_admitted": true,
-      "expected_condition_families": [
-        "exceptional_condition_mishandling"
-      ],
-      "expected_condition_signals": [
-        "crash_on_exception"
-      ],
-      "family": "exceptional_condition_mishandling",
-      "id": "GHSA-hrxh-6v49-42gf-positive",
-      "predicted_condition_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
-      ],
-      "rank_required": true,
-      "source_project": "grpc/grpc-go",
-      "source_root": "GHSA-hrxh-6v49-42gf",
-      "target_admitted": true,
-      "target_condition_signals": [
-        "unhandled_exception_observed"
-      ],
-      "target_state": "admitted",
-      "top1": "security_misconfiguration",
-      "top1_correct": false,
-      "top3": [
-        "security_misconfiguration",
-        "exceptional_condition_mishandling",
-        "information_disclosure"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": [
-        "security_misconfiguration"
-      ]
-    },
-    {
-      "admitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "graphql_authorization"
-      ],
-      "case_kind": "positive",
-      "condition_signal_hits": [
-        "resolver_authorization_failure"
-      ],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "graphql_authorization",
-        "sql_injection"
-      ],
-      "end_to_end_pass": false,
-      "expected_admitted": true,
-      "expected_condition_families": [
-        "graphql_authorization"
-      ],
-      "expected_condition_signals": [
-        "resolver_authorization_failure"
-      ],
-      "family": "graphql_authorization",
-      "id": "GHSA-m8jr-fxqx-8xx6-positive",
-      "predicted_condition_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "graphql_authorization"
-      ],
-      "rank_required": true,
-      "source_project": "apollographql/federation",
-      "source_root": "GHSA-m8jr-fxqx-8xx6",
-      "target_admitted": true,
-      "target_condition_signals": [
-        "resolver_authorization_failure"
-      ],
-      "target_state": "admitted",
-      "top1": "graphql_authorization",
-      "top1_correct": true,
-      "top3": [
-        "graphql_authorization",
-        "broken_object_authorization",
-        "authentication_session"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": [
-        "authentication_session",
-        "broken_object_authorization"
-      ]
-    },
-    {
-      "admitted_families": [
-        "authentication_session"
-      ],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "graphql_authorization",
-        "sql_injection"
-      ],
-      "end_to_end_pass": false,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "graphql_authorization",
-      "id": "GHSA-m8jr-fxqx-8xx6-secure_negative",
-      "predicted_condition_families": [
-        "authentication_session"
-      ],
-      "rank_required": true,
-      "source_project": "apollographql/federation",
-      "source_root": "GHSA-m8jr-fxqx-8xx6",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_contradicted",
-      "top1": "authentication_session",
-      "top1_correct": false,
-      "top3": [
-        "authentication_session",
-        "broken_object_authorization",
-        "graphql_authorization"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": [
-        "authentication_session"
-      ]
-    }
-  ],
+  "admission_errors": [],
   "by_kind": {
     "near_miss": {
       "count": 36,
@@ -151,13 +8,13 @@
     },
     "positive": {
       "count": 36,
-      "end_to_end_pass": 34,
-      "end_to_end_pass_rate": 0.944444
+      "end_to_end_pass": 36,
+      "end_to_end_pass_rate": 1.0
     },
     "secure_negative": {
       "count": 36,
-      "end_to_end_pass": 35,
-      "end_to_end_pass_rate": 0.972222
+      "end_to_end_pass": 36,
+      "end_to_end_pass_rate": 1.0
     },
     "sparse_noisy": {
       "count": 36,
@@ -727,7 +584,6 @@
       "condition_signal_misses": [],
       "emitted_families": [
         "authentication_session",
-        "broken_object_authorization",
         "business_logic",
         "sensitive_business_flow_abuse"
       ],
@@ -756,8 +612,8 @@
       "top1_correct": true,
       "top3": [
         "business_logic",
-        "broken_object_authorization",
-        "sensitive_business_flow_abuse"
+        "sensitive_business_flow_abuse",
+        "authentication_session"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -769,7 +625,6 @@
       "condition_signal_misses": [],
       "emitted_families": [
         "authentication_session",
-        "broken_object_authorization",
         "business_logic",
         "sensitive_business_flow_abuse"
       ],
@@ -786,14 +641,14 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "business_logic",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
+        "business_logic",
         "sensitive_business_flow_abuse",
         "authentication_session"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -803,7 +658,6 @@
       "condition_signal_misses": [],
       "emitted_families": [
         "authentication_session",
-        "broken_object_authorization",
         "business_logic",
         "sensitive_business_flow_abuse"
       ],
@@ -820,14 +674,14 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "business_logic",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
+        "business_logic",
         "sensitive_business_flow_abuse",
         "authentication_session"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -837,7 +691,6 @@
       "condition_signal_misses": [],
       "emitted_families": [
         "authentication_session",
-        "broken_object_authorization",
         "business_logic",
         "sensitive_business_flow_abuse"
       ],
@@ -854,14 +707,14 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "business_logic",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
+        "business_logic",
         "sensitive_business_flow_abuse",
         "authentication_session"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1051,7 +904,8 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "authentication_session"
+        "authentication_session",
+        "cors_misconfiguration"
       ],
       "end_to_end_pass": true,
       "expected_admitted": false,
@@ -1065,15 +919,15 @@
       "source_root": "GHSA-mchx-7j67-8mcf",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "authentication_session",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "cors_misconfiguration",
+      "top1_correct": true,
       "top3": [
+        "cors_misconfiguration",
         "authentication_session",
-        "websocket_authorization",
-        "unsafe_api_consumption"
+        "websocket_authorization"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1082,7 +936,8 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "authentication_session"
+        "authentication_session",
+        "cors_misconfiguration"
       ],
       "end_to_end_pass": true,
       "expected_admitted": false,
@@ -1096,15 +951,15 @@
       "source_root": "GHSA-mchx-7j67-8mcf",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "authentication_session",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "cors_misconfiguration",
+      "top1_correct": true,
       "top3": [
+        "cors_misconfiguration",
         "authentication_session",
-        "websocket_authorization",
-        "unsafe_api_consumption"
+        "websocket_authorization"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1288,8 +1143,7 @@
       ],
       "condition_signal_misses": [],
       "emitted_families": [
-        "dom_xss",
-        "server_side_template_injection"
+        "dom_xss"
       ],
       "end_to_end_pass": true,
       "expected_admitted": true,
@@ -1316,8 +1170,8 @@
       "top1_correct": true,
       "top3": [
         "dom_xss",
-        "server_side_template_injection",
-        "websocket_authorization"
+        "websocket_authorization",
+        "unsafe_api_consumption"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -1328,7 +1182,7 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "server_side_template_injection"
+        "dom_xss"
       ],
       "end_to_end_pass": true,
       "expected_admitted": false,
@@ -1342,15 +1196,15 @@
       "source_root": "GHSA-6457-mxpq-4fqq",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "server_side_template_injection",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "dom_xss",
+      "top1_correct": true,
       "top3": [
-        "server_side_template_injection",
+        "dom_xss",
         "websocket_authorization",
         "unsafe_api_consumption"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1359,7 +1213,7 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "server_side_template_injection"
+        "dom_xss"
       ],
       "end_to_end_pass": true,
       "expected_admitted": false,
@@ -1373,15 +1227,15 @@
       "source_root": "GHSA-6457-mxpq-4fqq",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "server_side_template_injection",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "dom_xss",
+      "top1_correct": true,
       "top3": [
-        "server_side_template_injection",
+        "dom_xss",
         "websocket_authorization",
         "unsafe_api_consumption"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1389,9 +1243,7 @@
       "case_kind": "sparse_noisy",
       "condition_signal_hits": [],
       "condition_signal_misses": [],
-      "emitted_families": [
-        "server_side_template_injection"
-      ],
+      "emitted_families": [],
       "end_to_end_pass": true,
       "expected_admitted": false,
       "expected_condition_families": [],
@@ -1405,32 +1257,30 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_signal",
-      "top1": "server_side_template_injection",
+      "top1": "websocket_authorization",
       "top1_correct": false,
       "top3": [
-        "server_side_template_injection",
         "websocket_authorization",
-        "unsafe_api_consumption"
+        "unsafe_api_consumption",
+        "unrestricted_resource_consumption"
       ],
       "top3_correct": false,
       "wrong_promotions": []
     },
     {
       "admitted_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
+        "exceptional_condition_mishandling"
       ],
       "case_kind": "positive",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [
+      "condition_signal_hits": [
         "crash_on_exception"
       ],
+      "condition_signal_misses": [],
       "emitted_families": [
         "exceptional_condition_mishandling",
-        "information_disclosure",
-        "security_misconfiguration"
+        "information_disclosure"
       ],
-      "end_to_end_pass": false,
+      "end_to_end_pass": true,
       "expected_admitted": true,
       "expected_condition_families": [
         "exceptional_condition_mishandling"
@@ -1441,35 +1291,35 @@
       "family": "exceptional_condition_mishandling",
       "id": "GHSA-hrxh-6v49-42gf-positive",
       "predicted_condition_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
+        "exceptional_condition_mishandling"
       ],
       "rank_required": true,
       "source_project": "grpc/grpc-go",
       "source_root": "GHSA-hrxh-6v49-42gf",
       "target_admitted": true,
       "target_condition_signals": [
+        "crash_on_exception",
         "unhandled_exception_observed"
       ],
       "target_state": "admitted",
-      "top1": "security_misconfiguration",
-      "top1_correct": false,
+      "top1": "exceptional_condition_mishandling",
+      "top1_correct": true,
       "top3": [
-        "security_misconfiguration",
         "exceptional_condition_mishandling",
-        "information_disclosure"
+        "information_disclosure",
+        "websocket_authorization"
       ],
       "top3_correct": true,
-      "wrong_promotions": [
-        "security_misconfiguration"
-      ]
+      "wrong_promotions": []
     },
     {
       "admitted_families": [],
       "case_kind": "near_miss",
       "condition_signal_hits": [],
       "condition_signal_misses": [],
-      "emitted_families": [],
+      "emitted_families": [
+        "exceptional_condition_mishandling"
+      ],
       "end_to_end_pass": true,
       "expected_admitted": false,
       "expected_condition_families": [],
@@ -1482,15 +1332,15 @@
       "source_root": "GHSA-hrxh-6v49-42gf",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "websocket_authorization",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "exceptional_condition_mishandling",
+      "top1_correct": true,
       "top3": [
+        "exceptional_condition_mishandling",
         "websocket_authorization",
-        "unsafe_api_consumption",
-        "unrestricted_resource_consumption"
+        "unsafe_api_consumption"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1498,7 +1348,9 @@
       "case_kind": "secure_negative",
       "condition_signal_hits": [],
       "condition_signal_misses": [],
-      "emitted_families": [],
+      "emitted_families": [
+        "exceptional_condition_mishandling"
+      ],
       "end_to_end_pass": true,
       "expected_admitted": false,
       "expected_condition_families": [],
@@ -1511,15 +1363,15 @@
       "source_root": "GHSA-hrxh-6v49-42gf",
       "target_admitted": false,
       "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "websocket_authorization",
-      "top1_correct": false,
+      "target_state": "shadow_contradicted",
+      "top1": "exceptional_condition_mishandling",
+      "top1_correct": true,
       "top3": [
+        "exceptional_condition_mishandling",
         "websocket_authorization",
-        "unsafe_api_consumption",
-        "unrestricted_resource_consumption"
+        "unsafe_api_consumption"
       ],
-      "top3_correct": false,
+      "top3_correct": true,
       "wrong_promotions": []
     },
     {
@@ -1698,8 +1550,6 @@
     },
     {
       "admitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
         "graphql_authorization"
       ],
       "case_kind": "positive",
@@ -1713,7 +1563,7 @@
         "graphql_authorization",
         "sql_injection"
       ],
-      "end_to_end_pass": false,
+      "end_to_end_pass": true,
       "expected_admitted": true,
       "expected_condition_families": [
         "graphql_authorization"
@@ -1724,8 +1574,6 @@
       "family": "graphql_authorization",
       "id": "GHSA-m8jr-fxqx-8xx6-positive",
       "predicted_condition_families": [
-        "authentication_session",
-        "broken_object_authorization",
         "graphql_authorization"
       ],
       "rank_required": true,
@@ -1741,13 +1589,10 @@
       "top3": [
         "graphql_authorization",
         "broken_object_authorization",
-        "authentication_session"
+        "sql_injection"
       ],
       "top3_correct": true,
-      "wrong_promotions": [
-        "authentication_session",
-        "broken_object_authorization"
-      ]
+      "wrong_promotions": []
     },
     {
       "admitted_families": [],
@@ -1784,9 +1629,7 @@
       "wrong_promotions": []
     },
     {
-      "admitted_families": [
-        "authentication_session"
-      ],
+      "admitted_families": [],
       "case_kind": "secure_negative",
       "condition_signal_hits": [],
       "condition_signal_misses": [],
@@ -1796,32 +1639,28 @@
         "graphql_authorization",
         "sql_injection"
       ],
-      "end_to_end_pass": false,
+      "end_to_end_pass": true,
       "expected_admitted": false,
       "expected_condition_families": [],
       "expected_condition_signals": [],
       "family": "graphql_authorization",
       "id": "GHSA-m8jr-fxqx-8xx6-secure_negative",
-      "predicted_condition_families": [
-        "authentication_session"
-      ],
+      "predicted_condition_families": [],
       "rank_required": true,
       "source_project": "apollographql/federation",
       "source_root": "GHSA-m8jr-fxqx-8xx6",
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_contradicted",
-      "top1": "authentication_session",
+      "top1": "broken_object_authorization",
       "top1_correct": false,
       "top3": [
-        "authentication_session",
         "broken_object_authorization",
-        "graphql_authorization"
+        "graphql_authorization",
+        "sql_injection"
       ],
       "top3_correct": true,
-      "wrong_promotions": [
-        "authentication_session"
-      ]
+      "wrong_promotions": []
     },
     {
       "admitted_families": [],
@@ -3159,8 +2998,8 @@
       "top1_correct": true,
       "top3": [
         "race_condition",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3192,8 +3031,8 @@
       "top1_correct": true,
       "top3": [
         "race_condition",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3225,8 +3064,8 @@
       "top1_correct": true,
       "top3": [
         "race_condition",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3258,8 +3097,8 @@
       "top1_correct": true,
       "top3": [
         "race_condition",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3719,8 +3558,8 @@
       "top1_correct": true,
       "top3": [
         "sensitive_business_flow_abuse",
-        "account_enumeration",
-        "authentication_session"
+        "business_logic",
+        "account_enumeration"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3749,12 +3588,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "account_enumeration",
+      "top1": "business_logic",
       "top1_correct": false,
       "top3": [
+        "business_logic",
         "account_enumeration",
-        "sensitive_business_flow_abuse",
-        "authentication_session"
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3787,8 +3626,8 @@
       "top1_correct": true,
       "top3": [
         "sensitive_business_flow_abuse",
-        "account_enumeration",
-        "authentication_session"
+        "business_logic",
+        "account_enumeration"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -3817,12 +3656,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "account_enumeration",
+      "top1": "business_logic",
       "top1_correct": false,
       "top3": [
+        "business_logic",
         "account_enumeration",
-        "sensitive_business_flow_abuse",
-        "authentication_session"
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -4010,8 +3849,8 @@
       "top1_correct": true,
       "top3": [
         "server_side_template_injection",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -4043,8 +3882,8 @@
       "top1_correct": true,
       "top3": [
         "server_side_template_injection",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -4076,8 +3915,8 @@
       "top1_correct": true,
       "top3": [
         "server_side_template_injection",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -4109,8 +3948,8 @@
       "top1_correct": true,
       "top3": [
         "server_side_template_injection",
-        "sensitive_business_flow_abuse",
-        "business_logic"
+        "business_logic",
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -4451,16 +4290,12 @@
       "expected_condition_signals": [],
       "family": "source_map_exposure",
       "id": "GHSA-rg65-45m7-hq57-near_miss",
-      "predicted_condition_families": [
-        "source_map_exposure"
-      ],
+      "predicted_condition_families": [],
       "rank_required": true,
       "source_project": "esm-dev/esm.sh",
       "source_root": "GHSA-rg65-45m7-hq57",
       "target_admitted": false,
-      "target_condition_signals": [
-        "direct_reachability"
-      ],
+      "target_condition_signals": [],
       "target_state": "shadow_contradicted",
       "top1": "source_map_exposure",
       "top1_correct": true,
@@ -4518,16 +4353,12 @@
       "expected_condition_signals": [],
       "family": "source_map_exposure",
       "id": "GHSA-rg65-45m7-hq57-sparse_noisy",
-      "predicted_condition_families": [
-        "source_map_exposure"
-      ],
+      "predicted_condition_families": [],
       "rank_required": false,
       "source_project": "esm-dev/esm.sh",
       "source_root": "GHSA-rg65-45m7-hq57",
       "target_admitted": false,
-      "target_condition_signals": [
-        "direct_reachability"
-      ],
+      "target_condition_signals": [],
       "target_state": "shadow_partial",
       "top1": "source_map_exposure",
       "top1_correct": true,
@@ -4965,7 +4796,6 @@
         "upstream_tls_missing"
       ],
       "emitted_families": [
-        "broken_object_authorization",
         "unsafe_api_consumption"
       ],
       "end_to_end_pass": true,
@@ -4993,8 +4823,8 @@
       "top1_correct": true,
       "top3": [
         "unsafe_api_consumption",
-        "broken_object_authorization",
-        "websocket_authorization"
+        "websocket_authorization",
+        "unrestricted_resource_consumption"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -5005,7 +4835,6 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "broken_object_authorization",
         "unsafe_api_consumption"
       ],
       "end_to_end_pass": true,
@@ -5021,12 +4850,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_contradicted",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "unsafe_api_consumption",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
         "unsafe_api_consumption",
-        "websocket_authorization"
+        "websocket_authorization",
+        "unrestricted_resource_consumption"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -5037,7 +4866,6 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "broken_object_authorization",
         "unsafe_api_consumption"
       ],
       "end_to_end_pass": true,
@@ -5053,12 +4881,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "unsafe_api_consumption",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
         "unsafe_api_consumption",
-        "websocket_authorization"
+        "websocket_authorization",
+        "unrestricted_resource_consumption"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -5069,7 +4897,6 @@
       "condition_signal_hits": [],
       "condition_signal_misses": [],
       "emitted_families": [
-        "broken_object_authorization",
         "unsafe_api_consumption"
       ],
       "end_to_end_pass": true,
@@ -5085,12 +4912,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
+      "top1": "unsafe_api_consumption",
+      "top1_correct": true,
       "top3": [
-        "broken_object_authorization",
         "unsafe_api_consumption",
-        "websocket_authorization"
+        "websocket_authorization",
+        "unrestricted_resource_consumption"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -5250,33 +5077,28 @@
       "broken_object_authorization": 3
     },
     "business_logic": {
-      "broken_object_authorization": 2,
-      "business_logic": 1
+      "business_logic": 3
     },
     "command_injection": {
       "command_injection": 3
     },
     "cors_misconfiguration": {
-      "authentication_session": 2,
-      "cors_misconfiguration": 1
+      "cors_misconfiguration": 3
     },
     "cryptographic_failure": {
       "cryptographic_failure": 3
     },
     "dom_xss": {
-      "dom_xss": 1,
-      "server_side_template_injection": 2
+      "dom_xss": 3
     },
     "exceptional_condition_mishandling": {
-      "security_misconfiguration": 1,
-      "websocket_authorization": 2
+      "exceptional_condition_mishandling": 3
     },
     "file_upload": {
       "file_upload": 3
     },
     "graphql_authorization": {
-      "authentication_session": 1,
-      "broken_object_authorization": 1,
+      "broken_object_authorization": 2,
       "graphql_authorization": 1
     },
     "graphql_data_exposure": {
@@ -5324,7 +5146,7 @@
       "security_misconfiguration": 1
     },
     "sensitive_business_flow_abuse": {
-      "account_enumeration": 1,
+      "business_logic": 1,
       "sensitive_business_flow_abuse": 2
     },
     "sensitive_caching": {
@@ -5355,8 +5177,7 @@
       "unrestricted_resource_consumption": 3
     },
     "unsafe_api_consumption": {
-      "broken_object_authorization": 2,
-      "unsafe_api_consumption": 1
+      "unsafe_api_consumption": 3
     },
     "websocket_authorization": {
       "websocket_authorization": 3
@@ -5593,25 +5414,22 @@
     },
     "exceptional_condition_mishandling": {
       "case_count": 4,
-      "case_end_to_end_pass_count": 3,
+      "case_end_to_end_pass_count": 4,
       "near_miss_abstained": true,
       "positive_admitted": true,
-      "positive_condition_misses": [
-        "crash_on_exception"
-      ],
+      "positive_condition_misses": [],
       "positive_condition_signals": [
+        "crash_on_exception",
         "unhandled_exception_observed"
       ],
       "positive_expected_condition_signals": [
         "crash_on_exception"
       ],
-      "positive_top1_correct": false,
+      "positive_top1_correct": true,
       "positive_top3_correct": true,
       "secure_negative_abstained": true,
       "sparse_noisy_abstained": true,
-      "wrong_promotions": [
-        "security_misconfiguration"
-      ]
+      "wrong_promotions": []
     },
     "file_upload": {
       "case_count": 4,
@@ -5633,7 +5451,7 @@
     },
     "graphql_authorization": {
       "case_count": 4,
-      "case_end_to_end_pass_count": 2,
+      "case_end_to_end_pass_count": 4,
       "near_miss_abstained": true,
       "positive_admitted": true,
       "positive_condition_misses": [],
@@ -5645,12 +5463,9 @@
       ],
       "positive_top1_correct": true,
       "positive_top3_correct": true,
-      "secure_negative_abstained": false,
+      "secure_negative_abstained": true,
       "sparse_noisy_abstained": true,
-      "wrong_promotions": [
-        "authentication_session",
-        "broken_object_authorization"
-      ]
+      "wrong_promotions": []
     },
     "graphql_data_exposure": {
       "case_count": 4,
@@ -6099,22 +5914,22 @@
     "shortlist_sha256": "d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85"
   },
   "metrics": {
-    "abstention_accuracy": 0.990741,
-    "admission_precision": 0.9,
+    "abstention_accuracy": 1.0,
+    "admission_precision": 1.0,
     "admission_recall": 1.0,
-    "condition_extraction_precision": 0.857143,
+    "condition_extraction_precision": 1.0,
     "condition_extraction_recall": 1.0,
-    "end_to_end_accuracy": 0.979167,
-    "false_promotion_rate": 0.009259,
+    "end_to_end_accuracy": 1.0,
+    "false_promotion_rate": 0.0,
     "near_miss_abstention_accuracy": 1.0,
-    "positive_end_to_end_accuracy": 0.944444,
+    "positive_end_to_end_accuracy": 1.0,
     "prior_source_root_overlap_rate": 0.0,
     "raw_label_leakage_rate": 0.0,
-    "routing_top1_accuracy": 0.759259,
-    "routing_top3_accuracy": 0.888889,
-    "secure_negative_rejection_accuracy": 0.972222,
+    "routing_top1_accuracy": 0.861111,
+    "routing_top3_accuracy": 0.962963,
+    "secure_negative_rejection_accuracy": 1.0,
     "sparse_noisy_abstention_accuracy": 1.0,
-    "wrong_family_promotion_rate": 0.020833
+    "wrong_family_promotion_rate": 0.0
   },
   "mutation_policy": {
     "benchmark_repairs": "forbidden",
@@ -6125,335 +5940,11 @@
   "negative_count": 108,
   "positive_count": 36,
   "quality_gate": {
-    "failures": [
-      {
-        "direction": "min",
-        "metric": "condition_extraction_precision",
-        "threshold": 0.9,
-        "value": 0.857143
-      },
-      {
-        "direction": "min",
-        "metric": "routing_top1_accuracy",
-        "threshold": 0.8,
-        "value": 0.759259
-      },
-      {
-        "direction": "min",
-        "metric": "routing_top3_accuracy",
-        "threshold": 0.95,
-        "value": 0.888889
-      },
-      {
-        "direction": "min",
-        "metric": "admission_precision",
-        "threshold": 0.93,
-        "value": 0.9
-      }
-    ],
-    "passed": false
+    "failures": [],
+    "passed": true
   },
   "rank_required_count": 108,
   "ranking_errors": [
-    {
-      "admitted_families": [],
-      "case_kind": "near_miss",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "business_logic",
-        "sensitive_business_flow_abuse"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "business_logic",
-      "id": "GHSA-v4g2-cm5v-cxv7-near_miss",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "aimeos/ai-client-html",
-      "source_root": "GHSA-v4g2-cm5v-cxv7",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
-      "top3": [
-        "broken_object_authorization",
-        "sensitive_business_flow_abuse",
-        "authentication_session"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session",
-        "broken_object_authorization",
-        "business_logic",
-        "sensitive_business_flow_abuse"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "business_logic",
-      "id": "GHSA-v4g2-cm5v-cxv7-secure_negative",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "aimeos/ai-client-html",
-      "source_root": "GHSA-v4g2-cm5v-cxv7",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
-      "top3": [
-        "broken_object_authorization",
-        "sensitive_business_flow_abuse",
-        "authentication_session"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "near_miss",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "cors_misconfiguration",
-      "id": "GHSA-mchx-7j67-8mcf-near_miss",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "casdoor/casdoor",
-      "source_root": "GHSA-mchx-7j67-8mcf",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "authentication_session",
-      "top1_correct": false,
-      "top3": [
-        "authentication_session",
-        "websocket_authorization",
-        "unsafe_api_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "authentication_session"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "cors_misconfiguration",
-      "id": "GHSA-mchx-7j67-8mcf-secure_negative",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "casdoor/casdoor",
-      "source_root": "GHSA-mchx-7j67-8mcf",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "authentication_session",
-      "top1_correct": false,
-      "top3": [
-        "authentication_session",
-        "websocket_authorization",
-        "unsafe_api_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "near_miss",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "server_side_template_injection"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "dom_xss",
-      "id": "GHSA-6457-mxpq-4fqq-near_miss",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "i18next/i18nextify",
-      "source_root": "GHSA-6457-mxpq-4fqq",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "server_side_template_injection",
-      "top1_correct": false,
-      "top3": [
-        "server_side_template_injection",
-        "websocket_authorization",
-        "unsafe_api_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "server_side_template_injection"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "dom_xss",
-      "id": "GHSA-6457-mxpq-4fqq-secure_negative",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "i18next/i18nextify",
-      "source_root": "GHSA-6457-mxpq-4fqq",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "server_side_template_injection",
-      "top1_correct": false,
-      "top3": [
-        "server_side_template_injection",
-        "websocket_authorization",
-        "unsafe_api_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
-      ],
-      "case_kind": "positive",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [
-        "crash_on_exception"
-      ],
-      "emitted_families": [
-        "exceptional_condition_mishandling",
-        "information_disclosure",
-        "security_misconfiguration"
-      ],
-      "end_to_end_pass": false,
-      "expected_admitted": true,
-      "expected_condition_families": [
-        "exceptional_condition_mishandling"
-      ],
-      "expected_condition_signals": [
-        "crash_on_exception"
-      ],
-      "family": "exceptional_condition_mishandling",
-      "id": "GHSA-hrxh-6v49-42gf-positive",
-      "predicted_condition_families": [
-        "exceptional_condition_mishandling",
-        "security_misconfiguration"
-      ],
-      "rank_required": true,
-      "source_project": "grpc/grpc-go",
-      "source_root": "GHSA-hrxh-6v49-42gf",
-      "target_admitted": true,
-      "target_condition_signals": [
-        "unhandled_exception_observed"
-      ],
-      "target_state": "admitted",
-      "top1": "security_misconfiguration",
-      "top1_correct": false,
-      "top3": [
-        "security_misconfiguration",
-        "exceptional_condition_mishandling",
-        "information_disclosure"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": [
-        "security_misconfiguration"
-      ]
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "near_miss",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "exceptional_condition_mishandling",
-      "id": "GHSA-hrxh-6v49-42gf-near_miss",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "grpc/grpc-go",
-      "source_root": "GHSA-hrxh-6v49-42gf",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "websocket_authorization",
-      "top1_correct": false,
-      "top3": [
-        "websocket_authorization",
-        "unsafe_api_consumption",
-        "unrestricted_resource_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "exceptional_condition_mishandling",
-      "id": "GHSA-hrxh-6v49-42gf-secure_negative",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "grpc/grpc-go",
-      "source_root": "GHSA-hrxh-6v49-42gf",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_signal",
-      "top1": "websocket_authorization",
-      "top1_correct": false,
-      "top3": [
-        "websocket_authorization",
-        "unsafe_api_consumption",
-        "unrestricted_resource_consumption"
-      ],
-      "top3_correct": false,
-      "wrong_promotions": []
-    },
     {
       "admitted_families": [],
       "case_kind": "near_miss",
@@ -6489,9 +5980,7 @@
       "wrong_promotions": []
     },
     {
-      "admitted_families": [
-        "authentication_session"
-      ],
+      "admitted_families": [],
       "case_kind": "secure_negative",
       "condition_signal_hits": [],
       "condition_signal_misses": [],
@@ -6501,32 +5990,28 @@
         "graphql_authorization",
         "sql_injection"
       ],
-      "end_to_end_pass": false,
+      "end_to_end_pass": true,
       "expected_admitted": false,
       "expected_condition_families": [],
       "expected_condition_signals": [],
       "family": "graphql_authorization",
       "id": "GHSA-m8jr-fxqx-8xx6-secure_negative",
-      "predicted_condition_families": [
-        "authentication_session"
-      ],
+      "predicted_condition_families": [],
       "rank_required": true,
       "source_project": "apollographql/federation",
       "source_root": "GHSA-m8jr-fxqx-8xx6",
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_contradicted",
-      "top1": "authentication_session",
+      "top1": "broken_object_authorization",
       "top1_correct": false,
       "top3": [
-        "authentication_session",
         "broken_object_authorization",
-        "graphql_authorization"
+        "graphql_authorization",
+        "sql_injection"
       ],
       "top3_correct": true,
-      "wrong_promotions": [
-        "authentication_session"
-      ]
+      "wrong_promotions": []
     },
     {
       "admitted_families": [],
@@ -6811,12 +6296,12 @@
       "target_admitted": false,
       "target_condition_signals": [],
       "target_state": "shadow_partial",
-      "top1": "account_enumeration",
+      "top1": "business_logic",
       "top1_correct": false,
       "top3": [
+        "business_logic",
         "account_enumeration",
-        "sensitive_business_flow_abuse",
-        "authentication_session"
+        "sensitive_business_flow_abuse"
       ],
       "top3_correct": true,
       "wrong_promotions": []
@@ -6944,70 +6429,6 @@
       "top3": [
         "sql_injection",
         "ssrf",
-        "websocket_authorization"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "near_miss",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "broken_object_authorization",
-        "unsafe_api_consumption"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "unsafe_api_consumption",
-      "id": "CVE-2020-13482-near_miss",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "igrigorik/em-http-request",
-      "source_root": "CVE-2020-13482",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_contradicted",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
-      "top3": [
-        "broken_object_authorization",
-        "unsafe_api_consumption",
-        "websocket_authorization"
-      ],
-      "top3_correct": true,
-      "wrong_promotions": []
-    },
-    {
-      "admitted_families": [],
-      "case_kind": "secure_negative",
-      "condition_signal_hits": [],
-      "condition_signal_misses": [],
-      "emitted_families": [
-        "broken_object_authorization",
-        "unsafe_api_consumption"
-      ],
-      "end_to_end_pass": true,
-      "expected_admitted": false,
-      "expected_condition_families": [],
-      "expected_condition_signals": [],
-      "family": "unsafe_api_consumption",
-      "id": "CVE-2020-13482-secure_negative",
-      "predicted_condition_families": [],
-      "rank_required": true,
-      "source_project": "igrigorik/em-http-request",
-      "source_root": "CVE-2020-13482",
-      "target_admitted": false,
-      "target_condition_signals": [],
-      "target_state": "shadow_partial",
-      "top1": "broken_object_authorization",
-      "top1_correct": false,
-      "top3": [
-        "broken_object_authorization",
-        "unsafe_api_consumption",
         "websocket_authorization"
       ],
       "top3_correct": true,
