@@ -29,7 +29,9 @@ jobs:
           python-version: '3.11'
 
       - name: Apply pre-freeze hardening before any corpus materialization
-        run: python scripts/analysis_629_pre_freeze_fix.py
+        run: |
+          python scripts/analysis_629_pre_freeze_fix.py
+          python scripts/analysis_629_exact10_fix.py
 
       - name: Verify sealed 6.28 lineage and unchanged production scoring logic
         run: |
@@ -56,12 +58,12 @@ jobs:
           python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
           python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
 
-      - name: Discover fresh v5 sources from official NVD JSON 2.0 feeds
+      - name: Discover fresh v5 sources from official NVD current-year feed
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v5_nvd_discovery.py
 
-      - name: Build exact fresh sources for niche families
+      - name: Build ten exact fresh sources for niche families
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v5_exact_source_supplement.py
@@ -127,9 +129,9 @@ jobs:
 
           exact=json.loads((root/'benchmarks/raw/sources/v5_exact_source_supplement.json').read_text())
           exact_rows=exact['selected']
-          assert exact['family_count']==9
-          assert len({x['source_root'] for x in exact_rows})==9
-          assert len({x['source_project'] for x in exact_rows})==9
+          assert exact['family_count']==10
+          assert len({x['source_root'] for x in exact_rows})==10
+          assert len({x['source_project'] for x in exact_rows})==10
           assert all(x['exact_source_audit_passed'] for x in exact_rows)
           assert all(x['freshness_validated'] for x in exact_rows)
           assert exact['scoring_executed'] is False
@@ -149,7 +151,7 @@ jobs:
               'evaluator_sha256': freeze['protected_sha256']['app/raw_recon_v5_benchmark.py'],
               'cases':216,
               'dual_positive_pairs':18,
-              'exact_niche_sources':9,
+              'exact_niche_sources':10,
               'source_kind_counts':freeze['source_kind_counts'],
           }, indent=2))
           PY
@@ -197,7 +199,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-629-v5-prepare.yml scripts/analysis_629_pre_freeze_fix.py
+          git rm .github/workflows/analysis-629-v5-prepare.yml scripts/analysis_629_pre_freeze_fix.py scripts/analysis_629_exact10_fix.py
           if git ls-files --error-unmatch app/raw_recon_v5_business_logic_supplement.py >/dev/null 2>&1; then
             git rm app/raw_recon_v5_business_logic_supplement.py
           fi
