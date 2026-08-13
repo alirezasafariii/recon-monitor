@@ -1,11 +1,12 @@
 from __future__ import annotations
 from typing import Any, Iterable, Mapping
 from core import Database
+from owasp_family_catalog import CANONICAL_TAXONOMY
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .owasp_expansion_common import analyze_injection_family
 
-NOSQL_INJECTION_FAMILY_ANALYZER_VERSION = "1.0.0"
-TAXONOMY = {'owasp': ['Injection'], 'wstg': ['WSTG-INPV-05.6'], 'cwe': ['CWE-943'], 'capec': []}
+NOSQL_INJECTION_FAMILY_ANALYZER_VERSION = "1.0.1"
+TAXONOMY = CANONICAL_TAXONOMY["nosql_injection"]
 METHOD = (
     {"id":"nosql_injection-input-sink","principle":"Require concrete user input plus a matching server-side interpreter/query sink."},
     {"id":"nosql_injection-safe-controls","principle":"Treat parameterization/escaping/typing/literal rendering/allow-listing as contradiction evidence."},
@@ -16,7 +17,7 @@ FALSE_POSITIVES = (
     "A sink keyword alone does not prove untrusted data reaches the sink.",
     "OWASP/CWE/write-up knowledge never counts as target evidence.",
 )
-WRITEUPS = ({"id":"owasp-nosql_injection","source":"OWASP","ref":'WSTG-INPV-05.6',"principle":"Untrusted input becomes dangerous only when it can alter interpreter semantics at a server-side sink."},)
+WRITEUPS = ({"id":"owasp-nosql_injection","source":"OWASP","ref":"WSTG-INPV-05","principle":"NoSQL testing is covered within the WSTG SQL Injection scenario; untrusted input becomes dangerous only when it can alter server-side query semantics."},)
 
 def analyze_nosql_injection_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",body_fields:Iterable[str]=(),query_fields:Iterable[str]=(),path_fields:Iterable[str]=(),details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="")->dict[str,Any]|None:
     del db,analysis_id,target,business_context
