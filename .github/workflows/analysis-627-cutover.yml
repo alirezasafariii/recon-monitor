@@ -45,6 +45,7 @@ jobs:
         run: |
           python scripts/analysis_627_cutover.py
           python scripts/analysis_627_cutover_compat.py
+          python scripts/analysis_627_cutover_compat2.py
 
       - name: Analysis 6.27 exact cutover contract
         env:
@@ -166,7 +167,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-627-cutover.yml scripts/analysis_627_cutover.py scripts/analysis_627_cutover_compat.py
+          git rm .github/workflows/analysis-627-cutover.yml scripts/analysis_627_cutover.py scripts/analysis_627_cutover_compat.py scripts/analysis_627_cutover_compat2.py
           git add -A
           git diff --cached --check
           git commit -m "Cut over Analysis Engine 6.27 blind failure calibration"
