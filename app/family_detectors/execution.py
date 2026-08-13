@@ -12,8 +12,8 @@ from typing import Any, Iterable, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_condition_reconstruction import reconstruct_raw_evidence
 
-EXECUTION_ENGINE_VERSION = "1.3.0"
-EXECUTION_RULE_VERSION = "2026.08.13.6.27"
+EXECUTION_ENGINE_VERSION = "1.4.0"
+EXECUTION_RULE_VERSION = "2026.08.13.6.30"
 MAX_TEXT_CHARS = 65536
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -474,12 +474,26 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     if redirect_fields or any(token in surface_text for token in ("redirect", "return_url", "next_url", "location.href", "location.assign", "location.replace")):
         packet = _packet_for(result, "open_redirect")
         _add_identity(packet, "open_redirect", "redirect_parameter", "endpoint_schema", "User-influenced redirect/navigation parameter is present.", "navigation_input", 16)
-        if location or any(token in text_lower for token in ("location.href", "location.assign", "location.replace")):
-            _add_identity(packet, "open_redirect", "navigation_sink", "raw_navigation", "Stored raw artifacts contain a redirect/navigation sink.", "navigation_sink", 16)
-        if location:
+        actual_http_redirect = 300 <= status < 400
+        if (location and actual_http_redirect) or any(token in text_lower for token in ("location.href", "location.assign", "location.replace")):
+            _add_identity(packet, "open_redirect", "navigation_sink", "raw_navigation", "Stored raw artifacts contain an actual redirect/navigation sink.", "navigation_sink", 16)
+
+        allowlist_enforced = _flag(flat, "redirect_allowlist_enforced", "host_allowlist_enforced", "destination_allowlist_enforced")
+        same_origin_enforced = _flag(flat, "same_origin_only", "redirect_same_origin_only")
+        relative_only_enforced = _flag(flat, "relative_path_only", "redirect_relative_only")
+        if allowlist_enforced:
+            _add(packet, "contradict", _signal("open_redirect", "host_allowlist", "stored_redirect_control", "Stored redirect observation explicitly enforces a destination host allow-list.", source_group="redirect_control", weight=-30, basis="stored_redirect_allowlist"))
+        if same_origin_enforced:
+            _add(packet, "contradict", _signal("open_redirect", "same_origin_only", "stored_redirect_control", "Stored redirect observation explicitly restricts navigation to the same origin.", source_group="redirect_control", weight=-30, basis="stored_same_origin_redirect_control"))
+        if relative_only_enforced:
+            _add(packet, "contradict", _signal("open_redirect", "relative_path_only", "stored_redirect_control", "Stored redirect observation explicitly restricts navigation to relative paths.", source_group="redirect_control", weight=-30, basis="stored_relative_redirect_control"))
+
+        if location and actual_http_redirect and not (allowlist_enforced or same_origin_enforced or relative_only_enforced):
             parsed_location = urllib.parse.urlsplit(location)
-            if parsed_location.scheme in {"http", "https"} and parsed_location.hostname and endpoint_host and parsed_location.hostname.lower() != endpoint_host.lower():
-                _add(packet, "support", _signal("open_redirect", "external_destination", "http_headers", "Stored redirect response points to an external host.", source_group="redirect_behavior", weight=28, basis="response_location_external_host"))
+            protocol_relative = location.startswith("//") and not parsed_location.scheme
+            external_http_location = parsed_location.scheme in {"http", "https"} or protocol_relative
+            if external_http_location and parsed_location.hostname and endpoint_host and parsed_location.hostname.lower() != endpoint_host.lower():
+                _add(packet, "support", _signal("open_redirect", "external_destination", "http_headers", "Stored successful redirect response navigates to an external host from a user-influenced redirect surface.", source_group="redirect_behavior", weight=28, basis="actual_redirect_response_to_external_host"))
 
     url_fields = all_fields & URL_FIELDS
     if url_fields or any(token in surface_text for token in ("webhook", "fetch_url", "import_url", "preview_url", "proxy_url", "remote_url")):

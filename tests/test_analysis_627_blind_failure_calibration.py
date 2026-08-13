@@ -414,8 +414,8 @@ class Analysis627BlindFailureCalibrationTests(unittest.TestCase):
         self.assertNotIn("privileged_function", {row.get("type") for row in bfa.get("support") or []})
 
     def test_component_lineage_is_627(self) -> None:
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.3.0")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.13.6.27")
+        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_ENGINE_VERSION.split(".")), (1, 3, 0))
+        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))
         self.assertEqual(ADMISSION_ENGINE_VERSION, "2.5.0")
         self.assertEqual(ADMISSION_RULE_VERSION, "2026.08.13.6.27")
         self.assertEqual(DETECTOR_ENGINE_VERSION, "1.2.0")

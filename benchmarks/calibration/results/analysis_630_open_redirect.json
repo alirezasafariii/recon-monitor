@@ -1,0 +1,124 @@
+{
+  "all_passed": true,
+  "case_count": 8,
+  "cases": [
+    {
+      "actual_admitted": true,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [
+        "external_destination"
+      ],
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "id": "cal630-sickchill-external-302",
+      "passed": true,
+      "source_project": "sickchill/sickchill",
+      "source_root": "CVE-2024-53995"
+    },
+    {
+      "actual_admitted": true,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [
+        "external_destination"
+      ],
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "id": "cal630-cloudflare-oauth-external-302",
+      "passed": true,
+      "source_project": "cloudflare/workers-oauth-provider",
+      "source_root": "CVE-2025-4143"
+    },
+    {
+      "actual_admitted": true,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [
+        "external_destination"
+      ],
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "id": "cal630-koa-protocol-relative-302",
+      "passed": true,
+      "source_project": "koajs/koa",
+      "source_root": "CVE-2025-62595"
+    },
+    {
+      "actual_admitted": false,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [],
+      "expected_admitted": false,
+      "expected_condition": "",
+      "id": "cal630-control-location-on-400",
+      "passed": true,
+      "source_project": "calibration/non-redirect-response",
+      "source_root": "CAL630-CONTROL-HTTP400"
+    },
+    {
+      "actual_admitted": false,
+      "admission_ok": true,
+      "blocking_contradictions": [
+        "host_allowlist"
+      ],
+      "condition_ok": true,
+      "condition_types": [],
+      "expected_admitted": false,
+      "expected_condition": "",
+      "id": "cal630-control-external-allowlist",
+      "passed": true,
+      "source_project": "calibration/redirect-allowlist",
+      "source_root": "CAL630-CONTROL-ALLOWLIST"
+    },
+    {
+      "actual_admitted": false,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [],
+      "expected_admitted": false,
+      "expected_condition": "",
+      "id": "cal630-control-same-origin-302",
+      "passed": true,
+      "source_project": "calibration/same-origin",
+      "source_root": "CAL630-CONTROL-SAMEORIGIN"
+    },
+    {
+      "actual_admitted": false,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [],
+      "expected_admitted": false,
+      "expected_condition": "",
+      "id": "cal630-control-relative-302",
+      "passed": true,
+      "source_project": "calibration/relative-only",
+      "source_root": "CAL630-CONTROL-RELATIVE"
+    },
+    {
+      "actual_admitted": false,
+      "admission_ok": true,
+      "blocking_contradictions": [],
+      "condition_ok": true,
+      "condition_types": [],
+      "expected_admitted": false,
+      "expected_condition": "",
+      "id": "cal630-control-nosql-plus-nonredirect-location",
+      "passed": true,
+      "source_project": "calibration/nosql-open-redirect-confounder",
+      "source_root": "CAL630-CONTROL-CONFOUNDER"
+    }
+  ],
+  "dataset_version": "1.0.0",
+  "failed_count": 0,
+  "pass_rate": 1.0,
+  "passed_count": 8,
+  "rule_version": "2026.08.13.6.30",
+  "version": "1.0.0"
+}

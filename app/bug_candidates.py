@@ -13,8 +13,8 @@ from family_detectors import detector_rule_ids, evaluate_family_detector, execut
 from family_orchestration import collect_raw_owned_observations, validate_family_ownership
 from static_family_collectors import collect_static_candidate_observations
 
-CANDIDATE_ENGINE_VERSION = "6.28.0"
-CANDIDATE_RULE_VERSION = "2026.08.13.6.28"
+CANDIDATE_ENGINE_VERSION = "6.30.0"
+CANDIDATE_RULE_VERSION = "2026.08.13.6.30"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
