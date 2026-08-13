@@ -11,15 +11,18 @@ numbers:
 * ``target_evidence_confidence``: how much family-specific evidence was actually
   observed on the target.
 
-Knowledge retrieval, historical feedback, correlation, and LLM advice are never
-allowed to increase ``target_evidence_confidence`` or satisfy admission gates.
+Knowledge retrieval, historical feedback, correlation, LLM advice, and
+calibration metadata are never allowed to increase ``target_evidence_confidence``
+or satisfy admission gates.
 """
 
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
-META_RANKER_VERSION = "1.0.0"
-META_RANKER_RULE_VERSION = "2026.08.10.1"
+from calibration_engine import calibration_for_score
+
+META_RANKER_VERSION = "1.1.0"
+META_RANKER_RULE_VERSION = "2026.08.13.2"
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "target_evidence": 0.40,
@@ -59,9 +62,9 @@ def target_evidence_confidence(
 ) -> tuple[int, dict[str, Any]]:
     """Score only target-originating family-specific evidence.
 
-    No writeup, taxonomy, historical result, correlation prior, or LLM output is
-    accepted by this function.  This makes the evidence/proximity boundary easy
-    to audit and regression test.
+    No writeup, taxonomy, historical result, correlation prior, LLM output, or
+    calibration profile is accepted by this function. This keeps the evidence
+    boundary auditable and prevents ranking quality work from weakening safety.
     """
 
     strong, medium, weak = _matched_types(ranking)
@@ -183,13 +186,17 @@ def rank_bug_proximity(
     correlation_scores: Mapping[str, Any] | None = None,
     llm_advisory_scores: Mapping[str, Any] | None = None,
     admission_by_family: Mapping[str, Any] | None = None,
+    calibration_profile: Mapping[str, Any] | None = None,
     limit: int = 3,
 ) -> dict[str, Any]:
     """Combine evidence and advisory channels into an explainable Top-N ranking.
 
     ``llm_advisory_scores`` is intentionally optional and only carries 3% of the
-    configured weight.  Missing optional components are excluded rather than
+    configured weight. Missing optional components are excluded rather than
     replaced with artificial neutral scores.
+
+    ``calibration_profile`` is shadow/advisory metadata. It never changes the raw
+    proximity score, evidence confidence, admission state, or confirmation state.
     """
 
     support_items = [dict(item) for item in support]
@@ -255,6 +262,7 @@ def rank_bug_proximity(
         elif strong_count == 0 and evidence_score < 50:
             proximity = min(proximity, 69)
 
+        calibration = calibration_for_score(family, proximity, calibration_profile)
         available = [name for name, value in components.items() if value is not None]
         unavailable = [name for name, value in components.items() if value is None]
         why: list[str] = []
@@ -272,6 +280,11 @@ def rank_bug_proximity(
             why.append(f"related-surface correlation: {correlation_score}/100 (non-evidentiary)")
         if llm_score is not None:
             why.append(f"LLM advisory: {llm_score}/100 (non-evidentiary)")
+        if calibration.get("available"):
+            why.append(
+                "calibration shadow threshold: "
+                f"{calibration['threshold']}/100 ({calibration['threshold_source']}; advisory only)"
+            )
 
         results.append(
             {
@@ -281,6 +294,7 @@ def rank_bug_proximity(
                 "target_evidence_confidence": evidence_score,
                 "proximity_band": _proximity_band(proximity),
                 "hunt_priority": _hunt_priority(proximity, evidence_score),
+                "calibration": calibration,
                 "components": components,
                 "available_components": available,
                 "unavailable_components": unavailable,
@@ -306,6 +320,7 @@ def rank_bug_proximity(
         "engine_version": META_RANKER_VERSION,
         "rule_version": META_RANKER_RULE_VERSION,
         "weights": dict(DEFAULT_WEIGHTS),
+        "calibration_mode": str(calibration_profile.get("activation") or "shadow_only") if isinstance(calibration_profile, Mapping) else "none",
         "primary": primary,
         "alternatives": top[1:],
         "rankings": top,
@@ -314,5 +329,7 @@ def rank_bug_proximity(
             "target_evidence_confidence_uses_target_observations_only": True,
             "knowledge_cannot_satisfy_admission": True,
             "llm_is_advisory_only": True,
+            "calibration_is_advisory_only": True,
+            "calibration_cannot_change_evidence_or_admission": True,
         },
     }
