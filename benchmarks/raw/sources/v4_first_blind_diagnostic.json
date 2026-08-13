@@ -1,0 +1,826 @@
+{
+  "condition_false_positive_family_counts": {
+    "authentication_session": 1,
+    "broken_object_authorization": 1,
+    "improper_inventory_management": 1,
+    "sensitive_caching": 14,
+    "source_map_exposure": 2
+  },
+  "condition_miss_family_counts": {
+    "business_logic": 1,
+    "cryptographic_failure": 1,
+    "dom_xss": 1,
+    "exceptional_condition_mishandling": 1,
+    "graphql_authorization": 1,
+    "graphql_data_exposure": 1,
+    "improper_inventory_management": 1,
+    "postmessage_trust": 1,
+    "security_logging_alerting_failure": 1,
+    "sensitive_business_flow_abuse": 1,
+    "sensitive_caching": 1,
+    "software_data_integrity_failure": 1,
+    "software_supply_chain_failure": 1,
+    "source_map_exposure": 1,
+    "unsafe_api_consumption": 1,
+    "websocket_authorization": 1
+  },
+  "diagnostic_executes_analysis_engine": false,
+  "diagnostic_reruns_holdout": false,
+  "diagnostic_rule_version": "2026.08.13.6.26",
+  "diagnostic_version": "1.0.0",
+  "failed_positive_families": [
+    "business_logic",
+    "cryptographic_failure",
+    "dom_xss",
+    "graphql_authorization",
+    "graphql_data_exposure",
+    "postmessage_trust",
+    "security_logging_alerting_failure",
+    "sensitive_business_flow_abuse",
+    "software_data_integrity_failure",
+    "software_supply_chain_failure",
+    "source_map_exposure",
+    "unsafe_api_consumption",
+    "websocket_authorization"
+  ],
+  "failed_positive_family_count": 13,
+  "first_blind_quality_gate_passed": false,
+  "frozen_inputs_mutated": false,
+  "metrics": {
+    "abstention_accuracy": 0.87037,
+    "admission_precision": 0.469388,
+    "admission_recall": 0.638889,
+    "condition_extraction_precision": 0.45283,
+    "condition_extraction_recall": 0.666667,
+    "end_to_end_accuracy": 0.777778,
+    "false_promotion_rate": 0.12963,
+    "near_miss_abstention_accuracy": 0.805556,
+    "positive_end_to_end_accuracy": 0.5,
+    "prior_source_root_overlap_rate": 0.0,
+    "raw_label_leakage_rate": 0.0,
+    "routing_top1_accuracy": 0.62963,
+    "routing_top3_accuracy": 0.824074,
+    "secure_negative_rejection_accuracy": 0.916667,
+    "sparse_noisy_abstention_accuracy": 0.888889,
+    "wrong_family_promotion_rate": 0.145833
+  },
+  "negative_promotion_case_count": 14,
+  "negative_promotion_kind_counts": {
+    "near_miss": 7,
+    "secure_negative": 3,
+    "sparse_noisy": 4
+  },
+  "negative_promotions": [
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "authentication_session",
+      "id": "GHSA-mq23-vvg7-xfm4-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "authentication_session",
+        "websocket_authorization"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "business_logic",
+      "id": "GHSA-v4g2-cm5v-cxv7-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "sensitive_business_flow_abuse"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "sparse_noisy",
+      "expected_family": "business_logic",
+      "id": "GHSA-v4g2-cm5v-cxv7-sparse_noisy",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "sensitive_business_flow_abuse"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "cors_misconfiguration",
+      "id": "GHSA-mchx-7j67-8mcf-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "authentication_session",
+        "websocket_authorization"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "graphql_authorization",
+      "id": "GHSA-m8jr-fxqx-8xx6-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "sql_injection"
+      ]
+    },
+    {
+      "admitted_families": [
+        "authentication_session",
+        "broken_object_authorization",
+        "sensitive_caching"
+      ],
+      "case_kind": "secure_negative",
+      "expected_family": "graphql_authorization",
+      "id": "GHSA-m8jr-fxqx-8xx6-secure_negative",
+      "predicted_condition_families": [
+        "authentication_session",
+        "broken_object_authorization",
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "authentication_session"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "sparse_noisy",
+      "expected_family": "graphql_authorization",
+      "id": "GHSA-m8jr-fxqx-8xx6-sparse_noisy",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "sql_injection"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "graphql_data_exposure",
+      "id": "GHSA-9q82-xgwf-vj6h-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "sql_injection",
+        "authentication_session"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "secure_negative",
+      "expected_family": "graphql_data_exposure",
+      "id": "GHSA-9q82-xgwf-vj6h-secure_negative",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "sql_injection",
+        "information_disclosure"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "sparse_noisy",
+      "expected_family": "graphql_data_exposure",
+      "id": "GHSA-9q82-xgwf-vj6h-sparse_noisy",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "sql_injection",
+        "authentication_session"
+      ]
+    },
+    {
+      "admitted_families": [
+        "improper_inventory_management"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "race_condition",
+      "id": "GHSA-c546-8jmq-hprj-near_miss",
+      "predicted_condition_families": [
+        "improper_inventory_management"
+      ],
+      "top1": "improper_inventory_management",
+      "top3": [
+        "improper_inventory_management",
+        "race_condition",
+        "sensitive_business_flow_abuse"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "near_miss",
+      "expected_family": "secret_exposure",
+      "id": "GHSA-fr8f-rwjx-f32v-near_miss",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "secret_exposure",
+        "information_disclosure"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "secure_negative",
+      "expected_family": "secret_exposure",
+      "id": "GHSA-fr8f-rwjx-f32v-secure_negative",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "information_disclosure",
+        "websocket_authorization"
+      ]
+    },
+    {
+      "admitted_families": [
+        "sensitive_caching"
+      ],
+      "case_kind": "sparse_noisy",
+      "expected_family": "sensitive_caching",
+      "id": "GHSA-p8pf-44ff-93gf-sparse_noisy",
+      "predicted_condition_families": [
+        "sensitive_caching"
+      ],
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "information_disclosure",
+        "authentication_session"
+      ]
+    }
+  ],
+  "positive_failure_count": 18,
+  "positive_failure_reason_counts": {
+    "condition_reconstruction_gap": 12,
+    "cross_family_precision_gap": 8,
+    "execution_extraction_gap": 2,
+    "routing_top1_gap": 6,
+    "routing_top3_gap": 4
+  },
+  "positive_failures": [
+    {
+      "condition_signal_misses": [],
+      "emitted": true,
+      "expected_condition_signals": [
+        "authentication_boundary_regression"
+      ],
+      "family": "authentication_session",
+      "id": "GHSA-mq23-vvg7-xfm4-positive",
+      "reasons": [
+        "routing_top1_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": true,
+      "target_condition_signals": [
+        "authentication_boundary_regression"
+      ],
+      "target_state": "admitted",
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": [
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "workflow_invariant_violation"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "workflow_invariant_violation"
+      ],
+      "family": "business_logic",
+      "id": "GHSA-v4g2-cm5v-cxv7-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top3_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "sensitive_business_flow_abuse"
+      ],
+      "wrong_promotions": [
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [],
+      "emitted": true,
+      "expected_condition_signals": [
+        "credentials_allowed"
+      ],
+      "family": "cors_misconfiguration",
+      "id": "GHSA-mchx-7j67-8mcf-positive",
+      "reasons": [
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": true,
+      "target_condition_signals": [
+        "authenticated_context",
+        "credentials_allowed"
+      ],
+      "target_state": "admitted",
+      "top1": "cors_misconfiguration",
+      "top3": [
+        "cors_misconfiguration",
+        "sensitive_caching",
+        "authentication_session"
+      ],
+      "wrong_promotions": [
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "weak_tls_observed"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "weak_tls_observed"
+      ],
+      "family": "cryptographic_failure",
+      "id": "GHSA-xwcq-pm8m-c4vf-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "cryptographic_failure",
+      "top3": [
+        "cryptographic_failure",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "runtime_reachable_flow"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "runtime_reachable_flow"
+      ],
+      "family": "dom_xss",
+      "id": "GHSA-6457-mxpq-4fqq-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "dom_xss",
+      "top3": [
+        "dom_xss",
+        "server_side_template_injection",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "crash_on_exception"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "crash_on_exception"
+      ],
+      "family": "exceptional_condition_mishandling",
+      "id": "GHSA-hrxh-6v49-42gf-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top1_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": true,
+      "target_condition_signals": [
+        "unhandled_exception_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "security_misconfiguration",
+      "top3": [
+        "security_misconfiguration",
+        "exceptional_condition_mishandling",
+        "information_disclosure"
+      ],
+      "wrong_promotions": [
+        "security_misconfiguration"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "resolver_authorization_failure"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "resolver_authorization_failure"
+      ],
+      "family": "graphql_authorization",
+      "id": "GHSA-m8jr-fxqx-8xx6-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top3_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "broken_object_authorization",
+        "authentication_session"
+      ],
+      "wrong_promotions": [
+        "authentication_session",
+        "broken_object_authorization",
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "sensitive_expansion"
+      ],
+      "emitted": false,
+      "expected_condition_signals": [
+        "sensitive_expansion"
+      ],
+      "family": "graphql_data_exposure",
+      "id": "GHSA-9q82-xgwf-vj6h-positive",
+      "reasons": [
+        "execution_extraction_gap",
+        "routing_top3_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "sql_injection",
+        "information_disclosure"
+      ],
+      "wrong_promotions": [
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "missing_origin_check"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "missing_origin_check"
+      ],
+      "family": "postmessage_trust",
+      "id": "GHSA-w937-fg2h-xhq2-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "postmessage_trust",
+      "top3": [
+        "postmessage_trust",
+        "dom_xss",
+        "sensitive_business_flow_abuse"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [],
+      "emitted": true,
+      "expected_condition_signals": [
+        "duplicate_effect_observed"
+      ],
+      "family": "race_condition",
+      "id": "GHSA-c546-8jmq-hprj-positive",
+      "reasons": [
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": true,
+      "target_condition_signals": [
+        "duplicate_effect_observed"
+      ],
+      "target_state": "admitted",
+      "top1": "race_condition",
+      "top3": [
+        "race_condition",
+        "improper_inventory_management",
+        "sensitive_business_flow_abuse"
+      ],
+      "wrong_promotions": [
+        "improper_inventory_management"
+      ]
+    },
+    {
+      "condition_signal_misses": [],
+      "emitted": true,
+      "expected_condition_signals": [
+        "high_entropy_value"
+      ],
+      "family": "secret_exposure",
+      "id": "GHSA-fr8f-rwjx-f32v-positive",
+      "reasons": [
+        "routing_top1_gap",
+        "cross_family_precision_gap"
+      ],
+      "target_admitted": true,
+      "target_condition_signals": [
+        "high_entropy_value"
+      ],
+      "target_state": "admitted",
+      "top1": "sensitive_caching",
+      "top3": [
+        "sensitive_caching",
+        "secret_exposure",
+        "information_disclosure"
+      ],
+      "wrong_promotions": [
+        "sensitive_caching"
+      ]
+    },
+    {
+      "condition_signal_misses": [
+        "security_event_not_logged"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "security_event_not_logged"
+      ],
+      "family": "security_logging_alerting_failure",
+      "id": "GHSA-qqhq-8r2c-c3f5-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top1_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_function_authorization",
+      "top3": [
+        "broken_function_authorization",
+        "security_logging_alerting_failure",
+        "authentication_session"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "automation_limit_absent"
+      ],
+      "emitted": false,
+      "expected_condition_signals": [
+        "automation_limit_absent"
+      ],
+      "family": "sensitive_business_flow_abuse",
+      "id": "GHSA-63wg-87qv-rw4r-positive",
+      "reasons": [
+        "execution_extraction_gap",
+        "routing_top3_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_signal",
+      "top1": "account_enumeration",
+      "top3": [
+        "account_enumeration",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "unsigned_update_accepted"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "unsigned_update_accepted"
+      ],
+      "family": "software_data_integrity_failure",
+      "id": "GHSA-m8gf-v64p-gfmg-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top1_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "software_supply_chain_failure",
+      "top3": [
+        "software_supply_chain_failure",
+        "software_data_integrity_failure",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "known_vulnerable_component_observed"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "known_vulnerable_component_observed"
+      ],
+      "family": "software_supply_chain_failure",
+      "id": "GHSA-hw5x-4r37-72w7-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "software_supply_chain_failure",
+      "top3": [
+        "software_supply_chain_failure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "public_observation"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "public_observation"
+      ],
+      "family": "source_map_exposure",
+      "id": "GHSA-rg65-45m7-hq57-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [
+        "direct_reachability"
+      ],
+      "target_state": "shadow_partial",
+      "top1": "source_map_exposure",
+      "top3": [
+        "source_map_exposure",
+        "websocket_authorization",
+        "unsafe_api_consumption"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "upstream_tls_missing"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "upstream_tls_missing"
+      ],
+      "family": "unsafe_api_consumption",
+      "id": "CVE-2020-13482-positive",
+      "reasons": [
+        "condition_reconstruction_gap",
+        "routing_top1_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "broken_object_authorization",
+      "top3": [
+        "broken_object_authorization",
+        "unsafe_api_consumption",
+        "websocket_authorization"
+      ],
+      "wrong_promotions": []
+    },
+    {
+      "condition_signal_misses": [
+        "unauthorized_subscription"
+      ],
+      "emitted": true,
+      "expected_condition_signals": [
+        "unauthorized_subscription"
+      ],
+      "family": "websocket_authorization",
+      "id": "GHSA-7fch-4f2f-jcgm-positive",
+      "reasons": [
+        "condition_reconstruction_gap"
+      ],
+      "target_admitted": false,
+      "target_condition_signals": [],
+      "target_state": "shadow_partial",
+      "top1": "websocket_authorization",
+      "top3": [
+        "websocket_authorization",
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "wrong_promotions": []
+    }
+  ],
+  "positive_top1_confusions": {
+    "authentication_session->sensitive_caching": 1,
+    "business_logic->sensitive_caching": 1,
+    "exceptional_condition_mishandling->security_misconfiguration": 1,
+    "graphql_authorization->sensitive_caching": 1,
+    "graphql_data_exposure->sensitive_caching": 1,
+    "secret_exposure->sensitive_caching": 1,
+    "security_logging_alerting_failure->broken_function_authorization": 1,
+    "sensitive_business_flow_abuse->account_enumeration": 1,
+    "software_data_integrity_failure->software_supply_chain_failure": 1,
+    "unsafe_api_consumption->broken_object_authorization": 1
+  },
+  "positive_top3_miss_families": {
+    "business_logic": 1,
+    "graphql_authorization": 1,
+    "graphql_data_exposure": 1,
+    "sensitive_business_flow_abuse": 1
+  },
+  "promoted_family_counts_on_negative_controls": {
+    "authentication_session": 1,
+    "broken_object_authorization": 1,
+    "improper_inventory_management": 1,
+    "sensitive_caching": 13
+  },
+  "source": {
+    "corpus_sha256": "fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6",
+    "receipt_status": "first_blind_consumed",
+    "report_sha256": "5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960",
+    "shortlist_sha256": "d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85"
+  }
+}
