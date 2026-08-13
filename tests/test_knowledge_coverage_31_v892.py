@@ -7,8 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from family_reasoning import FAMILY_ORDER
+from family_reasoning import FAMILY_ORDER, FAMILY_REASONING
 from vulnerability_knowledge import (
+    BUG_PROFILES,
     BUILTIN_KNOWLEDGE,
     KNOWLEDGE_RULE_VERSION,
     knowledge_context,
@@ -65,8 +66,31 @@ class KnowledgeCoverage31V892Tests(unittest.TestCase):
             ids = {doc["id"] for doc in knowledge_for_family(family)}
             self.assertIn(doc_id, ids)
 
+    def test_every_reasoning_confirmation_and_blocking_signal_is_ranker_visible(self):
+        for family in FAMILY_ORDER:
+            contract = FAMILY_REASONING[family]
+            profile_signals = BUG_PROFILES[family]["signals"]
+            strong = set(profile_signals.get("strong", []))
+            contradictions = set(profile_signals.get("contradictions", []))
+
+            decisive = set()
+            for group in contract.get("confirmation_required", ()):
+                if isinstance(group, (list, tuple, set, frozenset)):
+                    decisive.update(str(value) for value in group)
+                else:
+                    decisive.add(str(group))
+            decisive.update(str(value) for value in contract.get("override_signals", ()))
+            missing_decisive = sorted(value for value in decisive if value and value not in strong)
+            missing_contradictions = sorted(
+                str(value)
+                for value in contract.get("blocking_contradictions", ())
+                if str(value) and str(value) not in contradictions
+            )
+            self.assertEqual(missing_decisive, [], family)
+            self.assertEqual(missing_contradictions, [], family)
+
     def test_rule_version_records_full_family_knowledge_audit(self):
-        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.7")
+        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.8")
 
 
 if __name__ == "__main__":
