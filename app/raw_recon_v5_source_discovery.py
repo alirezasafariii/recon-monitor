@@ -11,12 +11,14 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v4_source_discovery as v4
+from raw_recon_v5_source_audit import audit_row
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 RULE_VERSION = "2026.08.13.6.29"
 V4_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v4.jsonl"
 V4_FILES = tuple((ROOT / "benchmarks/raw/sources").glob("v4_*.json"))
 ADVISORY_TYPES = ("reviewed", "unreviewed")
+SUPPLEMENTED_FAMILIES = frozenset({"business_logic"})
 _RESEARCH_REPO_TOKENS = (
     "poc",
     "proof-of-concept",
@@ -63,7 +65,7 @@ def exposure_index() -> dict[str, set[str]]:
 
 
 def _fetch_query_rows(
-    cwe: str,
+    cwe: str | None,
     advisory_type: str,
     *,
     max_pages: int,
@@ -71,13 +73,16 @@ def _fetch_query_rows(
     counters: dict[str, int],
     per_page: int = 100,
 ) -> list[dict[str, Any]]:
-    key = (cwe, advisory_type, max_pages)
+    cache_cwe = cwe or "*"
+    key = (cache_cwe, advisory_type, max_pages)
     if key in cache:
         counters["cache_hits"] += 1
         return cache[key]
 
-    numeric = cwe.removeprefix("CWE-")
-    query = urllib.parse.urlencode({"type": advisory_type, "cwes": numeric, "per_page": per_page})
+    params: dict[str, Any] = {"type": advisory_type, "per_page": per_page}
+    if cwe:
+        params["cwes"] = cwe.removeprefix("CWE-")
+    query = urllib.parse.urlencode(params)
     url = f"{v4.GITHUB_ADVISORY_API}?{query}"
     rows: list[dict[str, Any]] = []
     for _ in range(max_pages):
@@ -90,11 +95,9 @@ def _fetch_query_rows(
             except urllib.error.HTTPError as exc:
                 if exc.code != 403 or attempt == 2:
                     raise
-                # Secondary-rate-limit protection only. Query selection and results
-                # remain unchanged; this merely avoids concurrent burst pressure.
                 time.sleep(1.0 + attempt)
         if response is None:
-            raise RuntimeError(f"unable to fetch advisory query for {cwe}/{advisory_type}")
+            raise RuntimeError(f"unable to fetch advisory query for {cache_cwe}/{advisory_type}")
         with response:
             payload = json.load(response)
             link = response.headers.get("Link", "")
@@ -113,8 +116,7 @@ def _fetch_query_rows(
 
 
 def _is_research_project(project: str) -> bool:
-    lowered = project.lower()
-    compact = re.sub(r"[^a-z0-9_-]+", "-", lowered)
+    compact = re.sub(r"[^a-z0-9_-]+", "-", project.lower())
     return any(token in compact for token in _RESEARCH_REPO_TOKENS)
 
 
@@ -215,62 +217,139 @@ def _eligible_candidate(
     )
 
 
+def _add_candidate(
+    by_root: dict[str, dict[str, Any]],
+    raw: Mapping[str, Any],
+    *,
+    advisory_type: str,
+    family: str,
+    cwe: str,
+    excluded: Mapping[str, set[str]],
+    grounding: set[str],
+) -> None:
+    row = _eligible_candidate(
+        raw,
+        advisory_type=advisory_type,
+        family=family,
+        cwe=cwe,
+        excluded=excluded,
+        grounding_urls=grounding,
+    )
+    if row is None:
+        return
+    root = str(row["source_root"])
+    if root not in by_root:
+        row["freshness_validated"] = True
+        row["advisory_source_type"] = advisory_type
+        by_root[root] = row
+    else:
+        by_root[root]["matched_cwes"] = sorted(
+            set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"])
+        )
+        if by_root[root].get("advisory_source_type") != "reviewed" and advisory_type == "reviewed":
+            by_root[root]["advisory_source_type"] = "reviewed"
+
+
+def _semantic_count(family: str, rows: list[dict[str, Any]]) -> int:
+    return sum(1 for row in rows if audit_row(family, row)[0])
+
+
 def discover(
-    max_pages_reviewed: int = 3,
-    max_pages_unreviewed: int = 6,
+    recent_reviewed_pages: int = 4,
+    recent_unreviewed_pages: int = 8,
+    targeted_reviewed_pages: int = 1,
+    targeted_unreviewed_pages: int = 2,
     target_per_family: int = 60,
 ) -> dict[str, Any]:
     excluded = exposure_index()
     grounding = v4._grounding_writeup_urls()
     family_cwes = v4._family_cwes()
-    by_family: dict[str, list[dict[str, Any]]] = {}
+    by_roots: dict[str, dict[str, dict[str, Any]]] = {family: {} for family in family_cwes}
     cache: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
     counters = {"api_requests": 0, "cache_hits": 0, "reviewed_rows": 0, "unreviewed_rows": 0}
 
-    for family, cwes in family_cwes.items():
-        by_root: dict[str, dict[str, Any]] = {}
-        for cwe in cwes:
-            for advisory_type in ADVISORY_TYPES:
-                page_limit = max_pages_reviewed if advisory_type == "reviewed" else max_pages_unreviewed
-                query_rows = _fetch_query_rows(
-                    cwe,
-                    advisory_type,
-                    max_pages=page_limit,
-                    cache=cache,
-                    counters=counters,
-                )
-                for raw in query_rows:
-                    row = _eligible_candidate(
+    # Low-request first pass: fetch a bounded recent advisory universe once and
+    # distribute rows to every family whose external CWE taxonomy intersects it.
+    for advisory_type, page_limit in (
+        ("reviewed", recent_reviewed_pages),
+        ("unreviewed", recent_unreviewed_pages),
+    ):
+        recent_rows = _fetch_query_rows(
+            None,
+            advisory_type,
+            max_pages=page_limit,
+            cache=cache,
+            counters=counters,
+        )
+        for raw in recent_rows:
+            row_cwes = {
+                str(item.get("cwe_id") or "").strip()
+                for item in raw.get("cwes") or []
+                if isinstance(item, Mapping)
+            }
+            if not row_cwes:
+                continue
+            for family, cwes in family_cwes.items():
+                if len(by_roots[family]) >= target_per_family:
+                    continue
+                for cwe in sorted(set(cwes) & row_cwes):
+                    _add_candidate(
+                        by_roots[family],
                         raw,
                         advisory_type=advisory_type,
                         family=family,
                         cwe=cwe,
                         excluded=excluded,
-                        grounding_urls=grounding,
+                        grounding=grounding,
                     )
-                    if row is None:
-                        continue
-                    root = str(row["source_root"])
-                    if root not in by_root:
-                        row["freshness_validated"] = True
-                        row["advisory_source_type"] = advisory_type
-                        by_root[root] = row
-                    else:
-                        by_root[root]["matched_cwes"] = sorted(
-                            set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"])
-                        )
-                        if by_root[root].get("advisory_source_type") != "reviewed" and advisory_type == "reviewed":
-                            by_root[root]["advisory_source_type"] = "reviewed"
-                    if len(by_root) >= target_per_family:
+
+    # Only families with no semantically valid recent source get CWE-targeted
+    # fallback queries. Business logic has an independently verified supplement.
+    semantic_before_fallback = {
+        family: _semantic_count(family, list(by_roots[family].values()))
+        for family in family_cwes
+    }
+    fallback_families = [
+        family
+        for family in sorted(family_cwes)
+        if semantic_before_fallback[family] == 0 and family not in SUPPLEMENTED_FAMILIES
+    ]
+    for family in fallback_families:
+        for cwe in family_cwes[family]:
+            for advisory_type, page_limit in (
+                ("reviewed", targeted_reviewed_pages),
+                ("unreviewed", targeted_unreviewed_pages),
+            ):
+                for raw in _fetch_query_rows(
+                    cwe,
+                    advisory_type,
+                    max_pages=page_limit,
+                    cache=cache,
+                    counters=counters,
+                ):
+                    _add_candidate(
+                        by_roots[family],
+                        raw,
+                        advisory_type=advisory_type,
+                        family=family,
+                        cwe=cwe,
+                        excluded=excluded,
+                        grounding=grounding,
+                    )
+                    if _semantic_count(family, list(by_roots[family].values())) >= 4:
                         break
-                if len(by_root) >= target_per_family:
+                if _semantic_count(family, list(by_roots[family].values())) >= 4:
                     break
-            if len(by_root) >= target_per_family:
+            if _semantic_count(family, list(by_roots[family].values())) >= 4:
                 break
-        rows = list(by_root.values())
+
+    by_family: dict[str, list[dict[str, Any]]] = {}
+    for family in family_cwes:
+        rows = list(by_roots[family].values())
         rows.sort(
             key=lambda x: (
                 1 if x.get("advisory_source_type") == "reviewed" else 0,
+                int(audit_row(family, x)[2]) if audit_row(family, x)[0] else 0,
                 x.get("published_at") or "",
                 x["source_root"],
             ),
@@ -279,6 +358,11 @@ def discover(
         by_family[family] = rows
 
     counts = {family: len(rows) for family, rows in by_family.items()}
+    semantic_counts = {family: _semantic_count(family, rows) for family, rows in by_family.items()}
+    missing_raw = sorted(k for k, count in counts.items() if not count and k not in SUPPLEMENTED_FAMILIES)
+    missing_semantic = sorted(
+        k for k, count in semantic_counts.items() if not count and k not in SUPPLEMENTED_FAMILIES
+    )
     return {
         "version": VERSION,
         "rule_version": RULE_VERSION,
@@ -290,15 +374,24 @@ def discover(
             "reviewed": counters["reviewed_rows"],
             "unreviewed": counters["unreviewed_rows"],
         },
+        "recent_pool_pages": {
+            "reviewed": recent_reviewed_pages,
+            "unreviewed": recent_unreviewed_pages,
+        },
+        "targeted_fallback_families": fallback_families,
+        "supplemented_families": sorted(SUPPLEMENTED_FAMILIES),
         "advisory_types": list(ADVISORY_TYPES),
         "family_candidate_counts": counts,
-        "families_without_candidates": sorted(k for k, count in counts.items() if not count),
+        "family_semantic_candidate_counts": semantic_counts,
+        "families_without_candidates": missing_raw,
+        "families_without_semantic_candidates": missing_semantic,
         "excluded_prior_root_count": len(excluded["roots"]),
         "excluded_prior_project_count": len(excluded["projects"]),
         "excluded_prior_url_count": len(excluded["urls"]),
         "excluded_grounding_url_count": len(grounding),
         "research_repository_references_rejected": True,
         "scoring_executed": False,
+        "candidate_selection_uses_source_semantic_audit": True,
         "candidate_selection_uses_detector_scores": False,
         "candidate_selection_uses_admission_results": False,
         "candidate_selection_uses_prior_v4_results": False,
@@ -316,6 +409,8 @@ def main() -> int:
         for key in (
             "family_count",
             "families_without_candidates",
+            "families_without_semantic_candidates",
+            "targeted_fallback_families",
             "excluded_prior_root_count",
             "excluded_prior_project_count",
             "unique_advisory_queries",
@@ -324,7 +419,7 @@ def main() -> int:
             "queried_rows_by_advisory_type",
         )
     }, indent=2))
-    return 2 if report["families_without_candidates"] else 0
+    return 2 if report["families_without_candidates"] or report["families_without_semantic_candidates"] else 0
 
 
 if __name__ == "__main__":
