@@ -38,6 +38,27 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Validate signal alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum app/vulnerability_signal_alignment.py app/vulnerability_knowledge.py tests/test_knowledge_coverage_31_v892.py tests/test_calibration_benchmark_v910.py
+          python tests/test_calibration_benchmark_v910.py
+          python tests/test_knowledge_coverage_31_v892.py
+          python - <<'PY'
+          import json, sys
+          sys.path.insert(0, 'app')
+          from analysis_benchmark import run_default_benchmark
+          report = run_default_benchmark('.')
+          g = report['calibration_profile']['global']
+          print('POST_ALIGNMENT_BASELINE=' + json.dumps({
+              'threshold': g['threshold'],
+              'metrics': g['metrics'],
+              'brier': g['diagnostics']['score_brier_diagnostic'],
+              'ece': g['diagnostics']['expected_calibration_error'],
+          }, sort_keys=True))
+          PY
+
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
