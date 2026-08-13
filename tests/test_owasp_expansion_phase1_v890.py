@@ -28,15 +28,15 @@ from vulnerability_knowledge import BUG_PROFILES, knowledge_context
 
 
 class OwaspExpansionPhase1V890Tests(unittest.TestCase):
-    def test_catalog_router_and_candidate_engine_are_31_family(self):
-        self.assertEqual(len(FAMILY_ORDER), 31)
-        self.assertEqual(tuple(FAMILY_ORDER[-10:]), NEW_FAMILY_ORDER)
+    def test_phase1_remains_the_canonical_21_to_31_slice_inside_74_family_catalog(self):
+        self.assertEqual(len(FAMILY_ORDER), 74)
+        self.assertEqual(tuple(FAMILY_ORDER[21:31]), NEW_FAMILY_ORDER)
         self.assertEqual(set(BUG_FAMILIES), set(FAMILY_ORDER))
         status = router_status()
-        self.assertEqual(status["registered_count"], 31)
+        self.assertEqual(status["registered_count"], 74)
         self.assertEqual(status["pending_count"], 0)
         self.assertFalse(status["generic_family_analyzer_fallback"])
-        self.assertEqual(CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "3.0.0")
+        self.assertEqual(CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "4.0.0")
 
     def test_new_knowledge_profiles_are_non_evidentiary_context(self):
         for family in NEW_FAMILY_ORDER:

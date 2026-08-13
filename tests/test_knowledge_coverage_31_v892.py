@@ -21,12 +21,12 @@ class KnowledgeCoverage31V892Tests(unittest.TestCase):
     def test_every_canonical_family_has_curated_global_knowledge(self):
         missing = [family for family in FAMILY_ORDER if not BUILTIN_KNOWLEDGE.get(family)]
         self.assertEqual(missing, [])
-        self.assertEqual(len(FAMILY_ORDER), 31)
+        self.assertEqual(len(FAMILY_ORDER), 74)
 
     def test_curated_knowledge_is_bounded_and_non_evidentiary_for_every_family(self):
         for family in FAMILY_ORDER:
             refs = knowledge_for_family(family)
-            self.assertGreaterEqual(len(refs), 2, family)  # profile + >=1 curated reference
+            self.assertGreaterEqual(len(refs), 2, family)
             self.assertLessEqual(len(refs), 12, family)
             self.assertEqual(refs[0]["id"], f"profile:{family}")
             context = knowledge_context(family, [], endpoint="/audit")
@@ -65,8 +65,8 @@ class KnowledgeCoverage31V892Tests(unittest.TestCase):
             ids = {doc["id"] for doc in knowledge_for_family(family)}
             self.assertIn(doc_id, ids)
 
-    def test_rule_version_records_full_31_family_knowledge_audit(self):
-        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.2")
+    def test_rule_version_records_full_family_knowledge_audit(self):
+        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.5")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from .mass_assignment import MassAssignmentFamilyAnalyzer
 from .nosql_injection import NoSqlInjectionFamilyAnalyzer
 from .open_redirect import OpenRedirectFamilyAnalyzer
 from .path_traversal import PathTraversalFamilyAnalyzer
+from .phase2_expansion import PHASE2_ANALYZER_TYPES
 from .postmessage_trust import PostMessageTrustFamilyAnalyzer
 from .race_condition import RaceConditionFamilyAnalyzer
 from .secret_exposure import SecretExposureFamilyAnalyzer
@@ -37,7 +38,7 @@ from .ssrf import SsrfFamilyAnalyzer
 from .ssti import SstiFamilyAnalyzer
 from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
-FAMILY_ANALYZER_ROUTER_VERSION = "3.0.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "4.0.0"
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -72,17 +73,31 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "improper_inventory_management": ImproperInventoryManagementFamilyAnalyzer,
     "unsafe_api_consumption": UnsafeApiConsumptionFamilyAnalyzer,
 }
+_ANALYZERS.update(PHASE2_ANALYZER_TYPES)
+
 
 def registered_families() -> tuple[str, ...]:
     return tuple(family for family in FAMILY_ORDER if family in _ANALYZERS)
 
+
 def pending_families() -> tuple[str, ...]:
     return tuple(family for family in FAMILY_ORDER if family not in _ANALYZERS)
+
 
 def analyzer_for_family(family: str) -> FamilyAnalyzer | None:
     analyzer_type = _ANALYZERS.get(str(family or ""))
     return analyzer_type() if analyzer_type else None
 
+
 def router_status() -> dict[str, Any]:
-    registered = registered_families(); pending = pending_families()
-    return {"version": FAMILY_ANALYZER_ROUTER_VERSION, "registered_count": len(registered), "registered": list(registered), "pending_count": len(pending), "pending": list(pending), "target_family_count": len(FAMILY_ORDER), "generic_family_analyzer_fallback": False}
+    registered = registered_families()
+    pending = pending_families()
+    return {
+        "version": FAMILY_ANALYZER_ROUTER_VERSION,
+        "registered_count": len(registered),
+        "registered": list(registered),
+        "pending_count": len(pending),
+        "pending": list(pending),
+        "target_family_count": len(FAMILY_ORDER),
+        "generic_family_analyzer_fallback": False,
+    }

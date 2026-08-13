@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-"""Candidate Engine expansion surface for OWASP phase 1.
+"""Candidate Engine expansion surface for OWASP phases 1 and 2.
 
 The proven 21-family integration remains isolated in ``bug_candidates_family21``.
-This module extends the same hypothesis-first admission path to ten additional
-OWASP Web/API families without creating a second Candidate Engine or bypassing
-Family Reasoning. No new analyzer performs active validation.
+This module extends the same hypothesis-first admission path to the explicit
+OWASP/WSTG expansion families without creating a second Candidate Engine or
+bypassing Family Reasoning. No analyzer performs active validation.
 """
 
 from typing import Any, Mapping
@@ -15,7 +15,18 @@ import bug_candidates_family21 as _family21_import
 from family_analyzers.base import FamilyAnalyzerContext
 from family_analyzers.router import analyzer_for_family
 from family_reasoning import candidate_evidence_schema_map
-from owasp_family_catalog import BUG_FAMILY_METADATA, DIRECT_TYPES, NEW_FAMILY_ORDER, SAFE_ACTIONS as OWASP_SAFE_ACTIONS
+from owasp_family_catalog import (
+    BUG_FAMILY_METADATA,
+    DIRECT_TYPES,
+    NEW_FAMILY_ORDER,
+    SAFE_ACTIONS as OWASP_SAFE_ACTIONS,
+)
+from owasp_phase2_catalog import (
+    PHASE2_BUG_FAMILY_METADATA,
+    PHASE2_DIRECT_TYPES,
+    PHASE2_FAMILY_ORDER,
+    PHASE2_SAFE_ACTIONS,
+)
 
 # Preserve the complete existing public surface first.
 for _name, _value in vars(_family21_import).items():
@@ -30,13 +41,17 @@ import bug_candidates_family21 as _legacy
 import bug_candidates_core as _compat
 import bug_candidates_legacy_core as _core
 
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "3.0.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "4.0.0"
 _legacy.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION
+
+EXTENSION_FAMILY_ORDER = tuple(NEW_FAMILY_ORDER) + tuple(PHASE2_FAMILY_ORDER)
 
 # Extend the historical metadata used by insertion/scoring. The dictionaries are
 # mutated in place so all compatibility layers observe one catalog.
 _core.BUG_FAMILIES.update(BUG_FAMILY_METADATA)
+_core.BUG_FAMILIES.update(PHASE2_BUG_FAMILY_METADATA)
 _core.SAFE_ACTIONS.update(OWASP_SAFE_ACTIONS)
+_core.SAFE_ACTIONS.update(PHASE2_SAFE_ACTIONS)
 _compat.BUG_FAMILIES = _core.BUG_FAMILIES
 _compat.SAFE_ACTIONS = _core.SAFE_ACTIONS
 _legacy.BUG_FAMILIES = _core.BUG_FAMILIES
@@ -50,8 +65,10 @@ _compat.FAMILY_EVIDENCE_SCHEMAS = _schema_map
 _legacy.FAMILY_EVIDENCE_SCHEMAS = _schema_map
 FAMILY_EVIDENCE_SCHEMAS = _schema_map
 
-_legacy._FAMILY_DIRECT_TYPES.update({family: set(values) for family, values in DIRECT_TYPES.items()})
-_legacy._DEDICATED_ALERT_FAMILIES.update(NEW_FAMILY_ORDER)
+_all_direct_types = {family: set(values) for family, values in DIRECT_TYPES.items()}
+_all_direct_types.update({family: set(values) for family, values in PHASE2_DIRECT_TYPES.items()})
+_legacy._FAMILY_DIRECT_TYPES.update(_all_direct_types)
+_legacy._DEDICATED_ALERT_FAMILIES.update(EXTENSION_FAMILY_ORDER)
 
 _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
@@ -66,7 +83,7 @@ def _extension_analyzer_result(
     endpoint: str,
     family: str,
 ) -> dict[str, Any] | None:
-    if family not in NEW_FAMILY_ORDER:
+    if family not in EXTENSION_FAMILY_ORDER:
         return None
     stored = _legacy._stored_family_context(
         db,
@@ -107,7 +124,7 @@ def _dedicated_family_result_extended(
     endpoint: str,
     family: str,
 ) -> dict[str, Any] | None:
-    if family in NEW_FAMILY_ORDER:
+    if family in EXTENSION_FAMILY_ORDER:
         return _extension_analyzer_result(
             db,
             analysis_id=analysis_id,
@@ -243,7 +260,7 @@ def _alert_candidates_with_owasp_expansion(
         return count
     endpoint = str(schema.get("endpoint") or row.get("item") or "")
     alert_id = int(row["alert_id"])
-    for family in NEW_FAMILY_ORDER:
+    for family in EXTENSION_FAMILY_ORDER:
         dedicated = _extension_analyzer_result(
             db,
             analysis_id=analysis_id,
@@ -279,7 +296,7 @@ _static_candidates = _legacy._static_candidates
 BUG_FAMILIES = _core.BUG_FAMILIES
 SAFE_ACTIONS = _core.SAFE_ACTIONS
 FAMILY_EVIDENCE_SCHEMAS = _schema_map
-CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "3.0.0"
+CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION = "4.0.0"
 record_hypothesis = _legacy.record_hypothesis
 _evidence_strength = _legacy._evidence_strength
 _static_candidates = _legacy._static_candidates

@@ -25,16 +25,17 @@ class _FakeCaseDB:
 
 
 class ArchitectureSingleSourceV883Tests(unittest.TestCase):
-    def test_candidate_engine_uses_exact_canonical_schema_map_for_all_31(self):
+    def test_candidate_engine_uses_exact_canonical_schema_map_for_all_families(self):
         expected = candidate_evidence_schema_map()
         self.assertEqual(set(expected), set(FAMILY_ORDER))
-        self.assertEqual(len(expected), 31)
+        self.assertEqual(len(expected), 74)
         self.assertEqual(bug_candidates.FAMILY_EVIDENCE_SCHEMAS, expected)
         self.assertEqual(bug_candidates._core.FAMILY_EVIDENCE_SCHEMAS, expected)
-        self.assertEqual(bug_candidates.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "3.0.0")
+        self.assertEqual(bug_candidates.CANDIDATE_FAMILY_ANALYZER_INTEGRATION_VERSION, "4.0.0")
         source = inspect.getsource(bug_candidates)
         self.assertIn("candidate_evidence_schema_map()", source)
         self.assertIn("NEW_FAMILY_ORDER", source)
+        self.assertIn("PHASE2_FAMILY_ORDER", source)
 
     def test_workspace_case_requirements_are_exact_canonical_map(self):
         expected = case_requirement_map()
@@ -55,7 +56,7 @@ class ArchitectureSingleSourceV883Tests(unittest.TestCase):
         self.assertEqual(result["canonical_family"], "account_enumeration")
         self.assertEqual(result["recommended_level"], "manual_only")
 
-    def test_safe_validation_matches_all_31_canonical_levels(self):
+    def test_safe_validation_matches_all_canonical_levels(self):
         self.assertEqual(safe_validation.VALIDATION_VERSION, "6.1.0")
         for family in FAMILY_ORDER:
             result = safe_validation.validation_eligibility(_FakeCaseDB(family), "CASE-SINGLE-SOURCE")

@@ -11,11 +11,11 @@ assert _spec and _spec.loader
 _spec.loader.exec_module(_mod)
 
 
-def _test_router_is_31_of_31_without_fallback(self):
+def _test_router_is_complete_without_fallback(self):
     from family_analyzers.router import analyzer_for_family, router_status
     from family_reasoning import FAMILY_ORDER
     status = router_status()
-    self.assertEqual(status["registered_count"], 31)
+    self.assertEqual(status["registered_count"], len(FAMILY_ORDER))
     self.assertEqual(status["pending_count"], 0)
     self.assertEqual(status["registered"], list(FAMILY_ORDER))
     self.assertEqual(status["pending"], [])
@@ -23,7 +23,7 @@ def _test_router_is_31_of_31_without_fallback(self):
     for family in FAMILY_ORDER:
         self.assertIsNotNone(analyzer_for_family(family), family)
 
-_mod.RemainingFamilyCompletionV888Tests.test_router_is_21_of_21_without_fallback = _test_router_is_31_of_31_without_fallback
+_mod.RemainingFamilyCompletionV888Tests.test_router_is_21_of_21_without_fallback = _test_router_is_complete_without_fallback
 RemainingFamilyCompletionV888Tests = _mod.RemainingFamilyCompletionV888Tests
 
 if __name__ == "__main__": unittest.main()
