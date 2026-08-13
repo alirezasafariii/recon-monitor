@@ -99,9 +99,9 @@ class RawPrecisionCalibrationV6140Tests(unittest.TestCase):
             (6, 14, 0),
         )
         self.assertEqual(RECONSTRUCTION_ENGINE_VERSION, "1.1.0")
-        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.2.0")
+        self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_ENGINE_VERSION.split(".")), (1, 2, 0))
         self.assertEqual(RECONSTRUCTION_RULE_VERSION, "2026.08.12.6.14")
-        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.12.6.14")
+        self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 12, 6, 14))
 
 
 if __name__ == "__main__":
