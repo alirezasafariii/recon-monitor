@@ -38,25 +38,28 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Validate calibration dataset v2
+      - name: Inspect calibration challenge misses
         shell: bash
         run: |
           set -euo pipefail
-          sha256sum app/calibration_dataset.py app/analysis_benchmark_v2.py tests/test_calibration_dataset_v920.py docs/ANALYSIS_CALIBRATION_DATASET_V2.md
-          python tests/test_calibration_dataset_v920.py
           python - <<'PY'
           import json, sys
           sys.path.insert(0, 'app')
-          from analysis_benchmark_v2 import quality_report
+          from analysis_benchmark import load_golden_cases
+          from analysis_benchmark_v2 import build_challenge_records, quality_report
+          cases = load_golden_cases([
+              'tests/fixtures/vulnerability_intelligence_golden_v1.json',
+              'tests/fixtures/vulnerability_intelligence_phase2_golden_v2.json',
+          ])
           report = quality_report('.')
-          print('CALIBRATION_DATASET_V2=' + json.dumps({
-              'coverage': report['coverage'],
-              'threshold': report['challenge_threshold'],
-              'metrics_by_kind': report['challenge_metrics_by_kind'],
-              'ordering_failure_count': report['challenge_ordering_failure_count'],
-              'activation': report['calibration_profile']['activation'],
-              'activation_readiness': report['calibration_profile']['activation_readiness'],
-          }, sort_keys=True))
+          threshold = report['challenge_threshold']
+          challenges = build_challenge_records(cases)
+          fp = [
+              {'family': r['family'], 'kind': r['case_kind'], 'score': r['score'], 'evidence': r['target_evidence_confidence'], 'signals': r['signals'], 'contradictions': r['contradictions'], 'top_family': r['top_family']}
+              for r in challenges if r['score'] >= threshold
+          ]
+          print('CHALLENGE_FALSE_POSITIVES=' + json.dumps(fp, sort_keys=True))
+          print('ORDERING_FAILURES=' + json.dumps(report['challenge_ordering_failures'], sort_keys=True))
           PY
 
       - name: Verify manifest
