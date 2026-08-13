@@ -39,6 +39,20 @@ def run() -> dict[str, Any]:
     report["frozen_corpus_sha256"] = receipt["corpus_sha256"]
     report["frozen_evaluator_sha256"] = receipt["evaluator_sha256"]
     report["first_blind_rerun_claimed"] = False
+
+    # The frozen v5 evaluator intentionally owns its original metric names. 6.30
+    # adds stable convenience aliases only in this post-first-blind wrapper; the
+    # frozen evaluator and first-blind artifacts remain byte-identical.
+    multi = report["multi_family"]["metrics"]
+    multi.update({
+        "exact_admission_set_rate": multi["multi_exact_admission_set_accuracy"],
+        "unexpected_promotion_rate": multi["multi_unexpected_promotion_rate"],
+        "dual_positive_both_admitted_rate": multi["multi_dual_positive_both_admitted_rate"],
+        "dual_secure_rejection_rate": multi["multi_dual_secure_rejection_rate"],
+        "expected_family_top3_coverage": multi["multi_expected_family_top3_coverage"],
+        "expected_condition_recall": multi["multi_expected_condition_recall"],
+    })
+
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report
