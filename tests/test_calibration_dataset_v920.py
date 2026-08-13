@@ -85,6 +85,8 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         })
         self.assertTrue(all(row["provenance"] == "synthetic_challenge" for row in challenges))
         self.assertTrue(all(not row["activation_eligible"] for row in challenges))
+        self.assertTrue(all("bug_proximity_score" in row for row in challenges))
+        self.assertTrue(all("decision_readiness_score" in row for row in challenges))
 
     def test_quality_report_keeps_seed_and_challenges_separate_and_fail_closed(self):
         report = quality_report(ROOT, requested_activation="production")
@@ -93,11 +95,19 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         self.assertEqual(report["coverage"]["challenge_records"], 222)
         self.assertEqual(report["coverage"]["verified_records"], 0)
         self.assertEqual(report["coverage"]["total_diagnostic_records"], 370)
+        self.assertEqual(report["score_semantics"], "decision_readiness_score")
         self.assertEqual(report["calibration_profile"]["activation"], "shadow_only")
         self.assertFalse(report["calibration_profile"]["activation_readiness"]["global_ready"])
         self.assertEqual(report["calibration_profile"]["activation_readiness"]["eligible_support"], 0)
         for kind in ("partial_evidence", "cross_family_noise", "contradiction_heavy"):
-            self.assertEqual(report["challenge_metrics_by_kind"][kind]["support"], 74)
+            metrics = report["challenge_metrics_by_kind"][kind]
+            self.assertEqual(metrics["support"], 74)
+            self.assertEqual(metrics["fp"], 0, kind)
+            self.assertEqual(metrics["false_positive_rate"], 0.0, kind)
+        self.assertEqual(report["challenge_ordering_failure_count"], 0)
+        self.assertEqual(report["challenge_ordering_failures"], [])
+        self.assertTrue(report["safety"]["bug_proximity_remains_investigation_oriented"])
+        self.assertTrue(report["safety"]["decision_readiness_is_advisory_only"])
         self.assertTrue(report["safety"]["synthetic_challenges_are_activation_ineligible"])
         self.assertTrue(report["safety"]["production_activation_requires_human_verified_real_world_labels"])
 
