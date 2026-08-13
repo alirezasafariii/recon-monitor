@@ -80,12 +80,12 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "software_supply_chain_failure": {
-        "cve": "CVE-2026-34841",
-        "project_any": ("usebruno/bruno",),
+        "cve": "CVE-2026-45321",
+        "project_any": ("TanStack/router", "tanstack/router"),
         "groups": (
-            ("supply chain attack", "supply-chain attack"),
-            ("compromised versions", "compromised"),
-            ("hidden dependency", "remote access trojan", "rat"),
+            ("malicious versions",),
+            ("published to the npm registry", "npm registry"),
+            ("credential-stealing malware", "supply-chain attack", "supply chain"),
         ),
     },
     "source_map_exposure": {
