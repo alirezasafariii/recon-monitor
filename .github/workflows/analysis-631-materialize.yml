@@ -6,6 +6,9 @@ on:
       - agent/analysis-engine-6.31-fresh-blind-v6-validation
     paths:
       - benchmarks/raw/sources/v6_shortlist.json
+      - app/v6_benchmark_dataset.py
+      - app/v6_benchmark_validate.py
+      - .github/workflows/analysis-631-materialize.yml
 
 permissions:
   contents: write
@@ -30,29 +33,52 @@ jobs:
         run: python app/v6_benchmark_dataset.py
 
       - name: Verify materialization contract
+        env:
+          PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+          from v6_benchmark_validate import validate_v6_corpus
+
           report = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text())
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          cases = [json.loads(line) for line in Path('benchmarks/raw/analysis_raw_v6.jsonl').read_text().splitlines() if line.strip()]
           assert report['scoring_executed'] is False
           assert report['single_case_count'] == 144
           assert report['pair_case_count'] == 72
           assert report['triad_case_count'] == 60
           assert report['case_count'] == 276
           assert report['family_count'] == 36
-          lines = [line for line in Path('benchmarks/raw/analysis_raw_v6.jsonl').read_text().splitlines() if line.strip()]
-          assert len(lines) == 276
-          print({key: report[key] for key in ('single_case_count','pair_case_count','triad_case_count','case_count','family_count')})
+          assert len(cases) == 276
+
+          validation = validate_v6_corpus(cases, shortlist)
+          Path('benchmarks/raw/sources/v6_validation_report.json').write_text(
+              json.dumps(validation, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          assert validation['passed'], validation['errors']
+          assert validation['label_leakage_count'] == 0
+          assert validation['scoring_executed'] is False
+          print({
+              'case_count': validation['case_count'],
+              'single_case_count': validation['single_case_count'],
+              'pair_case_count': validation['pair_case_count'],
+              'triad_case_count': validation['triad_case_count'],
+              'label_leakage_count': validation['label_leakage_count'],
+          })
           PY
 
       - name: Commit sealed-unscored corpus snapshot
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/analysis_raw_v6.jsonl benchmarks/raw/sources/v6_materialization_report.json
+          git add benchmarks/raw/analysis_raw_v6.jsonl benchmarks/raw/sources/v6_materialization_report.json benchmarks/raw/sources/v6_validation_report.json
+          if git diff --cached --quiet; then
+            echo 'No materialization snapshot change.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Materialize sealed-unscored Analysis 6.31 v6 corpus'
+          git commit -m 'Materialize validated sealed-unscored Analysis 6.31 v6 corpus'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
