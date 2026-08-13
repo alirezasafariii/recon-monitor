@@ -1,0 +1,61 @@
+{
+  "protocol_version": "1.0.0",
+  "rule_version": "2026.08.13.6.31",
+  "evaluation_kind": "fresh_blind_v6_single_consumption",
+  "sealed_analysis_engine_version": "6.30.0",
+  "sealed_analysis_rule_version": "2026.08.13.6.30",
+  "family_count": 36,
+  "case_counts": {
+    "single": 144,
+    "pair": 72,
+    "triad": 60,
+    "total": 276
+  },
+  "variants": {
+    "single": ["positive", "near_miss", "secure_negative", "sparse_noisy"],
+    "pair": ["dual_positive", "a_only", "b_only", "dual_secure"],
+    "triad": ["triple_positive", "ab_only", "c_only", "triple_secure", "sparse_interference"]
+  },
+  "source_firewall": {
+    "required_unique_roots": 36,
+    "required_unique_projects": 36,
+    "exclude_prior_raw_versions_through": "v5",
+    "exclude_analysis_630_calibration": true,
+    "exclude_detector_grounding_references": true,
+    "exclude_prior_discovery_exposures": true,
+    "allow_scoring_during_source_selection": false,
+    "allow_production_rule_changes_before_first_score": false
+  },
+  "single_quality_gates": {
+    "condition_extraction_precision_min": 0.95,
+    "condition_extraction_recall_min": 0.90,
+    "routing_top1_accuracy_min": 0.90,
+    "routing_top3_accuracy_min": 0.97,
+    "admission_precision_min": 0.97,
+    "admission_recall_min": 0.90,
+    "abstention_accuracy_min": 0.95,
+    "false_promotion_rate_max": 0.03,
+    "wrong_family_promotion_rate_max": 0.02,
+    "end_to_end_accuracy_min": 0.90,
+    "prior_source_root_overlap_rate_max": 0.0,
+    "raw_label_leakage_rate_max": 0.0
+  },
+  "pair_quality_gates": {
+    "exact_admission_set_accuracy_min": 0.95,
+    "expected_condition_recall_min": 0.90,
+    "unexpected_promotion_rate_max": 0.03,
+    "dual_positive_both_admitted_rate_min": 0.90,
+    "dual_secure_rejection_rate_min": 0.98,
+    "expected_family_top3_coverage_min": 0.95
+  },
+  "triad_quality_gates": {
+    "exact_admission_set_accuracy_min": 0.90,
+    "expected_condition_recall_min": 0.88,
+    "unexpected_promotion_rate_max": 0.04,
+    "triple_positive_all_admitted_rate_min": 0.80,
+    "triple_secure_rejection_rate_min": 0.98,
+    "expected_family_top3_coverage_min": 0.85,
+    "expected_family_top5_coverage_min": 0.97
+  },
+  "consumption_rule": "score_once_then_immutable"
+}
