@@ -38,6 +38,29 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Print calibration baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, sys
+          sys.path.insert(0, 'app')
+          from analysis_benchmark import run_default_benchmark
+          report = run_default_benchmark('.')
+          profile = report['calibration_profile']
+          summary = {
+              'coverage': report['coverage'],
+              'threshold_70_metrics': report['global_metrics'],
+              'selected_global_threshold': profile['global']['threshold'],
+              'selected_global_metrics': profile['global']['metrics'],
+              'global_ready': profile['global']['ready'],
+              'score_brier_diagnostic': profile['global']['diagnostics']['score_brier_diagnostic'],
+              'expected_calibration_error': profile['global']['diagnostics']['expected_calibration_error'],
+              'family_profiles_ready': sum(1 for value in profile['families'].values() if value['ready']),
+              'activation': profile['activation'],
+          }
+          print('CALIBRATION_BASELINE=' + json.dumps(summary, sort_keys=True))
+          PY
+
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
