@@ -1,0 +1,152 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.13.6.30",
+  "purpose": "Independent post-v5 calibration for open_redirect precision and redirect parsing. This set is not part of frozen v5 and is never treated as a fresh blind holdout.",
+  "source_policy": {
+    "v5_source_overlap_allowed": false,
+    "detector_grounding_source_used_as_target_evidence": false,
+    "positive_source_roots": [
+      "CVE-2024-53995",
+      "CVE-2025-4143",
+      "CVE-2025-62595"
+    ]
+  },
+  "cases": [
+    {
+      "id": "cal630-sickchill-external-302",
+      "source_root": "CVE-2024-53995",
+      "source_project": "sickchill/sickchill",
+      "source_url": "https://securitylab.github.com/advisories/GHSL-2024-283_GHSL-2024-291_sickchill_sickchill/",
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "raw": {
+        "target": "sickchill-cal.fixture.invalid",
+        "endpoint": "/login",
+        "method": "POST",
+        "category": "login redirect navigation calibration",
+        "business_context": "identity",
+        "endpoint_schema": {"query_parameters": ["next"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 302, "response_headers": {"Location": "https://attacker-cal.fixture.invalid/phish"}}
+      }
+    },
+    {
+      "id": "cal630-cloudflare-oauth-external-302",
+      "source_root": "CVE-2025-4143",
+      "source_project": "cloudflare/workers-oauth-provider",
+      "source_url": "https://github.com/advisories/GHSA-4pc9-x2fx-p7vj",
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "raw": {
+        "target": "oauth-cal.fixture.invalid",
+        "endpoint": "/authorize",
+        "method": "GET",
+        "category": "oauth redirect uri navigation calibration",
+        "business_context": "identity",
+        "endpoint_schema": {"query_parameters": ["redirect_uri"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": ["oauth"]},
+        "details": {"status_code": 302, "response_headers": {"Location": "https://evil-client-cal.fixture.invalid/callback"}}
+      }
+    },
+    {
+      "id": "cal630-koa-protocol-relative-302",
+      "source_root": "CVE-2025-62595",
+      "source_project": "koajs/koa",
+      "source_url": "https://github.com/advisories/GHSA-g8mr-fgfg-5qpc",
+      "expected_admitted": true,
+      "expected_condition": "external_destination",
+      "raw": {
+        "target": "koa-cal.fixture.invalid",
+        "endpoint": "/back",
+        "method": "GET",
+        "category": "back redirect navigation calibration",
+        "business_context": "general",
+        "endpoint_schema": {"query_parameters": ["return_url"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 302, "response_headers": {"Location": "//evil-protocol-relative-cal.fixture.invalid/path"}}
+      }
+    },
+    {
+      "id": "cal630-control-location-on-400",
+      "source_root": "CAL630-CONTROL-HTTP400",
+      "source_project": "calibration/non-redirect-response",
+      "source_url": "",
+      "expected_admitted": false,
+      "expected_condition": "",
+      "raw": {
+        "target": "control400-cal.fixture.invalid",
+        "endpoint": "/redirect",
+        "method": "GET",
+        "category": "redirect navigation calibration control",
+        "business_context": "general",
+        "endpoint_schema": {"query_parameters": ["redirect"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 400, "response_headers": {"Location": "https://external-but-not-redirected-cal.fixture.invalid/safe"}}
+      }
+    },
+    {
+      "id": "cal630-control-external-allowlist",
+      "source_root": "CAL630-CONTROL-ALLOWLIST",
+      "source_project": "calibration/redirect-allowlist",
+      "source_url": "",
+      "expected_admitted": false,
+      "expected_condition": "",
+      "raw": {
+        "target": "allowlist-cal.fixture.invalid",
+        "endpoint": "/authorize",
+        "method": "GET",
+        "category": "redirect allowlist calibration control",
+        "business_context": "identity",
+        "endpoint_schema": {"query_parameters": ["redirect_uri"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": ["oauth"]},
+        "details": {"status_code": 302, "redirect_allowlist_enforced": true, "response_headers": {"Location": "https://registered-client-cal.fixture.invalid/callback"}}
+      }
+    },
+    {
+      "id": "cal630-control-same-origin-302",
+      "source_root": "CAL630-CONTROL-SAMEORIGIN",
+      "source_project": "calibration/same-origin",
+      "source_url": "",
+      "expected_admitted": false,
+      "expected_condition": "",
+      "raw": {
+        "target": "same-origin-cal.fixture.invalid",
+        "endpoint": "/redirect",
+        "method": "GET",
+        "category": "redirect navigation calibration control",
+        "business_context": "general",
+        "endpoint_schema": {"query_parameters": ["next"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 302, "response_headers": {"Location": "https://same-origin-cal.fixture.invalid/dashboard"}}
+      }
+    },
+    {
+      "id": "cal630-control-relative-302",
+      "source_root": "CAL630-CONTROL-RELATIVE",
+      "source_project": "calibration/relative-only",
+      "source_url": "",
+      "expected_admitted": false,
+      "expected_condition": "",
+      "raw": {
+        "target": "relative-cal.fixture.invalid",
+        "endpoint": "/redirect",
+        "method": "GET",
+        "category": "redirect navigation calibration control",
+        "business_context": "general",
+        "endpoint_schema": {"query_parameters": ["next"], "body_fields": [], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 302, "response_headers": {"Location": "/dashboard"}}
+      }
+    },
+    {
+      "id": "cal630-control-nosql-plus-nonredirect-location",
+      "source_root": "CAL630-CONTROL-CONFOUNDER",
+      "source_project": "calibration/nosql-open-redirect-confounder",
+      "source_url": "",
+      "expected_admitted": false,
+      "expected_condition": "",
+      "raw": {
+        "target": "confounder-cal.fixture.invalid",
+        "endpoint": "/api/search?next=ignored",
+        "method": "POST",
+        "category": "mongodb nosql search with redirect-shaped noise calibration control",
+        "business_context": "general",
+        "endpoint_schema": {"query_parameters": ["next"], "body_fields": ["filter"], "path_parameters": [], "object_identifiers": [], "authentication_hints": []},
+        "details": {"status_code": 400, "response_text": "structured filter rejected", "response_headers": {"Location": "https://unrelated-external-cal.fixture.invalid/info"}}
+      }
+    }
+  ]
+}
