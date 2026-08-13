@@ -1,0 +1,229 @@
+name: Analysis 6.30 Open Redirect Calibration
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.30-open-redirect-calibration
+
+concurrency:
+  group: analysis-630-open-redirect-calibration
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  calibrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout calibration branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.30-open-redirect-calibration
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify consumed v5 remains immutable
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('.')
+          freeze=json.loads((root/'benchmarks/raw/sources/v5_freeze_manifest.json').read_text())
+          receipt=json.loads((root/'benchmarks/raw/sources/v5_first_blind_receipt.json').read_text())
+          first=root/'benchmarks/raw/results/analysis_raw_v5_first_blind.json'
+          assert receipt['status']=='first_blind_consumed'
+          assert receipt['evaluation_kind']=='fresh_blind_v5_single_consumption'
+          assert hashlib.sha256(first.read_bytes()).hexdigest()==receipt['report_sha256']
+          for rel,wanted in freeze['protected_sha256'].items():
+              actual=hashlib.sha256((root/rel).read_bytes()).hexdigest()
+              assert actual==wanted,(rel,wanted,actual)
+          assert receipt['corpus_sha256']=='0ca89aab4d2fcb00459b6c6d1328b0c9aa4ebb859835a98d66c7afe76e07ba50'
+          assert receipt['evaluator_sha256']=='273df1c35f1795a8d45bf339e73bf4773448d134c676c3074b8b85fc86a97e22'
+          assert receipt['report_sha256']=='1ee299ab86e0301babd31fa0729f93cc127810881f74481d899b85db31a2e9ce'
+          PY
+
+      - name: Verify separate calibration-source firewall
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from family_detectors.open_redirect import SPEC
+          data=json.loads(Path('benchmarks/calibration/analysis_630_open_redirect.json').read_text())
+          positives=[row for row in data['cases'] if row['expected_admitted']]
+          roots={row['source_root'] for row in positives}
+          projects={row['source_project'].lower() for row in positives}
+          urls={row['source_url'].rstrip('/').lower() for row in positives}
+          v5=[json.loads(line) for line in Path('benchmarks/raw/analysis_raw_v5.jsonl').read_text().splitlines() if line.strip()]
+          v5_roots={str(row.get('source_root') or '') for row in v5}
+          v5_projects={str(row.get('source_project') or '').lower() for row in v5}
+          grounding={ref.url.rstrip('/').lower() for ref in SPEC.writeups}
+          assert roots=={'CVE-2024-53995','CVE-2025-4143','CVE-2025-62595'}
+          assert not roots & v5_roots
+          assert not projects & v5_projects
+          assert not urls & grounding
+          assert all(ref.counts_as_target_evidence is False for ref in SPEC.writeups)
+          PY
+
+      - name: Demonstrate pre-fix calibration failure
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_630_open_redirect_calibration.py --require-baseline-failure
+
+      - name: Apply general production calibration fix
+        run: python scripts/analysis_630_open_redirect_fix.py
+
+      - name: Pass pre-registered calibration set
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/analysis_630_open_redirect_calibration.py --write --require-pass
+          python -m unittest discover -s tests -p 'test_analysis_630_open_redirect_calibration.py' -q
+
+      - name: Preserve grounding and ownership contracts
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
+          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
+
+      - name: Re-run consumed v5 as regression only
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/raw_recon_v5_regression_630.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/results/analysis_raw_v5_6_30_regression.json').read_text())
+          assert r['evaluation_kind']=='post_first_blind_regression'
+          assert r['first_blind_rerun_claimed'] is False
+          assert r['quality_gate']['passed'], r['quality_gate']
+          s=r['single_family']['metrics']; m=r['multi_family']['metrics']
+          assert s['condition_extraction_precision']==1.0
+          assert s['condition_extraction_recall']==1.0
+          assert s['admission_precision']==1.0
+          assert s['admission_recall']==1.0
+          assert s['false_promotion_rate']==0.0
+          assert s['wrong_family_promotion_rate']==0.0
+          assert s['end_to_end_accuracy']==1.0
+          assert m['exact_admission_set_rate']==1.0
+          assert m['unexpected_promotion_rate']==0.0
+          assert m['dual_positive_both_admitted_rate']==1.0
+          assert m['dual_secure_rejection_rate']==1.0
+          assert m['expected_family_top3_coverage']==1.0
+          PY
+
+      - name: Verify release identity
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import analysis_engine, bug_candidates, security_reasoning
+          from family_detectors.execution import EXECUTION_ENGINE_VERSION, EXECUTION_RULE_VERSION
+          from raw_condition_reconstruction import RECONSTRUCTION_ENGINE_VERSION, RECONSTRUCTION_RULE_VERSION
+          assert (analysis_engine.ENGINE_VERSION,analysis_engine.RULE_VERSION)==('6.30.0','2026.08.13.6.30')
+          assert (bug_candidates.CANDIDATE_ENGINE_VERSION,bug_candidates.CANDIDATE_RULE_VERSION)==('6.30.0','2026.08.13.6.30')
+          assert (security_reasoning.REASONING_ENGINE_VERSION,security_reasoning.REASONING_RULE_VERSION)==('6.30.0','2026.08.13.6.30')
+          assert (EXECUTION_ENGINE_VERSION,EXECUTION_RULE_VERSION)==('1.4.0','2026.08.13.6.30')
+          assert RECONSTRUCTION_ENGINE_VERSION=='1.2.0'
+          assert RECONSTRUCTION_RULE_VERSION=='2026.08.13.6.27'
+          PY
+
+      - name: Full unit suite on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.11
+        run: python tests/integration_runner.py
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Analysis 6.30 calibration contract on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_630_open_redirect_calibration.py' -q
+
+      - name: Full unit suite on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.13
+        run: python tests/integration_runner.py
+
+      - name: Final immutable v5 verification
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('.'); freeze=json.loads((root/'benchmarks/raw/sources/v5_freeze_manifest.json').read_text()); receipt=json.loads((root/'benchmarks/raw/sources/v5_first_blind_receipt.json').read_text())
+          for rel,wanted in freeze['protected_sha256'].items():
+              assert hashlib.sha256((root/rel).read_bytes()).hexdigest()==wanted,rel
+          assert hashlib.sha256((root/'benchmarks/raw/results/analysis_raw_v5_first_blind.json').read_bytes()).hexdigest()==receipt['report_sha256']
+          PY
+
+      - name: Update manifest for Analysis 6.30
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.'); manifest=root/'MANIFEST.sha256'; entries={}; order=[]
+          for line in manifest.read_text().splitlines():
+              if '  ' not in line: continue
+              _,name=line.split('  ',1); p=root/name
+              if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          permanent=(
+              'app/analysis_engine.py','app/bug_candidates.py','app/security_reasoning.py',
+              'app/family_detectors/execution.py','app/raw_condition_reconstruction.py',
+              'app/analysis_630_open_redirect_calibration.py','app/raw_recon_v5_regression_630.py',
+              'tests/test_analysis_630_open_redirect_calibration.py',
+              'docs/ANALYSIS_ENGINE_6_30_OPEN_REDIRECT_CALIBRATION.md',
+              'benchmarks/calibration/analysis_630_open_redirect.json',
+              'benchmarks/calibration/results/analysis_630_open_redirect.json',
+              'benchmarks/raw/results/analysis_raw_v5_6_30_regression.json',
+          )
+          for name in permanent:
+              p=root/name
+              if not p.is_file(): raise SystemExit(f'missing 6.30 permanent file: {name}')
+              entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+              if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[n]}  {n}\n' for n in order))
+          PY
+          sha256sum -c MANIFEST.sha256
+
+      - name: Commit Analysis 6.30 cutover and remove one-shot helper/workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-630-open-redirect-calibration.yml scripts/analysis_630_open_redirect_fix.py
+          git add -A
+          git diff --cached --check
+          git commit -m "Cut over Analysis Engine 6.30 open redirect calibration"
+          git push origin HEAD:agent/analysis-engine-6.30-open-redirect-calibration
