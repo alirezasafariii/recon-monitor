@@ -1,0 +1,11 @@
+from pathlib import Path
+
+path = Path('app/raw_recon_v5_exact_source_supplement.py')
+text = path.read_text(encoding='utf-8')
+old = '''        _, aliases, identity_kind = _project_identity(cve, references)\n        allowed = {str(value) for value in spec["project_any"]}\n        alias_lookup = {value.lower(): value for value in aliases}\n        matched_project = next((alias_lookup[value.lower()] for value in allowed if value.lower() in alias_lookup), "")\n        if not matched_project:\n            raise RuntimeError(\n                f"{family}: exact source project identity mismatch; expected one of {sorted(allowed)}, aliases={aliases}"\n            )'''
+new = '''        _, aliases, identity_kind = _project_identity(cve, references)\n        allowed = {str(value) for value in spec["project_any"]}\n        alias_lookup = {value.lower(): value for value in aliases}\n        matched_project = ""\n        matched_by = ""\n        for allowed_project in sorted(allowed):\n            lowered = allowed_project.lower()\n            if lowered.startswith("cpe:") and lowered in alias_lookup:\n                matched_project = alias_lookup[lowered]\n                matched_by = "nvd_cpe"\n                break\n            if not lowered.startswith("cpe:"):\n                needle = f"github.com/{lowered}"\n                if any(needle in str(url).lower() for url in references):\n                    matched_project = allowed_project\n                    matched_by = "github_reference_prefix"\n                    break\n                if lowered in alias_lookup:\n                    matched_project = alias_lookup[lowered]\n                    matched_by = "github_reference_parser"\n                    break\n        if not matched_project:\n            raise RuntimeError(\n                f"{family}: exact source project identity mismatch; expected one of {sorted(allowed)}, aliases={aliases}"\n            )\n        identity_kind = matched_by or identity_kind'''
+count = text.count(old)
+if count != 1:
+    raise SystemExit(f'expected one exact project matching block, found {count}')
+path.write_text(text.replace(old, new), encoding='utf-8')
+print('exact v5 project identity now resolves affected GitHub/CPE project explicitly')
