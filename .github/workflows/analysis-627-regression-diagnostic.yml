@@ -1,0 +1,62 @@
+name: Analysis 6.27 Regression Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.27-blind-failure-calibration
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.27-blind-failure-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Diagnose stored regression only
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v4_regression_diagnostic.py
+      - name: Verify diagnostic is non-executing
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json').read_text())
+          assert d['diagnostic_executes_analysis_engine'] is False
+          assert d['diagnostic_reruns_holdout'] is False
+          print(json.dumps({k:d[k] for k in ('condition_false_positive_family_counts','top1_confusions','top3_miss_family_counts','ranking_error_kind_counts','wrong_promotion_family_counts')}, indent=2, sort_keys=True))
+          PY
+      - name: Add diagnostic to manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.'); manifest=root/'MANIFEST.sha256'
+          entries={}; order=[]
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' not in line: continue
+              _,name=line.split('  ',1); p=root/name
+              if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          for name in ('app/raw_recon_v4_regression_diagnostic.py','benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json'):
+              p=root/name; entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+              if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
+          PY
+      - run: sha256sum -c MANIFEST.sha256
+      - name: Persist diagnostic and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-627-regression-diagnostic.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Diagnose remaining Analysis 6.27 regression gaps"
+          git push origin HEAD:agent/analysis-engine-6.27-blind-failure-calibration
