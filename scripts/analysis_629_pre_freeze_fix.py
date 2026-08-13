@@ -81,6 +81,13 @@ replace_once(
 )
 
 replace_once(
+    'app/raw_recon_v5_prepare.py',
+    '''    if BUSINESS_SUPPLEMENT.exists():\n        protected_files["benchmarks/raw/sources/v5_business_logic_supplement.json"] = _sha(\n            BUSINESS_SUPPLEMENT\n        )\n''',
+    '''    if EXACT_SUPPLEMENT.exists():\n        protected_files["benchmarks/raw/sources/v5_exact_source_supplement.json"] = _sha(\n            EXACT_SUPPLEMENT\n        )\n''',
+    'protect consolidated exact supplement in prepare freeze',
+)
+
+replace_once(
     'app/raw_recon_v5_freeze.py',
     '    "benchmarks/raw/sources/v5_business_logic_supplement.json",\n    "benchmarks/raw/sources/v5_shortlist.json",',
     '    "benchmarks/raw/sources/v5_shortlist.json",\n    "benchmarks/raw/sources/v5_exact_source_supplement.json",\n    "app/raw_recon_v5_exact_source_supplement.py",\n    "app/raw_recon_v5_nvd_discovery.py",',
