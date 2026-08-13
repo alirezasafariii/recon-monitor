@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import json
 import re
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 RULE_VERSION = "2026.08.13.6.29"
 V4_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v4.jsonl"
 V4_FILES = tuple((ROOT / "benchmarks/raw/sources").glob("v4_*.json"))
@@ -53,29 +55,61 @@ def exposure_index() -> dict[str, set[str]]:
                 url = v4._canonical_url(str(row.get(key) or ""))
                 if url:
                     out["urls"].add(url)
-            prov = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
-            url = v4._canonical_url(str(prov.get("url") or ""))
+            provenance = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
+            url = v4._canonical_url(str(provenance.get("url") or ""))
             if url:
                 out["urls"].add(url)
     return out
 
 
-def _fetch_typed_pages(cwe: str, advisory_type: str, *, max_pages: int, per_page: int = 100) -> Iterable[list[dict[str, Any]]]:
+def _fetch_query_rows(
+    cwe: str,
+    advisory_type: str,
+    *,
+    max_pages: int,
+    cache: dict[tuple[str, str, int], list[dict[str, Any]]],
+    counters: dict[str, int],
+    per_page: int = 100,
+) -> list[dict[str, Any]]:
+    key = (cwe, advisory_type, max_pages)
+    if key in cache:
+        counters["cache_hits"] += 1
+        return cache[key]
+
     numeric = cwe.removeprefix("CWE-")
     query = urllib.parse.urlencode({"type": advisory_type, "cwes": numeric, "per_page": per_page})
     url = f"{v4.GITHUB_ADVISORY_API}?{query}"
+    rows: list[dict[str, Any]] = []
     for _ in range(max_pages):
         request = urllib.request.Request(url, headers=v4._headers())
-        with urllib.request.urlopen(request, timeout=45) as response:
+        response = None
+        for attempt in range(3):
+            try:
+                response = urllib.request.urlopen(request, timeout=45)
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code != 403 or attempt == 2:
+                    raise
+                # Secondary-rate-limit protection only. Query selection and results
+                # remain unchanged; this merely avoids concurrent burst pressure.
+                time.sleep(1.0 + attempt)
+        if response is None:
+            raise RuntimeError(f"unable to fetch advisory query for {cwe}/{advisory_type}")
+        with response:
             payload = json.load(response)
             link = response.headers.get("Link", "")
-        rows = [dict(row) for row in payload if isinstance(row, Mapping)]
-        if not rows:
-            return
-        yield rows
+        counters["api_requests"] += 1
+        page_rows = [dict(row) for row in payload if isinstance(row, Mapping)]
+        counters[f"{advisory_type}_rows"] += len(page_rows)
+        if not page_rows:
+            break
+        rows.extend(page_rows)
         url = v4._next_link(link)
         if not url:
-            return
+            break
+        time.sleep(0.05)
+    cache[key] = rows
+    return rows
 
 
 def _is_research_project(project: str) -> bool:
@@ -181,42 +215,52 @@ def _eligible_candidate(
     )
 
 
-def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_per_family: int = 60) -> dict[str, Any]:
+def discover(
+    max_pages_reviewed: int = 3,
+    max_pages_unreviewed: int = 6,
+    target_per_family: int = 60,
+) -> dict[str, Any]:
     excluded = exposure_index()
     grounding = v4._grounding_writeup_urls()
     family_cwes = v4._family_cwes()
     by_family: dict[str, list[dict[str, Any]]] = {}
-    queried = {"reviewed": 0, "unreviewed": 0}
+    cache: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
+    counters = {"api_requests": 0, "cache_hits": 0, "reviewed_rows": 0, "unreviewed_rows": 0}
 
     for family, cwes in family_cwes.items():
         by_root: dict[str, dict[str, Any]] = {}
         for cwe in cwes:
             for advisory_type in ADVISORY_TYPES:
                 page_limit = max_pages_reviewed if advisory_type == "reviewed" else max_pages_unreviewed
-                for page in _fetch_typed_pages(cwe, advisory_type, max_pages=page_limit):
-                    queried[advisory_type] += len(page)
-                    for raw in page:
-                        row = _eligible_candidate(
-                            raw,
-                            advisory_type=advisory_type,
-                            family=family,
-                            cwe=cwe,
-                            excluded=excluded,
-                            grounding_urls=grounding,
+                query_rows = _fetch_query_rows(
+                    cwe,
+                    advisory_type,
+                    max_pages=page_limit,
+                    cache=cache,
+                    counters=counters,
+                )
+                for raw in query_rows:
+                    row = _eligible_candidate(
+                        raw,
+                        advisory_type=advisory_type,
+                        family=family,
+                        cwe=cwe,
+                        excluded=excluded,
+                        grounding_urls=grounding,
+                    )
+                    if row is None:
+                        continue
+                    root = str(row["source_root"])
+                    if root not in by_root:
+                        row["freshness_validated"] = True
+                        row["advisory_source_type"] = advisory_type
+                        by_root[root] = row
+                    else:
+                        by_root[root]["matched_cwes"] = sorted(
+                            set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"])
                         )
-                        if row is None:
-                            continue
-                        root = str(row["source_root"])
-                        if root not in by_root:
-                            row["freshness_validated"] = True
-                            row["advisory_source_type"] = advisory_type
-                            by_root[root] = row
-                        else:
-                            by_root[root]["matched_cwes"] = sorted(set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"]))
-                            if by_root[root].get("advisory_source_type") != "reviewed" and advisory_type == "reviewed":
-                                by_root[root]["advisory_source_type"] = "reviewed"
-                        if len(by_root) >= target_per_family:
-                            break
+                        if by_root[root].get("advisory_source_type") != "reviewed" and advisory_type == "reviewed":
+                            by_root[root]["advisory_source_type"] = "reviewed"
                     if len(by_root) >= target_per_family:
                         break
                 if len(by_root) >= target_per_family:
@@ -239,7 +283,13 @@ def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_
         "version": VERSION,
         "rule_version": RULE_VERSION,
         "family_count": len(family_cwes),
-        "queried_rows_by_advisory_type": queried,
+        "unique_advisory_queries": len(cache),
+        "api_request_count": counters["api_requests"],
+        "query_cache_hit_count": counters["cache_hits"],
+        "queried_rows_by_advisory_type": {
+            "reviewed": counters["reviewed_rows"],
+            "unreviewed": counters["unreviewed_rows"],
+        },
         "advisory_types": list(ADVISORY_TYPES),
         "family_candidate_counts": counts,
         "families_without_candidates": sorted(k for k, count in counts.items() if not count),
@@ -261,7 +311,19 @@ def main() -> int:
     out = ROOT / "benchmarks/raw/sources/v5_candidates.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ("family_count", "families_without_candidates", "excluded_prior_root_count", "excluded_prior_project_count", "queried_rows_by_advisory_type")}, indent=2))
+    print(json.dumps({
+        key: report[key]
+        for key in (
+            "family_count",
+            "families_without_candidates",
+            "excluded_prior_root_count",
+            "excluded_prior_project_count",
+            "unique_advisory_queries",
+            "api_request_count",
+            "query_cache_hit_count",
+            "queried_rows_by_advisory_type",
+        )
+    }, indent=2))
     return 2 if report["families_without_candidates"] else 0
 
 
