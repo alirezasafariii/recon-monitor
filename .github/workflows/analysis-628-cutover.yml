@@ -28,8 +28,10 @@ jobs:
         run: |
           git merge-base --is-ancestor b3259277bd66a99a30f5b398e00b674e7c0b3190 HEAD
 
-      - name: Apply Analysis 6.28 cleanup
-        run: python scripts/analysis_628_cutover.py
+      - name: Apply Analysis 6.28 cleanup and compatibility patch
+        run: |
+          python scripts/analysis_628_cutover.py
+          python scripts/analysis_628_compat.py
 
       - name: Exact Analysis 6.28 ownership contract
         env:
@@ -107,6 +109,13 @@ jobs:
       - name: Verify immutable v4 boundary
         run: |
           python - <<'PY'
+          from pathlib import import hashlib, json
+          PY
+        continue-on-error: true
+
+      - name: Verify immutable v4 hashes exactly
+        run: |
+          python - <<'PY'
           from pathlib import Path
           import hashlib, json
           expected={
@@ -149,13 +158,13 @@ jobs:
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
-      - name: Commit Analysis 6.28 cutover and remove one-shot helper/workflow
+      - name: Commit Analysis 6.28 cutover and remove one-shot helpers/workflow
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-628-cutover.yml scripts/analysis_628_cutover.py
+          git rm .github/workflows/analysis-628-cutover.yml scripts/analysis_628_cutover.py scripts/analysis_628_compat.py
           git add -A
           git diff --cached --check
           git commit -m "Cut over Analysis Engine 6.28 orchestrator cleanup"
