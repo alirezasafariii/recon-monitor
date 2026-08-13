@@ -12,7 +12,7 @@ from raw_recon_v4_materialize import EXPECTED_CONDITION, V4_VARIANTS, _fixture_t
 from raw_recon_v4_source_audit import HARD_ANCHORS, audit_row
 from raw_recon_v5_source_discovery import exposure_index
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 RULE_VERSION = "2026.08.13.6.29"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v5_candidates.json"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v5_shortlist.json"
@@ -77,6 +77,22 @@ def _observation(raw_template: Mapping[str, Any], *, target: str, family: str, k
     return {"target": target, **_noise(raw_template, family, kind)}
 
 
+def _is_primary_source(row: Mapping[str, Any]) -> bool:
+    repository_advisory = str(row.get("repository_advisory_url") or "")
+    canonical = str(row.get("canonical_advisory_url") or "")
+    return bool(repository_advisory) or "/security/advisories/" in canonical
+
+
+def _source_provenance(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "url": row["canonical_advisory_url"],
+        "source_kind": str(row.get("source_kind") or row.get("advisory_source_type") or "github_security_advisory"),
+        "advisory_source_type": str(row.get("advisory_source_type") or ""),
+        "primary_source": _is_primary_source(row),
+        "literal_capture": False,
+    }
+
+
 def _single_case(row: Mapping[str, Any], kind: str, raw_template: Mapping[str, Any]) -> dict[str, Any]:
     family = str(row["family"])
     condition = EXPECTED_CONDITION[family]
@@ -92,7 +108,7 @@ def _single_case(row: Mapping[str, Any], kind: str, raw_template: Mapping[str, A
         "case_kind": kind,
         "case_mode": "single_family_fresh",
         "rank_required": kind != "sparse_noisy",
-        "provenance": {"url": row["canonical_advisory_url"], "primary_source": True, "literal_capture": False},
+        "provenance": _source_provenance(row),
         "raw": raw,
         "expected": {
             "admitted_families": [family] if kind == "positive" else [],
@@ -104,9 +120,6 @@ def _single_case(row: Mapping[str, Any], kind: str, raw_template: Mapping[str, A
 def _multi_cases(selected: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_family = {str(row["family"]): row for row in selected}
     families = sorted(by_family)
-    # Deterministic disjoint pairing fixed before scoring. Each case represents one
-    # target with two independent stored observations; the blind runner aggregates
-    # their target evidence only after the corpus is frozen.
     pairs = list(zip(families[:18], reversed(families[18:])))
     cases: list[dict[str, Any]] = []
     for index, (fa, fb) in enumerate(pairs, start=1):
@@ -137,9 +150,8 @@ def _multi_cases(selected: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "case_mode": "multi_family_hard_case",
                 "rank_required": bool(expected_families),
                 "provenance": {
-                    "primary_source": True,
                     "composite": True,
-                    "urls": [ra["canonical_advisory_url"], rb["canonical_advisory_url"]],
+                    "sources": [_source_provenance(ra), _source_provenance(rb)],
                 },
                 "raw_observations": observations,
                 "expected": {
@@ -192,6 +204,13 @@ def prepare() -> dict[str, Any]:
     if any(len(row.get("raw_observations") or []) != 2 for row in multi):
         raise RuntimeError("each v5 multi-family case must contain exactly two independent stored observations")
 
+    source_kind_counts: dict[str, int] = {}
+    primary_source_count = 0
+    for row in selected:
+        kind = str(row.get("source_kind") or row.get("advisory_source_type") or "unknown")
+        source_kind_counts[kind] = source_kind_counts.get(kind, 0) + 1
+        primary_source_count += int(_is_primary_source(row))
+
     freeze = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
@@ -205,6 +224,8 @@ def prepare() -> dict[str, Any]:
         "family_count": 36,
         "source_root_count": len(roots),
         "source_project_count": len(projects),
+        "source_kind_counts": source_kind_counts,
+        "primary_source_count": primary_source_count,
         "prior_root_overlap_count": 0,
         "prior_project_overlap_count": 0,
         "prior_url_overlap_count": 0,
