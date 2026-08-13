@@ -49,5 +49,17 @@ replace_once(
     'REASONING_ENGINE_VERSION = "6.30.0"\nREASONING_RULE_VERSION = "2026.08.13.6.30"',
     'reasoning release version',
 )
+replace_once(
+    'tests/test_analysis_627_blind_failure_calibration.py',
+    '        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.3.0")\n        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.13.6.27")',
+    '        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_ENGINE_VERSION.split(".")), (1, 3, 0))\n        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))',
+    '6.27 blind calibration execution lineage floor',
+)
+replace_once(
+    'tests/test_analysis_627_seal.py',
+    '        self.assertEqual(EXECUTION_ENGINE_VERSION, "1.3.0")\n        self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.13.6.27")',
+    '        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_ENGINE_VERSION.split(".")), (1, 3, 0))\n        self.assertGreaterEqual(tuple(int(x) for x in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))',
+    '6.27 seal execution lineage floor',
+)
 
-print('Analysis 6.30 open redirect precision fix and release versions applied')
+print('Analysis 6.30 open redirect precision fix, forward-compatible lineage checks, and release versions applied')
