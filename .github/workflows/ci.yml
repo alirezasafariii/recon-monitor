@@ -38,14 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Diagnostic taxonomy cleanup hashes
-        shell: bash
-        run: |
-          sha256sum \
-            app/family_analyzers/nosql_injection.py \
-            app/family_analyzers/api_expansion.py \
-            tests/test_owasp_taxonomy_writeups_v891.py
-
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
