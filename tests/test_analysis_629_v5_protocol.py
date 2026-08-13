@@ -22,6 +22,7 @@ class Analysis629V5ProtocolTests(unittest.TestCase):
         forbidden = {"raw_recon_benchmark", "analysis_ranking"}
         for name in (
             "app/raw_recon_v5_source_discovery.py",
+            "app/raw_recon_v5_nvd_discovery.py",
             "app/raw_recon_v5_source_audit.py",
             "app/raw_recon_v5_business_logic_supplement.py",
             "app/raw_recon_v5_prepare.py",
@@ -96,6 +97,11 @@ class Analysis629V5ProtocolTests(unittest.TestCase):
         self.assertEqual(data["prior_root_overlap_count"], 0)
         self.assertEqual(data["prior_project_overlap_count"], 0)
         self.assertEqual(data["prior_url_overlap_count"], 0)
+        validation = data["corpus_validation"]
+        self.assertEqual(validation["prior_cve_overlap_count"], 0)
+        self.assertEqual(validation["grounding_writeup_overlap_count"], 0)
+        self.assertEqual(validation["grounding_reference_overlap_count"], 0)
+        self.assertEqual(validation["label_leakage_count"], 0)
 
 
 if __name__ == "__main__":
