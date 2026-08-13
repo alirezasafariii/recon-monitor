@@ -1,0 +1,449 @@
+{
+  "condition_miss_cases": [
+    {
+      "admitted_families": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "case_kind": "dual_positive",
+      "condition_misses": {
+        "unsafe_api_consumption": [
+          "upstream_tls_missing"
+        ]
+      },
+      "dual_positive_both_admitted": true,
+      "dual_secure_rejected": false,
+      "exact_admission_set": true,
+      "expected_condition_hits": 1,
+      "expected_condition_slots": 2,
+      "expected_families": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "expected_top3_families": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "expected_top3_hits": 2,
+      "expected_top3_slots": 2,
+      "family_states": {
+        "authentication_session": "admitted",
+        "unsafe_api_consumption": "admitted"
+      },
+      "id": "v5-multi-02-dual_positive",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "authentication_session"
+        ],
+        [
+          "unsafe_api_consumption"
+        ]
+      ],
+      "paired_families": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "predicted_conditions": {
+        "authentication_session": [
+          "authentication_boundary_regression"
+        ],
+        "unsafe_api_consumption": [
+          "upstream_certificate_validation_failure"
+        ]
+      },
+      "top1": "unsafe_api_consumption",
+      "top3": [
+        "unsafe_api_consumption",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "unexpected_promotions": []
+    },
+    {
+      "admitted_families": [
+        "unsafe_api_consumption"
+      ],
+      "case_kind": "b_only",
+      "condition_misses": {
+        "unsafe_api_consumption": [
+          "upstream_tls_missing"
+        ]
+      },
+      "dual_positive_both_admitted": false,
+      "dual_secure_rejected": false,
+      "exact_admission_set": true,
+      "expected_condition_hits": 0,
+      "expected_condition_slots": 1,
+      "expected_families": [
+        "unsafe_api_consumption"
+      ],
+      "expected_top3_families": [
+        "unsafe_api_consumption"
+      ],
+      "expected_top3_hits": 1,
+      "expected_top3_slots": 1,
+      "family_states": {
+        "authentication_session": "shadow_partial",
+        "unsafe_api_consumption": "admitted"
+      },
+      "id": "v5-multi-02-b_only",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "authentication_session"
+        ],
+        [
+          "unsafe_api_consumption"
+        ]
+      ],
+      "paired_families": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "predicted_conditions": {
+        "unsafe_api_consumption": [
+          "upstream_certificate_validation_failure"
+        ]
+      },
+      "top1": "unsafe_api_consumption",
+      "top3": [
+        "unsafe_api_consumption",
+        "authentication_session",
+        "websocket_authorization"
+      ],
+      "unexpected_promotions": []
+    },
+    {
+      "admitted_families": [
+        "improper_inventory_management",
+        "secret_exposure"
+      ],
+      "case_kind": "dual_positive",
+      "condition_misses": {
+        "improper_inventory_management": [
+          "unprotected_legacy_endpoint"
+        ]
+      },
+      "dual_positive_both_admitted": true,
+      "dual_secure_rejected": false,
+      "exact_admission_set": true,
+      "expected_condition_hits": 1,
+      "expected_condition_slots": 2,
+      "expected_families": [
+        "improper_inventory_management",
+        "secret_exposure"
+      ],
+      "expected_top3_families": [
+        "improper_inventory_management",
+        "secret_exposure"
+      ],
+      "expected_top3_hits": 2,
+      "expected_top3_slots": 2,
+      "family_states": {
+        "file_upload": "shadow_partial",
+        "improper_inventory_management": "admitted",
+        "information_disclosure": "shadow_partial",
+        "secret_exposure": "admitted"
+      },
+      "id": "v5-multi-14-dual_positive",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "file_upload",
+          "improper_inventory_management"
+        ],
+        [
+          "information_disclosure",
+          "secret_exposure"
+        ]
+      ],
+      "paired_families": [
+        "improper_inventory_management",
+        "secret_exposure"
+      ],
+      "predicted_conditions": {
+        "improper_inventory_management": [
+          "deprecated_version_still_reachable"
+        ],
+        "secret_exposure": [
+          "high_entropy_value"
+        ]
+      },
+      "top1": "secret_exposure",
+      "top3": [
+        "secret_exposure",
+        "improper_inventory_management",
+        "file_upload"
+      ],
+      "unexpected_promotions": []
+    },
+    {
+      "admitted_families": [
+        "improper_inventory_management"
+      ],
+      "case_kind": "a_only",
+      "condition_misses": {
+        "improper_inventory_management": [
+          "unprotected_legacy_endpoint"
+        ]
+      },
+      "dual_positive_both_admitted": false,
+      "dual_secure_rejected": false,
+      "exact_admission_set": true,
+      "expected_condition_hits": 0,
+      "expected_condition_slots": 1,
+      "expected_families": [
+        "improper_inventory_management"
+      ],
+      "expected_top3_families": [
+        "improper_inventory_management"
+      ],
+      "expected_top3_hits": 1,
+      "expected_top3_slots": 1,
+      "family_states": {
+        "file_upload": "shadow_partial",
+        "improper_inventory_management": "admitted",
+        "information_disclosure": "shadow_partial"
+      },
+      "id": "v5-multi-14-a_only",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "file_upload",
+          "improper_inventory_management"
+        ],
+        [
+          "information_disclosure"
+        ]
+      ],
+      "paired_families": [
+        "improper_inventory_management",
+        "secret_exposure"
+      ],
+      "predicted_conditions": {
+        "improper_inventory_management": [
+          "deprecated_version_still_reachable"
+        ]
+      },
+      "top1": "improper_inventory_management",
+      "top3": [
+        "improper_inventory_management",
+        "file_upload",
+        "information_disclosure"
+      ],
+      "unexpected_promotions": []
+    }
+  ],
+  "condition_misses_by_family": {
+    "improper_inventory_management": 2,
+    "unsafe_api_consumption": 2
+  },
+  "counts": {
+    "condition_miss_cases": 4,
+    "dual_secure_failures": 1,
+    "non_exact_admission_cases": 2,
+    "top3_miss_cases": 0,
+    "unexpected_promotion_cases": 2
+  },
+  "diagnostic_version": "1.0.0",
+  "dual_secure_failures": [
+    {
+      "admitted_families": [
+        "open_redirect"
+      ],
+      "case_kind": "dual_secure",
+      "condition_misses": {},
+      "dual_positive_both_admitted": false,
+      "dual_secure_rejected": false,
+      "exact_admission_set": false,
+      "expected_condition_hits": 0,
+      "expected_condition_slots": 0,
+      "expected_families": [],
+      "expected_top3_families": [],
+      "expected_top3_hits": 0,
+      "expected_top3_slots": 0,
+      "family_states": {
+        "graphql_authorization": "shadow_partial",
+        "nosql_injection": "shadow_partial",
+        "open_redirect": "admitted",
+        "sql_injection": "shadow_partial"
+      },
+      "id": "v5-multi-18-dual_secure",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "graphql_authorization",
+          "nosql_injection",
+          "sql_injection"
+        ],
+        [
+          "open_redirect"
+        ]
+      ],
+      "paired_families": [
+        "nosql_injection",
+        "open_redirect"
+      ],
+      "predicted_conditions": {
+        "open_redirect": [
+          "external_destination"
+        ]
+      },
+      "top1": "open_redirect",
+      "top3": [
+        "open_redirect",
+        "nosql_injection",
+        "sql_injection"
+      ],
+      "unexpected_promotions": [
+        "open_redirect"
+      ]
+    }
+  ],
+  "first_blind_consumed": true,
+  "multi_metrics": {
+    "multi_dual_positive_both_admitted_rate": 1.0,
+    "multi_dual_secure_rejection_rate": 0.944444,
+    "multi_exact_admission_set_accuracy": 0.972222,
+    "multi_expected_condition_recall": 0.944444,
+    "multi_expected_family_top3_coverage": 1.0,
+    "multi_unexpected_promotion_rate": 0.027778
+  },
+  "quality_gate_passed": false,
+  "rule_version": "2026.08.13.6.29",
+  "scoring_rerun": false,
+  "single_metrics": {
+    "abstention_accuracy": 1.0,
+    "admission_precision": 1.0,
+    "admission_recall": 1.0,
+    "condition_extraction_precision": 1.0,
+    "condition_extraction_recall": 1.0,
+    "end_to_end_accuracy": 1.0,
+    "false_promotion_rate": 0.0,
+    "prior_source_root_overlap_rate": 0.0,
+    "raw_label_leakage_rate": 0.0,
+    "routing_top1_accuracy": 0.87963,
+    "routing_top3_accuracy": 0.962963,
+    "wrong_family_promotion_rate": 0.0
+  },
+  "source": "stored_consumed_first_blind_report_only",
+  "top3_miss_cases": [],
+  "unexpected_promotion_cases": [
+    {
+      "admitted_families": [
+        "nosql_injection",
+        "open_redirect"
+      ],
+      "case_kind": "a_only",
+      "condition_misses": {},
+      "dual_positive_both_admitted": false,
+      "dual_secure_rejected": false,
+      "exact_admission_set": false,
+      "expected_condition_hits": 1,
+      "expected_condition_slots": 1,
+      "expected_families": [
+        "nosql_injection"
+      ],
+      "expected_top3_families": [
+        "nosql_injection"
+      ],
+      "expected_top3_hits": 1,
+      "expected_top3_slots": 1,
+      "family_states": {
+        "graphql_authorization": "shadow_partial",
+        "nosql_injection": "admitted",
+        "open_redirect": "admitted",
+        "sql_injection": "shadow_partial"
+      },
+      "id": "v5-multi-18-a_only",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "graphql_authorization",
+          "nosql_injection",
+          "sql_injection"
+        ],
+        [
+          "open_redirect"
+        ]
+      ],
+      "paired_families": [
+        "nosql_injection",
+        "open_redirect"
+      ],
+      "predicted_conditions": {
+        "nosql_injection": [
+          "nosql_error_observed"
+        ],
+        "open_redirect": [
+          "external_destination"
+        ]
+      },
+      "top1": "open_redirect",
+      "top3": [
+        "open_redirect",
+        "nosql_injection",
+        "sql_injection"
+      ],
+      "unexpected_promotions": [
+        "open_redirect"
+      ]
+    },
+    {
+      "admitted_families": [
+        "open_redirect"
+      ],
+      "case_kind": "dual_secure",
+      "condition_misses": {},
+      "dual_positive_both_admitted": false,
+      "dual_secure_rejected": false,
+      "exact_admission_set": false,
+      "expected_condition_hits": 0,
+      "expected_condition_slots": 0,
+      "expected_families": [],
+      "expected_top3_families": [],
+      "expected_top3_hits": 0,
+      "expected_top3_slots": 0,
+      "family_states": {
+        "graphql_authorization": "shadow_partial",
+        "nosql_injection": "shadow_partial",
+        "open_redirect": "admitted",
+        "sql_injection": "shadow_partial"
+      },
+      "id": "v5-multi-18-dual_secure",
+      "missing_admissions": [],
+      "observation_emissions": [
+        [
+          "graphql_authorization",
+          "nosql_injection",
+          "sql_injection"
+        ],
+        [
+          "open_redirect"
+        ]
+      ],
+      "paired_families": [
+        "nosql_injection",
+        "open_redirect"
+      ],
+      "predicted_conditions": {
+        "open_redirect": [
+          "external_destination"
+        ]
+      },
+      "top1": "open_redirect",
+      "top3": [
+        "open_redirect",
+        "nosql_injection",
+        "sql_injection"
+      ],
+      "unexpected_promotions": [
+        "open_redirect"
+      ]
+    }
+  ],
+  "unexpected_promotions_by_family": {
+    "open_redirect": 2
+  }
+}
