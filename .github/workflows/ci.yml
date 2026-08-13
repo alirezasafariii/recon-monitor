@@ -38,6 +38,18 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Diagnose manifest format
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          pattern = re.compile(r'^[0-9a-f]{64}  .+$')
+          for number, line in enumerate(Path('MANIFEST.sha256').read_text(encoding='utf-8').splitlines(), 1):
+              if not pattern.fullmatch(line):
+                  print(f'MALFORMED {number}: {line!r}')
+          PY
+
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
