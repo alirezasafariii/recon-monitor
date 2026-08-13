@@ -4,8 +4,12 @@ from __future__ import annotations
 
 This layer extends the fixed golden replay with diagnostic-only hard cases:
 partial evidence, cross-family noise, and contradiction-heavy observations.
-Generated challenges can expose ranking weaknesses but are never eligible to
-activate a production threshold.
+Generated challenges can expose decision-quality weaknesses but are never
+eligible to activate a production threshold.
+
+Raw ``bug_proximity_score`` is preserved for hunting diagnostics. Challenge
+classification/calibration uses ``decision_readiness_score`` so useful attack
+surfaces are not incorrectly treated as confirmed-looking findings.
 """
 
 import json
@@ -18,8 +22,8 @@ from calibration_engine import confusion_metrics
 from meta_ranker import rank_bug_proximity
 from vulnerability_knowledge import BUG_PROFILES, rank_families, retrieve_writeups
 
-ANALYSIS_BENCHMARK_V2_VERSION = "1.0.0"
-ANALYSIS_BENCHMARK_V2_RULE_VERSION = "2026.08.13.1"
+ANALYSIS_BENCHMARK_V2_VERSION = "1.1.0"
+ANALYSIS_BENCHMARK_V2_RULE_VERSION = "2026.08.13.2"
 
 
 def _items(signals: Sequence[str], *, case_id: str, kind: str) -> list[dict[str, Any]]:
@@ -69,17 +73,22 @@ def replay_diagnostic_case(
         (item for item in ranked.get("rankings", []) if str(item.get("family")) == family),
         None,
     )
-    score = int(matched.get("bug_proximity_score", 0)) if isinstance(matched, Mapping) else 0
+    proximity = int(matched.get("bug_proximity_score", 0)) if isinstance(matched, Mapping) else 0
     evidence = int(matched.get("target_evidence_confidence", 0)) if isinstance(matched, Mapping) else 0
+    readiness = int(matched.get("decision_readiness_score", 0)) if isinstance(matched, Mapping) else 0
     row = {
         "id": case_id,
         "family": family,
         "label": bool(label),
-        "score": max(0, min(100, score)),
+        # Diagnostic classification score is decision readiness.
+        "score": max(0, min(100, readiness)),
+        "decision_readiness_score": max(0, min(100, readiness)),
+        "bug_proximity_score": max(0, min(100, proximity)),
         "target_evidence_confidence": max(0, min(100, evidence)),
         "signals": list(support_signals),
         "contradictions": list(contradict_signals),
         "top_family": str((ranked.get("primary") or {}).get("family") or ""),
+        "decision_readiness_band": str((matched.get("decision_readiness") or {}).get("band") or "") if isinstance(matched, Mapping) else "",
         "ranked": matched is not None,
         "diagnostic_only": True,
     }
@@ -158,13 +167,7 @@ def _annotate_seed(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]
 
 
 def load_verified_replay_jsonl(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
-    """Load a minimal human-verified replay corpus without raw request payloads.
-
-    Accepted rows contain only family, label, score or evidence signal names,
-    optional contradiction signal names, provenance, and a human label source.
-    Records without trusted provenance + human_verified are retained for
-    diagnostics but remain activation-ineligible.
-    """
+    """Load minimal human-verified replay metadata without raw target payloads."""
 
     rows: list[dict[str, Any]] = []
     for raw_path in paths:
@@ -180,12 +183,15 @@ def load_verified_replay_jsonl(paths: Iterable[str | Path]) -> list[dict[str, An
             family = str(raw.get("family") or "").strip()
             if not family:
                 continue
+            decision_score = int(raw.get("decision_readiness_score") if raw.get("decision_readiness_score") is not None else raw.get("score") or 0)
             row = {
                 "id": str(raw.get("id") or f"{path.name}:{line_number}"),
                 "family": family,
                 "label": bool(raw.get("label")),
-                "score": int(raw.get("score") or 0),
-                "target_evidence_confidence": int(raw.get("target_evidence_confidence") or 0),
+                "score": max(0, min(100, decision_score)),
+                "decision_readiness_score": max(0, min(100, decision_score)),
+                "bug_proximity_score": max(0, min(100, int(raw.get("bug_proximity_score") or 0))),
+                "target_evidence_confidence": max(0, min(100, int(raw.get("target_evidence_confidence") or 0))),
                 "signals": [str(v) for v in raw.get("signals", []) if str(v).strip()],
                 "contradictions": [str(v) for v in raw.get("contradictions", []) if str(v).strip()],
             }
@@ -217,7 +223,7 @@ def quality_report(
     profile = build_guarded_calibration_profile(
         calibration_rows,
         requested_activation=requested_activation,
-        source="analysis_quality_replay_v2",
+        source="analysis_decision_readiness_replay_v2",
     )
     threshold = int(profile.get("global", {}).get("threshold", 70))
 
@@ -228,7 +234,7 @@ def quality_report(
         by_kind[kind] = confusion_metrics(subset, threshold=threshold)
 
     seed_positive = {
-        str(row.get("family")): int(row.get("score") or 0)
+        str(row.get("family")): int(row.get("decision_readiness_score") or row.get("score") or 0)
         for row in seed if bool(row.get("label"))
     }
     ordering_failures: list[dict[str, Any]] = []
@@ -237,18 +243,20 @@ def quality_report(
         positive_score = seed_positive.get(family)
         if positive_score is None:
             continue
-        challenge_score = int(row.get("score") or 0)
+        challenge_score = int(row.get("decision_readiness_score") or row.get("score") or 0)
         if challenge_score >= positive_score:
             ordering_failures.append({
                 "family": family,
                 "case_kind": str(row.get("case_kind") or ""),
-                "positive_score": positive_score,
-                "challenge_score": challenge_score,
+                "positive_readiness": positive_score,
+                "challenge_readiness": challenge_score,
+                "challenge_proximity": int(row.get("bug_proximity_score") or 0),
             })
 
     return {
         "benchmark_version": ANALYSIS_BENCHMARK_V2_VERSION,
         "rule_version": ANALYSIS_BENCHMARK_V2_RULE_VERSION,
+        "score_semantics": "decision_readiness_score",
         "coverage": {
             "families": len(cases),
             "golden_records": len(seed),
@@ -265,6 +273,8 @@ def quality_report(
             "offline_only": True,
             "network_requests": False,
             "payload_generation": False,
+            "bug_proximity_remains_investigation_oriented": True,
+            "decision_readiness_is_advisory_only": True,
             "synthetic_challenges_are_activation_ineligible": True,
             "golden_seed_is_activation_ineligible": True,
             "production_activation_requires_human_verified_real_world_labels": True,
