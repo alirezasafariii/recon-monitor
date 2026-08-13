@@ -37,7 +37,24 @@ class OwaspTaxonomyWriteupsV891Tests(unittest.TestCase):
         for family in NEW_FAMILY_ORDER:
             self.assertEqual(taxonomy_for_family(family), CANONICAL_TAXONOMY[family])
 
-    def test_analyzer_output_uses_canonical_taxonomy_even_if_local_metadata_is_legacy(self):
+    def test_active_analyzer_sources_do_not_embed_deprecated_taxonomy_literals(self):
+        nosql_source = (ROOT / "app" / "family_analyzers" / "nosql_injection.py").read_text(encoding="utf-8")
+        api_source = (ROOT / "app" / "family_analyzers" / "api_expansion.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("WSTG-INPV-05.6", nosql_source)
+        self.assertNotIn('"CWE-16"', api_source)
+        self.assertNotIn('"WSTG-APIT"', api_source)
+        self.assertIn('CANONICAL_TAXONOMY["nosql_injection"]', nosql_source)
+        for family in (
+            "unrestricted_resource_consumption",
+            "sensitive_business_flow_abuse",
+            "security_misconfiguration",
+            "improper_inventory_management",
+            "unsafe_api_consumption",
+        ):
+            self.assertIn(f'CANONICAL_TAXONOMY["{family}"]', api_source)
+
+    def test_analyzer_output_uses_canonical_taxonomy(self):
         nosql = analyze_nosql_injection_signal(
             object(), analysis_id="AN", target="example.com", endpoint="/login", method="POST",
             body_fields=["username"], details={"nosql_query_sink": True}, semantic_text="MongoDB findOne query",
