@@ -9,7 +9,7 @@ from raw_recon_v4_corpus import V4_FORBIDDEN_RAW_KEYS, V4_VALID_METHODS
 from raw_recon_v5_source_discovery import exposure_index
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RULE_VERSION = "2026.08.13.6.29"
 SINGLE_VARIANTS = ("positive", "near_miss", "secure_negative", "sparse_noisy")
 MULTI_VARIANTS = ("dual_positive", "a_only", "b_only", "dual_secure")
@@ -85,6 +85,12 @@ def validate_v5_corpus(
         for row in selected_rows
         if v4._canonical_url(_norm(row.get("canonical_advisory_url")))
     }
+    selected_reference_urls = {
+        v4._canonical_url(_norm(value))
+        for row in selected_rows
+        for value in row.get("references") or []
+        if v4._canonical_url(_norm(value))
+    }
 
     if len(selected_rows) != 36 or len(selected_roots) != 36 or len(selected_projects) != 36:
         errors.append("v5 shortlist must contain exactly 36 unique roots and projects")
@@ -100,6 +106,7 @@ def validate_v5_corpus(
     prior_projects = sorted(selected_projects & prior["projects"])
     prior_urls = sorted(selected_urls & prior["urls"])
     grounding_urls = sorted(selected_urls & grounding)
+    grounding_reference_urls = sorted(selected_reference_urls & grounding)
     if prior_roots:
         errors.append(f"v5 prior source-root overlap: {prior_roots}")
     if prior_projects:
@@ -108,6 +115,8 @@ def validate_v5_corpus(
         errors.append(f"v5 prior provenance URL overlap: {prior_urls}")
     if grounding_urls:
         errors.append(f"v5 grounding-writeup URL overlap: {grounding_urls}")
+    if grounding_reference_urls:
+        errors.append(f"v5 source references overlap detector-grounding writeups: {grounding_reference_urls}")
 
     single_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     multi_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -268,6 +277,7 @@ def validate_v5_corpus(
         "prior_source_project_overlap_count": len(prior_projects),
         "prior_url_overlap_count": len(prior_urls),
         "grounding_writeup_overlap_count": len(grounding_urls),
+        "grounding_reference_overlap_count": len(grounding_reference_urls),
         "label_leakage_count": len(leakage),
         "label_leakage_cases": leakage,
         "single_positive_control_collision_count": len(collision_roots),
