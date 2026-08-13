@@ -38,6 +38,13 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Diagnostic golden dataset hashes
+        shell: bash
+        run: |
+          sha256sum \
+            tests/fixtures/vulnerability_intelligence_golden_v1.json \
+            tests/test_golden_vulnerability_decisions_v893.py
+
       - name: Verify manifest
         shell: bash
         run: sha256sum -c MANIFEST.sha256
