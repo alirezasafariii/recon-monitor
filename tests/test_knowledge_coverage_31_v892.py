@@ -66,7 +66,7 @@ class KnowledgeCoverage31V892Tests(unittest.TestCase):
             self.assertIn(doc_id, ids)
 
     def test_rule_version_records_full_family_knowledge_audit(self):
-        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.5")
+        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.6")
 
 
 if __name__ == "__main__":
