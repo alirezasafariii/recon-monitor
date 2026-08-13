@@ -146,7 +146,7 @@ class AnalysisPhase2CompletionV900Tests(unittest.TestCase):
             with self.subTest(family=family):
                 self.assertTrue(spec["context"])
                 self.assertTrue(spec["direct"])
-                self.assertEqual(set(spec["direct"]), PHASE2_DIRECT_TYPES[family])
+                self.assertEqual(set(spec["direct"]), set(PHASE2_DIRECT_TYPES[family]))
                 self.assertTrue(spec["owasp"] or spec["wstg"] or spec["cwe"])
                 for ref in spec["wstg"]:
                     self.assertRegex(ref, r"^WSTG-[A-Z]+-\d{2}$")
