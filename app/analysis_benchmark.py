@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-"""Offline replay benchmark for the Analysis ranking stack.
+"""Offline replay benchmark for the Analysis decision stack.
 
-The benchmark consumes evidence-only fixtures and runs the same knowledge + meta
-ranking path used by Analysis. It never contacts targets and never converts
-knowledge similarity into target evidence.
+The benchmark consumes evidence-only fixtures and runs the same Knowledge + Meta
+Ranker path used by Analysis. Calibration is intentionally trained/evaluated on
+``decision_readiness_score`` rather than ``bug_proximity_score``: proximity is an
+investigation-priority signal and should remain permissive, while readiness is
+tied to the canonical confirmation contract.
+
+The benchmark never contacts targets and never converts knowledge similarity,
+calibration, or decision-readiness metadata into target evidence.
 """
 
 import json
@@ -15,8 +20,8 @@ from calibration_engine import build_calibration_profile, confusion_metrics
 from meta_ranker import rank_bug_proximity
 from vulnerability_knowledge import rank_families, retrieve_writeups
 
-ANALYSIS_BENCHMARK_VERSION = "1.0.0"
-ANALYSIS_BENCHMARK_RULE_VERSION = "2026.08.13.1"
+ANALYSIS_BENCHMARK_VERSION = "1.1.0"
+ANALYSIS_BENCHMARK_RULE_VERSION = "2026.08.13.2"
 
 
 def load_golden_cases(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
@@ -68,18 +73,23 @@ def replay_ranking_case(
     writeups = retrieve_writeups(support, [], endpoint=endpoint, summary="offline replay", family=family, limit=5)
     ranked = rank_bug_proximity(support, [], family_rankings, writeups, limit=100)
     matched = next((item for item in ranked.get("rankings", []) if str(item.get("family")) == family), None)
-    score = int(matched.get("bug_proximity_score", 0)) if isinstance(matched, Mapping) else 0
+    proximity = int(matched.get("bug_proximity_score", 0)) if isinstance(matched, Mapping) else 0
     evidence = int(matched.get("target_evidence_confidence", 0)) if isinstance(matched, Mapping) else 0
+    readiness = int(matched.get("decision_readiness_score", 0)) if isinstance(matched, Mapping) else 0
     return {
         "id": case_id,
         "family": family,
         "label": bool(label),
-        "score": max(0, min(100, score)),
+        # Calibration score: decision readiness, not hunting proximity.
+        "score": max(0, min(100, readiness)),
+        "decision_readiness_score": max(0, min(100, readiness)),
+        "bug_proximity_score": max(0, min(100, proximity)),
         "target_evidence_confidence": max(0, min(100, evidence)),
         "signal_count": len(signals),
         "signals": list(signals),
         "ranked": matched is not None,
         "top_family": str((ranked.get("primary") or {}).get("family") or ""),
+        "decision_readiness_band": str((matched.get("decision_readiness") or {}).get("band") or "") if isinstance(matched, Mapping) else "",
         "engine_version": str(ranked.get("engine_version") or ""),
         "rule_version": str(ranked.get("rule_version") or ""),
     }
@@ -121,7 +131,7 @@ def benchmark_report(
     negatives = len(rows) - positives
     profile = build_calibration_profile(
         rows,
-        source="analysis_golden_replay",
+        source="analysis_golden_decision_readiness_replay",
         activation=calibration_activation,
     )
     family_metrics = {
@@ -131,6 +141,7 @@ def benchmark_report(
     return {
         "benchmark_version": ANALYSIS_BENCHMARK_VERSION,
         "rule_version": ANALYSIS_BENCHMARK_RULE_VERSION,
+        "score_semantics": "decision_readiness_score",
         "coverage": {
             "records": len(rows),
             "families": len(families),
@@ -146,6 +157,8 @@ def benchmark_report(
             "network_requests": False,
             "payload_generation": False,
             "knowledge_is_non_evidentiary": True,
+            "decision_readiness_is_advisory_only": True,
+            "bug_proximity_is_not_used_as_confirmation_probability": True,
             "calibration_is_advisory_only": True,
         },
     }
