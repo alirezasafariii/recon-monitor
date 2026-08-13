@@ -38,20 +38,9 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Inspect manifest line 258
+      - name: Print upgrade v2 checksum
         shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          line = Path('MANIFEST.sha256').read_text(encoding='utf-8').splitlines()[257]
-          token = line.split()[0]
-          print('LINE_REPR', repr(line))
-          print('LINE_LEN', len(line))
-          print('TOKEN_LEN', len(token))
-          print('TOKEN_ASCII', token.isascii())
-          print('TOKEN_HEX', token.encode('utf-8').hex())
-          print('ORDS', [ord(c) for c in token])
-          PY
+        run: sha256sum upgrade-v2.sh
 
       - name: Verify manifest
         shell: bash
