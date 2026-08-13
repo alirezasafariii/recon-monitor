@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
+import urllib.request
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RULE_VERSION = "2026.08.13.6.29"
 V4_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v4.jsonl"
 V4_FILES = tuple((ROOT / "benchmarks/raw/sources").glob("v4_*.json"))
+ADVISORY_TYPES = ("reviewed", "unreviewed")
 
 
 def exposure_index() -> dict[str, set[str]]:
@@ -42,27 +45,55 @@ def exposure_index() -> dict[str, set[str]]:
     return out
 
 
-def discover(max_pages: int = 8, target_per_family: int = 80) -> dict[str, Any]:
+def _fetch_typed_pages(cwe: str, advisory_type: str, *, max_pages: int, per_page: int = 100) -> Iterable[list[dict[str, Any]]]:
+    numeric = cwe.removeprefix("CWE-")
+    query = urllib.parse.urlencode({"type": advisory_type, "cwes": numeric, "per_page": per_page})
+    url = f"{v4.GITHUB_ADVISORY_API}?{query}"
+    for _ in range(max_pages):
+        request = urllib.request.Request(url, headers=v4._headers())
+        with urllib.request.urlopen(request, timeout=45) as response:
+            payload = json.load(response)
+            link = response.headers.get("Link", "")
+        rows = [dict(row) for row in payload if isinstance(row, Mapping)]
+        if not rows:
+            return
+        yield rows
+        url = v4._next_link(link)
+        if not url:
+            return
+
+
+def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_per_family: int = 60) -> dict[str, Any]:
     excluded = exposure_index()
     grounding = v4._grounding_writeup_urls()
     family_cwes = v4._family_cwes()
     by_family: dict[str, list[dict[str, Any]]] = {}
-    queried = 0
+    queried = {"reviewed": 0, "unreviewed": 0}
+
     for family, cwes in family_cwes.items():
         by_root: dict[str, dict[str, Any]] = {}
         for cwe in cwes:
-            for page in v4._fetch_pages(cwe, max_pages=max_pages):
-                queried += len(page)
-                for raw in page:
-                    row = v4._eligible_candidate(raw, family=family, cwe=cwe, excluded=excluded, grounding_urls=grounding)
-                    if row is None:
-                        continue
-                    root = str(row["source_root"])
-                    if root not in by_root:
-                        row["freshness_validated"] = True
-                        by_root[root] = row
-                    else:
-                        by_root[root]["matched_cwes"] = sorted(set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"]))
+            for advisory_type in ADVISORY_TYPES:
+                page_limit = max_pages_reviewed if advisory_type == "reviewed" else max_pages_unreviewed
+                for page in _fetch_typed_pages(cwe, advisory_type, max_pages=page_limit):
+                    queried[advisory_type] += len(page)
+                    for raw in page:
+                        row = v4._eligible_candidate(raw, family=family, cwe=cwe, excluded=excluded, grounding_urls=grounding)
+                        if row is None:
+                            continue
+                        root = str(row["source_root"])
+                        if root not in by_root:
+                            row["freshness_validated"] = True
+                            row["advisory_source_type"] = advisory_type
+                            row["selection_basis"] = "github_security_advisory_matched_by_external_CWE_taxonomy_before_scoring"
+                            by_root[root] = row
+                        else:
+                            by_root[root]["matched_cwes"] = sorted(set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"]))
+                            existing_type = str(by_root[root].get("advisory_source_type") or "")
+                            if existing_type != "reviewed" and advisory_type == "reviewed":
+                                by_root[root]["advisory_source_type"] = "reviewed"
+                        if len(by_root) >= target_per_family:
+                            break
                     if len(by_root) >= target_per_family:
                         break
                 if len(by_root) >= target_per_family:
@@ -70,21 +101,33 @@ def discover(max_pages: int = 8, target_per_family: int = 80) -> dict[str, Any]:
             if len(by_root) >= target_per_family:
                 break
         rows = list(by_root.values())
-        rows.sort(key=lambda x: (x.get("published_at") or "", x["source_root"]), reverse=True)
+        rows.sort(
+            key=lambda x: (
+                1 if x.get("advisory_source_type") == "reviewed" else 0,
+                x.get("published_at") or "",
+                x["source_root"],
+            ),
+            reverse=True,
+        )
         by_family[family] = rows
+
     counts = {family: len(rows) for family, rows in by_family.items()}
     return {
         "version": VERSION,
         "rule_version": RULE_VERSION,
         "family_count": len(family_cwes),
-        "queried_rows": queried,
+        "queried_rows_by_advisory_type": queried,
+        "advisory_types": list(ADVISORY_TYPES),
         "family_candidate_counts": counts,
-        "families_without_candidates": sorted(k for k, v in counts.items() if not v),
+        "families_without_candidates": sorted(k for k, count in counts.items() if not count),
         "excluded_prior_root_count": len(excluded["roots"]),
         "excluded_prior_project_count": len(excluded["projects"]),
         "excluded_prior_url_count": len(excluded["urls"]),
         "excluded_grounding_url_count": len(grounding),
         "scoring_executed": False,
+        "candidate_selection_uses_detector_scores": False,
+        "candidate_selection_uses_admission_results": False,
+        "candidate_selection_uses_prior_v4_results": False,
         "candidates_by_family": by_family,
     }
 
@@ -94,7 +137,7 @@ def main() -> int:
     out = ROOT / "benchmarks/raw/sources/v5_candidates.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ("family_count", "families_without_candidates", "excluded_prior_root_count", "excluded_prior_project_count")}, indent=2))
+    print(json.dumps({k: report[k] for k in ("family_count", "families_without_candidates", "excluded_prior_root_count", "excluded_prior_project_count", "queried_rows_by_advisory_type")}, indent=2))
     return 2 if report["families_without_candidates"] else 0
 
 
