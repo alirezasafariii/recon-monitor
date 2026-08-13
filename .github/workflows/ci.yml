@@ -38,43 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Inspect calibration misses
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json, sys
-          sys.path.insert(0, 'app')
-          from analysis_benchmark import load_golden_cases, replay_golden_cases, benchmark_report
-          cases = load_golden_cases([
-              'tests/fixtures/vulnerability_intelligence_golden_v1.json',
-              'tests/fixtures/vulnerability_intelligence_phase2_golden_v2.json',
-          ])
-          records = replay_golden_cases(cases)
-          report = benchmark_report(records)
-          threshold = report['calibration_profile']['global']['threshold']
-          positives = sorted(
-              [r for r in records if r['label']],
-              key=lambda r: (r['score'], r['family'])
-          )
-          negatives = sorted(
-              [r for r in records if not r['label']],
-              key=lambda r: (-r['score'], r['family'])
-          )
-          print('SELECTED_THRESHOLD=' + str(threshold))
-          print('POSITIVE_MISSES=' + json.dumps([
-              {'family': r['family'], 'score': r['score'], 'evidence': r['target_evidence_confidence'], 'signals': r['signals'], 'top_family': r['top_family']}
-              for r in positives if r['score'] < threshold
-          ], sort_keys=True))
-          print('LOWEST_POSITIVES=' + json.dumps([
-              {'family': r['family'], 'score': r['score'], 'evidence': r['target_evidence_confidence'], 'top_family': r['top_family']}
-              for r in positives[:15]
-          ], sort_keys=True))
-          print('HIGHEST_NEGATIVES=' + json.dumps([
-              {'family': r['family'], 'score': r['score'], 'evidence': r['target_evidence_confidence'], 'top_family': r['top_family']}
-              for r in negatives[:15]
-          ], sort_keys=True))
-          PY
-
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
