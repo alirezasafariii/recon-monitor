@@ -38,18 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Locate malformed manifest line
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          raw = Path('MANIFEST.sha256').read_bytes().splitlines()[258]
-          print('RAW_HEX', raw.hex())
-          print('RAW_LEN', len(raw))
-          print('RAW_REPR', repr(raw))
-          PY
-          sha256sum upgrade-v2.sh
-
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
