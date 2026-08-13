@@ -9,7 +9,7 @@ from typing import Any, Iterable, Mapping
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 RULE_VERSION = "2026.08.13.6.29"
 V4_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v4.jsonl"
 V4_FILES = tuple((ROOT / "benchmarks/raw/sources").glob("v4_*.json"))
@@ -63,6 +63,97 @@ def _fetch_typed_pages(cwe: str, advisory_type: str, *, max_pages: int, per_page
             return
 
 
+def _eligible_unreviewed_candidate(
+    row: Mapping[str, Any],
+    *,
+    family: str,
+    cwe: str,
+    excluded: Mapping[str, set[str]],
+    grounding_urls: set[str],
+) -> dict[str, Any] | None:
+    root = str(row.get("ghsa_id") or "").strip()
+    if not root or root in excluded["roots"] or row.get("withdrawn_at"):
+        return None
+    row_cwes = {
+        str(item.get("cwe_id") or "").strip()
+        for item in row.get("cwes") or []
+        if isinstance(item, Mapping)
+    }
+    if cwe not in row_cwes:
+        return None
+    description = str(row.get("description") or "").strip()
+    if len(description) < 120:
+        return None
+    references = [str(value).strip() for value in row.get("references") or [] if str(value).strip()]
+    reference_urls = {v4._canonical_url(value) for value in references if v4._canonical_url(value)}
+    if reference_urls & grounding_urls:
+        return None
+
+    advisory_url = str(row.get("html_url") or "").strip()
+    canonical_advisory = v4._canonical_url(advisory_url)
+    if not canonical_advisory or canonical_advisory in excluded["urls"]:
+        return None
+
+    project = ""
+    project_reference = ""
+    for value in references:
+        candidate_project = v4._project_from_url(value)
+        if candidate_project and not candidate_project.startswith("advisories/"):
+            project = candidate_project
+            project_reference = value
+            break
+    if not project or project in excluded["projects"]:
+        return None
+
+    return {
+        "source_root": root,
+        "source_project": project,
+        "family": family,
+        "matched_cwes": [cwe],
+        "published_at": str(row.get("published_at") or "").strip(),
+        "updated_at": str(row.get("updated_at") or "").strip(),
+        "severity": str(row.get("severity") or "").strip(),
+        "summary": str(row.get("summary") or "").strip(),
+        "description": description,
+        "repository_advisory_url": "",
+        "source_code_location": project_reference,
+        "canonical_advisory_url": advisory_url,
+        "references": references,
+        "source_kind": "github_unreviewed_advisory_with_repository_reference",
+        "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+    }
+
+
+def _eligible_candidate(
+    row: Mapping[str, Any],
+    *,
+    advisory_type: str,
+    family: str,
+    cwe: str,
+    excluded: Mapping[str, set[str]],
+    grounding_urls: set[str],
+) -> dict[str, Any] | None:
+    candidate = v4._eligible_candidate(
+        row,
+        family=family,
+        cwe=cwe,
+        excluded=excluded,
+        grounding_urls=grounding_urls,
+    )
+    if candidate is not None:
+        candidate["source_kind"] = "github_reviewed_or_repository_advisory"
+        return candidate
+    if advisory_type != "unreviewed":
+        return None
+    return _eligible_unreviewed_candidate(
+        row,
+        family=family,
+        cwe=cwe,
+        excluded=excluded,
+        grounding_urls=grounding_urls,
+    )
+
+
 def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_per_family: int = 60) -> dict[str, Any]:
     excluded = exposure_index()
     grounding = v4._grounding_writeup_urls()
@@ -78,19 +169,24 @@ def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_
                 for page in _fetch_typed_pages(cwe, advisory_type, max_pages=page_limit):
                     queried[advisory_type] += len(page)
                     for raw in page:
-                        row = v4._eligible_candidate(raw, family=family, cwe=cwe, excluded=excluded, grounding_urls=grounding)
+                        row = _eligible_candidate(
+                            raw,
+                            advisory_type=advisory_type,
+                            family=family,
+                            cwe=cwe,
+                            excluded=excluded,
+                            grounding_urls=grounding,
+                        )
                         if row is None:
                             continue
                         root = str(row["source_root"])
                         if root not in by_root:
                             row["freshness_validated"] = True
                             row["advisory_source_type"] = advisory_type
-                            row["selection_basis"] = "github_security_advisory_matched_by_external_CWE_taxonomy_before_scoring"
                             by_root[root] = row
                         else:
                             by_root[root]["matched_cwes"] = sorted(set(by_root[root]["matched_cwes"]) | set(row["matched_cwes"]))
-                            existing_type = str(by_root[root].get("advisory_source_type") or "")
-                            if existing_type != "reviewed" and advisory_type == "reviewed":
+                            if by_root[root].get("advisory_source_type") != "reviewed" and advisory_type == "reviewed":
                                 by_root[root]["advisory_source_type"] = "reviewed"
                         if len(by_root) >= target_per_family:
                             break
