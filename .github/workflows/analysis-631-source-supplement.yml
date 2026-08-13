@@ -26,43 +26,94 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Collect additional independent source candidates
+      - name: Collect focused independent source candidates
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
+          from collections import defaultdict
           from pathlib import Path
+          import raw_recon_v4_source_discovery as v4
           import raw_recon_v5_nvd_api_discovery as nvd
+          from raw_recon_v5_nvd_discovery import CVE_RE, _candidate, _cwes, prior_cve_exposure
+          from raw_recon_v5_source_audit import audit_row
           import raw_recon_v6_source_firewall as fw
 
           diagnostic = json.loads(Path('benchmarks/raw/sources/v6_selection_diagnostic.json').read_text())
-          targets = set(diagnostic['families_without_semantic_candidates'])
-          nvd.exposure_index = fw.exposure_index
-          nvd.EXACT_FAMILIES = frozenset()
-          report = nvd.discover(target_semantic_per_family=4)
-          pools = {
-              family: rows
-              for family, rows in report['candidates_by_family'].items()
-              if family in targets
+          targets = sorted(set(diagnostic['families_without_semantic_candidates']))
+          prior = fw.exposure_index()
+          prior_cves = set(prior_cve_exposure()) | {
+              str(root).upper() for root in prior['roots'] if CVE_RE.fullmatch(str(root).upper())
           }
+          grounding = v4._grounding_writeup_urls()
+          family_cwes = v4._family_cwes()
+          frequency = defaultdict(int)
+          for cwes in family_cwes.values():
+              for cwe in cwes:
+                  frequency[cwe] += 1
+
+          cache = {}
+          counters = {'api_requests': 0, 'cache_hits': 0, 'records': 0}
+          pools = {}
+          query_plan = {}
+          for family in targets:
+              by_root = {}
+              query_plan[family] = []
+              cwes = sorted(family_cwes.get(family, ()), key=lambda value: (frequency[value], value))
+              for cwe in cwes:
+                  query_plan[family].append(cwe)
+                  for cve in nvd._fetch_cwe(cwe, cache=cache, counters=counters):
+                      matched = _cwes(cve) & set(family_cwes.get(family, ()))
+                      if not matched:
+                          continue
+                      row = _candidate(
+                          cve,
+                          family=family,
+                          matched_cwes=matched,
+                          prior=prior,
+                          prior_cves=prior_cves,
+                          grounding_urls=grounding,
+                      )
+                      if row is None or not fw.check_candidate(row)['allowed']:
+                          continue
+                      root = str(row.get('source_root') or '')
+                      if root and root not in by_root:
+                          row['v6_firewall_allowed'] = True
+                          by_root[root] = row
+                  if sum(1 for row in by_root.values() if audit_row(family, row)[0]) >= 2:
+                      break
+              rows = list(by_root.values())
+              rows.sort(
+                  key=lambda row: (
+                      1 if audit_row(family, row)[0] else 0,
+                      audit_row(family, row)[2],
+                      row.get('published_at') or '',
+                  ),
+                  reverse=True,
+              )
+              pools[family] = rows
+
           semantic = {
-              family: report['family_semantic_candidate_counts'].get(family, 0)
-              for family in sorted(targets)
+              family: sum(1 for row in rows if audit_row(family, row)[0])
+              for family, rows in pools.items()
           }
+          unresolved = sorted(family for family in targets if semantic.get(family, 0) == 0)
           out = {
-              'version': '1.0.0',
+              'version': '1.1.0',
               'rule_version': '2026.08.13.6.31',
               'evaluation_kind': 'fresh_blind_v6_unscored_source_supplement',
-              'target_families': sorted(targets),
-              'api_request_count': report['api_request_count'],
+              'target_families': targets,
+              'query_plan_by_family': query_plan,
+              'api_request_count': counters['api_requests'],
+              'query_cache_hit_count': counters['cache_hits'],
+              'family_candidate_counts': {family: len(rows) for family, rows in pools.items()},
               'family_semantic_candidate_counts': semantic,
-              'families_without_semantic_candidates': sorted(
-                  family for family in targets if semantic.get(family, 0) == 0
-              ),
+              'families_without_semantic_candidates': unresolved,
               'scoring_executed': False,
               'candidate_selection_uses_detector_scores': False,
               'candidate_selection_uses_admission_results': False,
+              'candidate_selection_uses_ranking_results': False,
               'candidates_by_family': pools,
           }
           Path('benchmarks/raw/sources/v6_supplement_candidates.json').write_text(
@@ -71,8 +122,8 @@ jobs:
           print(json.dumps({
               'target_family_count': len(targets),
               'api_request_count': out['api_request_count'],
-              'families_without_semantic_candidates': out['families_without_semantic_candidates'],
-              'scoring_executed': out['scoring_executed'],
+              'families_without_semantic_candidates': unresolved,
+              'scoring_executed': False,
           }, sort_keys=True))
           PY
 
@@ -85,6 +136,7 @@ jobs:
           assert data['scoring_executed'] is False
           assert data['candidate_selection_uses_detector_scores'] is False
           assert data['candidate_selection_uses_admission_results'] is False
+          assert data['candidate_selection_uses_ranking_results'] is False
           PY
 
       - name: Commit supplement snapshot
@@ -97,6 +149,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Record independent Analysis 6.31 v6 source supplement'
+          git commit -m 'Record focused independent Analysis 6.31 v6 source supplement'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
