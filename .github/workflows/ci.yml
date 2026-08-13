@@ -42,18 +42,13 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import re
           from pathlib import Path
-          pattern = re.compile(r'^[0-9a-f]{64}  .+$')
-          for n, raw in enumerate(Path('MANIFEST.sha256').read_bytes().splitlines(), 1):
-              try:
-                  line = raw.decode('utf-8')
-              except Exception as exc:
-                  print(n, repr(raw), exc)
-                  continue
-              if not pattern.fullmatch(line):
-                  print('MALFORMED', n, repr(line), 'length=', len(line))
+          raw = Path('MANIFEST.sha256').read_bytes().splitlines()[258]
+          print('RAW_HEX', raw.hex())
+          print('RAW_LEN', len(raw))
+          print('RAW_REPR', repr(raw))
           PY
+          sha256sum upgrade-v2.sh
 
       - name: Verify manifest
         shell: bash
