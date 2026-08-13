@@ -1,0 +1,139 @@
+name: Analysis 6.27 Precision Routing Calibration
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.27-blind-failure-calibration
+
+permissions:
+  contents: write
+
+jobs:
+  calibrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.27-blind-failure-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify consumed v4 immutable inputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          expected = {
+              'benchmarks/raw/analysis_raw_v4.jsonl': 'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+              'benchmarks/raw/sources/v4_shortlist.json': 'd329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+              'benchmarks/raw/sources/v4_first_blind_report.json': '5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name, wanted in expected.items():
+              actual=hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              assert actual==wanted,(name,wanted,actual)
+          receipt=json.loads(Path('benchmarks/raw/sources/v4_first_blind_receipt.json').read_text())
+          assert receipt['status']=='first_blind_consumed'
+          print('immutable v4 verified')
+          PY
+
+      - name: Apply production precision/routing patch
+        run: python scripts/analysis_627_precision_routing_patch.py
+
+      - name: Precision and routing behavior contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_627_precision_routing.py' -q
+
+      - name: Calibration and family regressions
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_analysis_627_blind_failure_calibration.py' -q
+          python -m unittest discover -s tests -p 'test_family_confusion_matrix_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
+          python -m unittest discover -s tests -p 'test_detector_execution_intelligence_v6100.py' -q
+          python -m unittest discover -s tests -p 'test_raw_condition_reconstruction_v6120.py' -q
+          python -m unittest discover -s tests -p 'test_raw_precision_calibration_v6140.py' -q
+          python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
+
+      - name: Run consumed-v4 post-blind regression after precision routing calibration
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v4_regression.py
+
+      - name: Diagnose stored regression without rerun
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v4_regression_diagnostic.py
+
+      - name: Print remaining gates and routing errors
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_regression.json').read_text())
+          diag=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json').read_text())
+          print(json.dumps({
+              'metrics':reg['metrics'],
+              'quality_gate':reg['quality_gate'],
+              'condition_false_positive_family_counts':diag['condition_false_positive_family_counts'],
+              'ranking_error_count':diag['ranking_error_count'],
+              'ranking_error_kind_counts':diag['ranking_error_kind_counts'],
+              'top1_confusions':diag['top1_confusions'],
+              'top3_miss_family_counts':diag['top3_miss_family_counts'],
+              'wrong_promotion_family_counts':diag['wrong_promotion_family_counts'],
+          },indent=2,sort_keys=True))
+          PY
+
+      - name: Verify immutable v4 after regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected={
+              'benchmarks/raw/analysis_raw_v4.jsonl':'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+              'benchmarks/raw/sources/v4_shortlist.json':'d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+              'benchmarks/raw/sources/v4_first_blind_report.json':'5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name,wanted in expected.items():
+              actual=hashlib.sha256(Path(name).read_bytes()).hexdigest(); assert actual==wanted,(name,wanted,actual)
+          print('immutable v4 unchanged')
+          PY
+
+      - name: Update manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.'); manifest=root/'MANIFEST.sha256'; entries={}; order=[]
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' not in line: continue
+              _,name=line.split('  ',1); p=root/name
+              if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          for name in (
+              'app/raw_condition_reconstruction.py','app/family_detectors/execution.py','app/hypothesis_admission.py',
+              'app/family_reasoners.py','app/family_evidence_extractors.py','tests/test_analysis_627_precision_routing.py',
+              'tests/test_family_confusion_matrix_v670.py','tests/test_raw_precision_calibration_v6140.py',
+              'benchmarks/raw/results/analysis_raw_v4_6_27_regression.json','benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json',
+          ):
+              p=root/name; entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+              if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
+          PY
+      - run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit precision/routing calibration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-627-precision-routing.yml scripts/analysis_627_precision_routing_patch.py
+          git add -A
+          git diff --cached --check
+          git commit -m "Calibrate Analysis 6.27 precision and family routing"
+          git push origin HEAD:agent/analysis-engine-6.27-blind-failure-calibration
