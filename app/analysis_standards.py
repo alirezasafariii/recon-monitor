@@ -2,7 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable, Mapping
 
-STANDARDS_ENGINE_VERSION = "1.3.0"
+STANDARDS_ENGINE_VERSION = "1.4.0"
 WSTG_REFERENCE_VERSION = "latest@2026-08-10"
 OWASP_REFERENCE_VERSION = "Top10:2025+API-Security:2023"
 CWE_REFERENCE_VERSION = "4.20"
@@ -343,6 +343,7 @@ FAMILY_STANDARDS: dict[str, dict[str, Any]] = {
         'cwe': [
             _cwe('CWE-20', 'Improper Input Validation', mapping='contextual', auto_assign=True, when_any=('third_party_data_unsanitized', 'unsafe_upstream_data_reaches_sink')),
             _cwe('CWE-319', 'Cleartext Transmission of Sensitive Information', mapping='contextual', auto_assign=True, when_any=('upstream_tls_missing',)),
+            _cwe('CWE-295', 'Improper Certificate Validation', mapping='contextual', auto_assign=True, when_any=('upstream_certificate_validation_failure',)),
             _cwe('CWE-770', 'Allocation of Resources Without Limits or Throttling', mapping='contextual', auto_assign=True, when_any=('upstream_timeout_absent', 'upstream_response_unbounded')),
             _cwe('CWE-287', 'Improper Authentication', mapping='contextual', auto_assign=False, when_any=('third_party_auth_weak',)),
         ],

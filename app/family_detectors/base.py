@@ -6,8 +6,8 @@ from typing import Any, Iterable, Mapping
 from analysis_standards import FAMILY_STANDARDS
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-DETECTOR_ENGINE_VERSION = "1.1.0"
-DETECTOR_RULE_VERSION = "2026.08.12.6.19"
+DETECTOR_ENGINE_VERSION = "1.2.0"
+DETECTOR_RULE_VERSION = "2026.08.13.6.27"
 
 
 @dataclass(frozen=True)

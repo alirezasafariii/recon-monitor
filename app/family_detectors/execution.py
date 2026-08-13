@@ -12,8 +12,8 @@ from typing import Any, Iterable, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_condition_reconstruction import reconstruct_raw_evidence
 
-EXECUTION_ENGINE_VERSION = "1.2.0"
-EXECUTION_RULE_VERSION = "2026.08.12.6.14"
+EXECUTION_ENGINE_VERSION = "1.3.0"
+EXECUTION_RULE_VERSION = "2026.08.13.6.27"
 MAX_TEXT_CHARS = 65536
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -75,7 +75,7 @@ LDAP_MARKERS = ("ldap", "directory search", "distinguishedname", "dn=", "ou=", "
 GRAPHQL_MARKERS = ("graphql", "query ", "mutation ", "__typename", "__schema")
 WEBSOCKET_MARKERS = ("ws://", "wss://", "websocket", "subscribe", "subscription")
 THIRD_PARTY_MARKERS = ("third-party", "third_party", "integration", "upstream", "vendor", "partner api", "external api", "webhook")
-BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "invite", "create account", "redeem", "claim", "coupon", "promo", "comment", "post", "message", "review")
+BUSINESS_FLOW_MARKERS = ("purchase", "checkout", "ticket", "order", "reserve", "reservation", "booking", "signup", "register", "invite", "create account", "password reset", "password-reset", "account recovery", "recover account", "redeem", "claim", "coupon", "promo", "comment", "post", "message", "review")
 SINGLE_USE_MARKERS = ("redeem", "claim", "transfer", "withdraw", "reserve", "confirm", "refund")
 AUTH_MARKERS = ("login", "signin", "password", "reset", "forgot", "otp", "mfa", "token", "refresh", "session", "oauth", "sso", "saml")
 VERSION_MARKERS = ("legacy", "deprecated", "staging", "stage", "beta", "alpha", "/dev/", "/test/")
@@ -175,6 +175,43 @@ def _truthy(value: Any) -> bool:
 
 def _flag(flat: Mapping[str, list[Any]], *names: str) -> bool:
     return any(_truthy(value) for name in names for value in flat.get(_norm(name), []))
+
+
+def _falsey(value: Any) -> bool:
+    if value is False:
+        return True
+    if isinstance(value, (int, float)) and value == 0:
+        return True
+    return str(value or "").strip().lower() in {"false", "no", "0", "absent", "missing", "disabled", "rejected"}
+
+
+def _flag_false(flat: Mapping[str, list[Any]], *names: str) -> bool:
+    return any(_falsey(value) for name in names for value in flat.get(_norm(name), []))
+
+
+def _number(flat: Mapping[str, list[Any]], *names: str) -> float | None:
+    for name in names:
+        for value in flat.get(_norm(name), []):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _explicit_denial_payload(context: Mapping[str, Any]) -> bool:
+    response = context.get("response_json")
+    if not isinstance(response, Mapping):
+        return False
+    errors = response.get("errors")
+    if not errors:
+        return False
+    data = response.get("data")
+    if data is None or data == {}:
+        return True
+    if isinstance(data, Mapping) and all(value is None for value in data.values()):
+        return True
+    return False
 
 
 def _status(details: Mapping[str, Any]) -> int:
@@ -359,12 +396,14 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         for context in _contexts(details):
             cflat = _flatten(context); cstatus = _status(context)
             expected_false = any(str(v).strip().lower() in {"false", "0", "deny", "denied", "unauthorized"} for key in ("expected_access", "authorization_expected", "should_allow") for v in cflat.get(key, []))
-            if expected_false and cstatus in SUCCESS_STATUSES:
+            explicit_denial = _explicit_denial_payload(context)
+            if expected_false and cstatus in SUCCESS_STATUSES and not explicit_denial:
                 _add(packet, "support", _signal("broken_object_authorization", "unauthorized_object_response", "stored_context", "A stored context expected to be denied received a successful object response.", source_group="authorization_context", weight=34, basis="context_expectation_vs_response"))
-            elif expected_false and cstatus in DENY_STATUSES:
-                _add(packet, "contradict", _signal("broken_object_authorization", "cross_context_denied", "stored_context", "A stored unauthorized object context was denied.", source_group="authorization_context", weight=-26, basis="context_expectation_vs_response"))
+            elif expected_false and (cstatus in DENY_STATUSES or explicit_denial):
+                _add(packet, "contradict", _signal("broken_object_authorization", "cross_context_denied", "stored_context", "A stored unauthorized object context was denied or returned an explicit authorization error payload.", source_group="authorization_context", weight=-26, basis="context_expectation_vs_response"))
 
-    admin = any(token in surface_text for token in ("/admin", "backoffice", "permission", "privilege", "management", "staff"))
+    auth_surface = any(token in surface_text for token in AUTH_MARKERS)
+    admin = any(token in surface_text for token in ("/admin", "backoffice", "permission", "privilege", "management", "staff")) and not auth_surface
     if admin:
         packet = _packet_for(result, "broken_function_authorization")
         _add_identity(packet, "broken_function_authorization", "privileged_function", "endpoint_semantic", "Privileged or administrative function semantics are present.", "function_surface", 16)
@@ -402,11 +441,23 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "dom_xss")
         _add_identity(packet, "dom_xss", "source_sink", "raw_javascript", "Stored JavaScript contains both a browser-controlled source and an executable/HTML sink.", "static_flow", 18)
         _add_identity(packet, "dom_xss", "dangerous_sink", "raw_javascript", "Stored JavaScript contains a dangerous DOM/JavaScript sink.", "static_sink", 18)
+        browser_observation = details.get("browser_observation") if isinstance(details.get("browser_observation"), Mapping) else {}
+        if _truthy(browser_observation.get("rendered_as_html")) and not _truthy(browser_observation.get("sanitized")):
+            input_channel = str(browser_observation.get("input_channel") or "").lower()
+            if any(source in input_channel or source in text_lower for source in DOM_SOURCES):
+                _add(packet, "support", _signal("dom_xss", "runtime_reachable_flow", "stored_browser_observation", "Stored browser observation confirms attacker-influenced DOM input reaches an HTML/executable sink without effective sanitization.", source_group="dom_runtime_behavior", weight=34, basis="stored_browser_source_sink_observation"))
     if ("addEventListener" in text or "addeventlistener" in text_lower) and "message" in text_lower:
         packet = _packet_for(result, "postmessage_trust")
         _add_identity(packet, "postmessage_trust", "postmessage_handler", "raw_javascript", "Stored JavaScript registers a message event handler.", "message_source", 18)
+        if "event.data" in text_lower:
+            _add_identity(packet, "postmessage_trust", "message_source", "raw_javascript", "Stored message handler consumes event.data from the sender-controlled message.", "message_source", 14)
         if any(sink in text_lower for sink in DOM_SINKS) or any(token in text_lower for token in ("location.href", "location.assign", "fetch(", "postmessage(")):
             _add_identity(packet, "postmessage_trust", "message_sink", "raw_javascript", "Message-controlled data is adjacent to a sensitive browser action.", "message_sink", 14)
+        message_observation = details.get("message_observation") if isinstance(details.get("message_observation"), Mapping) else {}
+        if _truthy(message_observation.get("accepted")) and _falsey(message_observation.get("origin_checked")) and "event.data" in text_lower:
+            _add(packet, "support", _signal("postmessage_trust", "missing_origin_check", "stored_message_observation", "Stored cross-window message observation shows an accepted sender-controlled message with no origin check before sensitive handling.", source_group="message_validation_behavior", weight=34, basis="stored_message_acceptance_without_origin_check"))
+        if _truthy(message_observation.get("origin_checked")) or "event.origin" in text_lower:
+            _add(packet, "contradict", _signal("postmessage_trust", "strict_origin_check", "stored_message_observation", "Stored handler/observation enforces an origin check before accepting the message.", source_group="message_validation_control", weight=-30, basis="stored_origin_validation"))
 
     redirect_fields = {field for field in all_fields if field in {"redirect", "redirect_uri", "return", "return_url", "next", "next_url", "continue", "callback", "callback_url", "destination"}}
     location = response_headers.get("location", "")
@@ -431,9 +482,17 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     if any(token in surface_text for token in THIRD_PARTY_MARKERS):
         packet = _packet_for(result, "unsafe_api_consumption")
         _add_identity(packet, "unsafe_api_consumption", "third_party_integration", "endpoint_semantic", "Third-party/upstream integration semantics are present.", "upstream_boundary", 16)
-        upstream_urls = [str(v) for key in ("upstream_url", "provider_url", "external_api_url") for v in flat.get(key, []) if isinstance(v, str)]
+        upstream_urls = [str(v) for key in ("upstream_url", "provider_url", "external_api_url", "url") for v in flat.get(key, []) if isinstance(v, str)]
         if any(url.lower().startswith("http://") for url in upstream_urls):
             _add(packet, "support", _signal("unsafe_api_consumption", "upstream_tls_missing", "stored_configuration", "Stored upstream service URL uses cleartext HTTP.", source_group="upstream_transport", weight=30, basis="explicit_upstream_url_scheme"))
+        cert_present = _flag(flat, "tls_certificate_present", "certificate_present")
+        hostname_mismatch = _flag_false(flat, "hostname_matches_certificate", "certificate_hostname_matches")
+        upstream_accepted = _flag(flat, "response_accepted", "upstream_response_accepted")
+        trusted_upstream = _flag(flat, "trusted_upstream", "trusted_provider")
+        if cert_present and hostname_mismatch and upstream_accepted and trusted_upstream:
+            _add(packet, "support", _signal("unsafe_api_consumption", "upstream_certificate_validation_failure", "stored_upstream_observation", "Stored upstream observation shows a trusted provider response accepted despite certificate-hostname validation failure.", source_group="upstream_transport", weight=34, basis="accepted_trusted_upstream_with_hostname_mismatch"))
+        if cert_present and _flag(flat, "hostname_matches_certificate", "certificate_hostname_matches"):
+            _add(packet, "contradict", _signal("unsafe_api_consumption", "upstream_tls_enforced", "stored_upstream_observation", "Stored upstream TLS observation validates the provider certificate hostname.", source_group="upstream_transport_control", weight=-28, basis="validated_upstream_certificate_hostname"))
 
     # Analysis 6.18 recall-preserving surface signals. These clues intentionally
     # remain surface-only: they keep hidden hypotheses alive without satisfying
@@ -484,16 +543,34 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
             _add_identity(packet, "path_traversal", "file_operation", "endpoint_contract", "Endpoint semantics identify a file-related operation.", "file_operation", 14)
 
     if any(marker in surface_text for marker in GRAPHQL_MARKERS) or endpoint.lower().rstrip("/").endswith("graphql"):
-        identifiers = {field for field in all_fields if field == "id" or field.endswith("_id")}
+        identifiers = object_ids | {field for field in all_fields if field == "id" or field.endswith("_id")}
         packet = _packet_for(result, "graphql_authorization")
         _add_identity(packet, "graphql_authorization", "graphql_operation", "raw_graphql", "GraphQL operation surface is present.", "graphql_operation", 16)
         if identifiers:
             _add_identity(packet, "graphql_authorization", "graphql_identifier", "endpoint_schema", "GraphQL operation exposes object identifiers.", "graphql_identifier", 16)
-        sensitive_fields = {field for field in all_fields if any(word in field for word in SENSITIVE_FIELD_WORDS)}
-        if sensitive_fields:
-            packet = _packet_for(result, "graphql_data_exposure")
-            _add_identity(packet, "graphql_data_exposure", "graphql_operation", "raw_graphql", "GraphQL operation surface is present.", "graphql_operation", 14)
-            _add_identity(packet, "graphql_data_exposure", "sensitive_fields", "endpoint_schema", "GraphQL contract references sensitive-looking fields.", "graphql_fields", 18)
+        for context in _contexts(details):
+            cflat = _flatten(context)
+            expected_false = any(str(v).strip().lower() in {"false", "0", "deny", "denied", "unauthorized"} for key in ("expected_access", "authorization_expected", "should_allow") for v in cflat.get(key, []))
+            if not expected_false:
+                continue
+            if _explicit_denial_payload(context):
+                _add(packet, "contradict", _signal("graphql_authorization", "cross_context_denied", "stored_graphql_context", "Stored GraphQL cross-context request was denied by resolver/object authorization.", source_group="graphql_authorization_control", weight=-30, basis="graphql_denial_payload"))
+            elif _status(context) in SUCCESS_STATUSES and isinstance(context.get("response_json"), Mapping):
+                response_json = context.get("response_json") or {}
+                if response_json.get("data"):
+                    _add(packet, "support", _signal("graphql_authorization", "resolver_authorization_failure", "stored_graphql_context", "Stored GraphQL context expected to be denied returned object data from the resolver.", source_group="graphql_authorization_behavior", weight=36, basis="expected_denial_with_graphql_data"))
+        response_json = details.get("response_json") if isinstance(details.get("response_json"), Mapping) else {}
+        response_flat = _flatten(response_json)
+        sensitive_response_fields = {
+            key for key in response_flat
+            if any(word.replace("_", "") in key.replace("_", "") for word in SENSITIVE_FIELD_WORDS)
+        }
+        if sensitive_response_fields:
+            data_packet = _packet_for(result, "graphql_data_exposure")
+            _add_identity(data_packet, "graphql_data_exposure", "graphql_operation", "raw_graphql", "GraphQL operation surface is present.", "graphql_operation", 14)
+            _add_identity(data_packet, "graphql_data_exposure", "sensitive_fields", "stored_graphql_response", "Stored GraphQL response contains sensitive credential/data fields.", "graphql_fields", 18)
+            if status in SUCCESS_STATUSES and response_json.get("data") and not response_json.get("errors"):
+                _add(data_packet, "support", _signal("graphql_data_exposure", "sensitive_expansion", "stored_graphql_response", "Stored successful GraphQL response expands sensitive fields into returned data without a field-policy denial.", source_group="graphql_data_behavior", weight=34, basis="sensitive_fields_in_successful_graphql_data"))
 
     if any(marker in surface_text for marker in WEBSOCKET_MARKERS):
         packet = _packet_for(result, "websocket_authorization")
@@ -501,6 +578,13 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         channel_fields = {field for field in all_fields if any(word in field for word in ("room", "channel", "tenant", "user", "topic", "id"))}
         if channel_fields:
             _add_identity(packet, "websocket_authorization", "room_identifier", "endpoint_schema", "WebSocket/subscription contract includes identity/channel selectors.", "channel_scope", 16)
+        for context in _contexts(details):
+            cflat = _flatten(context)
+            expected_false = any(str(v).strip().lower() in {"false", "0", "deny", "denied", "unauthorized"} for key in ("expected_access", "authorization_expected", "should_allow") for v in cflat.get(key, []))
+            if expected_false and _flag(cflat, "subscription_accepted") and _flag(cflat, "message_received"):
+                _add(packet, "support", _signal("websocket_authorization", "unauthorized_subscription", "stored_websocket_context", "Stored unauthorized WebSocket context successfully subscribed and received a message outside its expected scope.", source_group="websocket_authorization_behavior", weight=36, basis="expected_denial_but_subscription_and_message_succeeded"))
+            elif expected_false and _flag_false(cflat, "subscription_accepted"):
+                _add(packet, "contradict", _signal("websocket_authorization", "cross_context_denied", "stored_websocket_context", "Stored unauthorized WebSocket context was denied subscription.", source_group="websocket_authorization_control", weight=-30, basis="stored_subscription_denial"))
 
     acao = response_headers.get("access-control-allow-origin", "").strip(); acac = response_headers.get("access-control-allow-credentials", "").strip().lower(); origin = request_headers.get("origin", "").strip()
     if acao:
@@ -522,27 +606,30 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
 
     cache_control = response_headers.get("cache-control", "").lower(); vary = response_headers.get("vary", "").lower()
     cacheable_directive = bool(cache_control and any(token in cache_control for token in ("public", "s-maxage", "max-age")))
+    shared_cache_directive = bool(cache_control and any(token in cache_control for token in ("public", "s-maxage")))
     sensitive_body = bool(text_lower and any(word in text_lower for word in SENSITIVE_FIELD_WORDS))
     explicit_sensitive = _flag(flat, "sensitive_context") or _flag(flat, "sensitive_response") or _flag(flat, "response_data")
-    authenticated_response = bool(auth_hints)
-    sensitive_response = sensitive_body or explicit_sensitive or authenticated_response
-    cache_surface = cacheable_directive or (status in SUCCESS_STATUSES and sensitive_response)
+    actual_auth = bool(request_headers.get("authorization") or request_headers.get("cookie")) or _flag(flat, "authenticated_request", "authenticated_context")
+    sensitive_response = sensitive_body or explicit_sensitive
+    stored_cache_observation = _flag(flat, "shared_cache_store", "browser_cache_store", "cache_reused_across_context")
+    cache_surface = cacheable_directive or stored_cache_observation
     if cache_surface:
         packet = _packet_for(result, "sensitive_caching")
         if cacheable_directive:
-            _add_identity(packet, "sensitive_caching", "cache_header", "http_headers", "Cacheable response directive is present.", "cache_policy", 16)
-        else:
-            _add_identity(packet, "sensitive_caching", "cacheable_response_context", "http_response", "Stored sensitive/authenticated response has no explicit no-store cache prohibition.", "cache_policy", 12)
-        if authenticated_response:
-            _add_identity(packet, "sensitive_caching", "authenticated_context", "endpoint_schema", "Stored response is tied to an authenticated/session-bearing request context.", "cache_context", 18)
-        if sensitive_body or explicit_sensitive:
+            _add_identity(packet, "sensitive_caching", "cache_header", "http_headers", "Observed response carries an explicit cacheability directive.", "cache_policy", 16)
+        if actual_auth:
+            _add_identity(packet, "sensitive_caching", "authenticated_context", "stored_request", "Stored request contains actual authentication/session context.", "cache_context", 18)
+        if sensitive_response:
             _add_identity(packet, "sensitive_caching", "sensitive_context", "raw_response", "Stored response contains sensitive data/context indicators.", "cache_context", 18)
-        if sensitive_response and status in SUCCESS_STATUSES and "no-store" not in cache_control:
-            _add(packet, "support", _signal("sensitive_caching", "browser_cache_no_store_missing", "http_headers", "Sensitive/authenticated successful response lacks Cache-Control: no-store.", source_group="browser_cache_behavior", weight=26, basis="wstg_athn_06_cache_policy"))
-        if sensitive_response and cacheable_directive and "authorization" not in vary and "cookie" not in vary:
-            _add(packet, "support", _signal("sensitive_caching", "missing_vary", "http_headers", "Sensitive cacheable response lacks Vary on Authorization/Cookie.", source_group="shared_cache_behavior", weight=24, basis="cache_header_interaction"))
+        if stored_cache_observation and (actual_auth or sensitive_response):
+            _add(packet, "support", _signal("sensitive_caching", "shared_cache_risk", "stored_cache_observation", "Stored cache observation shows authenticated/sensitive response material entering or being reused by a cache.", source_group="shared_cache_behavior", weight=34, basis="stored_sensitive_cache_reuse"))
+        if actual_auth and sensitive_response and cacheable_directive and "no-store" not in cache_control:
+            _add(packet, "support", _signal("sensitive_caching", "browser_cache_no_store_missing", "http_headers", "Observed authenticated sensitive response is explicitly cacheable and lacks Cache-Control: no-store.", source_group="browser_cache_behavior", weight=24, basis="observed_authenticated_sensitive_cacheability"))
+        if (actual_auth or sensitive_response) and shared_cache_directive and "authorization" not in vary and "cookie" not in vary:
+            _add(packet, "support", _signal("sensitive_caching", "missing_vary", "http_headers", "Sensitive/authenticated shared-cacheable response lacks Vary on Authorization/Cookie.", source_group="shared_cache_behavior", weight=24, basis="shared_cache_header_interaction"))
         if _flag(flat, "cdn_cache") or any(header in response_headers for header in ("age", "x-cache", "cf-cache-status")):
-            _add(packet, "support", _signal("sensitive_caching", "cdn_cache", "http_headers", "Stored response contains shared/CDN cache evidence.", source_group="shared_cache_behavior", weight=22, basis="cache_header_interaction"))
+            if actual_auth or sensitive_response:
+                _add(packet, "support", _signal("sensitive_caching", "cdn_cache", "http_headers", "Stored sensitive/authenticated response contains shared/CDN cache evidence.", source_group="shared_cache_behavior", weight=22, basis="cache_header_interaction"))
         if "no-store" in cache_control:
             _add(packet, "contradict", _signal("sensitive_caching", "no_store", "http_headers", "Cache-Control: no-store is present.", source_group="cache_control", weight=-30, basis="cache_control_header"))
         if "private" in cache_control:
@@ -577,10 +664,24 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
     flow_hits = [token for token in BUSINESS_FLOW_MARKERS if token in surface_text]
     if flow_hits:
         packet = _packet_for(result, "sensitive_business_flow_abuse"); _add_identity(packet, "sensitive_business_flow_abuse", "sensitive_business_flow", "endpoint_semantic", "Sensitive business flow semantics are present.", "business_flow", 14)
+        attempts = _number(flat, "same_identity_attempts", "attempts", "request_count")
+        accepted_attempts = _number(flat, "accepted_attempts", "successful_attempts")
+        if attempts is not None and attempts >= 10 and accepted_attempts is not None and accepted_attempts >= attempts * 0.8 and _flag_false(flat, "rate_limit_response_seen", "rate_limit_enforced") and _flag_false(flat, "challenge_present", "anti_bot_control_enforced"):
+            _add(packet, "support", _signal("sensitive_business_flow_abuse", "automation_limit_absent", "stored_automation_observation", "Stored high-volume business-flow observation shows nearly all repeated attempts accepted with no rate-limit or anti-automation challenge.", source_group="business_flow_behavior", weight=36, basis="high_volume_acceptance_without_automation_controls"))
+        if _flag(flat, "rate_limit_response_seen", "rate_limit_enforced") or _flag(flat, "challenge_present", "anti_bot_control_enforced"):
+            _add(packet, "contradict", _signal("sensitive_business_flow_abuse", "anti_bot_control_enforced", "stored_automation_observation", "Stored business-flow observation shows an automation/rate-limit control being enforced.", source_group="business_flow_control", weight=-30, basis="stored_automation_control"))
     if any(token in surface_text for token in SINGLE_USE_MARKERS) and method in {"POST", "PUT", "PATCH", "DELETE"}:
         packet = _packet_for(result, "race_condition"); _add_identity(packet, "race_condition", "state_change", "endpoint_contract", "State-changing business operation is present.", "state_change", 12); _add_identity(packet, "race_condition", "single_use_semantics", "endpoint_semantic", "Operation has single-use/balance-changing semantics.", "single_use", 14)
     if flow_hits and method in {"POST", "PUT", "PATCH", "DELETE"}:
         packet = _packet_for(result, "business_logic"); _add_identity(packet, "business_logic", "business_operation", "endpoint_semantic", "State-changing business workflow operation is present.", "business_operation", 14)
+        workflow = details.get("workflow_observation") if isinstance(details.get("workflow_observation"), Mapping) else {}
+        before = str(workflow.get("order_state_before") or workflow.get("state_before") or "").lower()
+        after = str(workflow.get("order_state_after") or workflow.get("state_after") or "").lower()
+        requested = str(workflow.get("requested_transition") or workflow.get("transition") or "").lower()
+        payment_confirmed = workflow.get("payment_confirmed")
+        rejected = _truthy(workflow.get("transition_rejected"))
+        if before and after and before != after and requested and not rejected and _falsey(payment_confirmed) and any(token in after for token in ("enabled", "complete", "completed", "fulfilled", "download")):
+            _add(packet, "support", _signal("business_logic", "workflow_invariant_violation", "stored_workflow_observation", "Stored workflow observation shows a protected/fulfilled state transition accepted while its prerequisite payment/authorization invariant is false.", source_group="business_logic_behavior", weight=36, basis="accepted_transition_with_failed_prerequisite"))
 
     config_hits = [marker for marker in CONFIG_SURFACE_MARKERS if marker in surface_text]
     explicit_misconfig = any(_flag(flat, signal) for signal in EXECUTION_PROFILES["security_misconfiguration"].condition_signals)
@@ -607,11 +708,22 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         packet = _packet_for(result, "information_disclosure"); _add_identity(packet, "information_disclosure", "debug_information", "raw_response", "Stored response contains debug/stack-trace material.", "sensitive_material", 18)
         if status in SUCCESS_STATUSES and not auth_hints: _add(packet, "support", _signal("information_disclosure", "public_observation", "http_response", "Debug material was stored from a successful response without an authentication hint.", source_group="exposure_context", weight=22, basis="anonymous_success_context"))
 
-    source_map_surface = endpoint.lower().endswith(".map") or "sourcemappingurl" in text_lower
+    source_map_surface = endpoint.lower().endswith(".map") or "sourcemappingurl" in text_lower or isinstance(details.get("source_map"), Mapping)
     if source_map_surface:
         packet = _packet_for(result, "source_map_exposure"); _add_identity(packet, "source_map_exposure", "source_map", "raw_asset", "Source-map asset or sourceMappingURL reference is present.", "source_map", 18)
-        if '"sources"' in text_lower or '"sourcescontent"' in text_lower: _add_identity(packet, "source_map_exposure", "internal_sources", "raw_response", "Stored source-map response contains source path/content metadata.", "source_contents", 18)
-        if status in SUCCESS_STATUSES: _add(packet, "support", _signal("source_map_exposure", "direct_reachability", "http_response", "Stored source-map request returned a successful response.", source_group="public_reachability", weight=22, basis="http_status"))
+        source_map = details.get("source_map") if isinstance(details.get("source_map"), Mapping) else {}
+        source_contents = source_map.get("sourcesContent") if isinstance(source_map.get("sourcesContent"), list) else []
+        source_paths = source_map.get("sources") if isinstance(source_map.get("sources"), list) else []
+        if source_contents or source_paths or '"sources"' in text_lower or '"sourcescontent"' in text_lower:
+            _add_identity(packet, "source_map_exposure", "internal_sources", "stored_source_map", "Stored source-map response contains source path/content metadata.", "source_contents", 18)
+        if source_contents:
+            _add_identity(packet, "source_map_exposure", "source_contents", "stored_source_map", "Stored source map embeds source content.", "source_contents", 20)
+        if status in SUCCESS_STATUSES:
+            _add(packet, "support", _signal("source_map_exposure", "direct_reachability", "http_response", "Stored source-map request returned a successful response.", source_group="public_reachability", weight=22, basis="http_status"))
+        if status in SUCCESS_STATUSES and _flag(flat, "public_fetch") and source_contents:
+            _add(packet, "support", _signal("source_map_exposure", "public_observation", "stored_source_map", "Stored target observation confirms the source map with embedded source content is publicly fetchable.", source_group="public_reachability", weight=32, basis="public_fetch_with_embedded_source_content"))
+        if status in SUCCESS_STATUSES and _flag(flat, "public_fetch") and not source_contents:
+            _add(packet, "contradict", _signal("source_map_exposure", "empty_map", "stored_source_map", "Stored publicly reachable source map contains no embedded source content; reachability alone is not treated as sensitive source exposure.", source_group="source_map_control", weight=-32, basis="public_map_without_embedded_source_content"))
 
     for kind, pattern in SECRET_PATTERNS:
         match = pattern.search(text)
@@ -639,6 +751,13 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
             _add_identity(packet, "software_supply_chain_failure", "build_pipeline", "stored_build_artifact", "Stored artifacts expose a build/CI pipeline trust surface.", "supply_chain_surface", 14)
         else:
             _add_identity(packet, "software_supply_chain_failure", "component_inventory", "stored_component_artifact", "Stored dependency/component metadata exposes a supply-chain inventory surface.", "supply_chain_surface", 14)
+        deployed = _flag(flat, "deployed", "component_deployed")
+        advisory_present = _flag(flat, "security_advisory_present", "known_vulnerability_present")
+        affected_version = _flag(flat, "affected_version", "version_affected")
+        if deployed and advisory_present and affected_version:
+            _add(packet, "support", _signal("software_supply_chain_failure", "known_vulnerable_component_observed", "stored_component_observation", "Stored deployed component inventory is explicitly matched to an affected version of a known security advisory.", source_group="supply_chain_behavior", weight=36, basis="deployed_component_matches_known_affected_version"))
+        if deployed and advisory_present and _flag_false(flat, "affected_version", "version_affected"):
+            _add(packet, "contradict", _signal("software_supply_chain_failure", "component_current_and_supported", "stored_component_observation", "Stored component observation indicates the deployed version is not affected by the referenced advisory.", source_group="supply_chain_control", weight=-30, basis="component_version_not_affected"))
 
     crypto_surface = any(marker in surface_text for marker in CRYPTO_SURFACE_MARKERS) or endpoint.lower().startswith("http://")
     if crypto_surface:
@@ -657,6 +776,13 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         if weak_random:
             _add_identity(packet, "cryptographic_failure", "key_generation_surface", "stored_source", "Stored source uses a random generator in a security-token/key/nonce context.", "crypto_context", 14)
             _add(packet, "support", _signal("cryptographic_failure", "predictable_randomness_observed", "stored_source", "Stored source ties a non-cryptographic random primitive to a security-token/key/nonce context.", source_group="crypto_behavior", weight=28, basis="security_context_weak_randomness"))
+        tls_protocols = {str(v).strip().lower() for v in flat.get("protocol", []) if isinstance(v, str)}
+        tls_ciphers = {str(v).strip().lower() for v in flat.get("cipher", []) if isinstance(v, str)}
+        weak_tls = any(value in {"tlsv1", "tlsv1.0", "ssl3", "sslv3"} for value in tls_protocols) or any(token in value for value in tls_ciphers for token in ("3des", "rc4", "des_cbc", "null"))
+        if weak_tls:
+            _add(packet, "support", _signal("cryptographic_failure", "weak_tls_observed", "stored_tls_observation", "Stored TLS observation negotiates a deprecated protocol or weak cipher suite.", source_group="crypto_behavior", weight=34, basis="stored_weak_tls_protocol_or_cipher"))
+        elif tls_protocols and any(value in {"tlsv1.2", "tlsv1.3"} for value in tls_protocols):
+            _add(packet, "contradict", _signal("cryptographic_failure", "strong_tls_enforced", "stored_tls_observation", "Stored TLS observation uses a modern TLS protocol without a known weak cipher marker.", source_group="crypto_control", weight=-28, basis="stored_modern_tls_observation"))
 
     unsafe_deser = any(marker in text_lower for marker in ("objectinputstream", "readobject(", "pickle.loads", "yaml.load(", "fastjson", "autotype", "enabledefaulttyping"))
     integrity_surface = unsafe_deser or any(marker in surface_text for marker in INTEGRITY_SURFACE_MARKERS)
@@ -670,6 +796,12 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
         else:
             signal = "update_artifact" if any(token in surface_text for token in ("update", "firmware", "plugin")) else "integrity_boundary"
             _add_identity(packet, "software_data_integrity_failure", signal, "stored_integrity_artifact", "Stored artifacts expose an update/code/data integrity trust boundary.", "integrity_surface", 14)
+            unsigned = _flag_false(flat, "signature_present") and _flag_false(flat, "signature_verified")
+            accepted = _flag(flat, "installation_accepted", "update_accepted")
+            if unsigned and accepted:
+                _add(packet, "support", _signal("software_data_integrity_failure", "unsigned_update_accepted", "stored_update_observation", "Stored update observation shows an unsigned/unverified software artifact accepted for installation.", source_group="integrity_behavior", weight=36, basis="accepted_update_without_signature_verification"))
+            if _flag(flat, "signature_verified"):
+                _add(packet, "contradict", _signal("software_data_integrity_failure", "signature_verified", "stored_update_observation", "Stored update observation confirms signature verification.", source_group="integrity_control", weight=-30, basis="verified_update_signature"))
 
     log_values: list[str] = []
     for key in LOG_CONTENT_KEYS:
@@ -690,6 +822,14 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
             _add_identity(packet, "security_logging_alerting_failure", "auditable_security_event", "endpoint_semantic", "The stored endpoint represents an authentication, privileged, or sensitive business event that should be auditable.", "security_event_surface", 10)
         if log_text and any(token in log_text for token in ("authorization: bearer", "bearer eyj", "password=", "password:", "access_token=", "refresh_token=", "api_key=", "client_secret=")):
             _add(packet, "support", _signal("security_logging_alerting_failure", "sensitive_data_logged", "stored_log_content", "Stored log/telemetry content contains credential- or secret-bearing material.", source_group="logging_behavior", weight=30, basis="stored_sensitive_log_content"))
+        matching_entries = _number(flat, "matching_log_entries")
+        log_store_checked = _flag(flat, "log_store_checked")
+        security_event_present = bool(details.get("security_event")) or _flag(flat, "security_control_event")
+        if security_event_present and log_store_checked and matching_entries == 0:
+            _add_identity(packet, "security_logging_alerting_failure", "auditable_security_event", "stored_security_event", "Stored target telemetry records a concrete security event whose audit trail can be checked.", "security_event_surface", 14)
+            _add(packet, "support", _signal("security_logging_alerting_failure", "security_event_not_logged", "stored_audit_observation", "Stored audit observation explicitly checked the log store and found zero matching entries for the security event.", source_group="logging_behavior", weight=36, basis="checked_log_store_with_zero_event_entries"))
+        elif security_event_present and log_store_checked and matching_entries is not None and matching_entries > 0:
+            _add(packet, "contradict", _signal("security_logging_alerting_failure", "security_event_logged", "stored_audit_observation", "Stored audit observation found matching log entries for the security event.", source_group="logging_control", weight=-30, basis="checked_log_store_with_matching_event_entries"))
 
     exception_surface = any(marker in surface_text for marker in EXCEPTION_SURFACE_MARKERS) or _flag(flat, "exception_unhandled") or _flag(flat, "process_crashed")
     if exception_surface:
@@ -705,7 +845,10 @@ def _passive_raw_heuristics(result: dict[str, dict[str, Any]], *, target: str, e
 
     version_hits = re.findall(r"(?:^|[/_.-])(v\d+(?:\.\d+)?|beta|alpha|legacy|old|deprecated|staging|stage|dev|test)(?:[/_.-]|$)", surface_text, re.I)
     normalized_versions = {str(token).lower() for token in version_hits}
-    risky_inventory_markers = normalized_versions & {"legacy", "old", "deprecated", "staging", "stage", "dev", "test", "beta", "alpha"}
+    lifecycle_markers = normalized_versions & {"legacy", "old", "deprecated"}
+    exact_nonproduction_path = bool(re.search(r"(?:^|/)(?:staging|stage|dev|test|beta|alpha)(?:/|$)", endpoint.lower()))
+    explicit_nonproduction_context = any(token in (category + " " + business_context).lower() for token in ("non-production", "nonproduction", "staging deployment", "test deployment", "development deployment", "pre-release"))
+    risky_inventory_markers = lifecycle_markers | ((normalized_versions & {"staging", "stage", "dev", "test", "beta", "alpha"}) if (exact_nonproduction_path or explicit_nonproduction_context) else set())
     explicit_inventory_condition = any(
         _flag(flat, signal)
         for signal in EXECUTION_PROFILES["improper_inventory_management"].condition_signals

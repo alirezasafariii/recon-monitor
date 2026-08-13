@@ -8,8 +8,8 @@ from typing import Any, Iterable, Mapping
 from core import Database, json_dumps, sha256_text, utc_now
 from analysis_standards import standards_for_family, validate_family_standards
 
-ADMISSION_ENGINE_VERSION = "2.4.0"
-ADMISSION_RULE_VERSION = "2026.08.10.6.8"
+ADMISSION_ENGINE_VERSION = "2.5.0"
+ADMISSION_RULE_VERSION = "2026.08.13.6.27"
 
 # External knowledge informs detection criteria only. It is never counted as target evidence.
 KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
@@ -512,7 +512,7 @@ FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
     "unsafe_api_consumption": {
         "required": [
             {"third_party_integration", "upstream_api_surface", "external_service_dependency"},
-            {"upstream_tls_missing", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"},
+            {"upstream_tls_missing", "upstream_certificate_validation_failure", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"},
         ],
         "min_independent_sources": 2,
         "label": "third-party/upstream API dependency + observed unsafe transport, trust, redirect, resource, auth, or validation behavior",
