@@ -89,6 +89,28 @@ File Inclusion map to their stable parent scenario where OWASP does not publish 
 separate stable WSTG identifier. Families without a single authoritative WSTG
 scenario keep `wstg=[]` rather than inventing an identifier.
 
+## Practical / write-up intelligence
+
+Phase 2 has two separate knowledge layers for **43 / 43** families:
+
+1. canonical taxonomy/reference context derived from OWASP/WSTG/CWE/CAPEC; and
+2. a distinct practical/research reference in `app/vulnerability_writeups_phase2.py`.
+
+Practical references favor OWASP WSTG/Cheat Sheets and PortSwigger Web Security
+Academy/Research. Dedicated research material is used where it exists (for
+example HTTP request smuggling, prototype pollution, OAuth/OIDC and web-cache
+poisoning). Where no suitable dedicated research article exists, the concrete
+WSTG testing methodology is retained instead of inventing a write-up.
+
+Each practical record includes a stable internal ID, source, title, HTTPS URL,
+reference kind, family-specific methodology note and matching signal vocabulary.
+Every record is marked `non_evidentiary=True`: it can improve classification,
+retrieval and analyst explanation but cannot become a target observation,
+independent evidence root, admission prerequisite, or confirmation proof.
+
+`tests/test_analysis_phase2_completion_v900.py` requires every phase-2 family to
+have a retrievable practical reference in addition to its taxonomy reference.
+
 ## Regression contract
 
 `tests/fixtures/vulnerability_intelligence_phase2_golden_v2.json` pins one
@@ -101,7 +123,8 @@ positive and one surface-only negative evidence set for every phase-2 family.
 - positive admission and confirmation
 - surface-only abstention
 - Safe Validation classes
-- curated non-evidentiary knowledge references
+- canonical non-evidentiary knowledge references
+- practical/research reference coverage and retrieval for 43/43 families
 - analyzer-level direct evidence handling
 - manual-only direct evidence rejection without controlled/benign markers
 - WSTG identifier format and non-empty family contracts
