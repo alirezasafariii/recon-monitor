@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Make fixture noise variant-invariant before any corpus materialization
+        run: python scripts/analysis_629_pre_freeze_fix.py
+
       - name: Verify sealed 6.28 lineage and unchanged production scoring logic
         run: |
           set -euo pipefail
@@ -166,13 +169,13 @@ jobs:
           PY
           sha256sum -c MANIFEST.sha256
 
-      - name: Commit frozen unscored v5 and remove preparation workflow
+      - name: Commit frozen unscored v5 and remove preparation helpers
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-629-v5-prepare.yml
+          git rm .github/workflows/analysis-629-v5-prepare.yml scripts/analysis_629_pre_freeze_fix.py
           git add -A
           git diff --cached --check
           git commit -m "Freeze Analysis 6.29 fresh blind v5 corpus and evaluator"
