@@ -19,7 +19,7 @@ from raw_recon_v5_nvd_discovery import (
 )
 from raw_recon_v5_source_discovery import exposure_index
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 RULE_VERSION = "2026.08.13.6.29"
 OUTPUT = ROOT / "benchmarks/raw/sources/v5_exact_source_supplement.json"
 NVD_CVE_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -77,6 +77,15 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
             ("password reset", "forgot password"),
             ("absence of rate limiting", "captcha", "abuse prevention"),
             ("repeatedly trigger", "hundreds of password reset emails"),
+        ),
+    },
+    "software_supply_chain_failure": {
+        "cve": "CVE-2026-34841",
+        "project_any": ("usebruno/bruno",),
+        "groups": (
+            ("supply chain attack", "supply-chain attack"),
+            ("compromised versions", "compromised"),
+            ("hidden dependency", "remote access trojan", "rat"),
         ),
     },
     "source_map_exposure": {
@@ -149,7 +158,6 @@ def _load_exact_cves() -> dict[str, dict[str, Any]]:
     found: dict[str, dict[str, Any]] = {}
     for index, cve_id in enumerate(wanted):
         if index:
-            # NVD public API requests without an API key are deliberately paced.
             time.sleep(6.2)
         found[cve_id] = _fetch_exact_cve(cve_id)
     return found
@@ -201,7 +209,7 @@ def build() -> dict[str, Any]:
         if prior_url_overlap:
             raise RuntimeError(f"{family}: exact CVE reference was previously exposed: {prior_url_overlap}")
 
-        project, aliases, identity_kind = _project_identity(cve, references)
+        _, aliases, identity_kind = _project_identity(cve, references)
         allowed = {str(value) for value in spec["project_any"]}
         alias_lookup = {value.lower(): value for value in aliases}
         matched_project = next((alias_lookup[value.lower()] for value in allowed if value.lower() in alias_lookup), "")
@@ -209,8 +217,10 @@ def build() -> dict[str, Any]:
             raise RuntimeError(
                 f"{family}: exact source project identity mismatch; expected one of {sorted(allowed)}, aliases={aliases}"
             )
-        if any(alias in prior["projects"] for alias in aliases):
-            raise RuntimeError(f"{family}: exact source project alias was previously exposed: {aliases}")
+        # Freshness is about the selected affected-project identity. Other references
+        # in the same CVE can legitimately point to shared dependencies or research.
+        if matched_project in prior["projects"]:
+            raise RuntimeError(f"{family}: exact source project was previously exposed: {matched_project}")
         if matched_project in used_projects:
             raise RuntimeError(f"{family}: duplicate exact source project: {matched_project}")
 
@@ -241,7 +251,7 @@ def build() -> dict[str, Any]:
             "source_kind": "nvd_json_2_0_exact_semantic_supplement",
             "advisory_source_type": "nvd",
             "freshness_validated": True,
-            "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+            "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
             "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
             "exact_source_audit_passed": True,
             "source_family_audit_version": VERSION,
