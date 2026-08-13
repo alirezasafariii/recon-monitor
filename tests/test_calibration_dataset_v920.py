@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,13 +10,29 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from analysis_benchmark import load_golden_cases
-from analysis_benchmark_v2 import build_challenge_records, quality_report
+from analysis_benchmark_v2 import (
+    build_challenge_records,
+    evidence_quality_profile,
+    load_verified_replay_jsonl_with_diagnostics,
+    quality_report,
+)
 from calibration_dataset import (
     activation_readiness,
     annotate_record,
     build_guarded_calibration_profile,
     is_activation_eligible,
 )
+
+
+GOOD_EVIDENCE_QUALITY = {
+    "reliability": 0.95,
+    "specificity": 0.90,
+    "directness": 0.95,
+    "freshness": 0.85,
+    "independence": 0.90,
+    "reproducibility": 0.85,
+    "uncertainty": 0.10,
+}
 
 
 class CalibrationDatasetV920Tests(unittest.TestCase):
@@ -88,12 +106,101 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         self.assertTrue(all("bug_proximity_score" in row for row in challenges))
         self.assertTrue(all("decision_readiness_score" in row for row in challenges))
 
+    def test_verified_replay_loader_requires_snapshot_binding_and_quality(self):
+        good = {
+            "id": "case-001",
+            "family": "broken_object_authorization",
+            "label": "false",
+            "decision_readiness_score": 18,
+            "bug_proximity_score": 61,
+            "target_evidence_confidence": 31,
+            "signals": ["object_identifier", "object_operation"],
+            "contradictions": ["cross_context_denied"],
+            "provenance": "human_verified_replay",
+            "human_verified": True,
+            "label_source": "analyst_case_review",
+            "reviewer_id": "reviewer-7",
+            "reviewed_at": "2026-08-13T15:00:00Z",
+            "case_origin_id": "case-origin-001",
+            "evidence_snapshot_id": "snapshot-sha256-001",
+            "evidence_quality": GOOD_EVIDENCE_QUALITY,
+        }
+        bad = {
+            "id": "case-002",
+            "family": "broken_object_authorization",
+            "label": True,
+            "score": 90,
+            "provenance": "human_verified_replay",
+            "human_verified": True,
+            "label_source": "analyst_case_review",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verified.jsonl"
+            path.write_text(json.dumps(good) + "\n" + json.dumps(bad) + "\n", encoding="utf-8")
+            loaded = load_verified_replay_jsonl_with_diagnostics([path])
+
+        self.assertEqual(loaded["accepted_count"], 1)
+        self.assertEqual(loaded["rejected_count"], 1)
+        self.assertFalse(loaded["records"][0]["label"])
+        self.assertGreaterEqual(loaded["records"][0]["evidence_quality_profile"]["score"], 70)
+        errors = set(loaded["rejected"][0]["errors"])
+        self.assertIn("missing_reviewer_id", errors)
+        self.assertIn("missing_evidence_snapshot_id", errors)
+        self.assertIn("incomplete_evidence_quality", errors)
+
+    def test_verified_replay_loader_deduplicates_same_reviewed_snapshot(self):
+        first = {
+            "id": "case-a",
+            "family": "authentication_session",
+            "label": True,
+            "score": 88,
+            "provenance": "curated_real_world_replay",
+            "human_verified": True,
+            "label_source": "dual_review",
+            "reviewer_id": "reviewer-a",
+            "reviewed_at": "2026-08-13T15:10:00Z",
+            "case_origin_id": "origin-auth-1",
+            "evidence_snapshot_id": "snapshot-auth-1",
+            "evidence_quality": GOOD_EVIDENCE_QUALITY,
+        }
+        second = dict(first)
+        second["id"] = "case-b"
+        second["label"] = False
+        second["reviewer_id"] = "reviewer-b"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verified.jsonl"
+            path.write_text(json.dumps(first) + "\n" + json.dumps(second) + "\n", encoding="utf-8")
+            loaded = load_verified_replay_jsonl_with_diagnostics([path])
+
+        self.assertEqual(loaded["accepted_count"], 1)
+        self.assertEqual(loaded["duplicate_count"], 1)
+        self.assertEqual(loaded["rejected_count"], 1)
+        self.assertEqual(loaded["rejected"][0]["errors"], ["duplicate_verified_replay"])
+
+    def test_evidence_quality_profile_fails_closed_on_missing_dimensions(self):
+        incomplete = evidence_quality_profile({
+            "evidence_quality": {
+                "reliability": 0.9,
+                "specificity": 0.9,
+                "directness": 0.9,
+            }
+        })
+        self.assertFalse(incomplete["complete"])
+        self.assertEqual(incomplete["score"], 0)
+        self.assertIn("independence", incomplete["missing_dimensions"])
+        complete = evidence_quality_profile({"evidence_quality": GOOD_EVIDENCE_QUALITY})
+        self.assertTrue(complete["complete"])
+        self.assertGreaterEqual(complete["score"], 70)
+        self.assertTrue(complete["advisory_only"])
+
     def test_quality_report_keeps_seed_and_challenges_separate_and_fail_closed(self):
         report = quality_report(ROOT, requested_activation="production")
         self.assertEqual(report["coverage"]["families"], 74)
         self.assertEqual(report["coverage"]["golden_records"], 148)
         self.assertEqual(report["coverage"]["challenge_records"], 222)
         self.assertEqual(report["coverage"]["verified_records"], 0)
+        self.assertEqual(report["coverage"]["verified_rejected_records"], 0)
+        self.assertEqual(report["coverage"]["verified_duplicate_records"], 0)
         self.assertEqual(report["coverage"]["total_diagnostic_records"], 370)
         self.assertEqual(report["score_semantics"], "decision_readiness_score")
         self.assertEqual(report["calibration_profile"]["activation"], "shadow_only")
@@ -110,6 +217,9 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         self.assertTrue(report["safety"]["decision_readiness_is_advisory_only"])
         self.assertTrue(report["safety"]["synthetic_challenges_are_activation_ineligible"])
         self.assertTrue(report["safety"]["production_activation_requires_human_verified_real_world_labels"])
+        self.assertTrue(report["safety"]["verified_replay_requires_snapshot_binding"])
+        self.assertTrue(report["safety"]["evidence_quality_is_advisory_only"])
+        self.assertTrue(report["safety"]["rejected_replay_rows_never_enter_calibration"])
 
 
 if __name__ == "__main__":
