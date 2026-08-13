@@ -18,6 +18,10 @@ from owasp_phase2_catalog import (
     PHASE2_FAMILY_SPECS,
 )
 from vulnerability_knowledge import knowledge_for_family
+from vulnerability_writeups_phase2 import (
+    PHASE2_PRACTICAL_REFERENCE_IDS,
+    PHASE2_WRITEUP_KNOWLEDGE,
+)
 
 FIXTURE = ROOT / "tests" / "fixtures" / "vulnerability_intelligence_phase2_golden_v2.json"
 
@@ -83,6 +87,24 @@ class AnalysisPhase2CompletionV900Tests(unittest.TestCase):
                 self.assertEqual(validation_level_for_family(case["family"]), case["validation"])
                 refs = {item["id"] for item in knowledge_for_family(case["family"])}
                 self.assertIn(case["reference"], refs)
+
+    def test_every_phase2_family_has_retrievable_practical_reference(self):
+        self.assertEqual(tuple(PHASE2_WRITEUP_KNOWLEDGE), PHASE2_FAMILY_ORDER)
+        self.assertEqual(tuple(PHASE2_PRACTICAL_REFERENCE_IDS), PHASE2_FAMILY_ORDER)
+        for family in PHASE2_FAMILY_ORDER:
+            with self.subTest(family=family):
+                docs = PHASE2_WRITEUP_KNOWLEDGE[family]
+                self.assertEqual(len(docs), 1)
+                practical = docs[0]
+                self.assertTrue(practical["non_evidentiary"])
+                self.assertTrue(practical["url"].startswith("https://"))
+                self.assertIn(
+                    practical["kind"],
+                    {"academy", "research", "wstg_methodology", "practical_reference", "cheat_sheet"},
+                )
+                refs = {item["id"] for item in knowledge_for_family(family)}
+                self.assertIn(PHASE2_PRACTICAL_REFERENCE_IDS[family], refs)
+                self.assertGreaterEqual(len(refs), 2)
 
     def test_each_phase2_analyzer_promotes_only_from_concrete_stored_evidence(self):
         for family, spec in PHASE2_FAMILY_SPECS.items():
