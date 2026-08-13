@@ -1,8 +1,17 @@
 from pathlib import Path
 
+
+def replace_once(path: str, old: str, new: str, label: str) -> None:
+    p = Path(path)
+    text = p.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{label}: expected one match, found {count}')
+    p.write_text(text.replace(old, new), encoding='utf-8')
+
+
 path = Path('app/family_detectors/execution.py')
 text = path.read_text(encoding='utf-8')
-
 old_version = 'EXECUTION_ENGINE_VERSION = "1.3.0"\nEXECUTION_RULE_VERSION = "2026.08.13.6.27"'
 new_version = 'EXECUTION_ENGINE_VERSION = "1.4.0"\nEXECUTION_RULE_VERSION = "2026.08.13.6.30"'
 if text.count(old_version) != 1:
@@ -15,4 +24,30 @@ if text.count(old) != 1:
     raise SystemExit(f'open redirect execution block count={text.count(old)}')
 text = text.replace(old, new)
 path.write_text(text, encoding='utf-8')
-print('Analysis 6.30 open redirect execution precision fix applied')
+
+replace_once(
+    'app/raw_condition_reconstruction.py',
+    'EXECUTION_ENGINE_VERSION = "1.3.0"\nEXECUTION_RULE_VERSION = "2026.08.13.6.27"',
+    'EXECUTION_ENGINE_VERSION = "1.4.0"\nEXECUTION_RULE_VERSION = "2026.08.13.6.30"',
+    'reconstruction execution metadata version',
+)
+replace_once(
+    'app/analysis_engine.py',
+    'ENGINE_VERSION = "6.28.0"\nRULE_VERSION = "2026.08.13.6.28"',
+    'ENGINE_VERSION = "6.30.0"\nRULE_VERSION = "2026.08.13.6.30"',
+    'analysis engine release version',
+)
+replace_once(
+    'app/bug_candidates.py',
+    'CANDIDATE_ENGINE_VERSION = "6.28.0"\nCANDIDATE_RULE_VERSION = "2026.08.13.6.28"',
+    'CANDIDATE_ENGINE_VERSION = "6.30.0"\nCANDIDATE_RULE_VERSION = "2026.08.13.6.30"',
+    'candidate engine release version',
+)
+replace_once(
+    'app/security_reasoning.py',
+    'REASONING_ENGINE_VERSION = "6.28.0"\nREASONING_RULE_VERSION = "2026.08.13.6.28"',
+    'REASONING_ENGINE_VERSION = "6.30.0"\nREASONING_RULE_VERSION = "2026.08.13.6.30"',
+    'reasoning release version',
+)
+
+print('Analysis 6.30 open redirect precision fix and release versions applied')
