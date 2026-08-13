@@ -13,9 +13,11 @@ import raw_recon_v4_source_discovery as v4
 from raw_recon_v5_source_audit import audit_row
 from raw_recon_v5_source_discovery import _is_research_project, exposure_index
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RULE_VERSION = "2026.08.13.6.29"
-YEARS = (2026, 2025, 2024)
+# Generic source discovery uses only the current-year NVD feed. Older exact
+# niche sources are fetched individually by raw_recon_v5_exact_source_supplement.
+YEARS = (2026,)
 FEED_URL = "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{year}.json.gz"
 CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.IGNORECASE)
 OUTPUT = ROOT / "benchmarks/raw/sources/v5_candidates.json"
@@ -243,12 +245,6 @@ def discover(target_per_family: int = 80) -> dict[str, Any]:
                     by_family[family][root] = row
                 else:
                     existing["matched_cwes"] = sorted(set(existing["matched_cwes"]) | set(row["matched_cwes"]))
-        semantic_counts = {
-            family: sum(1 for row in rows.values() if audit_row(family, row)[0])
-            for family, rows in by_family.items()
-        }
-        if all(count >= 4 for count in semantic_counts.values()):
-            break
 
     pools: dict[str, list[dict[str, Any]]] = {}
     semantic_counts: dict[str, int] = {}
@@ -272,7 +268,7 @@ def discover(target_per_family: int = 80) -> dict[str, Any]:
     return {
         "version": VERSION,
         "rule_version": RULE_VERSION,
-        "source_universe": "NVD JSON 2.0 annual feeds",
+        "source_universe": "NVD JSON 2.0 current-year annual feed plus exact niche CVE supplement",
         "feed_years_requested": list(YEARS),
         "feed_record_counts": feed_counts,
         "family_count": len(family_cwes),
