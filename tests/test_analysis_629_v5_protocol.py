@@ -19,6 +19,7 @@ EXACT_FAMILIES = {
     "improper_inventory_management",
     "postmessage_trust",
     "sensitive_business_flow_abuse",
+    "software_supply_chain_failure",
     "source_map_exposure",
     "unsafe_api_consumption",
     "websocket_authorization",
