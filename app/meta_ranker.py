@@ -2,27 +2,26 @@ from __future__ import annotations
 
 """Explainable bug-proximity ranking for Recon Monitor.
 
-The meta ranker combines already-existing target evidence with non-evidentiary
-knowledge and historical context.  It deliberately produces two independent
-numbers:
+The meta ranker deliberately keeps three independent concepts separate:
 
-* ``bug_proximity_score``: how closely a surface resembles a vulnerability
-  family and therefore how useful it may be to investigate;
-* ``target_evidence_confidence``: how much family-specific evidence was actually
-  observed on the target.
+* ``bug_proximity_score``: how useful a surface may be to investigate;
+* ``target_evidence_confidence``: strength of family-specific target evidence;
+* ``decision_readiness_score``: how close stored evidence is to the canonical
+  Family Reasoning confirmation contract.
 
-Knowledge retrieval, historical feedback, correlation, LLM advice, and
-calibration metadata are never allowed to increase ``target_evidence_confidence``
-or satisfy admission gates.
+Knowledge retrieval, historical feedback, correlation, LLM advice, calibration,
+and Decision Readiness are never allowed to create target evidence or satisfy
+admission/confirmation gates.
 """
 
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from calibration_engine import calibration_for_score
+from decision_readiness import decision_readiness
 
-META_RANKER_VERSION = "1.1.0"
-META_RANKER_RULE_VERSION = "2026.08.13.2"
+META_RANKER_VERSION = "1.2.0"
+META_RANKER_RULE_VERSION = "2026.08.13.3"
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "target_evidence": 0.40,
@@ -62,9 +61,8 @@ def target_evidence_confidence(
 ) -> tuple[int, dict[str, Any]]:
     """Score only target-originating family-specific evidence.
 
-    No writeup, taxonomy, historical result, correlation prior, LLM output, or
-    calibration profile is accepted by this function. This keeps the evidence
-    boundary auditable and prevents ranking quality work from weakening safety.
+    No writeup, taxonomy, historical result, correlation prior, LLM output,
+    calibration profile, or decision-readiness result is accepted here.
     """
 
     strong, medium, weak = _matched_types(ranking)
@@ -191,16 +189,13 @@ def rank_bug_proximity(
 ) -> dict[str, Any]:
     """Combine evidence and advisory channels into an explainable Top-N ranking.
 
-    ``llm_advisory_scores`` is intentionally optional and only carries 3% of the
-    configured weight. Missing optional components are excluded rather than
-    replaced with artificial neutral scores.
-
-    ``calibration_profile`` is shadow/advisory metadata. It never changes the raw
-    proximity score, evidence confidence, admission state, or confirmation state.
+    ``bug_proximity_score`` retains investigation-oriented semantics. Decision
+    Readiness is attached as separate advisory metadata and never affects result
+    ordering, target evidence, admission, or confirmation.
     """
 
     support_items = [dict(item) for item in support]
-    _ = [dict(item) for item in (contradict or [])]  # kept explicit for API symmetry/auditability
+    contradict_items = [dict(item) for item in (contradict or [])]
     rankings_by_family = {
         str(item.get("family")): dict(item)
         for item in family_rankings
@@ -251,9 +246,8 @@ def rank_bug_proximity(
         if contradiction_count:
             proximity = _clamp(proximity - min(30, contradiction_count * 12))
 
-        # Guardrails: knowledge or advisory channels can make a family worth
-        # looking at, but they cannot manufacture high confidence in the absence
-        # of family-specific target evidence.
+        # Investigation guardrails: advisory channels may make a family worth
+        # looking at, but they cannot manufacture strong target evidence.
         strong_count = len(evidence_explanation["matched_strong"])
         if evidence_score == 0:
             proximity = min(proximity, 35)
@@ -262,6 +256,13 @@ def rank_bug_proximity(
         elif strong_count == 0 and evidence_score < 50:
             proximity = min(proximity, 69)
 
+        readiness = decision_readiness(
+            family,
+            support_items,
+            contradict_items,
+            target_evidence_confidence=evidence_score,
+            recognized_contradictions=evidence_explanation["contradictions"],
+        )
         calibration = calibration_for_score(family, proximity, calibration_profile)
         available = [name for name, value in components.items() if value is not None]
         unavailable = [name for name, value in components.items() if value is None]
@@ -272,6 +273,16 @@ def rank_bug_proximity(
             why.append("supporting target signals: " + ", ".join(evidence_explanation["matched_medium"][:6]))
         if evidence_explanation["matched_weak"]:
             why.append("weak target signals: " + ", ".join(evidence_explanation["matched_weak"][:6]))
+        if readiness["matched_decisive_signals"]:
+            why.append(
+                "decision-readiness decisive evidence: "
+                + ", ".join(readiness["matched_decisive_signals"][:6])
+            )
+        if readiness["blocking_contradictions"]:
+            why.append(
+                "decision readiness blocked by observed control: "
+                + ", ".join(readiness["blocking_contradictions"][:6])
+            )
         if writeup_score is not None:
             why.append(f"writeup similarity: {writeup_score}/100 (non-evidentiary)")
         if historical_score is not None:
@@ -292,6 +303,8 @@ def rank_bug_proximity(
                 "label": str(ranking.get("label") or family),
                 "bug_proximity_score": proximity,
                 "target_evidence_confidence": evidence_score,
+                "decision_readiness_score": int(readiness["score"]),
+                "decision_readiness": readiness,
                 "proximity_band": _proximity_band(proximity),
                 "hunt_priority": _hunt_priority(proximity, evidence_score),
                 "calibration": calibration,
@@ -307,6 +320,8 @@ def rank_bug_proximity(
             }
         )
 
+    # Keep investigation ordering exactly on proximity/evidence. Decision
+    # readiness is intentionally not allowed to re-order the hunting queue.
     results.sort(
         key=lambda item: (
             int(item["bug_proximity_score"]),
@@ -327,6 +342,8 @@ def rank_bug_proximity(
         "safety": {
             "bug_proximity_is_not_vulnerability_confidence": True,
             "target_evidence_confidence_uses_target_observations_only": True,
+            "decision_readiness_is_advisory_only": True,
+            "decision_readiness_cannot_satisfy_admission_or_confirmation": True,
             "knowledge_cannot_satisfy_admission": True,
             "llm_is_advisory_only": True,
             "calibration_is_advisory_only": True,
