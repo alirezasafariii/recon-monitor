@@ -5,6 +5,10 @@ on:
     branches:
       - agent/analysis-engine-6.29-fresh-blind-v5-multifamily
 
+concurrency:
+  group: analysis-629-v5-prepare
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -100,6 +104,7 @@ jobs:
           assert validation['passed'] is True
           assert validation['label_leakage_count']==0
           assert validation['grounding_writeup_overlap_count']==0
+          assert validation['grounding_reference_overlap_count']==0
           assert validation['single_positive_control_collision_count']==0
           assert validation['multi_raw_collision_count']==0
           assert validation['single_positive_observable_delta_rate']==1.0
