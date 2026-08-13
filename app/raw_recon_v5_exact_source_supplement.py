@@ -80,12 +80,12 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "software_supply_chain_failure": {
-        "cve": "CVE-2026-45321",
-        "project_any": ("TanStack/router", "tanstack/router"),
+        "cve": "CVE-2025-30154",
+        "project_any": ("reviewdog/action-setup",),
         "groups": (
-            ("malicious versions",),
-            ("published to the npm registry", "npm registry"),
-            ("credential-stealing malware", "supply-chain attack", "supply chain"),
+            ("was compromised", "compromised"),
+            ("malicious code added", "malicious code"),
+            ("dumps exposed secrets", "github actions workflow logs"),
         ),
     },
     "source_map_exposure": {
@@ -107,12 +107,12 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "websocket_authorization": {
-        "cve": "CVE-2026-11807",
-        "project_any": ("cpe:redhat/ansible_automation_platform",),
+        "cve": "CVE-2025-68663",
+        "project_any": ("outline/outline",),
         "groups": (
-            ("websocket api", "websocket"),
-            ("does not verify user permissions", "missing authorization"),
-            ("arbitrary activation_id", "plaintext credentials", "oauth tokens"),
+            ("websocket authentication mechanism", "websocket"),
+            ("allows suspended users", "suspended users"),
+            ("continue receiving sensitive operational updates", "sensitive operational updates"),
         ),
     },
 }
@@ -212,11 +212,29 @@ def build() -> dict[str, Any]:
         _, aliases, identity_kind = _project_identity(cve, references)
         allowed = {str(value) for value in spec["project_any"]}
         alias_lookup = {value.lower(): value for value in aliases}
-        matched_project = next((alias_lookup[value.lower()] for value in allowed if value.lower() in alias_lookup), "")
+        matched_project = ""
+        matched_by = ""
+        for allowed_project in sorted(allowed):
+            lowered = allowed_project.lower()
+            if lowered.startswith("cpe:") and lowered in alias_lookup:
+                matched_project = alias_lookup[lowered]
+                matched_by = "nvd_cpe"
+                break
+            if not lowered.startswith("cpe:"):
+                needle = f"github.com/{lowered}"
+                if any(needle in str(url).lower() for url in references):
+                    matched_project = allowed_project
+                    matched_by = "github_reference_prefix"
+                    break
+                if lowered in alias_lookup:
+                    matched_project = alias_lookup[lowered]
+                    matched_by = "github_reference_parser"
+                    break
         if not matched_project:
             raise RuntimeError(
                 f"{family}: exact source project identity mismatch; expected one of {sorted(allowed)}, aliases={aliases}"
             )
+        identity_kind = matched_by or identity_kind
         if matched_project in prior["projects"]:
             raise RuntimeError(f"{family}: exact source project was previously exposed: {matched_project}")
         if matched_project in used_projects:

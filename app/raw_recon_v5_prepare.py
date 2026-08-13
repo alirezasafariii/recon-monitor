@@ -15,37 +15,49 @@ from raw_recon_v5_source_discovery import exposure_index
 VERSION = "1.3.0"
 RULE_VERSION = "2026.08.13.6.29"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v5_candidates.json"
-BUSINESS_SUPPLEMENT = ROOT / "benchmarks/raw/sources/v5_business_logic_supplement.json"
+EXACT_SUPPLEMENT = ROOT / "benchmarks/raw/sources/v5_exact_source_supplement.json"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v5_shortlist.json"
 CORPUS = ROOT / "benchmarks/raw/analysis_raw_v5.jsonl"
 FREEZE = ROOT / "benchmarks/raw/sources/v5_freeze_manifest.json"
 REPORT = ROOT / "benchmarks/raw/sources/v5_prepare_report.json"
 
 
-def _load_optional_supplement() -> dict[str, Any] | None:
-    if not BUSINESS_SUPPLEMENT.exists():
-        return None
-    value = json.loads(BUSINESS_SUPPLEMENT.read_text(encoding="utf-8"))
-    if not isinstance(value, Mapping):
-        raise RuntimeError("v5 business-logic supplement must be a JSON object")
-    row = value.get("selected")
-    if not isinstance(row, Mapping):
-        raise RuntimeError("v5 business-logic supplement has no selected source")
-    if str(row.get("family") or "") != "business_logic":
-        raise RuntimeError("v5 business-logic supplement family mismatch")
-    if not bool(row.get("freshness_validated")) or bool(value.get("scoring_executed")):
-        raise RuntimeError("v5 business-logic supplement freshness/scoring contract failed")
-    return dict(row)
+def _load_exact_supplement() -> dict[str, dict[str, Any]]:
+    if not EXACT_SUPPLEMENT.exists():
+        raise RuntimeError("v5 exact source supplement is required before source selection")
+    value = json.loads(EXACT_SUPPLEMENT.read_text(encoding="utf-8"))
+    if not isinstance(value, Mapping) or bool(value.get("scoring_executed")):
+        raise RuntimeError("v5 exact source supplement scoring contract failed")
+    rows = value.get("selected") if isinstance(value.get("selected"), list) else []
+    selected: dict[str, dict[str, Any]] = {}
+    for raw in rows:
+        if not isinstance(raw, Mapping):
+            continue
+        family = str(raw.get("family") or "")
+        if not family or family in selected:
+            raise RuntimeError(f"v5 exact supplement duplicate/empty family: {family!r}")
+        if not bool(raw.get("freshness_validated")) or not bool(raw.get("exact_source_audit_passed")):
+            raise RuntimeError(f"v5 exact supplement source did not pass pre-score contracts: {family}")
+        selected[family] = dict(raw)
+    expected = {
+        "dom_xss", "graphql_authorization", "graphql_data_exposure",
+        "improper_inventory_management", "postmessage_trust",
+        "sensitive_business_flow_abuse", "software_supply_chain_failure",
+        "source_map_exposure", "unsafe_api_consumption", "websocket_authorization",
+    }
+    if set(selected) != expected:
+        raise RuntimeError(f"v5 exact supplement family mismatch missing={sorted(expected-set(selected))} extra={sorted(set(selected)-expected)}")
+    return selected
 
 
 def _select(candidates: Mapping[str, Any]) -> list[dict[str, Any]]:
     pools_raw = candidates.get("candidates_by_family") if isinstance(candidates.get("candidates_by_family"), Mapping) else {}
     semantic: dict[str, list[dict[str, Any]]] = {}
-    supplement = _load_optional_supplement()
+    exact_supplement = _load_exact_supplement()
     for family in sorted(DETECTOR_SPECS):
         source_rows = [dict(row) for row in pools_raw.get(family, []) or [] if isinstance(row, Mapping)]
-        if supplement is not None and family == "business_logic":
-            source_rows.append(dict(supplement))
+        if family in exact_supplement:
+            source_rows.append(dict(exact_supplement[family]))
         rows: list[dict[str, Any]] = []
         seen_roots: set[str] = set()
         for raw in source_rows:
@@ -53,17 +65,23 @@ def _select(candidates: Mapping[str, Any]) -> list[dict[str, Any]]:
             if not root or root in seen_roots:
                 continue
             seen_roots.add(root)
-            passed, hits, score = audit_row(family, raw)
+            if bool(raw.get("exact_source_audit_passed")):
+                passed = True
+                hits = [list(group) for group in raw.get("source_family_audit_group_hits") or []]
+                score = int(raw.get("source_family_audit_score") or 0)
+            else:
+                passed, hits, score = audit_row(family, raw)
             if not passed:
                 continue
             row = dict(raw)
             row["source_family_audit_score"] = score
             row["source_family_audit_group_hits"] = hits
-            row["source_family_audit_version"] = AUDIT_VERSION
-            row["source_family_audit_rule_version"] = AUDIT_RULE_VERSION
+            row.setdefault("source_family_audit_version", AUDIT_VERSION)
+            row.setdefault("source_family_audit_rule_version", AUDIT_RULE_VERSION)
             rows.append(row)
         rows.sort(
             key=lambda x: (
+                1 if x.get("exact_source_audit_passed") else 0,
                 int(x["source_family_audit_score"]),
                 1 if x.get("advisory_source_type") == "reviewed" else 0,
                 x.get("published_at") or "",
@@ -79,7 +97,7 @@ def _select(candidates: Mapping[str, Any]) -> list[dict[str, Any]]:
             "v5 source semantic audit has zero eligible candidates for: " + ", ".join(zero_semantic)
         )
 
-    order = sorted(semantic, key=lambda f: (len(semantic[f]), f))
+    order = sorted(semantic, key=lambda f: (0 if f in exact_supplement else 1, len(semantic[f]), f))
     used_roots: set[str] = set()
     used_projects: set[str] = set()
     selected: dict[str, dict[str, Any]] = {}
@@ -108,6 +126,9 @@ def _select(candidates: Mapping[str, Any]) -> list[dict[str, Any]]:
         raise RuntimeError("v5 selected-source family partition is incomplete")
     if len(used_roots) != 36 or len(used_projects) != 36:
         raise RuntimeError("v5 selected-source root/project uniqueness contract failed")
+    for family, exact_row in exact_supplement.items():
+        if str(selected[family].get("source_root") or "") != str(exact_row.get("source_root") or ""):
+            raise RuntimeError(f"v5 exact source was not selected for {family}")
     return [selected[family] for family in sorted(selected)]
 
 
@@ -117,7 +138,7 @@ def _noise(raw: Mapping[str, Any], family: str, kind: str) -> dict[str, Any]:
     details = dict(details)
     details["fixture_transport"] = {
         "capture": "normalized",
-        "trace_id": f"v5-{family[:8]}-{kind}",
+        "trace_id": f"v5-{family[:8]}",
         "retry_count": 0,
     }
     details["unrelated_observation"] = {"server_hint": "fixture", "timing_bucket": "normal"}
@@ -288,9 +309,9 @@ def prepare() -> dict[str, Any]:
         "benchmarks/raw/sources/v5_shortlist.json": _sha(SHORTLIST),
         "benchmarks/raw/analysis_raw_v5.jsonl": _sha(CORPUS),
     }
-    if BUSINESS_SUPPLEMENT.exists():
-        protected_files["benchmarks/raw/sources/v5_business_logic_supplement.json"] = _sha(
-            BUSINESS_SUPPLEMENT
+    if EXACT_SUPPLEMENT.exists():
+        protected_files["benchmarks/raw/sources/v5_exact_source_supplement.json"] = _sha(
+            EXACT_SUPPLEMENT
         )
 
     freeze = {

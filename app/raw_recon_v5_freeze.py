@@ -20,8 +20,11 @@ REPORT = ROOT / "benchmarks/raw/sources/v5_prepare_report.json"
 PROTECTED_FILES = (
     "benchmarks/raw/analysis_raw_v5.jsonl",
     "benchmarks/raw/sources/v5_candidates.json",
-    "benchmarks/raw/sources/v5_business_logic_supplement.json",
     "benchmarks/raw/sources/v5_shortlist.json",
+    "benchmarks/raw/sources/v5_exact_source_supplement.json",
+    "app/raw_recon_v5_exact_source_supplement.py",
+    "app/raw_recon_v5_nvd_discovery.py",
+    "app/raw_recon_v5_nvd_api_discovery.py",
     "app/raw_recon_v5_benchmark.py",
     "app/raw_recon_v5_corpus.py",
     "app/raw_recon_v5_source_discovery.py",

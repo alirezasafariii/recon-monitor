@@ -30,6 +30,9 @@ def prior_cve_exposure() -> set[str]:
         for path in bench.rglob("*"):
             if not path.is_file() or path.suffix.lower() not in {".json", ".jsonl", ".md"}:
                 continue
+            # Current v5 artifacts are outputs of this evaluation phase, not prior exposure.
+            if "v5" in path.name.lower():
+                continue
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
@@ -294,7 +297,15 @@ def main() -> int:
     report = discover()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({
+    exact_supplement_families = {
+        "dom_xss", "graphql_authorization", "graphql_data_exposure",
+        "improper_inventory_management", "postmessage_trust",
+        "sensitive_business_flow_abuse", "software_supply_chain_failure",
+        "source_map_exposure", "unsafe_api_consumption", "websocket_authorization",
+    }
+    unresolved_candidates = sorted(set(report["families_without_candidates"]) - exact_supplement_families)
+    unresolved_semantic = sorted(set(report["families_without_semantic_candidates"]) - exact_supplement_families)
+    summary = {
         key: report[key]
         for key in (
             "source_universe",
@@ -305,8 +316,12 @@ def main() -> int:
             "excluded_prior_root_count",
             "excluded_prior_project_count",
         )
-    }, indent=2, sort_keys=True))
-    return 2 if report["families_without_candidates"] or report["families_without_semantic_candidates"] else 0
+    }
+    summary["exact_supplement_families"] = sorted(exact_supplement_families)
+    summary["unresolved_candidate_families"] = unresolved_candidates
+    summary["unresolved_semantic_families"] = unresolved_semantic
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 2 if unresolved_candidates or unresolved_semantic else 0
 
 
 if __name__ == "__main__":

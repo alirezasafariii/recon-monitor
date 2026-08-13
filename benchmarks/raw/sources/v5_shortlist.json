@@ -1,0 +1,1649 @@
+{
+  "rule_version": "2026.08.13.6.29",
+  "selected": [
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24468",
+      "description": "OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaign and tests. Starting in version 1.11.0 and prior to version 2.0.13, the /api/reset endpoint behaves differently depending on whether the supplied username exists in the system. When a non-existent email is provided in the login parameter, the endpoint returns an HTTP 400 response (Bad Request). When a valid email is supplied, the endpoint responds with HTTP 200. This difference in server responses creates an observable discrepancy that allows an attacker to reliably determine which emails are registered in the application. By automating requests with a list of possible email addresses, an attacker can quickly build a list of valid accounts without any authentication. The endpoint should return a consistent response regardless of whether the username exists in order to prevent account enumeration. Version 2.0.13 fixes this issue.",
+      "family": "account_enumeration",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-204"
+      ],
+      "project_aliases": [
+        "OpenAEV-Platform/openaev"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-20T16:16:41.617",
+      "references": [
+        "https://github.com/OpenAEV-Platform/openaev/blob/82fa7d0009017110c9b509d0dc1b3a78164259dd/openaev-api/src/main/java/io/openaev/rest/user/UserApi.java#L120",
+        "https://github.com/OpenAEV-Platform/openaev/commit/3430fe23a9244030d06fdf8e6771592e1f12ad52",
+        "https://github.com/OpenAEV-Platform/openaev/releases/tag/2.0.13",
+        "https://github.com/OpenAEV-Platform/openaev/security/advisories/GHSA-v6rg-hf9w-f8ph"
+      ],
+      "repository_advisory_url": "https://github.com/OpenAEV-Platform/openaev/security/advisories/GHSA-v6rg-hf9w-f8ph",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/OpenAEV-Platform/openaev/blob/82fa7d0009017110c9b509d0dc1b3a78164259dd/openaev-api/src/main/java/io/openaev/rest/user/UserApi.java#L120",
+      "source_family_audit_group_hits": [
+        [
+          "enumerat"
+        ],
+        [
+          "account",
+          "email",
+          "user",
+          "username"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 18,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "OpenAEV-Platform/openaev",
+      "source_root": "CVE-2026-24468",
+      "summary": "OpenAEV is an open source platform allowing organizations to plan, schedule and conduct cyber adversary simulation campaign and tests",
+      "updated_at": "2026-06-17T10:23:06.830"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33746",
+      "description": "Convoy is a KVM server management panel for hosting businesses. From version 3.9.0-beta to before version 4.5.1, the JWTService::decode() method did not verify the cryptographic signature of JWT tokens. While the method configured a symmetric HMAC-SHA256 signer via lcobucci/jwt, it only validated time-based claims (exp, nbf, iat) using the StrictValidAt constraint. The SignedWith constraint was not included in the validation step. This means an attacker could forge or tamper with JWT token payloads \u2014 such as modifying the user_uuid claim \u2014 and the token would be accepted as valid, as long as the time-based claims were satisfied. This directly impacts the SSO authentication flow (LoginController::authorizeToken), allowing an attacker to authenticate as any user by crafting a token with an arbitrary user_uuid. This issue has been patched in version 4.5.1.",
+      "family": "authentication_session",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-287"
+      ],
+      "project_aliases": [
+        "ConvoyPanel/panel",
+        "cpe:convoypanel/convoy"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-02T16:16:22.803",
+      "references": [
+        "https://github.com/ConvoyPanel/panel/releases/tag/v4.5.1",
+        "https://github.com/ConvoyPanel/panel/security/advisories/GHSA-92pg-3w49-4w5x"
+      ],
+      "repository_advisory_url": "https://github.com/ConvoyPanel/panel/security/advisories/GHSA-92pg-3w49-4w5x",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/ConvoyPanel/panel/releases/tag/v4.5.1",
+      "source_family_audit_group_hits": [
+        [
+          "authentication",
+          "login",
+          "token"
+        ],
+        [
+          "forg",
+          "validation"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 18,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "ConvoyPanel/panel",
+      "source_root": "CVE-2026-33746",
+      "summary": "Convoy is a KVM server management panel for hosting businesses",
+      "updated_at": "2026-07-24T21:10:00.143"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-23837",
+      "description": "MyTube is a self-hosted downloader and player for several video websites. A vulnerability present in version 1.7.65 and poetntially earlier versions allows unauthenticated users to bypass the mandatory authentication check in the roleBasedAuthMiddleware. By simply not providing an authentication cookie (making req.user undefined), a request is incorrectly passed through to downstream handlers. All users running MyTube with loginEnabled: true are impacted. This flaw allows an attacker to access and modify application settings via /api/settings, change administrative and visitor passwords, and access other protected routes that rely on this specific middleware. The problem is patched in v1.7.66. MyTube maintainers recommend all users upgrade to at least version v1.7.64 immediately to secure their instances. The fix ensures that the middleware explicitly blocks requests if a user is not authenticated, rather than defaulting to next(). Those who cannot upgrade immediately can mitigate risk by restricting network access by usi a firewall or reverse proxy (like Nginx) to restrict access to the /api/ endpoints to trusted IP addresses only or, if they are comfortable editing the source code, manually patch by locating roleBasedAuthMiddleware and ensuring that the logic defaults to an error (401 Unauthorized) when req.user is undefined, instead of calling next().",
+      "family": "broken_function_authorization",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-863"
+      ],
+      "project_aliases": [
+        "franklioxygen/MyTube",
+        "cpe:franklioxygen/mytube"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-19T21:15:50.903",
+      "references": [
+        "https://github.com/franklioxygen/MyTube/commit/f85ae9b0d6e4a6480c6af5b675a99069d08d496e",
+        "https://github.com/franklioxygen/MyTube/security/advisories/GHSA-cmvj-g69f-8664"
+      ],
+      "repository_advisory_url": "https://github.com/franklioxygen/MyTube/security/advisories/GHSA-cmvj-g69f-8664",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/franklioxygen/MyTube/commit/f85ae9b0d6e4a6480c6af5b675a99069d08d496e",
+      "source_family_audit_group_hits": [
+        [
+          "admin",
+          "role"
+        ],
+        [
+          "bypass",
+          "unauthorized"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "franklioxygen/MyTube",
+      "source_root": "CVE-2026-23837",
+      "summary": "MyTube is a self-hosted downloader and player for several video websites",
+      "updated_at": "2026-06-17T10:22:10.800"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22784",
+      "description": "Lychee is a free, open-source photo-management tool. Prior to 7.1.0, an authorization vulnerability exists in Lychee's album password unlock functionality that allows users to gain possibly unauthorized access to other users' password-protected albums. When a user unlocks a password-protected public album, the system automatically unlocks ALL other public albums that share the same password, resulting in a complete authorization bypass. This vulnerability is fixed in 7.1.0.",
+      "family": "broken_object_authorization",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-863"
+      ],
+      "project_aliases": [
+        "LycheeOrg/Lychee",
+        "cpe:lycheeorg/lychee"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-12T19:16:04.127",
+      "references": [
+        "https://github.com/LycheeOrg/Lychee/commit/f021a29f9ab2bafa81d9f5e32ff5bc89915c7d41",
+        "https://github.com/LycheeOrg/Lychee/security/advisories/GHSA-jj56-2c54-4f25"
+      ],
+      "repository_advisory_url": "https://github.com/LycheeOrg/Lychee/security/advisories/GHSA-jj56-2c54-4f25",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "low",
+      "source_code_location": "https://github.com/LycheeOrg/Lychee/commit/f021a29f9ab2bafa81d9f5e32ff5bc89915c7d41",
+      "source_family_audit_group_hits": [
+        [
+          "other user"
+        ],
+        [
+          "authorization",
+          "bypass",
+          "unauthorized"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "LycheeOrg/Lychee",
+      "source_root": "CVE-2026-22784",
+      "summary": "Lychee is a free, open-source photo-management tool",
+      "updated_at": "2026-06-17T10:20:25.283"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30574",
+      "description": "A Business Logic vulnerability exists in SourceCodester Pharmacy Product Management System 1.0 in the add-sales.php file. The application fails to verify if the requested sales quantity (txtqty) exceeds the available stock level. An attacker can manipulate the request to purchase a quantity that is significantly higher than the actual available stock.",
+      "family": "business_logic",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-841"
+      ],
+      "project_aliases": [
+        "cpe:senior-walter/web-based_pharmacy_product_management_system"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2026-03-27T17:16:28.823",
+      "references": [
+        "https://github.com/meifukun/Web-Security-PoCs/blob/main/Pharmacy-Product-Management-System/Logic-AddSales-Overselling.md"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "available stock",
+          "business logic",
+          "sales quantity"
+        ],
+        [
+          "exceeds the available stock",
+          "fails to verify"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "cpe:senior-walter/web-based_pharmacy_product_management_system",
+      "source_root": "CVE-2026-30574",
+      "summary": "A Business Logic vulnerability exists in SourceCodester Pharmacy Product Management System 1.0 in the add-sales.php file",
+      "updated_at": "2026-06-17T10:32:48.410"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22781",
+      "description": "TinyWeb is a web server (HTTP, HTTPS) written in Delphi for Win32. TinyWeb HTTP Server before version 1.98 is vulnerable to OS command injection via CGI ISINDEX-style query parameters. The query parameters are passed as command-line arguments to the CGI executable via Windows CreateProcess(). An unauthenticated remote attacker can execute arbitrary commands on the server by injecting Windows shell metacharacters into HTTP requests. This vulnerability is fixed in 1.98.",
+      "family": "command_injection",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-78"
+      ],
+      "project_aliases": [
+        "maximmasiutin/TinyWeb",
+        "cpe:ritlabs/tinyweb"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-12T19:16:03.787",
+      "references": [
+        "https://github.com/maximmasiutin/TinyWeb/commit/876b7e2887f4ea5be3e18bb2af7313f23a283c96",
+        "https://github.com/maximmasiutin/TinyWeb/security/advisories/GHSA-m779-84h5-72q2",
+        "https://www.masiutin.net/tinyweb-cve-2025-cgi-command-injection.html"
+      ],
+      "repository_advisory_url": "https://github.com/maximmasiutin/TinyWeb/security/advisories/GHSA-m779-84h5-72q2",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/maximmasiutin/TinyWeb/commit/876b7e2887f4ea5be3e18bb2af7313f23a283c96",
+      "source_family_audit_group_hits": [
+        [
+          "command injection",
+          "os command injection"
+        ],
+        [
+          "command",
+          "exec",
+          "process",
+          "shell"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 19,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "maximmasiutin/TinyWeb",
+      "source_root": "CVE-2026-22781",
+      "summary": "TinyWeb is a web server (HTTP, HTTPS) written in Delphi for Win32",
+      "updated_at": "2026-06-17T10:20:24.913"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-57957",
+      "description": "Papermark through 0.22.0 contains a cross-origin resource sharing (CORS) misconfiguration vulnerability that allows unauthenticated remote attackers to perform credentialed cross-origin requests by exploiting the TUS-based viewer upload endpoint reflecting arbitrary request Origins with Access-Control-Allow-Credentials set to true. Attackers can lure authenticated victims to malicious pages that silently issue credentialed cross-origin requests to upload arbitrary files into victim datarooms and read credentialed responses.",
+      "family": "cors_misconfiguration",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-942"
+      ],
+      "project_aliases": [
+        "AstoKr/papermark",
+        "papermark/papermark"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-06-29T18:16:41.097",
+      "references": [
+        "https://github.com/AstoKr/papermark/pull/1",
+        "https://github.com/papermark/papermark/issues/2178",
+        "https://www.vulncheck.com/advisories/papermark-cors-misconfiguration-in-viewer-upload-endpoint"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "low",
+      "source_code_location": "https://github.com/AstoKr/papermark/pull/1",
+      "source_family_audit_group_hits": [
+        [
+          "cors",
+          "cross-origin resource sharing"
+        ],
+        [
+          "allow-credentials",
+          "credential",
+          "cross-origin",
+          "origin"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "AstoKr/papermark",
+      "source_root": "CVE-2026-57957",
+      "summary": "Papermark through 0.22.0 contains a cross-origin resource sharing (CORS) misconfiguration vulnerability that allows unauthenticated remote attackers to perform credentialed cross-origin requests by exploiting the TUS-...",
+      "updated_at": "2026-07-14T22:17:25.810"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-47372",
+      "description": "Crypt::SaltedHash versions through 0.09 for Perl generate insecure random values for salts.\n\nThese versions use the built-in rand function, which is predictable and unsuitable for cryptography.",
+      "family": "cryptographic_failure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-338"
+      ],
+      "project_aliases": [
+        "robrwo/perl-Crypt-SaltedHash"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-05-20T22:16:37.270",
+      "references": [
+        "https://github.com/robrwo/perl-Crypt-SaltedHash/commit/9b68437d2cd420b819b3a795474c3870338d38d5.patch",
+        "https://metacpan.org/release/RRWO/Crypt-SaltedHash-0.10/changes",
+        "http://www.openwall.com/lists/oss-security/2026/05/20/22"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/robrwo/perl-Crypt-SaltedHash/commit/9b68437d2cd420b819b3a795474c3870338d38d5.patch",
+      "source_family_audit_group_hits": [
+        [
+          "crypto",
+          "cryptograph",
+          "hash",
+          "random"
+        ],
+        [
+          "insecure",
+          "predictable"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "robrwo/perl-Crypt-SaltedHash",
+      "source_root": "CVE-2026-47372",
+      "summary": "Crypt::SaltedHash versions through 0.09 for Perl generate insecure random values for salts.\n\nThese versions use the built-in rand function, which is predictable and unsuitable for cryptography.",
+      "updated_at": "2026-07-20T20:10:00.110"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-63418",
+      "description": "A DOM-based Cross-Site Scripting (XSS) vulnerability in the SelfBest platform 2023.3 allows attackers to execute arbitrary JavaScript in the context of a logged-in user's session by injecting payloads via the browser's developer console. The vulnerability arises from the application's client-side code being susceptible to direct DOM manipulation without adequate sanitization or a Content Security Policy (CSP), potentially leading to account takeover and data theft.",
+      "exact_source_audit_passed": true,
+      "family": "dom_xss",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-79"
+      ],
+      "project_aliases": [
+        "cpe:selfbest/selfbest"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2025-11-05T19:16:04.533",
+      "references": [
+        "https://rohitchaudhary045.medium.com/cve-2025-63418-weaponizing-the-browser-console-a-dom-based-xss-deep-dive-25ed3ac9cb53",
+        "https://rohitchaudhary045.medium.com/cve-2025-63418-weaponizing-the-browser-console-a-dom-based-xss-deep-dive-25ed3ac9cb53"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "dom-based cross-site scripting"
+        ],
+        [
+          "client-side code",
+          "direct dom manipulation"
+        ],
+        [
+          "content security policy",
+          "sanitization"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 35,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:selfbest/selfbest",
+      "source_root": "CVE-2025-63418",
+      "summary": "A DOM-based Cross-Site Scripting (XSS) vulnerability in the SelfBest platform 2023.3 allows attackers to execute arbitrary JavaScript in the context of a logged-in user's session by injecting payloads via the browser's developer console",
+      "updated_at": "2026-06-17T09:53:06.497"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-31949",
+      "description": "LibreChat is a ChatGPT clone with additional features. Prior to 0.8.3-rc1, a Denial of Service (DoS) vulnerability exists in the DELETE /api/convos endpoint that allows an authenticated attacker to crash the Node.js server process by sending malformed requests. The DELETE /api/convos route handler attempts to destructure req.body.arg without validating that it exists. The server crashes due to an unhandled TypeError that bypasses Express error handling middleware and triggers process.exit(1). This vulnerability is fixed in 0.8.3-rc1.",
+      "family": "exceptional_condition_mishandling",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-248"
+      ],
+      "project_aliases": [
+        "danny-avila/LibreChat",
+        "cpe:librechat/librechat"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-03-13T19:54:39.753",
+      "references": [
+        "https://github.com/danny-avila/LibreChat/security/advisories/GHSA-5m32-chq6-232p"
+      ],
+      "repository_advisory_url": "https://github.com/danny-avila/LibreChat/security/advisories/GHSA-5m32-chq6-232p",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/danny-avila/LibreChat/security/advisories/GHSA-5m32-chq6-232p",
+      "source_family_audit_group_hits": [
+        [
+          "crash"
+        ],
+        [
+          "bypass",
+          "crash",
+          "error"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "danny-avila/LibreChat",
+      "source_root": "CVE-2026-31949",
+      "summary": "LibreChat is a ChatGPT clone with additional features",
+      "updated_at": "2026-06-17T10:34:49.480"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-29041",
+      "description": "Chamilo is a learning management system. Prior to version 1.11.34, Chamilo LMS is affected by an authenticated remote code execution vulnerability caused by improper validation of uploaded files. The application relies solely on MIME-type verification when handling file uploads and does not adequately validate file extensions or enforce safe server-side storage restrictions. As a result, an authenticated low-privileged user can upload a crafted file containing executable code and subsequently execute arbitrary commands on the server. This issue has been patched in version 1.11.34.",
+      "family": "file_upload",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-434"
+      ],
+      "project_aliases": [
+        "chamilo/chamilo-lms",
+        "cpe:chamilo/chamilo_lms"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-03-06T04:16:08.553",
+      "references": [
+        "https://github.com/chamilo/chamilo-lms/releases/tag/v1.11.34",
+        "https://github.com/chamilo/chamilo-lms/security/advisories/GHSA-4pc3-4w2v-vwx8"
+      ],
+      "repository_advisory_url": "https://github.com/chamilo/chamilo-lms/security/advisories/GHSA-4pc3-4w2v-vwx8",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/chamilo/chamilo-lms/releases/tag/v1.11.34",
+      "source_family_audit_group_hits": [
+        [
+          "file upload",
+          "uploaded file"
+        ],
+        [
+          "extension",
+          "file",
+          "mime",
+          "upload"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 19,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "chamilo/chamilo-lms",
+      "source_root": "CVE-2026-29041",
+      "summary": "Chamilo is a learning management system",
+      "updated_at": "2026-06-17T10:29:29.570"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-41522",
+      "description": "Iris is a web collaborative platform that helps incident responders share technical details during investigations. Prior to version 2.4.28, DFIR-IRIS exposes an optional GraphQL endpoint at `/graphql` that does not enforce the same authorization checks as the REST API. Any authenticated user can abuse it in three ways: unauthorized IOC read across cases (IDOR), bulk IOC disclosure via `case.iocs`. The `case(caseId: \u2026).iocs` resolver returns IOCs linked to an arbitrary case without verifying the caller has access to that case, and unauthorized case creation. All three are reachable by any authenticated user, regardless of role or case ACL. This is fixed in v2.4.28. The GraphQL blueprint, resolvers, and dependencies (`graphene`, `graphene-sqlalchemy`, `graphql-server[flask]`) were removed entirely, since the feature was not in use. As a workaround, block `/graphql` at the reverse proxy (recommended) or comment out the `graphql_blueprint` import and `register_blueprint` call in `source/app/views.py` and restart.",
+      "exact_source_audit_passed": true,
+      "family": "graphql_authorization",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-285"
+      ],
+      "project_aliases": [
+        "dfir-iris/iris-web"
+      ],
+      "project_identity_kind": "github_reference_prefix",
+      "published_at": "2026-06-04T20:16:58.140",
+      "references": [
+        "https://github.com/dfir-iris/iris-web/security/advisories/GHSA-3mxh-x92q-9r25"
+      ],
+      "repository_advisory_url": "https://github.com/dfir-iris/iris-web/security/advisories/GHSA-3mxh-x92q-9r25",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/dfir-iris/iris-web/security/advisories/GHSA-3mxh-x92q-9r25",
+      "source_family_audit_group_hits": [
+        [
+          "graphql",
+          "graphql endpoint"
+        ],
+        [
+          "authorization checks",
+          "verifying the caller has access"
+        ],
+        [
+          "arbitrary case",
+          "regardless of role",
+          "unauthorized"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 37,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "dfir-iris/iris-web",
+      "source_root": "CVE-2026-41522",
+      "summary": "Iris is a web collaborative platform that helps incident responders share technical details during investigations",
+      "updated_at": "2026-07-22T20:10:00.127"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59262",
+      "description": "AFFiNE's histories GraphQL field fails to validate Doc.Read permission before exposing document edit history, allowing authenticated workspace members to retrieve restricted content timelines. Attackers can supply arbitrary document GUIDs to access full edit histories including user names, emails, and timestamps of private pages they lack access to.",
+      "exact_source_audit_passed": true,
+      "family": "graphql_data_exposure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "project_aliases": [
+        "toeverything/AFFiNE"
+      ],
+      "project_identity_kind": "github_reference_prefix",
+      "published_at": "2026-07-08T16:16:31.430",
+      "references": [
+        "https://github.com/toeverything/AFFiNE",
+        "https://github.com/toeverything/AFFiNE/commit/1f0bcd01a37a522393fc1b288395e3a72a79ccad",
+        "https://github.com/toeverything/AFFiNE/issues/15179",
+        "https://www.vulncheck.com/advisories/affine-unauthorized-document-edit-history-access-via-graphql-histories-field",
+        "https://github.com/toeverything/AFFiNE/issues/15179"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/toeverything/AFFiNE",
+      "source_family_audit_group_hits": [
+        [
+          "graphql",
+          "graphql field"
+        ],
+        [
+          "private pages",
+          "restricted content timelines"
+        ],
+        [
+          "emails",
+          "timestamps",
+          "user names"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 37,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "toeverything/AFFiNE",
+      "source_root": "CVE-2026-59262",
+      "summary": "AFFiNE's histories GraphQL field fails to validate Doc.Read permission before exposing document edit history, allowing authenticated workspace members to retrieve restricted content timelines",
+      "updated_at": "2026-07-10T18:46:32.250"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-59034",
+      "description": "Indico is an event management system that uses Flask-Multipass, a multi-backend authentication system for Flask. Prior to version 3.3.8, a legacy API to retrieve user details could be misused to retrieve profile details of other users without having admin permissions due to a broken access check. Users should to update to Indico 3.3.8 as soon as possible. As a workaround, it is possible to restrict access to the affected API (e.g. in the webserver config).",
+      "exact_source_audit_passed": true,
+      "family": "improper_inventory_management",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-639"
+      ],
+      "project_aliases": [
+        "indico/indico",
+        "cpe:cern/indico"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2025-09-10T16:15:41.130",
+      "references": [
+        "https://github.com/indico/indico/releases/tag/v3.3.8",
+        "https://github.com/indico/indico/security/advisories/GHSA-4269-mcfh-cp7q"
+      ],
+      "repository_advisory_url": "https://github.com/indico/indico/security/advisories/GHSA-4269-mcfh-cp7q",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "legacy api"
+        ],
+        [
+          "retrieve profile details",
+          "retrieve user details"
+        ],
+        [
+          "broken access check",
+          "without having admin permissions"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 35,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:cern/indico",
+      "source_root": "CVE-2025-59034",
+      "summary": "Indico is an event management system that uses Flask-Multipass, a multi-backend authentication system for Flask",
+      "updated_at": "2026-06-17T09:45:28.460"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-28276",
+      "description": "Initiative is a self-hosted project management platform. An access control vulnerability exists in Initiative versions prior to 0.32.2 where uploaded documents are served from a publicly accessible /uploads/ directory without any authentication or authorization checks. Any uploaded file can be accessed directly via its URL by unauthenticated users (e.g., in an incognito browser session), leading to potential disclosure of sensitive documents. The problem was patched in v0.32.2, and the patch was further improved on in 032.4.",
+      "family": "information_disclosure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-200"
+      ],
+      "project_aliases": [
+        "Morelitea/initiative",
+        "cpe:morelitea/initiative"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-02-26T23:16:37.397",
+      "references": [
+        "https://github.com/Morelitea/initiative/releases/tag/v0.32.2",
+        "https://github.com/Morelitea/initiative/security/advisories/GHSA-w34j-fx72-h2pq"
+      ],
+      "repository_advisory_url": "https://github.com/Morelitea/initiative/security/advisories/GHSA-w34j-fx72-h2pq",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/Morelitea/initiative/releases/tag/v0.32.2",
+      "source_family_audit_group_hits": [
+        [
+          "disclos"
+        ],
+        [
+          "public",
+          "sensitive"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "Morelitea/initiative",
+      "source_root": "CVE-2026-28276",
+      "summary": "Initiative is a self-hosted project management platform",
+      "updated_at": "2026-06-17T10:28:25.050"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-39962",
+      "description": "MISP is an open source threat intelligence and sharing platform. Prior to 2.5.36, improper neutralization of special elements in an LDAP query in ApacheAuthenticate.php allows LDAP injection via an unsanitized username value when ApacheAuthenticate.apacheEnv is configured to use a user-controlled server variable instead of REMOTE_USER (such as in certain proxy setups). An attacker able to control that value can manipulate the LDAP search filter and potentially bypass authentication constraints or cause unauthorized LDAP queries. This vulnerability is fixed in 2.5.36.",
+      "family": "ldap_injection",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-90"
+      ],
+      "project_aliases": [
+        "MISP/MISP",
+        "cpe:misp-project/misp"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-09T17:16:30.600",
+      "references": [
+        "https://github.com/MISP/MISP/commit/380ee4136a7d9ce2fe63fce06d517839f30aba10",
+        "https://github.com/MISP/MISP/commit/d7d671ea8f5822e91207dcad2003c35c30092a32",
+        "https://github.com/MISP/MISP/releases/tag/v2.5.36",
+        "https://github.com/MISP/MISP/security/advisories/GHSA-mc53-48w8-9g63"
+      ],
+      "repository_advisory_url": "https://github.com/MISP/MISP/security/advisories/GHSA-mc53-48w8-9g63",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/MISP/MISP/commit/380ee4136a7d9ce2fe63fce06d517839f30aba10",
+      "source_family_audit_group_hits": [
+        [
+          "ldap injection"
+        ],
+        [
+          "filter",
+          "ldap"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "MISP/MISP",
+      "source_root": "CVE-2026-39962",
+      "summary": "MISP is an open source threat intelligence and sharing platform",
+      "updated_at": "2026-06-22T19:23:18.580"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-40569",
+      "description": "FreeScout is a free self-hosted help desk and shared mailbox. Versions prior to 1.8.213 have a mass assignment vulnerability in the mailbox connection settings endpoints of FreeScout (`connectionIncomingSave()` at `app/Http/Controllers/MailboxesController.php:468` and `connectionOutgoingSave()` at line 398). Both methods pass `$request->all()` directly to `$mailbox->fill()` without any field allowlisting, allowing an authenticated admin to overwrite any of the 32 fields in the Mailbox model's `$fillable` array -- including security-critical fields that do not belong to the connection settings form, such as `auto_bcc`, `out_server`, `out_password`, `signature`, `auto_reply_enabled`, and `auto_reply_message`. Validation in `connectionIncomingSave()` is entirely commented out, and the validator in `connectionOutgoingSave()` only checks value formats for SMTP fields without stripping extra parameters. An authenticated admin user can exploit this by appending hidden parameters (e.g., `auto_bcc=attacker@evil.com`) to a legitimate connection settings save request. Because the `auto_bcc` field is not displayed on the connection settings form (it only appears on the general mailbox settings page), the injection is invisible to other administrators reviewing connection settings. Once set, every outgoing email from the affected mailbox is silently BCC'd to the attacker via the `SendReplyToCustomer` job. The same mechanism allows redirecting outgoing SMTP through an attacker-controlled server, injecting tracking pixels or phishing links into email signatures, and enabling attacker-crafted auto-replies -- all from a single HTTP request. This is particularly dangerous in multi-admin environments where one admin can silently surveil mailboxes managed by others, and when an admin session is compromised via a separate vulnerability (e.g., XSS), the attacker gains persistent email exfiltration that survives session expiry. Version 1.8.213 fixes the issue.",
+      "family": "mass_assignment",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-915"
+      ],
+      "project_aliases": [
+        "freescout-help-desk/freescout"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-21T17:16:55.450",
+      "references": [
+        "https://github.com/freescout-help-desk/freescout/commit/f45b9105d43b0352c08fcca154e8ae6177c3d860",
+        "https://github.com/freescout-help-desk/freescout/releases/tag/1.8.213",
+        "https://github.com/freescout-help-desk/freescout/security/advisories/GHSA-hmqm-33wp-858j",
+        "https://github.com/freescout-help-desk/freescout/security/advisories/GHSA-hmqm-33wp-858j"
+      ],
+      "repository_advisory_url": "https://github.com/freescout-help-desk/freescout/security/advisories/GHSA-hmqm-33wp-858j",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/freescout-help-desk/freescout/commit/f45b9105d43b0352c08fcca154e8ae6177c3d860",
+      "source_family_audit_group_hits": [
+        [
+          "mass assignment"
+        ],
+        [
+          "admin",
+          "field",
+          "parameter"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "freescout-help-desk/freescout",
+      "source_root": "CVE-2026-40569",
+      "summary": "FreeScout is a free self-hosted help desk and shared mailbox",
+      "updated_at": "2026-06-17T10:45:28.137"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-40352",
+      "description": "FastGPT is an AI Agent building platform. In versions prior to 4.14.9.5, the password change endpoint is vulnerable to NoSQL injection. An authenticated attacker can bypass the \"old password\" verification by injecting MongoDB query operators. This allows an attacker who has gained a low-privileged session to change the password of their account (or others if combined with ID manipulation) without knowing the current one, leading to full account takeover and persistence. This issue has been fixed in version 4.14.9.5.",
+      "family": "nosql_injection",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-943"
+      ],
+      "project_aliases": [
+        "labring/FastGPT",
+        "cpe:fastgpt/fastgpt"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-17T22:16:32.940",
+      "references": [
+        "https://github.com/labring/FastGPT/commit/bd966d479fbe414d02679cf79f9eaaab3d100a2d",
+        "https://github.com/labring/FastGPT/releases/tag/v4.14.9.5",
+        "https://github.com/labring/FastGPT/security/advisories/GHSA-422w-vrfj-72g6"
+      ],
+      "repository_advisory_url": "https://github.com/labring/FastGPT/security/advisories/GHSA-422w-vrfj-72g6",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/labring/FastGPT/commit/bd966d479fbe414d02679cf79f9eaaab3d100a2d",
+      "source_family_audit_group_hits": [
+        [
+          "nosql injection"
+        ],
+        [
+          "mongo",
+          "mongodb",
+          "nosql",
+          "operator",
+          "query"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 19,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "labring/FastGPT",
+      "source_root": "CVE-2026-40352",
+      "summary": "FastGPT is an AI Agent building platform",
+      "updated_at": "2026-06-17T10:45:10.087"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-35474",
+      "description": "WeGIA is a Web manager for charitable institutions. Prior to 3.6.9, open redirect has been found in WeGIA webapp. The redirect parameter is taken directly from $_GET with no URL validation or whitelist check, then used verbatim in a header(\"Location: ...\") call. This vulnerability is fixed in 3.6.9.",
+      "family": "open_redirect",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-601"
+      ],
+      "project_aliases": [
+        "LabRedesCefetRJ/WeGIA",
+        "cpe:wegia/wegia"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-06T22:16:24.200",
+      "references": [
+        "https://github.com/LabRedesCefetRJ/WeGIA/security/advisories/GHSA-7935-g3wg-h55w",
+        "https://github.com/LabRedesCefetRJ/WeGIA/security/advisories/GHSA-7935-g3wg-h55w"
+      ],
+      "repository_advisory_url": "https://github.com/LabRedesCefetRJ/WeGIA/security/advisories/GHSA-7935-g3wg-h55w",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/LabRedesCefetRJ/WeGIA/security/advisories/GHSA-7935-g3wg-h55w",
+      "source_family_audit_group_hits": [
+        [
+          "open redirect"
+        ],
+        [
+          "location",
+          "redirect",
+          "url"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "LabRedesCefetRJ/WeGIA",
+      "source_root": "CVE-2026-35474",
+      "summary": "WeGIA is a Web manager for charitable institutions",
+      "updated_at": "2026-07-24T21:10:00.143"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27117",
+      "description": "bit7z is a cross-platform C++ static library that allows the compression/extraction of archive files. Prior to version 4.0.11, a path traversal vulnerability (\"Zip Slip\") exists in bit7z's archive extraction functionality. The library does not adequately validate file paths contained in archive entries, allowing files to be written outside the intended extraction directory through three distinct mechanisms: relative path traversal, absolute path traversal, and symbolic link traversal. An attacker can exploit this by providing a malicious archive to any application that uses bit7z to extract untrusted archives. Successful exploitation results in arbitrary file write with the privileges of the process performing the extraction. This could lead to overwriting of application binaries, configuration files, or other sensitive data. The vulnerability does not directly enable reading of file contents; the confidentiality impact is limited to the calling application's own behavior after extraction. However, applications that subsequently serve or display extracted files may face secondary confidentiality risks from attacker-created symlinks. Fixes have been released in version 4.0.11. If upgrading is not immediately possible, users can mitigate the vulnerability by validating each entry's destination path before writing. Other mitigations include running extraction with least privilege and extracting untrusted archives in a sandboxed directory.",
+      "family": "path_traversal",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-22"
+      ],
+      "project_aliases": [
+        "rikyoz/bit7z",
+        "cpe:rikyoz/bit7z"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-02-24T22:16:32.053",
+      "references": [
+        "https://github.com/rikyoz/bit7z/commit/31763da9a3e41a199c141c8d71f6c11de24b45cf",
+        "https://github.com/rikyoz/bit7z/commit/9e020483eefa5825ec9310b1d869933d4f77f969",
+        "https://github.com/rikyoz/bit7z/releases/tag/v4.0.11",
+        "https://github.com/rikyoz/bit7z/security/advisories/GHSA-qvjh-hhw4-3gx9"
+      ],
+      "repository_advisory_url": "https://github.com/rikyoz/bit7z/security/advisories/GHSA-qvjh-hhw4-3gx9",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/rikyoz/bit7z/commit/31763da9a3e41a199c141c8d71f6c11de24b45cf",
+      "source_family_audit_group_hits": [
+        [
+          "path traversal",
+          "zip slip"
+        ],
+        [
+          "archive",
+          "directory",
+          "extract",
+          "file",
+          "path"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 20,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "rikyoz/bit7z",
+      "source_root": "CVE-2026-27117",
+      "summary": "bit7z is a cross-platform C++ static library that allows the compression/extraction of archive files",
+      "updated_at": "2026-06-17T10:26:41.840"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-66500",
+      "description": "A stored cross-site scripting (XSS) vulnerability exists in webplugins.foxit.com. A postMessage handler fails to validate the message origin and directly assigns externalPath to a script source, allowing an attacker to execute arbitrary JavaScript when a crafted postMessage is received.",
+      "exact_source_audit_passed": true,
+      "family": "postmessage_trust",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-79"
+      ],
+      "project_aliases": [
+        "cpe:foxit/pdf_editor_cloud"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2025-12-19T08:15:52.963",
+      "references": [
+        "https://www.foxit.com/support/security-bulletins.html"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "postmessage"
+        ],
+        [
+          "fails to validate the message origin",
+          "message origin"
+        ],
+        [
+          "arbitrary javascript",
+          "externalpath",
+          "script source"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 36,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:foxit/pdf_editor_cloud",
+      "source_root": "CVE-2025-66500",
+      "summary": "A stored cross-site scripting (XSS) vulnerability exists in webplugins.foxit.com",
+      "updated_at": "2026-06-17T09:56:56.700"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-21697",
+      "description": "axios4go is a Go HTTP client library. Prior to version 0.6.4, a race condition vulnerability exists in the shared HTTP client configuration. The global `defaultClient` is mutated during request execution without synchronization, directly modifying the shared `http.Client`'s `Transport`, `Timeout`, and `CheckRedirect` properties. Impacted applications include that that use axios4go with concurrent requests (multiple goroutines, `GetAsync`, `PostAsync`, etc.), those where different requests use different proxy configurations, and those that handle sensitive data (authentication credentials, tokens, API keys). Version 0.6.4 fixes this issue.",
+      "family": "race_condition",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-362"
+      ],
+      "project_aliases": [
+        "rezmoss/axios4go",
+        "cpe:rezmoss/axios4go"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-07T23:15:50.533",
+      "references": [
+        "https://github.com/rezmoss/axios4go/commit/b651604c64e66a115ab90cdab358b0181d74a842",
+        "https://github.com/rezmoss/axios4go/releases/tag/v0.6.4",
+        "https://github.com/rezmoss/axios4go/security/advisories/GHSA-cmj9-27wj-7x47"
+      ],
+      "repository_advisory_url": "https://github.com/rezmoss/axios4go/security/advisories/GHSA-cmj9-27wj-7x47",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/rezmoss/axios4go/commit/b651604c64e66a115ab90cdab358b0181d74a842",
+      "source_family_audit_group_hits": [
+        [
+          "concurrent",
+          "race condition"
+        ],
+        [
+          "concurrent",
+          "race"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "rezmoss/axios4go",
+      "source_root": "CVE-2026-21697",
+      "summary": "axios4go is a Go HTTP client library",
+      "updated_at": "2026-06-17T10:18:56.770"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-26069",
+      "description": "Scraparr is a Prometheus Exporter for various components of the *arr Suite. From 3.0.0-beta to before 3.0.2, when the Readarr integration was enabled, the exporter exposed the configured Readarr API key as the alias metric label value. Users were affected only if all of the following conditions are met, Readarr scraping feature was enabled and no alias configured, the exporter\u2019s /metrics endpoint was accessible to external or unauthorized users, and the Readarr instance is externally accessible. If the /metrics endpoint was publicly accessible, the Readarr API key could have been disclosed via exported metrics data. This vulnerability is fixed in 3.0.2.",
+      "family": "secret_exposure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-200"
+      ],
+      "project_aliases": [
+        "thecfu/scraparr",
+        "cpe:thecfu/scraparr"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-02-12T22:16:06.670",
+      "references": [
+        "https://github.com/thecfu/scraparr/commit/194116bb8fb0b6ea26421b3e7a7b326973f56cd0",
+        "https://github.com/thecfu/scraparr/releases/tag/v3.0.2",
+        "https://github.com/thecfu/scraparr/security/advisories/GHSA-hx24-222f-w5cj"
+      ],
+      "repository_advisory_url": "https://github.com/thecfu/scraparr/security/advisories/GHSA-hx24-222f-w5cj",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/thecfu/scraparr/commit/194116bb8fb0b6ea26421b3e7a7b326973f56cd0",
+      "source_family_audit_group_hits": [
+        [
+          "api key"
+        ],
+        [
+          "expos",
+          "public"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "thecfu/scraparr",
+      "source_root": "CVE-2026-26069",
+      "summary": "Scraparr is a Prometheus Exporter for various components of the *arr Suite",
+      "updated_at": "2026-06-17T10:25:40.873"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-48083",
+      "description": "OpenReception's appointment booking software provides an end-to-end encrypted appointment booking platform. Prior to version 1.0.2, the `/api/log` endpoint accepts unauthenticated POST requests, applies no schema validation to the message body, writes attacker-controlled content directly into the application's stdout log, interprets newline characters as real line breaks, and enforces no size or rate limits. Three independent abuse modes follow: log injection (forge log lines that look like legitimate system events), log volume DoS (saturate the logging pipeline at sustained 100+ requests per second of small messages), and oversized-payload submission (100 KB payloads accepted; larger sizes not tested). The most operationally damaging mode is log injection. An attacker can inject lines that an operator scanning logs would mistake for real system errors, mask their own activity behind fake noise, or pollute SIEM alerting rules with crafted false positives. A line such as `[error]: injected admin error` injected from an unauthenticated source is indistinguishable from the application's own error output once written to disk. Version 1.0.2 fixes the issue.",
+      "family": "security_logging_alerting_failure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-117"
+      ],
+      "project_aliases": [
+        "open-reception/appointment-booking-software"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-08-06T22:17:11.143",
+      "references": [
+        "https://github.com/open-reception/appointment-booking-software/commit/36104d21ee0b6616f1c10273ec9970a27cb56b57",
+        "https://github.com/open-reception/appointment-booking-software/security/advisories/GHSA-fw48-38r5-7ffj",
+        "https://github.com/open-reception/appointment-booking-software/security/advisories/GHSA-fw48-38r5-7ffj"
+      ],
+      "repository_advisory_url": "https://github.com/open-reception/appointment-booking-software/security/advisories/GHSA-fw48-38r5-7ffj",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/open-reception/appointment-booking-software/commit/36104d21ee0b6616f1c10273ec9970a27cb56b57",
+      "source_family_audit_group_hits": [
+        [
+          "alert",
+          "log",
+          "logging"
+        ],
+        [
+          "injection"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "open-reception/appointment-booking-software",
+      "source_root": "CVE-2026-48083",
+      "summary": "OpenReception's appointment booking software provides an end-to-end encrypted appointment booking platform",
+      "updated_at": "2026-08-08T03:16:46.130"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-32309",
+      "description": "Cryptomator encrypts data being stored on cloud infrastructure. Prior to version 1.19.1, the Hub-based unlock flow explicitly supports hub+http and consumes Hub endpoints from vault metadata without enforcing HTTPS. As a result, a vault configuration can drive OAuth and key-loading traffic over plaintext HTTP or other insecure endpoint combinations. An active network attacker can tamper with or observe this traffic. Even when the vault key is encrypted for the device, bearer tokens and endpoint-level trust decisions are still exposed to downgrade and interception. This issue has been patched in version 1.19.1.",
+      "family": "security_misconfiguration",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-319"
+      ],
+      "project_aliases": [
+        "cryptomator/cryptomator",
+        "cpe:cryptomator/cryptomator"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-03-20T19:16:15.733",
+      "references": [
+        "https://github.com/cryptomator/cryptomator/releases/tag/1.19.1",
+        "https://github.com/cryptomator/cryptomator/security/advisories/GHSA-vv33-h7qx-c264"
+      ],
+      "repository_advisory_url": "https://github.com/cryptomator/cryptomator/security/advisories/GHSA-vv33-h7qx-c264",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/cryptomator/cryptomator/releases/tag/1.19.1",
+      "source_family_audit_group_hits": [
+        [
+          "configuration"
+        ],
+        [
+          "exposed",
+          "insecure"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "cryptomator/cryptomator",
+      "source_root": "CVE-2026-32309",
+      "summary": "Cryptomator encrypts data being stored on cloud infrastructure",
+      "updated_at": "2026-06-17T10:35:32.357"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-48375",
+      "description": "Schule is open-source school management system software. Prior to version 1.0.1, the file forgot_password.php (or equivalent endpoint responsible for email-based OTP generation) lacks proper rate limiting controls, allowing attackers to abuse the OTP request functionality. This vulnerability can be exploited to send an excessive number of OTP emails, leading to potential denial-of-service (DoS) conditions or facilitating user harassment through email flooding. Version 1.0.1 fixes the issue.",
+      "exact_source_audit_passed": true,
+      "family": "sensitive_business_flow_abuse",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-770"
+      ],
+      "project_aliases": [
+        "schule111/Schule",
+        "cpe:schule111/schule_school_management_system"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2025-05-23T16:15:27.113",
+      "references": [
+        "https://github.com/schule111/Schule/security/advisories/GHSA-h3f2-mc85-67gc"
+      ],
+      "repository_advisory_url": "https://github.com/schule111/Schule/security/advisories/GHSA-h3f2-mc85-67gc",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "forgot_password.php",
+          "password"
+        ],
+        [
+          "lacks proper rate limiting controls",
+          "rate limiting"
+        ],
+        [
+          "email flooding",
+          "excessive number of otp emails",
+          "user harassment"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 37,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:schule111/schule_school_management_system",
+      "source_root": "CVE-2025-48375",
+      "summary": "Schule is open-source school management system software",
+      "updated_at": "2026-06-17T09:29:34.240"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25703",
+      "description": "NeuVector through 5.4.9 is can potentially leak information from manager /network/graph API\u00a0due to missing authentication and cached data containing sensitive information.",
+      "family": "sensitive_caching",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-524"
+      ],
+      "project_aliases": [
+        "neuvector/manager"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-08-05T10:17:27.300",
+      "references": [
+        "https://bugzilla.suse.com/show_bug.cgi?id=CVE-2026-25703",
+        "https://github.com/neuvector/manager/security/advisories/GHSA-hx45-873x-74qv"
+      ],
+      "repository_advisory_url": "https://github.com/neuvector/manager/security/advisories/GHSA-hx45-873x-74qv",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/neuvector/manager/security/advisories/GHSA-hx45-873x-74qv",
+      "source_family_audit_group_hits": [
+        [
+          "cache"
+        ],
+        [
+          "authentication",
+          "sensitive"
+        ],
+        [
+          "cached"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 22,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "neuvector/manager",
+      "source_root": "CVE-2026-25703",
+      "summary": "NeuVector through 5.4.9 is can potentially leak information from manager /network/graph API\u00a0due to missing authentication and cached data containing sensitive information.",
+      "updated_at": "2026-08-05T14:17:05.593"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-28496",
+      "description": "FOSSBilling is a free, open-source billing and client management system. Versions prior to 0.8.0 have a Server-Side Template Injection (SSTI) vulnerability in the template rendering system. Administrators with access to features that render Twig templates (email templates, mass mail campaigns, custom payment adapters, and the `string_render` API endpoint) can inject arbitrary Twig expressions, leading to information disclosure and remote code execution. The vulnerability exists because Twig templates are rendered without a sandbox, allowing access to the full Twig environment, API context, and the application's dependency injection container. Version 0.8.0 patches the issue. Some workarounds are available. Audit existing email templates for suspicious Twig expressions, rotate all admin and client API tokens, and/or block external access to /api/system/* at reverse proxy/WAF to mitigate chaining with GHSA-78x5-c8gw-8279.",
+      "family": "server_side_template_injection",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-1336"
+      ],
+      "project_aliases": [
+        "FOSSBilling/FOSSBilling"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-06-23T15:16:33.850",
+      "references": [
+        "https://github.com/FOSSBilling/FOSSBilling/security/advisories/GHSA-57mv-jm88-66jc",
+        "https://github.com/FOSSBilling/FOSSBilling/security/advisories/GHSA-78x5-c8gw-8279",
+        "https://www.vulncheck.com/blog/fossbilling-auth-bypass-ssti-rce"
+      ],
+      "repository_advisory_url": "https://github.com/FOSSBilling/FOSSBilling/security/advisories/GHSA-57mv-jm88-66jc",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/FOSSBilling/FOSSBilling/security/advisories/GHSA-57mv-jm88-66jc",
+      "source_family_audit_group_hits": [
+        [
+          "server-side template injection",
+          "ssti",
+          "template injection"
+        ],
+        [
+          "expression",
+          "render",
+          "template",
+          "twig"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 20,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "FOSSBilling/FOSSBilling",
+      "source_root": "CVE-2026-28496",
+      "summary": "FOSSBilling is a free, open-source billing and client management system",
+      "updated_at": "2026-06-23T16:16:59.350"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24765",
+      "description": "PHPUnit is a testing framework for PHP. A vulnerability has been discovered in versions prior to 12.5.8, 11.5.50, 10.5.62, 9.6.33, and 8.5.52 involving unsafe deserialization of code coverage data in PHPT test execution. The vulnerability exists in the `cleanupForCoverage()` method, which deserializes code coverage files without validation, potentially allowing remote code execution if malicious `.coverage` files are present prior to the execution of the PHPT test. The vulnerability occurs when a `.coverage` file, which should not exist before test execution, is deserialized without the `allowed_classes` parameter restriction. An attacker with local file write access can place a malicious serialized object with a `__wakeup()` method into the file system, leading to arbitrary code execution during test runs with code coverage instrumentation enabled. This vulnerability requires local file write access to the location where PHPUnit stores or expects code coverage files for PHPT tests. This can occur through CI/CD pipeline attacks, the local development environment, and/or compromised dependencies. Rather than just silently sanitizing the input via `['allowed_classes' => false]`, the maintainer has chosen to make the anomalous state explicit by treating pre-existing `.coverage` files for PHPT tests as an error condition. Starting in versions  in versions 12.5.8, 11.5.50, 10.5.62, 9.6.33, when a `.coverage` file is detected for a PHPT test prior to execution, PHPUnit will emit a clear error message identifying the anomalous state. Organizations can reduce the effective risk of this vulnerability through proper CI/CD configuration, including ephemeral runners, code review enforcement, branch protection, artifact isolation, and access control.",
+      "family": "software_data_integrity_failure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-502"
+      ],
+      "project_aliases": [
+        "sebastianbergmann/phpunit",
+        "cpe:debian/debian_linux",
+        "cpe:phpunit_project/phpunit"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-27T22:15:56.790",
+      "references": [
+        "https://github.com/sebastianbergmann/phpunit/commit/3141742e00620e2968d3d2e732d320de76685fda",
+        "https://github.com/sebastianbergmann/phpunit/releases/tag/10.5.63",
+        "https://github.com/sebastianbergmann/phpunit/releases/tag/11.5.50",
+        "https://github.com/sebastianbergmann/phpunit/releases/tag/12.5.8",
+        "https://github.com/sebastianbergmann/phpunit/releases/tag/8.5.52",
+        "https://github.com/sebastianbergmann/phpunit/releases/tag/9.6.33",
+        "https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-vvj3-c3rp-c85p",
+        "https://lists.debian.org/debian-lts-announce/2026/02/msg00009.html"
+      ],
+      "repository_advisory_url": "https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-vvj3-c3rp-c85p",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/sebastianbergmann/phpunit/commit/3141742e00620e2968d3d2e732d320de76685fda",
+      "source_family_audit_group_hits": [
+        [
+          "deserial"
+        ],
+        [
+          "arbitrary code",
+          "code execution",
+          "malicious",
+          "unsafe"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 18,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "sebastianbergmann/phpunit",
+      "source_root": "CVE-2026-24765",
+      "summary": "PHPUnit is a testing framework for PHP",
+      "updated_at": "2026-06-17T10:23:33.267"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-30154",
+      "description": "reviewdog/action-setup is a GitHub action that installs reviewdog. reviewdog/action-setup@v1 was compromised March 11, 2025, between 18:42 and 20:31 UTC, with malicious code added that dumps exposed secrets to Github Actions Workflow Logs. Other reviewdog actions that use `reviewdog/action-setup@v1` that would also be compromised, regardless of version or pinning method, are reviewdog/action-shellcheck, reviewdog/action-composite-template, reviewdog/action-staticcheck, reviewdog/action-ast-grep, and reviewdog/action-typos.",
+      "exact_source_audit_passed": true,
+      "family": "software_supply_chain_failure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-506"
+      ],
+      "project_aliases": [
+        "reviewdog/action-setup",
+        "reviewdog/reviewdog",
+        "cpe:reviewdog/action-ast-grep",
+        "cpe:reviewdog/action-composite-template",
+        "cpe:reviewdog/action-setup",
+        "cpe:reviewdog/action-shellcheck",
+        "cpe:reviewdog/action-staticcheck",
+        "cpe:reviewdog/action-typos"
+      ],
+      "project_identity_kind": "github_reference_prefix",
+      "published_at": "2025-03-19T16:15:33.780",
+      "references": [
+        "https://github.com/reviewdog/action-setup/commit/3f401fe1d58fe77e10d665ab713057375e39b887",
+        "https://github.com/reviewdog/action-setup/commit/f0d342d24037bb11d26b9bd8496e0808ba32e9ec",
+        "https://github.com/reviewdog/reviewdog/issues/2079",
+        "https://github.com/reviewdog/reviewdog/security/advisories/GHSA-qmg3-hpqr-gqvc",
+        "https://www.wiz.io/blog/new-github-action-supply-chain-attack-reviewdog-action-setup",
+        "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2025-30154"
+      ],
+      "repository_advisory_url": "https://github.com/reviewdog/reviewdog/security/advisories/GHSA-qmg3-hpqr-gqvc",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/reviewdog/action-setup/commit/3f401fe1d58fe77e10d665ab713057375e39b887",
+      "source_family_audit_group_hits": [
+        [
+          "compromised",
+          "was compromised"
+        ],
+        [
+          "malicious code",
+          "malicious code added"
+        ],
+        [
+          "dumps exposed secrets",
+          "github actions workflow logs"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 36,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "reviewdog/action-setup",
+      "source_root": "CVE-2025-30154",
+      "summary": "reviewdog/action-setup is a GitHub action that installs reviewdog",
+      "updated_at": "2026-06-17T09:08:15.700"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2024-38327",
+      "description": "IBM Analytics Content Hub 2.0, 2.1, 2.2, and 2.3 is vulnerable to information exposure and further attacks due to an exposed JavaScript source map which could assist an attacker to read and debug JavaScript used in the application's API.",
+      "exact_source_audit_passed": true,
+      "family": "source_map_exposure",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-540"
+      ],
+      "project_aliases": [
+        "cpe:ibm/analytics_content_hub"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2025-07-10T15:15:25.833",
+      "references": [
+        "https://www.ibm.com/support/pages/node/7234122"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "source map"
+        ],
+        [
+          "exposed javascript",
+          "information exposure"
+        ],
+        [
+          "application's api",
+          "read and debug javascript"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 35,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:ibm/analytics_content_hub",
+      "source_root": "CVE-2024-38327",
+      "summary": "IBM Analytics Content Hub 2.0, 2.1, 2.2, and 2.3 is vulnerable to information exposure and further attacks due to an exposed JavaScript source map which could assist an attacker to read and debug JavaScript used in the application's API.",
+      "updated_at": "2026-06-17T07:39:57.153"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-21875",
+      "description": "ClipBucket v5 is an open source video sharing platform. Versions 5.5.2-#187 and below allow an attacker to perform Blind SQL Injection through the add comment section within a channel. When adding a comment within a channel, there is a POST request to the /actions/ajax.php endpoint. The obj_id parameter within the POST request to /actions/ajax.php is then used within the user_exists function of the upload/includes/classes/user.class. php file as the $id parameter. It is then used within the count function of the upload/includes/classes/db.class. php file. The $id parameter is concatenated into the query without validation or sanitization, and a user-supplied input like 1' or 1=1-- - can be used to trigger the injection. This issue does not have a fix at the time of publication.",
+      "family": "sql_injection",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-89"
+      ],
+      "project_aliases": [
+        "MacWarrior/clipbucket-v5",
+        "cpe:oxygenz/clipbucket"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-01-08T00:16:00.457",
+      "references": [
+        "https://github.com/MacWarrior/clipbucket-v5/security/advisories/GHSA-crpv-fmc4-j392",
+        "https://github.com/MacWarrior/clipbucket-v5/security/advisories/GHSA-crpv-fmc4-j392"
+      ],
+      "repository_advisory_url": "https://github.com/MacWarrior/clipbucket-v5/security/advisories/GHSA-crpv-fmc4-j392",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/MacWarrior/clipbucket-v5/security/advisories/GHSA-crpv-fmc4-j392",
+      "source_family_audit_group_hits": [
+        [
+          "sql injection"
+        ],
+        [
+          "query",
+          "sql"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "MacWarrior/clipbucket-v5",
+      "source_root": "CVE-2026-21875",
+      "summary": "ClipBucket v5 is an open source video sharing platform",
+      "updated_at": "2026-06-17T10:19:04.303"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33126",
+      "description": "Frigate is a network video recorder (NVR) with realtime local object detection for IP cameras. Prior to version 0.16.3, the /ffprobe endpoint accepts arbitrary user-controlled URLs without proper validation, allowing Server-Side Request Forgery (SSRF) attacks. An attacker can use the Frigate server to make HTTP requests to internal network resources, cloud metadata services, or perform port scanning. This issue has been patched in version 0.16.3.",
+      "family": "ssrf",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-918"
+      ],
+      "project_aliases": [
+        "blakeblackshear/frigate",
+        "cpe:frigate/frigate"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-03-20T20:16:48.597",
+      "references": [
+        "https://github.com/blakeblackshear/frigate/releases/tag/v0.16.3",
+        "https://github.com/blakeblackshear/frigate/security/advisories/GHSA-j6g3-3j3q-c2xv"
+      ],
+      "repository_advisory_url": "https://github.com/blakeblackshear/frigate/security/advisories/GHSA-j6g3-3j3q-c2xv",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/blakeblackshear/frigate/releases/tag/v0.16.3",
+      "source_family_audit_group_hits": [
+        [
+          "server-side request forgery",
+          "ssrf"
+        ],
+        [
+          "internal",
+          "metadata",
+          "request",
+          "url"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 19,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "blakeblackshear/frigate",
+      "source_root": "CVE-2026-33126",
+      "summary": "Frigate is a network video recorder (NVR) with realtime local object detection for IP cameras",
+      "updated_at": "2026-06-17T10:36:59.553"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-41309",
+      "description": "Open Source Social Network (OSSN) is open-source social networking software developed in PHP. Versions prior to 9.0 are vulnerable to resource exhaustion. An attacker can upload a specially crafted image with extreme pixel dimensions (e.g., $10000 \\times 10000$ pixels). While the compressed file size on disk may be small, the server attempts to allocate significant memory and CPU cycles during the decompression and resizing process, leading to a Denial of Service (DoS) condition. It is highly recommended to upgrade to OSSN 9.0. This version introduces stricter validation of image dimensions and improved resource management during the processing phase. Those who cannot upgrade immediately can mitigate the risk by adjusting their `php.ini` settings to strictly limit `memory_limit` and `max_execution_time` and/or implementing a client-side and server-side check on image headers to reject files exceeding reasonable pixel dimensions (e.g., $4000 \\times 4000$ pixels) before processing begins.",
+      "family": "unrestricted_resource_consumption",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw roots/projects/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-770"
+      ],
+      "project_aliases": [
+        "opensource-socialnetwork/opensource-socialnetwork"
+      ],
+      "project_identity_kind": "github_reference",
+      "published_at": "2026-04-24T03:16:11.720",
+      "references": [
+        "https://github.com/opensource-socialnetwork/opensource-socialnetwork/commit/12357113b3be189da7f6e429979a464e4f982117",
+        "https://github.com/opensource-socialnetwork/opensource-socialnetwork/issues/2535",
+        "https://github.com/opensource-socialnetwork/opensource-socialnetwork/security/advisories/GHSA-72qf-xrcw-fhr2"
+      ],
+      "repository_advisory_url": "https://github.com/opensource-socialnetwork/opensource-socialnetwork/security/advisories/GHSA-72qf-xrcw-fhr2",
+      "selection_basis": "NVD CVE matched by sealed external CWE taxonomy before scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/opensource-socialnetwork/opensource-socialnetwork/commit/12357113b3be189da7f6e429979a464e4f982117",
+      "source_family_audit_group_hits": [
+        [
+          "denial of service",
+          "resource exhaustion"
+        ],
+        [
+          "cpu",
+          "dos",
+          "exhaust",
+          "memory",
+          "resource"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 20,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "nvd_json_2_0_year_feed",
+      "source_project": "opensource-socialnetwork/opensource-socialnetwork",
+      "source_root": "CVE-2026-41309",
+      "summary": "Open Source Social Network (OSSN) is open-source social networking software developed in PHP",
+      "updated_at": "2026-06-17T10:46:28.913"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-31798",
+      "description": "JumpServer is an open source bastion host and an operation and maintenance security audit system. Prior to v4.10.16-lts, JumpServer improperly validates certificates in the Custom SMS API Client. When JumpServer sends MFA/OTP codes via Custom SMS API, an attacker can intercept the request and capture the verification code BEFORE it reaches the user's phone. This vulnerability is fixed in v4.10.16-lts.",
+      "exact_source_audit_passed": true,
+      "family": "unsafe_api_consumption",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-295"
+      ],
+      "project_aliases": [
+        "jumpserver/jumpserver",
+        "cpe:fit2cloud/jumpserver"
+      ],
+      "project_identity_kind": "nvd_cpe",
+      "published_at": "2026-03-13T19:54:36.097",
+      "references": [
+        "https://github.com/jumpserver/jumpserver/security/advisories/GHSA-26pj-mmxw-w3w7"
+      ],
+      "repository_advisory_url": "https://github.com/jumpserver/jumpserver/security/advisories/GHSA-26pj-mmxw-w3w7",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "",
+      "source_family_audit_group_hits": [
+        [
+          "custom sms api",
+          "custom sms api client"
+        ],
+        [
+          "improperly validates certificates",
+          "validates certificates"
+        ],
+        [
+          "intercept the request",
+          "mfa/otp",
+          "verification code"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 37,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "cpe:fit2cloud/jumpserver",
+      "source_root": "CVE-2026-31798",
+      "summary": "JumpServer is an open source bastion host and an operation and maintenance security audit system",
+      "updated_at": "2026-06-17T10:34:29.043"
+    },
+    {
+      "advisory_source_type": "nvd",
+      "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-68663",
+      "description": "Outline is a service that allows for collaborative documentation. Prior to 1.1.0, a vulnerability was found in Outline's WebSocket authentication mechanism that allows suspended users to maintain or establish real-time WebSocket connections and continue receiving sensitive operational updates after their account has been suspended. This vulnerability is fixed in 1.1.0.",
+      "exact_source_audit_passed": true,
+      "family": "websocket_authorization",
+      "freshness_scope": "all prior benchmark CVE IDs plus golden/raw selected project/URLs and detector grounding writeups",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-287"
+      ],
+      "project_aliases": [
+        "outline/outline",
+        "cpe:getoutline/outline"
+      ],
+      "project_identity_kind": "github_reference_prefix",
+      "published_at": "2026-02-11T21:16:18.090",
+      "references": [
+        "https://github.com/outline/outline/releases/tag/v1.1.0",
+        "https://github.com/outline/outline/security/advisories/GHSA-mx2c-3g2x-5m9m"
+      ],
+      "repository_advisory_url": "https://github.com/outline/outline/security/advisories/GHSA-mx2c-3g2x-5m9m",
+      "selection_basis": "pre-registered exact CVE plus family-specific source-text contract before scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/outline/outline/releases/tag/v1.1.0",
+      "source_family_audit_group_hits": [
+        [
+          "websocket",
+          "websocket authentication mechanism"
+        ],
+        [
+          "allows suspended users",
+          "suspended users"
+        ],
+        [
+          "continue receiving sensitive operational updates",
+          "sensitive operational updates"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 36,
+      "source_family_audit_version": "1.2.0",
+      "source_kind": "nvd_json_2_0_exact_semantic_supplement",
+      "source_project": "outline/outline",
+      "source_root": "CVE-2025-68663",
+      "summary": "Outline is a service that allows for collaborative documentation",
+      "updated_at": "2026-06-17T09:59:23.823"
+    }
+  ],
+  "selection_executes_scoring": false,
+  "selection_uses_detector_output": false,
+  "selection_uses_v4_result": false,
+  "source_audit_rule_version": "2026.08.13.6.29",
+  "source_audit_version": "1.0.0",
+  "version": "1.3.0"
+}

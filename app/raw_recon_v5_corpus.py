@@ -7,6 +7,7 @@ from typing import Any, Iterable, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_v4_corpus import V4_FORBIDDEN_RAW_KEYS, V4_VALID_METHODS
 from raw_recon_v5_source_discovery import exposure_index
+from raw_recon_v5_nvd_discovery import CVE_RE, prior_cve_exposure
 import raw_recon_v4_source_discovery as v4
 
 VERSION = "1.1.0"
@@ -101,12 +102,17 @@ def validate_v5_corpus(
         )
 
     prior = exposure_index()
+    prior_cves = prior_cve_exposure()
+    selected_cve_roots = {root.upper() for root in selected_roots if CVE_RE.fullmatch(root.upper())}
+    prior_cve_roots = sorted(selected_cve_roots & prior_cves)
     grounding = v4._grounding_writeup_urls()
     prior_roots = sorted(selected_roots & prior["roots"])
     prior_projects = sorted(selected_projects & prior["projects"])
     prior_urls = sorted(selected_urls & prior["urls"])
     grounding_urls = sorted(selected_urls & grounding)
     grounding_reference_urls = sorted(selected_reference_urls & grounding)
+    if prior_cve_roots:
+        errors.append(f"v5 prior CVE exposure overlap: {prior_cve_roots}")
     if prior_roots:
         errors.append(f"v5 prior source-root overlap: {prior_roots}")
     if prior_projects:
@@ -273,6 +279,7 @@ def validate_v5_corpus(
         "shortlist_source_project_count": len(selected_projects),
         "positive_family_count": len(positive_families),
         "multi_pair_count": len(multi_groups),
+        "prior_cve_overlap_count": len(prior_cve_roots),
         "prior_source_root_overlap_count": len(prior_roots),
         "prior_source_project_overlap_count": len(prior_projects),
         "prior_url_overlap_count": len(prior_urls),
