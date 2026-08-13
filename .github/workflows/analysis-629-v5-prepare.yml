@@ -1,4 +1,4 @@
-# Analysis 6.29 pre-score preparation trigger: bounded NVD CWE API + exact10
+# Analysis 6.29 pre-score preparation trigger: NVD current-year feed + exact10
 name: Analysis 6.29 Fresh Blind v5 Prepare
 
 on:
@@ -61,10 +61,10 @@ jobs:
           python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
           python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
 
-      - name: Discover fresh v5 sources from CWE-bounded NVD API
+      - name: Discover fresh v5 sources from official NVD current-year feed
         env:
           PYTHONPATH: app
-        run: python app/raw_recon_v5_nvd_api_discovery.py
+        run: python app/raw_recon_v5_nvd_discovery.py
 
       - name: Build ten exact fresh sources for niche families
         env:
