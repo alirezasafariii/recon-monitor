@@ -285,7 +285,6 @@ def _alert_candidates_with_owasp_expansion(
 # its own module globals, so replacing it here extends the real generation path.
 _core._alert_candidates = _alert_candidates_with_owasp_expansion
 _compat._alert_candidates = _alert_candidates_with_owasp_expansion
-_legacy._base._alert_candidates = _alert_candidates_with_owasp_expansion
 
 # Keep existing hypothesis/evidence/static hooks from the 21-family layer.
 record_hypothesis = _legacy.record_hypothesis
