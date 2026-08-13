@@ -71,12 +71,12 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "sensitive_business_flow_abuse": {
-        "cve": "CVE-2026-25043",
-        "project_any": ("Budibase/budibase", "budibase/budibase", "cpe:budibase/budibase"),
+        "cve": "CVE-2025-48375",
+        "project_any": ("schule111/Schule", "cpe:schule111/schule_school_management_system"),
         "groups": (
-            ("password reset", "forgot password"),
-            ("absence of rate limiting", "captcha", "abuse prevention"),
-            ("repeatedly trigger", "hundreds of password reset emails"),
+            ("forgot_password.php", "password"),
+            ("lacks proper rate limiting controls", "rate limiting"),
+            ("excessive number of otp emails", "email flooding", "user harassment"),
         ),
     },
     "software_supply_chain_failure": {
