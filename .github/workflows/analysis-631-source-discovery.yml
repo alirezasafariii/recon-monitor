@@ -65,4 +65,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Record unscored Analysis 6.31 v6 source discovery'
-          git push
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
