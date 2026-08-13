@@ -10,6 +10,7 @@ third-party probing actions.
 import re
 from typing import Any, Iterable, Mapping
 from core import Database
+from owasp_family_catalog import CANONICAL_TAXONOMY
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .remaining_common import add_unique, finalize_result, observations, scalar, truth, header_map
 from .owasp_expansion_common import controlled_observation
@@ -21,7 +22,7 @@ def _result(analyzer, family, variant, support, contradict, taxonomy, method, fp
     if not support and not contradict: return None
     return finalize_result(analyzer=analyzer,family=family,variant=variant,support=support,contradict=contradict,taxonomy=taxonomy,methodology=method,false_positive_checks=fp,writeup_patterns=writeups,direct_types=set(direct),rule_ids=rules,summary=summary,base=base,extra_meta=meta)
 
-RESOURCE_TAX={"owasp":["API4:2023 Unrestricted Resource Consumption"],"wstg":["WSTG-BUSL-05"],"cwe":["CWE-770","CWE-400"],"capec":[]}
+RESOURCE_TAX=CANONICAL_TAXONOMY["unrestricted_resource_consumption"]
 RESOURCE_DIRECT=("resource_limit_not_enforced","unbounded_batch_accepted","cost_amplification_observed")
 RESOURCE_BLOCK=("rate_limit_enforced","pagination_limit_enforced","upload_size_limit_enforced","execution_timeout_enforced","batch_limit_enforced","cost_quota_enforced")
 def analyze_unrestricted_resource_consumption_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",body_fields:Iterable[str]=(),query_fields:Iterable[str]=(),path_fields:Iterable[str]=(),details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="")->dict[str,Any]|None:
@@ -44,7 +45,7 @@ def analyze_unrestricted_resource_consumption_signal(db:Database,*,analysis_id:s
     observed={str(x.get('type') or '') for x in support}; variant=next((x for x in RESOURCE_DIRECT if x in observed),"resource_limit_surface")
     return _result(UnrestrictedResourceConsumptionFamilyAnalyzer(),"unrestricted_resource_consumption",variant,support,contradict,RESOURCE_TAX,({"id":"API4-operation-limit","principle":"Require a concrete resource-consuming operation and stored limit policy/evidence."},{"id":"API4-bounded","principle":"Decisive evidence must be bounded and inside an authorized resource/cost budget."}),("Parameters or missing response headers alone do not prove unrestricted consumption.","No load, concurrency, oversized-body, or cost-amplification test is executed."),({"id":"owasp-api4-2023","source":"OWASP API Security Top 10","ref":"API4:2023","principle":"Bound server/provider resource consumption."},),RESOURCE_DIRECT,("family-api4-operation","family-api4-limit","family-api4-bounded"),"Resource-consumption hypothesis from stored operation/limit evidence; no load test was executed.",20,runtime_observation_count=len(runtime),load_test_performed=False,concurrent_requests_performed=False,cost_amplification_performed=False)
 
-BUSINESS_TAX={"owasp":["API6:2023 Unrestricted Access to Sensitive Business Flows"],"wstg":["WSTG-BUSL-05","WSTG-BUSL-07"],"cwe":["CWE-841"],"capec":[]}
+BUSINESS_TAX=CANONICAL_TAXONOMY["sensitive_business_flow_abuse"]
 BUSINESS_DIRECT=("business_limit_bypass_observed","excessive_flow_access_accepted")
 BUSINESS_BLOCK=("anti_automation_enforced","business_limit_enforced","queue_or_quota_enforced","scarce_inventory_protected")
 def analyze_sensitive_business_flow_abuse_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",body_fields:Iterable[str]=(),query_fields:Iterable[str]=(),path_fields:Iterable[str]=(),details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="")->dict[str,Any]|None:
@@ -68,7 +69,7 @@ def analyze_sensitive_business_flow_abuse_signal(db:Database,*,analysis_id:str,t
     observed={str(x.get('type') or '') for x in support}; variant=next((x for x in BUSINESS_DIRECT if x in observed),"sensitive_flow_surface")
     return _result(SensitiveBusinessFlowAbuseFamilyAnalyzer(),"sensitive_business_flow_abuse",variant,support,contradict,BUSINESS_TAX,({"id":"API6-sensitivity","principle":"Require explicit business sensitivity and expected abuse controls."},{"id":"API6-reversible","principle":"Use reversible test-owned observations only."}),("Flow keywords alone do not establish business sensitivity.","Missing CAPTCHA alone is not a vulnerability.","No real transaction or scarce inventory action is automated."),({"id":"owasp-api6-2023","source":"OWASP API Security Top 10","ref":"API6:2023","principle":"Sensitive flows may require restrictions against excessive automated access."},),BUSINESS_DIRECT,("family-api6-sensitivity","family-api6-control","family-api6-reversible"),"Sensitive-business-flow hypothesis from explicit policy and reversible stored evidence.",19,runtime_observation_count=len(runtime),business_action_performed=False,real_inventory_consumed=False,automation_executed=False)
 
-MISCONFIG_TAX={"owasp":["A02:2025 Security Misconfiguration","API8:2023 Security Misconfiguration"],"wstg":["WSTG-CONF"],"cwe":["CWE-16"],"capec":[]}
+MISCONFIG_TAX=CANONICAL_TAXONOMY["security_misconfiguration"]
 MISCONFIG_DIRECT=("debug_mode_publicly_exposed","directory_listing_observed","dangerous_http_method_enabled","management_interface_publicly_exposed","insecure_transport_configuration_observed")
 MISCONFIG_BLOCK=("secure_configuration_observed","debug_disabled","directory_listing_disabled","dangerous_methods_disabled","management_interface_restricted")
 def analyze_security_misconfiguration_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="",**_:Any)->dict[str,Any]|None:
@@ -89,7 +90,7 @@ def analyze_security_misconfiguration_signal(db:Database,*,analysis_id:str,targe
     observed={str(x.get('type') or '') for x in support}; variant=next((x for x in MISCONFIG_DIRECT if x in observed),"configuration_surface")
     return _result(SecurityMisconfigurationFamilyAnalyzer(),"security_misconfiguration",variant,support,contradict,MISCONFIG_TAX,({"id":"MISCONF-baseline","principle":"Require a concrete target configuration and secure production baseline."},{"id":"MISCONF-deviation","principle":"Promote only observable unsafe deviations."}),("Headers/version strings alone are informational.","Missing optional hardening headers alone are not promoted.","CORS/cache/source-map remain specialized families."),({"id":"owasp-misconfiguration","source":"OWASP","ref":"A02:2025 / API8:2023","principle":"Require a concrete unsafe production configuration."},),MISCONFIG_DIRECT,("family-misconfig-surface","family-misconfig-deviation"),"Security Misconfiguration hypothesis from concrete stored production observations.",18,runtime_observation_count=len(runtime),configuration_change_performed=False,active_request_performed=False)
 
-INVENTORY_TAX={"owasp":["API9:2023 Improper Inventory Management"],"wstg":["WSTG-INFO-04","WSTG-CONF-04"],"cwe":[],"capec":[]}
+INVENTORY_TAX=CANONICAL_TAXONOMY["improper_inventory_management"]
 INVENTORY_DIRECT=("deprecated_api_publicly_reachable","undocumented_api_publicly_reachable","debug_api_publicly_reachable","stale_api_host_publicly_reachable")
 INVENTORY_BLOCK=("inventory_documented","version_decommissioned","debug_endpoint_restricted","stale_host_not_reachable")
 def analyze_improper_inventory_management_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="",**_:Any)->dict[str,Any]|None:
@@ -111,7 +112,7 @@ def analyze_improper_inventory_management_signal(db:Database,*,analysis_id:str,t
     observed={str(x.get('type') or '') for x in support}; variant=next((x for x in INVENTORY_DIRECT if x in observed),"inventory_drift" if "inventory_drift_signal" in observed else "api_inventory_surface")
     return _result(ImproperInventoryManagementFamilyAnalyzer(),"improper_inventory_management",variant,support,contradict,INVENTORY_TAX,({"id":"API9-surface","principle":"Record concrete API versions/hosts/debug surfaces."},{"id":"API9-baseline","principle":"Compare with authoritative inventory and lifecycle data."}),("Versioned paths are normal and not drift by themselves.","Undocumented routes need an authoritative baseline.","No scope expansion is performed."),({"id":"owasp-api9-2023","source":"OWASP API Security Top 10","ref":"API9:2023","principle":"Maintain an accurate API inventory and lifecycle."},),INVENTORY_DIRECT,("family-api9-surface","family-api9-drift","family-api9-reachability"),"API inventory hypothesis from observed surfaces and stored lifecycle comparison.",16,runtime_observation_count=len(runtime),scope_expansion_performed=False,active_request_performed=False)
 
-UPSTREAM_TAX={"owasp":["API10:2023 Unsafe Consumption of APIs"],"wstg":["WSTG-APIT"],"cwe":["CWE-20","CWE-319","CWE-400"],"capec":[]}
+UPSTREAM_TAX=CANONICAL_TAXONOMY["unsafe_api_consumption"]
 UPSTREAM_DIRECT=("untrusted_upstream_data_reaches_sensitive_sink","unencrypted_upstream_observed","cross_trust_upstream_redirect_followed","upstream_response_limit_bypass_observed")
 UPSTREAM_BLOCK=("upstream_validation_enforced","upstream_tls_enforced","upstream_timeout_enforced","upstream_size_limit_enforced","upstream_redirect_policy_enforced")
 def analyze_unsafe_api_consumption_signal(db:Database,*,analysis_id:str,target:str,endpoint:str="",method:str="UNKNOWN",body_fields:Iterable[str]=(),query_fields:Iterable[str]=(),path_fields:Iterable[str]=(),details:Mapping[str,Any]|None=None,business_context:str="general",semantic_text:str="")->dict[str,Any]|None:
