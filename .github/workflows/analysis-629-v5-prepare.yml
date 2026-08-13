@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Make fixture noise variant-invariant before any corpus materialization
+      - name: Apply pre-freeze hardening before any corpus materialization
         run: python scripts/analysis_629_pre_freeze_fix.py
 
       - name: Verify sealed 6.28 lineage and unchanged production scoring logic
@@ -56,17 +56,10 @@ jobs:
           python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
           python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
 
-      - name: Discover fully fresh v5 source pool
+      - name: Discover fresh v5 sources from official NVD JSON 2.0 feeds
         env:
           PYTHONPATH: app
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python app/raw_recon_v5_source_discovery.py
-
-      - name: Verify exact fresh business-logic source supplement
-        env:
-          PYTHONPATH: app
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python app/raw_recon_v5_business_logic_supplement.py
+        run: python app/raw_recon_v5_nvd_discovery.py
 
       - name: Select semantic sources and materialize hard cases
         env:
@@ -102,6 +95,7 @@ jobs:
           assert freeze['prior_project_overlap_count']==0
           assert freeze['prior_url_overlap_count']==0
           assert validation['passed'] is True
+          assert validation['prior_cve_overlap_count']==0
           assert validation['label_leakage_count']==0
           assert validation['grounding_writeup_overlap_count']==0
           assert validation['grounding_reference_overlap_count']==0
@@ -128,7 +122,7 @@ jobs:
           assert len(selected)==36
           assert len({x['source_root'] for x in selected})==36
           assert len({x['source_project'] for x in selected})==36
-          assert any(x['family']=='business_logic' and x['source_project']=='pretix/pretix' for x in selected)
+          assert all(x['source_kind']=='nvd_json_2_0_year_feed' for x in selected)
           print(json.dumps({
               'corpus_sha256': freeze['protected_sha256']['benchmarks/raw/analysis_raw_v5.jsonl'],
               'evaluator_sha256': freeze['protected_sha256']['app/raw_recon_v5_benchmark.py'],
@@ -150,8 +144,8 @@ jobs:
               if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
           permanent=(
               'app/raw_recon_v5_source_discovery.py',
+              'app/raw_recon_v5_nvd_discovery.py',
               'app/raw_recon_v5_source_audit.py',
-              'app/raw_recon_v5_business_logic_supplement.py',
               'app/raw_recon_v5_prepare.py',
               'app/raw_recon_v5_corpus.py',
               'app/raw_recon_v5_benchmark.py',
@@ -159,7 +153,6 @@ jobs:
               'tests/test_analysis_629_v5_protocol.py',
               'docs/ANALYSIS_ENGINE_6_29_FRESH_BLIND_V5.md',
               'benchmarks/raw/sources/v5_candidates.json',
-              'benchmarks/raw/sources/v5_business_logic_supplement.json',
               'benchmarks/raw/sources/v5_shortlist.json',
               'benchmarks/raw/analysis_raw_v5.jsonl',
               'benchmarks/raw/sources/v5_freeze_manifest.json',
