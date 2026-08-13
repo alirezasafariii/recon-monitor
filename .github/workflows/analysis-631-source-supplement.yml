@@ -81,7 +81,7 @@ jobs:
                       if root and root not in by_root:
                           row['v6_firewall_allowed'] = True
                           by_root[root] = row
-                  if sum(1 for row in by_root.values() if audit_row(family, row)[0]) >= 2:
+                  if any(audit_row(family, row)[0] for row in by_root.values()):
                       break
               rows = list(by_root.values())
               rows.sort(
@@ -100,7 +100,7 @@ jobs:
           }
           unresolved = sorted(family for family in targets if semantic.get(family, 0) == 0)
           out = {
-              'version': '1.1.0',
+              'version': '1.2.0',
               'rule_version': '2026.08.13.6.31',
               'evaluation_kind': 'fresh_blind_v6_unscored_source_supplement',
               'target_families': targets,
