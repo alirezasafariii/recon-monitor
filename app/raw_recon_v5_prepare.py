@@ -9,56 +9,105 @@ from typing import Any, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from raw_recon_v4_materialize import EXPECTED_CONDITION, V4_VARIANTS, _fixture_target, _source_date, _template
-from raw_recon_v4_source_audit import HARD_ANCHORS, audit_row
+from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, HARD_ANCHORS, audit_row
 from raw_recon_v5_source_discovery import exposure_index
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 RULE_VERSION = "2026.08.13.6.29"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v5_candidates.json"
+BUSINESS_SUPPLEMENT = ROOT / "benchmarks/raw/sources/v5_business_logic_supplement.json"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v5_shortlist.json"
 CORPUS = ROOT / "benchmarks/raw/analysis_raw_v5.jsonl"
 FREEZE = ROOT / "benchmarks/raw/sources/v5_freeze_manifest.json"
 REPORT = ROOT / "benchmarks/raw/sources/v5_prepare_report.json"
 
 
+def _load_optional_supplement() -> dict[str, Any] | None:
+    if not BUSINESS_SUPPLEMENT.exists():
+        return None
+    value = json.loads(BUSINESS_SUPPLEMENT.read_text(encoding="utf-8"))
+    if not isinstance(value, Mapping):
+        raise RuntimeError("v5 business-logic supplement must be a JSON object")
+    row = value.get("selected")
+    if not isinstance(row, Mapping):
+        raise RuntimeError("v5 business-logic supplement has no selected source")
+    if str(row.get("family") or "") != "business_logic":
+        raise RuntimeError("v5 business-logic supplement family mismatch")
+    if not bool(row.get("freshness_validated")) or bool(value.get("scoring_executed")):
+        raise RuntimeError("v5 business-logic supplement freshness/scoring contract failed")
+    return dict(row)
+
+
 def _select(candidates: Mapping[str, Any]) -> list[dict[str, Any]]:
     pools_raw = candidates.get("candidates_by_family") if isinstance(candidates.get("candidates_by_family"), Mapping) else {}
     semantic: dict[str, list[dict[str, Any]]] = {}
+    supplement = _load_optional_supplement()
     for family in sorted(DETECTOR_SPECS):
+        source_rows = [dict(row) for row in pools_raw.get(family, []) or [] if isinstance(row, Mapping)]
+        if supplement is not None and family == "business_logic":
+            source_rows.append(dict(supplement))
         rows: list[dict[str, Any]] = []
-        for raw in pools_raw.get(family, []) or []:
-            if not isinstance(raw, Mapping):
+        seen_roots: set[str] = set()
+        for raw in source_rows:
+            root = str(raw.get("source_root") or "")
+            if not root or root in seen_roots:
                 continue
+            seen_roots.add(root)
             passed, hits, score = audit_row(family, raw)
             if not passed:
                 continue
             row = dict(raw)
             row["source_family_audit_score"] = score
             row["source_family_audit_group_hits"] = hits
-            row["source_family_audit_version"] = "v5-pre-score"
+            row["source_family_audit_version"] = AUDIT_VERSION
+            row["source_family_audit_rule_version"] = AUDIT_RULE_VERSION
             rows.append(row)
-        rows.sort(key=lambda x: (int(x["source_family_audit_score"]), x.get("published_at") or "", x.get("source_root") or ""), reverse=True)
+        rows.sort(
+            key=lambda x: (
+                int(x["source_family_audit_score"]),
+                1 if x.get("advisory_source_type") == "reviewed" else 0,
+                x.get("published_at") or "",
+                x.get("source_root") or "",
+            ),
+            reverse=True,
+        )
         semantic[family] = rows
+
+    zero_semantic = sorted(family for family, rows in semantic.items() if not rows)
+    if zero_semantic:
+        raise RuntimeError(
+            "v5 source semantic audit has zero eligible candidates for: " + ", ".join(zero_semantic)
+        )
 
     order = sorted(semantic, key=lambda f: (len(semantic[f]), f))
     used_roots: set[str] = set()
     used_projects: set[str] = set()
     selected: dict[str, dict[str, Any]] = {}
+    uniqueness_blocked: dict[str, int] = {}
     for family in order:
         choice = None
+        blocked = 0
         for row in semantic[family]:
             root = str(row.get("source_root") or "")
             project = str(row.get("source_project") or "")
-            if root and project and root not in used_roots and project not in used_projects:
-                choice = row
-                break
+            if not root or not project or root in used_roots or project in used_projects:
+                blocked += 1
+                continue
+            choice = row
+            break
         if choice is None:
-            raise RuntimeError(f"v5 semantic/uniqueness selection failed for {family}; candidates={len(semantic[family])}")
+            uniqueness_blocked[family] = blocked
+            raise RuntimeError(
+                f"v5 semantic/uniqueness selection failed for {family}; "
+                f"semantic_candidates={len(semantic[family])}; uniqueness_blocked={blocked}"
+            )
         selected[family] = choice
         used_roots.add(str(choice["source_root"]))
         used_projects.add(str(choice["source_project"]))
-    if set(selected) != set(HARD_ANCHORS) or len(used_roots) != 36 or len(used_projects) != 36:
-        raise RuntimeError("v5 selected-source partition is incomplete or not unique")
+    if set(selected) != set(HARD_ANCHORS) or set(selected) != set(DETECTOR_SPECS):
+        raise RuntimeError("v5 selected-source family partition is incomplete")
+    if len(used_roots) != 36 or len(used_projects) != 36:
+        raise RuntimeError("v5 selected-source root/project uniqueness contract failed")
     return [selected[family] for family in sorted(selected)]
 
 
@@ -66,7 +115,11 @@ def _noise(raw: Mapping[str, Any], family: str, kind: str) -> dict[str, Any]:
     out = copy.deepcopy(dict(raw))
     details = out.get("details") if isinstance(out.get("details"), Mapping) else {}
     details = dict(details)
-    details["fixture_transport"] = {"capture": "normalized", "trace_id": f"v5-{family[:8]}-{kind}", "retry_count": 0}
+    details["fixture_transport"] = {
+        "capture": "normalized",
+        "trace_id": f"v5-{family[:8]}-{kind}",
+        "retry_count": 0,
+    }
     details["unrelated_observation"] = {"server_hint": "fixture", "timing_bucket": "normal"}
     out["details"] = details
     out["category"] = str(out.get("category") or "") + " normalized-v5"
@@ -86,7 +139,9 @@ def _is_primary_source(row: Mapping[str, Any]) -> bool:
 def _source_provenance(row: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "url": row["canonical_advisory_url"],
-        "source_kind": str(row.get("source_kind") or row.get("advisory_source_type") or "github_security_advisory"),
+        "source_kind": str(
+            row.get("source_kind") or row.get("advisory_source_type") or "github_security_advisory"
+        ),
         "advisory_source_type": str(row.get("advisory_source_type") or ""),
         "primary_source": _is_primary_source(row),
         "literal_capture": False,
@@ -137,7 +192,9 @@ def _multi_cases(selected: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 _observation(ta[kind_a], target=target, family=fa, kind=kind_a),
                 _observation(tb[kind_b], target=target, family=fb, kind=kind_b),
             ]
-            expected_conditions = {family: [EXPECTED_CONDITION[family]] for family in expected_families}
+            expected_conditions = {
+                family: [EXPECTED_CONDITION[family]] for family in expected_families
+            }
             cases.append({
                 "id": f"v5-multi-{index:02d}-{case_kind}",
                 "source_root": f"{ra['source_root']}+{rb['source_root']}",
@@ -175,6 +232,8 @@ def prepare() -> dict[str, Any]:
         "selection_executes_scoring": False,
         "selection_uses_detector_output": False,
         "selection_uses_v4_result": False,
+        "source_audit_version": AUDIT_VERSION,
+        "source_audit_rule_version": AUDIT_RULE_VERSION,
         "selected": selected,
     }
     SHORTLIST.write_text(json.dumps(shortlist, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -188,7 +247,13 @@ def prepare() -> dict[str, Any]:
             singles.append(_single_case(row, kind, variants[kind]))
     multi = _multi_cases(selected)
     cases = singles + multi
-    CORPUS.write_text("\n".join(json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False) for row in cases) + "\n", encoding="utf-8")
+    CORPUS.write_text(
+        "\n".join(
+            json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            for row in cases
+        ) + "\n",
+        encoding="utf-8",
+    )
 
     prior = exposure_index()
     roots = {str(row["source_root"]) for row in selected}
@@ -198,11 +263,18 @@ def prepare() -> dict[str, Any]:
     prior_project_overlap = sorted(projects & prior["projects"])
     prior_url_overlap = sorted(urls & prior["urls"])
     if prior_root_overlap or prior_project_overlap or prior_url_overlap:
-        raise RuntimeError(f"v5 novelty firewall failed roots={prior_root_overlap} projects={prior_project_overlap} urls={prior_url_overlap}")
+        raise RuntimeError(
+            f"v5 novelty firewall failed roots={prior_root_overlap} "
+            f"projects={prior_project_overlap} urls={prior_url_overlap}"
+        )
     if len(singles) != 144 or len(multi) != 72 or len(cases) != 216:
-        raise RuntimeError(f"v5 case-count contract failed singles={len(singles)} multi={len(multi)} total={len(cases)}")
+        raise RuntimeError(
+            f"v5 case-count contract failed singles={len(singles)} multi={len(multi)} total={len(cases)}"
+        )
     if any(len(row.get("raw_observations") or []) != 2 for row in multi):
-        raise RuntimeError("each v5 multi-family case must contain exactly two independent stored observations")
+        raise RuntimeError(
+            "each v5 multi-family case must contain exactly two independent stored observations"
+        )
 
     source_kind_counts: dict[str, int] = {}
     primary_source_count = 0
@@ -211,12 +283,22 @@ def prepare() -> dict[str, Any]:
         source_kind_counts[kind] = source_kind_counts.get(kind, 0) + 1
         primary_source_count += int(_is_primary_source(row))
 
+    protected_files = {
+        "benchmarks/raw/sources/v5_candidates.json": _sha(CANDIDATES),
+        "benchmarks/raw/sources/v5_shortlist.json": _sha(SHORTLIST),
+        "benchmarks/raw/analysis_raw_v5.jsonl": _sha(CORPUS),
+    }
+    if BUSINESS_SUPPLEMENT.exists():
+        protected_files["benchmarks/raw/sources/v5_business_logic_supplement.json"] = _sha(
+            BUSINESS_SUPPLEMENT
+        )
+
     freeze = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
         "evaluation_status": "sealed_unscored",
         "first_blind_max_runs": 1,
-        "mutation_policy": "corpus shortlist sources and expected labels are immutable after this freeze",
+        "mutation_policy": "corpus shortlist sources expected labels gates and source supplements are immutable after this freeze",
         "case_count": len(cases),
         "single_case_count": len(singles),
         "multi_case_count": len(multi),
@@ -230,11 +312,7 @@ def prepare() -> dict[str, Any]:
         "prior_project_overlap_count": 0,
         "prior_url_overlap_count": 0,
         "scoring_executed": False,
-        "protected_sha256": {
-            "benchmarks/raw/sources/v5_candidates.json": _sha(CANDIDATES),
-            "benchmarks/raw/sources/v5_shortlist.json": _sha(SHORTLIST),
-            "benchmarks/raw/analysis_raw_v5.jsonl": _sha(CORPUS),
-        },
+        "protected_sha256": protected_files,
         "pre_registered_gates": {
             "single_existing_raw_gates": "unchanged RAW_QUALITY_GATES",
             "multi_exact_admission_set_accuracy_min": 0.90,
