@@ -1,0 +1,183 @@
+name: Analysis 6.28 Seal
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.28-final-orchestrator-cleanup
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sealed branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.28-final-orchestrator-cleanup
+          fetch-depth: 0
+
+      - name: Verify formal 6.28 cutover lineage
+        run: git merge-base --is-ancestor 0558bcb20df1262504001d2f81fc8df5d1e51aab HEAD
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Exact 6.28 ownership and release contract
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
+
+      - name: Grounding and calibrated regression contracts
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest discover -s tests -p 'test_analysis_627_seal.py' -q
+          python -m unittest discover -s tests -p 'test_analysis_627_blind_failure_calibration.py' -q
+          python -m unittest discover -s tests -p 'test_analysis_627_precision_routing.py' -q
+          python -m unittest discover -s tests -p 'test_analysis_standards_v630.py' -q
+          python -m unittest discover -s tests -p 'test_physical_family_detectors_v690.py' -q
+          python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
+          python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
+          python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
+
+      - name: Verify immutable consumed-v4 boundary before regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          expected={
+            'benchmarks/raw/analysis_raw_v4.jsonl':'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+            'benchmarks/raw/sources/v4_shortlist.json':'d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+            'benchmarks/raw/sources/v4_first_blind_report.json':'5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name,wanted in expected.items():
+            actual=hashlib.sha256(Path(name).read_bytes()).hexdigest(); assert actual==wanted,(name,wanted,actual)
+          receipt=json.loads(Path('benchmarks/raw/sources/v4_first_blind_receipt.json').read_text())
+          assert receipt['status']=='first_blind_consumed'
+          assert receipt['evaluation_kind']=='first_blind_single_consumption'
+          PY
+
+      - name: Re-run consumed v4 as post-first-blind regression only
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/raw_recon_v4_regression.py
+          python app/raw_recon_v4_regression_diagnostic.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_regression.json').read_text())
+          diagnostic=json.loads(Path('benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json').read_text())
+          assert report['evaluation_kind']=='post_first_blind_regression'
+          assert report['quality_gate']['passed'], report['quality_gate']['failures']
+          m=report['metrics']
+          expected={
+            'condition_extraction_precision':1.0,
+            'condition_extraction_recall':1.0,
+            'routing_top1_accuracy':0.861111,
+            'routing_top3_accuracy':0.962963,
+            'admission_precision':1.0,
+            'admission_recall':1.0,
+            'abstention_accuracy':1.0,
+            'near_miss_abstention_accuracy':1.0,
+            'secure_negative_rejection_accuracy':1.0,
+            'sparse_noisy_abstention_accuracy':1.0,
+            'false_promotion_rate':0.0,
+            'wrong_family_promotion_rate':0.0,
+            'positive_end_to_end_accuracy':1.0,
+            'end_to_end_accuracy':1.0,
+            'prior_source_root_overlap_rate':0.0,
+            'raw_label_leakage_rate':0.0,
+          }
+          for key,value in expected.items(): assert m[key]==value,(key,value,m[key])
+          assert diagnostic['condition_false_positive_family_counts']=={}
+          assert diagnostic['wrong_promotion_family_counts']=={}
+          PY
+
+      - name: Full unit suite on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.11
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.11
+        run: python tests/integration_runner.py
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Exact 6.28 ownership and release contract on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_analysis_628_orchestrator_cleanup.py' -q
+
+      - name: Full unit suite on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden strict on Python 3.13
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration on Python 3.13
+        run: python tests/integration_runner.py
+
+      - name: Final immutable-v4 verification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected={
+            'benchmarks/raw/analysis_raw_v4.jsonl':'fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6',
+            'benchmarks/raw/sources/v4_shortlist.json':'d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85',
+            'benchmarks/raw/sources/v4_first_blind_report.json':'5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960',
+          }
+          for name,wanted in expected.items():
+            actual=hashlib.sha256(Path(name).read_bytes()).hexdigest(); assert actual==wanted,(name,wanted,actual)
+          PY
+
+      - name: Update manifest for 6.28 seal artifact
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.'); manifest=root/'MANIFEST.sha256'; entries={}; order=[]
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+            if '  ' not in line: continue
+            _,name=line.split('  ',1); p=root/name
+            if p.is_file(): entries[name]=hashlib.sha256(p.read_bytes()).hexdigest(); order.append(name)
+          for name in ('docs/ANALYSIS_ENGINE_6_28_SEAL.md','benchmarks/raw/results/analysis_raw_v4_6_27_regression.json','benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json'):
+            p=root/name
+            if not p.is_file(): raise SystemExit(f'missing seal file: {name}')
+            entries[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+            if name not in order: order.append(name)
+          manifest.write_text(''.join(f'{entries[name]}  {name}\n' for name in order),encoding='utf-8')
+          PY
+
+      - name: Verify manifest
+        run: sha256sum -c MANIFEST.sha256
+
+      - name: Commit Analysis 6.28 seal and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/analysis-628-seal.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "Seal Analysis Engine 6.28 orchestrator cleanup"
+          git push origin HEAD:agent/analysis-engine-6.28-final-orchestrator-cleanup
