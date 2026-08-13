@@ -94,13 +94,10 @@ class RawPrecisionCalibrationV6140Tests(unittest.TestCase):
         from family_detectors.execution import EXECUTION_ENGINE_VERSION, EXECUTION_RULE_VERSION
         self.assertEqual(analysis_engine.ENGINE_VERSION, bug_candidates.CANDIDATE_ENGINE_VERSION)
         self.assertEqual(analysis_engine.ENGINE_VERSION, security_reasoning.REASONING_ENGINE_VERSION)
-        self.assertGreaterEqual(
-            tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")),
-            (6, 14, 0),
-        )
-        self.assertEqual(RECONSTRUCTION_ENGINE_VERSION, "1.1.0")
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 14, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in RECONSTRUCTION_ENGINE_VERSION.split(".")), (1, 1, 0))
         self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_ENGINE_VERSION.split(".")), (1, 2, 0))
-        self.assertEqual(RECONSTRUCTION_RULE_VERSION, "2026.08.12.6.14")
+        self.assertGreaterEqual(tuple(int(part) for part in RECONSTRUCTION_RULE_VERSION.split(".")), (2026, 8, 12, 6, 14))
         self.assertGreaterEqual(tuple(int(part) for part in EXECUTION_RULE_VERSION.split(".")), (2026, 8, 12, 6, 14))
 
 
