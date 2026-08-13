@@ -38,6 +38,27 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Validate calibration dataset v2
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum app/calibration_dataset.py app/analysis_benchmark_v2.py tests/test_calibration_dataset_v920.py docs/ANALYSIS_CALIBRATION_DATASET_V2.md
+          python tests/test_calibration_dataset_v920.py
+          python - <<'PY'
+          import json, sys
+          sys.path.insert(0, 'app')
+          from analysis_benchmark_v2 import quality_report
+          report = quality_report('.')
+          print('CALIBRATION_DATASET_V2=' + json.dumps({
+              'coverage': report['coverage'],
+              'threshold': report['challenge_threshold'],
+              'metrics_by_kind': report['challenge_metrics_by_kind'],
+              'ordering_failure_count': report['challenge_ordering_failure_count'],
+              'activation': report['calibration_profile']['activation'],
+              'activation_readiness': report['calibration_profile']['activation_readiness'],
+          }, sort_keys=True))
+          PY
+
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
