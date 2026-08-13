@@ -1,0 +1,61 @@
+name: Analysis 6.31 Validation
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify 6.31 production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/analysis-engine-6.30-open-redirect-calibration --depth=1
+          BASE=origin/agent/analysis-engine-6.30-open-redirect-calibration
+          CHANGED="$(git diff --name-only "$BASE" HEAD)"
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            case "$path" in
+              app/raw_recon_v6_*.py|app/v6_benchmark_*.py|tests/test_v6_*.py|benchmarks/raw/sources/v6_*.json|docs/ANALYSIS_ENGINE_6_31_*.md|.github/workflows/analysis-631-*.yml)
+                ;;
+              *)
+                echo "Analysis 6.31 pre-score production boundary violation: $path" >&2
+                exit 1
+                ;;
+            esac
+          done <<< "$CHANGED"
+
+      - name: Source independence tests
+        run: python -m unittest tests.test_v6_source_independence -v
+
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden analysis benchmark
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        run: python tests/integration_runner.py
