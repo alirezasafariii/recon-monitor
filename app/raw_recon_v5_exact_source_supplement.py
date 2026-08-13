@@ -62,12 +62,12 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "postmessage_trust": {
-        "cve": "CVE-2026-25892",
-        "project_any": ("vrana/adminer", "cpe:adminer/adminer"),
+        "cve": "CVE-2025-66500",
+        "project_any": ("cpe:foxit/pdf_editor_cloud",),
         "groups": (
             ("postmessage",),
-            ("lacks origin validation", "any source"),
-            ("accepts post data", "post data"),
+            ("fails to validate the message origin", "message origin"),
+            ("externalpath", "script source", "arbitrary javascript"),
         ),
     },
     "sensitive_business_flow_abuse": {
@@ -217,8 +217,6 @@ def build() -> dict[str, Any]:
             raise RuntimeError(
                 f"{family}: exact source project identity mismatch; expected one of {sorted(allowed)}, aliases={aliases}"
             )
-        # Freshness is about the selected affected-project identity. Other references
-        # in the same CVE can legitimately point to shared dependencies or research.
         if matched_project in prior["projects"]:
             raise RuntimeError(f"{family}: exact source project was previously exposed: {matched_project}")
         if matched_project in used_projects:
