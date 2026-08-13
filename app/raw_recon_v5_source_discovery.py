@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -9,11 +10,25 @@ from typing import Any, Iterable, Mapping
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 RULE_VERSION = "2026.08.13.6.29"
 V4_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v4.jsonl"
 V4_FILES = tuple((ROOT / "benchmarks/raw/sources").glob("v4_*.json"))
 ADVISORY_TYPES = ("reviewed", "unreviewed")
+_RESEARCH_REPO_TOKENS = (
+    "poc",
+    "proof-of-concept",
+    "proof_of_concept",
+    "exploit",
+    "vulnerability-research",
+    "vulnerability_research",
+    "vuln-research",
+    "vuln_research",
+    "web-security-pocs",
+    "security-pocs",
+    "cve-",
+    "cves",
+)
 
 
 def exposure_index() -> dict[str, set[str]]:
@@ -63,6 +78,12 @@ def _fetch_typed_pages(cwe: str, advisory_type: str, *, max_pages: int, per_page
             return
 
 
+def _is_research_project(project: str) -> bool:
+    lowered = project.lower()
+    compact = re.sub(r"[^a-z0-9_-]+", "-", lowered)
+    return any(token in compact for token in _RESEARCH_REPO_TOKENS)
+
+
 def _eligible_unreviewed_candidate(
     row: Mapping[str, Any],
     *,
@@ -98,10 +119,13 @@ def _eligible_unreviewed_candidate(
     project_reference = ""
     for value in references:
         candidate_project = v4._project_from_url(value)
-        if candidate_project and not candidate_project.startswith("advisories/"):
-            project = candidate_project
-            project_reference = value
-            break
+        if not candidate_project or candidate_project.startswith("advisories/"):
+            continue
+        if _is_research_project(candidate_project):
+            continue
+        project = candidate_project
+        project_reference = value
+        break
     if not project or project in excluded["projects"]:
         return None
 
@@ -141,6 +165,9 @@ def _eligible_candidate(
         grounding_urls=grounding_urls,
     )
     if candidate is not None:
+        project = str(candidate.get("source_project") or "")
+        if project and _is_research_project(project):
+            return None
         candidate["source_kind"] = "github_reviewed_or_repository_advisory"
         return candidate
     if advisory_type != "unreviewed":
@@ -220,6 +247,7 @@ def discover(max_pages_reviewed: int = 3, max_pages_unreviewed: int = 6, target_
         "excluded_prior_project_count": len(excluded["projects"]),
         "excluded_prior_url_count": len(excluded["urls"]),
         "excluded_grounding_url_count": len(grounding),
+        "research_repository_references_rejected": True,
         "scoring_executed": False,
         "candidate_selection_uses_detector_scores": False,
         "candidate_selection_uses_admission_results": False,
