@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 import raw_recon_v4_source_discovery as v4
 from raw_recon_v5_nvd_discovery import (
-    YEARS,
     _cwes,
     _description,
-    _load_feed,
     _project_identity,
     _references,
     _severity,
@@ -17,9 +19,10 @@ from raw_recon_v5_nvd_discovery import (
 )
 from raw_recon_v5_source_discovery import exposure_index
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RULE_VERSION = "2026.08.13.6.29"
 OUTPUT = ROOT / "benchmarks/raw/sources/v5_exact_source_supplement.json"
+NVD_CVE_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
 EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
     "dom_xss": {
@@ -106,20 +109,49 @@ EXACT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
 }
 
 
-def _load_exact_cves() -> dict[str, dict[str, Any]]:
-    wanted = {spec["cve"] for spec in EXACT_SOURCE_SPECS.values()}
-    found: dict[str, dict[str, Any]] = {}
-    for year in YEARS:
-        for wrapper in _load_feed(year):
-            cve = wrapper.get("cve") if isinstance(wrapper.get("cve"), Mapping) else {}
-            cve_id = str(cve.get("id") or "").strip().upper()
-            if cve_id in wanted:
-                found[cve_id] = dict(cve)
-        if set(found) == wanted:
+def _fetch_exact_cve(cve_id: str) -> dict[str, Any]:
+    query = urllib.parse.urlencode({"cveId": cve_id})
+    request = urllib.request.Request(
+        f"{NVD_CVE_API}?{query}",
+        headers={
+            "User-Agent": "Recon-Monitor-Analysis-6.29-Fresh-Blind-v5/1.0",
+            "Accept": "application/json",
+        },
+    )
+    response = None
+    for attempt in range(3):
+        try:
+            response = urllib.request.urlopen(request, timeout=60)
             break
-    missing = sorted(wanted - set(found))
-    if missing:
-        raise RuntimeError(f"v5 exact supplement CVEs missing from NVD year feeds: {missing}")
+        except urllib.error.HTTPError as exc:
+            if exc.code not in {403, 429} or attempt == 2:
+                raise
+            time.sleep(6.5 * (attempt + 1))
+    if response is None:
+        raise RuntimeError(f"unable to fetch exact NVD record for {cve_id}")
+    with response:
+        payload = json.load(response)
+    vulnerabilities = payload.get("vulnerabilities") if isinstance(payload, Mapping) else []
+    matches = [
+        dict(wrapper.get("cve"))
+        for wrapper in vulnerabilities or []
+        if isinstance(wrapper, Mapping)
+        and isinstance(wrapper.get("cve"), Mapping)
+        and str(wrapper["cve"].get("id") or "").strip().upper() == cve_id.upper()
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(f"expected exactly one NVD result for {cve_id}, got {len(matches)}")
+    return matches[0]
+
+
+def _load_exact_cves() -> dict[str, dict[str, Any]]:
+    wanted = sorted({str(spec["cve"]).upper() for spec in EXACT_SOURCE_SPECS.values()})
+    found: dict[str, dict[str, Any]] = {}
+    for index, cve_id in enumerate(wanted):
+        if index:
+            # NVD public API requests without an API key are deliberately paced.
+            time.sleep(6.2)
+        found[cve_id] = _fetch_exact_cve(cve_id)
     return found
 
 
