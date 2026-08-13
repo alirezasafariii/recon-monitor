@@ -1,0 +1,124 @@
+{
+  "case_count": 144,
+  "corpus_sha256": "fe6936881b7fe0e8c71c9bc76a0f87d02446a3d703ec1dddf84e0b6caa7fb9b6",
+  "evaluation_kind": "first_blind_single_consumption",
+  "family_count": 36,
+  "freeze_sha256": "64614e8098f62ddb5a45b47218ed5421e8641427f254cf1579b21c337922d719",
+  "metrics": {
+    "abstention_accuracy": 0.87037,
+    "admission_precision": 0.469388,
+    "admission_recall": 0.638889,
+    "condition_extraction_precision": 0.45283,
+    "condition_extraction_recall": 0.666667,
+    "end_to_end_accuracy": 0.777778,
+    "false_promotion_rate": 0.12963,
+    "near_miss_abstention_accuracy": 0.805556,
+    "positive_end_to_end_accuracy": 0.5,
+    "prior_source_root_overlap_rate": 0.0,
+    "raw_label_leakage_rate": 0.0,
+    "routing_top1_accuracy": 0.62963,
+    "routing_top3_accuracy": 0.824074,
+    "secure_negative_rejection_accuracy": 0.916667,
+    "sparse_noisy_abstention_accuracy": 0.888889,
+    "wrong_family_promotion_rate": 0.145833
+  },
+  "mutation_policy": {
+    "benchmark_repairs_after_first_blind": "forbidden",
+    "engine_repairs": "allowed_only_without_modifying_frozen_v4_inputs",
+    "frozen_v4_inputs_after_first_blind": "forbidden",
+    "subsequent_v4_runs": "regression_only_not_first_blind"
+  },
+  "quality_gate_failures": [
+    {
+      "direction": "min",
+      "metric": "condition_extraction_precision",
+      "threshold": 0.9,
+      "value": 0.45283
+    },
+    {
+      "direction": "min",
+      "metric": "condition_extraction_recall",
+      "threshold": 0.75,
+      "value": 0.666667
+    },
+    {
+      "direction": "min",
+      "metric": "routing_top1_accuracy",
+      "threshold": 0.8,
+      "value": 0.62963
+    },
+    {
+      "direction": "min",
+      "metric": "routing_top3_accuracy",
+      "threshold": 0.95,
+      "value": 0.824074
+    },
+    {
+      "direction": "min",
+      "metric": "admission_precision",
+      "threshold": 0.93,
+      "value": 0.469388
+    },
+    {
+      "direction": "min",
+      "metric": "admission_recall",
+      "threshold": 0.75,
+      "value": 0.638889
+    },
+    {
+      "direction": "min",
+      "metric": "abstention_accuracy",
+      "threshold": 0.9,
+      "value": 0.87037
+    },
+    {
+      "direction": "max",
+      "metric": "false_promotion_rate",
+      "threshold": 0.07,
+      "value": 0.12963
+    },
+    {
+      "direction": "max",
+      "metric": "wrong_family_promotion_rate",
+      "threshold": 0.05,
+      "value": 0.145833
+    },
+    {
+      "direction": "min",
+      "metric": "end_to_end_accuracy",
+      "threshold": 0.8,
+      "value": 0.777778
+    },
+    {
+      "direction": "min",
+      "metric": "near_miss_abstention_accuracy",
+      "threshold": 0.9,
+      "value": 0.805556
+    },
+    {
+      "direction": "min",
+      "metric": "secure_negative_rejection_accuracy",
+      "threshold": 0.95,
+      "value": 0.916667
+    },
+    {
+      "direction": "min",
+      "metric": "sparse_noisy_abstention_accuracy",
+      "threshold": 0.9,
+      "value": 0.888889
+    },
+    {
+      "direction": "min",
+      "metric": "positive_end_to_end_accuracy",
+      "threshold": 0.75,
+      "value": 0.5
+    }
+  ],
+  "quality_gate_passed": false,
+  "receipt_rule_version": "2026.08.13.6.26",
+  "receipt_version": "1.0.0",
+  "report_sha256": "5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e68db267097960",
+  "shortlist_sha256": "d329752e8b6045b433e3d490c0ff438f067577840fb5429a80721a0f79a34f85",
+  "status": "first_blind_consumed",
+  "workflow_start_commit": "17826bf867c4fa26cdc9fa361086a9d37f4b2ec3"
+}
