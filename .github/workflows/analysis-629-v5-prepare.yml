@@ -61,6 +61,11 @@ jobs:
           PYTHONPATH: app
         run: python app/raw_recon_v5_nvd_discovery.py
 
+      - name: Build exact fresh sources for niche families
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v5_exact_source_supplement.py
+
       - name: Select semantic sources and materialize hard cases
         env:
           PYTHONPATH: app
@@ -79,6 +84,7 @@ jobs:
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
+          from raw_recon_v5_exact_source_supplement import EXACT_SOURCE_SPECS
           root=Path('.')
           freeze=json.loads((root/'benchmarks/raw/sources/v5_freeze_manifest.json').read_text())
           validation=freeze['corpus_validation']
@@ -107,6 +113,7 @@ jobs:
               assert actual==wanted,(rel,wanted,actual)
           assert not (root/'benchmarks/raw/results/analysis_raw_v5_first_blind.json').exists()
           assert not (root/'benchmarks/raw/sources/v5_first_blind_receipt.json').exists()
+
           cases=[json.loads(line) for line in (root/'benchmarks/raw/analysis_raw_v5.jsonl').read_text().splitlines() if line.strip()]
           assert len(cases)==216
           singles=[c for c in cases if c['case_mode']=='single_family_fresh']
@@ -117,17 +124,32 @@ jobs:
           dual=[c for c in multi if c['case_kind']=='dual_positive']
           assert len(dual)==18
           assert len({f for c in dual for f in c['expected_families']})==36
+
+          exact=json.loads((root/'benchmarks/raw/sources/v5_exact_source_supplement.json').read_text())
+          exact_rows=exact['selected']
+          assert exact['family_count']==9
+          assert len({x['source_root'] for x in exact_rows})==9
+          assert len({x['source_project'] for x in exact_rows})==9
+          assert all(x['exact_source_audit_passed'] for x in exact_rows)
+          assert all(x['freshness_validated'] for x in exact_rows)
+          assert exact['scoring_executed'] is False
+
           shortlist=json.loads((root/'benchmarks/raw/sources/v5_shortlist.json').read_text())
           selected=shortlist['selected']
+          by_family={x['family']:x for x in selected}
           assert len(selected)==36
           assert len({x['source_root'] for x in selected})==36
           assert len({x['source_project'] for x in selected})==36
-          assert all(x['source_kind']=='nvd_json_2_0_year_feed' for x in selected)
+          assert all(str(x['source_kind']).startswith('nvd_json_2_0') for x in selected)
+          for family,spec in EXACT_SOURCE_SPECS.items():
+              assert by_family[family]['source_root']==spec['cve'], (family,by_family[family]['source_root'],spec['cve'])
+
           print(json.dumps({
               'corpus_sha256': freeze['protected_sha256']['benchmarks/raw/analysis_raw_v5.jsonl'],
               'evaluator_sha256': freeze['protected_sha256']['app/raw_recon_v5_benchmark.py'],
               'cases':216,
               'dual_positive_pairs':18,
+              'exact_niche_sources':9,
               'source_kind_counts':freeze['source_kind_counts'],
           }, indent=2))
           PY
@@ -146,6 +168,7 @@ jobs:
               'app/raw_recon_v5_source_discovery.py',
               'app/raw_recon_v5_nvd_discovery.py',
               'app/raw_recon_v5_source_audit.py',
+              'app/raw_recon_v5_exact_source_supplement.py',
               'app/raw_recon_v5_prepare.py',
               'app/raw_recon_v5_corpus.py',
               'app/raw_recon_v5_benchmark.py',
@@ -153,6 +176,7 @@ jobs:
               'tests/test_analysis_629_v5_protocol.py',
               'docs/ANALYSIS_ENGINE_6_29_FRESH_BLIND_V5.md',
               'benchmarks/raw/sources/v5_candidates.json',
+              'benchmarks/raw/sources/v5_exact_source_supplement.json',
               'benchmarks/raw/sources/v5_shortlist.json',
               'benchmarks/raw/analysis_raw_v5.jsonl',
               'benchmarks/raw/sources/v5_freeze_manifest.json',
@@ -174,6 +198,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/analysis-629-v5-prepare.yml scripts/analysis_629_pre_freeze_fix.py
+          if git ls-files --error-unmatch app/raw_recon_v5_business_logic_supplement.py >/dev/null 2>&1; then
+            git rm app/raw_recon_v5_business_logic_supplement.py
+          fi
           git add -A
           git diff --cached --check
           git commit -m "Freeze Analysis 6.29 fresh blind v5 corpus and evaluator"
