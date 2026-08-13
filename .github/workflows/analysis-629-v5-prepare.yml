@@ -61,10 +61,15 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python app/raw_recon_v5_business_logic_supplement.py
 
-      - name: Select semantic sources materialize hard cases and freeze
+      - name: Select semantic sources and materialize hard cases
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v5_prepare.py
+
+      - name: Validate integrity and freeze corpus plus evaluator
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v5_freeze.py
 
       - name: Verify frozen v5 contract without scoring
         env:
@@ -76,8 +81,10 @@ jobs:
           from pathlib import Path
           root=Path('.')
           freeze=json.loads((root/'benchmarks/raw/sources/v5_freeze_manifest.json').read_text())
+          validation=freeze['corpus_validation']
           assert freeze['evaluation_status']=='sealed_unscored'
           assert freeze['scoring_executed'] is False
+          assert freeze['evaluator_frozen_before_scoring'] is True
           assert freeze['case_count']==216
           assert freeze['single_case_count']==144
           assert freeze['multi_case_count']==72
@@ -87,6 +94,12 @@ jobs:
           assert freeze['prior_root_overlap_count']==0
           assert freeze['prior_project_overlap_count']==0
           assert freeze['prior_url_overlap_count']==0
+          assert validation['passed'] is True
+          assert validation['label_leakage_count']==0
+          assert validation['grounding_writeup_overlap_count']==0
+          assert validation['single_positive_control_collision_count']==0
+          assert validation['multi_raw_collision_count']==0
+          assert validation['single_positive_observable_delta_rate']==1.0
           for rel,wanted in freeze['protected_sha256'].items():
               actual=hashlib.sha256((root/rel).read_bytes()).hexdigest()
               assert actual==wanted,(rel,wanted,actual)
@@ -108,7 +121,13 @@ jobs:
           assert len({x['source_root'] for x in selected})==36
           assert len({x['source_project'] for x in selected})==36
           assert any(x['family']=='business_logic' and x['source_project']=='pretix/pretix' for x in selected)
-          print(json.dumps({'corpus_sha256': freeze['protected_sha256']['benchmarks/raw/analysis_raw_v5.jsonl'], 'cases':216, 'dual_positive_pairs':18, 'source_kind_counts':freeze['source_kind_counts']}, indent=2))
+          print(json.dumps({
+              'corpus_sha256': freeze['protected_sha256']['benchmarks/raw/analysis_raw_v5.jsonl'],
+              'evaluator_sha256': freeze['protected_sha256']['app/raw_recon_v5_benchmark.py'],
+              'cases':216,
+              'dual_positive_pairs':18,
+              'source_kind_counts':freeze['source_kind_counts'],
+          }, indent=2))
           PY
 
       - name: Update manifest for frozen v5 preparation
@@ -126,6 +145,9 @@ jobs:
               'app/raw_recon_v5_source_audit.py',
               'app/raw_recon_v5_business_logic_supplement.py',
               'app/raw_recon_v5_prepare.py',
+              'app/raw_recon_v5_corpus.py',
+              'app/raw_recon_v5_benchmark.py',
+              'app/raw_recon_v5_freeze.py',
               'tests/test_analysis_629_v5_protocol.py',
               'docs/ANALYSIS_ENGINE_6_29_FRESH_BLIND_V5.md',
               'benchmarks/raw/sources/v5_candidates.json',
@@ -153,5 +175,5 @@ jobs:
           git rm .github/workflows/analysis-629-v5-prepare.yml
           git add -A
           git diff --cached --check
-          git commit -m "Freeze Analysis 6.29 fresh blind v5 corpus"
+          git commit -m "Freeze Analysis 6.29 fresh blind v5 corpus and evaluator"
           git push origin HEAD:agent/analysis-engine-6.29-fresh-blind-v5-multifamily
