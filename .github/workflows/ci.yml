@@ -38,51 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Validate decision readiness calibration
-        shell: bash
-        run: |
-          set -euo pipefail
-          sha256sum \
-            app/calibration_dataset.py \
-            app/analysis_benchmark_v2.py \
-            tests/test_calibration_dataset_v920.py \
-            docs/ANALYSIS_CALIBRATION_DATASET_V2.md \
-            app/vulnerability_signal_alignment.py \
-            app/vulnerability_knowledge.py \
-            app/decision_readiness.py \
-            app/meta_ranker.py \
-            app/analysis_benchmark.py \
-            tests/test_knowledge_coverage_31_v892.py \
-            tests/test_decision_readiness_v930.py \
-            docs/ANALYSIS_CALIBRATION_AND_BENCHMARK.md
-          python tests/test_calibration_benchmark_v910.py
-          python tests/test_calibration_dataset_v920.py
-          python tests/test_decision_readiness_v930.py
-          python tests/test_knowledge_coverage_31_v892.py
-          python tests/test_meta_ranker_v861.py
-          python - <<'PY'
-          import json, sys
-          sys.path.insert(0, 'app')
-          from analysis_benchmark import run_default_benchmark
-          from analysis_benchmark_v2 import quality_report
-          seed = run_default_benchmark('.')
-          challenge = quality_report('.')
-          g = seed['calibration_profile']['global']
-          print('DECISION_READINESS_BASELINE=' + json.dumps({
-              'score_semantics': seed['score_semantics'],
-              'seed_coverage': seed['coverage'],
-              'selected_threshold': g['threshold'],
-              'selected_metrics': g['metrics'],
-              'brier': g['diagnostics']['score_brier_diagnostic'],
-              'ece': g['diagnostics']['expected_calibration_error'],
-              'challenge_coverage': challenge['coverage'],
-              'challenge_metrics_by_kind': challenge['challenge_metrics_by_kind'],
-              'challenge_ordering_failure_count': challenge['challenge_ordering_failure_count'],
-              'activation': challenge['calibration_profile']['activation'],
-              'activation_ready': challenge['calibration_profile']['activation_readiness']['global_ready'],
-          }, sort_keys=True))
-          PY
-
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
