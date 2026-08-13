@@ -42,7 +42,7 @@ def exposure_index() -> dict[str, set[str]]:
     return out
 
 
-def discover(max_pages: int = 12, target_per_family: int = 180) -> dict[str, Any]:
+def discover(max_pages: int = 8, target_per_family: int = 80) -> dict[str, Any]:
     excluded = exposure_index()
     grounding = v4._grounding_writeup_urls()
     family_cwes = v4._family_cwes()
