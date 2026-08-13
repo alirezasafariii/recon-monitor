@@ -38,15 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Phase 2 knowledge hashes
-        shell: bash
-        run: |
-          sha256sum .github/workflows/ci.yml \
-            app/vulnerability_writeups_phase2.py \
-            app/vulnerability_knowledge.py \
-            docs/OWASP_EXPANSION_PHASE2.md \
-            tests/test_analysis_phase2_completion_v900.py
-
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
