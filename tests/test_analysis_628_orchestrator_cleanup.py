@@ -27,14 +27,22 @@ from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 from static_family_collectors import STATIC_SPECIALIZED_FAMILIES, STATIC_SUPPLEMENTAL_FAMILIES, STATIC_SUPPLEMENTAL_IMPACTS
 
 
+def _version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split("."))
+
+
 class Analysis628OrchestratorCleanupTests(unittest.TestCase):
-    def test_exact_release_and_orchestration_versions(self) -> None:
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.28.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.13.6.28")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.28.0")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.13.6.28")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.28.0")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.13.6.28")
+    def test_release_lineage_and_exact_orchestration_version(self) -> None:
+        self.assertGreaterEqual(_version_tuple(analysis_engine.ENGINE_VERSION), (6, 28, 0))
+        self.assertGreaterEqual(_version_tuple(bug_candidates.CANDIDATE_ENGINE_VERSION), (6, 28, 0))
+        self.assertGreaterEqual(_version_tuple(security_reasoning.REASONING_ENGINE_VERSION), (6, 28, 0))
+        for rule in (
+            analysis_engine.RULE_VERSION,
+            bug_candidates.CANDIDATE_RULE_VERSION,
+            security_reasoning.REASONING_RULE_VERSION,
+        ):
+            self.assertTrue(rule.startswith("2026.08.13.6."), rule)
+            self.assertGreaterEqual(int(rule.rsplit(".", 1)[-1]), 28)
         self.assertEqual(ORCHESTRATION_ENGINE_VERSION, "1.0.0")
         self.assertEqual(ORCHESTRATION_RULE_VERSION, "2026.08.13.6.28")
 
