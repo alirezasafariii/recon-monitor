@@ -126,8 +126,8 @@ class PhysicalFamilyDetectors690Tests(unittest.TestCase):
         self.assertTrue(any(rule.startswith("writeup:") for rule in rules))
 
     def test_versions(self):
-        self.assertEqual(DETECTOR_ENGINE_VERSION, "1.1.0")
-        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.3.0")
+        self.assertGreaterEqual(tuple(int(part) for part in DETECTOR_ENGINE_VERSION.split(".")), (1, 1, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in STANDARDS_ENGINE_VERSION.split(".")), (1, 3, 0))
 
 
 if __name__ == "__main__":

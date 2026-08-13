@@ -25,7 +25,7 @@ class Analysis617SealTests(unittest.TestCase):
         self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 17, 0))
         self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
         self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.RULE_VERSION.split(".")), (2026, 8, 12, 6))
 
     def test_run_analysis_routes_both_authorization_families_to_hypothesis_and_candidate(self) -> None:
         families = set(AUTHORIZATION_FAMILIES)

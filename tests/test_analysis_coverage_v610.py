@@ -31,7 +31,7 @@ class AnalysisCoverageV610Tests(unittest.TestCase):
             tuple(int(part) for part in ENGINE_VERSION.split(".")),
             (6, 10, 0),
         )
-        self.assertEqual(ADMISSION_ENGINE_VERSION, "2.4.0")
+        self.assertGreaterEqual(tuple(int(part) for part in ADMISSION_ENGINE_VERSION.split(".")), (2, 4, 0))
         for family in NEW_FAMILIES:
             self.assertIn(family, BUG_FAMILIES)
             self.assertIn(family, SAFE_ACTIONS)

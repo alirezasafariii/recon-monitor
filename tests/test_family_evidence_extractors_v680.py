@@ -24,8 +24,8 @@ def ev(kind: str, source: str, family_scope: str = "") -> dict[str, str]:
 
 class FamilyEvidenceExtractors680Tests(unittest.TestCase):
     def test_registry_exactly_covers_every_family_with_unique_strategy(self) -> None:
-        self.assertEqual(FAMILY_EVIDENCE_EXTRACTOR_VERSION, "1.0.0")
-        self.assertEqual(FAMILY_REASONER_VERSION, "1.1.0")
+        self.assertGreaterEqual(tuple(int(part) for part in FAMILY_EVIDENCE_EXTRACTOR_VERSION.split(".")), (1, 0, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in FAMILY_REASONER_VERSION.split(".")), (1, 1, 0))
         self.assertEqual(RANKING_ENGINE_VERSION, "2.1.0")
         self.assertGreaterEqual(tuple(int(part) for part in ADMISSION_ENGINE_VERSION.split(".")), (2, 4, 0))
         self.assertEqual(set(FAMILY_EVIDENCE_EXTRACTOR_PROFILES), set(FAMILY_ADMISSION_POLICIES))

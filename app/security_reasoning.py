@@ -13,8 +13,8 @@ from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, re
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 from security_family_ranker import production_family_rankings
 
-REASONING_ENGINE_VERSION = "6.25.0"
-REASONING_RULE_VERSION = "2026.08.12.6.25"
+REASONING_ENGINE_VERSION = "6.27.0"
+REASONING_RULE_VERSION = "2026.08.13.6.27"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -263,8 +263,8 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     "unsafe_api_consumption": {
         "label": "Unsafe Consumption of Third-Party APIs",
         "rank_gate": {"third_party_integration", "upstream_api_surface"},
-        "required": [{"third_party_integration", "upstream_api_surface", "external_service_dependency"}, {"upstream_tls_missing", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"}],
-        "support": {"third_party_data_unsanitized", "unsafe_upstream_data_reaches_sink"},
+        "required": [{"third_party_integration", "upstream_api_surface", "external_service_dependency"}, {"upstream_tls_missing", "upstream_certificate_validation_failure", "third_party_data_unsanitized", "upstream_redirect_followed_unrestricted", "upstream_timeout_absent", "upstream_response_unbounded", "third_party_auth_weak", "unsafe_upstream_data_reaches_sink"}],
+        "support": {"upstream_certificate_validation_failure", "third_party_data_unsanitized", "unsafe_upstream_data_reaches_sink"},
         "contradict": {"upstream_tls_enforced", "third_party_schema_validation", "upstream_redirect_restricted", "upstream_timeout_enforced", "upstream_response_capped"},
         "unknowns": ["Upstream TLS/authentication", "Redirect/timeout/response-size controls", "Validation and sanitization before downstream processing"],
         "variants": {"redirect": "unrestricted_upstream_redirect", "validation": "unvalidated_third_party_data", "resource": "unbounded_upstream_response"},
@@ -272,8 +272,8 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     "source_map_exposure": {
         "label": "Source-map Exposure",
         "rank_gate": {"source_map"},
-        "required": [{"source_map"}, {"internal_sources", "source_contents"}],
-        "support": {"public_observation", "production_javascript", "debug_information"},
+        "required": [{"source_map"}, {"internal_sources", "source_contents"}, {"public_observation", "direct_reachability"}],
+        "support": {"public_observation", "direct_reachability", "production_javascript", "debug_information"},
         "contradict": {"non_reachable", "empty_map", "intended_public"},
         "unknowns": ["Direct public reachability of the source map", "Sensitivity of included source contents", "Whether secrets or internal-only logic are present"],
         "variants": {"internal": "internal_source_path_exposure", "content": "source_content_exposure"},
@@ -298,9 +298,9 @@ FAMILY_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "cors_misconfiguration": {
         "label": "CORS Misconfiguration",
-        "rank_gate": {"cors_header", "wildcard_origin", "reflected_origin"},
-        "required": [{"cors_header", "wildcard_origin", "reflected_origin"}],
-        "support": {"credentials_allowed", "sensitive_fields", "authenticated_context"},
+        "rank_gate": {"cors_policy_surface", "cors_header", "wildcard_origin", "reflected_origin"},
+        "required": [{"cors_policy_surface", "cors_header", "wildcard_origin", "reflected_origin", "null_origin_accepted", "unsafe_origin_policy"}, {"wildcard_origin", "reflected_origin", "null_origin_accepted", "unsafe_origin_policy"}, {"credentials_allowed", "sensitive_cross_origin_response", "authenticated_context"}],
+        "support": {"credentials_allowed", "sensitive_cross_origin_response", "sensitive_fields", "authenticated_context"},
         "contradict": {"strict_origin_allowlist", "credentials_disabled", "public_intended"},
         "unknowns": ["Credentialed cross-origin behavior", "Effective origin validation", "Sensitivity of responses available cross-origin"],
         "variants": {"wildcard": "wildcard_origin_policy", "reflect": "reflected_origin_policy"},

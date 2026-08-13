@@ -6,8 +6,8 @@ from typing import Any, Iterable, Mapping
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
 from family_evidence_extractors import filter_evidence_for_family
 
-FAMILY_REASONER_VERSION = "1.1.0"
-FAMILY_REASONER_RULE_VERSION = "2026.08.10.6.8"
+FAMILY_REASONER_VERSION = "1.2.0"
+FAMILY_REASONER_RULE_VERSION = "2026.08.13.6.27"
 
 
 @dataclass(frozen=True)

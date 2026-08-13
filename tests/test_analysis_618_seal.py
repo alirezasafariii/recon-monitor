@@ -22,7 +22,7 @@ class Analysis618SealTests(unittest.TestCase):
         self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 18, 0))
         self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
         self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.RULE_VERSION.split(".")), (2026, 8, 12, 6))
         self.assertEqual(FILE_REMOTE_COLLECTOR_RULE_VERSION, "2026.08.12.6.18")
 
     def test_file_remote_families_remain_standards_and_writeup_grounded(self) -> None:

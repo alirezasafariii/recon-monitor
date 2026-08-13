@@ -5,8 +5,8 @@ from typing import Any, Iterable, Mapping
 
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
 
-FAMILY_EVIDENCE_EXTRACTOR_VERSION = "1.0.0"
-FAMILY_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.08.10.6.8"
+FAMILY_EVIDENCE_EXTRACTOR_VERSION = "1.1.0"
+FAMILY_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.08.13.6.27"
 
 
 # Extraction has an explicit copy of the identity gates so this module stays

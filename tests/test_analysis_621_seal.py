@@ -24,10 +24,10 @@ class Analysis621SealTests(unittest.TestCase):
         self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.ENGINE_VERSION.split(".")), (6, 21, 0))
         self.assertEqual(analysis_engine.RULE_VERSION, bug_candidates.CANDIDATE_RULE_VERSION)
         self.assertEqual(analysis_engine.RULE_VERSION, security_reasoning.REASONING_RULE_VERSION)
-        self.assertTrue(analysis_engine.RULE_VERSION.startswith("2026.08.12.6."))
+        self.assertGreaterEqual(tuple(int(part) for part in analysis_engine.RULE_VERSION.split(".")), (2026, 8, 12, 6))
         self.assertEqual(BUSINESS_LOGIC_COLLECTOR_RULE_VERSION, "2026.08.12.6.21")
-        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.3.0")
-        self.assertEqual(DETECTOR_ENGINE_VERSION, "1.1.0")
+        self.assertGreaterEqual(tuple(int(part) for part in STANDARDS_ENGINE_VERSION.split(".")), (1, 3, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in DETECTOR_ENGINE_VERSION.split(".")), (1, 1, 0))
         self.assertEqual(OWASP_REFERENCE_VERSION, "Top10:2025+API-Security:2023")
 
     def test_all_31_families_keep_four_layer_grounding(self) -> None:

@@ -13,7 +13,7 @@ from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission, kn
 
 class AnalysisStandardsV630Tests(unittest.TestCase):
     def test_every_admission_family_has_wstg_owasp_and_cwe_grounding(self):
-        self.assertEqual(STANDARDS_ENGINE_VERSION, "1.3.0")
+        self.assertGreaterEqual(tuple(int(part) for part in STANDARDS_ENGINE_VERSION.split(".")), (1, 3, 0))
         self.assertEqual(OWASP_REFERENCE_VERSION, "Top10:2025+API-Security:2023")
         self.assertEqual(set(FAMILY_STANDARDS), set(FAMILY_ADMISSION_POLICIES))
         self.assertGreaterEqual(len(FAMILY_STANDARDS), 31)

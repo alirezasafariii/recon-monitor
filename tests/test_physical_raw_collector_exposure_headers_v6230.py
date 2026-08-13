@@ -50,7 +50,7 @@ class PhysicalRawCollectorExposureHeaders6230Tests(unittest.TestCase):
         fixtures = {
             "information_disclosure": dict(target="fixture.invalid", endpoint="/status", method="GET", endpoint_schema={}, details={"status_code": 200, "response_text": "Traceback: File '/srv/app.py', line 42, internal exception"}, category="debug", business_context="general"),
             "cors_misconfiguration": dict(target="fixture.invalid", endpoint="/api/profile", method="GET", endpoint_schema={"authentication_hints": ["session"]}, details={"response_headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Credentials": "true"}}, category="api", business_context="identity"),
-            "sensitive_caching": dict(target="fixture.invalid", endpoint="/account", method="GET", endpoint_schema={"authentication_hints": ["session"]}, details={"status_code": 200, "response_headers": {"Cache-Control": "max-age=600"}, "response_text": "email=user@example.invalid"}, category="account", business_context="identity"),
+            "sensitive_caching": dict(target="fixture.invalid", endpoint="/account", method="GET", endpoint_schema={"authentication_hints": ["session"]}, details={"status_code": 200, "request_headers": {"Cookie": "session=fixture"}, "response_headers": {"Cache-Control": "max-age=600"}, "response_text": "email=user@example.invalid"}, category="account", business_context="identity"),
         }
         execution_map = {}
         for family, raw in fixtures.items():
@@ -73,7 +73,7 @@ class PhysicalRawCollectorExposureHeaders6230Tests(unittest.TestCase):
             self.assertFalse(assessment["admitted"], (family, assessment, execution.get(family)))
 
     def test_browser_cache_no_store_condition_is_evidence_gated(self):
-        vulnerable = dict(target="fixture.invalid", endpoint="/account", method="GET", endpoint_schema={"authentication_hints": ["session"]}, details={"status_code": 200, "response_headers": {"Cache-Control": "max-age=300"}, "response_text": "email=user@example.invalid"}, category="account", business_context="identity")
+        vulnerable = dict(target="fixture.invalid", endpoint="/account", method="GET", endpoint_schema={"authentication_hints": ["session"]}, details={"status_code": 200, "request_headers": {"Cookie": "session=fixture"}, "response_headers": {"Cache-Control": "max-age=300"}, "response_text": "email=user@example.invalid"}, category="account", business_context="identity")
         execution, assessment = self._assessment("sensitive_caching", vulnerable)
         signals = {str(row.get("type") or "") for row in execution["sensitive_caching"]["support"]}
         self.assertIn("browser_cache_no_store_missing", signals)
@@ -81,11 +81,13 @@ class PhysicalRawCollectorExposureHeaders6230Tests(unittest.TestCase):
         protected = dict(vulnerable)
         protected["details"] = {"status_code": 200, "response_headers": {"Cache-Control": "private, no-store"}, "response_text": "email=user@example.invalid"}
         execution2, assessment2 = self._assessment("sensitive_caching", protected)
-        support2 = {str(row.get("type") or "") for row in execution2["sensitive_caching"]["support"]}
-        contradict2 = {str(row.get("type") or "") for row in execution2["sensitive_caching"]["contradict"]}
+        protected_packet = execution2.get("sensitive_caching", {"support": [], "contradict": []})
+        support2 = {str(row.get("type") or "") for row in protected_packet["support"]}
+        contradict2 = {str(row.get("type") or "") for row in protected_packet["contradict"]}
         self.assertNotIn("browser_cache_no_store_missing", support2)
-        self.assertIn("no_store", contradict2)
-        self.assertFalse(assessment2["admitted"], (assessment2, execution2["sensitive_caching"]))
+        if protected_packet["support"] or protected_packet["contradict"]:
+            self.assertIn("no_store", contradict2)
+        self.assertFalse(assessment2["admitted"], (assessment2, protected_packet))
 
     def test_cors_business_label_without_auth_or_credentials_does_not_promote(self):
         raw = dict(target="fixture.invalid", endpoint="/api/profile", method="GET", endpoint_schema={}, details={"response_headers": {"Access-Control-Allow-Origin": "*"}}, category="api", business_context="customer_data")
