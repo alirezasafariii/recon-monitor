@@ -1,0 +1,102 @@
+name: Analysis 6.31 Source Supplement
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - benchmarks/raw/sources/v6_selection_diagnostic.json
+      - .github/workflows/analysis-631-source-supplement.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  supplement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Collect additional independent source candidates
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import raw_recon_v5_nvd_api_discovery as nvd
+          import raw_recon_v6_source_firewall as fw
+
+          diagnostic = json.loads(Path('benchmarks/raw/sources/v6_selection_diagnostic.json').read_text())
+          targets = set(diagnostic['families_without_semantic_candidates'])
+          nvd.exposure_index = fw.exposure_index
+          nvd.EXACT_FAMILIES = frozenset()
+          report = nvd.discover(target_semantic_per_family=4)
+          pools = {
+              family: rows
+              for family, rows in report['candidates_by_family'].items()
+              if family in targets
+          }
+          semantic = {
+              family: report['family_semantic_candidate_counts'].get(family, 0)
+              for family in sorted(targets)
+          }
+          out = {
+              'version': '1.0.0',
+              'rule_version': '2026.08.13.6.31',
+              'evaluation_kind': 'fresh_blind_v6_unscored_source_supplement',
+              'target_families': sorted(targets),
+              'api_request_count': report['api_request_count'],
+              'family_semantic_candidate_counts': semantic,
+              'families_without_semantic_candidates': sorted(
+                  family for family in targets if semantic.get(family, 0) == 0
+              ),
+              'scoring_executed': False,
+              'candidate_selection_uses_detector_scores': False,
+              'candidate_selection_uses_admission_results': False,
+              'candidates_by_family': pools,
+          }
+          Path('benchmarks/raw/sources/v6_supplement_candidates.json').write_text(
+              json.dumps(out, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps({
+              'target_family_count': len(targets),
+              'api_request_count': out['api_request_count'],
+              'families_without_semantic_candidates': out['families_without_semantic_candidates'],
+              'scoring_executed': out['scoring_executed'],
+          }, sort_keys=True))
+          PY
+
+      - name: Verify supplement remains unscored
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('benchmarks/raw/sources/v6_supplement_candidates.json').read_text())
+          assert data['scoring_executed'] is False
+          assert data['candidate_selection_uses_detector_scores'] is False
+          assert data['candidate_selection_uses_admission_results'] is False
+          PY
+
+      - name: Commit supplement snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_supplement_candidates.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record independent Analysis 6.31 v6 source supplement'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
