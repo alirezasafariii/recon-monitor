@@ -105,6 +105,23 @@ class CalibrationBenchmarkV910Tests(unittest.TestCase):
             [],
         )
 
+        positive_without_target_evidence = sorted(
+            record["family"]
+            for record in records
+            if record["label"] and int(record["target_evidence_confidence"]) <= 0
+        )
+        self.assertEqual(positive_without_target_evidence, [])
+
+        by_family = {}
+        for record in records:
+            by_family.setdefault(record["family"], {})[bool(record["label"])] = record
+        non_separating = sorted(
+            family
+            for family, pair in by_family.items()
+            if int(pair[True]["score"]) <= int(pair[False]["score"])
+        )
+        self.assertEqual(non_separating, [])
+
 
 if __name__ == "__main__":
     unittest.main()
