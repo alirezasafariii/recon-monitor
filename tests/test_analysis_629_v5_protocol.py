@@ -6,11 +6,23 @@ import unittest
 from pathlib import Path
 
 from family_detectors.registry import DETECTOR_SPECS
+from raw_recon_v5_exact_source_supplement import EXACT_SOURCE_SPECS
 from raw_recon_v5_prepare import _multi_cases
 from raw_recon_v5_source_audit import HARD_ANCHORS, audit_row
 from raw_recon_v5_source_discovery import _is_research_project
 
 ROOT = Path(__file__).resolve().parents[1]
+EXACT_FAMILIES = {
+    "dom_xss",
+    "graphql_authorization",
+    "graphql_data_exposure",
+    "improper_inventory_management",
+    "postmessage_trust",
+    "sensitive_business_flow_abuse",
+    "source_map_exposure",
+    "unsafe_api_consumption",
+    "websocket_authorization",
+}
 
 
 class Analysis629V5ProtocolTests(unittest.TestCase):
@@ -18,13 +30,21 @@ class Analysis629V5ProtocolTests(unittest.TestCase):
         self.assertEqual(set(HARD_ANCHORS), set(DETECTOR_SPECS))
         self.assertEqual(len(DETECTOR_SPECS), 36)
 
+    def test_exact_source_specs_are_disjoint_pre_score_contracts(self):
+        self.assertEqual(set(EXACT_SOURCE_SPECS), EXACT_FAMILIES)
+        cves = [str(spec["cve"]) for spec in EXACT_SOURCE_SPECS.values()]
+        self.assertEqual(len(cves), len(set(cves)))
+        self.assertTrue(all(value.startswith("CVE-") for value in cves))
+        self.assertTrue(all(len(spec["groups"]) >= 3 for spec in EXACT_SOURCE_SPECS.values()))
+        self.assertTrue(all(spec["project_any"] for spec in EXACT_SOURCE_SPECS.values()))
+
     def test_preparation_modules_do_not_import_scoring_or_ranking_runners(self):
         forbidden = {"raw_recon_benchmark", "analysis_ranking"}
         for name in (
             "app/raw_recon_v5_source_discovery.py",
             "app/raw_recon_v5_nvd_discovery.py",
             "app/raw_recon_v5_source_audit.py",
-            "app/raw_recon_v5_business_logic_supplement.py",
+            "app/raw_recon_v5_exact_source_supplement.py",
             "app/raw_recon_v5_prepare.py",
         ):
             tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
@@ -87,6 +107,7 @@ class Analysis629V5ProtocolTests(unittest.TestCase):
         data = json.loads(freeze.read_text(encoding="utf-8"))
         self.assertEqual(data["evaluation_status"], "sealed_unscored")
         self.assertFalse(data["scoring_executed"])
+        self.assertTrue(data["evaluator_frozen_before_scoring"])
         self.assertEqual(data["case_count"], 216)
         self.assertEqual(data["single_case_count"], 144)
         self.assertEqual(data["multi_case_count"], 72)
