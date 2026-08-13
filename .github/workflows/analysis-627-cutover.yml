@@ -41,8 +41,10 @@ jobs:
           assert receipt['evaluation_kind']=='first_blind_single_consumption'
           PY
 
-      - name: Apply Analysis 6.27 formal cutover
-        run: python scripts/analysis_627_cutover.py
+      - name: Apply Analysis 6.27 formal cutover and historical compatibility
+        run: |
+          python scripts/analysis_627_cutover.py
+          python scripts/analysis_627_cutover_compat.py
 
       - name: Analysis 6.27 exact cutover contract
         env:
@@ -59,6 +61,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_family_reasoners_v670.py' -q
           python -m unittest discover -s tests -p 'test_family_evidence_extractors_v680.py' -q
           python -m unittest discover -s tests -p 'test_owasp_top10_2025_completion_v6250.py' -q
+          python -m unittest discover -s tests -p 'test_physical_raw_collector_exposure_headers_v6230.py' -q
+          python -m unittest discover -s tests -p 'test_analysis_postfreeze_sources_v660.py' -q
 
       - name: Re-run consumed-v4 regression as regression only
         env:
@@ -141,9 +145,6 @@ jobs:
             'app/family_reasoners.py','app/family_evidence_extractors.py','app/raw_recon_v4_regression.py',
             'app/raw_recon_v4_regression_diagnostic.py','tests/test_analysis_627_blind_failure_calibration.py',
             'tests/test_analysis_627_precision_routing.py','tests/test_analysis_627_seal.py',
-            'tests/test_analysis_625_seal.py','tests/test_family_confusion_matrix_v670.py','tests/test_family_reasoners_v670.py',
-            'tests/test_family_evidence_extractors_v680.py','tests/test_detector_execution_intelligence_v6100.py',
-            'tests/test_raw_condition_reconstruction_v6120.py','tests/test_raw_precision_calibration_v6140.py',
             'benchmarks/raw/results/analysis_raw_v4_6_27_regression.json',
             'benchmarks/raw/results/analysis_raw_v4_6_27_diagnostic.json',
             'docs/ANALYSIS_ENGINE_6_27_BLIND_FAILURE_CALIBRATION.md',
@@ -159,13 +160,13 @@ jobs:
       - name: Verify manifest
         run: sha256sum -c MANIFEST.sha256
 
-      - name: Commit Analysis 6.27 cutover and remove one-shot helper/workflow
+      - name: Commit Analysis 6.27 cutover and remove one-shot helpers/workflow
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/analysis-627-cutover.yml scripts/analysis_627_cutover.py
+          git rm .github/workflows/analysis-627-cutover.yml scripts/analysis_627_cutover.py scripts/analysis_627_cutover_compat.py
           git add -A
           git diff --cached --check
           git commit -m "Cut over Analysis Engine 6.27 blind failure calibration"
