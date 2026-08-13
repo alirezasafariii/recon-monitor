@@ -12,7 +12,7 @@ from raw_recon_v4_materialize import EXPECTED_CONDITION, V4_VARIANTS, _fixture_t
 from raw_recon_v4_source_audit import HARD_ANCHORS, audit_row
 from raw_recon_v5_source_discovery import exposure_index
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RULE_VERSION = "2026.08.13.6.29"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v5_candidates.json"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v5_shortlist.json"
@@ -73,11 +73,15 @@ def _noise(raw: Mapping[str, Any], family: str, kind: str) -> dict[str, Any]:
     return out
 
 
+def _observation(raw_template: Mapping[str, Any], *, target: str, family: str, kind: str) -> dict[str, Any]:
+    return {"target": target, **_noise(raw_template, family, kind)}
+
+
 def _single_case(row: Mapping[str, Any], kind: str, raw_template: Mapping[str, Any]) -> dict[str, Any]:
     family = str(row["family"])
     condition = EXPECTED_CONDITION[family]
     project = str(row["source_project"])
-    raw = {"target": _fixture_target(project), **_noise(raw_template, family, kind)}
+    raw = _observation(raw_template, target=_fixture_target(project), family=family, kind=kind)
     return {
         "id": f"v5-{row['source_root']}-{kind}",
         "source_root": row["source_root"],
@@ -90,75 +94,58 @@ def _single_case(row: Mapping[str, Any], kind: str, raw_template: Mapping[str, A
         "rank_required": kind != "sparse_noisy",
         "provenance": {"url": row["canonical_advisory_url"], "primary_source": True, "literal_capture": False},
         "raw": raw,
-        "expected": {"admitted_families": [family] if kind == "positive" else [], "condition_signals": {family: [condition] if kind == "positive" else []}},
-    }
-
-
-def _merge_schema(a: Mapping[str, Any], b: Mapping[str, Any]) -> dict[str, Any]:
-    keys = {"query_parameters", "body_fields", "path_parameters", "object_identifiers", "authentication_hints"}
-    return {key: sorted(set(a.get(key) or []) | set(b.get(key) or [])) for key in keys}
-
-
-def _merge_raw(a: Mapping[str, Any], b: Mapping[str, Any], target: str, pair_id: str) -> dict[str, Any]:
-    da = a.get("details") if isinstance(a.get("details"), Mapping) else {}
-    db = b.get("details") if isinstance(b.get("details"), Mapping) else {}
-    details = copy.deepcopy(dict(da))
-    for key, value in db.items():
-        if key not in details:
-            details[key] = copy.deepcopy(value)
-        else:
-            details[f"secondary_{key}"] = copy.deepcopy(value)
-    details["composite_fixture"] = {"pair": pair_id, "normalized": True}
-    return {
-        "target": target,
-        "endpoint": str(a.get("endpoint") or b.get("endpoint") or "/fixture"),
-        "method": str(a.get("method") or b.get("method") or "GET"),
-        "endpoint_schema": _merge_schema(
-            a.get("endpoint_schema") if isinstance(a.get("endpoint_schema"), Mapping) else {},
-            b.get("endpoint_schema") if isinstance(b.get("endpoint_schema"), Mapping) else {},
-        ),
-        "business_context": f"{a.get('business_context') or 'general'} + {b.get('business_context') or 'general'}",
-        "category": f"{a.get('category') or ''} | {b.get('category') or ''} | composite-v5",
-        "details": details,
+        "expected": {
+            "admitted_families": [family] if kind == "positive" else [],
+            "condition_signals": {family: [condition] if kind == "positive" else []},
+        },
     }
 
 
 def _multi_cases(selected: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_family = {str(row["family"]): row for row in selected}
     families = sorted(by_family)
-    # Deterministic disjoint pairing. Pairing is frozen before scoring and uses no engine output.
+    # Deterministic disjoint pairing fixed before scoring. Each case represents one
+    # target with two independent stored observations; the blind runner aggregates
+    # their target evidence only after the corpus is frozen.
     pairs = list(zip(families[:18], reversed(families[18:])))
     cases: list[dict[str, Any]] = []
     for index, (fa, fb) in enumerate(pairs, start=1):
         ra, rb = by_family[fa], by_family[fb]
         ta, tb = _template(fa, ra), _template(fb, rb)
         target = f"v5-pair-{index:02d}.fixture.invalid"
-        pair_id = f"{fa}+{fb}"
         variants = (
             ("dual_positive", "positive", "positive", [fa, fb]),
             ("a_only", "positive", "secure_negative", [fa]),
             ("b_only", "secure_negative", "positive", [fb]),
             ("dual_secure", "secure_negative", "secure_negative", []),
         )
-        for kind, ka, kb, expected_families in variants:
-            raw = _merge_raw(ta[ka], tb[kb], target, pair_id)
-            expected_conditions = {
-                family: [EXPECTED_CONDITION[family]]
-                for family in expected_families
-            }
+        for case_kind, kind_a, kind_b, expected_families in variants:
+            observations = [
+                _observation(ta[kind_a], target=target, family=fa, kind=kind_a),
+                _observation(tb[kind_b], target=target, family=fb, kind=kind_b),
+            ]
+            expected_conditions = {family: [EXPECTED_CONDITION[family]] for family in expected_families}
             cases.append({
-                "id": f"v5-multi-{index:02d}-{kind}",
+                "id": f"v5-multi-{index:02d}-{case_kind}",
                 "source_root": f"{ra['source_root']}+{rb['source_root']}",
                 "source_project": f"{ra['source_project']}+{rb['source_project']}",
                 "source_date": max(_source_date(ra), _source_date(rb)),
                 "family": fa,
+                "paired_families": [fa, fb],
                 "expected_families": list(expected_families),
-                "case_kind": kind,
+                "case_kind": case_kind,
                 "case_mode": "multi_family_hard_case",
                 "rank_required": bool(expected_families),
-                "provenance": {"primary_source": True, "composite": True, "urls": [ra["canonical_advisory_url"], rb["canonical_advisory_url"]]},
-                "raw": raw,
-                "expected": {"admitted_families": list(expected_families), "condition_signals": expected_conditions},
+                "provenance": {
+                    "primary_source": True,
+                    "composite": True,
+                    "urls": [ra["canonical_advisory_url"], rb["canonical_advisory_url"]],
+                },
+                "raw_observations": observations,
+                "expected": {
+                    "admitted_families": list(expected_families),
+                    "condition_signals": expected_conditions,
+                },
             })
     return cases
 
@@ -202,6 +189,8 @@ def prepare() -> dict[str, Any]:
         raise RuntimeError(f"v5 novelty firewall failed roots={prior_root_overlap} projects={prior_project_overlap} urls={prior_url_overlap}")
     if len(singles) != 144 or len(multi) != 72 or len(cases) != 216:
         raise RuntimeError(f"v5 case-count contract failed singles={len(singles)} multi={len(multi)} total={len(cases)}")
+    if any(len(row.get("raw_observations") or []) != 2 for row in multi):
+        raise RuntimeError("each v5 multi-family case must contain exactly two independent stored observations")
 
     freeze = {
         "version": VERSION,
@@ -212,6 +201,7 @@ def prepare() -> dict[str, Any]:
         "case_count": len(cases),
         "single_case_count": len(singles),
         "multi_case_count": len(multi),
+        "multi_observation_model": "two_independent_stored_target_observations",
         "family_count": 36,
         "source_root_count": len(roots),
         "source_project_count": len(projects),
