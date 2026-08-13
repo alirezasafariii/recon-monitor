@@ -13,7 +13,8 @@ import analysis_engine
 import bug_candidates
 import security_reasoning
 from analysis_standards import FAMILY_STANDARDS, STANDARDS_ENGINE_VERSION, validate_family_standards
-from family_detectors import DETECTOR_ENGINE_VERSION, DETECTOR_RULE_VERSION, get_detector_spec, validate_detector_registry
+from family_detectors import DETECTOR_ENGINE_VERSION, get_detector_spec, validate_detector_registry
+from family_detectors.base import DETECTOR_RULE_VERSION
 from family_detectors.execution import EXECUTION_ENGINE_VERSION, EXECUTION_RULE_VERSION
 from family_evidence_extractors import FAMILY_EVIDENCE_EXTRACTOR_RULE_VERSION, FAMILY_EVIDENCE_EXTRACTOR_VERSION, FAMILY_EVIDENCE_EXTRACTOR_PROFILES
 from family_reasoners import FAMILY_REASONER_PROFILES, FAMILY_REASONER_RULE_VERSION, FAMILY_REASONER_VERSION
@@ -144,7 +145,6 @@ class Analysis627SealTests(unittest.TestCase):
         reasoning = security_reasoning.FAMILY_SCHEMAS["unsafe_api_consumption"]
         self.assertIn(condition, set(reasoning["required"][1]))
         self.assertIn(condition, set(reasoning["support"]))
-        # The consumed v4 source remains a benchmark source, never detector grounding.
         grounding_urls = {ref.url for ref in spec.writeups}
         self.assertNotIn("https://github.com/advisories/GHSA-q7xv-cj2x-93j5", grounding_urls)
         self.assertNotIn("https://github.com/esm-dev/esm.sh/security/advisories/GHSA-rg65-45m7-hq57", grounding_urls)
