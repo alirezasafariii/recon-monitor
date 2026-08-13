@@ -145,12 +145,10 @@ class PhysicalRawCollectorAuthorization6170Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_legacy_authorization_blocks(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_authorization_observations(execution_map)", source)
-        self.assertIn("Function Authorization and Mass Assignment legacy collection was physically", source)
-        self.assertNotIn("# Function / role authorization", source)
-        self.assertNotIn("# Mass assignment / property-level authorization", source)
-        self.assertNotIn('emit("broken_function_authorization"', source)
-        self.assertNotIn('emit("mass_assignment"', source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_authorization_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
 
 if __name__ == "__main__":

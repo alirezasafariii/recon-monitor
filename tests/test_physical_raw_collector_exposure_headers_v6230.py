@@ -107,12 +107,10 @@ class PhysicalRawCollectorExposureHeaders6230Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_legacy_exposure_header_block(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_exposure_headers_observations(execution_map)", source)
-        self.assertIn("Analysis 6.23: Information Disclosure, CORS, and Sensitive Caching legacy alert emission was physically removed", source)
-        self.assertNotIn("# Information exposure / headers", source)
-        self.assertNotIn('emit("information_disclosure", "sensitive_metadata"', source)
-        self.assertNotIn('emit("cors_misconfiguration", "origin_policy"', source)
-        self.assertNotIn('emit("sensitive_caching", "cache_policy"', source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_exposure_headers_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_all_three_through_exposure_headers_collector(self):
         with tempfile.TemporaryDirectory() as td:

@@ -122,9 +122,10 @@ class PhysicalRawCollectorClientSide6190Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_legacy_redirect_emission(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_client_side_observations(execution_map)", source)
-        self.assertIn("Analysis 6.19: legacy Open Redirect alert emission was physically removed", source)
-        self.assertNotIn('emit("open_redirect", "unvalidated_destination"', source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_client_side_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_all_three_through_client_collector(self):
         with tempfile.TemporaryDirectory() as td:

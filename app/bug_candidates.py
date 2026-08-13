@@ -10,11 +10,11 @@ from core import Database, ReconError, json_dumps, parse_int, sha256_text, utc_n
 from hypothesis_admission import assess_admission, mark_promoted, record_hypothesis
 from bola_intelligence import analyze_bola_signal
 from family_detectors import detector_rule_ids, evaluate_family_detector, execute_detector_intelligence, execution_rule_ids
-from raw_family_collectors import collect_api_configuration_observations, collect_authentication_observations, collect_authorization_observations, collect_business_logic_observations, collect_client_side_observations, collect_exposure_headers_observations, collect_file_remote_resource_observations, collect_injection_observations, collect_owasp_top10_2025_observations
-from static_family_collectors import collect_specialized_static_observations
+from family_orchestration import collect_raw_owned_observations, validate_family_ownership
+from static_family_collectors import collect_static_candidate_observations
 
-CANDIDATE_ENGINE_VERSION = "6.27.0"
-CANDIDATE_RULE_VERSION = "2026.08.13.6.27"
+CANDIDATE_ENGINE_VERSION = "6.28.0"
+CANDIDATE_RULE_VERSION = "2026.08.13.6.28"
 
 AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
@@ -383,8 +383,6 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
     query_fields = [str(x) for x in _list(endpoint_schema.get("query_parameters"))]
     path_fields = [str(x) for x in _list(endpoint_schema.get("path_parameters"))]
     object_ids = [str(x) for x in _list(endpoint_schema.get("object_identifiers"))]
-    auth_hints = [str(x) for x in _list(endpoint_schema.get("authentication_hints"))]
-    haystack = " ".join([endpoint, item, category, context, json_dumps(details), " ".join(body_fields + query_fields + path_fields)]).lower()
     source_ref = f"alert:{alert_id}"
     asset = ""
     if "://" in endpoint:
@@ -397,7 +395,6 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
         target=target, endpoint=endpoint, method=method, endpoint_schema=endpoint_schema, details=details,
         evidence_for=evidence_for, evidence_against=evidence_against, category=category, business_context=context,
     )
-    emitted_execution_families: set[str] = set()
     count = 0
 
     def emit(family: str, variant: str, base: int, support: list[dict[str, Any]], contradict: list[dict[str, Any]], missing: list[str], rules: list[str], summary: str, *, direct: bool = False, impact: int | None = None) -> None:
@@ -407,7 +404,6 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             support = _merge_evidence_lists(support, list(execution_packet.get("support", [])))
             contradict = _merge_evidence_lists(contradict, list(execution_packet.get("contradict", [])))
             rules = list(dict.fromkeys([*rules, *execution_packet.get("rule_ids", []), *execution_rule_ids(family)]))
-        emitted_execution_families.add(family)
         extraction = evaluate_family_detector(family, support, contradict, channel="alert")
         support = extraction["support"]
         contradict = extraction["contradict"]
@@ -442,145 +438,14 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             mark_promoted(db, analysis_id, hypothesis["hypothesis_fingerprint"], candidate_id)
             count += 1
 
-    # Analysis 6.16 — physical raw collector ownership for server-side injection families.
-    # The collector contributes emission metadata only; target evidence is still owned
-    # by execute_detector_intelligence() and merged inside emit().
-    for observation in collect_injection_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
+    ownership_errors = validate_family_ownership()
+    if ownership_errors:
+        raise RuntimeError("Invalid Analysis 6.28 family ownership registry: " + "; ".join(ownership_errors))
 
-    # Analysis 6.17 — physical raw collector ownership for function/property authorization.
-    # The collector contributes emission metadata only; target evidence remains owned
-    # by execute_detector_intelligence() and raw-condition reconstruction.
-    for observation in collect_authorization_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.18 — physical raw collector ownership for file/remote-resource families.
-    # Target evidence remains owned by execute_detector_intelligence() and reconstruction.
-    for observation in collect_file_remote_resource_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.19 — physical raw collector ownership for client-side families.
-    # WSTG/OWASP/CWE/write-ups define detector criteria only; all target evidence
-    # still comes from passive execution/reconstruction and passes admission.
-    for observation in collect_client_side_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.20 — physical API/configuration collector ownership.
-    # WSTG/OWASP/CWE/write-ups define detector criteria only; target evidence
-    # remains owned by passive execution/reconstruction and admission.
-    for observation in collect_api_configuration_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.21 — physical business-logic/race collector ownership.
-    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive target
-    # evidence remains owned by execution/reconstruction and family admission.
-    for observation in collect_business_logic_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.22 — physical authentication/account-enumeration collector ownership.
-    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive stored target
-    # evidence remains owned by execution/reconstruction and family admission.
-    for observation in collect_authentication_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.23 — physical information-disclosure/CORS/cache collector ownership.
-    # WSTG/OWASP/CWE/write-ups define detector criteria only; passive stored target
-    # evidence remains owned by execution/reconstruction and family admission.
-    for observation in collect_exposure_headers_observations(execution_map):
-        emit(
-            observation.family,
-            observation.variant,
-            observation.base,
-            [],
-            [],
-            list(observation.missing),
-            list(observation.rules),
-            observation.summary,
-            direct=observation.direct,
-            impact=observation.impact,
-        )
-
-    # Analysis 6.25 — physical OWASP Top 10:2025 completion collector ownership.
-    # The collector is metadata-only. WSTG/OWASP/CWE/write-ups define criteria;
-    # target evidence remains solely in passive execution/reconstruction and admission.
-    for observation in collect_owasp_top10_2025_observations(execution_map):
+    # Analysis 6.28 — generic raw primary-owner orchestration. Collector metadata
+    # never manufactures target evidence; execution/reconstruction owns evidence and
+    # family admission remains the only promotion gate.
+    for observation in collect_raw_owned_observations(execution_map):
         emit(
             observation.family,
             observation.variant,
@@ -621,111 +486,16 @@ def _alert_candidates(db: Database, analysis_id: str, run_id: str, row: Mapping[
             direct=bool(bola["direct"]),
         )
 
-    # Analysis 6.17: Function Authorization and Mass Assignment legacy collection was physically
-    # removed after equivalent execution/admission coverage moved to raw_family_collectors.authorization.
-
-    # Analysis 6.22: Authentication/Session and Account Enumeration legacy alert emission was physically removed.
-    # raw_family_collectors.authentication owns emission metadata; execution/reconstruction
-    # remains the sole source of target evidence, blockers, and condition signals.
-
-    # Analysis 6.19: legacy Open Redirect alert emission was physically removed.
-    # raw_family_collectors.client_side owns emission metadata; detector execution
-    # owns redirect input/sink/external-destination target evidence.
-
-    # Analysis 6.18: SSRF/File Upload/Path Traversal legacy collection was physically
-    # removed. raw_family_collectors.file_remote_resource owns emission metadata;
-    # detector execution/reconstruction remains the sole source of target evidence.
-
-    # Analysis 6.16: SQL/NoSQL/Command/SSTI/LDAP legacy collection was physically
-    # removed from this orchestrator. Dedicated raw_family_collectors now own emission
-    # metadata while detector execution/reconstruction owns all target evidence.
-
-    # Analysis 6.20: API4/API6/API8/API9/API10 legacy alert emission was physically removed.
-    # raw_family_collectors.api_configuration owns emission metadata; detector execution and
-    # raw-condition reconstruction remain the sole source of target evidence and controls.
-
-    # Analysis 6.23: Information Disclosure, CORS, and Sensitive Caching legacy alert emission was physically removed.
-    # raw_family_collectors.exposure_headers owns emission metadata; execution/reconstruction
-    # remains the sole source of target evidence, blockers, and condition signals.
-
-    # Analysis 6.21: Business Logic and Race Condition legacy alert emission was physically removed.
-    # raw_family_collectors.business_logic owns emission metadata; execution/reconstruction
-    # remains the sole source of target evidence, blockers, and condition signals.
-
-    # Execution-only families still enter the hidden hypothesis ledger even when
-    # legacy surface heuristics did not emit them. Admission remains the only promotion gate.
-    for execution_family, execution_packet in execution_map.items():
-        if execution_family in emitted_execution_families:
-            continue
-        if not execution_packet.get("support") and not execution_packet.get("contradict"):
-            continue
-        emit(
-            execution_family,
-            "raw_execution_intelligence",
-            10,
-            [],
-            [],
-            [
-                "Correlate the execution signal with an independent target artifact",
-                "Verify the family-specific vulnerability condition and blocking controls",
-            ],
-            ["detector-execution-fallback"],
-            f"Stored raw artifacts produced family-specific {execution_family.replace('_', ' ')} evidence; admission remains evidence-gated.",
-        )
-
     return count
 
 
 def _static_candidates(db: Database, analysis_id: str, run_id: str, target: str | None) -> int:
     count = 0
-    params: list[Any] = [analysis_id]
-    target_clause = ""
-    if target:
-        target_clause = " AND target=?"
-        params.append(target)
 
-    # JavaScript data-flow candidates.
-    rows = db.all(f"SELECT * FROM js_dataflows WHERE analysis_id=?{target_clause}", tuple(params))
-    for row in rows:
-        source = str(row["source_kind"]); sink = str(row["sink_kind"]); current_target = str(row["target"]); js_url = str(row["js_url"])
-        confidence = parse_int(row["confidence"], 0)
-        support = [
-            {"type": "source_sink", "source": "javascript_dataflow", "source_group": "static_flow", "weight": 18, "text": f"Static source/sink proximity observed: {source} -> {sink}"},
-        ]
-        if sink in {"innerHTML", "eval"}: support.append({"type": "dangerous_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 20, "text": f"Dangerous DOM/JS sink observed: {sink}"})
-        if sink == "navigation": support.append({"type": "navigation_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 18, "text": "Navigation sink observed in static flow"})
-        if source == "postMessage": support.append({"type": "postmessage_handler", "source": "javascript_dataflow", "source_group": "message_source", "weight": 16, "text": "postMessage-controlled source observed"})
-        contradict = [{"type": "static_only", "source": "analysis_limit", "weight": -8, "text": "Static proximity does not prove runtime reachability or missing sanitization"}]
-        missing = ["Runtime reachability", "Sanitization or encoding behavior", "Whether the value is transformed before the sink"]
-        family = ""
-        variant = ""
-        summary = ""
-        if source == "postMessage":
-            family, variant = "postmessage_trust", "message_to_sensitive_sink"
-            summary = "A postMessage-controlled value appears near a sensitive client sink; origin validation and message schema checks are unknown."
-        elif sink in {"innerHTML", "eval"}:
-            family, variant = "dom_xss", "source_to_dom_sink"
-            summary = "A user-influenced browser source appears near an executable or HTML-rendering sink; runtime reachability and sanitization are unknown."
-        elif sink == "navigation":
-            family, variant = "open_redirect", "source_to_navigation_sink"
-            summary = "A user-influenced browser source appears near a navigation sink; destination validation is unknown."
-        if not family:
-            continue
-        _insert_candidate(
-            db, analysis_id=analysis_id, source_run_id=run_id, target=current_target, alert_id=None, asset="", endpoint="",
-            source_ref=f"js-dataflow:{js_url}:{source}:{sink}", family=family, variant=variant,
-            likelihood=_clamp(28 + confidence * 0.45 + sum(parse_int(x.get("weight"), 0) for x in support + contradict)),
-            evidence_strength=_evidence_strength(confidence, support, contradict, direct=True),
-            impact_potential=_impact(BUG_FAMILIES[family]["impact"], "general"), support=support, contradict=contradict,
-            missing=missing, rule_ids=["candidate-js-source-sink", f"candidate-{variant}"], summary=summary,
-        )
-        count += 1
-
-    # Analysis 6.24 — specialized static family ownership for Source Map, Secret,
-    # GraphQL authorization/data exposure, and WebSocket authorization. Evidence is
-    # extracted only from persisted static-intelligence rows; standards/write-ups are
-    # detector knowledge and are never inserted as target evidence.
-    for observation in collect_specialized_static_observations(db, analysis_id, target):
+    # Analysis 6.28 — static adapters own all persisted static candidate emission.
+    # Primary ownership remains machine-verifiable in family_orchestration; the
+    # DOM/postMessage/open-redirect adapter is supplemental only.
+    for observation in collect_static_candidate_observations(db, analysis_id, target):
         candidate_id = _insert_candidate(
             db, analysis_id=analysis_id, source_run_id=run_id, target=observation.target,
             alert_id=None, asset="", endpoint=observation.endpoint, source_ref=observation.source_ref,

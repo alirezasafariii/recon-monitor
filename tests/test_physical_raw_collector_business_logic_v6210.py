@@ -70,11 +70,10 @@ class PhysicalRawCollectorBusinessLogic6210Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_legacy_business_race_block(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_business_logic_observations(execution_map)", source)
-        self.assertIn("Analysis 6.21: Business Logic and Race Condition legacy alert emission was physically removed", source)
-        self.assertNotIn("# Business logic and race watchlist: deliberately low-confidence without behavior evidence.", source)
-        self.assertNotIn('emit("business_logic", "workflow_invariant"', source)
-        self.assertNotIn('emit("race_condition", "duplicate_operation"', source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_business_logic_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_both_through_business_collector(self):
         with tempfile.TemporaryDirectory() as td:

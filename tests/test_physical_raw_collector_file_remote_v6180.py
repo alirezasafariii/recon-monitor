@@ -115,16 +115,10 @@ class PhysicalRawCollectorFileRemote6180Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_legacy_family_emission(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_file_remote_resource_observations(execution_map)", source)
-        self.assertIn("Analysis 6.18: SSRF/File Upload/Path Traversal legacy collection was physically", source)
-        self.assertNotIn('emit("ssrf", "remote_fetch"', source)
-        self.assertNotIn('emit("file_upload", "file_validation"', source)
-        self.assertNotIn('emit("path_traversal", "path_construction"', source)
-        # Analysis 6.20 removed the API10 inline correlation variables; SSRF itself
-        # remains owned by the 6.18 physical file/remote collector.
-        self.assertNotIn("ssrf_tokens = _contains_any", source)
-        self.assertNotIn("generic_url_fields =", source)
-        self.assertNotIn("if ssrf_tokens or generic_url_fields:", source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_file_remote_resource_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_all_three_families_through_physical_collector(self):
         with tempfile.TemporaryDirectory() as td:

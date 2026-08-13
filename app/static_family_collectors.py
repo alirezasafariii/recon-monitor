@@ -187,3 +187,78 @@ def collect_specialized_static_observations(db: Database, analysis_id: str, targ
         ))
 
     return observations
+
+
+STATIC_SUPPLEMENTAL_FAMILIES = (
+    "dom_xss",
+    "postmessage_trust",
+    "open_redirect",
+)
+STATIC_SUPPLEMENTAL_IMPACTS = {
+    "dom_xss": 72,
+    "postmessage_trust": 68,
+    "open_redirect": 52,
+}
+
+
+def collect_client_static_supplemental_observations(
+    db: Database, analysis_id: str, target: str | None = None
+) -> list[StaticFamilyObservation]:
+    observations: list[StaticFamilyObservation] = []
+    params: list[Any] = [analysis_id]
+    target_clause = ""
+    if target:
+        target_clause = " AND target=?"
+        params.append(target)
+    rows = db.all(f"SELECT * FROM js_dataflows WHERE analysis_id=?{target_clause}", tuple(params))
+    for row in rows:
+        source = str(row["source_kind"])
+        sink = str(row["sink_kind"])
+        current_target = str(row["target"])
+        js_url = str(row["js_url"])
+        confidence = parse_int(row["confidence"], 0)
+        support = [
+            {"type": "source_sink", "source": "javascript_dataflow", "source_group": "static_flow", "weight": 18, "text": f"Static source/sink proximity observed: {source} -> {sink}"},
+        ]
+        if sink in {"innerHTML", "eval"}:
+            support.append({"type": "dangerous_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 20, "text": f"Dangerous DOM/JS sink observed: {sink}"})
+        if sink == "navigation":
+            support.append({"type": "navigation_sink", "source": "javascript_sink", "source_group": "static_sink", "weight": 18, "text": "Navigation sink observed in static flow"})
+        if source == "postMessage":
+            support.append({"type": "postmessage_handler", "source": "javascript_dataflow", "source_group": "message_source", "weight": 16, "text": "postMessage-controlled source observed"})
+        contradict = [
+            {"type": "static_only", "source": "analysis_limit", "weight": -8, "text": "Static proximity does not prove runtime reachability or missing sanitization"}
+        ]
+        missing = ("Runtime reachability", "Sanitization or encoding behavior", "Whether the value is transformed before the sink")
+        family = ""
+        variant = ""
+        summary = ""
+        if source == "postMessage":
+            family, variant = "postmessage_trust", "message_to_sensitive_sink"
+            summary = "A postMessage-controlled value appears near a sensitive client sink; origin validation and message schema checks are unknown."
+        elif sink in {"innerHTML", "eval"}:
+            family, variant = "dom_xss", "source_to_dom_sink"
+            summary = "A user-influenced browser source appears near an executable or HTML-rendering sink; runtime reachability and sanitization are unknown."
+        elif sink == "navigation":
+            family, variant = "open_redirect", "source_to_navigation_sink"
+            summary = "A user-influenced browser source appears near a navigation sink; destination validation is unknown."
+        if not family:
+            continue
+        observations.append(StaticFamilyObservation(
+            target=current_target, endpoint="", source_ref=f"js-dataflow:{js_url}:{source}:{sink}",
+            family=family, variant=variant,
+            likelihood=_clamp(28 + confidence * 0.45 + sum(parse_int(x.get("weight"), 0) for x in support + contradict)),
+            evidence_strength=_strength(confidence, support, contradict, direct=True), impact=STATIC_SUPPLEMENTAL_IMPACTS[family],
+            support=tuple(support), contradict=tuple(contradict), missing=missing,
+            rules=("static-supplement-client-v1", f"candidate-{variant}"), summary=summary,
+        ))
+    return observations
+
+
+def collect_static_candidate_observations(
+    db: Database, analysis_id: str, target: str | None = None
+) -> list[StaticFamilyObservation]:
+    return [
+        *collect_client_static_supplemental_observations(db, analysis_id, target),
+        *collect_specialized_static_observations(db, analysis_id, target),
+    ]

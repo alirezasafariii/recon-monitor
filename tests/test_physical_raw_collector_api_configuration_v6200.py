@@ -102,13 +102,10 @@ class PhysicalRawCollectorApiConfiguration6200Tests(unittest.TestCase):
 
     def test_orchestrator_cutover_removes_all_five_legacy_blocks(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_api_configuration_observations(execution_map)", source)
-        self.assertIn("Analysis 6.20: API4/API6/API8/API9/API10 legacy alert emission was physically removed", source)
-        self.assertNotIn("# API4:2023 — resource consumption.", source)
-        self.assertNotIn("# API6:2023 — unrestricted access to sensitive business flows.", source)
-        self.assertNotIn("# API8:2023 — security misconfiguration.", source)
-        self.assertNotIn("# API9:2023 — improper inventory management.", source)
-        self.assertNotIn("# API10:2023 — unsafe consumption of third-party APIs.", source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_api_configuration_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_all_five_through_api_configuration_collector(self):
         with tempfile.TemporaryDirectory() as td:

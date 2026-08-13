@@ -29,13 +29,13 @@ FIRST_BLIND_REPORT_SHA256 = "5c9d241b9da38fb374caa1851b8474aab2580dbafd1dbf25b6e
 
 
 class Analysis627SealTests(unittest.TestCase):
-    def test_analysis_layer_versions_are_exactly_627(self) -> None:
-        self.assertEqual(analysis_engine.ENGINE_VERSION, "6.27.0")
-        self.assertEqual(bug_candidates.CANDIDATE_ENGINE_VERSION, "6.27.0")
-        self.assertEqual(security_reasoning.REASONING_ENGINE_VERSION, "6.27.0")
-        self.assertEqual(analysis_engine.RULE_VERSION, "2026.08.13.6.27")
-        self.assertEqual(bug_candidates.CANDIDATE_RULE_VERSION, "2026.08.13.6.27")
-        self.assertEqual(security_reasoning.REASONING_RULE_VERSION, "2026.08.13.6.27")
+    def test_analysis_layer_versions_preserve_627_floor(self) -> None:
+        self.assertGreaterEqual(tuple(int(x) for x in analysis_engine.ENGINE_VERSION.split(".")), (6, 27, 0))
+        self.assertGreaterEqual(tuple(int(x) for x in bug_candidates.CANDIDATE_ENGINE_VERSION.split(".")), (6, 27, 0))
+        self.assertGreaterEqual(tuple(int(x) for x in security_reasoning.REASONING_ENGINE_VERSION.split(".")), (6, 27, 0))
+        self.assertGreaterEqual(tuple(int(x) for x in analysis_engine.RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))
+        self.assertGreaterEqual(tuple(int(x) for x in bug_candidates.CANDIDATE_RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))
+        self.assertGreaterEqual(tuple(int(x) for x in security_reasoning.REASONING_RULE_VERSION.split(".")), (2026, 8, 13, 6, 27))
         self.assertEqual(EXECUTION_ENGINE_VERSION, "1.3.0")
         self.assertEqual(EXECUTION_RULE_VERSION, "2026.08.13.6.27")
         self.assertEqual(RECONSTRUCTION_ENGINE_VERSION, "1.2.0")

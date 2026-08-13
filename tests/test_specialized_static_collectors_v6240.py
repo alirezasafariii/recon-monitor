@@ -88,11 +88,11 @@ class SpecializedStaticCollectors6240Tests(unittest.TestCase):
 
     def test_orchestrator_physically_removes_specialized_static_blocks(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_specialized_static_observations(db, analysis_id, target)", source)
-        self.assertNotIn("# Source maps.", source)
-        self.assertNotIn("# Secret candidates.", source)
-        self.assertNotIn("# GraphQL operations.", source)
-        self.assertNotIn('elif sink == "websocket":', source)
+        self.assertIn("collect_static_candidate_observations(db, analysis_id, target)", source)
+        self.assertNotIn("collect_specialized_static_observations(db, analysis_id, target)", source)
+        self.assertNotIn('if source == "postMessage"', source)
+        self.assertNotIn('elif sink in {"innerHTML", "eval"}', source)
+        self.assertNotIn('elif sink == "navigation"', source)
 
     def test_static_pipeline_records_grounded_hypotheses_and_secret_candidate(self):
         with tempfile.TemporaryDirectory() as td:

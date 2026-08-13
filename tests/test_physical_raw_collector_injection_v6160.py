@@ -119,12 +119,10 @@ class PhysicalRawCollectorInjection6160Tests(unittest.TestCase):
 
     def test_orchestrator_no_longer_contains_legacy_injection_collector(self):
         source = (ROOT / "app" / "bug_candidates.py").read_text(encoding="utf-8")
-        self.assertIn("collect_injection_observations(execution_map)", source)
-        self.assertIn("Analysis 6.16: SQL/NoSQL/Command/SSTI/LDAP legacy collection was physically", source)
-        legacy_start = "Analysis 6.1 — OWASP A03 Injection coverage"
-        self.assertNotIn(legacy_start, source)
-        for legacy_variant in ("candidate-sql-query-surface", "candidate-nosql-query-surface", "candidate-command-surface", "candidate-template-render-surface", "candidate-ldap-surface"):
-            self.assertNotIn(legacy_variant, source)
+        self.assertIn("collect_raw_owned_observations(execution_map)", source)
+        self.assertIn("validate_family_ownership()", source)
+        self.assertNotIn('collect_injection_observations(execution_map)', source)
+        self.assertNotIn("detector-execution-fallback", source)
 
     def test_run_analysis_routes_injection_hypotheses_through_physical_collector(self):
         with tempfile.TemporaryDirectory() as td:
