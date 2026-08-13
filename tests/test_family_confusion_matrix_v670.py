@@ -34,7 +34,7 @@ CANONICAL_SIGNATURES: dict[str, tuple[str, ...]] = {
     "graphql_authorization": ("graphql_operation", "graphql_identifier", "resolver_authorization_failure"),
     "graphql_data_exposure": ("graphql_operation", "sensitive_fields", "field_expansion"),
     "websocket_authorization": ("websocket_channel", "room_identifier", "unauthorized_subscription"),
-    "cors_misconfiguration": ("reflected_origin", "credentials_allowed"),
+    "cors_misconfiguration": ("cors_policy_surface", "reflected_origin", "credentials_allowed"),
     "sensitive_caching": ("cache_header", "sensitive_fields", "missing_vary"),
     "business_logic": ("business_operation", "workflow_invariant_violation"),
     "race_condition": ("state_change", "single_use_operation", "duplicate_effect_observed"),
