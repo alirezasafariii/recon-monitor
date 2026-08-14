@@ -45,11 +45,11 @@ jobs:
           corpus_freeze = json.loads(Path('benchmarks/raw/sources/v6_corpus_freeze.json').read_text(encoding='utf-8'))
           assert corpus_freeze['scoring_executed'] is False
           assert corpus_freeze['first_blind_consumed'] is False
-          assert corpus_freeze['evaluation_status'] == 'sealed_literal_fresh_unscored_corpus'
+          assert corpus_freeze['evaluation_status'] == 'sealed_evidence_backed_literal_fresh_unscored_corpus'
 
           report = {
-              'version': '1.0.0',
-              'rule_version': '2026.08.14.6.31.1',
+              'version': '1.1.0',
+              'rule_version': '2026.08.14.6.31.15',
               'first_blind_evaluator_frozen': True,
               'scoring_executed': False,
               'first_blind_consumed': False,
@@ -61,7 +61,7 @@ jobs:
                   'pair': protocol['pair_quality_gates'],
                   'triad': protocol['triad_quality_gates'],
               },
-              'mutation_policy': 'evaluator code and protocol gates are immutable before the single first-blind score',
+              'mutation_policy': 'evaluator code, canonical frozen corpus inputs, protocol gates, and the protected First Blind consumption wrapper are immutable before the single score',
           }
           Path('benchmarks/raw/sources/v6_evaluator_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
