@@ -1,0 +1,241 @@
+name: Analysis 6.31 Capture Business Logic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-business-logic.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout vulnerable Meshtastic revision
+        uses: actions/checkout@v4
+        with:
+          repository: meshtastic/firmware
+          ref: 65eee223960e3741789a9c0105ffcc117a05b63b
+          path: vulnerable
+          fetch-depth: 1
+
+      - name: Checkout current Meshtastic develop
+        uses: actions/checkout@v4
+        with:
+          repository: meshtastic/firmware
+          ref: develop
+          path: current
+          fetch-depth: 1
+
+      - name: Capture four independent Meshtastic CI observations
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          out = Path('captures/business-logic')
+          out.mkdir(parents=True, exist_ok=True)
+          captured = datetime.now(timezone.utc).isoformat()
+          vulnerable_rev = '65eee223960e3741789a9c0105ffcc117a05b63b'
+
+          vulnerable_path = Path('vulnerable/.github/workflows/main_matrix.yml')
+          vulnerable = vulnerable_path.read_text(encoding='utf-8')
+          assert 'pull_request_target:' in vulnerable
+          assert 'repository: ${{github.event.pull_request.head.repo.full_name}}' in vulnerable
+          assert 'ref: ${{github.event.pull_request.head.ref}}' in vulnerable
+
+          current_main_path = Path('current/.github/workflows/main_matrix.yml')
+          current_main = current_main_path.read_text(encoding='utf-8')
+          assert 'pull_request:' in current_main
+          assert 'pull_request_target:' not in current_main
+          assert 'permissions: read-all' in current_main
+
+          first_path = Path('current/.github/workflows/first_time_contributor.yml')
+          first = first_path.read_text(encoding='utf-8')
+          assert 'pull_request_target:' in first
+          assert 'permissions: {}' in first
+          assert 'actions/checkout' not in first
+
+          placeholder_path = Path('current/.github/workflows/flasher-link-placeholder.yml')
+          placeholder = placeholder_path.read_text(encoding='utf-8')
+          assert 'pull_request_target:' in placeholder
+          assert 'pull-requests: write' in placeholder
+          assert 'actions/checkout' not in placeholder
+          assert "allowedAssociations" in placeholder
+
+          def emit(kind, reference, source_file, payload, raw, basis, notes, signals):
+              doc = {
+                  'family': 'business_logic',
+                  'case_kind': kind,
+                  'captured_at': captured,
+                  'capture_reference': reference,
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'github-actions/source-grounded-repository-capture',
+                      'command': f'checkout exact upstream state and inspect {source_file}',
+                      'source_file': source_file,
+                  },
+                  'source_snapshot': {
+                      'reference': reference,
+                      'retrieved_at': captured,
+                      'payload': payload,
+                  },
+                  'adjudication': {
+                      'basis': basis,
+                      'notes': notes,
+                      'expected_condition_signals': signals,
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+              }
+              (out / f'{kind}.json').write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          emit(
+              'positive',
+              f'https://github.com/meshtastic/firmware/blob/{vulnerable_rev}/.github/workflows/main_matrix.yml',
+              '.github/workflows/main_matrix.yml',
+              {'revision': vulnerable_rev, 'content': vulnerable},
+              {
+                  'target': 'Meshtastic privileged CI entry',
+                  'endpoint': '.github/workflows/main_matrix.yml@historical',
+                  'method': 'UNKNOWN',
+                  'endpoint_schema': {},
+                  'details': {
+                      'external_fork_event': 'pull_request_target',
+                      'fork_repository_checkout': True,
+                      'fork_branch_checkout': True,
+                      'trusted_author_gate_observed': False,
+                  },
+              },
+              'source_observation',
+              'The historical CI entry ran on pull_request_target and explicitly checked out the submitting fork repository and branch without an observed trusted-author approval gate before that code entered the build/check path.',
+              ['workflow_invariant_violation'],
+          )
+          emit(
+              'secure_negative',
+              'https://github.com/meshtastic/firmware/blob/develop/.github/workflows/main_matrix.yml',
+              '.github/workflows/main_matrix.yml',
+              {'revision': 'develop-current-at-capture', 'content': current_main},
+              {
+                  'target': 'Meshtastic current CI entry',
+                  'endpoint': '.github/workflows/main_matrix.yml@develop',
+                  'method': 'UNKNOWN',
+                  'endpoint_schema': {},
+                  'details': {
+                      'fork_pr_event': 'pull_request',
+                      'repository_permissions': 'read-all',
+                      'privileged_target_event_observed': False,
+                      'fork_repository_override_observed': False,
+                  },
+              },
+              'patched_control',
+              'The current main CI uses pull_request rather than pull_request_target for fork PR validation and declares read-all permissions, removing the privileged fork-code execution pattern observed in the historical state.',
+              [],
+          )
+          emit(
+              'near_miss',
+              'https://github.com/meshtastic/firmware/blob/develop/.github/workflows/first_time_contributor.yml',
+              '.github/workflows/first_time_contributor.yml',
+              {'revision': 'develop-current-at-capture', 'content': first},
+              {
+                  'target': 'Meshtastic contributor welcome automation',
+                  'endpoint': '.github/workflows/first_time_contributor.yml',
+                  'method': 'UNKNOWN',
+                  'endpoint_schema': {},
+                  'details': {
+                      'event': 'pull_request_target',
+                      'global_permissions': 'none',
+                      'repository_checkout_observed': False,
+                      'job_purpose': 'static welcome comment and labels',
+                  },
+              },
+              'independent_confounding_control',
+              'A separate current automation also uses pull_request_target, but it has empty global permissions and never checks out PR code; the trigger name alone therefore does not establish the target trust-boundary failure.',
+              [],
+          )
+          emit(
+              'sparse_noisy',
+              'https://github.com/meshtastic/firmware/blob/develop/.github/workflows/flasher-link-placeholder.yml',
+              '.github/workflows/flasher-link-placeholder.yml',
+              {'revision': 'develop-current-at-capture', 'content': placeholder},
+              {
+                  'target': 'Meshtastic flasher placeholder automation',
+                  'endpoint': '.github/workflows/flasher-link-placeholder.yml',
+                  'method': 'UNKNOWN',
+                  'endpoint_schema': {},
+                  'details': {
+                      'event': 'pull_request_target',
+                      'repository_checkout_observed': False,
+                      'author_association_filter_observed': True,
+                      'static_comment_path_observed': True,
+                  },
+              },
+              'independent_sparse_control',
+              'This separate target-triggered automation is deliberately narrow: it does not check out PR code and applies an author-association filter. It is related context but does not reproduce the privileged fork execution state.',
+              [],
+          )
+          PY
+
+      - name: Upload captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-business-logic-captures
+          path: captures/business-logic/*.json
+
+  publish:
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-business-logic-captures
+          path: captured/business-logic
+
+      - name: Publish and verify unscored evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+
+      - name: Commit business logic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/business-logic--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'Business logic evidence already present.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 business logic evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
