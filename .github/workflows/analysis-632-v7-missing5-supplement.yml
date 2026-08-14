@@ -1,0 +1,63 @@
+name: Analysis 6.32 v7 Missing Five Source Supplement
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-missing5-supplement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-v7-missing5-supplement
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile final-five discovery
+        env:
+          PYTHONPATH: app
+        run: python -m py_compile app/raw_recon_v7_missing5_supplement.py
+      - name: Discover and patch-probe final five families
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_missing5_supplement.py
+      - name: Assert uncontaminated supplement
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_missing5_supplement.json').read_text())
+          assert r['family_count']==5
+          assert r['candidate_selection_uses_detector_scores'] is False
+          assert r['candidate_selection_uses_admission_results'] is False
+          assert r['candidate_selection_uses_ranking_results'] is False
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert r['active_target_validation_performed'] is False
+          assert r['scoring_executed'] is False
+          print({'family_candidate_counts':r['family_candidate_counts'],'families_without_candidates':r['families_without_candidates']})
+          PY
+      - name: Commit supplement
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_missing5_supplement.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record final-five Analysis 6.32 v7 patchable supplement'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
