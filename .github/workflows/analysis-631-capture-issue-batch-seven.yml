@@ -8,6 +8,7 @@ on:
     paths:
       - 'app/v6_remaining_issue_batch_collector.py'
       - 'app/v6_capture_method_normalize.py'
+      - 'app/v6_capture_adjudication_normalize.py'
       - '.github/workflows/analysis-631-capture-issue-batch-seven.yml'
 
 permissions:
@@ -52,10 +53,12 @@ jobs:
         with:
           name: analysis-631-seven-source-grounded-captures
           path: captured
-      - name: Normalize transport labels to canonical raw HTTP method enum
+      - name: Normalize capture-only schema vocabulary
         env:
           PYTHONPATH: app
-        run: python app/v6_capture_method_normalize.py captured
+        run: |
+          python app/v6_capture_method_normalize.py captured
+          python app/v6_capture_adjudication_normalize.py captured
       - name: Publish through canonical strict gates
         env:
           PYTHONPATH: app
