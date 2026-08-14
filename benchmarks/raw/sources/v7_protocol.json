@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0",
-  "rule_version": "2026.08.14.6.33.v7.unseen.1",
-  "evaluation_kind": "fresh_blind_v7_post_calibration_strict_unseen",
-  "purpose": "Evaluate the frozen Analysis 6.32 production reasoning on a new evidence-backed holdout after consumed V6, excluding every exposed source identity from V1-V6 and the independently collected Real-World Corpus V1.",
+  "version": "1.2.0",
+  "rule_version": "2026.08.14.6.33.v7.unseen.3",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_post_calibration",
+  "purpose": "Evaluate the frozen Analysis 6.32 production reasoning on a new evidence-backed holdout whose source identities have never been materialized or scored by Analysis. Real-World Corpus V1 is also independently hard-blocked. Historical candidate-only research metadata is tracked separately and deprioritized rather than falsely classified as engine exposure.",
   "engine_baseline": {
     "commit_sha": "b8b15261cc4049a1e5e425a83e57b6378a856113",
     "origin_branch": "agent/analysis-engine-6.32-post-blind-calibration",
@@ -25,15 +25,18 @@
     "case_count": 276
   },
   "source_independence": {
-    "scope": "all exposed source identities and provenance from V1 through consumed V6 plus Real-World Corpus V1 pinned at a6f02912343bc0ab9b2da4e5b9d2724108541f75",
+    "hard_engine_exposure_scope": "all materialized/scored Golden v1-v4, Raw v1-v6, explicit calibration corpus, plus Real-World Corpus V1 pinned at a6f02912343bc0ab9b2da4e5b9d2724108541f75",
+    "research_preexposure_scope": "historical candidate-only discovery and source-research metadata; recorded and deprioritized but not treated as engine exposure",
     "real_world_corpus_v1_commit_pin": "a6f02912343bc0ab9b2da4e5b9d2724108541f75",
     "unique_root_per_family": true,
     "unique_project_per_family": true,
-    "forbid_prior_root_overlap": true,
-    "forbid_prior_project_overlap": true,
-    "forbid_prior_url_overlap": true,
-    "forbid_prior_identifier_overlap": true,
+    "forbid_engine_seen_root_overlap": true,
+    "forbid_engine_seen_project_overlap": true,
+    "forbid_engine_seen_url_overlap": true,
+    "forbid_engine_seen_identifier_overlap": true,
     "forbid_real_world_corpus_v1_overlap": true,
+    "prefer_research_unseen_sources": true,
+    "allow_candidate_only_research_preexposure_if_engine_unseen": true,
     "forbid_grounding_writeup_reuse_as_target_evidence": true,
     "firewall_module": "raw_recon_v7_source_firewall"
   },
@@ -48,6 +51,7 @@
     "real_world_corpus_v1_labels_used_for_source_selection": false,
     "real_world_corpus_v1_evidence_used_for_source_selection": false,
     "real_world_corpus_v1_scores_used_for_source_selection": false,
+    "candidate_only_research_metadata_role": "preexposure_annotation_and_deprioritization_only",
     "owasp_wstg_cwe_writeup_logic_role": "reasoning_and_label_guidance_only_not_target_evidence"
   },
   "capture_contract": {
@@ -58,7 +62,9 @@
     "raw_hash_required": true,
     "four_variants_must_be_independently_adjudicated": true,
     "secure_negative_requires_implemented_control_fixed_or_unaffected_evidence": true,
-    "recommendation_text_alone_cannot_be_secure_negative": true
+    "recommendation_text_alone_cannot_be_secure_negative": true,
+    "engine_seen_source_capture_forbidden": true,
+    "corpus_v1_source_capture_forbidden": true
   },
   "freeze_contract": {
     "corpus_freeze_required_before_score": true,
@@ -82,7 +88,8 @@
     "abstention_accuracy_min": 0.95,
     "false_promotion_rate_max": 0.03,
     "wrong_family_promotion_rate_max": 0.02,
-    "prior_source_root_overlap_rate_max": 0.0,
+    "engine_seen_source_overlap_rate_max": 0.0,
+    "real_world_corpus_v1_overlap_rate_max": 0.0,
     "raw_label_leakage_rate_max": 0.0
   },
   "pair_quality_gates": {
