@@ -1,0 +1,76 @@
+name: Analysis 6.31 Normalize Tier A Raw Methods
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-normalize-tier-a-methods.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Normalize software integrity raw methods and rebuild unscored ingest
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          def canonical(value):
+              return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+
+          root = Path('benchmarks/raw/sources/v6_capture_evidence')
+          paths = sorted(root.glob('software-data-integrity-failure--*.json'))
+          if len(paths) != 4:
+              raise SystemExit(f'expected 4 software-data-integrity evidence files, found {len(paths)}')
+          for path in paths:
+              doc = json.loads(path.read_text(encoding='utf-8'))
+              raw = doc['raw']
+              raw['method'] = 'UNKNOWN'
+              raw.setdefault('endpoint_schema', {})
+              doc['raw_sha256'] = hashlib.sha256(canonical(raw).encode('utf-8')).hexdigest()
+              path.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py --allow-missing
+          python app/v6_pre_score_checkpoint_refresh.py
+
+      - name: Commit normalized evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/software-data-integrity-failure--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'Already normalized.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Normalize Analysis 6.31 software integrity raw methods'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
