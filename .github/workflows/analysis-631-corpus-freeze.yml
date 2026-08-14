@@ -73,6 +73,7 @@ jobs:
           materialization = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text(encoding='utf-8'))
           protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
           capture_plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text(encoding='utf-8'))
+          source_research = json.loads(Path('benchmarks/raw/sources/v6_literal_source_research.json').read_text(encoding='utf-8'))
 
           assert capture_verification['passed'] is True
           assert capture_verification['scoring_executed'] is False
@@ -80,6 +81,12 @@ jobs:
           assert capture_verification['evidence_count'] == 144
           assert capture_verification['unique_evidence_hash_count'] == 144
           assert len(capture_verification['evidence_manifest']) == 144
+          assert source_research['scoring_executed'] is False
+          assert source_research['first_blind_consumed'] is False
+          assert source_research['active_target_validation_performed'] is False
+          assert source_research['family_count'] == 36
+          assert source_research['successful_snapshot_count'] == 36
+          assert source_research['unresolved_snapshot_count'] == 0
           assert capture_plan['scoring_executed'] is False
           assert capture_plan['first_blind_consumed'] is False
           assert capture_plan['required_capture_count'] == 144
@@ -126,6 +133,7 @@ jobs:
             'benchmarks/raw/sources/v6_shortlist.json',
             'benchmarks/raw/sources/v6_selection_final_report.json',
             'benchmarks/raw/sources/v6_literal_capture_plan.json',
+            'benchmarks/raw/sources/v6_literal_source_research.json',
             'benchmarks/raw/sources/v6_literal_captures.jsonl',
             'benchmarks/raw/sources/v6_literal_capture_ingest_report.json',
             'benchmarks/raw/sources/v6_literal_capture_verification.json',
@@ -136,6 +144,7 @@ jobs:
             'app/raw_recon_v6_source_discovery.py',
             'app/v6_source_finalize.py',
             'app/v6_literal_capture_plan.py',
+            'app/v6_literal_source_research.py',
             'app/v6_literal_capture_ingest.py',
             'app/v6_literal_capture_verify.py',
             'app/v6_benchmark_dataset.py',
@@ -147,6 +156,7 @@ jobs:
             '.github/workflows/analysis-631-validation.yml',
             '.github/workflows/analysis-631-owasp-exact-finalize.yml',
             '.github/workflows/analysis-631-literal-capture-plan.yml',
+            '.github/workflows/analysis-631-literal-source-research.yml',
             '.github/workflows/analysis-631-literal-capture-ingest.yml',
             '.github/workflows/analysis-631-materialize.yml',
             '.github/workflows/analysis-631-corpus-freeze.yml',
@@ -166,8 +176,8 @@ jobs:
             protected[value] = digest
 
           report = {
-            'version': '1.7.0',
-            'rule_version': '2026.08.14.6.31.9',
+            'version': '1.8.0',
+            'rule_version': '2026.08.14.6.31.11',
             'evaluation_status': 'sealed_evidence_backed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
@@ -192,7 +202,7 @@ jobs:
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'mutation_policy': 'source inputs, capture acquisition plan, evidence-only ingest, all 144 literal evidence artifacts, evidence-bound labels/adjudication, capture rows, shortlist, corpus, validator, evaluator, gates, tests and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
+            'mutation_policy': 'source inputs, sealed passive source research, capture acquisition plan, evidence-only ingest, all 144 literal evidence artifacts, evidence-bound labels/adjudication, capture rows, shortlist, corpus, validator, evaluator, gates, tests and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
