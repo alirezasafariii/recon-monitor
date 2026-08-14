@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
-import tempfile
 import unittest
 from pathlib import Path
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 
+import raw_recon_v7_source_firewall as firewall
 import v7_external_exposure as external
+
+
+def empty_index() -> dict[str, set[str]]:
+    return {"roots": set(), "projects": set(), "urls": set(), "identifiers": set()}
 
 
 class V7StrictUnseenFirewallTests(unittest.TestCase):
@@ -43,6 +47,26 @@ class V7StrictUnseenFirewallTests(unittest.TestCase):
         self.assertNotIn("score", row)
         self.assertNotIn("evidence", row)
 
+    def test_engine_seen_source_is_hard_rejected(self) -> None:
+        hard = empty_index()
+        hard["roots"].add("ghsa-engine-seen")
+        research = empty_index()
+        row = {"source_root": "GHSA-ENGINE-SEEN", "source_project": "new/project"}
+        result = firewall.check_candidate(row, index=hard, research_index=research)
+        self.assertFalse(result["allowed"])
+        self.assertTrue(result["engine_seen"])
+        self.assertFalse(result["research_preexposed"])
+
+    def test_research_only_preexposure_is_allowed_but_marked(self) -> None:
+        hard = empty_index()
+        research = empty_index()
+        research["roots"].add("ghsa-research-only")
+        row = {"source_root": "GHSA-RESEARCH-ONLY", "source_project": "new/project"}
+        result = firewall.check_candidate(row, index=hard, research_index=research)
+        self.assertTrue(result["allowed"])
+        self.assertFalse(result["engine_seen"])
+        self.assertTrue(result["research_preexposed"])
+
     def test_protocol_pins_engine_and_corpus_v1(self) -> None:
         protocol_path = Path(__file__).resolve().parents[1] / "benchmarks/raw/sources/v7_protocol.json"
         protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
@@ -55,6 +79,8 @@ class V7StrictUnseenFirewallTests(unittest.TestCase):
             external.CORPUS_V1_COMMIT,
         )
         self.assertTrue(protocol["source_independence"]["forbid_real_world_corpus_v1_overlap"])
+        self.assertTrue(protocol["source_independence"]["forbid_engine_seen_root_overlap"])
+        self.assertTrue(protocol["source_independence"]["allow_candidate_only_research_preexposure_if_engine_unseen"])
         self.assertFalse(protocol["research_contract"]["real_world_corpus_v1_labels_used_for_source_selection"])
         self.assertFalse(protocol["research_contract"]["real_world_corpus_v1_evidence_used_for_source_selection"])
         self.assertFalse(protocol["research_contract"]["real_world_corpus_v1_scores_used_for_source_selection"])
