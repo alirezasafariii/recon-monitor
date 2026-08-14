@@ -8,6 +8,7 @@ on:
     paths:
       - benchmarks/raw/sources/v6_owasp_exact_overrides.json
       - benchmarks/raw/sources/v6_owasp_extension_candidates.json
+      - .github/workflows/analysis-631-owasp-exact-finalize.yml
 
 permissions:
   contents: write
