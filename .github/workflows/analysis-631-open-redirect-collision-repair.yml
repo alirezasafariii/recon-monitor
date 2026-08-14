@@ -1,4 +1,4 @@
-name: Analysis 6.31 Open Redirect Collision Repair
+name: Analysis 6.31 Complement Collision Repair
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Append one fresh semantic open-redirect source
+      - name: Append one fresh semantic security-misconfiguration source
         env:
           PYTHONPATH: app
         run: |
@@ -31,35 +31,36 @@ jobs:
           from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
           from raw_recon_v6_source_firewall import check_candidate
 
+          family = 'security_misconfiguration'
           path = Path('benchmarks/raw/sources/v6_candidates.json')
           data = json.loads(path.read_text())
           if data.get('scoring_executed') is not False:
               raise SystemExit('v6 discovery must remain unscored')
 
           candidate = {
-              'advisory_source_type': 'unreviewed',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jjjg-67rc-qf87',
-              'description': 'Saurus CMS Community Edition contains an unauthenticated open redirect in logout handling where a caller-controlled url parameter is passed to the Location header without an allowlist, scheme validation, or relative-path enforcement. An attacker can supply an arbitrary external destination and redirect users to an attacker-controlled site.',
-              'family': 'open_redirect',
+              'advisory_source_type': 'reviewed',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-32cc-x95p-fxcg',
+              'repository_advisory_url': 'https://github.com/frangoteam/FUXA/security/advisories/GHSA-32cc-x95p-fxcg',
+              'description': 'An insecure default configuration in FUXA allows unauthenticated remote administrative access and arbitrary code execution when authentication is enabled but the administrator JWT secret is not configured. The application can appear to operate in secureEnabled mode while accepting tokens signed with a publicly known default key, creating a fail-open security posture.',
+              'family': family,
               'freshness_validated': True,
-              'matched_cwes': ['CWE-601'],
-              'published_at': '2026-08-13T18:31:38Z',
-              'references': ['https://github.com/sauruscms/Saurus-CMS-Community-Edition'],
-              'repository_advisory_url': '',
+              'matched_cwes': ['CWE-321', 'CWE-1188'],
+              'published_at': '2026-02-05T00:36:30Z',
+              'references': [],
               'selection_basis': 'pre-score targeted source discovery repair for global root/project uniqueness; no detector, admission, ranking, or blind result used',
-              'severity': 'medium',
-              'source_code_location': 'https://github.com/sauruscms/Saurus-CMS-Community-Edition',
-              'source_kind': 'github_unreviewed_advisory_with_repository_reference',
-              'source_project': 'sauruscms/Saurus-CMS-Community-Edition',
-              'source_root': 'GHSA-jjjg-67rc-qf87',
-              'summary': 'Saurus CMS Community Edition contains an unauthenticated open redirect vulnerability in logout handling.',
-              'updated_at': '2026-08-13T18:31:43Z',
+              'severity': 'critical',
+              'source_code_location': 'https://github.com/frangoteam/FUXA',
+              'source_kind': 'github_reviewed_repository_advisory',
+              'source_project': 'frangoteam/FUXA',
+              'source_root': 'GHSA-32cc-x95p-fxcg',
+              'summary': 'FUXA unauthenticated remote code execution via hardcoded JWT secret in insecure default configuration.',
+              'updated_at': '2026-02-10T02:56:49Z',
           }
 
           fw = check_candidate(candidate)
           if not fw['allowed']:
               raise SystemExit(f'collision-repair candidate rejected by historical firewall: {fw}')
-          passed, hits, score = audit_row('open_redirect', candidate)
+          passed, hits, score = audit_row(family, candidate)
           if not passed:
               raise SystemExit(f'collision-repair candidate failed semantic audit: hits={hits}')
 
@@ -72,18 +73,18 @@ jobs:
           candidate['source_family_audit_group_hits'] = hits
           candidate['source_selection_track'] = 'legacy_semantic_fresh_pool_pre_score_uniqueness_repair'
 
-          pool = data.setdefault('candidates_by_family', {}).setdefault('open_redirect', [])
+          pool = data.setdefault('candidates_by_family', {}).setdefault(family, [])
           pool = [row for row in pool if row.get('source_root') != candidate['source_root']]
           pool.append(candidate)
-          data['candidates_by_family']['open_redirect'] = pool
-          data.setdefault('family_candidate_counts', {})['open_redirect'] = len(pool)
-          data.setdefault('family_semantic_candidate_counts', {})['open_redirect'] = sum(
-              1 for row in pool if audit_row('open_redirect', row)[0]
+          data['candidates_by_family'][family] = pool
+          data.setdefault('family_candidate_counts', {})[family] = len(pool)
+          data.setdefault('family_semantic_candidate_counts', {})[family] = sum(
+              1 for row in pool if audit_row(family, row)[0]
           )
           data.setdefault('pre_score_collision_repairs', [])
           repair = {
-              'family': 'open_redirect',
-              'reason': 'global uniqueness collision with information_disclosure on ether/etherpad',
+              'family': family,
+              'reason': 'global uniqueness collision with security_logging_alerting_failure on kyndryl-open-source/hashi-vault-js',
               'source_root': candidate['source_root'],
               'source_project': candidate['source_project'],
               'historical_firewall_passed': True,
@@ -92,7 +93,7 @@ jobs:
           }
           data['pre_score_collision_repairs'] = [
               r for r in data['pre_score_collision_repairs']
-              if r.get('family') != 'open_redirect'
+              if r.get('family') != family
           ] + [repair]
           data['scoring_executed'] = False
           data['candidate_selection_uses_detector_scores'] = False
@@ -100,7 +101,7 @@ jobs:
           data['candidate_selection_uses_ranking_results'] = False
           path.write_text(json.dumps(data, indent=2, sort_keys=True) + '\n')
           print(json.dumps({
-              'family': 'open_redirect',
+              'family': family,
               'historical_firewall_passed': True,
               'semantic_audit_passed': True,
               'source_root': candidate['source_root'],
@@ -118,5 +119,5 @@ jobs:
             echo "No collision-repair change required"
             exit 0
           fi
-          git commit -m "Repair Analysis 6.31 open redirect source uniqueness"
+          git commit -m "Repair Analysis 6.31 security misconfiguration source uniqueness"
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
