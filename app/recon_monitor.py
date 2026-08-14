@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-"""Recon Monitor CLI compatibility surface with Investigation Queue access.
+"""Recon Monitor CLI compatibility surface with Analysis quality access.
 
-The established CLI implementation remains in ``recon_monitor_core``.  This
-module preserves every existing command and adds ``analysis investigation-queue``
-inside the current Analysis command family.
+The established CLI implementation remains in ``recon_monitor_core``. This
+module preserves every existing command and adds Analysis-only compatibility
+actions for Investigation Queue and offline verified-replay draft collection.
 """
 
 import sys
@@ -18,9 +18,14 @@ from correlation_engine import (
     investigation_queue,
 )
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
+from verified_replay_collector import (
+    VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
+    VERIFIED_REPLAY_COLLECTOR_VERSION,
+    collect_verified_replay_drafts,
+)
 
 
-INVESTIGATION_CLI_VERSION = "1.0.0"
+INVESTIGATION_CLI_VERSION = "1.1.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -56,9 +61,10 @@ def build_parser():
         if getattr(action, "dest", "") != "action":
             continue
         choices = list(getattr(action, "choices", []) or [])
-        if "investigation-queue" not in choices:
-            choices.append("investigation-queue")
-            action.choices = choices
+        for extra_action in ("investigation-queue", "verified-replay-drafts"):
+            if extra_action not in choices:
+                choices.append(extra_action)
+        action.choices = choices
         break
     return parser
 
@@ -115,10 +121,35 @@ def investigation_queue_cli_payload(
     }
 
 
+def verified_replay_drafts_cli_payload(db: Any, *, limit: int = 1000) -> dict[str, Any]:
+    """Return offline replay-review drafts without trusting or activating them."""
+
+    bounded_limit = max(1, min(5000, int(limit or 1000)))
+    payload = collect_verified_replay_drafts(db, limit=bounded_limit)
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "verified-replay-drafts",
+        "collector": {
+            "version": VERIFIED_REPLAY_COLLECTOR_VERSION,
+            "rule_version": VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
+        },
+        **payload,
+        "operator_guidance": {
+            "output_is_review_draft": True,
+            "complete_all_evidence_quality_dimensions_before_finalization": True,
+            "redirect_stdout_to_json_if_persistent_export_is_needed": True,
+            "production_calibration_remains_shadow_only": True,
+        },
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
-    if len(translated) >= 2 and translated[0] == "analysis" and translated[1] == "investigation-queue":
+    if len(translated) >= 2 and translated[0] == "analysis" and translated[1] in {
+        "investigation-queue",
+        "verified-replay-drafts",
+    }:
         parser = build_parser()
         args = parser.parse_args(translated)
         paths = _base.AppPaths.from_root(_base.ROOT_DIR)
@@ -127,12 +158,18 @@ def main(argv: list[str] | None = None) -> int:
             raise _base.ReconError("config.env not found. Run ./recon-monitor.sh init")
         db = _base.Database(paths.db)
         try:
-            payload = investigation_queue_cli_payload(
-                db,
-                analysis_id=str(args.analysis_id or ""),
-                target=str(args.target or ""),
-                limit=int(args.limit or 20),
-            )
+            if translated[1] == "verified-replay-drafts":
+                payload = verified_replay_drafts_cli_payload(
+                    db,
+                    limit=int(args.limit or 1000),
+                )
+            else:
+                payload = investigation_queue_cli_payload(
+                    db,
+                    analysis_id=str(args.analysis_id or ""),
+                    target=str(args.target or ""),
+                    limit=int(args.limit or 20),
+                )
         finally:
             db.close()
         print(_base.json_dumps(payload, pretty=True))
@@ -140,8 +177,8 @@ def main(argv: list[str] | None = None) -> int:
     return _ORIGINAL_MAIN(argv)
 
 
-# Existing main() calls build_parser() through its module globals.  Point that
-# lookup at the compatibility parser so help/validation includes the new action
+# Existing main() calls build_parser() through its module globals. Point that
+# lookup at the compatibility parser so help/validation includes the new actions
 # while every existing command keeps its original implementation.
 _base.build_parser = build_parser
 
