@@ -1,0 +1,37 @@
+name: Analysis 6.31 Linked Research Summary
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - app/v6_literal_linked_summary.py
+      - .github/workflows/analysis-631-literal-linked-summary.yml
+
+permissions:
+  contents: write
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build compact unscored linked-resource summary
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_linked_summary.py
+      - name: Commit summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_linked_summary.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Summarize Analysis 6.31 linked evidence snapshots'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
