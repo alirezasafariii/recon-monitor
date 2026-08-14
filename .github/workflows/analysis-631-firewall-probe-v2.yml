@@ -1,4 +1,4 @@
-name: Analysis 6.31 Complement Firewall Diagnostic
+name: Analysis 6.31 Complement Override Probe
 
 on:
   push:
@@ -21,45 +21,173 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Diagnose complement gaps without scoring
+      - name: Probe complement override candidates without scoring
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
-          from pathlib import Path
           from raw_recon_v5_source_audit import audit_row
           from raw_recon_v6_source_firewall import check_candidate, exposure_index
 
-          families = {
-            'account_enumeration', 'authentication_session', 'broken_function_authorization',
-            'command_injection', 'cryptographic_failure', 'exceptional_condition_mishandling',
-            'file_upload', 'mass_assignment', 'race_condition',
-            'server_side_template_injection', 'unrestricted_resource_consumption',
-          }
-          doc = json.loads(Path('benchmarks/raw/sources/v6_candidates.json').read_text(encoding='utf-8'))
-          pool = doc.get('candidates_by_family') or {}
+          rows = [
+            {
+              'family': 'account_enumeration',
+              'source_root': 'GHSA-jhh7-832h-f8hv',
+              'source_project': 'wp-graphql/wp-graphql',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jhh7-832h-f8hv',
+              'repository_advisory_url': 'https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv',
+              'summary': 'WPGraphQL user enumeration exposes account existence, registered email addresses and usernames to unauthenticated callers.',
+              'description': 'The reviewed advisory documents user enumeration through GraphQL access-model behavior. An unauthenticated caller can distinguish existing users and obtain user email and username metadata, disclosing registered account existence.',
+            },
+            {
+              'family': 'authentication_session',
+              'source_root': 'GHSA-vxcg-gxwh-hqw8',
+              'source_project': 'ibm/ibm-i',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-vxcg-gxwh-hqw8',
+              'summary': 'IBM i improper authentication during NTLM session negotiation allows authentication bypass and session impersonation.',
+              'description': 'The advisory describes improper validation during NTLM authentication and session negotiation that can let a remote attacker bypass the intended authentication boundary and access a session with authenticated-user privileges.',
+            },
+            {
+              'family': 'authentication_session',
+              'source_root': 'GHSA-2vg6-77g8-24mp',
+              'source_project': 'better-auth/better-auth',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-2vg6-77g8-24mp',
+              'repository_advisory_url': 'https://github.com/better-auth/better-auth/security/advisories/GHSA-2vg6-77g8-24mp',
+              'summary': 'Better Auth stale sessions remain valid after user deletion and can be reused for authentication.',
+              'description': 'The reviewed advisory documents a session cleanup failure: an existing session token remains a valid authenticated session in secondary storage after the user is deleted, allowing stale-session reuse until TTL expiry.',
+            },
+            {
+              'family': 'broken_function_authorization',
+              'source_root': 'GHSA-g4w6-vmgf-xqvx',
+              'source_project': 'cedar-policy/authorization-for-expressjs',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-g4w6-vmgf-xqvx',
+              'repository_advisory_url': 'https://github.com/cedar-policy/authorization-for-expressjs/security/advisories/GHSA-g4w6-vmgf-xqvx',
+              'summary': 'Cedar Express middleware authorization bypass lets a lower-privilege actor reach a more restrictive admin function.',
+              'description': 'The reviewed advisory shows a permission and function-level access-control mismatch: query-string manipulation makes middleware authorize a less restrictive action while Express executes the admin-restricted endpoint, producing unauthorized access control bypass.',
+            },
+            {
+              'family': 'command_injection',
+              'source_root': 'GHSA-r9mr-m37c-5fr3',
+              'source_project': 'gitpython-developers/GitPython',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-r9mr-m37c-5fr3',
+              'repository_advisory_url': 'https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-r9mr-m37c-5fr3',
+              'summary': 'GitPython OS command injection permits arbitrary command execution from untrusted Git configuration.',
+              'description': 'The project advisory documents shell/command execution when a malicious repository supplies executable include.path behavior through Git configuration. Untrusted configuration reaches a command-execution process boundary.',
+            },
+            {
+              'family': 'cryptographic_failure',
+              'source_root': 'HEDRON-ISSUE-196',
+              'source_project': 'eddiethedean/hedron',
+              'canonical_advisory_url': 'https://github.com/eddiethedean/hedron/issues/196',
+              'summary': 'Hedron production security gate accepts weak cryptographic session secrets such as x, password and dev.',
+              'description': 'The owner-reported security bug shows insecure, predictable low-entropy session-secret values accepted in production despite the documented minimum entropy/length requirement. The cryptographic secret validation gate therefore accepts weak keys.',
+            },
+            {
+              'family': 'cryptographic_failure',
+              'source_root': 'TERRAFORM-REGISTRY-ISSUE-835',
+              'source_project': 'sethbacon/terraform-registry-backend',
+              'canonical_advisory_url': 'https://github.com/sethbacon/terraform-registry-backend/issues/835',
+              'summary': 'Terraform registry backend retained a weak PBKDF2 cryptographic iteration floor in a duplicated TokenCipher implementation.',
+              'description': 'The owner issue documents PBKDF2 accepting 10,000 iterations in a cryptographic token cipher, an insecure iteration floor far below the corrected 600,000-iteration guidance. The duplicate crypto implementation missed the security fix.',
+            },
+            {
+              'family': 'exceptional_condition_mishandling',
+              'source_root': 'GHSA-jpcw-4wr7-c3vq',
+              'source_project': 'getkin/kin-openapi',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jpcw-4wr7-c3vq',
+              'repository_advisory_url': 'https://github.com/getkin/kin-openapi/security/advisories/GHSA-jpcw-4wr7-c3vq',
+              'summary': 'kin-openapi request validation triggers an unhandled nil-pointer panic and process crash on a schema-less content parameter.',
+              'description': 'The reviewed advisory documents missing exceptional-condition handling: a legal schema shape reaches an unchecked nil dereference, causing a panic, aborted request and in some integrations a full process crash instead of a controlled validation error.',
+            },
+            {
+              'family': 'file_upload',
+              'source_root': 'GHSA-8w7x-xxc4-jh88',
+              'source_project': 'Cockpit-HQ/Cockpit',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-8w7x-xxc4-jh88',
+              'repository_advisory_url': 'https://github.com/Cockpit-HQ/Cockpit/security/advisories/GHSA-8w7x-xxc4-jh88',
+              'summary': 'Cockpit unrestricted file upload allows an unauthenticated attacker to upload an arbitrary PHP file.',
+              'description': 'The advisory describes a public file-upload path that accepts attacker-controlled uploaded files without an effective extension/type restriction, allowing a PHP filename to be stored and subsequently executed.',
+            },
+            {
+              'family': 'mass_assignment',
+              'source_root': 'NARRATIVE-MODELING-ISSUE-451',
+              'source_project': 'frankbria/narrative-modeling-app',
+              'canonical_advisory_url': 'https://github.com/frankbria/narrative-modeling-app/issues/451',
+              'summary': 'Narrative Modeling App mass assignment lets a tenant set the server-authoritative s3_url field.',
+              'description': 'The owner security issue calls the pattern classic mass assignment: create/update request schemas expose a server-authoritative property, and PUT mass-assigns the client-supplied s3_url field, enabling access to another tenant object.',
+            },
+            {
+              'family': 'race_condition',
+              'source_root': 'GHSA-7w99-5wm4-3g79',
+              'source_project': 'better-auth/better-auth',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-7w99-5wm4-3g79',
+              'repository_advisory_url': 'https://github.com/better-auth/better-auth/security/advisories/GHSA-7w99-5wm4-3g79',
+              'summary': 'Better Auth OAuth authorization-code redemption has a race condition allowing simultaneous concurrent redemption.',
+              'description': 'The reviewed advisory documents a non-atomic find-then-delete primitive: two concurrent requests race the same single-use authorization code and both pass before deletion, causing duplicate token issuance instead of an atomic one-time transition.',
+            },
+            {
+              'family': 'race_condition',
+              'source_root': 'GHSA-44cc-pg2q-9x56',
+              'source_project': 'paloaltonetworks/globalprotect-macos',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-44cc-pg2q-9x56',
+              'summary': 'GlobalProtect for macOS contains a race condition / TOCTOU-style concurrent state flaw enabling privilege escalation.',
+              'description': 'The published advisory identifies a race condition in the privileged macOS application flow where a lower-privilege local actor can win the time-of-check/state race and obtain elevated execution.',
+            },
+            {
+              'family': 'server_side_template_injection',
+              'source_root': 'GHSA-xgmr-hcvf-x3qc',
+              'source_project': 'owen2345/camaleon-cms',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-xgmr-hcvf-x3qc',
+              'repository_advisory_url': 'https://github.com/owen2345/camaleon-cms/security/advisories/GHSA-xgmr-hcvf-x3qc',
+              'summary': 'Camaleon CMS server-side template injection reaches ERB template rendering.',
+              'description': 'The advisory documents SSTI / template injection in a server-rendered ERB path where attacker-influenced template content reaches the render expression engine and can execute commands.',
+            },
+            {
+              'family': 'unrestricted_resource_consumption',
+              'source_root': 'GHSA-87x5-vmc3-756j',
+              'source_project': 'vllm-project/vllm',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-87x5-vmc3-756j',
+              'repository_advisory_url': 'https://github.com/vllm-project/vllm/security/advisories/GHSA-87x5-vmc3-756j',
+              'summary': 'vLLM unbounded prompt arrays cause resource consumption and denial of service through CPU and memory exhaustion.',
+              'description': 'The reviewed advisory documents unbounded fan-out from a large prompt list, creating excessive backend tasks and CPU/memory/resource consumption until service capacity is exhausted and legitimate work is denied.',
+            },
+          ]
+
           prior = exposure_index()
-          report = {}
-          for family in sorted(families):
-              rows = []
-              for raw in pool.get(family) or []:
-                  fw = check_candidate(raw, index=prior)
-                  passed, hits, score = audit_row(family, raw)
-                  rows.append({
-                      'source_root': raw.get('source_root'),
-                      'source_project': raw.get('source_project'),
-                      'canonical_advisory_url': raw.get('canonical_advisory_url'),
-                      'audit_passed': bool(passed),
-                      'audit_score': int(score),
-                      'audit_hits': hits,
-                      'firewall': fw,
-                      'eligible': bool(passed and fw['allowed']),
-                  })
-              report[family] = rows
+          results = []
+          for row in rows:
+              fw = check_candidate(row, index=prior)
+              passed, hits, score = audit_row(row['family'], row)
+              results.append({
+                  'family': row['family'],
+                  'source_root': row['source_root'],
+                  'source_project': row['source_project'],
+                  'audit_passed': bool(passed),
+                  'audit_score': int(score),
+                  'audit_hits': hits,
+                  'firewall_allowed': bool(fw['allowed']),
+                  'firewall': fw,
+                  'eligible': bool(passed and fw['allowed']),
+              })
+
+          by_family = {}
+          for result in results:
+              by_family.setdefault(result['family'], []).append(result)
+          family_pass = {
+              family: any(row['eligible'] for row in candidates)
+              for family, candidates in by_family.items()
+          }
           print(json.dumps({
               'scoring_executed': False,
               'detector_output_used': False,
-              'families': report,
+              'candidate_count': len(rows),
+              'family_count': len(by_family),
+              'eligible_family_count': sum(1 for value in family_pass.values() if value),
+              'all_families_have_eligible_source': all(family_pass.values()),
+              'family_pass': family_pass,
+              'results': results,
           }, indent=2, sort_keys=True))
+          if not all(family_pass.values()):
+              raise SystemExit(2)
           PY
