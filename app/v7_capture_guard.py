@@ -16,13 +16,15 @@ from typing import Any, Mapping
 from raw_recon_corpus import ROOT
 from raw_recon_v7_source_firewall import validate_shortlist
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.33.v7.capture.guard.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.33.v7.capture.guard.2"
 ENGINE_BASELINE_COMMIT = "b8b15261cc4049a1e5e425a83e57b6378a856113"
 SOURCE_ASSIGNMENT_COMMIT = "5c2c81075b870fe43db817c59a65f27423012f08"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 PROTOCOL = ROOT / "benchmarks/raw/sources/v7_protocol.json"
 EXPECTED_FAMILIES = 36
+EXPECTED_AUDIT_FALLBACKS = 4
+EXPECTED_LITERAL_ADJUDICATION_SOURCES = 13
 
 
 def _sha(path: Path) -> str:
@@ -90,7 +92,6 @@ def validate_capture_source_freeze() -> dict[str, Any]:
     if freeze.get("merge_authorized") is not False:
         errors.append("merge_authorized_before_user_confirmation")
 
-    # Recompute the hard engine/Corpus-V1 firewall against the frozen rows.
     try:
         hard_check = validate_shortlist(rows, required_count=EXPECTED_FAMILIES)
     except Exception as exc:
@@ -98,13 +99,35 @@ def validate_capture_source_freeze() -> dict[str, Any]:
     if hard_check.get("passed") is not True or int(hard_check.get("engine_seen_count") or 0) != 0:
         errors.append("recomputed_hard_firewall_failed")
 
-    targeted = sorted(
+    # There are two different concepts in the frozen selection and they must not
+    # be conflated:
+    #   1. audit fallback: semantic audit failed, so exact-CWE+context was used;
+    #   2. targeted-source provenance: source came through targeted discovery and
+    #      therefore its family remains provisional until literal evidence proves it.
+    # The frozen shortlist contains 4 of the first kind and 13 of the second.
+    audit_fallback_families = sorted(
+        str(row.get("family") or "")
+        for row in rows
+        if row.get("source_family_targeted_fallback_pending_literal_adjudication") is True
+        or row.get("source_family_target_is_not_final_until_literal_adjudication") is True
+    )
+    literal_adjudication_required_families = sorted(
         str(row.get("family") or "")
         for row in rows
         if row.get("source_family_targeted_fallback_pending_literal_adjudication") is True
         or row.get("source_family_target_is_not_final_until_literal_adjudication") is True
         or row.get("v7_target_family_requires_literal_adjudication") is True
     )
+
+    declared_audit_fallback_count = int(shortlist.get("selected_targeted_fallback_count") or 0)
+    if declared_audit_fallback_count != EXPECTED_AUDIT_FALLBACKS:
+        errors.append(f"declared_audit_fallback_count:{declared_audit_fallback_count}!={EXPECTED_AUDIT_FALLBACKS}")
+    if len(audit_fallback_families) != EXPECTED_AUDIT_FALLBACKS:
+        errors.append(f"derived_audit_fallback_count:{len(audit_fallback_families)}!={EXPECTED_AUDIT_FALLBACKS}")
+    if len(literal_adjudication_required_families) != EXPECTED_LITERAL_ADJUDICATION_SOURCES:
+        errors.append(
+            f"literal_adjudication_required_count:{len(literal_adjudication_required_families)}!={EXPECTED_LITERAL_ADJUDICATION_SOURCES}"
+        )
 
     return {
         "version": VERSION,
@@ -121,8 +144,13 @@ def validate_capture_source_freeze() -> dict[str, Any]:
         "unique_project_count": len(projects),
         "recomputed_engine_seen_count": hard_check.get("engine_seen_count"),
         "research_preexposed_count": hard_check.get("research_preexposed_count"),
-        "targeted_fallback_families": targeted,
-        "targeted_fallback_count": len(targeted),
+        "audit_fallback_families": audit_fallback_families,
+        "audit_fallback_count": len(audit_fallback_families),
+        "literal_adjudication_required_families": literal_adjudication_required_families,
+        "literal_adjudication_required_count": len(literal_adjudication_required_families),
+        # Compatibility fields now explicitly mean audit fallback only.
+        "targeted_fallback_families": audit_fallback_families,
+        "targeted_fallback_count": len(audit_fallback_families),
         "scoring_executed": False,
         "first_blind_consumed": False,
         "merge_authorized": False,
@@ -141,6 +169,8 @@ __all__ = [
     "RULE_VERSION",
     "ENGINE_BASELINE_COMMIT",
     "SOURCE_ASSIGNMENT_COMMIT",
+    "EXPECTED_AUDIT_FALLBACKS",
+    "EXPECTED_LITERAL_ADJUDICATION_SOURCES",
     "validate_capture_source_freeze",
     "assert_capture_source_freeze",
 ]
