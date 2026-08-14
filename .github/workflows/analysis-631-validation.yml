@@ -55,6 +55,11 @@ jobs:
       - name: Full unit suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
 
+      - name: Strict partial literal evidence inventory gate
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_partial_verify.py
+
       - name: Literal capture evidence gate
         env:
           PYTHONPATH: app
