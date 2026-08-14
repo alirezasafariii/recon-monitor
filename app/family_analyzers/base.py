@@ -14,8 +14,46 @@ from typing import Any, Mapping
 from core import Database
 
 
-FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.1.0"
-FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.1"
+FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.2.0"
+FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.2"
+
+# Temporal/workflow intelligence is generated lazily because the family router
+# runs after Semantic + Behavioral Intelligence have populated the current
+# Analysis snapshot.  A bounded key set prevents repeated regeneration for each
+# endpoint/family context while keeping every Analysis ID isolated.
+_CONTEXT_INTELLIGENCE_BOOTSTRAPPED: set[tuple[int, str, str]] = set()
+_CONTEXT_INTELLIGENCE_CACHE_MAX = 2048
+
+
+def clear_context_intelligence_bootstrap_cache() -> None:
+    _CONTEXT_INTELLIGENCE_BOOTSTRAPPED.clear()
+
+
+def _bootstrap_context_intelligence(db: Database, analysis_id: str, target: str) -> None:
+    if db is None or not analysis_id or not target:
+        return
+    key = (id(db), str(analysis_id), str(target))
+    if key in _CONTEXT_INTELLIGENCE_BOOTSTRAPPED:
+        return
+    # Mark before execution to prevent recursive re-entry if optional
+    # intelligence code constructs a FamilyAnalyzerContext internally.
+    _CONTEXT_INTELLIGENCE_BOOTSTRAPPED.add(key)
+    if len(_CONTEXT_INTELLIGENCE_BOOTSTRAPPED) > _CONTEXT_INTELLIGENCE_CACHE_MAX:
+        # Analysis IDs are unique; dropping old process-local keys is safe.
+        for stale in list(_CONTEXT_INTELLIGENCE_BOOTSTRAPPED)[:
+            len(_CONTEXT_INTELLIGENCE_BOOTSTRAPPED) - _CONTEXT_INTELLIGENCE_CACHE_MAX
+        ]:
+            _CONTEXT_INTELLIGENCE_BOOTSTRAPPED.discard(stale)
+    try:
+        from temporal_intelligence import generate_temporal_intelligence
+        from workflow_state_intelligence import generate_workflow_state_intelligence
+
+        generate_temporal_intelligence(db, analysis_id, "", [target])
+        generate_workflow_state_intelligence(db, analysis_id, [target])
+    except Exception:
+        # Context enrichment is advisory/fail-soft. A missing optional table or
+        # legacy database must never make canonical family analysis fail.
+        return
 
 
 @dataclass(frozen=True)
@@ -29,12 +67,13 @@ class FamilyAnalyzerContext:
     business_context: str = "general"
 
     def __post_init__(self) -> None:
-        """Attach stored Semantic/Behavioral context without creating evidence.
+        """Attach stored Semantic/Behavioral/Temporal context without creating evidence.
 
         The bridge is fail-soft: older/minimal databases that do not contain
         optional intelligence tables continue with the original details.
         """
         try:
+            _bootstrap_context_intelligence(self.db, self.analysis_id, self.target)
             from family_signal_bridge import augment_family_details
 
             enriched = augment_family_details(
