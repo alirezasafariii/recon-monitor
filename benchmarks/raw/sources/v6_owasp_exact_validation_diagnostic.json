@@ -20,7 +20,6 @@
   "results": {
     "business_logic": {
       "errors": [
-        "semantic:('password reset', 'ambiguity', 'privilege')",
         "project_overlap"
       ],
       "firewall": {
@@ -37,7 +36,9 @@
         [
           "invariant"
         ],
-        []
+        [
+          "privilege"
+        ]
       ],
       "source_project": "go-gitea/gitea",
       "source_root": "GHSA-777r-4v59-6486",
