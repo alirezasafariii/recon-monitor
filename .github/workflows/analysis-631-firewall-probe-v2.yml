@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe complement override candidates without scoring
+      - name: Probe second-pass complement sources without scoring
         env:
           PYTHONPATH: app
         run: |
@@ -33,124 +33,65 @@ jobs:
           rows = [
             {
               'family': 'account_enumeration',
-              'source_root': 'GHSA-jhh7-832h-f8hv',
-              'source_project': 'wp-graphql/wp-graphql',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jhh7-832h-f8hv',
-              'repository_advisory_url': 'https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv',
-              'summary': 'WPGraphQL user enumeration exposes account existence, registered email addresses and usernames to unauthenticated callers.',
-              'description': 'The reviewed advisory documents user enumeration through GraphQL access-model behavior. An unauthenticated caller can distinguish existing users and obtain user email and username metadata, disclosing registered account existence.',
-            },
-            {
-              'family': 'authentication_session',
-              'source_root': 'GHSA-vxcg-gxwh-hqw8',
-              'source_project': 'ibm/ibm-i',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-vxcg-gxwh-hqw8',
-              'summary': 'IBM i improper authentication during NTLM session negotiation allows authentication bypass and session impersonation.',
-              'description': 'The advisory describes improper validation during NTLM authentication and session negotiation that can let a remote attacker bypass the intended authentication boundary and access a session with authenticated-user privileges.',
-            },
-            {
-              'family': 'authentication_session',
-              'source_root': 'GHSA-2vg6-77g8-24mp',
-              'source_project': 'better-auth/better-auth',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-2vg6-77g8-24mp',
-              'repository_advisory_url': 'https://github.com/better-auth/better-auth/security/advisories/GHSA-2vg6-77g8-24mp',
-              'summary': 'Better Auth stale sessions remain valid after user deletion and can be reused for authentication.',
-              'description': 'The reviewed advisory documents a session cleanup failure: an existing session token remains a valid authenticated session in secondary storage after the user is deleted, allowing stale-session reuse until TTL expiry.',
+              'source_root': 'GHSA-cjr5-m69m-f39c',
+              'source_project': 'bluewave-labs/Checkmate',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-cjr5-m69m-f39c',
+              'source_code_location': 'https://github.com/bluewave-labs/Checkmate',
+              'summary': 'Checkmate user enumeration lets an unauthenticated caller determine whether a given email address is registered.',
+              'description': 'The published advisory states that the password-recovery endpoint returns HTTP 200 for a registered email address and a different status code for an unregistered email, exposing existing account/user existence through a response discrepancy.',
             },
             {
               'family': 'broken_function_authorization',
-              'source_root': 'GHSA-g4w6-vmgf-xqvx',
-              'source_project': 'cedar-policy/authorization-for-expressjs',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-g4w6-vmgf-xqvx',
-              'repository_advisory_url': 'https://github.com/cedar-policy/authorization-for-expressjs/security/advisories/GHSA-g4w6-vmgf-xqvx',
-              'summary': 'Cedar Express middleware authorization bypass lets a lower-privilege actor reach a more restrictive admin function.',
-              'description': 'The reviewed advisory shows a permission and function-level access-control mismatch: query-string manipulation makes middleware authorize a less restrictive action while Express executes the admin-restricted endpoint, producing unauthorized access control bypass.',
+              'source_root': 'ANDY-RBAC-ISSUE-97',
+              'source_project': 'rivoli-ai/andy-rbac',
+              'canonical_advisory_url': 'https://github.com/rivoli-ai/andy-rbac/issues/97',
+              'summary': 'Andy RBAC management functions had a critical authorization bypass: any authenticated non-admin token could invoke privileged role, policy and grant administration.',
+              'description': 'The repository security issue documents function-level authorization missing from administrative controllers. A low-privilege authenticated user could access privileged admin mutations and rewrite roles, policies or grants, escalating privileges because only generic authentication was enforced instead of the required admin/manage permission.',
             },
             {
               'family': 'command_injection',
-              'source_root': 'GHSA-r9mr-m37c-5fr3',
-              'source_project': 'gitpython-developers/GitPython',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-r9mr-m37c-5fr3',
-              'repository_advisory_url': 'https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-r9mr-m37c-5fr3',
-              'summary': 'GitPython OS command injection permits arbitrary command execution from untrusted Git configuration.',
-              'description': 'The project advisory documents shell/command execution when a malicious repository supplies executable include.path behavior through Git configuration. Untrusted configuration reaches a command-execution process boundary.',
-            },
-            {
-              'family': 'cryptographic_failure',
-              'source_root': 'HEDRON-ISSUE-196',
-              'source_project': 'eddiethedean/hedron',
-              'canonical_advisory_url': 'https://github.com/eddiethedean/hedron/issues/196',
-              'summary': 'Hedron production security gate accepts weak cryptographic session secrets such as x, password and dev.',
-              'description': 'The owner-reported security bug shows insecure, predictable low-entropy session-secret values accepted in production despite the documented minimum entropy/length requirement. The cryptographic secret validation gate therefore accepts weak keys.',
-            },
-            {
-              'family': 'cryptographic_failure',
-              'source_root': 'TERRAFORM-REGISTRY-ISSUE-835',
-              'source_project': 'sethbacon/terraform-registry-backend',
-              'canonical_advisory_url': 'https://github.com/sethbacon/terraform-registry-backend/issues/835',
-              'summary': 'Terraform registry backend retained a weak PBKDF2 cryptographic iteration floor in a duplicated TokenCipher implementation.',
-              'description': 'The owner issue documents PBKDF2 accepting 10,000 iterations in a cryptographic token cipher, an insecure iteration floor far below the corrected 600,000-iteration guidance. The duplicate crypto implementation missed the security fix.',
+              'source_root': 'GHSA-jqh7-pchh-v74j',
+              'source_project': 'zimbra/zimbra-collaboration',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jqh7-pchh-v74j',
+              'summary': 'Zimbra Collaboration contains OS command injection in SNMP notification processing.',
+              'description': 'The published CVE/GHSA states that improper sanitization of untrusted SMTP input in the SNMP notification processing path can execute arbitrary operating system commands as the Zimbra process user. Untrusted input therefore reaches an OS command execution boundary.',
             },
             {
               'family': 'exceptional_condition_mishandling',
-              'source_root': 'GHSA-jpcw-4wr7-c3vq',
-              'source_project': 'getkin/kin-openapi',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jpcw-4wr7-c3vq',
-              'repository_advisory_url': 'https://github.com/getkin/kin-openapi/security/advisories/GHSA-jpcw-4wr7-c3vq',
-              'summary': 'kin-openapi request validation triggers an unhandled nil-pointer panic and process crash on a schema-less content parameter.',
-              'description': 'The reviewed advisory documents missing exceptional-condition handling: a legal schema shape reaches an unchecked nil dereference, causing a panic, aborted request and in some integrations a full process crash instead of a controlled validation error.',
+              'source_root': 'GHSA-qh5g-q395-cx4j',
+              'source_project': 'ImageMagick/ImageMagick',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-qh5g-q395-cx4j',
+              'repository_advisory_url': 'https://github.com/ImageMagick/ImageMagick/security/advisories/GHSA-qh5g-q395-cx4j',
+              'summary': 'ImageMagick missing null-check exceptional-condition handling can cause a use-after-free crash while parsing an XMP profile.',
+              'description': 'The reviewed advisory states that a missing null check in XMP parsing leaves an error condition improperly handled, causing use-after-free behavior that can result in a process crash rather than a controlled failure path.',
             },
             {
               'family': 'file_upload',
-              'source_root': 'GHSA-8w7x-xxc4-jh88',
-              'source_project': 'Cockpit-HQ/Cockpit',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-8w7x-xxc4-jh88',
-              'repository_advisory_url': 'https://github.com/Cockpit-HQ/Cockpit/security/advisories/GHSA-8w7x-xxc4-jh88',
-              'summary': 'Cockpit unrestricted file upload allows an unauthenticated attacker to upload an arbitrary PHP file.',
-              'description': 'The advisory describes a public file-upload path that accepts attacker-controlled uploaded files without an effective extension/type restriction, allowing a PHP filename to be stored and subsequently executed.',
-            },
-            {
-              'family': 'mass_assignment',
-              'source_root': 'NARRATIVE-MODELING-ISSUE-451',
-              'source_project': 'frankbria/narrative-modeling-app',
-              'canonical_advisory_url': 'https://github.com/frankbria/narrative-modeling-app/issues/451',
-              'summary': 'Narrative Modeling App mass assignment lets a tenant set the server-authoritative s3_url field.',
-              'description': 'The owner security issue calls the pattern classic mass assignment: create/update request schemas expose a server-authoritative property, and PUT mass-assigns the client-supplied s3_url field, enabling access to another tenant object.',
-            },
-            {
-              'family': 'race_condition',
-              'source_root': 'GHSA-7w99-5wm4-3g79',
-              'source_project': 'better-auth/better-auth',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-7w99-5wm4-3g79',
-              'repository_advisory_url': 'https://github.com/better-auth/better-auth/security/advisories/GHSA-7w99-5wm4-3g79',
-              'summary': 'Better Auth OAuth authorization-code redemption has a race condition allowing simultaneous concurrent redemption.',
-              'description': 'The reviewed advisory documents a non-atomic find-then-delete primitive: two concurrent requests race the same single-use authorization code and both pass before deletion, causing duplicate token issuance instead of an atomic one-time transition.',
-            },
-            {
-              'family': 'race_condition',
-              'source_root': 'GHSA-44cc-pg2q-9x56',
-              'source_project': 'paloaltonetworks/globalprotect-macos',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-44cc-pg2q-9x56',
-              'summary': 'GlobalProtect for macOS contains a race condition / TOCTOU-style concurrent state flaw enabling privilege escalation.',
-              'description': 'The published advisory identifies a race condition in the privileged macOS application flow where a lower-privilege local actor can win the time-of-check/state race and obtain elevated execution.',
+              'source_root': 'GHSA-gxgp-6wm7-xrhr',
+              'source_project': 'dulldusk/phpfm',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-gxgp-6wm7-xrhr',
+              'source_code_location': 'https://github.com/dulldusk/phpfm',
+              'summary': 'phpfm has an unrestricted file upload vulnerability allowing unauthenticated arbitrary PHP-file upload.',
+              'description': 'The published advisory states that the upload extension filter is empty and authentication is disabled by default, so a remote attacker can upload a PHP webshell with a dangerous filename/extension to the application and execute the uploaded file.',
             },
             {
               'family': 'server_side_template_injection',
-              'source_root': 'GHSA-xgmr-hcvf-x3qc',
-              'source_project': 'owen2345/camaleon-cms',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-xgmr-hcvf-x3qc',
-              'repository_advisory_url': 'https://github.com/owen2345/camaleon-cms/security/advisories/GHSA-xgmr-hcvf-x3qc',
-              'summary': 'Camaleon CMS server-side template injection reaches ERB template rendering.',
-              'description': 'The advisory documents SSTI / template injection in a server-rendered ERB path where attacker-influenced template content reaches the render expression engine and can execute commands.',
+              'source_root': 'GHSA-95wq-w6wp-f2w9',
+              'source_project': 'WGDashboard/WGDashboard',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-95wq-w6wp-f2w9',
+              'source_code_location': 'https://github.com/WGDashboard/WGDashboard',
+              'references': ['https://github.com/Stuub/WGDashboard-v4.3.2-SSTI-to-Root-RCE-PoC'],
+              'summary': 'WGDashboard server-side template injection reaches an unsandboxed Jinja2 template render path and can execute code as root.',
+              'description': 'The published SSTI disclosure and its linked PoC document user-supplied email template fields passed directly to Python jinja2.Template().render() without a sandbox. The attacker-controlled template/expression is rendered server-side and can invoke command execution.',
             },
             {
               'family': 'unrestricted_resource_consumption',
-              'source_root': 'GHSA-87x5-vmc3-756j',
-              'source_project': 'vllm-project/vllm',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-87x5-vmc3-756j',
-              'repository_advisory_url': 'https://github.com/vllm-project/vllm/security/advisories/GHSA-87x5-vmc3-756j',
-              'summary': 'vLLM unbounded prompt arrays cause resource consumption and denial of service through CPU and memory exhaustion.',
-              'description': 'The reviewed advisory documents unbounded fan-out from a large prompt list, creating excessive backend tasks and CPU/memory/resource consumption until service capacity is exhausted and legitimate work is denied.',
+              'source_root': 'GHSA-rgw5-rvv9-x895',
+              'source_project': 'juliangruber/brace-expansion',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-rgw5-rvv9-x895',
+              'source_code_location': 'https://github.com/juliangruber/brace-expansion',
+              'summary': 'brace-expansion has unbounded resource consumption causing memory exhaustion, CPU exhaustion and denial of service.',
+              'description': 'The advisory documents unbounded intermediate arrays during brace expansion. A small crafted input can trigger uncatchable out-of-memory process termination, while a larger input can consume CPU and block the event loop for many seconds, exhausting memory/CPU resources and denying service.',
             },
           ]
 
@@ -171,23 +112,14 @@ jobs:
                   'eligible': bool(passed and fw['allowed']),
               })
 
-          by_family = {}
-          for result in results:
-              by_family.setdefault(result['family'], []).append(result)
-          family_pass = {
-              family: any(row['eligible'] for row in candidates)
-              for family, candidates in by_family.items()
-          }
           print(json.dumps({
               'scoring_executed': False,
               'detector_output_used': False,
               'candidate_count': len(rows),
-              'family_count': len(by_family),
-              'eligible_family_count': sum(1 for value in family_pass.values() if value),
-              'all_families_have_eligible_source': all(family_pass.values()),
-              'family_pass': family_pass,
+              'eligible_count': sum(1 for row in results if row['eligible']),
+              'all_eligible': all(row['eligible'] for row in results),
               'results': results,
           }, indent=2, sort_keys=True))
-          if not all(family_pass.values()):
+          if not all(row['eligible'] for row in results):
               raise SystemExit(2)
           PY
