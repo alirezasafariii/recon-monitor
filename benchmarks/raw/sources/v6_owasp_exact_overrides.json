@@ -1,5 +1,5 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,19 +11,18 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSA-9v5m-39wh-5chq",
-        "source_project": "shopware/shopware",
+        "source_root": "GHSA-777r-4v59-6486",
+        "source_project": "go-gitea/gitea",
         "family": "business_logic",
-        "canonical_advisory_url": "https://github.com/shopware/shopware/security/advisories/GHSA-9v5m-39wh-5chq",
-        "repository_advisory_url": "https://github.com/shopware/shopware/security/advisories/GHSA-9v5m-39wh-5chq",
-        "source_kind": "official_project_security_advisory",
-        "advisory_source_type": "maintainer_security_advisory",
-        "published_at": "2026-05-19",
-        "summary": "Shopware allowed a caller to trigger the payment workflow for another customer's order through a foreign orderId, bypassing the workflow ownership gate.",
-        "description": "The maintainer advisory documents a business workflow integrity failure in the Store API payment path. A caller-controlled foreign orderId could reach payment handling without the ownership and guest-authentication gate enforced by the normal order path. This bypass accepts an untrusted order context into a payment state transition and violates the workflow invariant that only the legitimate order owner or authenticated guest may initiate or retry payment.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-777r-4v59-6486",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "reviewed",
+        "published_at": "2026-07-01",
+        "summary": "Gitea Actions permanently skipped the fork-PR workflow approval gate after one prior approval, allowing later unapproved workflows to run.",
+        "description": "The reviewed advisory documents a business workflow and approval-state invariant failure. A single historical approval was treated as permanent trust for later fork pull requests, so a new workflow run could skip the required approval gate and execute with no approver. The implemented state transition therefore bypassed the intended per-work approval invariant and accepted an unapproved workflow as trusted.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "payment workflow", "workflow invariant", "ownership gate", "state transition", "bypass", "untrusted accepted", "foreign order"],
-        "selection_basis": "independent primary maintainer advisory selected before scoring using WSTG business-logic workflow, ownership-gate and state-transition semantics"
+        "semantic_facts": ["business workflow", "workflow", "approval gate", "approval", "workflow invariant", "state transition", "bypass", "untrusted accepted"],
+        "selection_basis": "independent GitHub-reviewed advisory selected before scoring using WSTG business-logic workflow, approval-gate and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
