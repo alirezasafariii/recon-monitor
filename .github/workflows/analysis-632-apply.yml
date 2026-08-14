@@ -47,6 +47,9 @@ jobs:
           assert result['first_blind_consumed'] is True, result
           PY
 
+      - name: Fix 6.32 dependency direction
+        run: python tools/fix_analysis_632_import.py
+
       - name: Apply 6.32 production calibration patch
         run: python tools/apply_analysis_632.py
 
@@ -97,6 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           git add \
+            app/analysis_632_evidence.py \
             app/hypothesis_admission.py \
             app/family_detectors/execution.py \
             app/analysis_ranking.py \
