@@ -7,10 +7,15 @@ from typing import Any, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
-from raw_recon_v6_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION, canonical_url, check_candidate
+from raw_recon_v6_source_firewall import (
+    RULE_VERSION as FIREWALL_RULE_VERSION,
+    canonical_url,
+    check_candidate,
+    exposure_index,
+)
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.31.2"
 SRC = ROOT / "benchmarks/raw/sources"
 
 BASE_HARD = {
@@ -126,6 +131,7 @@ def finalize() -> dict[str, Any]:
     if set(grounding_families) != HARD:
         raise RuntimeError(f"grounding family coverage mismatch: {len(grounding_families)}/14")
     grounding_urls = _grounding_urls(grounding, grounding_ext)
+    prior = exposure_index()
 
     selected: dict[str, dict[str, Any]] = {}
     hard_report: dict[str, Any] = {}
@@ -144,7 +150,7 @@ def finalize() -> dict[str, Any]:
         if not supplied or not supplied.issubset(required):
             raise RuntimeError(f"{family}: WSTG mismatch supplied={sorted(supplied)} required={sorted(required)}")
 
-        fw = check_candidate(row)
+        fw = check_candidate(row, index=prior)
         grounding_overlap = sorted(_candidate_urls(row) & grounding_urls)
         if not fw["allowed"] or grounding_overlap:
             raise RuntimeError(f"{family}: source firewall rejected candidate: firewall={fw} grounding_overlap={grounding_overlap}")
@@ -177,7 +183,7 @@ def finalize() -> dict[str, Any]:
             if not root or not project or (root, project) in seen:
                 continue
             seen.add((root, project))
-            fw = check_candidate(raw)
+            fw = check_candidate(raw, index=prior)
             if not fw["allowed"]:
                 continue
             passed, hits, score = audit_row(family, raw)
@@ -222,7 +228,11 @@ def finalize() -> dict[str, Any]:
     if set(selected) != set(DETECTOR_SPECS):
         raise RuntimeError(f"family coverage mismatch {len(selected)}/36")
     rows = [selected[family] for family in sorted(selected)]
-    rejected = [{"family": row.get("family"), "check": check_candidate(row)} for row in rows if not check_candidate(row)["allowed"]]
+    rejected = []
+    for row in rows:
+        check = check_candidate(row, index=prior)
+        if not check["allowed"]:
+            rejected.append({"family": row.get("family"), "check": check})
     if len(rows) != 36 or len(used_roots) != 36 or len(used_projects) != 36 or rejected:
         raise RuntimeError(f"final shortlist firewall/uniqueness failed count={len(rows)} roots={len(used_roots)} projects={len(used_projects)} rejected={rejected}")
 
@@ -232,7 +242,7 @@ def finalize() -> dict[str, Any]:
         "firewall_rule_version": FIREWALL_RULE_VERSION, "scoring_executed": False,
     }
     shortlist = {
-        "version": "3.3.0", "rule_version": RULE_VERSION,
+        "version": "3.3.1", "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v6_unscored_source_selection",
         "selection_executes_scoring": False, "selection_uses_detector_output": False,
         "selection_uses_admission_results": False, "selection_uses_ranking_results": False,
@@ -242,7 +252,7 @@ def finalize() -> dict[str, Any]:
         "supplement_pool_used": False, "firewall": final_firewall, "selected": rows,
     }
     report = {
-        "version": "1.3.0", "rule_version": RULE_VERSION, "status": "selected",
+        "version": "1.3.1", "rule_version": RULE_VERSION, "status": "selected",
         "scoring_executed": False, "family_count": 36, "unique_root_count": 36,
         "unique_project_count": 36, "owasp_grounded_family_count": 14,
         "legacy_semantic_family_count": 22, "supplement_pool_used": False,
