@@ -68,6 +68,7 @@ jobs:
           selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
           materialization = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text(encoding='utf-8'))
           protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
+          capture_plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text(encoding='utf-8'))
 
           assert capture_verification['passed'] is True
           assert capture_verification['scoring_executed'] is False
@@ -75,6 +76,10 @@ jobs:
           assert capture_verification['evidence_count'] == 144
           assert capture_verification['unique_evidence_hash_count'] == 144
           assert len(capture_verification['evidence_manifest']) == 144
+          assert capture_plan['scoring_executed'] is False
+          assert capture_plan['first_blind_consumed'] is False
+          assert capture_plan['required_capture_count'] == 144
+          assert capture_plan['all_evidence_present'] is True
           assert validation['passed'] is True
           assert validation['scoring_executed'] is False
           assert validation['literal_single_capture_count'] == 144
@@ -108,6 +113,7 @@ jobs:
             'benchmarks/raw/sources/v6_owasp_extension_candidates.json',
             'benchmarks/raw/sources/v6_shortlist.json',
             'benchmarks/raw/sources/v6_selection_final_report.json',
+            'benchmarks/raw/sources/v6_literal_capture_plan.json',
             'benchmarks/raw/sources/v6_literal_captures.jsonl',
             'benchmarks/raw/sources/v6_literal_capture_verification.json',
             'benchmarks/raw/analysis_raw_v6.jsonl',
@@ -116,6 +122,7 @@ jobs:
             'app/raw_recon_v6_source_firewall.py',
             'app/raw_recon_v6_source_discovery.py',
             'app/v6_source_finalize.py',
+            'app/v6_literal_capture_plan.py',
             'app/v6_literal_capture_verify.py',
             'app/v6_benchmark_dataset.py',
             'app/v6_benchmark_validate.py',
@@ -123,6 +130,7 @@ jobs:
             'app/v6_freeze_verify.py',
             '.github/workflows/analysis-631-validation.yml',
             '.github/workflows/analysis-631-owasp-exact-finalize.yml',
+            '.github/workflows/analysis-631-literal-capture-plan.yml',
             '.github/workflows/analysis-631-materialize.yml',
             '.github/workflows/analysis-631-corpus-freeze.yml',
             '.github/workflows/analysis-631-evaluator-freeze.yml',
@@ -141,8 +149,8 @@ jobs:
             protected[value] = digest
 
           report = {
-            'version': '1.5.0',
-            'rule_version': '2026.08.14.6.31.6',
+            'version': '1.6.0',
+            'rule_version': '2026.08.14.6.31.8',
             'evaluation_status': 'sealed_evidence_backed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
@@ -167,7 +175,7 @@ jobs:
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'mutation_policy': 'source inputs, all 144 literal evidence artifacts, capture rows, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
+            'mutation_policy': 'source inputs, capture acquisition plan, all 144 literal evidence artifacts, capture rows, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
