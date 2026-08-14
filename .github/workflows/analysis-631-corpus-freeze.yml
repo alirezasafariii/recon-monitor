@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.31-fresh-blind-v6-validation
     paths:
       - benchmarks/raw/sources/v6_validation_report.json
+      - .github/workflows/analysis-631-corpus-freeze.yml
 
 permissions:
   contents: write
@@ -46,9 +47,6 @@ jobs:
           assert selection['supplement_pool_used'] is False
           assert selection['grounding_provenance_reuse_count'] == 0
 
-          # Freeze only inputs and outputs that materially participate in the
-          # selected v6 benchmark. Deprecated supplement/keyword discovery
-          # artifacts are deliberately excluded from the protected set.
           paths = [
             'benchmarks/raw/sources/v6_protocol.json',
             'benchmarks/raw/sources/v6_candidates.json',
@@ -122,3 +120,5 @@ jobs:
           git commit -m 'Freeze validated unscored Analysis 6.31 v6 corpus'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
+
+# Retrigger only after successful materialization; freeze semantics are unchanged.
