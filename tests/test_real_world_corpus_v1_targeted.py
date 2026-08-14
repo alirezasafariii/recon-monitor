@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -32,10 +33,11 @@ class RealWorldCorpusV1TargetedTests(unittest.TestCase):
 
     def test_query_is_cwe_scoped_and_reviewed(self):
         url = targeted._query_url("CWE-918")
-        self.assertIn("cwes=918", url)
-        self.assertNotIn("cwes=CWE-918", url)
-        self.assertIn("type=reviewed", url)
-        self.assertNotIn("page=", url)
+        query = parse_qs(urlparse(url).query)
+        self.assertEqual(query.get("cwes"), ["918"])
+        self.assertEqual(query.get("type"), ["reviewed"])
+        self.assertEqual(query.get("per_page"), ["100"])
+        self.assertNotIn("page", query)
         self.assertEqual(targeted._github_cwe_query_value("CWE-89"), "89")
 
     def test_extra_historical_corpora_are_loaded_by_hardened_layer(self):
