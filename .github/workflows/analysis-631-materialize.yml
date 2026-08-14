@@ -63,6 +63,11 @@ jobs:
           assert shortlist['firewall']['rejected'] == []
           PY
 
+      - name: Verify complete literal capture evidence set
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_verify.py --write-report
+
       - name: Build unscored v6 literal corpus
         env:
           PYTHONPATH: app
@@ -76,6 +81,13 @@ jobs:
           import json
           from pathlib import Path
           from v6_benchmark_validate import validate_v6_corpus
+          from v6_literal_capture_verify import verify_capture_set
+
+          capture_verification = verify_capture_set(require_complete=True, write_report=True)
+          assert capture_verification['passed'], capture_verification['errors']
+          assert capture_verification['capture_count'] == 144
+          assert capture_verification['evidence_count'] == 144
+          assert capture_verification['unique_evidence_hash_count'] == 144
 
           report = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text())
           shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
@@ -108,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/analysis_raw_v6.jsonl benchmarks/raw/sources/v6_materialization_report.json benchmarks/raw/sources/v6_validation_report.json
+          git add benchmarks/raw/analysis_raw_v6.jsonl benchmarks/raw/sources/v6_literal_capture_verification.json benchmarks/raw/sources/v6_materialization_report.json benchmarks/raw/sources/v6_validation_report.json
           if git diff --cached --quiet; then
             echo 'No materialization snapshot change.'
             exit 0
