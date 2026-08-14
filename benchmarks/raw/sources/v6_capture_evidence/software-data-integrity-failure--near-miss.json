@@ -23,14 +23,15 @@
       "verify_signed_library_present": true
     },
     "endpoint": "SecurityGuard::checkModule",
-    "method": "LOCAL_VERIFY",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
     "schema": {
       "signature_verification_exists_elsewhere": true,
       "update_installer_launch_path_observed": false
     },
     "target": "Notepad++ module signature guard"
   },
-  "raw_sha256": "3339d9a73378e83c882b39be089cd20de4b4f796296e32e16d208c9cb1ac030c",
+  "raw_sha256": "bce69b9fac31a3150b96ba8406ca0ba0274e191583969a7e8408f74ca45a3e38",
   "schema_version": "1.0",
   "source_project": "notepad-plus-plus/notepad-plus-plus",
   "source_root": "GHSA-cqx4-h5ph-3xj9",

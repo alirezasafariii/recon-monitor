@@ -24,14 +24,15 @@
       "signer_display_name_accessor_present": true
     },
     "endpoint": "SecurityGuard certificate metadata",
-    "method": "SOURCE_READ",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
     "schema": {
       "execution_path_observed": false,
       "signer_identity_metadata_present": true
     },
     "target": "Notepad++ signer metadata declarations"
   },
-  "raw_sha256": "0b24cab988f36ab55d4ca38a924365b71d2985debe6af4b82f13aa58f4e61aef",
+  "raw_sha256": "dc662f089b1f1bff89d15d80c9842d3f6a12dadd72d30b3f2e8bd240c47bf6fd",
   "schema_version": "1.0",
   "source_project": "notepad-plus-plus/notepad-plus-plus",
   "source_root": "GHSA-cqx4-h5ph-3xj9",
