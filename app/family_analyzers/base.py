@@ -9,14 +9,15 @@ evidence and must not perform active validation.
 
 import json
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Mapping
 
 from core import Database
 
 
-FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.3.0"
-FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.3"
+FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.3.1"
+FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.4"
 
 # Temporal/workflow intelligence is generated lazily because the family router
 # runs after Semantic + Behavioral Intelligence have populated the current
@@ -24,10 +25,13 @@ FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.3"
 # endpoint/family context while keeping every Analysis ID isolated.
 _CONTEXT_INTELLIGENCE_BOOTSTRAPPED: set[tuple[int, str, str]] = set()
 _CONTEXT_INTELLIGENCE_CACHE_MAX = 2048
+_GENERATED_PROTOCOL_CONTEXT_CACHE_MAX = 4096
+_GENERATED_PROTOCOL_CONTEXT_CACHE: "OrderedDict[tuple[int, str, str, str], tuple[dict[str, Any], ...]]" = OrderedDict()
 
 
 def clear_context_intelligence_bootstrap_cache() -> None:
     _CONTEXT_INTELLIGENCE_BOOTSTRAPPED.clear()
+    _GENERATED_PROTOCOL_CONTEXT_CACHE.clear()
 
 
 def _bootstrap_context_intelligence(db: Database, analysis_id: str, target: str) -> None:
@@ -67,6 +71,46 @@ def _loads(value: Any, default: Any) -> Any:
     return decoded if isinstance(decoded, type(default)) else default
 
 
+def _generated_protocol_rows(
+    db: Database,
+    analysis_id: str,
+    target: str,
+    endpoint: str,
+) -> tuple[dict[str, Any], ...]:
+    """Return a bounded cached snapshot of generated protocol context.
+
+    Family analyzers repeatedly construct contexts for the same endpoint. The
+    protocol rows are immutable within one Analysis after bootstrap, so caching
+    them preserves the bridge's zero-extra-query reuse contract and prevents
+    endpoint/family fan-out from multiplying database reads.
+    """
+
+    if db is None or not endpoint:
+        return ()
+    key = (id(db), str(analysis_id), str(target), str(endpoint))
+    cached = _GENERATED_PROTOCOL_CONTEXT_CACHE.get(key)
+    if cached is not None:
+        _GENERATED_PROTOCOL_CONTEXT_CACHE.move_to_end(key)
+        return cached
+    try:
+        rows = tuple(
+            dict(row)
+            for row in db.all(
+                "SELECT protocol,kind,confidence,severity,evidence_json FROM protocol_findings "
+                "WHERE analysis_id=? AND target=? AND entity=? AND protocol IN ('temporal','workflow') "
+                "ORDER BY confidence DESC LIMIT 50",
+                (analysis_id, target, endpoint),
+            )
+        )
+    except Exception:
+        rows = ()
+    _GENERATED_PROTOCOL_CONTEXT_CACHE[key] = rows
+    _GENERATED_PROTOCOL_CONTEXT_CACHE.move_to_end(key)
+    while len(_GENERATED_PROTOCOL_CONTEXT_CACHE) > _GENERATED_PROTOCOL_CONTEXT_CACHE_MAX:
+        _GENERATED_PROTOCOL_CONTEXT_CACHE.popitem(last=False)
+    return rows
+
+
 def _attach_generated_protocol_context(
     db: Database,
     analysis_id: str,
@@ -82,20 +126,7 @@ def _attach_generated_protocol_context(
     """
 
     enriched = dict(details)
-    if db is None or not endpoint:
-        return enriched
-    try:
-        rows = [
-            dict(row)
-            for row in db.all(
-                "SELECT protocol,kind,confidence,severity,evidence_json FROM protocol_findings "
-                "WHERE analysis_id=? AND target=? AND entity=? AND protocol IN ('temporal','workflow') "
-                "ORDER BY confidence DESC LIMIT 50",
-                (analysis_id, target, endpoint),
-            )
-        ]
-    except Exception:
-        return enriched
+    rows = _generated_protocol_rows(db, analysis_id, target, endpoint)
     if not rows:
         return enriched
 
