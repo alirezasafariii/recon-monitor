@@ -1,0 +1,1092 @@
+{
+  "complement_family_count": 22,
+  "complement_override_family_count": 13,
+  "complement_override_validation": {
+    "account_enumeration": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-hp2m-55fj-8mw5",
+          "postgres/postgres"
+        ],
+        "checked_root_aliases": [
+          "ghsa-hp2m-55fj-8mw5"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "postgres/postgres",
+        "source_root": "ghsa-hp2m-55fj-8mw5",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "account existence",
+          "enumerat",
+          "existing user"
+        ],
+        [
+          "account",
+          "user",
+          "username"
+        ]
+      ],
+      "semantic_audit_score": 17,
+      "source_project": "postgres/postgres",
+      "source_root": "GHSA-hp2m-55fj-8mw5"
+    },
+    "authentication_session": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-vxcg-gxwh-hqw8",
+          "ibm/ibm-i"
+        ],
+        "checked_root_aliases": [
+          "ghsa-vxcg-gxwh-hqw8"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "ibm/ibm-i",
+        "source_root": "ghsa-vxcg-gxwh-hqw8",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "authentication",
+          "session"
+        ],
+        [
+          "bypass",
+          "impersonat",
+          "validation"
+        ]
+      ],
+      "semantic_audit_score": 15,
+      "source_project": "ibm/ibm-i",
+      "source_root": "GHSA-vxcg-gxwh-hqw8"
+    },
+    "broken_function_authorization": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "rivoli-ai/andy-rbac"
+        ],
+        "checked_root_aliases": [
+          "andy-rbac-issue-97"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "rivoli-ai/andy-rbac",
+        "source_root": "andy-rbac-issue-97",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "admin",
+          "function-level authorization",
+          "permission",
+          "privilege",
+          "role"
+        ],
+        [
+          "bypass"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "rivoli-ai/andy-rbac",
+      "source_root": "ANDY-RBAC-ISSUE-97"
+    },
+    "command_injection": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-jqh7-pchh-v74j",
+          "zimbra/zimbra-collaboration"
+        ],
+        "checked_root_aliases": [
+          "ghsa-jqh7-pchh-v74j"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "zimbra/zimbra-collaboration",
+        "source_root": "ghsa-jqh7-pchh-v74j",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "command injection",
+          "os command injection"
+        ],
+        [
+          "command",
+          "exec",
+          "process",
+          "system"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "zimbra/zimbra-collaboration",
+      "source_root": "GHSA-jqh7-pchh-v74j"
+    },
+    "cryptographic_failure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "eddiethedean/hedron"
+        ],
+        "checked_root_aliases": [
+          "hedron-issue-196"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "eddiethedean/hedron",
+        "source_root": "hedron-issue-196",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "crypto",
+          "cryptograph"
+        ],
+        [
+          "insecure",
+          "predictable",
+          "weak"
+        ]
+      ],
+      "semantic_audit_score": 15,
+      "source_project": "eddiethedean/hedron",
+      "source_root": "HEDRON-ISSUE-196"
+    },
+    "exceptional_condition_mishandling": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "louisalexander/time-safe"
+        ],
+        "checked_root_aliases": [
+          "time-safe-issue-35"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "louisalexander/time-safe",
+        "source_root": "time-safe-issue-35",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "crash",
+          "unhandled exception"
+        ],
+        [
+          "crash",
+          "error",
+          "exception"
+        ]
+      ],
+      "semantic_audit_score": 15,
+      "source_project": "louisalexander/time-safe",
+      "source_root": "TIME-SAFE-ISSUE-35"
+    },
+    "file_upload": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-gxgp-6wm7-xrhr",
+          "dulldusk/phpfm"
+        ],
+        "checked_root_aliases": [
+          "ghsa-gxgp-6wm7-xrhr"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "dulldusk/phpfm",
+        "source_root": "ghsa-gxgp-6wm7-xrhr",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "file upload",
+          "uploaded file"
+        ],
+        [
+          "extension",
+          "file",
+          "filename",
+          "upload"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "dulldusk/phpfm",
+      "source_root": "GHSA-gxgp-6wm7-xrhr"
+    },
+    "mass_assignment": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "frankbria/narrative-modeling-app"
+        ],
+        "checked_root_aliases": [
+          "narrative-modeling-issue-451"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "frankbria/narrative-modeling-app",
+        "source_root": "narrative-modeling-issue-451",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "mass assignment",
+          "over-posting"
+        ],
+        [
+          "field",
+          "property"
+        ]
+      ],
+      "semantic_audit_score": 14,
+      "source_project": "frankbria/narrative-modeling-app",
+      "source_root": "NARRATIVE-MODELING-ISSUE-451"
+    },
+    "race_condition": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-44cc-pg2q-9x56",
+          "paloaltonetworks/globalprotect-macos"
+        ],
+        "checked_root_aliases": [
+          "ghsa-44cc-pg2q-9x56"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "paloaltonetworks/globalprotect-macos",
+        "source_root": "ghsa-44cc-pg2q-9x56",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "concurrent",
+          "race condition",
+          "toctou"
+        ],
+        [
+          "atomic",
+          "concurrent",
+          "race"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "paloaltonetworks/globalprotect-macos",
+      "source_root": "GHSA-44cc-pg2q-9x56"
+    },
+    "secret_exposure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-xr96-mx7v-w32h",
+          "ibm/storage-scale"
+        ],
+        "checked_root_aliases": [
+          "ghsa-xr96-mx7v-w32h"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "ibm/storage-scale",
+        "source_root": "ghsa-xr96-mx7v-w32h",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "credential",
+          "hardcoded",
+          "secret",
+          "token"
+        ],
+        [
+          "expos",
+          "source"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "ibm/storage-scale",
+      "source_root": "GHSA-xr96-mx7v-w32h"
+    },
+    "security_logging_alerting_failure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-q83p-h7pj-3m3p",
+          "ibm/db2"
+        ],
+        "checked_root_aliases": [
+          "ghsa-q83p-h7pj-3m3p"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "ibm/db2",
+        "source_root": "ghsa-q83p-h7pj-3m3p",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "log",
+          "logging"
+        ],
+        [
+          "password",
+          "sensitive"
+        ]
+      ],
+      "semantic_audit_score": 14,
+      "source_project": "ibm/db2",
+      "source_root": "GHSA-q83p-h7pj-3m3p"
+    },
+    "server_side_template_injection": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "own-pay/ownpay"
+        ],
+        "checked_root_aliases": [
+          "ownpay-issue-438"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "own-pay/ownpay",
+        "source_root": "ownpay-issue-438",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "server-side template injection",
+          "template injection"
+        ],
+        [
+          "expression",
+          "render",
+          "template",
+          "twig"
+        ]
+      ],
+      "semantic_audit_score": 16,
+      "source_project": "own-pay/OwnPay",
+      "source_root": "OWNPAY-ISSUE-438"
+    },
+    "unrestricted_resource_consumption": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-2cg2-hxr7-q7f4",
+          "systerel/s2opc"
+        ],
+        "checked_root_aliases": [
+          "ghsa-2cg2-hxr7-q7f4"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "systerel/s2opc",
+        "source_root": "ghsa-2cg2-hxr7-q7f4",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_audit_hits": [
+        [
+          "denial of service",
+          "resource consumption",
+          "unbounded"
+        ],
+        [
+          "resource",
+          "unbounded"
+        ]
+      ],
+      "semantic_audit_score": 15,
+      "source_project": "systerel/S2OPC",
+      "source_root": "GHSA-2cg2-hxr7-q7f4"
+    }
+  },
+  "family_count": 36,
+  "firewall_rule_version": "2026.08.14.6.31.1",
+  "grounding_provenance_reuse_count": 0,
+  "hard_family_validation": {
+    "business_logic": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "meshtastic/firmware"
+        ],
+        "checked_root_aliases": [
+          "ghsa-mjx5-98jq-q736"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "meshtastic/firmware",
+        "source_root": "ghsa-mjx5-98jq-q736",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "approval workflow",
+          "business workflow",
+          "workflow"
+        ],
+        [
+          "approval",
+          "gate",
+          "invariant",
+          "state transition"
+        ],
+        [
+          "bypass",
+          "untrusted accepted"
+        ]
+      ],
+      "source_project": "meshtastic/firmware",
+      "source_root": "GHSA-mjx5-98jq-q736",
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-BUSL-06"
+      ]
+    },
+    "cors_misconfiguration": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "forkwright/harmonia"
+        ],
+        "checked_root_aliases": [
+          "harmonia-issue-710"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "forkwright/harmonia",
+        "source_root": "harmonia-issue-710",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "cors",
+          "cross-origin"
+        ],
+        [
+          "origin",
+          "trusted origin",
+          "untrusted origin"
+        ],
+        [
+          "credential",
+          "data",
+          "sensitive"
+        ]
+      ],
+      "source_project": "forkwright/harmonia",
+      "source_root": "HARMONIA-ISSUE-710",
+      "wstg_ids": [
+        "WSTG-CLNT-07"
+      ]
+    },
+    "dom_xss": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "thinkinaixyz/deepchat"
+        ],
+        "checked_root_aliases": [
+          "ghsa-7r59-67v3-3mgp"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "thinkinaixyz/deepchat",
+        "source_root": "ghsa-7r59-67v3-3mgp",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "client-side",
+          "dom xss"
+        ],
+        [
+          "browser",
+          "render",
+          "sink",
+          "svg"
+        ],
+        [
+          "bypass",
+          "sanit"
+        ]
+      ],
+      "source_project": "ThinkInAIXYZ/deepchat",
+      "source_root": "GHSA-7r59-67v3-3mgp",
+      "wstg_ids": [
+        "WSTG-CLNT-01"
+      ]
+    },
+    "graphql_authorization": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "aimeos/ai-admin-graphql"
+        ],
+        "checked_root_aliases": [
+          "ghsa-jj68-cp4v-98qf"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "aimeos/ai-admin-graphql",
+        "source_root": "ghsa-jj68-cp4v-98qf",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "access control",
+          "authorization",
+          "permission"
+        ],
+        [
+          "editor",
+          "manage",
+          "operation",
+          "role",
+          "service"
+        ]
+      ],
+      "source_project": "aimeos/ai-admin-graphql",
+      "source_root": "GHSA-jj68-cp4v-98qf",
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-ATHZ-02"
+      ]
+    },
+    "graphql_data_exposure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "ryjen/eyespie"
+        ],
+        "checked_root_aliases": [
+          "eyespie-issue-122"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "ryjen/eyespie",
+        "source_root": "eyespie-issue-122",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "data exposure",
+          "restricted",
+          "sensitive"
+        ],
+        [
+          "field",
+          "filter",
+          "property",
+          "query",
+          "scope"
+        ]
+      ],
+      "source_project": "ryjen/eyespie",
+      "source_root": "EYESPIE-ISSUE-122",
+      "wstg_ids": [
+        "WSTG-APIT-03"
+      ]
+    },
+    "improper_inventory_management": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "microsoft/azure-api-management"
+        ],
+        "checked_root_aliases": [
+          "binarysecurity-apim-old-api-2024-11-05"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "microsoft/azure-api-management",
+        "source_root": "binarysecurity-apim-old-api-2024-11-05",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "legacy api",
+          "old api",
+          "older arm api"
+        ],
+        [
+          "api",
+          "version"
+        ],
+        [
+          "still exploitable",
+          "version drift",
+          "weaker authorization"
+        ]
+      ],
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-CONF-04"
+      ]
+    },
+    "nosql_injection": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "pathosdev/actor-ts"
+        ],
+        "checked_root_aliases": [
+          "actor-ts-issue-738"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "pathosdev/actor-ts",
+        "source_root": "actor-ts-issue-738",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "mongo",
+          "mongodb",
+          "nosql"
+        ],
+        [
+          "filter",
+          "operator",
+          "query"
+        ],
+        [
+          "alter",
+          "inject",
+          "injection",
+          "semantics",
+          "unintended",
+          "unvalidated"
+        ]
+      ],
+      "source_project": "pathosDev/actor-ts",
+      "source_root": "ACTOR-TS-ISSUE-738",
+      "wstg_ids": [
+        "WSTG-INPV-05.6"
+      ]
+    },
+    "postmessage_trust": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "auth0/auth0.js"
+        ],
+        "checked_root_aliases": [
+          "auth0-auth0js-issue-508"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "auth0/auth0.js",
+        "source_root": "auth0-auth0js-issue-508",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "message event",
+          "postmessage"
+        ],
+        [
+          "iframe source",
+          "origin",
+          "sender"
+        ],
+        [
+          "correct iframe",
+          "trust",
+          "validation"
+        ]
+      ],
+      "source_project": "auth0/auth0.js",
+      "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "wstg_ids": [
+        "WSTG-CLNT-11"
+      ]
+    },
+    "sensitive_business_flow_abuse": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "frappe/press"
+        ],
+        "checked_root_aliases": [
+          "ghsa-68qm-vp8f-rpr3"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "frappe/press",
+        "source_root": "ghsa-68qm-vp8f-rpr3",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "business",
+          "invite"
+        ],
+        [
+          "duplicate",
+          "flood",
+          "repeat"
+        ],
+        [
+          "anti-abuse",
+          "frequency",
+          "rate limit"
+        ]
+      ],
+      "source_project": "frappe/press",
+      "source_root": "GHSA-68qm-vp8f-rpr3",
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-06",
+        "WSTG-BUSL-07"
+      ]
+    },
+    "sensitive_caching": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "rubygems/rubygems.org"
+        ],
+        "checked_root_aliases": [
+          "rubygems-legacy-api-key-cache-2026-07-22"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "rubygems/rubygems.org",
+        "source_root": "rubygems-legacy-api-key-cache-2026-07-22",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "cache",
+          "cached"
+        ],
+        [
+          "api key",
+          "authenticated",
+          "sensitive"
+        ],
+        [
+          "edge",
+          "shared cache",
+          "unauthenticated cache hit"
+        ]
+      ],
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+      "wstg_ids": [
+        "WSTG-ATHN-06"
+      ]
+    },
+    "software_supply_chain_failure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "advisories/ghsa-pvw4-cvr4-97p8",
+          "cap-js/cds-dbs"
+        ],
+        "checked_root_aliases": [
+          "ghsa-pvw4-cvr4-97p8"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "cap-js/cds-dbs",
+        "source_root": "ghsa-pvw4-cvr4-97p8",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "dependency",
+          "supply chain"
+        ],
+        [
+          "compromised",
+          "malicious"
+        ],
+        [
+          "installation",
+          "package",
+          "published"
+        ]
+      ],
+      "source_project": "cap-js/cds-dbs",
+      "source_root": "GHSA-pvw4-cvr4-97p8",
+      "wstg_ids": [
+        "WSTG-CONF-01",
+        "WSTG-CONF-02"
+      ]
+    },
+    "source_map_exposure": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "govtech-bb/gov-bb"
+        ],
+        "checked_root_aliases": [
+          "gov-bb-issue-2092"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "govtech-bb/gov-bb",
+        "source_root": "gov-bb-issue-2092",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "source map",
+          "source-map"
+        ],
+        [
+          "debug artifact",
+          "original source",
+          "source code"
+        ],
+        [
+          "disclosure",
+          "expose",
+          "obtainable",
+          "read"
+        ]
+      ],
+      "source_project": "govtech-bb/gov-bb",
+      "source_root": "GOV-BB-ISSUE-2092",
+      "wstg_ids": [
+        "WSTG-INFO-05"
+      ]
+    },
+    "unsafe_api_consumption": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "zachlagden/rickbot"
+        ],
+        "checked_root_aliases": [
+          "rickbot-issue-38"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "zachlagden/rickbot",
+        "source_root": "rickbot-issue-38",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "external api",
+          "http client",
+          "remote service"
+        ],
+        [
+          "cross-host",
+          "redirect",
+          "response"
+        ],
+        [
+          "credential",
+          "forwarded",
+          "proxy-authorization",
+          "trust boundary"
+        ]
+      ],
+      "source_project": "zachlagden/rickbot",
+      "source_root": "RICKBOT-ISSUE-38",
+      "wstg_ids": [
+        "WSTG-INFO-10"
+      ]
+    },
+    "websocket_authorization": {
+      "firewall": {
+        "allowed": true,
+        "checked_project_aliases": [
+          "bazauto/layout-orchestration"
+        ],
+        "checked_root_aliases": [
+          "layout-orchestration-issue-20"
+        ],
+        "firewall_rule_version": "2026.08.14.6.31.1",
+        "firewall_version": "1.1.1",
+        "identifier_overlap": [],
+        "project_overlap": [],
+        "root_overlap": [],
+        "scoring_executed": false,
+        "source_project": "bazauto/layout-orchestration",
+        "source_root": "layout-orchestration-issue-20",
+        "url_overlap": []
+      },
+      "grounding_url_overlap": [],
+      "semantic_group_hits": [
+        [
+          "websocket"
+        ],
+        [
+          "access control",
+          "authentication",
+          "authorization"
+        ],
+        [
+          "bypass",
+          "sensitive updates"
+        ]
+      ],
+      "source_project": "bazauto/layout-orchestration",
+      "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+      "wstg_ids": [
+        "WSTG-ATHZ-02",
+        "WSTG-CLNT-10"
+      ]
+    }
+  },
+  "legacy_assignment_method": "global_backtracking_unique_root_project",
+  "legacy_semantic_family_count": 9,
+  "owasp_grounded_family_count": 14,
+  "rule_version": "2026.08.14.6.31.5",
+  "scoring_executed": false,
+  "status": "selected",
+  "supplement_pool_used": false,
+  "unique_project_count": 36,
+  "unique_root_count": 36,
+  "version": "1.6.0"
+}

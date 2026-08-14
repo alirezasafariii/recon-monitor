@@ -1,0 +1,1600 @@
+{
+  "complement_family_count": 22,
+  "complement_override_family_count": 13,
+  "evaluation_kind": "fresh_blind_v6_unscored_source_selection",
+  "family_count": 36,
+  "firewall": {
+    "candidate_count": 36,
+    "errors": [],
+    "firewall_rule_version": "2026.08.14.6.31.1",
+    "passed": true,
+    "rejected": [],
+    "scoring_executed": false,
+    "unique_project_count": 36,
+    "unique_root_count": 36
+  },
+  "grounding_counts_as_target_evidence": false,
+  "legacy_semantic_family_count": 9,
+  "owasp_grounded_family_count": 14,
+  "rule_version": "2026.08.14.6.31.5",
+  "selected": [
+    {
+      "advisory_source_type": "reviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+      "description": "The published advisory documents an account-enumeration response discrepancy in SCRAM authentication: the challenge for an existing username with non-default settings can differ from the challenge for a nonexistent username, allowing remote testing of registered user/account existence by username.",
+      "family": "account_enumeration",
+      "freshness_validated": true,
+      "selection_basis": "fresh reviewed advisory selected before scoring using the preregistered account-enumeration semantic audit",
+      "semantic_facts": [
+        "user enumeration",
+        "account enumeration",
+        "existing user",
+        "username",
+        "account",
+        "response discrepancy"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "account existence",
+          "enumerat",
+          "existing user"
+        ],
+        [
+          "account",
+          "user",
+          "username"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "postgres/postgres",
+      "source_root": "GHSA-hp2m-55fj-8mw5",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "PostgreSQL SCRAM authentication response behavior can let an unauthenticated caller determine whether a username/account exists.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+      "description": "The advisory describes improper validation in an NTLM authentication/session negotiation path that can let a remote actor bypass the intended authentication boundary and obtain an authenticated session context with another user's effective privileges.",
+      "family": "authentication_session",
+      "freshness_validated": true,
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered authentication/session semantic audit",
+      "semantic_facts": [
+        "authentication",
+        "session",
+        "NTLM",
+        "authentication bypass",
+        "impersonation",
+        "validation"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "authentication",
+          "session"
+        ],
+        [
+          "bypass",
+          "impersonat",
+          "validation"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "ibm/ibm-i",
+      "source_root": "GHSA-vxcg-gxwh-hqw8",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "IBM i improper authentication during NTLM session negotiation can allow authentication bypass and session impersonation.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "project_issue",
+      "canonical_advisory_url": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+      "description": "The project security issue documents function-level authorization missing from administrative controllers. A low-privilege authenticated user could access privileged admin mutations and rewrite roles, policies or grants because generic authentication was enforced without the required admin/manage permission check.",
+      "family": "broken_function_authorization",
+      "freshness_validated": true,
+      "selection_basis": "fresh project security issue selected before scoring using the preregistered function-level authorization semantic audit",
+      "semantic_facts": [
+        "function-level authorization",
+        "admin",
+        "privilege",
+        "role",
+        "permission",
+        "unauthorized",
+        "authorization bypass",
+        "low privilege"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "admin",
+          "function-level authorization",
+          "permission",
+          "privilege",
+          "role"
+        ],
+        [
+          "bypass"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "project_security_issue",
+      "source_project": "rivoli-ai/andy-rbac",
+      "source_root": "ANDY-RBAC-ISSUE-97",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "Andy RBAC management functions had a critical authorization bypass allowing authenticated non-admin tokens to invoke privileged role, policy and grant administration.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5xhp-2v8r-m7wh",
+      "description": "Rainbond through 6.9.7 contains a broken access control vulnerability in the CheckToken function that allows authenticated attackers to access unauthorized enterprise resources by substituting another enterprise's tenant name in URL paths. Attackers can use any valid API token to bypass enterprise ID verification and access or modify another enterprise's services, plugins, environment variables, and certificates.",
+      "family": "broken_object_authorization",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-639"
+      ],
+      "published_at": "2026-08-13T18:31:41Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-72741",
+        "https://github.com/goodrain/rainbond/issues/2665",
+        "https://www.vulncheck.com/advisories/rainbond-region-api-cross-enterprise-idor-via-tenant-access",
+        "https://github.com/advisories/GHSA-5xhp-2v8r-m7wh"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/goodrain/rainbond/issues/2665",
+      "source_family_audit_group_hits": [
+        [
+          "tenant"
+        ],
+        [
+          "access control",
+          "bypass",
+          "unauthorized"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "goodrain/rainbond",
+      "source_root": "GHSA-5xhp-2v8r-m7wh",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "Rainbond through 6.9.7 contains a broken access control vulnerability in the CheckToken function...",
+      "updated_at": "2026-08-13T18:31:48Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "repository",
+      "canonical_advisory_url": "https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736",
+      "description": "The published repository advisory documents a workflow invariant failure in a pull_request_target CI flow. Pull requests from external users with no trusted association triggered automatically because no approval gate existed, after which attacker-controlled fork files were checked out and executed with repository secrets and elevated token permissions. The vulnerable state transition therefore accepted untrusted fork content into privileged execution without an approver, bypassing the intended approval/trust boundary.",
+      "family": "business_logic",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "approval workflow",
+            "business workflow",
+            "workflow"
+          ],
+          [
+            "approval",
+            "gate",
+            "invariant",
+            "state transition"
+          ],
+          [
+            "bypass",
+            "untrusted accepted"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-04-20",
+      "repository_advisory_url": "https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736",
+      "selection_basis": "independent primary repository advisory selected before scoring using WSTG business-logic approval-workflow, trust-gate and state-transition semantics",
+      "semantic_facts": [
+        "business workflow",
+        "workflow",
+        "approval gate",
+        "approval",
+        "workflow invariant",
+        "state transition",
+        "bypass",
+        "untrusted accepted",
+        "no approval required"
+      ],
+      "source_kind": "official_project_security_advisory",
+      "source_project": "meshtastic/firmware",
+      "source_root": "GHSA-mjx5-98jq-q736",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Meshtastic CI workflow accepted external fork code into privileged execution without the required approval gate, allowing the intended trust workflow to be bypassed.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-BUSL-06"
+      ]
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+      "description": "The published advisory states that improper sanitization of untrusted SMTP input in the SNMP notification path can execute arbitrary operating-system commands as the Zimbra process user. Untrusted input therefore reaches an OS command/process execution boundary.",
+      "family": "command_injection",
+      "freshness_validated": true,
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered command-injection semantic audit",
+      "semantic_facts": [
+        "OS command injection",
+        "command injection",
+        "command",
+        "process",
+        "execute",
+        "untrusted input"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "command injection",
+          "os command injection"
+        ],
+        [
+          "command",
+          "exec",
+          "process",
+          "system"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "zimbra/zimbra-collaboration",
+      "source_root": "GHSA-jqh7-pchh-v74j",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "Zimbra Collaboration contains OS command injection in SNMP notification processing.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/forkwright/harmonia/issues/710",
+      "description": "The project-owner security issue documents CorsLayer::permissive() over the router carrying /api/auth/login and /api/auth/refresh. Any origin, method and header are allowed. The issue explains that an untrusted origin can make cross-origin requests to the authentication surface and read returned bearer-token data, while cookie-backed credential mode would create a cross-site credential boundary risk. The proposed correction is an explicit trusted-origin allowlist or scoping CORS away from authentication routes.",
+      "family": "cors_misconfiguration",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "cors",
+            "cross-origin"
+          ],
+          [
+            "origin",
+            "trusted origin",
+            "untrusted origin"
+          ],
+          [
+            "credential",
+            "data",
+            "sensitive"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-08-12",
+      "selection_basis": "fresh project-owner security issue selected before scoring using WSTG-CLNT-07 unsafe-origin and authentication-response exposure semantics",
+      "semantic_facts": [
+        "CORS",
+        "cross-origin",
+        "Origin",
+        "untrusted origin",
+        "authentication",
+        "credential",
+        "bearer token",
+        "sensitive data"
+      ],
+      "source_kind": "maintainer_security_issue",
+      "source_project": "forkwright/harmonia",
+      "source_root": "HARMONIA-ISSUE-710",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Harmonia applied permissive CORS to the entire router, including live authentication endpoints, allowing arbitrary origins to issue cross-origin auth requests and read responses.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-CLNT-07"
+      ]
+    },
+    {
+      "advisory_source_type": "project_issue",
+      "canonical_advisory_url": "https://github.com/eddiethedean/hedron/issues/196",
+      "description": "The project security issue documents insecure and predictable session-secret values being accepted in production despite a documented entropy/length requirement. The cryptographic secret validation gate therefore permits weak key material instead of rejecting insecure production secrets.",
+      "family": "cryptographic_failure",
+      "freshness_validated": true,
+      "selection_basis": "fresh project security issue selected before scoring using the preregistered cryptographic-failure semantic audit",
+      "semantic_facts": [
+        "cryptographic",
+        "session secret",
+        "weak",
+        "insecure",
+        "predictable",
+        "entropy",
+        "key"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "crypto",
+          "cryptograph"
+        ],
+        [
+          "insecure",
+          "predictable",
+          "weak"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "project_security_issue",
+      "source_project": "eddiethedean/hedron",
+      "source_root": "HEDRON-ISSUE-196",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "Hedron's production security gate accepted weak cryptographic session secrets such as predictable low-entropy values.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "repository",
+      "canonical_advisory_url": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+      "description": "The primary repository advisory identifies persistent DOM XSS in client-side SVG artifact rendering where crafted content bypasses the intended sanitizer and reaches an executable browser rendering context.",
+      "family": "dom_xss",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "client-side",
+            "dom xss"
+          ],
+          [
+            "browser",
+            "render",
+            "sink",
+            "svg"
+          ],
+          [
+            "bypass",
+            "sanit"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-04-25",
+      "repository_advisory_url": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+      "selection_basis": "independent primary advisory selected before scoring using WSTG DOM-XSS source-to-sink boundary and related write-up semantics",
+      "semantic_facts": [
+        "DOM XSS",
+        "client-side",
+        "SVG rendering",
+        "sanitization bypass",
+        "executable browser sink"
+      ],
+      "source_kind": "github_repository_security_advisory",
+      "source_project": "ThinkInAIXYZ/deepchat",
+      "source_root": "GHSA-7r59-67v3-3mgp",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "DeepChat disclosed persistent DOM XSS in SVG artifact rendering through an HTML-entity sanitization bypass.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-CLNT-01"
+      ]
+    },
+    {
+      "advisory_source_type": "owner_issue",
+      "canonical_advisory_url": "https://github.com/louisalexander/time-safe/issues/35",
+      "description": "The project owner documents that an unhandled exception reaches Textual fatal-error rendering with frame locals enabled. The application exits/crashes while printing sensitive plaintext from live local variables to terminal/log output instead of handling the exceptional condition through the controlled exception-only path.",
+      "family": "exceptional_condition_mishandling",
+      "freshness_validated": true,
+      "published_at": "2026-08-14",
+      "selection_basis": "fresh owner-authored issue selected before scoring using the preregistered exceptional-condition semantic audit",
+      "semantic_facts": [
+        "unhandled exception",
+        "exception",
+        "fatal error",
+        "crash",
+        "error handling",
+        "plaintext disclosure"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "crash",
+          "unhandled exception"
+        ],
+        [
+          "crash",
+          "error",
+          "exception"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "project_owner_security_issue",
+      "source_project": "louisalexander/time-safe",
+      "source_root": "TIME-SAFE-ISSUE-35",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "time-safe mishandles an unhandled exception by rendering a locals-bearing fatal traceback on the crash path, disclosing plaintext secrets.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+      "description": "The published advisory states that the upload extension filter is empty and authentication is disabled by default, so a remote attacker can upload an arbitrary PHP webshell with a dangerous filename/extension and subsequently execute the uploaded file.",
+      "family": "file_upload",
+      "freshness_validated": true,
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered file-upload semantic audit",
+      "semantic_facts": [
+        "unrestricted file upload",
+        "arbitrary file upload",
+        "file",
+        "upload",
+        "extension",
+        "filename",
+        "PHP"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "file upload",
+          "uploaded file"
+        ],
+        [
+          "extension",
+          "file",
+          "filename",
+          "upload"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "dulldusk/phpfm",
+      "source_root": "GHSA-gxgp-6wm7-xrhr",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "phpfm has an unrestricted file-upload vulnerability allowing unauthenticated arbitrary PHP-file upload.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "maintainer_security_advisory",
+      "canonical_advisory_url": "https://github.com/aimeos/ai-admin-graphql/security/advisories/GHSA-jj68-cp4v-98qf",
+      "description": "The maintainer advisory documents an authorization mismatch in the Aimeos GraphQL administration interface: an editor role can perform service-management operations through GraphQL that are not allowed through the intended JQAdm permission model. The relevant condition is an authenticated GraphQL operation crossing the caller's effective authorization boundary, not schema discovery.",
+      "family": "graphql_authorization",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "access control",
+            "authorization",
+            "permission"
+          ],
+          [
+            "editor",
+            "manage",
+            "operation",
+            "role",
+            "service"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2024-07-02",
+      "selection_basis": "official maintainer advisory selected before scoring using WSTG GraphQL and authorization-enforcement semantics",
+      "semantic_facts": [
+        "GraphQL",
+        "authorization",
+        "access control",
+        "editor",
+        "permission",
+        "service management",
+        "operation",
+        "beyond allowed role"
+      ],
+      "source_kind": "official_project_security_advisory",
+      "source_project": "aimeos/ai-admin-graphql",
+      "source_root": "GHSA-jj68-cp4v-98qf",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Aimeos disclosed improper GraphQL access control that allowed an editor to manage services through the GraphQL admin API beyond what the corresponding administrative UI permitted.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-ATHZ-02"
+      ]
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/ryjen/eyespie/issues/122",
+      "description": "The project-owner issue states that current RLS lets all authenticated users SELECT all Thing rows containing precise location, proof/clue data, embeddings and long-lived image capabilities. It explicitly notes that the GameNode GraphQL query needs only a narrower field projection and warns that GraphQL field selection is not authorization. The required repair narrows full authority access and replaces broad row-returning discovery/matching paths with purpose-specific projections so restricted properties do not cross user scope.",
+      "family": "graphql_data_exposure",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "data exposure",
+            "restricted",
+            "sensitive"
+          ],
+          [
+            "field",
+            "filter",
+            "property",
+            "query",
+            "scope"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-08-13",
+      "selection_basis": "fresh project-owner privacy/security issue selected before scoring using WSTG GraphQL restricted-property and authorization-scope exposure semantics",
+      "semantic_facts": [
+        "GraphQL",
+        "query",
+        "field",
+        "property",
+        "restricted data",
+        "sensitive data",
+        "data exposure",
+        "user scope",
+        "filter",
+        "projection"
+      ],
+      "source_kind": "maintainer_privacy_security_issue",
+      "source_project": "ryjen/eyespie",
+      "source_root": "EYESPIE-ISSUE-122",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "EyeSpie documented overbroad Thing authority data exposure where authenticated users could select full Thing rows while the GraphQL client needed only a narrow gameplay projection.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-APIT-03"
+      ]
+    },
+    {
+      "advisory_source_type": "writeup",
+      "canonical_advisory_url": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+      "description": "The independent write-up documents security behavior that remains reachable through older API versions even after newer API behavior is fixed. The core inventory-management condition is explicit: old versions remain available and preserve weaker authorization behavior, expanding attack surface through version drift.",
+      "family": "improper_inventory_management",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "legacy api",
+            "old api",
+            "older arm api"
+          ],
+          [
+            "api",
+            "version"
+          ],
+          [
+            "still exploitable",
+            "version drift",
+            "weaker authorization"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2024-11-05",
+      "selection_basis": "independent write-up selected before scoring using WSTG API reconnaissance/configuration and OWASP API9 inventory semantics",
+      "semantic_facts": [
+        "old API versions",
+        "older ARM API",
+        "legacy API surface",
+        "still exploitable",
+        "weaker authorization",
+        "version drift"
+      ],
+      "source_kind": "independent_security_research_writeup",
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Azure API Management security controls could be bypassed by using older ARM API versions, with some fixes remaining behind a setting that disables old API versions.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-CONF-04"
+      ]
+    },
+    {
+      "advisory_source_type": "reviewed",
+      "canonical_advisory_url": "https://github.com/ether/etherpad/security/advisories/GHSA-vqfp-p66c-xrp9",
+      "description": "Etherpad's device-to-device author-token transfer endpoint is replayable, never expires, and exposes the cleartext author token in the GET response body\n\n## Description\n\nEtherpad ships an endpoint pair under `/tokenTransfer` (`src/node/hooks/express/tokenTransfer.ts`) that lets a logged-in user move their HttpOnly author token to a different browser (typically by scanning a QR code containing the transfer URL). The flow is:\n\n1. **POST `/tokenTransfer`** \u2014 the source device sends a request whose own author cookie is read off the server-side cookie jar. The server mints a random UUID and stores the author token (and arbitrary `prefsHttp` field) under a DB key keyed by that UUID. The UUID is returned.\n2. **GET `/tokenTransfer/{uuid}`** \u2014 the destination device GETs the URL containing the UUID. The server reads the stored record and sets the HttpOnly author cookie on the response.\n\nThe original implementation has three serious flaws:\n\n1. **No expiration check.** `createdAt` is written to the record on POST but never inspected on GET. A leaked transfer URL is redeemable indefinitely.\n2. **No single-use enforcement.** The DB record is not deleted after a successful GET, so the same URL can be redeemed repeatedly \u2014 each redemption yielding a fresh cookie set on whoever issued the GET.\n3. **Author token echoed in the response body.** The GET handler ends with `res.send(tokenData)`, which serializes the full record \u2014 including the raw author token \u2014 into the JSON response. Any JavaScript on the page that issued the GET can read the token, defeating the HttpOnly cookie design that exists specifically to keep the token out of JS reach.\n\nCombined, these mean that any disclosure of a transfer UUID (browser history, mis-shared QR code, screenshot, server log, third-party plugin that proxies the request, an unencrypted intermediate hop) results in **persistent authorship impersonation of the originating account** \u2014 the attacker doesn't just get one cookie, they can re-redeem and they get the raw token in cleartext for storage / replay against other endpoints.\n\n## Severity rationale\n\n- **AV:N** \u2014 exploitable over the network.\n- **AC:H** \u2014 requires the attacker to learn the transfer UUID via some out-of-band channel; UUIDs are random.\n- **PR:N** \u2014 no authentication required at the redemption endpoint.\n- **UI:R** \u2014 the legitimate user must have issued the POST and the UUID must end up where the attacker can see it (QR code, screenshot, etc.).\n- **C:H / I:H** \u2014 full author identity takeover (read + write everything that author can).\n- **A:N** \u2014 no direct denial-of-service.\n\nCVSS lands at 7.5 (High). Some operators may reasonably score this lower (UI:R + AC:H) if their threat model assumes the transfer URL never leaves the user's own device pair.\n\n## Affected versions\n\n- `ep_etherpad-lite >= 2.6.0, <= 3.0.0`. The `/tokenTransfer` endpoint pair was added in [`41cb680` \"let user maintain a single session across multiple browsers\" (#7228)](https://github.com/ether/etherpad/commit/41cb680), first tagged in **v2.6.0** (2025-11-18). All three flaws (no TTL, no single-use, token in response body) were present from the introducing commit and persisted through `v3.0.0`.\n\n## Patched versions\n\n- `ep_etherpad-lite >= 3.1.0` \u2014 the fix is on `develop` HEAD as commit `8c6104c`. Update this field with the actual tagged release version when it ships.\n\n## Proof of concept\n\n```\n# 1. Victim posts a transfer from their device.\ncurl -X POST https://pad.example/tokenTransfer \\\n  -H 'Cookie: token=t.victim-author-token' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"prefsHttp\": \"\"}'\n# -> {\"id\": \"1f0b2a3c-...\"}\n\n# 2. UUID leaks (browser history, intercepted QR, etc.).\n# 3. Attacker redeems it from a totally different machine:\ncurl -i https://pad.example/tokenTransfer/1f0b2a3c-...\n# Headers include:\n#   Set-Cookie: token=t.victim-author-token; Path=/; HttpOnly; ...\n# Body contains:\n#   {\"token\":\"t.victim-author-token\", \"prefsHttp\": \"\", \"createdAt\": ...}\n#\n# Attacker now owns the victim's identity. They can also re-redeem the\n# same UUID (no single-use), and the body gives them the cleartext token\n# even if the HttpOnly cookie isn't useful to their tooling.\n```\n\n## Workarounds\n\n- Disable any UI that surfaces the transfer URL (QR code, copy-button, etc.).\n- Reverse-proxy block `/tokenTransfer/*` if device-pairing is not in use.\n- Set short DB cleanup intervals (does not address the JS-readable body issue).\n\nNone of these workarounds are sufficient on their own \u2014 upgrade is the only complete fix.\n\n## Fix\n\nPatched in [`8c6104c`](https://github.com/ether/etherpad/commit/8c6104c) (PR [#7784](https://github.com/ether/etherpad/pull/7784)):\n\n1. **5-minute TTL** (`TRANSFER_TTL_MS`). Records older than this return 410 Gone. Records with absent/non-numeric `createdAt` (legacy records from older code paths) are treated as expired.\n2. **Single-use.** The DB record is removed **before** the success response is written, so a parallel request that wins the race observes an already-redeemed transfer rather than a second usable copy.\n3. **Body sanitised.** The response body becomes `{ok: true, prefsHttp}` \u2014 the raw author token is no longer included. The HttpOnly cookie set in the same response is the only delivery channel.\n\n```diff\n- const tokenData = await db.get(`${tokenTransferKey}:${id}`);\n+ const key = tokenTransferKey(id);\n+ const tokenData: TokenTransferRequest | undefined = await db.get(key);\n  if (!tokenData) {\n    return res.status(404).send({error: 'Token not found'});\n  }\n+ await db.remove(key);\n+ const createdAt = typeof tokenData.createdAt === 'number'\n+     ? tokenData.createdAt : 0;\n+ if (Date.now() - createdAt > TRANSFER_TTL_MS) {\n+   return res.status(410).send({error: 'Token expired'});\n+ }\n  ...\n- res.send(tokenData);\n+ res.send({ok: true, prefsHttp: tokenData.prefsHttp});\n```\n\n## Resources\n\n- Patched in: https://github.com/ether/etherpad/pull/7784 (squash commit `8c6104c`).\n- Vulnerable code introduced in: https://github.com/ether/etherpad/commit/41cb680 (PR #7228), released in v2.6.0.\n- Background on the HttpOnly author-token migration: ether/etherpad PR #7548 (PR3 of #6701, released in v2.7.3). That earlier PR addressed two adjacent issues (the cookie was previously non-HttpOnly, and the POST handler previously trusted the request body for the token value). This GHSA covers only the three flaws that remained after that earlier patch.\n\n## Credits\n\nReported during an internal security audit by Claude (via @JohnMcLear).",
+      "family": "information_disclosure",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-200"
+      ],
+      "published_at": "2026-08-13T14:12:44Z",
+      "references": [
+        "https://github.com/ether/etherpad/security/advisories/GHSA-vqfp-p66c-xrp9",
+        "https://github.com/ether/etherpad/pull/7784",
+        "https://github.com/advisories/GHSA-vqfp-p66c-xrp9"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ether/etherpad/security-advisories/GHSA-vqfp-p66c-xrp9",
+      "selection_basis": "reviewed_primary_advisory_matched_only_by_external_CWE_taxonomy",
+      "severity": "medium",
+      "source_code_location": "https://github.com/ether/etherpad",
+      "source_family_audit_group_hits": [
+        [
+          "disclos",
+          "leak"
+        ],
+        [
+          "internal",
+          "response"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 18,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_reviewed_or_repository_advisory",
+      "source_project": "ether/etherpad",
+      "source_root": "GHSA-vqfp-p66c-xrp9",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "ep_etherpad-lite: Device-to-device author-token transfer endpoint is replayable, never expires, and exposes the cleartext author token",
+      "updated_at": "2026-08-13T14:13:55Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pm9m-75p4-7h69",
+      "description": "When LDAP connection is activated in Teedy versions between 1.9 to 1.12, the username field of the login form is vulnerable to LDAP injection. Due to improper sanitization of user input, an unauthenticated attacker is then able to perform various malicious actions, such as creating arbitrary accounts and spraying passwords.",
+      "family": "ldap_injection",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-90"
+      ],
+      "published_at": "2025-01-30T00:31:04Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-54852",
+        "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+        "https://github.com/advisories/GHSA-pm9m-75p4-7h69"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "critical",
+      "source_code_location": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+      "source_family_audit_group_hits": [
+        [
+          "ldap injection"
+        ],
+        [
+          "ldap"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 13,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "Tanguy-Boisset/CVE",
+      "source_root": "GHSA-pm9m-75p4-7h69",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "When LDAP connection is activated in Teedy versions between 1.9 to 1.12, the username field of...",
+      "updated_at": "2025-02-11T00:32:54Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "project_issue",
+      "canonical_advisory_url": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+      "description": "The project security issue describes a classic mass-assignment/over-posting pattern: create/update request schemas expose a server-authoritative property and PUT mass-assigns the client-supplied s3_url field, allowing a tenant to influence a protected property and cross an object-ownership boundary.",
+      "family": "mass_assignment",
+      "freshness_validated": true,
+      "selection_basis": "fresh project security issue selected before scoring using the preregistered mass-assignment semantic audit",
+      "semantic_facts": [
+        "mass assignment",
+        "over-posting",
+        "field",
+        "property",
+        "parameter",
+        "server-authoritative"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "mass assignment",
+          "over-posting"
+        ],
+        [
+          "field",
+          "property"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 14,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "project_security_issue",
+      "source_project": "frankbria/narrative-modeling-app",
+      "source_root": "NARRATIVE-MODELING-ISSUE-451",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "Narrative Modeling App mass assignment lets a tenant set the server-authoritative s3_url property.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/pathosDev/actor-ts/issues/738",
+      "description": "The project-owner security issue traces caller-supplied TagFilter values into MongoQuery and then directly into collection.find without a read-side runtime type check. An object such as a $ne expression becomes MongoDB query syntax instead of a literal string and broadens the server-side pre-filter. The issue carefully limits the verified impact to request-driven full collection scan and memory/CPU/IO pressure rather than claiming reliable cross-tenant disclosure, while still demonstrating direct structured-input injection into MongoDB query semantics.",
+      "family": "nosql_injection",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "mongo",
+            "mongodb",
+            "nosql"
+          ],
+          [
+            "filter",
+            "operator",
+            "query"
+          ],
+          [
+            "alter",
+            "inject",
+            "injection",
+            "semantics",
+            "unintended",
+            "unvalidated"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-08-02",
+      "selection_basis": "fresh project-owner security issue selected before scoring using WSTG NoSQL structured-query injection semantics",
+      "semantic_facts": [
+        "NoSQL injection",
+        "MongoDB",
+        "query",
+        "filter",
+        "operator",
+        "unvalidated",
+        "injection",
+        "alter query semantics",
+        "unintended query"
+      ],
+      "source_kind": "maintainer_security_issue",
+      "source_project": "pathosDev/actor-ts",
+      "source_root": "ACTOR-TS-ISSUE-738",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "actor-ts documented caller-controlled tag values entering a MongoDB query document so an object can become a Mongo operator expression and alter the intended filter semantics.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-INPV-05.6"
+      ]
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jjjg-67rc-qf87",
+      "description": "Saurus CMS Community Edition contains an unauthenticated open redirect vulnerability in the logout handling code in classes/port.inc.php, where the url parameter supplied via GET or POST is passed directly to the Location header without domain allowlist, scheme validation, or relative path enforcement. Attackers can craft a malicious logout URL containing an arbitrary external domain or javascript: URI scheme to redirect authenticated users to attacker-controlled phishing pages after session destruction, enabling credential theft and OAuth redirect abuse.",
+      "family": "open_redirect",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-601"
+      ],
+      "published_at": "2026-08-13T18:31:38Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-73671",
+        "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+        "https://github.com/sauruscms/Saurus-CMS-Community-Edition",
+        "https://www.vulncheck.com/advisories/saurus-cms-unauthenticated-open-redirect-via-logout-url-parameter",
+        "https://github.com/advisories/GHSA-jjjg-67rc-qf87"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/sauruscms/Saurus-CMS-Community-Edition",
+      "source_family_audit_group_hits": [
+        [
+          "open redirect"
+        ],
+        [
+          "location",
+          "redirect",
+          "url"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+      "source_root": "GHSA-jjjg-67rc-qf87",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "Saurus CMS Community Edition contains an unauthenticated open redirect vulnerability in the...",
+      "updated_at": "2026-08-13T18:31:43Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-f3gp-9xr4-qmvc",
+      "description": "Joomla 6.1.1 contains a path traversal vulnerability in the com_joomlaupdate extension that allows a Super User to be induced into extracting a crafted archive containing directory traversal sequences or absolute paths in ZIP entry filenames. Attackers can supply malicious ZIP entry names with parent-directory segments or absolute paths to the extract.php extraction routine, causing files to be written outside the intended destination root and enabling persistent remote code execution via planted PHP files.",
+      "family": "path_traversal",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-22"
+      ],
+      "published_at": "2026-08-12T18:31:22Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-73327",
+        "https://github.com/joomla/joomla-cms/pull/48057",
+        "https://github.com/joomla/joomla-cms/commit/9678a171d37e1e10ca75c9124bdafe20fe14fa5b",
+        "https://github.com/joomla/joomla-cms",
+        "https://www.vulncheck.com/advisories/joomla-zip-slip-path-traversal-via-com-joomlaupdate-extract-php",
+        "https://github.com/advisories/GHSA-f3gp-9xr4-qmvc"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/joomla/joomla-cms/pull/48057",
+      "source_family_audit_group_hits": [
+        [
+          "directory traversal",
+          "path traversal"
+        ],
+        [
+          "archive",
+          "directory",
+          "extract",
+          "file",
+          "path"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 18,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "joomla/joomla-cms",
+      "source_root": "GHSA-f3gp-9xr4-qmvc",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "Joomla 6.1.1 contains a path traversal vulnerability in the com_joomlaupdate extension that...",
+      "updated_at": "2026-08-12T18:31:29Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/auth0/auth0.js/issues/508",
+      "description": "The maintainer issue documents missing verification that received messages came from the correct origin and the correct iframe, plus insufficient validation of message content. This directly matches WSTG Web Messaging sender-origin/source trust semantics and is used as an independent source, not as detector evidence.",
+      "family": "postmessage_trust",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "message event",
+            "postmessage"
+          ],
+          [
+            "iframe source",
+            "origin",
+            "sender"
+          ],
+          [
+            "correct iframe",
+            "trust",
+            "validation"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2017-09-19",
+      "selection_basis": "independent maintainer issue selected before scoring using WSTG-CLNT-11 and OWASP Web Messaging semantics",
+      "semantic_facts": [
+        "postMessage",
+        "message event",
+        "origin validation",
+        "iframe source",
+        "sender trust"
+      ],
+      "source_kind": "maintainer_issue_security_discussion",
+      "source_project": "auth0/auth0.js",
+      "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Auth0.js silent authentication accepted postMessage events without sufficiently binding them to the expected origin and iframe source.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-CLNT-11"
+      ]
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-44cc-pg2q-9x56",
+      "description": "The published advisory identifies a time-sensitive race/TOCTOU-style state flaw in a privileged macOS application path. A lower-privilege local actor can win the concurrent state transition and obtain elevated execution, violating the intended atomic privileged operation boundary.",
+      "family": "race_condition",
+      "freshness_validated": true,
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered race-condition semantic audit",
+      "semantic_facts": [
+        "race condition",
+        "TOCTOU",
+        "concurrent",
+        "time-of",
+        "state",
+        "privilege escalation"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "concurrent",
+          "race condition",
+          "toctou"
+        ],
+        [
+          "atomic",
+          "concurrent",
+          "race"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "paloaltonetworks/globalprotect-macos",
+      "source_root": "GHSA-44cc-pg2q-9x56",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "GlobalProtect for macOS contains a race condition in a privileged application flow that can enable privilege escalation.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
+      "description": "The published advisory states that a hardcoded authentication token is present in the application source code and reused for inter-node and REST API authentication, exposing a reusable credential/secret through the software source.",
+      "family": "secret_exposure",
+      "freshness_validated": true,
+      "published_at": "2026-08-13",
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered secret-exposure semantic audit",
+      "semantic_facts": [
+        "hardcoded token",
+        "credential",
+        "secret",
+        "token",
+        "source code",
+        "exposed secret"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "credential",
+          "hardcoded",
+          "secret",
+          "token"
+        ],
+        [
+          "expos",
+          "source"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "ibm/storage-scale",
+      "source_root": "GHSA-xr96-mx7v-w32h",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "IBM Storage Scale GUI contains a hardcoded token in source code used for cluster communication and REST API authentication.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+      "description": "The published advisory states that local attackers can obtain sensitive information because plain text passwords are logged in Db2 trace files. The logging path therefore records credential data without redaction.",
+      "family": "security_logging_alerting_failure",
+      "freshness_validated": true,
+      "published_at": "2026-08-12",
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered security-logging semantic audit",
+      "semantic_facts": [
+        "logging",
+        "log",
+        "sensitive",
+        "password",
+        "plaintext credential",
+        "trace file"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "log",
+          "logging"
+        ],
+        [
+          "password",
+          "sensitive"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 14,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "ibm/db2",
+      "source_root": "GHSA-q83p-h7pj-3m3p",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "IBM Db2 logging can write sensitive plaintext passwords into trace files.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "reviewed",
+      "canonical_advisory_url": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+      "description": "## Summary\n\nVault token and secret values are exposed in thrown errors when using `hashi-vault-js`.\n\n## Details\n\nEvery API method in `Vault.js` executes `throw parseAxiosError(err)`, which returns the raw `AxiosError` untouched. That error carries the full Axios configuration, including the `X-Vault-Token` header and the request body. Consuming applications that log caught errors (e.g., using `console.error`, `pino`, `winston`, Sentry, or APMs) inadvertently log the live Vault token in plaintext. Furthermore, write-path methods expose submitted passwords and secret values via `err.config.data`.\n\n## Impact\n\nWhen consuming applications log intercepted exceptions, sensitive credentials such as tokens, passwords, and secrets are unknowingly exposed to application logs, monitoring services, and APM systems via the raw `AxiosError`. This may lead to authorization bypass or unauthorized access to the underlying Vault instance.\n\n## Patches\n\nThis vulnerability should be addressed by redacting `err.config.headers['X-Vault-Token']` and `err.config.data` before re-throwing, or by throwing a purpose-built error containing only safe properties like status and message. Users should upgrade to a version that includes this fix.\n\n## Workarounds\n\nIf users cannot immediately update the library, they can mitigate this issue by capturing all exceptions thrown by `hashi-vault-js` and sanitizing or omitting the `err.config` object before passing the errors to logging utilities or crash reporters.\n\n## Acknowledgements\nhashi-vault-js would like to thank Sebasti\u00e1n Alba Vives for reporting this vulnerability.\n\n## Resources\n\n- [CWE-532: Insertion of Sensitive Information into Log File](https://cwe.mitre.org/data/definitions/532.html)\n- [CWE-209: Generation of Error Message Containing Sensitive Information](https://cwe.mitre.org/data/definitions/209.html)",
+      "family": "security_misconfiguration",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-209"
+      ],
+      "published_at": "2026-08-13T14:14:32Z",
+      "references": [
+        "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+        "https://github.com/advisories/GHSA-5pq8-3ffp-7w5m"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/kyndryl-open-source/hashi-vault-js/security-advisories/GHSA-5pq8-3ffp-7w5m",
+      "selection_basis": "reviewed_primary_advisory_matched_only_by_external_CWE_taxonomy",
+      "severity": "medium",
+      "source_code_location": "https://github.com/kyndryl-open-source/hashi-vault-js",
+      "source_family_audit_group_hits": [
+        [
+          "configuration"
+        ],
+        [
+          "exposed"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_reviewed_or_repository_advisory",
+      "source_project": "kyndryl-open-source/hashi-vault-js",
+      "source_root": "GHSA-5pq8-3ffp-7w5m",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "hashi-vault-js: Vault token and secret values exposed in thrown errors",
+      "updated_at": "2026-08-13T14:14:33Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "repository",
+      "canonical_advisory_url": "https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3",
+      "description": "The primary advisory states that an unauthenticated actor can repeatedly send duplicate invites and flood a user's inbox. This is used as a sensitive-business-flow example where repeated use of a legitimate operation lacks an effective frequency or anti-abuse control.",
+      "family": "sensitive_business_flow_abuse",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "business",
+            "invite"
+          ],
+          [
+            "duplicate",
+            "flood",
+            "repeat"
+          ],
+          [
+            "anti-abuse",
+            "frequency",
+            "rate limit"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2025-09-18",
+      "repository_advisory_url": "https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3",
+      "selection_basis": "independent primary advisory selected before scoring using WSTG business-flow limits and OWASP API6 sensitive-business-flow semantics",
+      "semantic_facts": [
+        "invitation flow",
+        "duplicate operation",
+        "email flooding",
+        "rate limit",
+        "anti-abuse control"
+      ],
+      "source_kind": "github_repository_security_advisory",
+      "source_project": "frappe/press",
+      "source_root": "GHSA-68qm-vp8f-rpr3",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Frappe Press disclosed email flooding where duplicate invitations could be repeatedly sent because validation and rate limits were insufficient.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-06",
+        "WSTG-BUSL-07"
+      ]
+    },
+    {
+      "advisory_source_type": "official_project_blog",
+      "canonical_advisory_url": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html",
+      "description": "The official RubyGems security advisory describes sensitive authenticated content being stored in a shared Fastly cache because response cache controls were insufficient for the compressed response path. Another caller could receive the cached API key without re-authentication. The fix adds private/no-store and Authorization-aware variation.",
+      "family": "sensitive_caching",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "cache",
+            "cached"
+          ],
+          [
+            "api key",
+            "authenticated",
+            "sensitive"
+          ],
+          [
+            "edge",
+            "shared cache",
+            "unauthenticated cache hit"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-07-22",
+      "selection_basis": "official project advisory selected before scoring using WSTG sensitive-cache semantics",
+      "semantic_facts": [
+        "cache",
+        "shared cache",
+        "authenticated response",
+        "API key",
+        "sensitive information",
+        "unauthenticated cache hit"
+      ],
+      "source_kind": "official_project_security_advisory",
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "RubyGems.org disclosed that an authenticated legacy API-key response could be cached at the CDN edge and later served to an unauthenticated caller.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-ATHN-06"
+      ]
+    },
+    {
+      "advisory_source_type": "project_audit_issue",
+      "canonical_advisory_url": "https://github.com/own-pay/OwnPay/issues/438",
+      "description": "A project-member audit issue documents non-superadmin-controlled Twig template source reaching the server-side Twig Environment without SandboxExtension. Injected Twig expressions are rendered by the full template engine and can read secrets, invoke registered hooks and potentially reach code execution through plugin functions.",
+      "family": "server_side_template_injection",
+      "freshness_validated": true,
+      "published_at": "2026-08-12",
+      "selection_basis": "fresh project-member security audit issue selected before scoring using the preregistered SSTI semantic audit",
+      "semantic_facts": [
+        "server-side template injection",
+        "SSTI",
+        "template injection",
+        "Twig",
+        "template",
+        "render",
+        "expression"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "server-side template injection",
+          "template injection"
+        ],
+        [
+          "expression",
+          "render",
+          "template",
+          "twig"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 16,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "project_member_security_audit_issue",
+      "source_project": "own-pay/OwnPay",
+      "source_root": "OWNPAY-ISSUE-438",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "OwnPay security audit found full server-side template injection in TwigFactory because editable templates render with the full unsandboxed Twig environment.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-cqx4-h5ph-3xj9",
+      "description": "Notepad++ versions prior to 8.8.9, when using the WinGUp updater, contain an update integrity verification vulnerability where downloaded update metadata and installers are not cryptographically verified. An attacker able to intercept or redirect update traffic can cause the updater to download and execute an attacker-controlled installer, resulting in arbitrary code execution with the privileges of the user.",
+      "family": "software_data_integrity_failure",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-494"
+      ],
+      "published_at": "2026-02-03T03:30:26Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-15556",
+        "https://github.com/notepad-plus-plus/notepad-plus-plus/commit/bcf2aa68ef414338d717e20e059459570ed6c5ab",
+        "https://github.com/notepad-plus-plus/wingup/commit/ce0037549995ed0396cc363544d14b3425614fdb",
+        "https://community.notepad-plus-plus.org/topic/27298/notepad-v8-8-9-vulnerability-fix",
+        "https://notepad-plus-plus.org/news/hijacked-incident-info-update",
+        "https://www.vulncheck.com/advisories/notepad-plus-plus-wingup-updater-lacks-update-integrity-verification",
+        "https://notepad-plus-plus.org//news//clarification-security-incident",
+        "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2025-15556",
+        "https://github.com/advisories/GHSA-cqx4-h5ph-3xj9"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/notepad-plus-plus/notepad-plus-plus/commit/bcf2aa68ef414338d717e20e059459570ed6c5ab",
+      "source_family_audit_group_hits": [
+        [
+          "integrity verification"
+        ],
+        [
+          "arbitrary code",
+          "code execution"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 14,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "notepad-plus-plus/notepad-plus-plus",
+      "source_root": "GHSA-cqx4-h5ph-3xj9",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "Notepad++ versions prior to 8.8.9, when using the WinGUp updater, contain an update integrity...",
+      "updated_at": "2026-02-13T15:30:24Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "github_reviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+      "description": "The reviewed advisory documents a direct package supply-chain compromise: malicious versions of multiple @cap-js packages were published, credential harvesting occurred, and installed compromised packages affected the dependency/install path. This is an explicit compromised dependency provenance condition.",
+      "family": "software_supply_chain_failure",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "dependency",
+            "supply chain"
+          ],
+          [
+            "compromised",
+            "malicious"
+          ],
+          [
+            "installation",
+            "package",
+            "published"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-05-14",
+      "selection_basis": "independent reviewed advisory selected before scoring using OWASP software-supply-chain and WSTG deployment semantics",
+      "semantic_facts": [
+        "supply chain",
+        "compromised package",
+        "malicious package",
+        "dependency",
+        "installation",
+        "credential harvesting"
+      ],
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "cap-js/cds-dbs",
+      "source_root": "GHSA-pvw4-cvr4-97p8",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "Compromised @cap-js database package versions contained malicious code that harvested credentials and attempted self-propagation.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-CONF-01",
+        "WSTG-CONF-02"
+      ]
+    },
+    {
+      "advisory_source_type": "security_audit_issue",
+      "canonical_advisory_url": "https://github.com/govtech-bb/gov-bb/issues/2092",
+      "description": "The project security-audit issue records a vulnerable PostCSS dependency that auto-loads previous source maps referenced by sourceMappingURL. Attacker-controlled CSS can cause arbitrary .map files to be read outside the intended directory. The issue explicitly identifies sourcesContent and original source code, secrets embedded in build artifacts and sensitive build outputs as exposed information, making the security condition an obtainable source-map/debug artifact disclosure rather than a marker-only observation.",
+      "family": "source_map_exposure",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "source map",
+            "source-map"
+          ],
+          [
+            "debug artifact",
+            "original source",
+            "source code"
+          ],
+          [
+            "disclosure",
+            "expose",
+            "obtainable",
+            "read"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-07-25",
+      "selection_basis": "fresh project security-audit issue selected before scoring using WSTG-INFO-05 source-map and original-source disclosure semantics",
+      "semantic_facts": [
+        "source map",
+        "sourceMappingURL",
+        "debug artifact",
+        "source code",
+        "original source",
+        "sourcesContent",
+        "read",
+        "disclosure",
+        "expose"
+      ],
+      "source_kind": "project_security_audit_issue",
+      "source_project": "govtech-bb/gov-bb",
+      "source_root": "GOV-BB-ISSUE-2092",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "gov-bb's security audit documented sourceMappingURL-driven arbitrary .map-file disclosure in its PostCSS build chain, with source maps capable of exposing original source code and sensitive build outputs.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-INFO-05"
+      ]
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+      "description": "ASP-CMS contains a SQL injection vulnerability in the commentList.asp endpoint that allows unauthenticated remote attackers to inject arbitrary SQL by manipulating the id parameter in GET requests to the comment listing script. Attackers can bypass the application's keyword blocklist by interleaving the string 'master' within blocked SQL terms to extract sensitive database contents. Exploitation evidence was first observed by the Shadowserver Foundation on 2023-10-18 (UTC).",
+      "family": "sql_injection",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-89"
+      ],
+      "published_at": "2026-08-13T18:31:41Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-25765",
+        "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+        "https://web.archive.org/web/20201001011935/https://www.safeinfo.me/2019/07/22/aspcms-lou-dong-ji-he.html",
+        "https://web.archive.org/web/20220425041152/https://asp-cms.sourceforge.net",
+        "https://www.ddpoc.com/DVB-2021-821.html",
+        "https://www.vulncheck.com/advisories/asp-cms-sql-injection-via-commentlist-asp-id-parameter",
+        "https://github.com/advisories/GHSA-h325-4hh9-393v"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "high",
+      "source_code_location": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+      "source_family_audit_group_hits": [
+        [
+          "sql injection"
+        ],
+        [
+          "database",
+          "sql"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 14,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "projectdiscovery/nuclei-templates",
+      "source_root": "GHSA-h325-4hh9-393v",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "ASP-CMS contains a SQL injection vulnerability in the commentList.asp endpoint that allows...",
+      "updated_at": "2026-08-13T18:31:48Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "unreviewed",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-wx9v-ffw3-45wg",
+      "description": "Vulnerability-Lookup contains a server-side request forgery (SSRF) vulnerability in the remote-instance synchronization functionality. Remote instance addresses were validated only for basic URL syntax before being stored, while the synchronization worker later dereferenced these addresses using requests.get() with automatic redirect handling and without enforcing network-boundary restrictions. \n\n\nAn authenticated administrator with the admin:access permission could configure a remote instance whose address points to an internal, loopback, link-local, or cloud metadata HTTP(S) service. When synchronization is performed, the Vulnerability-Lookup server would issue the request from its own network context. An attacker could also use a publicly accessible URL that redirects to an internal destination, because redirects were previously followed without revalidating the destination.\n\n\nSuccessful exploitation could allow a privileged attacker to probe or interact with services that are accessible from the Vulnerability-Lookup server but not directly reachable by the attacker, including private network services or cloud instance metadata endpoints. The exact confidentiality, integrity, or availability impact depends on the services reachable from the application server.\n\n\nThe patch introduces a shared outbound URL policy that restricts remote instances to HTTP(S), rejects non-public IP addresses, resolves hostnames at request time, and manually validates each redirect destination before following it.  The implementation explicitly blocks private, loopback, link-local, multicast, reserved, and unspecified addresses.",
+      "family": "ssrf",
+      "freshness_validated": true,
+      "matched_cwes": [
+        "CWE-918"
+      ],
+      "published_at": "2026-08-12T15:30:50Z",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-73432",
+        "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+        "https://github.com/advisories/GHSA-wx9v-ffw3-45wg"
+      ],
+      "repository_advisory_url": "",
+      "selection_basis": "github_unreviewed_advisory_matched_by_external_CWE_taxonomy_before_scoring",
+      "severity": "medium",
+      "source_code_location": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+      "source_family_audit_group_hits": [
+        [
+          "server-side request forgery",
+          "ssrf"
+        ],
+        [
+          "internal",
+          "metadata",
+          "request",
+          "url"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 17,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_unreviewed_advisory_with_repository_reference",
+      "source_project": "vulnerability-lookup/vulnerability-lookup",
+      "source_root": "GHSA-wx9v-ffw3-45wg",
+      "source_selection_track": "legacy_semantic_fresh_pool",
+      "summary": "Vulnerability-Lookup contains a server-side request forgery (SSRF) vulnerability in the remote...",
+      "updated_at": "2026-08-12T15:30:55Z",
+      "v6_firewall_allowed": true,
+      "v6_firewall_rule_version": "2026.08.14.6.31.1",
+      "v6_firewall_version": "1.1.1"
+    },
+    {
+      "advisory_source_type": "published",
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+      "description": "The published CWE-400 advisory identifies remote denial of service through monitored-item event-queue resizing. Attacker-controlled queue changes can consume application resources until service availability is lost, representing an unbounded resource-consumption path.",
+      "family": "unrestricted_resource_consumption",
+      "freshness_validated": true,
+      "selection_basis": "fresh published advisory selected before scoring using the preregistered resource-consumption semantic audit",
+      "semantic_facts": [
+        "resource consumption",
+        "unbounded",
+        "resource",
+        "queue",
+        "denial of service",
+        "DoS"
+      ],
+      "source_family_audit_group_hits": [
+        [
+          "denial of service",
+          "resource consumption",
+          "unbounded"
+        ],
+        [
+          "resource",
+          "unbounded"
+        ]
+      ],
+      "source_family_audit_rule_version": "2026.08.13.6.29",
+      "source_family_audit_score": 15,
+      "source_family_audit_version": "1.0.0",
+      "source_kind": "github_advisory_database_record",
+      "source_project": "systerel/S2OPC",
+      "source_root": "GHSA-2cg2-hxr7-q7f4",
+      "source_selection_track": "fresh_exact_complement_override",
+      "summary": "S2OPC contains uncontrolled resource consumption in monitored-item queue resize handling that can cause remote denial of service.",
+      "v6_firewall_allowed": true
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/zachlagden/rickbot/issues/38",
+      "description": "The project-owner security issue establishes that discord.py uses aiohttp as an HTTP and WebSocket client and enumerates reachable client-side defects. Among them, a remote redirect to a different origin can cause per-request cookies or Cookie/Proxy-Authorization credentials to cross the host boundary. This is an external HTTP-client trust-boundary failure in which the client consumes a redirect response and carries credential material into the redirected origin rather than re-validating the changed remote-service boundary.",
+      "family": "unsafe_api_consumption",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "external api",
+            "http client",
+            "remote service"
+          ],
+          [
+            "cross-host",
+            "redirect",
+            "response"
+          ],
+          [
+            "credential",
+            "forwarded",
+            "proxy-authorization",
+            "trust boundary"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-08-13",
+      "selection_basis": "fresh project-owner security issue selected before scoring using OWASP API10 unsafe-consumption semantics with WSTG-INFO-10 external-service trust-boundary mapping",
+      "semantic_facts": [
+        "HTTP client",
+        "external API",
+        "remote service",
+        "response",
+        "redirect",
+        "cross-host",
+        "cross-origin",
+        "credential",
+        "Proxy-Authorization",
+        "trust boundary",
+        "forwarded"
+      ],
+      "source_kind": "maintainer_security_issue",
+      "source_project": "zachlagden/rickbot",
+      "source_root": "RICKBOT-ISSUE-38",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "rickbot's maintainer documented reachable aiohttp HTTP-client vulnerabilities including credential leakage when a remote response redirects the client across origins.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-INFO-10"
+      ]
+    },
+    {
+      "advisory_source_type": "maintainer_issue",
+      "canonical_advisory_url": "https://github.com/bazauto/layout-orchestration/issues/20",
+      "description": "The project-owner security review states that both HTTP and WebSocket surfaces lacked authentication and authorization. The throttle and point WebSocket control channel already issued hardware commands, so an anonymous caller could cross the intended access-control boundary and influence sensitive state. The required fix explicitly covers WebSocket upgrade authentication and acceptance requires unauthenticated WebSocket upgrades to be rejected, demonstrating the authorization bypass boundary rather than generic WebSocket presence.",
+      "family": "websocket_authorization",
+      "freshness_validated": true,
+      "owasp_grounding_audit": {
+        "counts_as_target_evidence": false,
+        "grounding_only": true,
+        "group_hits": [
+          [
+            "websocket"
+          ],
+          [
+            "access control",
+            "authentication",
+            "authorization"
+          ],
+          [
+            "bypass",
+            "sensitive updates"
+          ]
+        ],
+        "passed": true
+      },
+      "published_at": "2026-08-06",
+      "selection_basis": "fresh project-owner security review selected before scoring using WSTG WebSocket and authorization-enforcement semantics",
+      "semantic_facts": [
+        "WebSocket",
+        "authentication",
+        "authorization",
+        "access control",
+        "authorization bypass",
+        "sensitive updates",
+        "control channel",
+        "unauthenticated"
+      ],
+      "source_kind": "maintainer_security_review_issue",
+      "source_project": "bazauto/layout-orchestration",
+      "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+      "source_selection_track": "owasp_wstg_writeup_grounded_exact",
+      "summary": "layout-orchestration documented a WebSocket control channel with no authentication or authorization, allowing anonymous control operations until the upgrade path was gated.",
+      "v6_firewall_allowed": true,
+      "wstg_ids": [
+        "WSTG-CLNT-10",
+        "WSTG-ATHZ-02"
+      ]
+    }
+  ],
+  "selection_executes_scoring": false,
+  "selection_uses_admission_results": false,
+  "selection_uses_detector_output": false,
+  "selection_uses_ranking_results": false,
+  "supplement_pool_used": false,
+  "unique_project_count": 36,
+  "unique_root_count": 36,
+  "version": "3.6.0"
+}
