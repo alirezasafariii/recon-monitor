@@ -58,6 +58,7 @@ jobs:
           validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text(encoding='utf-8'))
           shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
           selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
+          materialization = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text(encoding='utf-8'))
           protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
 
           assert validation['passed'] is True
@@ -71,6 +72,10 @@ jobs:
           assert shortlist['unique_project_count'] == 36
           assert selection['scoring_executed'] is False
           assert selection['family_count'] == 36
+          assert materialization['fresh_raw_claim'] is True
+          assert materialization['raw_capture_mode'] == 'literal_source_capture'
+          assert materialization['literal_single_capture_count'] == 144
+          assert materialization['input_capture_count'] == 144
 
           paths = [
             'benchmarks/raw/sources/v6_protocol.json',
@@ -82,6 +87,7 @@ jobs:
             'benchmarks/raw/sources/v6_owasp_extension_candidates.json',
             'benchmarks/raw/sources/v6_shortlist.json',
             'benchmarks/raw/sources/v6_selection_final_report.json',
+            'benchmarks/raw/sources/v6_literal_captures.jsonl',
             'benchmarks/raw/analysis_raw_v6.jsonl',
             'benchmarks/raw/sources/v6_materialization_report.json',
             'benchmarks/raw/sources/v6_validation_report.json',
@@ -96,6 +102,7 @@ jobs:
             '.github/workflows/analysis-631-owasp-exact-finalize.yml',
             '.github/workflows/analysis-631-materialize.yml',
             '.github/workflows/analysis-631-corpus-freeze.yml',
+            '.github/workflows/analysis-631-evaluator-freeze.yml',
           ]
           protected = {}
           for value in paths:
@@ -104,8 +111,8 @@ jobs:
             protected[value] = hashlib.sha256(path.read_bytes()).hexdigest()
 
           report = {
-            'version': '1.2.0',
-            'rule_version': '2026.08.14.6.31.1',
+            'version': '1.2.1',
+            'rule_version': '2026.08.14.6.31.2',
             'evaluation_status': 'sealed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
@@ -124,7 +131,7 @@ jobs:
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'mutation_policy': 'protected source inputs, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
+            'mutation_policy': 'protected source inputs, literal captures, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
