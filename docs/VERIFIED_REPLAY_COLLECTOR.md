@@ -49,6 +49,24 @@ The collector replays the stored supporting/contradicting evidence through the e
 
 This replay is offline and non-evidentiary.
 
+## Operator CLI
+
+The existing Recon Monitor CLI exposes the collector under the Analysis command family:
+
+```bash
+./recon-monitor.sh analysis verified-replay-drafts --limit 100
+```
+
+The command prints a JSON review payload to stdout. If an operator wants a persistent review artifact, shell redirection can be used explicitly:
+
+```bash
+./recon-monitor.sh analysis verified-replay-drafts --limit 100 > verified-replay-drafts.json
+```
+
+The CLI does not create or modify a trusted corpus file itself. It only reads the local Recon Monitor database and serializes review drafts. This keeps collection separate from reviewer approval and prevents accidental activation by a command invocation.
+
+The collection limit is bounded to 1..5000 records inside the compatibility CLI.
+
 ## Draft vs contract-ready record
 
 Collection produces a **review draft**, not an activation-ready calibration record.
@@ -92,6 +110,7 @@ The collector is infrastructure for harvesting real reviewed decisions from an o
 - no admission or confirmation changes
 - no production threshold activation
 - no automatic Evidence Quality assignment
+- no automatic trusted-corpus write
 - non-human decision actors are excluded
 - evidence snapshot hash excludes the analyst verdict
 - evidence snapshot hash excludes run-local identity and derived scores
