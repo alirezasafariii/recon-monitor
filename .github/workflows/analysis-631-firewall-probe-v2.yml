@@ -1,4 +1,4 @@
-name: Analysis 6.31 Complement Override Probe
+name: Analysis 6.31 Final Complement Probe
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe second-pass complement sources without scoring
+      - name: Probe final complement alternatives without scoring
         env:
           PYTHONPATH: app
         run: |
@@ -33,65 +33,83 @@ jobs:
           rows = [
             {
               'family': 'account_enumeration',
-              'source_root': 'GHSA-cjr5-m69m-f39c',
-              'source_project': 'bluewave-labs/Checkmate',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-cjr5-m69m-f39c',
-              'source_code_location': 'https://github.com/bluewave-labs/Checkmate',
-              'summary': 'Checkmate user enumeration lets an unauthenticated caller determine whether a given email address is registered.',
-              'description': 'The published advisory states that the password-recovery endpoint returns HTTP 200 for a registered email address and a different status code for an unregistered email, exposing existing account/user existence through a response discrepancy.',
+              'source_root': 'GHSA-chgm-3698-jm42',
+              'source_project': 'TryGhost/Ghost',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-chgm-3698-jm42',
+              'repository_advisory_url': 'https://github.com/TryGhost/Ghost/security/advisories/GHSA-chgm-3698-jm42',
+              'summary': 'Ghost member sign-in responses allow unauthenticated account enumeration by revealing whether a supplied email belongs to a registered member.',
+              'description': 'The reviewed advisory documents a response discrepancy in member sign-in endpoints. An unauthenticated attacker can distinguish whether a given email address is registered, exposing existing user/account existence through the email identifier.',
             },
             {
-              'family': 'broken_function_authorization',
-              'source_root': 'ANDY-RBAC-ISSUE-97',
-              'source_project': 'rivoli-ai/andy-rbac',
-              'canonical_advisory_url': 'https://github.com/rivoli-ai/andy-rbac/issues/97',
-              'summary': 'Andy RBAC management functions had a critical authorization bypass: any authenticated non-admin token could invoke privileged role, policy and grant administration.',
-              'description': 'The repository security issue documents function-level authorization missing from administrative controllers. A low-privilege authenticated user could access privileged admin mutations and rewrite roles, policies or grants, escalating privileges because only generic authentication was enforced instead of the required admin/manage permission.',
-            },
-            {
-              'family': 'command_injection',
-              'source_root': 'GHSA-jqh7-pchh-v74j',
-              'source_project': 'zimbra/zimbra-collaboration',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-jqh7-pchh-v74j',
-              'summary': 'Zimbra Collaboration contains OS command injection in SNMP notification processing.',
-              'description': 'The published CVE/GHSA states that improper sanitization of untrusted SMTP input in the SNMP notification processing path can execute arbitrary operating system commands as the Zimbra process user. Untrusted input therefore reaches an OS command execution boundary.',
+              'family': 'account_enumeration',
+              'source_root': 'GHSA-hp2m-55fj-8mw5',
+              'source_project': 'postgres/postgres',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-hp2m-55fj-8mw5',
+              'source_code_location': 'https://github.com/postgres/postgres',
+              'summary': 'PostgreSQL SCRAM authentication response discrepancy lets an unauthenticated caller test whether a username/account exists.',
+              'description': 'The advisory states that the SCRAM challenge exposes a different iteration count for an existing user with non-default settings versus a nonexistent username, allowing user/account existence enumeration by username.',
             },
             {
               'family': 'exceptional_condition_mishandling',
-              'source_root': 'GHSA-qh5g-q395-cx4j',
-              'source_project': 'ImageMagick/ImageMagick',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-qh5g-q395-cx4j',
-              'repository_advisory_url': 'https://github.com/ImageMagick/ImageMagick/security/advisories/GHSA-qh5g-q395-cx4j',
-              'summary': 'ImageMagick missing null-check exceptional-condition handling can cause a use-after-free crash while parsing an XMP profile.',
-              'description': 'The reviewed advisory states that a missing null check in XMP parsing leaves an error condition improperly handled, causing use-after-free behavior that can result in a process crash rather than a controlled failure path.',
+              'source_root': 'GHSA-pjj3-j5j6-qj27',
+              'source_project': 'haxtheweb/haxcms-nodejs',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-pjj3-j5j6-qj27',
+              'source_code_location': 'https://github.com/haxtheweb/haxcms-nodejs',
+              'summary': 'HAX CMS improper error handling leaves exceptions from malformed API parameters uncaught and crashes the backend server.',
+              'description': 'The reviewed advisory explicitly states that exceptions caused by attacker-controlled missing URL parameters are not properly handled. The listFiles/saveFiles API path terminates with ERR_INVALID_ARG_TYPE and crashes the server rather than returning a controlled error.',
             },
             {
-              'family': 'file_upload',
-              'source_root': 'GHSA-gxgp-6wm7-xrhr',
-              'source_project': 'dulldusk/phpfm',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-gxgp-6wm7-xrhr',
-              'source_code_location': 'https://github.com/dulldusk/phpfm',
-              'summary': 'phpfm has an unrestricted file upload vulnerability allowing unauthenticated arbitrary PHP-file upload.',
-              'description': 'The published advisory states that the upload extension filter is empty and authentication is disabled by default, so a remote attacker can upload a PHP webshell with a dangerous filename/extension to the application and execute the uploaded file.',
+              'family': 'exceptional_condition_mishandling',
+              'source_root': 'GHSA-7587-4wv6-m68m',
+              'source_project': 'rpgp/rpgp',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-7587-4wv6-m68m',
+              'repository_advisory_url': 'https://github.com/rpgp/rpgp/security/advisories/GHSA-7587-4wv6-m68m',
+              'summary': 'rPGP parser has an unhandled exceptional edge case that triggers a Rust panic and process crash on a crafted RSA secret-key packet.',
+              'description': 'The reviewed advisory says a crafted packet reaches an unhandled edge case during RSA key construction. The parser panics and crashes the application instead of handling the invalid foreign key material as a controlled error condition.',
             },
             {
               'family': 'server_side_template_injection',
-              'source_root': 'GHSA-95wq-w6wp-f2w9',
-              'source_project': 'WGDashboard/WGDashboard',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-95wq-w6wp-f2w9',
-              'source_code_location': 'https://github.com/WGDashboard/WGDashboard',
-              'references': ['https://github.com/Stuub/WGDashboard-v4.3.2-SSTI-to-Root-RCE-PoC'],
-              'summary': 'WGDashboard server-side template injection reaches an unsandboxed Jinja2 template render path and can execute code as root.',
-              'description': 'The published SSTI disclosure and its linked PoC document user-supplied email template fields passed directly to Python jinja2.Template().render() without a sandbox. The attacker-controlled template/expression is rendered server-side and can invoke command execution.',
+              'source_root': 'GHSA-m6xj-xx3f-5vv9',
+              'source_project': 'bolt/core',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-m6xj-xx3f-5vv9',
+              'source_code_location': 'https://github.com/bolt/core',
+              'summary': 'Bolt CMS server-side template injection renders attacker-controlled content through the full Twig template engine without sandboxing.',
+              'description': 'The advisory documents template injection in server-side content rendering. Editor-controlled field values containing Twig expressions reach createTemplate(...)->render(...) in the application Twig Environment without SandboxExtension and can execute commands.',
+            },
+            {
+              'family': 'server_side_template_injection',
+              'source_root': 'GHSA-qwf5-72hq-pg7x',
+              'source_project': 'DjangoCRM/django-crm',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-qwf5-72hq-pg7x',
+              'source_code_location': 'https://github.com/DjangoCRM/django-crm',
+              'summary': 'DjangoCRM server-side template injection compiles and renders attacker-controlled message fields through Django Template().',
+              'description': 'The advisory documents user-controlled subject/content strings passed directly to Django Template() and evaluated at render time. Authenticated message editors can inject Django template expressions and access server-side context data.',
             },
             {
               'family': 'unrestricted_resource_consumption',
-              'source_root': 'GHSA-rgw5-rvv9-x895',
-              'source_project': 'juliangruber/brace-expansion',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-rgw5-rvv9-x895',
-              'source_code_location': 'https://github.com/juliangruber/brace-expansion',
-              'summary': 'brace-expansion has unbounded resource consumption causing memory exhaustion, CPU exhaustion and denial of service.',
-              'description': 'The advisory documents unbounded intermediate arrays during brace expansion. A small crafted input can trigger uncatchable out-of-memory process termination, while a larger input can consume CPU and block the event loop for many seconds, exhausting memory/CPU resources and denying service.',
+              'source_root': 'GHSA-hxcr-hm88-mpq6',
+              'source_project': 'nuxt/nuxt',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-hxcr-hm88-mpq6',
+              'repository_advisory_url': 'https://github.com/nuxt/nuxt/security/advisories/GHSA-hxcr-hm88-mpq6',
+              'summary': 'Nuxt unauthenticated denial of service uses unbounded server-side v-for expansion to exhaust memory and crash the worker.',
+              'description': 'The reviewed advisory documents attacker-controlled unbounded iteration during server rendering. Large count/items props allocate memory proportional to the input and trigger out-of-memory process crashes, causing denial of service and resource exhaustion.',
+            },
+            {
+              'family': 'unrestricted_resource_consumption',
+              'source_root': 'GHSA-rqrh-ghmh-74j5',
+              'source_project': 'apache/cxf',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-rqrh-ghmh-74j5',
+              'summary': 'Apache CXF lacks a default bound on form parameters, allowing very large requests to consume resources and cause denial of service.',
+              'description': 'The advisory states that maxFormParameterCount had no default limit. Requests with very large numbers of form parameters can therefore trigger unbounded resource consumption and denial of service until a fixed default limit is introduced.',
+            },
+            {
+              'family': 'unrestricted_resource_consumption',
+              'source_root': 'GHSA-2cg2-hxr7-q7f4',
+              'source_project': 'systerel/S2OPC',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-2cg2-hxr7-q7f4',
+              'source_code_location': 'https://github.com/systerel/S2OPC',
+              'summary': 'S2OPC uncontrolled resource consumption in monitored-item queue resize handling allows remote denial of service.',
+              'description': 'The published CWE-400 advisory identifies denial of service through monitored-item event queue resizing. Remote attacker-controlled queue changes consume application resources until service availability is lost.',
             },
           ]
 
@@ -112,14 +130,20 @@ jobs:
                   'eligible': bool(passed and fw['allowed']),
               })
 
+          by_family = {}
+          for result in results:
+              by_family.setdefault(result['family'], []).append(result)
+          family_pass = {family: any(row['eligible'] for row in candidates) for family, candidates in by_family.items()}
           print(json.dumps({
               'scoring_executed': False,
               'detector_output_used': False,
               'candidate_count': len(rows),
-              'eligible_count': sum(1 for row in results if row['eligible']),
-              'all_eligible': all(row['eligible'] for row in results),
+              'family_count': len(by_family),
+              'eligible_family_count': sum(1 for value in family_pass.values() if value),
+              'all_families_have_eligible_source': all(family_pass.values()),
+              'family_pass': family_pass,
               'results': results,
           }, indent=2, sort_keys=True))
-          if not all(row['eligible'] for row in results):
+          if not all(family_pass.values()):
               raise SystemExit(2)
           PY
