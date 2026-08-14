@@ -1,0 +1,181 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.31",
+  "evaluation_kind": "fresh_blind_v6_unscored_owasp_grounded_candidates",
+  "scoring_executed": false,
+  "candidate_selection_uses_detector_scores": false,
+  "candidate_selection_uses_admission_results": false,
+  "candidate_selection_uses_ranking_results": false,
+  "grounding_counts_as_target_evidence": false,
+  "candidate_count": 10,
+  "candidates_by_family": {
+    "business_logic": [
+      {
+        "source_root": "GHSA-xff3-5c9p-2mr4",
+        "source_project": "QuantumNous/new-api",
+        "family": "business_logic",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-xff3-5c9p-2mr4",
+        "source_kind": "github_advisory_database_primary_project_record",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2026-05",
+        "summary": "Stripe webhook signature validation can accept an insecure empty-secret configuration and allow payment-completion state to be trusted incorrectly.",
+        "description": "The advisory describes a payment workflow integrity failure in which an insecure default webhook secret can undermine authenticity checks and permit the application to treat an untrusted payment-completion event as valid, affecting quota or payment state. This is used only as an independent source example for a business-workflow invariant violation.",
+        "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
+        "semantic_facts": ["payment workflow", "state transition", "payment completion", "insecure validation", "business invariant"],
+        "selection_basis": "independent advisory selected before scoring using WSTG business-logic boundary and related write-up semantics"
+      }
+    ],
+    "cors_misconfiguration": [
+      {
+        "source_root": "GHSA-9329-mxxw-qwf8",
+        "source_project": "strapi/strapi",
+        "family": "cors_misconfiguration",
+        "canonical_advisory_url": "https://github.com/strapi/strapi/security/advisories/GHSA-9329-mxxw-qwf8",
+        "repository_advisory_url": "https://github.com/strapi/strapi/security/advisories/GHSA-9329-mxxw-qwf8",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2025-10-16",
+        "summary": "Strapi default CORS behavior can reflect attacker-controlled origins while allowing credentials, exposing sensitive cross-origin API responses.",
+        "description": "The maintainer advisory states that attacker-controlled Origin values can be reflected into Access-Control-Allow-Origin while Access-Control-Allow-Credentials is enabled, allowing credentialed cross-origin access to sensitive backend data.",
+        "wstg_ids": ["WSTG-CLNT-07"],
+        "semantic_facts": ["cors", "origin", "credentials", "cross-origin", "sensitive response"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG CORS boundary and related write-up semantics"
+      }
+    ],
+    "dom_xss": [
+      {
+        "source_root": "GHSA-7r59-67v3-3mgp",
+        "source_project": "ThinkInAIXYZ/deepchat",
+        "family": "dom_xss",
+        "canonical_advisory_url": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+        "repository_advisory_url": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-04-25",
+        "summary": "DeepChat disclosed persistent DOM XSS in SVG artifact rendering through an HTML-entity sanitization bypass.",
+        "description": "The primary repository advisory identifies persistent DOM XSS in client-side SVG artifact rendering where crafted content bypasses the intended sanitizer and reaches an executable browser rendering context.",
+        "wstg_ids": ["WSTG-CLNT-01"],
+        "semantic_facts": ["DOM XSS", "client-side", "SVG rendering", "sanitization bypass", "executable browser sink"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG DOM-XSS source-to-sink boundary and related write-up semantics"
+      }
+    ],
+    "graphql_data_exposure": [
+      {
+        "source_root": "GHSA-gj2p-p9m4-c8gw",
+        "source_project": "craftcms/cms",
+        "family": "graphql_data_exposure",
+        "canonical_advisory_url": "https://github.com/craftcms/cms/security/advisories/GHSA-gj2p-p9m4-c8gw",
+        "repository_advisory_url": "https://github.com/craftcms/cms/security/advisories/GHSA-gj2p-p9m4-c8gw",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-04-27",
+        "summary": "Craft CMS disclosed a GraphQL authorization gap in an address resolver that can disclose PII across intended scopes.",
+        "description": "The maintainer advisory identifies a missing authorization boundary in a GraphQL address resolver that can expose personally identifiable address-related data outside the caller's intended scope, making it suitable for testing field/property exposure semantics.",
+        "wstg_ids": ["WSTG-APIT-03"],
+        "semantic_facts": ["GraphQL", "resolver", "PII", "cross-scope", "data exposure"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG API excessive-data-exposure and OWASP API property-authorization semantics"
+      }
+    ],
+    "improper_inventory_management": [
+      {
+        "source_root": "GHSA-x223-p2gf-v735",
+        "source_project": "langflow-ai/langflow",
+        "family": "improper_inventory_management",
+        "canonical_advisory_url": "https://github.com/langflow-ai/langflow/security/advisories/GHSA-x223-p2gf-v735",
+        "repository_advisory_url": "https://github.com/langflow-ai/langflow/security/advisories/GHSA-x223-p2gf-v735",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-06-17",
+        "summary": "A deprecated Langflow API v1 upload endpoint remained reachable without authentication and was later fixed with authentication, ownership and size controls.",
+        "description": "The maintainer advisory explicitly describes a deprecated POST /api/v1 upload endpoint that remained operational without authentication. The patch added authenticated flow ownership and an upload-size limit, making this a strong stale-API inventory-drift example.",
+        "wstg_ids": ["WSTG-APIT-01", "WSTG-CONF-04"],
+        "semantic_facts": ["deprecated endpoint", "API v1", "remained reachable", "unauthenticated", "security drift"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG API reconnaissance/configuration and OWASP API9 inventory-management semantics"
+      }
+    ],
+    "nosql_injection": [
+      {
+        "source_root": "GHSA-jpq7-226w-6cxx",
+        "source_project": "n8n-io/n8n",
+        "family": "nosql_injection",
+        "canonical_advisory_url": "https://github.com/n8n-io/n8n/security/advisories/GHSA-jpq7-226w-6cxx",
+        "repository_advisory_url": "https://github.com/n8n-io/n8n/security/advisories/GHSA-jpq7-226w-6cxx",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-06-10",
+        "summary": "n8n disclosed NoSQL injection in a MongoDB Find And Replace operation where an unvalidated filter can change document matching behavior.",
+        "description": "The maintainer advisory states that a user-controlled MongoDB filter value was passed without validation as a query filter, allowing unintended documents to match and be overwritten. This directly represents attacker-controlled structured input altering document-query semantics.",
+        "wstg_ids": ["WSTG-INPV-05.6"],
+        "semantic_facts": ["NoSQL injection", "MongoDB", "filter", "query semantics", "unintended document match"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG NoSQL-injection boundary and related write-up semantics"
+      }
+    ],
+    "postmessage_trust": [
+      {
+        "source_root": "GHSA-7jp2-p2fw-mgvf",
+        "source_project": "home-assistant/core",
+        "family": "postmessage_trust",
+        "canonical_advisory_url": "https://github.com/home-assistant/core/security/advisories/GHSA-7jp2-p2fw-mgvf",
+        "repository_advisory_url": "https://github.com/home-assistant/core/security/advisories/GHSA-7jp2-p2fw-mgvf",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-05-11",
+        "summary": "Home Assistant Companion disclosed a cross-origin WebView message-bridge trust failure where frames were not sufficiently bound to an allowed origin/source.",
+        "description": "The maintainer advisory describes a JavaScript/native messaging bridge exposed to cross-origin frames without sufficient origin or main-frame validation, enabling sensitive authentication behavior to be invoked from an unintended communication source. It is used here for web-messaging source/origin trust semantics rather than payload mechanics.",
+        "wstg_ids": ["WSTG-CLNT-11"],
+        "semantic_facts": ["cross-origin frame", "message bridge", "origin validation", "source validation", "sensitive action"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG Web Messaging sender-trust boundary and related write-up semantics"
+      }
+    ],
+    "sensitive_business_flow_abuse": [
+      {
+        "source_root": "GHSA-68qm-vp8f-rpr3",
+        "source_project": "frappe/press",
+        "family": "sensitive_business_flow_abuse",
+        "canonical_advisory_url": "https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3",
+        "repository_advisory_url": "https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2025-09-18",
+        "summary": "Frappe Press disclosed email flooding where duplicate invitations could be repeatedly sent because validation and rate limits were insufficient.",
+        "description": "The primary advisory states that an unauthenticated actor can repeatedly send duplicate invites and flood a user's inbox. This is used as a sensitive-business-flow example where repeated use of a legitimate operation lacks an effective frequency or anti-abuse control.",
+        "wstg_ids": ["WSTG-BUSL-05", "WSTG-BUSL-06", "WSTG-BUSL-07"],
+        "semantic_facts": ["invitation flow", "duplicate operation", "email flooding", "rate limit", "anti-abuse control"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG business-flow limits and OWASP API6 sensitive-business-flow semantics"
+      }
+    ],
+    "sensitive_caching": [
+      {
+        "source_root": "GHSA-39pv-4j6c-2g6v",
+        "source_project": "angular/angular",
+        "family": "sensitive_caching",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-39pv-4j6c-2g6v",
+        "source_kind": "github_advisory_database_primary_project_record",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2026-06-10",
+        "summary": "Angular HttpTransferCache used weak cache keys that can cause cross-request response collisions, data leakage and state poisoning.",
+        "description": "The reviewed advisory describes cross-request cache-key collisions in HttpTransferCache that can cause one response to be reused for another request, creating cross-request data leakage and state poisoning. The advisory specifically recommends avoiding transfer caching for sensitive endpoints when an upgrade is not immediately possible.",
+        "wstg_ids": ["WSTG-ATHN-06"],
+        "semantic_facts": ["cache", "sensitive endpoint", "cross-request reuse", "data leakage", "cache isolation"],
+        "selection_basis": "independent reviewed advisory selected before scoring using WSTG sensitive-cache isolation and related primary-advisory semantics"
+      }
+    ],
+    "software_supply_chain_failure": [
+      {
+        "source_root": "GHSA-658g-p7jg-wx5g",
+        "source_project": "usebruno/bruno",
+        "family": "software_supply_chain_failure",
+        "canonical_advisory_url": "https://github.com/usebruno/bruno/security/advisories/GHSA-658g-p7jg-wx5g",
+        "repository_advisory_url": "https://github.com/usebruno/bruno/security/advisories/GHSA-658g-p7jg-wx5g",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-03-31",
+        "summary": "Bruno documented impact from a compromised axios npm dependency that introduced a hidden malicious dependency into the CLI supply chain.",
+        "description": "The maintainer advisory identifies a dependency supply-chain incident involving compromised axios package versions and a hidden malicious dependency. It represents compromised dependency provenance affecting an installed software path and is used only as a defensive supply-chain validation source.",
+        "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-02"],
+        "semantic_facts": ["dependency", "compromised package", "supply chain", "malicious dependency", "installed software path"],
+        "selection_basis": "independent primary advisory selected before scoring using OWASP/WSTG deployment-supply-chain boundary and related write-up semantics"
+      }
+    ]
+  }
+}
