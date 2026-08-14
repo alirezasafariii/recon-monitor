@@ -32,10 +32,9 @@ jobs:
           rows = [
             {
               'family': 'cors_misconfiguration',
-              'source_root': 'GHSA-v3j7-r9gq-3gjw',
-              'source_project': 'electron/electron',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-v3j7-r9gq-3gjw',
-              'repository_advisory_url': 'https://github.com/electron/electron/security/advisories/GHSA-v3j7-r9gq-3gjw',
+              'source_root': 'HARMONIA-ISSUE-710',
+              'source_project': 'forkwright/harmonia',
+              'canonical_advisory_url': 'https://github.com/forkwright/harmonia/issues/710',
             },
             {
               'family': 'graphql_data_exposure',
@@ -45,31 +44,27 @@ jobs:
             },
             {
               'family': 'nosql_injection',
-              'source_root': 'GHSA-98xf-r82g-9mhx',
-              'source_project': 'langchain-ai/langgraphjs',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-98xf-r82g-9mhx',
-              'repository_advisory_url': 'https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx',
+              'source_root': 'ACTOR-TS-ISSUE-738',
+              'source_project': 'pathosDev/actor-ts',
+              'canonical_advisory_url': 'https://github.com/pathosDev/actor-ts/issues/738',
             },
             {
               'family': 'source_map_exposure',
-              'source_root': 'GHSA-fxqj-rqcc-2cmp',
-              'source_project': 'postcss/postcss',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-fxqj-rqcc-2cmp',
-              'repository_advisory_url': 'https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp',
+              'source_root': 'GOV-BB-ISSUE-2092',
+              'source_project': 'govtech-bb/gov-bb',
+              'canonical_advisory_url': 'https://github.com/govtech-bb/gov-bb/issues/2092',
             },
             {
               'family': 'unsafe_api_consumption',
-              'source_root': 'GHSA-94pj-82f3-465w',
-              'source_project': 'guzzle/guzzle',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-94pj-82f3-465w',
-              'repository_advisory_url': 'https://github.com/guzzle/guzzle/security/advisories/GHSA-94pj-82f3-465w',
+              'source_root': 'RICKBOT-ISSUE-38',
+              'source_project': 'zachlagden/rickbot',
+              'canonical_advisory_url': 'https://github.com/zachlagden/rickbot/issues/38',
             },
             {
               'family': 'websocket_authorization',
-              'source_root': 'GHSA-5gpj-vj23-vhhv',
-              'source_project': 'open-webui/open-webui',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-5gpj-vj23-vhhv',
-              'repository_advisory_url': 'https://github.com/open-webui/open-webui/security/advisories/GHSA-5gpj-vj23-vhhv',
+              'source_root': 'LAYOUT-ORCHESTRATION-ISSUE-20',
+              'source_project': 'bazauto/layout-orchestration',
+              'canonical_advisory_url': 'https://github.com/bazauto/layout-orchestration/issues/20',
             },
           ]
           results = []
