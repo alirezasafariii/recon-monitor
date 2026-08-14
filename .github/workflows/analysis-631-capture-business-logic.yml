@@ -156,7 +156,7 @@ jobs:
                       'job_purpose': 'static welcome comment and labels',
                   },
               },
-              'independent_confounding_control',
+              'repository_test_fixture',
               'A separate current automation also uses pull_request_target, but it has empty global permissions and never checks out PR code; the trigger name alone therefore does not establish the target trust-boundary failure.',
               [],
           )
@@ -177,7 +177,7 @@ jobs:
                       'static_comment_path_observed': True,
                   },
               },
-              'independent_sparse_control',
+              'repository_test_fixture',
               'This separate target-triggered automation is deliberately narrow: it does not check out PR code and applies an author-association filter. It is related context but does not reproduce the privileged fork execution state.',
               [],
           )
