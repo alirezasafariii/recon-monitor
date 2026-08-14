@@ -1,0 +1,18 @@
+{
+  "evidence_missing_count": 0,
+  "evidence_present_count": 0,
+  "evidence_verify_passed": false,
+  "failed_stage": "complete_36_patchable_sources",
+  "first_blind_consumed": false,
+  "label_leakage_count": null,
+  "materialized_case_count": 0,
+  "patchable_family_count": 35,
+  "patchable_missing_families": [
+    "graphql_data_exposure"
+  ],
+  "scoring_executed": false,
+  "shortlist_missing_families": [],
+  "shortlist_selected_count": 0,
+  "validation_passed": false,
+  "verified_capture_count": 0
+}
