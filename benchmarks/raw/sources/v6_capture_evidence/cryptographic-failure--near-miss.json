@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The historical gate did reject a small set of known placeholder strings. That control is adjacent but does not establish rejection of arbitrary short secrets.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/eddiethedean/hedron/issues/196",
+  "captured_at": "2026-08-14T15:45:25.589786+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #196 root cause",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "arbitrary_short_length_check_present": false,
+      "known_placeholder_check_present": true
+    },
+    "endpoint": "_is_weak_secret marker branch",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Hedron historical known-placeholder check"
+  },
+  "raw_sha256": "f82287f1a8ef6f552bdcc9c0ffd7c3b83cf7d11700e64528c7541880b8ecfb8e",
+  "schema_version": "1.0",
+  "source_project": "eddiethedean/hedron",
+  "source_root": "HEDRON-ISSUE-196",
+  "source_snapshot": {
+    "content_sha256": "e5a058e578c4168d11f5860be1636ee89a0780ebd77fd04acb218c9d12381b07",
+    "payload": {
+      "excerpt": "old logic checked DEFAULT_SESSION_SECRET_MARKERS and change-me/replace-in-production",
+      "issue": 196
+    },
+    "reference": "https://github.com/eddiethedean/hedron/issues/196",
+    "retrieved_at": "2026-08-14T15:45:25.589786+00:00"
+  }
+}

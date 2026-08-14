@@ -1,0 +1,48 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "predictable_randomness_observed"
+    ],
+    "notes": "The upstream reproduction records a one-character production session secret passing the security gate even though the documented contract says short secrets must be rejected.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/eddiethedean/hedron/issues/196",
+  "captured_at": "2026-08-14T15:45:25.589786+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #196 reproduction",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "production": true,
+      "production_gate_rejected": false,
+      "session_secret_length": 1,
+      "short_secret_accepted": true
+    },
+    "endpoint": "assert_production_security_config",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Hedron production security gate"
+  },
+  "raw_sha256": "74d034a3acecd430f236635bf9957afdcecf859aca2642667961cdcc3a917c8d",
+  "schema_version": "1.0",
+  "source_project": "eddiethedean/hedron",
+  "source_root": "HEDRON-ISSUE-196",
+  "source_snapshot": {
+    "content_sha256": "0d9f7bc70bee85da20d9126b2df4d9b63f3408a552bc30008a6488beba9fa825",
+    "payload": {
+      "actual_behavior": "x/password/dev accepted in production",
+      "excerpt": "session_secret=\"x\" ... incorrectly succeeds",
+      "issue": 196
+    },
+    "reference": "https://github.com/eddiethedean/hedron/issues/196",
+    "retrieved_at": "2026-08-14T15:45:25.589786+00:00"
+  }
+}

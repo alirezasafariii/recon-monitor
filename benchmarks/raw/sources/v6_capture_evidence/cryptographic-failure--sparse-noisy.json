@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue independently records a test-coverage gap for arbitrary short secrets. It is source-grounded but contains no runtime outcome itself, so it is intentionally sparse.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/eddiethedean/hedron/issues/196",
+  "captured_at": "2026-08-14T15:45:25.589786+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #196 test coverage",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "known_placeholder_tests_present": true,
+      "runtime_gate_outcome_observed": false,
+      "short_arbitrary_secret_test_missing": true
+    },
+    "endpoint": "production gate test inventory",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Hedron historical test coverage"
+  },
+  "raw_sha256": "98dd21333d17651d0c89315fcbad2337e7f225603206c9b89c17fed7161db9b2",
+  "schema_version": "1.0",
+  "source_project": "eddiethedean/hedron",
+  "source_root": "HEDRON-ISSUE-196",
+  "source_snapshot": {
+    "content_sha256": "70b136b05f70e462a68c05458629241e9f12a5dae067b04b113b28301ec5a5bd",
+    "payload": {
+      "excerpt": "Tests cover known placeholders but not short arbitrary secrets.",
+      "issue": 196
+    },
+    "reference": "https://github.com/eddiethedean/hedron/issues/196",
+    "retrieved_at": "2026-08-14T15:45:25.589786+00:00"
+  }
+}

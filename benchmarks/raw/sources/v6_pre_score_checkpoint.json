@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "10_literal_families_complete_40_of_144_pending_remaining_evidence",
+  "checkpoint_status": "12_literal_families_complete_48_of_144_pending_remaining_evidence",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -30,6 +30,18 @@
       "capture_run_id": null,
       "positive_observation": "The historical CI entry ran on pull_request_target and explicitly checked out the submitting fork repository and branch without an observed trusted-author approval gate before that code entered the build/check path.",
       "source": "GHSA-mjx5-98jq-q736 / meshtastic/firmware",
+      "status": "passed_4_of_4"
+    },
+    "cryptographic_failure": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream reproduction records a one-character production session secret passing the security gate even though the documented contract says short secrets must be rejected.",
+      "source": "HEDRON-ISSUE-196 / eddiethedean/hedron",
+      "status": "passed_4_of_4"
+    },
+    "exceptional_condition_mishandling": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream issue documents an unhandled TUI exception path that renders frame locals while plaintext is live in multiple stack frames, producing an unsafe crash outcome.",
+      "source": "TIME-SAFE-ISSUE-35 / louisalexander/time-safe",
       "status": "passed_4_of_4"
     },
     "graphql_authorization": {
@@ -98,11 +110,13 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "40_of_144_evidence_present",
+    "capture_plan_status": "48_of_144_evidence_present",
     "complete_families": [
       "account_enumeration",
       "broken_object_authorization",
       "business_logic",
+      "cryptographic_failure",
+      "exceptional_condition_mishandling",
       "graphql_authorization",
       "information_disclosure",
       "path_traversal",
@@ -111,15 +125,15 @@
       "software_data_integrity_failure",
       "ssrf"
     ],
-    "complete_family_count": 10,
+    "complete_family_count": 12,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 104,
-    "evidence_present_count": 40,
+    "evidence_missing_count": 96,
+    "evidence_present_count": 48,
     "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 26,
+    "remaining_family_count": 24,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -130,7 +144,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 26 families / 104 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Continue controlled evidence collection for the remaining 24 families / 96 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

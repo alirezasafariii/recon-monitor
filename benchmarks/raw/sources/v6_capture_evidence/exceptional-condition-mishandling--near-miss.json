@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue notes existing broad exception handlers that reduce exposure but do not cover the surrounding/synchronous fatal-error path; this is a partial control rather than the target unsafe outcome itself.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/louisalexander/time-safe/issues/35",
+  "captured_at": "2026-08-14T15:45:24.883234+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #35 partial-control analysis",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "broad_exception_handlers_present": true,
+      "surrounding_frames_still_exposed": true,
+      "synchronous_save_path_not_covered": true
+    },
+    "endpoint": "screen worker exception blocks",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "time-safe screen-level exception handlers"
+  },
+  "raw_sha256": "bb508e342768272e985aefd78297a42e3b5e649095f58d9b314ade44f2dbcdf6",
+  "schema_version": "1.0",
+  "source_project": "louisalexander/time-safe",
+  "source_root": "TIME-SAFE-ISSUE-35",
+  "source_snapshot": {
+    "content_sha256": "e19a593add1c92c12e7df3cee3e4906ba608025a212dcffd8172ca022910cb24",
+    "payload": {
+      "excerpt": "broad except Exception blocks cover the awaited call but not surrounding frames or synchronous _save path",
+      "issue": 35
+    },
+    "reference": "https://github.com/louisalexander/time-safe/issues/35",
+    "retrieved_at": "2026-08-14T15:45:24.883234+00:00"
+  }
+}

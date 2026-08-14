@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_log_or_trace",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "unhandled_exception_observed"
+    ],
+    "notes": "The upstream issue documents an unhandled TUI exception path that renders frame locals while plaintext is live in multiple stack frames, producing an unsafe crash outcome.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/louisalexander/time-safe/issues/35",
+  "captured_at": "2026-08-14T15:45:24.883234+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #35 crash analysis",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "frame_locals_rendered": true,
+      "plaintext_live_in_frames": true,
+      "terminal_disclosure_on_crash": true,
+      "unhandled_exception_path": true
+    },
+    "endpoint": "Textual App._fatal_error",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "time-safe TUI fatal exception path"
+  },
+  "raw_sha256": "1606668a8bd76bc9ebb2e6733fba49293063ed54d02e40e560b1a4d3c2a7ce12",
+  "schema_version": "1.0",
+  "source_project": "louisalexander/time-safe",
+  "source_root": "TIME-SAFE-ISSUE-35",
+  "source_snapshot": {
+    "content_sha256": "c2a1909c6c8fd1dd97054af97a324a8084891ade7ba83f8b6a0621e322730320",
+    "payload": {
+      "excerpt": "Textual fatal error uses Traceback(show_locals=True); live plaintext exists in add/renew/reveal frames",
+      "issue": 35
+    },
+    "reference": "https://github.com/louisalexander/time-safe/issues/35",
+    "retrieved_at": "2026-08-14T15:45:24.883234+00:00"
+  }
+}

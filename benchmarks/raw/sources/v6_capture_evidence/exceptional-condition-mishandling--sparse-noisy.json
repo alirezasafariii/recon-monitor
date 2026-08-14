@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The upstream issue flags a second potential rich-error path for future typed errors but states current project errors do not take it. This is intentionally sparse/noisy context.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/louisalexander/time-safe/issues/35",
+  "captured_at": "2026-08-14T15:45:24.883234+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch issue and/or inspect checked-out upstream source",
+    "source_file": "GitHub issue #35 alternate-path note",
+    "tool": "github-actions/source-grounded-capture"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "future_typed_rich_error_path_not_currently_observed": true,
+      "runtime_plaintext_disclosure_not_observed": true
+    },
+    "endpoint": "Textual panic branch",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "time-safe alternate future rich-error path"
+  },
+  "raw_sha256": "f0f2bdd5782459507645efca945f5249a6cd4f14e24ab2ab6d1e4426d4f67707",
+  "schema_version": "1.0",
+  "source_project": "louisalexander/time-safe",
+  "source_root": "TIME-SAFE-ISSUE-35",
+  "source_snapshot": {
+    "content_sha256": "d589fa8d969196578b983b1babc3fe37aceeb86125219964335a6a9a037d67ee",
+    "payload": {
+      "excerpt": "panic path may be used if a future exception defines __rich__",
+      "issue": 35
+    },
+    "reference": "https://github.com/louisalexander/time-safe/issues/35",
+    "retrieved_at": "2026-08-14T15:45:24.883234+00:00"
+  }
+}
