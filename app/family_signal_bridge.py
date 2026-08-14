@@ -371,6 +371,12 @@ def augment_family_details(
 
     # Phase-two surface context. These signals intentionally describe where to
     # look, not whether a vulnerability exists.
+    try:
+        query_pairs = urllib.parse.parse_qsl(urllib.parse.urlsplit(endpoint).query, keep_blank_values=True)
+    except ValueError:
+        query_pairs = []
+    if query_pairs or any(token in text for token in ("search", "query", "message", "error", "return", "callback")):
+        _add_signal(enriched, sources, "reflected_input_surface", "request_or_route_input_surface")
     if method in _STATE_CHANGING_METHODS and any(token in text for token in ("comment", "profile", "bio", "description", "message", "review", "post", "content")):
         _add_signal(enriched, sources, "persistent_user_content_surface", "state_changing_content_surface")
     if method in {"PUT", "PATCH", "DELETE"} or "allowed_methods" in text or "allow:" in text:
