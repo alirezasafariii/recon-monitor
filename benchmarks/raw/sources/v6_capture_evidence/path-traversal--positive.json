@@ -1,0 +1,132 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "archive_entry_escape",
+      "base_directory_escape",
+      "path_escape_observed"
+    ],
+    "notes": "Controlled local execution of the selected Joomla extractor parent revision extracted a ../ ZIP entry outside the configured destination root and preserved the controlled file contents.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/joomla/joomla-cms/commit/d89141ffe22b2a7d97193a825085a287053761b7",
+  "captured_at": "2026-08-14T06:27:48.223562Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "php -d display_errors=0 -r <controlled request wrapper>",
+    "source_file": "administrator/components/com_joomlaupdate/extract.php",
+    "tool": "Joomla upstream extract.php controlled ZIP reproduction"
+  },
+  "family": "path_traversal",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream checkout",
+      "literal_archive_extraction": {
+        "archive": {
+          "compression": "stored",
+          "entries": [
+            "../escape-positive.txt",
+            "safe/normal-positive.txt"
+          ],
+          "entry_contents": {
+            "../escape-positive.txt": "escaped-by-controlled-zip",
+            "safe/normal-positive.txt": "normal-positive"
+          }
+        },
+        "extractor_response": {
+          "bytesIn": 40,
+          "bytesOut": 40,
+          "done": true,
+          "files": 2,
+          "message": null,
+          "percent": 80,
+          "status": true
+        },
+        "filesystem_observations": {
+          "../escape-positive.txt": {
+            "content": "escaped-by-controlled-zip",
+            "exists_after_extraction": true,
+            "inside_destination": false,
+            "resolved_path": "/tmp/v6-joomla-positive/escape-positive.txt"
+          },
+          "safe/normal-positive.txt": {
+            "content": "normal-positive",
+            "exists_after_extraction": true,
+            "inside_destination": true,
+            "resolved_path": "/tmp/v6-joomla-positive/dest/safe/normal-positive.txt"
+          }
+        },
+        "request": {
+          "archive": "/tmp/v6-joomla-positive/payload.zip",
+          "destination": "/tmp/v6-joomla-positive/dest",
+          "task": "startExtract"
+        }
+      },
+      "upstream_revision": "d89141ffe22b2a7d97193a825085a287053761b7"
+    },
+    "endpoint": "administrator/components/com_joomlaupdate/extract.php",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "ZIP_EXTRACT",
+    "target": "controlled-local-joomla-extractor"
+  },
+  "raw_sha256": "0b66dfa1a769d28630922d9e71c81be72b4540d8a1b9383f758e5c63438e9b1a",
+  "schema_version": "1.0",
+  "source_project": "joomla/joomla-cms",
+  "source_root": "GHSA-f3gp-9xr4-qmvc",
+  "source_snapshot": {
+    "content_sha256": "fd73b6cb4a68ecf885289756c27ff0290417ce62fd1284c5ea1327d5fad211b6",
+    "payload": {
+      "archive": {
+        "compression": "stored",
+        "entries": [
+          "../escape-positive.txt",
+          "safe/normal-positive.txt"
+        ],
+        "entry_contents": {
+          "../escape-positive.txt": "escaped-by-controlled-zip",
+          "safe/normal-positive.txt": "normal-positive"
+        }
+      },
+      "captured_at": "2026-08-14T06:27:48.223562Z",
+      "case_kind": "positive",
+      "extractor_response": {
+        "bytesIn": 40,
+        "bytesOut": 40,
+        "done": true,
+        "files": 2,
+        "message": null,
+        "percent": 80,
+        "status": true
+      },
+      "filesystem_observations": {
+        "../escape-positive.txt": {
+          "content": "escaped-by-controlled-zip",
+          "exists_after_extraction": true,
+          "inside_destination": false,
+          "resolved_path": "/tmp/v6-joomla-positive/escape-positive.txt"
+        },
+        "safe/normal-positive.txt": {
+          "content": "normal-positive",
+          "exists_after_extraction": true,
+          "inside_destination": true,
+          "resolved_path": "/tmp/v6-joomla-positive/dest/safe/normal-positive.txt"
+        }
+      },
+      "request": {
+        "archive": "/tmp/v6-joomla-positive/payload.zip",
+        "destination": "/tmp/v6-joomla-positive/dest",
+        "task": "startExtract"
+      },
+      "stderr": "",
+      "upstream_revision": "d89141ffe22b2a7d97193a825085a287053761b7"
+    },
+    "reference": "https://github.com/joomla/joomla-cms/commit/d89141ffe22b2a7d97193a825085a287053761b7",
+    "retrieved_at": "2026-08-14T06:27:48.223562Z"
+  }
+}

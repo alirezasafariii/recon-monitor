@@ -1,0 +1,112 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled local execution of an ordinary nested ZIP entry produced only in-root extraction evidence and no traversal condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/joomla/joomla-cms/commit/98ee218a642b8e795f13bc6eeb250bec5deee03e",
+  "captured_at": "2026-08-14T06:27:51.631936Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "php -d display_errors=0 -r <controlled request wrapper>",
+    "source_file": "administrator/components/com_joomlaupdate/extract.php",
+    "tool": "Joomla upstream extract.php controlled ZIP reproduction"
+  },
+  "family": "path_traversal",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream checkout",
+      "literal_archive_extraction": {
+        "archive": {
+          "compression": "stored",
+          "entries": [
+            "safe/ordinary.txt"
+          ],
+          "entry_contents": {
+            "safe/ordinary.txt": "ordinary-inside-root"
+          }
+        },
+        "extractor_response": {
+          "bytesIn": 20,
+          "bytesOut": 20,
+          "done": true,
+          "files": 1,
+          "message": null,
+          "percent": 80,
+          "status": true
+        },
+        "filesystem_observations": {
+          "safe/ordinary.txt": {
+            "content": "ordinary-inside-root",
+            "exists_after_extraction": true,
+            "inside_destination": true,
+            "resolved_path": "/tmp/v6-joomla-sparse/dest/safe/ordinary.txt"
+          }
+        },
+        "request": {
+          "archive": "/tmp/v6-joomla-sparse/payload.zip",
+          "destination": "/tmp/v6-joomla-sparse/dest",
+          "task": "startExtract"
+        }
+      },
+      "upstream_revision": "98ee218a642b8e795f13bc6eeb250bec5deee03e"
+    },
+    "endpoint": "administrator/components/com_joomlaupdate/extract.php",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "ZIP_EXTRACT",
+    "target": "controlled-local-joomla-extractor"
+  },
+  "raw_sha256": "66b259a2e7d1e0c265e06511794060d9e270f163792a9e9349dc87dff1a44582",
+  "schema_version": "1.0",
+  "source_project": "joomla/joomla-cms",
+  "source_root": "GHSA-f3gp-9xr4-qmvc",
+  "source_snapshot": {
+    "content_sha256": "b843c2ed2246cb1d9e92cc73e2b8902c7b684cdfd068ea74525c6c31b19b7559",
+    "payload": {
+      "archive": {
+        "compression": "stored",
+        "entries": [
+          "safe/ordinary.txt"
+        ],
+        "entry_contents": {
+          "safe/ordinary.txt": "ordinary-inside-root"
+        }
+      },
+      "captured_at": "2026-08-14T06:27:51.631936Z",
+      "case_kind": "sparse_noisy",
+      "extractor_response": {
+        "bytesIn": 20,
+        "bytesOut": 20,
+        "done": true,
+        "files": 1,
+        "message": null,
+        "percent": 80,
+        "status": true
+      },
+      "filesystem_observations": {
+        "safe/ordinary.txt": {
+          "content": "ordinary-inside-root",
+          "exists_after_extraction": true,
+          "inside_destination": true,
+          "resolved_path": "/tmp/v6-joomla-sparse/dest/safe/ordinary.txt"
+        }
+      },
+      "request": {
+        "archive": "/tmp/v6-joomla-sparse/payload.zip",
+        "destination": "/tmp/v6-joomla-sparse/dest",
+        "task": "startExtract"
+      },
+      "stderr": "",
+      "upstream_revision": "98ee218a642b8e795f13bc6eeb250bec5deee03e"
+    },
+    "reference": "https://github.com/joomla/joomla-cms/commit/98ee218a642b8e795f13bc6eeb250bec5deee03e",
+    "retrieved_at": "2026-08-14T06:27:51.631936Z"
+  }
+}
