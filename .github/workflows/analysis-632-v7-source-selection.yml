@@ -5,7 +5,7 @@ on:
     branches:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
-      - 'benchmarks/raw/sources/v7_candidates.json'
+      - 'benchmarks/raw/sources/v7_candidates_patchable.json'
       - '.github/workflows/analysis-632-v7-source-selection.yml'
   workflow_dispatch:
 
@@ -29,12 +29,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Require unscored uncontaminated candidate pool
+      - name: Require unscored condition-grounded patch-feasible pool
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
           assert r['family_count'] == 36
           assert r['scoring_executed'] is False
           assert r['candidate_selection_uses_detector_scores'] is False
@@ -62,6 +62,9 @@ jobs:
           assert r['firewall']['unique_root_count'] == 36
           assert r['firewall']['unique_project_count'] == 36
           assert r['capture_feasibility_requires_upstream_repository_reference'] is True
+          assert r['capture_feasibility_requires_verified_patch'] is True
+          assert all(row.get('patch_probe_passed') is True for row in r['selected'])
+          assert all(row.get('pre_score_expected_condition_signals') for row in r['selected'])
           assert r['selection_uses_detector_scores'] is False
           assert r['selection_uses_admission_results'] is False
           assert r['selection_uses_ranking_results'] is False
