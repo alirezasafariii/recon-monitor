@@ -1,17 +1,12 @@
 from __future__ import annotations
 
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'app'))
 
-from v7_capture_guard import (
-    ENGINE_BASELINE_COMMIT,
-    SOURCE_ASSIGNMENT_COMMIT,
-    validate_capture_source_freeze,
-)
+from v7_capture_guard import validate_capture_source_freeze
 from v7_literal_evidence_publish import _targeted_positive_confirmation
 
 
@@ -25,7 +20,11 @@ class V7CaptureIntegrityTests(unittest.TestCase):
         self.assertEqual(result['unique_root_count'], 36)
         self.assertEqual(result['unique_project_count'], 36)
         self.assertEqual(result['recomputed_engine_seen_count'], 0)
+        self.assertEqual(result['audit_fallback_count'], 4)
         self.assertEqual(result['targeted_fallback_count'], 4)
+        self.assertEqual(result['literal_adjudication_required_count'], 13)
+        self.assertEqual(len(result['literal_adjudication_required_families']), 13)
+        self.assertTrue(set(result['audit_fallback_families']).issubset(set(result['literal_adjudication_required_families'])))
         self.assertFalse(result['scoring_executed'])
         self.assertFalse(result['first_blind_consumed'])
         self.assertFalse(result['merge_authorized'])
