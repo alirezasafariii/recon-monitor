@@ -5,9 +5,10 @@ from typing import Any, Iterable, Mapping
 
 from raw_recon_corpus import ROOT, prior_source_index
 import raw_recon_v6_source_firewall as v6
+from v7_external_exposure import CORPUS_V1_COMMIT, EXPECTED_SOURCE_COUNT
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.1"
 V6_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v6.jsonl"
 V6_SOURCE_FILES = (
     ROOT / "benchmarks/raw/sources/v6_candidates.json",
@@ -26,6 +27,11 @@ V6_SOURCE_FILES = (
     ROOT / "benchmarks/raw/sources/v6_literal_capture_verification.json",
 )
 V6_EVIDENCE_DIR = ROOT / "benchmarks/raw/sources/v6_capture_evidence"
+EXTERNAL_EXCLUSIONS = ROOT / "benchmarks/raw/sources/v7_external_exclusions.json"
+PRIOR_SCOPE = (
+    "all_exposed_sources_and_provenance_v1_through_consumed_v6_plus_"
+    f"real_world_corpus_v1@{CORPUS_V1_COMMIT}"
+)
 
 
 def _add_corpus(index: dict[str, set[str]], path: Path) -> None:
@@ -40,6 +46,31 @@ def _add_corpus(index: dict[str, set[str]], path: Path) -> None:
     index["urls"].update(urls)
     for value in roots | urls:
         index["identifiers"].update(v6._identifiers(value))
+
+
+def _add_external_exclusions(index: dict[str, set[str]]) -> None:
+    value = v6._read_json(EXTERNAL_EXCLUSIONS)
+    if not isinstance(value, Mapping):
+        raise RuntimeError("v7 external exclusion registry missing; fail closed")
+    source = value.get("source") if isinstance(value.get("source"), Mapping) else {}
+    if str(source.get("commit_sha") or "") != CORPUS_V1_COMMIT:
+        raise RuntimeError("v7 external exclusion registry commit pin mismatch")
+    if int(value.get("source_count") or 0) != EXPECTED_SOURCE_COUNT:
+        raise RuntimeError("v7 external exclusion registry must contain 100 Corpus V1 sources")
+    if value.get("identity_only") is not True:
+        raise RuntimeError("v7 external exclusion registry must be identity-only")
+    if value.get("labels_imported") is not False or value.get("evidence_imported") is not False or value.get("scores_imported") is not False:
+        raise RuntimeError("v7 external exclusion registry imported forbidden Corpus V1 data")
+    rows = value.get("sources")
+    if not isinstance(rows, list) or len(rows) != EXPECTED_SOURCE_COUNT:
+        raise RuntimeError("v7 external exclusion registry source rows incomplete")
+    for row in rows:
+        if isinstance(row, Mapping):
+            v6._add_row(index, row)
+            for identifier in row.get("identifiers") or []:
+                normalized = v6._identity(identifier)
+                if normalized:
+                    index["identifiers"].add(normalized)
 
 
 def exposure_index() -> dict[str, set[str]]:
@@ -58,6 +89,7 @@ def exposure_index() -> dict[str, set[str]]:
                 continue
             for row in v6._walk_rows(value):
                 v6._add_row(index, row)
+    _add_external_exclusions(index)
     return index
 
 
@@ -67,7 +99,8 @@ def check_candidate(row: Mapping[str, Any], *, index: Mapping[str, set[str]] | N
     check = dict(check)
     check["firewall_version"] = VERSION
     check["firewall_rule_version"] = RULE_VERSION
-    check["prior_scope"] = "all_exposed_sources_and_provenance_v1_through_consumed_v6"
+    check["prior_scope"] = PRIOR_SCOPE
+    check["corpus_v1_commit_pin"] = CORPUS_V1_COMMIT
     check["scoring_executed"] = False
     return check
 
@@ -97,9 +130,10 @@ def validate_shortlist(rows: Iterable[Mapping[str, Any]], *, required_count: int
         "rejected": failed,
         "firewall_version": VERSION,
         "firewall_rule_version": RULE_VERSION,
-        "prior_scope": "all_exposed_sources_and_provenance_v1_through_consumed_v6",
+        "prior_scope": PRIOR_SCOPE,
+        "corpus_v1_commit_pin": CORPUS_V1_COMMIT,
         "scoring_executed": False,
     }
 
 
-__all__ = ["VERSION", "RULE_VERSION", "exposure_index", "check_candidate", "validate_shortlist"]
+__all__ = ["VERSION", "RULE_VERSION", "PRIOR_SCOPE", "exposure_index", "check_candidate", "validate_shortlist"]
