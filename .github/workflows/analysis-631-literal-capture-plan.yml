@@ -1,0 +1,71 @@
+name: Analysis 6.31 Literal Capture Plan
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - app/v6_literal_capture_plan.py
+      - .github/workflows/analysis-631-literal-capture-plan.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refuse capture planning after corpus freeze
+        run: |
+          if [[ -f benchmarks/raw/sources/v6_corpus_freeze.json ]]; then
+            echo 'Analysis 6.31 corpus is already frozen; capture planning is immutable.' >&2
+            exit 1
+          fi
+
+      - name: Build unscored 144-capture acquisition plan
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_plan.py
+
+      - name: Validate plan contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text(encoding='utf-8'))
+          assert plan['scoring_executed'] is False
+          assert plan['first_blind_consumed'] is False
+          assert plan['detector_output_used'] is False
+          assert plan['admission_output_used'] is False
+          assert plan['ranking_output_used'] is False
+          assert plan['family_count'] == 36
+          assert plan['variant_count_per_family'] == 4
+          assert plan['required_capture_count'] == 144
+          assert len(plan['requirements']) == 144
+          assert all(row['synthetic_fixture_generation_forbidden'] is True for row in plan['requirements'])
+          assert all(row['mutation_of_another_variant_to_create_this_variant_forbidden'] is True for row in plan['requirements'])
+          PY
+
+      - name: Commit capture acquisition plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_capture_plan.json
+          if git diff --cached --quiet; then
+            echo 'Capture plan already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Generate Analysis 6.31 evidence-backed literal capture plan'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
