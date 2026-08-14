@@ -16,6 +16,7 @@ analyzer and Family Reasoning.
 import json
 import re
 import urllib.parse
+from collections import OrderedDict
 from typing import Any, Mapping
 
 FAMILY_SIGNAL_BRIDGE_VERSION = "1.0.0"
@@ -47,6 +48,30 @@ _FORBIDDEN_DECISIVE_SUFFIXES = (
     "_confirmed",
 )
 
+_TARGET_UNIT_CACHE_MAX = 512
+_ENDPOINT_CONTEXT_CACHE_MAX = 4096
+_TARGET_UNIT_CACHE: "OrderedDict[tuple[int, str, str], tuple[dict[str, Any], ...]]" = OrderedDict()
+_ENDPOINT_CONTEXT_CACHE: "OrderedDict[tuple[int, str, str, str], dict[str, Any]]" = OrderedDict()
+
+
+def clear_family_signal_bridge_cache() -> None:
+    """Clear bounded process-local enrichment caches.
+
+    Analysis IDs are unique, so normal runs do not require explicit invalidation.
+    The hook exists for tests, long-lived maintenance processes, and replay tools.
+    """
+
+    _TARGET_UNIT_CACHE.clear()
+    _ENDPOINT_CONTEXT_CACHE.clear()
+
+
+def _cache_put(cache: OrderedDict, key: tuple[Any, ...], value: Any, maximum: int) -> Any:
+    cache[key] = value
+    cache.move_to_end(key)
+    while len(cache) > maximum:
+        cache.popitem(last=False)
+    return value
+
 
 def _loads(value: Any, default: Any) -> Any:
     if isinstance(value, (dict, list)):
@@ -71,6 +96,103 @@ def _safe_all(db: Any, sql: str, params: tuple[Any, ...]) -> list[dict[str, Any]
 def _safe_one(db: Any, sql: str, params: tuple[Any, ...]) -> dict[str, Any]:
     rows = _safe_all(db, sql, params)
     return rows[0] if rows else {}
+
+
+def _target_semantic_units(db: Any, analysis_id: str, target: str) -> tuple[dict[str, Any], ...]:
+    key = (id(db), analysis_id, target)
+    cached = _TARGET_UNIT_CACHE.get(key)
+    if cached is not None:
+        _TARGET_UNIT_CACHE.move_to_end(key)
+        return cached
+    rows = tuple(
+        _safe_all(
+            db,
+            "SELECT js_url,unit_type,unit_key,value_json,confidence FROM semantic_js_units "
+            "WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT 2000",
+            (analysis_id, target),
+        )
+    )
+    return _cache_put(_TARGET_UNIT_CACHE, key, rows, _TARGET_UNIT_CACHE_MAX)
+
+
+def _endpoint_context_snapshot(
+    db: Any,
+    *,
+    analysis_id: str,
+    target: str,
+    endpoint: str,
+) -> dict[str, Any]:
+    key = (id(db), analysis_id, target, endpoint)
+    cached = _ENDPOINT_CONTEXT_CACHE.get(key)
+    if cached is not None:
+        _ENDPOINT_CONTEXT_CACHE.move_to_end(key)
+        return cached
+
+    contract = _safe_one(
+        db,
+        "SELECT * FROM endpoint_contracts WHERE analysis_id=? AND target=? AND endpoint=? "
+        "ORDER BY confidence DESC LIMIT 1",
+        (analysis_id, target, endpoint),
+    )
+    auth = _safe_one(
+        db,
+        "SELECT * FROM authentication_boundaries WHERE analysis_id=? AND target=? AND endpoint=? "
+        "ORDER BY confidence DESC LIMIT 1",
+        (analysis_id, target, endpoint),
+    )
+    shape = _safe_one(
+        db,
+        "SELECT * FROM response_shape_fingerprints WHERE analysis_id=? AND target=? AND endpoint=? "
+        "ORDER BY confidence DESC LIMIT 1",
+        (analysis_id, target, endpoint),
+    )
+    protocols = (
+        _safe_all(
+            db,
+            "SELECT protocol,kind,entity,confidence,severity,summary,evidence_json FROM protocol_findings "
+            "WHERE analysis_id=? AND target=? AND entity=? ORDER BY confidence DESC LIMIT 50",
+            (analysis_id, target, endpoint),
+        )
+        if endpoint
+        else []
+    )
+    technologies = (
+        _safe_all(
+            db,
+            "SELECT url,technology,confidence,evidence_json FROM technology_observations "
+            "WHERE target=? AND is_current=1 AND url=? ORDER BY confidence DESC LIMIT 100",
+            (target, endpoint),
+        )
+        if endpoint
+        else []
+    )
+
+    try:
+        endpoint_path = urllib.parse.urlsplit(
+            endpoint if "://" in endpoint else f"https://placeholder.invalid/{endpoint.lstrip('/')}"
+        ).path
+    except ValueError:
+        endpoint_path = endpoint
+
+    related_units: list[dict[str, Any]] = []
+    for unit in _target_semantic_units(db, analysis_id, target):
+        value = str(_loads(unit.get("value_json"), {}).get("value") or "")
+        if endpoint and (
+            endpoint in value
+            or (endpoint_path and endpoint_path != "/" and endpoint_path in value)
+        ):
+            related_units.append(unit)
+
+    snapshot = {
+        "contract": contract,
+        "auth": auth,
+        "shape": shape,
+        "protocols": protocols,
+        "technologies": technologies,
+        "endpoint_path": endpoint_path,
+        "related_units": related_units,
+    }
+    return _cache_put(_ENDPOINT_CONTEXT_CACHE, key, snapshot, _ENDPOINT_CONTEXT_CACHE_MAX)
 
 
 def _status_code(details: Mapping[str, Any]) -> int:
@@ -204,58 +326,19 @@ def augment_family_details(
     endpoint = str(endpoint or enriched.get("resolved_url") or enriched.get("url") or "")
     sources: dict[str, list[str]] = {}
 
-    contract = _safe_one(
+    snapshot = _endpoint_context_snapshot(
         db,
-        "SELECT * FROM endpoint_contracts WHERE analysis_id=? AND target=? AND endpoint=? ORDER BY confidence DESC LIMIT 1",
-        (analysis_id, target, endpoint),
+        analysis_id=analysis_id,
+        target=target,
+        endpoint=endpoint,
     )
-    auth = _safe_one(
-        db,
-        "SELECT * FROM authentication_boundaries WHERE analysis_id=? AND target=? AND endpoint=? ORDER BY confidence DESC LIMIT 1",
-        (analysis_id, target, endpoint),
-    )
-    shape = _safe_one(
-        db,
-        "SELECT * FROM response_shape_fingerprints WHERE analysis_id=? AND target=? AND endpoint=? ORDER BY confidence DESC LIMIT 1",
-        (analysis_id, target, endpoint),
-    )
-    protocols = (
-        _safe_all(
-            db,
-            "SELECT protocol,kind,entity,confidence,severity,summary,evidence_json FROM protocol_findings "
-            "WHERE analysis_id=? AND target=? AND entity=? ORDER BY confidence DESC LIMIT 50",
-            (analysis_id, target, endpoint),
-        )
-        if endpoint
-        else []
-    )
-    units = _safe_all(
-        db,
-        "SELECT js_url,unit_type,unit_key,value_json,confidence FROM semantic_js_units "
-        "WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT 2000",
-        (analysis_id, target),
-    )
-    technologies = (
-        _safe_all(
-            db,
-            "SELECT url,technology,confidence,evidence_json FROM technology_observations "
-            "WHERE target=? AND is_current=1 AND url=? ORDER BY confidence DESC LIMIT 100",
-            (target, endpoint),
-        )
-        if endpoint
-        else []
-    )
-
-    related_units: list[dict[str, Any]] = []
-    endpoint_path = ""
-    try:
-        endpoint_path = urllib.parse.urlsplit(endpoint if "://" in endpoint else f"https://placeholder.invalid/{endpoint.lstrip('/')}").path
-    except ValueError:
-        endpoint_path = endpoint
-    for unit in units:
-        value = str(_loads(unit.get("value_json"), {}).get("value") or "")
-        if endpoint and (endpoint in value or (endpoint_path and endpoint_path != "/" and endpoint_path in value)):
-            related_units.append(unit)
+    contract = snapshot["contract"]
+    auth = snapshot["auth"]
+    shape = snapshot["shape"]
+    protocols = snapshot["protocols"]
+    technologies = snapshot["technologies"]
+    endpoint_path = str(snapshot["endpoint_path"] or "")
+    related_units = snapshot["related_units"]
 
     text = " ".join(
         [
@@ -407,4 +490,5 @@ __all__ = [
     "FAMILY_SIGNAL_BRIDGE_VERSION",
     "FAMILY_SIGNAL_BRIDGE_RULE_VERSION",
     "augment_family_details",
+    "clear_family_signal_bridge_cache",
 ]
