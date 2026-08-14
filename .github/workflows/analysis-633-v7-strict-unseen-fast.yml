@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
     paths:
       - '.github/workflows/analysis-633-v7-strict-unseen-fast.yml'
+      - 'app/raw_recon_v7_source_discovery.py'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
 
 concurrency:
   group: analysis-633-v7-strict-unseen-fast
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   fast-discover:
