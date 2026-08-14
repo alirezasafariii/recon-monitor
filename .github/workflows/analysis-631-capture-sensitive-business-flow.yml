@@ -1,0 +1,396 @@
+name: Analysis 6.31 Capture Sensitive Business Flow Abuse
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-capture-sensitive-business-flow.yml
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout recon repository read-only
+        uses: actions/checkout@v4
+        with:
+          path: recon
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Checkout vulnerable Frappe Press parent without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: frappe/press
+          ref: 46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad
+          path: press-vuln
+          persist-credentials: false
+          sparse-checkout: |
+            press/press/doctype/team/team.py
+          sparse-checkout-cone-mode: true
+
+      - name: Checkout patched Frappe Press fix without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: frappe/press
+          ref: 83c3fc7676c5dbbe1fd5092d21d95a10c7b48615
+          path: press-patched
+          persist-credentials: false
+          sparse-checkout: |
+            press/press/doctype/team/team.py
+          sparse-checkout-cone-mode: true
+
+      - name: Execute exact upstream invite_team_member methods with controlled Frappe fixtures
+        run: |
+          cat > capture_business_flow.py <<'PY'
+          import ast
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from types import SimpleNamespace
+
+          def now():
+              return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+          class FlowError(Exception):
+              pass
+
+          class Expr:
+              def __and__(self, other): return self
+
+          class Field:
+              def __eq__(self, other): return Expr()
+
+          class DocType:
+              def __init__(self, name):
+                  self._name = name
+                  self.name = Field(); self.parent = Field(); self.user = Field(); self.team = Field(); self.admin_access = Field()
+
+          class Query:
+              def select(self, *a): return self
+              def join(self, *a): return self
+              def on(self, *a): return self
+              def where(self, *a): return self
+              def run(self): return []
+
+          class QB:
+              def DocType(self, name): return DocType(name)
+              def from_(self, _doctype): return Query()
+
+          class AccountRequest:
+              def __init__(self, data, state):
+                  self.data = dict(data)
+                  self.state = state
+                  self.roles = []
+              def append(self, key, value):
+                  if key == 'press_roles': self.roles.append(dict(value))
+              def insert(self):
+                  record = dict(self.data)
+                  record['press_roles'] = list(self.roles)
+                  self.state['account_requests'].append(record)
+
+          class DB:
+              def __init__(self, state): self.state = state
+              def exists(self, doctype, filters):
+                  self.state['db_exists_calls'].append({'doctype': doctype, 'filters': repr(filters)})
+                  if doctype == 'Team Member':
+                      return str(filters.get('user')) in self.state['existing_team_members']
+                  if doctype == 'Account Request':
+                      email = str(filters.get('email'))
+                      team = str(filters.get('team'))
+                      return any(row.get('email') == email and row.get('team') == team and row.get('invited_by') for row in self.state['account_requests'])
+                  return False
+
+          def identity_decorator(*dargs, **dkwargs):
+              def deco(fn):
+                  return fn
+              return deco
+
+          def build_frappe(state, owner='owner@example.test'):
+              frappe = SimpleNamespace()
+              frappe.qb = QB()
+              frappe.session = SimpleNamespace(user=owner)
+              frappe.db = DB(state)
+              frappe.utils = SimpleNamespace(
+                  validate_email_address=lambda email, throw: state['validated_emails'].append(email),
+                  add_days=lambda date, days: f'controlled-day-offset:{days}',
+              )
+              def throw(message):
+                  state['throws'].append(str(message))
+                  raise FlowError(str(message))
+              frappe.throw = throw
+              frappe.get_doc = lambda data: AccountRequest(data, state)
+              return frappe
+
+          def load_method(path, patched):
+              source = Path(path).read_text(encoding='utf-8')
+              tree = ast.parse(source, filename=path)
+              team_cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'Team')
+              fn = next(node for node in team_cls.body if isinstance(node, ast.FunctionDef) and node.name == 'invite_team_member')
+              module = ast.Module(body=[fn], type_ignores=[])
+              ast.fix_missing_locations(module)
+              state = {
+                  'account_requests': [], 'db_exists_calls': [], 'existing_team_members': set(),
+                  'validated_emails': [], 'throws': [], 'rate_limit_decorators': [],
+              }
+              frappe = build_frappe(state)
+              def dashboard_whitelist(*args, **kwargs):
+                  return identity_decorator(*args, **kwargs)
+              def rate_limit(*args, **kwargs):
+                  state['rate_limit_decorators'].append({'args': list(args), 'kwargs': kwargs})
+                  return identity_decorator(*args, **kwargs)
+              ns = {
+                  'frappe': frappe,
+                  '_': lambda value: value,
+                  'dashboard_whitelist': dashboard_whitelist,
+                  'rate_limit': rate_limit,
+              }
+              exec(compile(module, path, 'exec'), ns)
+              return ns['invite_team_member'], state, frappe
+
+          class TeamFixture:
+              def __init__(self, name='TEAM-V6', user='owner@example.test'):
+                  self.name = name
+                  self.user = user
+
+          def call(fn, team, email, roles=None):
+              try:
+                  fn(team, email, roles or ['member'])
+                  return {'accepted': True, 'error': None}
+              except FlowError as exc:
+                  return {'accepted': False, 'error': str(exc)}
+
+          def snapshot(kind, revision, source_file, state, calls):
+              value = {
+                  'captured_at': now(),
+                  'case_kind': kind,
+                  'upstream_revision': revision,
+                  'upstream_source_file': source_file,
+                  'calls': calls,
+                  'account_requests': list(state['account_requests']),
+                  'account_request_count': len(state['account_requests']),
+                  'db_exists_calls': list(state['db_exists_calls']),
+                  'validated_emails': list(state['validated_emails']),
+                  'throws': list(state['throws']),
+                  'rate_limit_decorators': list(state['rate_limit_decorators']),
+              }
+              Path(f'sensitive-business-flow-abuse-{kind.replace("_", "-")}.json').write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          # POSITIVE: exact vulnerable parent accepts duplicate invite twice.
+          vuln_path = 'press-vuln/press/press/doctype/team/team.py'
+          vuln_fn, vuln_state, _ = load_method(vuln_path, False)
+          team = TeamFixture()
+          calls = [
+              {'email': 'repeat@example.test', **call(vuln_fn, team, 'repeat@example.test')},
+              {'email': 'repeat@example.test', **call(vuln_fn, team, 'repeat@example.test')},
+          ]
+          assert [row['accepted'] for row in calls] == [True, True], calls
+          assert len(vuln_state['account_requests']) == 2, vuln_state
+          assert not any(row['doctype'] == 'Account Request' for row in vuln_state['db_exists_calls'])
+          snapshot('positive', '46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad', 'press/press/doctype/team/team.py', vuln_state, calls)
+
+          # SECURE NEGATIVE: exact patched body accepts first invite, rejects duplicate recent invite.
+          patched_path = 'press-patched/press/press/doctype/team/team.py'
+          patched_fn, secure_state, _ = load_method(patched_path, True)
+          team = TeamFixture()
+          calls = [
+              {'email': 'repeat@example.test', **call(patched_fn, team, 'repeat@example.test')},
+              {'email': 'repeat@example.test', **call(patched_fn, team, 'repeat@example.test')},
+          ]
+          assert [row['accepted'] for row in calls] == [True, False], calls
+          assert len(secure_state['account_requests']) == 1, secure_state
+          assert 'already been invited recently' in calls[1]['error']
+          assert secure_state['rate_limit_decorators'] == [{'args': [], 'kwargs': {'limit': 10, 'seconds': 3600}}]
+          snapshot('secure_negative', '83c3fc7676c5dbbe1fd5092d21d95a10c7b48615', 'press/press/doctype/team/team.py', secure_state, calls)
+
+          # NEAR MISS: two distinct emails are legitimate separate invitations under the patched workflow.
+          patched_fn, near_state, _ = load_method(patched_path, True)
+          team = TeamFixture()
+          calls = [
+              {'email': 'one@example.test', **call(patched_fn, team, 'one@example.test')},
+              {'email': 'two@example.test', **call(patched_fn, team, 'two@example.test')},
+          ]
+          assert [row['accepted'] for row in calls] == [True, True], calls
+          assert len(near_state['account_requests']) == 2, near_state
+          snapshot('near_miss', '83c3fc7676c5dbbe1fd5092d21d95a10c7b48615', 'press/press/doctype/team/team.py', near_state, calls)
+
+          # SPARSE/NOISY: existing team member is rejected before creating any Account Request.
+          patched_fn, sparse_state, _ = load_method(patched_path, True)
+          sparse_state['existing_team_members'].add('member@example.test')
+          team = TeamFixture()
+          calls = [{'email': 'member@example.test', **call(patched_fn, team, 'member@example.test')}]
+          assert calls[0]['accepted'] is False, calls
+          assert 'already exists' in calls[0]['error']
+          assert len(sparse_state['account_requests']) == 0
+          snapshot('sparse_noisy', '83c3fc7676c5dbbe1fd5092d21d95a10c7b48615', 'press/press/doctype/team/team.py', sparse_state, calls)
+          PY
+          python capture_business_flow.py
+
+      - name: Assert four distinct controlled business-flow outputs
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          paths = sorted(Path('.').glob('sensitive-business-flow-abuse-*.json'))
+          assert len(paths) == 4, paths
+          hashes = {hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
+          assert len(hashes) == 4, hashes
+          positive = json.loads(Path('sensitive-business-flow-abuse-positive.json').read_text())
+          secure = json.loads(Path('sensitive-business-flow-abuse-secure-negative.json').read_text())
+          near = json.loads(Path('sensitive-business-flow-abuse-near-miss.json').read_text())
+          sparse = json.loads(Path('sensitive-business-flow-abuse-sparse-noisy.json').read_text())
+          assert positive['account_request_count'] == 2
+          assert secure['account_request_count'] == 1
+          assert near['account_request_count'] == 2
+          assert sparse['account_request_count'] == 0
+          PY
+
+      - name: Upload controlled business-flow outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-sensitive-business-flow-captures
+          path: sensitive-business-flow-abuse-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout recon repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download read-only capture outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-sensitive-business-flow-captures
+          path: captured
+      - name: Build hash-bound sensitive-business-flow evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_literal_capture_verify import _sha256_json
+
+          family = 'sensitive_business_flow_abuse'
+          source_root = 'GHSA-68qm-vp8f-rpr3'
+          source_project = 'frappe/press'
+          out = Path('benchmarks/raw/sources/v6_capture_evidence')
+          out.mkdir(parents=True, exist_ok=True)
+          configs = {
+              'positive': {
+                  'file': 'captured/sensitive-business-flow-abuse-positive.json',
+                  'reference': 'https://github.com/frappe/press/commit/46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad',
+                  'basis': 'source_observation',
+                  'signals': ['per_user_limit_absent', 'workflow_frequency_unrestricted'],
+                  'notes': 'Controlled execution of the exact upstream parent invite_team_member method accepted two identical invitations and inserted two Account Requests without any recent-invite check.',
+              },
+              'secure_negative': {
+                  'file': 'captured/sensitive-business-flow-abuse-secure-negative.json',
+                  'reference': 'https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615',
+                  'basis': 'patched_control',
+                  'signals': [],
+                  'notes': 'Controlled execution of the exact patched method accepted the first invitation but rejected the repeated email as recently invited; the source also carried the 10/hour rate-limit decorator.',
+              },
+              'near_miss': {
+                  'file': 'captured/sensitive-business-flow-abuse-near-miss.json',
+                  'reference': 'https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615',
+                  'basis': 'source_observation',
+                  'signals': [],
+                  'notes': 'Controlled execution of the patched method allowed two distinct recipient emails, demonstrating a legitimate multi-invite flow without duplicate abuse.',
+              },
+              'sparse_noisy': {
+                  'file': 'captured/sensitive-business-flow-abuse-sparse-noisy.json',
+                  'reference': 'https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615',
+                  'basis': 'source_observation',
+                  'signals': [],
+                  'notes': 'Controlled execution for an already-existing team member stopped before Account Request creation and produced only the pre-existing-member guard behavior.',
+              },
+          }
+          for kind, cfg in configs.items():
+              captured = json.loads(Path(cfg['file']).read_text(encoding='utf-8'))
+              raw = {
+                  'target': 'controlled-local-frappe-press',
+                  'endpoint': 'Team.invite_team_member',
+                  'method': 'BUSINESS_WORKFLOW',
+                  'endpoint_schema': {'path_parameters': [], 'query_parameters': []},
+                  'business_context': 'team_member_invitation',
+                  'details': {
+                      'literal_workflow_observation': captured,
+                      'capture_environment': 'GitHub Actions isolated exact upstream method execution with controlled Frappe query/DB side-effect fixtures',
+                  },
+              }
+              evidence = {
+                  'schema_version': '1.0',
+                  'family': family,
+                  'case_kind': kind,
+                  'source_root': source_root,
+                  'source_project': source_project,
+                  'captured_at': captured['captured_at'],
+                  'capture_reference': cfg['reference'],
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'Exact upstream Team.invite_team_member AST execution with controlled Frappe fixture',
+                      'command': 'python capture_business_flow.py',
+                      'source_file': captured['upstream_source_file'],
+                  },
+                  'source_snapshot': {
+                      'reference': cfg['reference'],
+                      'retrieved_at': captured['captured_at'],
+                      'payload': captured,
+                      'content_sha256': _sha256_json(captured),
+                  },
+                  'adjudication': {
+                      'basis': cfg['basis'],
+                      'notes': cfg['notes'],
+                      'expected_condition_signals': cfg['signals'],
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+                  'raw_sha256': _sha256_json(raw),
+              }
+              path = out / f'sensitive-business-flow-abuse--{kind.replace("_", "-")}.json'
+              path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+      - name: Refresh plan and strict-check all partial evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_partial_verify.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text())
+          assert plan['evidence_present_count'] == 16, plan['evidence_present_count']
+          assert plan['evidence_missing_count'] == 128, plan['evidence_missing_count']
+          PY
+      - name: Commit fourth real Analysis 6.31 evidence family
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/sensitive-business-flow-abuse--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 sensitive business flow evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
