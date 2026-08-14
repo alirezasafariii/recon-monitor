@@ -8,21 +8,14 @@ from typing import Any, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
-from v6_literal_capture_verify import _canonical, _identity, _sha256_json
+from v6_literal_capture_verify import ALLOWED_ADJUDICATION_BASES, _canonical, _identity, _sha256_json
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.31.2"
 PLAN = ROOT / "benchmarks/raw/sources/v6_literal_capture_plan.json"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 CAPTURES = ROOT / "benchmarks/raw/sources/v6_literal_captures.jsonl"
 REPORT = ROOT / "benchmarks/raw/sources/v6_literal_capture_ingest_report.json"
-ALLOWED_ADJUDICATION_BASES = {
-    "source_observation",
-    "upstream_regression",
-    "patched_control",
-    "source_log_or_trace",
-    "repository_test_fixture",
-}
 
 
 def _sha256(path: Path) -> str:
@@ -103,6 +96,8 @@ def build_capture_rows(*, require_complete: bool = True) -> tuple[list[dict[str,
             errors.append(f"{capture_id}: adjudication notes are required")
 
         signals = [str(value) for value in adjudication.get("expected_condition_signals") or [] if str(value)]
+        if len(signals) != len(set(signals)):
+            errors.append(f"{capture_id}: adjudication contains duplicate condition signals")
         allowed = set(DETECTOR_SPECS[family].condition_signals)
         if set(signals) - allowed:
             errors.append(f"{capture_id}: adjudication contains non-canonical condition signals")
