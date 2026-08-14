@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_log_or_trace",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The upstream sanity control uses the same Enterprise A credential against its own tenant and receives the expected HTTP 200; this is legitimate same-owner access, not the cross-enterprise condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/goodrain/rainbond/issues/2665",
+  "captured_at": "2026-08-14T15:41:03.165762+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "GET https://api.github.com/repos/goodrain/rainbond/issues/2665",
+    "source_file": "GitHub issue reproduction transcript",
+    "tool": "github-actions/github-issue-api-capture"
+  },
+  "family": "broken_object_authorization",
+  "raw": {
+    "details": {
+      "caller_enterprise": "enterprise-A",
+      "cross_enterprise_boundary_crossed": false,
+      "http_status": 200,
+      "requested_tenant_enterprise": "enterprise-A"
+    },
+    "endpoint": "/v2/tenants/tenant-a/services",
+    "endpoint_schema": {
+      "authentication_hints": [
+        "bearer"
+      ],
+      "path_parameters": [
+        "tenant_name"
+      ]
+    },
+    "method": "GET",
+    "target": "Rainbond region API own-tenant control"
+  },
+  "raw_sha256": "05d0784ce81ecbed4f25dde7565104d00d1f09f681615b46260089ef2dfe4ccc",
+  "schema_version": "1.0",
+  "source_project": "goodrain/rainbond",
+  "source_root": "GHSA-5xhp-2v8r-m7wh",
+  "source_snapshot": {
+    "content_sha256": "295488dab114cc40c8bd556f1ed9b4c247a21dfa0a42a05ec44926003efd2516",
+    "payload": {
+      "created_at": "2026-08-03T01:36:34Z",
+      "excerpt": "=== CONTROL 3: Enterprise A's token against its OWN tenant-a (sanity check) ===\nHTTP Status: 200 (expect 200, empty list since tenant-a has no services seeded)",
+      "issue": 2665,
+      "updated_at": "2026-08-11T00:16:24Z"
+    },
+    "reference": "https://github.com/goodrain/rainbond/issues/2665",
+    "retrieved_at": "2026-08-14T15:41:03.165762+00:00"
+  }
+}

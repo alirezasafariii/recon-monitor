@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_log_or_trace",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The reproduction database dump independently confirms two enterprise identities and a private service seeded under tenant B, but by itself contains no request outcome and is intentionally sparse.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/goodrain/rainbond/issues/2665",
+  "captured_at": "2026-08-14T15:41:03.165762+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "GET https://api.github.com/repos/goodrain/rainbond/issues/2665",
+    "source_file": "GitHub issue reproduction transcript",
+    "tool": "github-actions/github-issue-api-capture"
+  },
+  "family": "broken_object_authorization",
+  "raw": {
+    "details": {
+      "http_request_outcome_present": false,
+      "tenant_a_eid": "enterprise-A",
+      "tenant_b_eid": "enterprise-B",
+      "tenant_b_service_seeded": true
+    },
+    "endpoint": "seeded tenant/service snapshot",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Rainbond reproduction database state"
+  },
+  "raw_sha256": "9a53cf1405be0b82c447889146af335520b90b8b172cdb2a41a82b6295eba922",
+  "schema_version": "1.0",
+  "source_project": "goodrain/rainbond",
+  "source_root": "GHSA-5xhp-2v8r-m7wh",
+  "source_snapshot": {
+    "content_sha256": "bce895efb5cadfaecd52bca07000cb2afcecc98f95e1e204f679d907cd2a104c",
+    "payload": {
+      "created_at": "2026-08-03T01:36:34Z",
+      "excerpt": "uuid-tenant-b-0002   svc-enterprise-b-secret-0001   enterprise-b-internal-billing",
+      "issue": 2665,
+      "updated_at": "2026-08-11T00:16:24Z"
+    },
+    "reference": "https://github.com/goodrain/rainbond/issues/2665",
+    "retrieved_at": "2026-08-14T15:41:03.165762+00:00"
+  }
+}

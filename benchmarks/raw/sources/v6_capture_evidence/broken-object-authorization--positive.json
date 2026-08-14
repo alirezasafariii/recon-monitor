@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_log_or_trace",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "cross_tenant_object_access"
+    ],
+    "notes": "The upstream reproduction transcript records an Enterprise A token receiving HTTP 200 and Enterprise B service data when the tenant-b path is substituted.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/goodrain/rainbond/issues/2665",
+  "captured_at": "2026-08-14T15:41:03.165762+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "GET https://api.github.com/repos/goodrain/rainbond/issues/2665",
+    "source_file": "GitHub issue reproduction transcript",
+    "tool": "github-actions/github-issue-api-capture"
+  },
+  "family": "broken_object_authorization",
+  "raw": {
+    "details": {
+      "caller_enterprise": "enterprise-A",
+      "http_status": 200,
+      "other_tenant_service_returned": true,
+      "requested_tenant_enterprise": "enterprise-B"
+    },
+    "endpoint": "/v2/tenants/tenant-b/services",
+    "endpoint_schema": {
+      "authentication_hints": [
+        "bearer"
+      ],
+      "path_parameters": [
+        "tenant_name"
+      ]
+    },
+    "method": "GET",
+    "target": "Rainbond region API"
+  },
+  "raw_sha256": "a1fe712afdc0b59aa982a13778c407d8de1db57548b47a8cac9d44ce16aaaf07",
+  "schema_version": "1.0",
+  "source_project": "goodrain/rainbond",
+  "source_root": "GHSA-5xhp-2v8r-m7wh",
+  "source_snapshot": {
+    "content_sha256": "e7883f61d692ddf047b2663c27ca95c5c4cc03ce822eed250c30ec8e3f90fe0f",
+    "payload": {
+      "created_at": "2026-08-03T01:36:34Z",
+      "excerpt": "BYPASS CONFIRMED: Enterprise A's token was accepted for Enterprise B's tenant path, and returned Enterprise B's service data.",
+      "issue": 2665,
+      "updated_at": "2026-08-11T00:16:24Z"
+    },
+    "reference": "https://github.com/goodrain/rainbond/issues/2665",
+    "retrieved_at": "2026-08-14T15:41:03.165762+00:00"
+  }
+}

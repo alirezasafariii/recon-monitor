@@ -1,0 +1,50 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_log_or_trace",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The same upstream reproduction independently records the no-Authorization control as HTTP 401 with no tenant data returned.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/goodrain/rainbond/issues/2665",
+  "captured_at": "2026-08-14T15:41:03.165762+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "GET https://api.github.com/repos/goodrain/rainbond/issues/2665",
+    "source_file": "GitHub issue reproduction transcript",
+    "tool": "github-actions/github-issue-api-capture"
+  },
+  "family": "broken_object_authorization",
+  "raw": {
+    "details": {
+      "authorization_header_present": false,
+      "http_status": 401,
+      "tenant_data_returned": false
+    },
+    "endpoint": "/v2/tenants/tenant-b/services",
+    "endpoint_schema": {
+      "path_parameters": [
+        "tenant_name"
+      ]
+    },
+    "method": "GET",
+    "target": "Rainbond region API negative control"
+  },
+  "raw_sha256": "07771c9aefc31737813f4c0d7e4e8dca40d55eca99e246cc32e544b0775ee93d",
+  "schema_version": "1.0",
+  "source_project": "goodrain/rainbond",
+  "source_root": "GHSA-5xhp-2v8r-m7wh",
+  "source_snapshot": {
+    "content_sha256": "101a7c21c87dd64f54528fc2cd99662a6a653d4ac8cc6ef8e2b106f5674a6f33",
+    "payload": {
+      "created_at": "2026-08-03T01:36:34Z",
+      "excerpt": "=== NEGATIVE CONTROL 1: no Authorization header ===\nHTTP Status: 401 (expect 401)",
+      "issue": 2665,
+      "updated_at": "2026-08-11T00:16:24Z"
+    },
+    "reference": "https://github.com/goodrain/rainbond/issues/2665",
+    "retrieved_at": "2026-08-14T15:41:03.165762+00:00"
+  }
+}

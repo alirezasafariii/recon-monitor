@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The upstream advisory explicitly marks PostgreSQL versions before major version 16 as unaffected, providing an independent unaffected-version control.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+  "captured_at": "2026-08-14T15:41:03.329628+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "GET https://api.github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "source_file": "GitHub Advisory API JSON",
+    "tool": "github-actions/github-advisory-api-capture"
+  },
+  "family": "account_enumeration",
+  "raw": {
+    "details": {
+      "advisory_marks_unaffected": true,
+      "major_version_before_16": true
+    },
+    "endpoint": "version applicability control",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "PostgreSQL pre-16 release line"
+  },
+  "raw_sha256": "9691b59f341ec758191206d90f732eab698cf52b8998d9544fbe95cbbf94f179",
+  "schema_version": "1.0",
+  "source_project": "postgres/postgres",
+  "source_root": "GHSA-hp2m-55fj-8mw5",
+  "source_snapshot": {
+    "content_sha256": "5df516ee1f45a307a2efebb161c4bc2395e75318883e193f2e8c4b51cf288feb",
+    "payload": {
+      "excerpt": "Versions before PostgreSQL 16 are unaffected",
+      "ghsa_id": "GHSA-hp2m-55fj-8mw5",
+      "published_at": "2026-08-13T15:34:35Z"
+    },
+    "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "retrieved_at": "2026-08-14T15:41:03.329628+00:00"
+  }
+}

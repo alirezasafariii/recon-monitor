@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "8_literal_families_complete_32_of_144_pending_remaining_evidence",
+  "checkpoint_status": "10_literal_families_complete_40_of_144_pending_remaining_evidence",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -14,6 +14,18 @@
     "strict_partial_literal_evidence_gate": "success"
   },
   "completed_real_collectors": {
+    "account_enumeration": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream advisory states that an unauthenticated observer can distinguish account existence from the SCRAM iteration-count response discrepancy.",
+      "source": "GHSA-hp2m-55fj-8mw5 / postgres/postgres",
+      "status": "passed_4_of_4"
+    },
+    "broken_object_authorization": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream reproduction transcript records an Enterprise A token receiving HTTP 200 and Enterprise B service data when the tenant-b path is substituted.",
+      "source": "GHSA-5xhp-2v8r-m7wh / goodrain/rainbond",
+      "status": "passed_4_of_4"
+    },
     "business_logic": {
       "capture_run_id": null,
       "positive_observation": "The historical CI entry ran on pull_request_target and explicitly checked out the submitting fork repository and branch without an observed trusted-author approval gate before that code entered the build/check path.",
@@ -86,8 +98,10 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "32_of_144_evidence_present",
+    "capture_plan_status": "40_of_144_evidence_present",
     "complete_families": [
+      "account_enumeration",
+      "broken_object_authorization",
       "business_logic",
       "graphql_authorization",
       "information_disclosure",
@@ -97,15 +111,15 @@
       "software_data_integrity_failure",
       "ssrf"
     ],
-    "complete_family_count": 8,
+    "complete_family_count": 10,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 112,
-    "evidence_present_count": 32,
+    "evidence_missing_count": 104,
+    "evidence_present_count": 40,
     "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 28,
+    "remaining_family_count": 26,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -116,7 +130,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 28 families / 112 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Continue controlled evidence collection for the remaining 26 families / 104 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

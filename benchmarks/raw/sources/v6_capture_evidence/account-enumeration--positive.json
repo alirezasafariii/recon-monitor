@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "account_existence_differential"
+    ],
+    "notes": "The upstream advisory states that an unauthenticated observer can distinguish account existence from the SCRAM iteration-count response discrepancy.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+  "captured_at": "2026-08-14T15:41:03.329628+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "GET https://api.github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "source_file": "GitHub Advisory API JSON",
+    "tool": "github-actions/github-advisory-api-capture"
+  },
+  "family": "account_enumeration",
+  "raw": {
+    "details": {
+      "known_user_state_can_be_inferred": true,
+      "observable_iteration_count_difference": true,
+      "unauthenticated_probe": true
+    },
+    "endpoint": "SCRAM authentication challenge",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "PostgreSQL SCRAM authentication challenge"
+  },
+  "raw_sha256": "18ff634e2cbfc5de18a773de1c85f2e4250b736254cc3d89719e16c8568e9654",
+  "schema_version": "1.0",
+  "source_project": "postgres/postgres",
+  "source_root": "GHSA-hp2m-55fj-8mw5",
+  "source_snapshot": {
+    "content_sha256": "30d64c87c191a8981c5998bb6643377fabb5a13d8ab9a896c326bcb1e5191fe9",
+    "payload": {
+      "excerpt": "Observable response discrepancy in PostgreSQL SCRAM authentication",
+      "ghsa_id": "GHSA-hp2m-55fj-8mw5",
+      "published_at": "2026-08-13T15:34:35Z"
+    },
+    "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "retrieved_at": "2026-08-14T15:41:03.329628+00:00"
+  }
+}

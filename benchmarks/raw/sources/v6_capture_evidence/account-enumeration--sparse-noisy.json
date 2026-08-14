@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The affected-version range is source-grounded metadata but contains no observed authentication response, so it is intentionally sparse for the target condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+  "captured_at": "2026-08-14T15:41:03.329628+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "GET https://api.github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "source_file": "GitHub Advisory API JSON",
+    "tool": "github-actions/github-advisory-api-capture"
+  },
+  "family": "account_enumeration",
+  "raw": {
+    "details": {
+      "behavioral_response_not_present": true,
+      "fixed_minor_boundaries": [
+        "16.15",
+        "17.11",
+        "18.5"
+      ],
+      "major_versions": [
+        16,
+        17,
+        18
+      ]
+    },
+    "endpoint": "advisory version range",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "PostgreSQL affected-version metadata"
+  },
+  "raw_sha256": "db8da3dc7c782354d83d68010407b8485e1fc8794d1dc08aaec7bf05a4b3aa4c",
+  "schema_version": "1.0",
+  "source_project": "postgres/postgres",
+  "source_root": "GHSA-hp2m-55fj-8mw5",
+  "source_snapshot": {
+    "content_sha256": "a0b0410978f55cfffea345ee78b0e45f83b370943d3246ca2a501da08b87a4cd",
+    "payload": {
+      "excerpt": "minor versions before PostgreSQL 18.5, 17.11, and 16.15 are affected",
+      "ghsa_id": "GHSA-hp2m-55fj-8mw5",
+      "published_at": "2026-08-13T15:34:35Z"
+    },
+    "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+    "retrieved_at": "2026-08-14T15:41:03.329628+00:00"
+  }
+}
