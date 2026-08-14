@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,50 +11,50 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSA-q4c5-2j6f-r476",
-        "source_project": "nautobot/nautobot",
+        "source_root": "GHSL-2024-294",
+        "source_project": "Azure/azure-cli",
         "family": "business_logic",
-        "canonical_advisory_url": "https://github.com/nautobot/nautobot/releases/tag/v3.1.8",
-        "source_kind": "official_project_security_release_note",
-        "advisory_source_type": "official_release",
-        "published_at": "2026-07-17",
-        "summary": "Nautobot fixed an approval-workflow bypass that allowed a user with only response-creation permission to self-approve a workflow.",
-        "description": "Nautobot's v3.1.8 security notes document a workflow-state failure in which a user lacking the intended approver role could create an approved stage response and self-approve a workflow. The official approval-workflow documentation defines the intended multi-stage review, approver-group membership, and approval gate before execution. This is used as an independent business-logic workflow-gate example rather than as detector evidence.",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-294_Azure-cli/",
+        "source_kind": "github_security_lab_writeup",
+        "advisory_source_type": "coordinated_disclosure_writeup",
+        "published_at": "2024-12-11",
+        "summary": "Azure CLI had a privileged workflow whose intended approval gate could be bypassed by an external trigger, allowing an invalid workflow state to reach privileged execution.",
+        "description": "GitHub Security Lab documents a privileged AddPRComment workflow where an external user can trigger a path that bypasses required approvals. The security-relevant condition is a workflow approval gate and state-transition invariant being bypassed before privileged processing. This is used as an independent WSTG business-logic workflow-gate example and not as detector evidence.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "approval workflow", "approval gate", "self-approve", "bypass", "invalid state transition", "required approver"],
-        "selection_basis": "official project security release selected before scoring using WSTG business-logic workflow and state-transition semantics"
+        "semantic_facts": ["business workflow", "workflow", "approval gate", "required approver", "approval", "bypass", "invalid state transition"],
+        "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG business-logic workflow and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
       {
-        "source_root": "CVE-2026-34373",
-        "source_project": "parse-community/parse-server",
+        "source_root": "CVE-2024-41659",
+        "source_project": "usememos/memos",
         "family": "cors_misconfiguration",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-q3p6-vwwh-57cc",
-        "source_kind": "github_reviewed_advisory",
-        "advisory_source_type": "github_reviewed",
-        "published_at": "2026-03-30",
-        "summary": "Parse Server's GraphQL API endpoint ignored configured CORS origin restrictions and allowed cross-origin access more broadly than intended.",
-        "description": "The reviewed advisory for CVE-2026-34373 identifies a GraphQL API endpoint that does not honor the application's configured CORS origin restriction. An untrusted origin can reach the GraphQL endpoint cross-origin despite the configured policy, creating security impact for data access or state-changing GraphQL requests. This satisfies WSTG-CLNT-07 because the effective origin policy diverges from the intended trusted-origin policy.",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-034_memos/",
+        "source_kind": "github_security_lab_writeup",
+        "advisory_source_type": "coordinated_disclosure_writeup",
+        "published_at": "2024-08-14",
+        "summary": "memos reflected arbitrary origins while allowing credentials, enabling cross-origin access to private information or privileged actions.",
+        "description": "GitHub Security Lab documents a CORS policy that reflects the Origin header and sets Access-Control-Allow-Credentials to true. An untrusted origin can therefore make credentialed cross-origin requests and read private data or perform privileged state-changing actions. This directly satisfies WSTG-CLNT-07 origin-policy semantics.",
         "wstg_ids": ["WSTG-CLNT-07"],
-        "semantic_facts": ["CORS", "cross-origin", "GraphQL API", "origin restriction", "untrusted origin", "sensitive data", "state-changing request"],
-        "selection_basis": "independent reviewed advisory selected before scoring using WSTG-CLNT-07 origin-policy semantics"
+        "semantic_facts": ["CORS", "cross-origin", "origin", "untrusted origin", "credential", "sensitive data", "state-changing"],
+        "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG-CLNT-07 origin-policy semantics"
       }
     ],
     "graphql_data_exposure": [
       {
-        "source_root": "GHSA-xf65-r35x-wmmv",
-        "source_project": "vendurehq/vendure",
+        "source_root": "GHSA-gj2p-p9m4-c8gw",
+        "source_project": "craftcms/cms",
         "family": "graphql_data_exposure",
-        "canonical_advisory_url": "https://github.com/vendurehq/vendure/blob/master/CHANGELOG.md",
-        "source_kind": "official_project_security_release_note",
-        "advisory_source_type": "official_release",
-        "published_at": "2026-07-01",
-        "summary": "Vendure fixed a data-exposure issue where Shop API list queries could return entities that should not be publicly visible.",
-        "description": "Vendure's official 3.6.5 security changelog identifies GHSA-xf65-r35x-wmmv as a Shop API list-query data-exposure issue. Vendure's Shop API is GraphQL. Certain filter combinations could return non-public entities outside the intended public query scope, making this a GraphQL entity/property exposure boundary rather than mere schema visibility.",
+        "canonical_advisory_url": "https://github.com/craftcms/cms/security/advisories/GHSA-gj2p-p9m4-c8gw",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "maintainer_security_advisory",
+        "published_at": "2026-04-27",
+        "summary": "Craft CMS disclosed a missing authorization check in a GraphQL address resolver that allowed cross-scope PII disclosure.",
+        "description": "The maintainer security advisory identifies a GraphQL resolver that returns address data across an authorization scope that should not be visible to the caller. The relevant boundary is GraphQL query/field data exposure caused by missing property-level authorization, rather than mere schema visibility.",
         "wstg_ids": ["WSTG-APIT-03"],
-        "semantic_facts": ["GraphQL", "Shop API", "list query", "non-public entities", "query scope", "data exposure", "filter"],
-        "selection_basis": "official project security release selected before scoring using WSTG API excessive-data-exposure and GraphQL scope semantics"
+        "semantic_facts": ["GraphQL", "query", "field", "property", "sensitive", "data exposure", "scope", "restricted"],
+        "selection_basis": "official maintainer advisory selected before scoring using WSTG API excessive-data-exposure and GraphQL scope semantics"
       }
     ],
     "improper_inventory_management": [
@@ -75,18 +75,18 @@
     ],
     "nosql_injection": [
       {
-        "source_root": "CVE-2026-30833",
-        "source_project": "RocketChat/Rocket.Chat",
+        "source_root": "GHSA-jpq7-226w-6cxx",
+        "source_project": "n8n-io/n8n",
         "family": "nosql_injection",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat/",
-        "source_kind": "github_security_lab_writeup",
-        "advisory_source_type": "coordinated_disclosure_writeup",
-        "published_at": "2026-03-12",
-        "summary": "GitHub Security Lab disclosed NoSQL injection in Rocket.Chat's username login flow where user input was embedded into a MongoDB query selector without validation.",
-        "description": "GitHub Security Lab documents CVE-2026-30833 in Rocket.Chat's account service: user-controlled username input reaches a MongoDB findOne query selector without type or content validation, allowing MongoDB operator expressions to alter matching behavior and select unintended user records. This is a direct WSTG NoSQL query-semantics example.",
+        "canonical_advisory_url": "https://github.com/n8n-io/n8n/security/advisories/GHSA-jpq7-226w-6cxx",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "maintainer_security_advisory",
+        "published_at": "2026-06-10",
+        "summary": "n8n disclosed NoSQL injection in its MongoDB Find And Replace operation where an unvalidated filter value altered MongoDB query matching.",
+        "description": "The maintainer advisory documents attacker-controlled filter input being passed to MongoDB without validation, allowing NoSQL query/operator semantics to match and overwrite unintended documents. This is a direct WSTG NoSQL query-semantics example.",
         "wstg_ids": ["WSTG-INPV-05.6"],
-        "semantic_facts": ["NoSQL injection", "MongoDB", "query selector", "operator expression", "user-controlled input", "query semantics", "unintended records"],
-        "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG NoSQL-injection semantics"
+        "semantic_facts": ["NoSQL", "MongoDB", "query", "filter", "operator", "unvalidated", "injection", "semantics", "unintended"],
+        "selection_basis": "official maintainer advisory selected before scoring using WSTG NoSQL-injection semantics"
       }
     ],
     "postmessage_trust": [
