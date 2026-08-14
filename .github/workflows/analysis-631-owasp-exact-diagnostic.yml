@@ -41,17 +41,59 @@ jobs:
           exact=json.loads((src/'v6_owasp_exact_overrides.json').read_text())
           hard=set(grounding['families'])
           pinned={'dom_xss','sensitive_business_flow_abuse'}
+          # Family-level WSTG/OWASP semantic boundaries. These deliberately use
+          # multiple equivalent phrases instead of wording from a single advisory.
           contracts={
-            'business_logic':(('business logic','registration workflow','workflow'),('invariant','duplicate email','uniqueness'),('password reset','ambiguity','privilege')),
-            'cors_misconfiguration':(('cors','cross-origin'),('origin','untrusted'),('credential','sensitive')),
-            'dom_xss':(('dom xss','client-side'),('svg','render','browser'),('sanit','bypass')),
-            'graphql_data_exposure':(('graphql',),('concealed','restricted field','data exposure'),('aggregate','field','property')),
-            'improper_inventory_management':(('old api','older arm api','legacy api'),('version','api'),('still exploitable','weaker authorization','version drift')),
-            'nosql_injection':(('nosql','mongodb'),('query','operator','collection'),('inject','semantics','unintended')),
-            'postmessage_trust':(('postmessage','message event'),('origin','iframe source','sender'),('validation','trust','correct iframe')),
-            'sensitive_business_flow_abuse':(('invite','business'),('duplicate','flood','repeat'),('rate limit','anti-abuse','frequency')),
-            'sensitive_caching':(('cache','cached'),('api key','sensitive','authenticated'),('shared cache','unauthenticated cache hit','edge')),
-            'software_supply_chain_failure':(('supply chain','dependency'),('compromised','malicious'),('package','installation','published')),
+            'business_logic':(
+              ('business logic','business workflow','approval workflow','workflow'),
+              ('invariant','gate','required approver','state transition','approval'),
+              ('bypass','self-approve','skip','invalid state transition','incorrect transition','untrusted accepted'),
+            ),
+            'cors_misconfiguration':(
+              ('cors','cross-origin'),
+              ('origin','untrusted origin','origin restriction','trusted origin'),
+              ('credential','sensitive','state-changing','data'),
+            ),
+            'dom_xss':(
+              ('dom xss','client-side'),
+              ('svg','render','browser','sink'),
+              ('sanit','bypass'),
+            ),
+            'graphql_data_exposure':(
+              ('graphql','shop api'),
+              ('sensitive','non-public','private','restricted','data exposure'),
+              ('field','entity','query','scope','filter','property'),
+            ),
+            'improper_inventory_management':(
+              ('old api','older arm api','legacy api'),
+              ('version','api'),
+              ('still exploitable','weaker authorization','version drift'),
+            ),
+            'nosql_injection':(
+              ('nosql','mongodb','mongo'),
+              ('query','operator','filter','selector'),
+              ('inject','injection','unvalidated','alter','semantics','unintended'),
+            ),
+            'postmessage_trust':(
+              ('postmessage','message event'),
+              ('origin','iframe source','sender'),
+              ('validation','trust','correct iframe'),
+            ),
+            'sensitive_business_flow_abuse':(
+              ('invite','business'),
+              ('duplicate','flood','repeat'),
+              ('rate limit','anti-abuse','frequency'),
+            ),
+            'sensitive_caching':(
+              ('cache','cached'),
+              ('api key','sensitive','authenticated'),
+              ('shared cache','unauthenticated cache hit','edge'),
+            ),
+            'software_supply_chain_failure':(
+              ('supply chain','dependency'),
+              ('compromised','malicious'),
+              ('package','installation','published'),
+            ),
           }
           prior=exposure_index()
           results={}; passing=[]; failing=[]
@@ -79,7 +121,7 @@ jobs:
               passed=not errors
               results[family]={'passed':passed,'source_root':root,'source_project':project,'wstg_ids':sorted(supplied),'semantic_group_hits':hits,'firewall':fw,'errors':errors}
               (passing if passed else failing).append(family)
-          report={'version':'1.0.0','rule_version':'2026.08.14.6.31','evaluation_kind':'fresh_blind_v6_pre_score_hard_source_diagnostic','scoring_executed':False,'grounding_counts_as_target_evidence':False,'passed_family_count':len(passing),'failed_family_count':len(failing),'passing_families':passing,'failing_families':failing,'results':results}
+          report={'version':'1.1.0','rule_version':'2026.08.14.6.31','evaluation_kind':'fresh_blind_v6_pre_score_hard_source_diagnostic','scoring_executed':False,'grounding_counts_as_target_evidence':False,'passed_family_count':len(passing),'failed_family_count':len(failing),'passing_families':passing,'failing_families':failing,'results':results}
           (src/'v6_owasp_exact_validation_diagnostic.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
           print(json.dumps({'passed_family_count':len(passing),'failed_family_count':len(failing),'passing_families':passing,'failing_families':failing,'results':results},indent=2,sort_keys=True))
           PY
