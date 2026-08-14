@@ -38,6 +38,50 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Build temporary manifest artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          manifest = Path("MANIFEST.sha256")
+          changed = [
+              ".github/workflows/ci.yml",
+              "app/temporal_intelligence.py",
+              "app/workflow_state_intelligence.py",
+              "app/hypothesis_evidence_planner.py",
+              "app/family_analyzers/base.py",
+              "app/family_analyzers/router.py",
+              "tests/test_temporal_workflow_intelligence_v963.py",
+          ]
+          hashes = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in changed}
+          output = []
+          seen = set()
+          for raw in manifest.read_text(encoding="utf-8").splitlines():
+              if "  " not in raw:
+                  output.append(raw)
+                  continue
+              _digest, path = raw.split("  ", 1)
+              if path in hashes:
+                  output.append(f"{hashes[path]}  {path}")
+                  seen.add(path)
+              else:
+                  output.append(raw)
+          for path in changed:
+              if path not in seen:
+                  output.append(f"{hashes[path]}  {path}")
+          manifest.write_text("\n".join(output) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload generated manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-workflow-final-manifest-${{ matrix.python-version }}
+          path: MANIFEST.sha256
+          if-no-files-found: error
+
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
