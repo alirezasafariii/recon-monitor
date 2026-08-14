@@ -102,6 +102,15 @@ jobs:
             --output benchmarks/real_world/v1/capture_plan.json \
             --report benchmarks/real_world/v1/capture_plan_report.json
 
+      - name: Resolve all 100 near-miss control designs
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_control_design.py \
+            --plan benchmarks/real_world/v1/capture_plan.json \
+            --sources benchmarks/real_world/v1/source_feasibility_final.json \
+            --output benchmarks/real_world/v1/capture_plan_ready.json \
+            --report benchmarks/real_world/v1/control_design_report.json
+
       - name: Focused corpus regressions
         run: |
           python -m unittest tests/test_real_world_corpus_v1.py -q
@@ -111,6 +120,7 @@ jobs:
           python -m unittest tests/test_real_world_corpus_v1_feasibility.py -q
           python -m unittest tests/test_real_world_corpus_v1_repair.py -q
           python -m unittest tests/test_real_world_corpus_v1_capture_plan.py -q
+          python -m unittest tests/test_real_world_corpus_v1_control_design.py -q
           python -m unittest tests/test_real_world_corpus_v1_calibration_roles.py -q
 
       - name: Full regression suite
@@ -133,7 +143,9 @@ jobs:
                   benchmarks/real_world/v1/source_feasibility_final.json \
                   benchmarks/real_world/v1/source_feasibility_final_report.json \
                   benchmarks/real_world/v1/capture_plan.json \
-                  benchmarks/real_world/v1/capture_plan_report.json
+                  benchmarks/real_world/v1/capture_plan_report.json \
+                  benchmarks/real_world/v1/capture_plan_ready.json \
+                  benchmarks/real_world/v1/control_design_report.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
             | xargs -0 sha256sum > MANIFEST.sha256
@@ -159,10 +171,12 @@ jobs:
                   benchmarks/real_world/v1/source_feasibility_final_report.json \
                   benchmarks/real_world/v1/capture_plan.json \
                   benchmarks/real_world/v1/capture_plan_report.json \
+                  benchmarks/real_world/v1/capture_plan_ready.json \
+                  benchmarks/real_world/v1/control_design_report.json \
                   MANIFEST.sha256
           if git diff --cached --quiet; then
             echo 'No corpus changes to commit.'
             exit 0
           fi
-          git commit -m 'chore(corpus-v1): refresh repaired capture plan'
+          git commit -m 'chore(corpus-v1): refresh collection-ready plan'
           git push
