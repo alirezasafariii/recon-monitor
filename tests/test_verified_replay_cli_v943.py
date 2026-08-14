@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
@@ -16,6 +17,28 @@ from recon_monitor import (
 class _EmptyReplayDB:
     def all(self, _query, _params=()):
         return []
+
+
+_EMPTY_COLLECTION = {
+    "collector_version": "test",
+    "rule_version": "test",
+    "draft_count": 0,
+    "positive_drafts": 0,
+    "negative_drafts": 0,
+    "family_count": 0,
+    "drafts": [],
+    "skipped": [],
+    "safety": {
+        "offline_only": True,
+        "network_requests": False,
+        "changes_analysis_decisions": False,
+        "changes_calibration_activation": False,
+        "labels_come_from_human_investigation_decisions": True,
+        "evidence_snapshot_excludes_label": True,
+        "evidence_snapshot_is_cross_run_stable": True,
+        "evidence_quality_requires_explicit_review": True,
+    },
+}
 
 
 class VerifiedReplayCliV943Tests(unittest.TestCase):
@@ -45,18 +68,17 @@ class VerifiedReplayCliV943Tests(unittest.TestCase):
         self.assertTrue(payload["operator_guidance"]["production_calibration_remains_shadow_only"])
 
     def test_cli_payload_bounds_collection_limit(self):
-        class RecordingDB:
-            def __init__(self):
-                self.query_count = 0
-
-            def all(self, _query, _params=()):
-                self.query_count += 1
-                return []
-
-        db = RecordingDB()
-        payload = verified_replay_drafts_cli_payload(db, limit=999999)
+        db = object()
+        with patch("recon_monitor.collect_verified_replay_drafts", return_value=dict(_EMPTY_COLLECTION)) as collect:
+            payload = verified_replay_drafts_cli_payload(db, limit=999999)
+        collect.assert_called_once_with(db, limit=5000)
         self.assertEqual(payload["draft_count"], 0)
-        self.assertEqual(db.query_count, 1)
+
+    def test_cli_payload_clamps_non_positive_limit(self):
+        db = object()
+        with patch("recon_monitor.collect_verified_replay_drafts", return_value=dict(_EMPTY_COLLECTION)) as collect:
+            verified_replay_drafts_cli_payload(db, limit=0)
+        collect.assert_called_once_with(db, limit=1000)
 
 
 if __name__ == "__main__":
