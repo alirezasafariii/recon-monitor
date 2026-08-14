@@ -104,7 +104,7 @@ jobs:
             --output benchmarks/raw/sources/v7_candidates.json \
             --report benchmarks/raw/sources/v7_gap_discovery_report.json \
             --max-pages 12 \
-            --target 80
+            --target 20
 
       - name: Verify candidate pool remains fully pre-scoring
         run: |
