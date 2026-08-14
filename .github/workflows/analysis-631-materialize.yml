@@ -51,7 +51,9 @@ jobs:
           assert shortlist['unique_root_count'] == 36
           assert shortlist['unique_project_count'] == 36
           assert shortlist['owasp_grounded_family_count'] == 14
-          assert shortlist['legacy_semantic_family_count'] == 22
+          assert shortlist['complement_family_count'] == 22
+          assert shortlist['complement_override_family_count'] == 11
+          assert shortlist['legacy_semantic_family_count'] == 11
           assert shortlist['supplement_pool_used'] is False
           assert shortlist['firewall']['passed'] is True
           assert shortlist['firewall']['scoring_executed'] is False
