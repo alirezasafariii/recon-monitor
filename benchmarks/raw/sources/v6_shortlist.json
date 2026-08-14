@@ -932,40 +932,36 @@
       ]
     },
     {
-      "advisory_source_type": "published",
-      "canonical_advisory_url": "https://github.com/advisories/GHSA-44cc-pg2q-9x56",
-      "description": "The published advisory identifies a time-sensitive race/TOCTOU-style state flaw in a privileged macOS application path. A lower-privilege local actor can win the concurrent state transition and obtain elevated execution, violating the intended atomic privileged operation boundary.",
+      "advisory_source_type": "vendor",
+      "canonical_advisory_url": "https://security.paloaltonetworks.com/CVE-2025-0120",
+      "description": "The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but successful exploitation requires winning a race condition. The vendor identifies the affected and fixed GlobalProtect App for Windows versions.",
       "family": "race_condition",
       "freshness_validated": true,
-      "selection_basis": "fresh published advisory selected before scoring using the preregistered race-condition semantic audit",
+      "selection_basis": "fresh primary vendor advisory selected before scoring using the preregistered race-condition semantic audit after the previous GHSA reference proved non-retrievable",
       "semantic_facts": [
         "race condition",
-        "TOCTOU",
-        "concurrent",
-        "time-of",
-        "state",
-        "privilege escalation"
+        "race",
+        "local privilege escalation",
+        "Windows",
+        "non-administrative user",
+        "SYSTEM"
       ],
       "source_family_audit_group_hits": [
         [
-          "concurrent",
-          "race condition",
-          "toctou"
+          "race condition"
         ],
         [
-          "atomic",
-          "concurrent",
           "race"
         ]
       ],
       "source_family_audit_rule_version": "2026.08.13.6.29",
-      "source_family_audit_score": 16,
+      "source_family_audit_score": 12,
       "source_family_audit_version": "1.0.0",
-      "source_kind": "github_advisory_database_record",
-      "source_project": "paloaltonetworks/globalprotect-macos",
-      "source_root": "GHSA-44cc-pg2q-9x56",
+      "source_kind": "vendor_security_advisory",
+      "source_project": "paloaltonetworks/globalprotect-app-windows",
+      "source_root": "CVE-2025-0120",
       "source_selection_track": "fresh_exact_complement_override",
-      "summary": "GlobalProtect for macOS contains a race condition in a privileged application flow that can enable privilege escalation.",
+      "summary": "Palo Alto Networks GlobalProtect App on Windows allows local privilege escalation where exploitation requires successfully winning a race condition.",
       "v6_firewall_allowed": true
     },
     {

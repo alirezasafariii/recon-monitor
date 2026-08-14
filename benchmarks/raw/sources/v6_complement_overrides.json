@@ -1,198 +1,294 @@
 {
-  "version": "1.1.0",
-  "rule_version": "2026.08.14.6.31.5",
-  "evaluation_kind": "fresh_blind_v6_unscored_complement_overrides",
-  "scoring_executed": false,
-  "detector_output_used": false,
   "admission_output_used": false,
-  "ranking_output_used": false,
   "candidate_count": 13,
   "candidates_by_family": {
     "account_enumeration": [
       {
-        "source_root": "GHSA-hp2m-55fj-8mw5",
-        "source_project": "postgres/postgres",
-        "family": "account_enumeration",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
-        "source_kind": "github_reviewed_advisory",
         "advisory_source_type": "reviewed",
-        "summary": "PostgreSQL SCRAM authentication response behavior can let an unauthenticated caller determine whether a username/account exists.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
         "description": "The published advisory documents an account-enumeration response discrepancy in SCRAM authentication: the challenge for an existing username with non-default settings can differ from the challenge for a nonexistent username, allowing remote testing of registered user/account existence by username.",
-        "semantic_facts": ["user enumeration", "account enumeration", "existing user", "username", "account", "response discrepancy"],
-        "selection_basis": "fresh reviewed advisory selected before scoring using the preregistered account-enumeration semantic audit"
+        "family": "account_enumeration",
+        "selection_basis": "fresh reviewed advisory selected before scoring using the preregistered account-enumeration semantic audit",
+        "semantic_facts": [
+          "user enumeration",
+          "account enumeration",
+          "existing user",
+          "username",
+          "account",
+          "response discrepancy"
+        ],
+        "source_kind": "github_reviewed_advisory",
+        "source_project": "postgres/postgres",
+        "source_root": "GHSA-hp2m-55fj-8mw5",
+        "summary": "PostgreSQL SCRAM authentication response behavior can let an unauthenticated caller determine whether a username/account exists."
       }
     ],
     "authentication_session": [
       {
-        "source_root": "GHSA-vxcg-gxwh-hqw8",
-        "source_project": "ibm/ibm-i",
-        "family": "authentication_session",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "summary": "IBM i improper authentication during NTLM session negotiation can allow authentication bypass and session impersonation.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
         "description": "The advisory describes improper validation in an NTLM authentication/session negotiation path that can let a remote actor bypass the intended authentication boundary and obtain an authenticated session context with another user's effective privileges.",
-        "semantic_facts": ["authentication", "session", "NTLM", "authentication bypass", "impersonation", "validation"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered authentication/session semantic audit"
+        "family": "authentication_session",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered authentication/session semantic audit",
+        "semantic_facts": [
+          "authentication",
+          "session",
+          "NTLM",
+          "authentication bypass",
+          "impersonation",
+          "validation"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "ibm/ibm-i",
+        "source_root": "GHSA-vxcg-gxwh-hqw8",
+        "summary": "IBM i improper authentication during NTLM session negotiation can allow authentication bypass and session impersonation."
       }
     ],
     "broken_function_authorization": [
       {
-        "source_root": "ANDY-RBAC-ISSUE-97",
-        "source_project": "rivoli-ai/andy-rbac",
-        "family": "broken_function_authorization",
-        "canonical_advisory_url": "https://github.com/rivoli-ai/andy-rbac/issues/97",
-        "source_kind": "project_security_issue",
         "advisory_source_type": "project_issue",
-        "summary": "Andy RBAC management functions had a critical authorization bypass allowing authenticated non-admin tokens to invoke privileged role, policy and grant administration.",
+        "canonical_advisory_url": "https://github.com/rivoli-ai/andy-rbac/issues/97",
         "description": "The project security issue documents function-level authorization missing from administrative controllers. A low-privilege authenticated user could access privileged admin mutations and rewrite roles, policies or grants because generic authentication was enforced without the required admin/manage permission check.",
-        "semantic_facts": ["function-level authorization", "admin", "privilege", "role", "permission", "unauthorized", "authorization bypass", "low privilege"],
-        "selection_basis": "fresh project security issue selected before scoring using the preregistered function-level authorization semantic audit"
+        "family": "broken_function_authorization",
+        "selection_basis": "fresh project security issue selected before scoring using the preregistered function-level authorization semantic audit",
+        "semantic_facts": [
+          "function-level authorization",
+          "admin",
+          "privilege",
+          "role",
+          "permission",
+          "unauthorized",
+          "authorization bypass",
+          "low privilege"
+        ],
+        "source_kind": "project_security_issue",
+        "source_project": "rivoli-ai/andy-rbac",
+        "source_root": "ANDY-RBAC-ISSUE-97",
+        "summary": "Andy RBAC management functions had a critical authorization bypass allowing authenticated non-admin tokens to invoke privileged role, policy and grant administration."
       }
     ],
     "command_injection": [
       {
-        "source_root": "GHSA-jqh7-pchh-v74j",
-        "source_project": "zimbra/zimbra-collaboration",
-        "family": "command_injection",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "summary": "Zimbra Collaboration contains OS command injection in SNMP notification processing.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
         "description": "The published advisory states that improper sanitization of untrusted SMTP input in the SNMP notification path can execute arbitrary operating-system commands as the Zimbra process user. Untrusted input therefore reaches an OS command/process execution boundary.",
-        "semantic_facts": ["OS command injection", "command injection", "command", "process", "execute", "untrusted input"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered command-injection semantic audit"
+        "family": "command_injection",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered command-injection semantic audit",
+        "semantic_facts": [
+          "OS command injection",
+          "command injection",
+          "command",
+          "process",
+          "execute",
+          "untrusted input"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "zimbra/zimbra-collaboration",
+        "source_root": "GHSA-jqh7-pchh-v74j",
+        "summary": "Zimbra Collaboration contains OS command injection in SNMP notification processing."
       }
     ],
     "cryptographic_failure": [
       {
-        "source_root": "HEDRON-ISSUE-196",
-        "source_project": "eddiethedean/hedron",
-        "family": "cryptographic_failure",
-        "canonical_advisory_url": "https://github.com/eddiethedean/hedron/issues/196",
-        "source_kind": "project_security_issue",
         "advisory_source_type": "project_issue",
-        "summary": "Hedron's production security gate accepted weak cryptographic session secrets such as predictable low-entropy values.",
+        "canonical_advisory_url": "https://github.com/eddiethedean/hedron/issues/196",
         "description": "The project security issue documents insecure and predictable session-secret values being accepted in production despite a documented entropy/length requirement. The cryptographic secret validation gate therefore permits weak key material instead of rejecting insecure production secrets.",
-        "semantic_facts": ["cryptographic", "session secret", "weak", "insecure", "predictable", "entropy", "key"],
-        "selection_basis": "fresh project security issue selected before scoring using the preregistered cryptographic-failure semantic audit"
+        "family": "cryptographic_failure",
+        "selection_basis": "fresh project security issue selected before scoring using the preregistered cryptographic-failure semantic audit",
+        "semantic_facts": [
+          "cryptographic",
+          "session secret",
+          "weak",
+          "insecure",
+          "predictable",
+          "entropy",
+          "key"
+        ],
+        "source_kind": "project_security_issue",
+        "source_project": "eddiethedean/hedron",
+        "source_root": "HEDRON-ISSUE-196",
+        "summary": "Hedron's production security gate accepted weak cryptographic session secrets such as predictable low-entropy values."
       }
     ],
     "exceptional_condition_mishandling": [
       {
-        "source_root": "TIME-SAFE-ISSUE-35",
-        "source_project": "louisalexander/time-safe",
-        "family": "exceptional_condition_mishandling",
-        "canonical_advisory_url": "https://github.com/louisalexander/time-safe/issues/35",
-        "source_kind": "project_owner_security_issue",
         "advisory_source_type": "owner_issue",
-        "published_at": "2026-08-14",
-        "summary": "time-safe mishandles an unhandled exception by rendering a locals-bearing fatal traceback on the crash path, disclosing plaintext secrets.",
+        "canonical_advisory_url": "https://github.com/louisalexander/time-safe/issues/35",
         "description": "The project owner documents that an unhandled exception reaches Textual fatal-error rendering with frame locals enabled. The application exits/crashes while printing sensitive plaintext from live local variables to terminal/log output instead of handling the exceptional condition through the controlled exception-only path.",
-        "semantic_facts": ["unhandled exception", "exception", "fatal error", "crash", "error handling", "plaintext disclosure"],
-        "selection_basis": "fresh owner-authored issue selected before scoring using the preregistered exceptional-condition semantic audit"
+        "family": "exceptional_condition_mishandling",
+        "published_at": "2026-08-14",
+        "selection_basis": "fresh owner-authored issue selected before scoring using the preregistered exceptional-condition semantic audit",
+        "semantic_facts": [
+          "unhandled exception",
+          "exception",
+          "fatal error",
+          "crash",
+          "error handling",
+          "plaintext disclosure"
+        ],
+        "source_kind": "project_owner_security_issue",
+        "source_project": "louisalexander/time-safe",
+        "source_root": "TIME-SAFE-ISSUE-35",
+        "summary": "time-safe mishandles an unhandled exception by rendering a locals-bearing fatal traceback on the crash path, disclosing plaintext secrets."
       }
     ],
     "file_upload": [
       {
-        "source_root": "GHSA-gxgp-6wm7-xrhr",
-        "source_project": "dulldusk/phpfm",
-        "family": "file_upload",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "summary": "phpfm has an unrestricted file-upload vulnerability allowing unauthenticated arbitrary PHP-file upload.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
         "description": "The published advisory states that the upload extension filter is empty and authentication is disabled by default, so a remote attacker can upload an arbitrary PHP webshell with a dangerous filename/extension and subsequently execute the uploaded file.",
-        "semantic_facts": ["unrestricted file upload", "arbitrary file upload", "file", "upload", "extension", "filename", "PHP"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered file-upload semantic audit"
+        "family": "file_upload",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered file-upload semantic audit",
+        "semantic_facts": [
+          "unrestricted file upload",
+          "arbitrary file upload",
+          "file",
+          "upload",
+          "extension",
+          "filename",
+          "PHP"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "dulldusk/phpfm",
+        "source_root": "GHSA-gxgp-6wm7-xrhr",
+        "summary": "phpfm has an unrestricted file-upload vulnerability allowing unauthenticated arbitrary PHP-file upload."
       }
     ],
     "mass_assignment": [
       {
-        "source_root": "NARRATIVE-MODELING-ISSUE-451",
-        "source_project": "frankbria/narrative-modeling-app",
-        "family": "mass_assignment",
-        "canonical_advisory_url": "https://github.com/frankbria/narrative-modeling-app/issues/451",
-        "source_kind": "project_security_issue",
         "advisory_source_type": "project_issue",
-        "summary": "Narrative Modeling App mass assignment lets a tenant set the server-authoritative s3_url property.",
+        "canonical_advisory_url": "https://github.com/frankbria/narrative-modeling-app/issues/451",
         "description": "The project security issue describes a classic mass-assignment/over-posting pattern: create/update request schemas expose a server-authoritative property and PUT mass-assigns the client-supplied s3_url field, allowing a tenant to influence a protected property and cross an object-ownership boundary.",
-        "semantic_facts": ["mass assignment", "over-posting", "field", "property", "parameter", "server-authoritative"],
-        "selection_basis": "fresh project security issue selected before scoring using the preregistered mass-assignment semantic audit"
+        "family": "mass_assignment",
+        "selection_basis": "fresh project security issue selected before scoring using the preregistered mass-assignment semantic audit",
+        "semantic_facts": [
+          "mass assignment",
+          "over-posting",
+          "field",
+          "property",
+          "parameter",
+          "server-authoritative"
+        ],
+        "source_kind": "project_security_issue",
+        "source_project": "frankbria/narrative-modeling-app",
+        "source_root": "NARRATIVE-MODELING-ISSUE-451",
+        "summary": "Narrative Modeling App mass assignment lets a tenant set the server-authoritative s3_url property."
       }
     ],
     "race_condition": [
       {
-        "source_root": "GHSA-44cc-pg2q-9x56",
-        "source_project": "paloaltonetworks/globalprotect-macos",
+        "advisory_source_type": "vendor",
+        "canonical_advisory_url": "https://security.paloaltonetworks.com/CVE-2025-0120",
+        "description": "The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but successful exploitation requires winning a race condition. The vendor identifies the affected and fixed GlobalProtect App for Windows versions.",
         "family": "race_condition",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-44cc-pg2q-9x56",
-        "source_kind": "github_advisory_database_record",
-        "advisory_source_type": "published",
-        "summary": "GlobalProtect for macOS contains a race condition in a privileged application flow that can enable privilege escalation.",
-        "description": "The published advisory identifies a time-sensitive race/TOCTOU-style state flaw in a privileged macOS application path. A lower-privilege local actor can win the concurrent state transition and obtain elevated execution, violating the intended atomic privileged operation boundary.",
-        "semantic_facts": ["race condition", "TOCTOU", "concurrent", "time-of", "state", "privilege escalation"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered race-condition semantic audit"
+        "selection_basis": "fresh primary vendor advisory selected before scoring using the preregistered race-condition semantic audit after the previous GHSA reference proved non-retrievable",
+        "semantic_facts": [
+          "race condition",
+          "race",
+          "local privilege escalation",
+          "Windows",
+          "non-administrative user",
+          "SYSTEM"
+        ],
+        "source_kind": "vendor_security_advisory",
+        "source_project": "paloaltonetworks/globalprotect-app-windows",
+        "source_root": "CVE-2025-0120",
+        "summary": "Palo Alto Networks GlobalProtect App on Windows allows local privilege escalation where exploitation requires successfully winning a race condition."
       }
     ],
     "secret_exposure": [
       {
-        "source_root": "GHSA-xr96-mx7v-w32h",
-        "source_project": "ibm/storage-scale",
-        "family": "secret_exposure",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "published_at": "2026-08-13",
-        "summary": "IBM Storage Scale GUI contains a hardcoded token in source code used for cluster communication and REST API authentication.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
         "description": "The published advisory states that a hardcoded authentication token is present in the application source code and reused for inter-node and REST API authentication, exposing a reusable credential/secret through the software source.",
-        "semantic_facts": ["hardcoded token", "credential", "secret", "token", "source code", "exposed secret"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered secret-exposure semantic audit"
+        "family": "secret_exposure",
+        "published_at": "2026-08-13",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered secret-exposure semantic audit",
+        "semantic_facts": [
+          "hardcoded token",
+          "credential",
+          "secret",
+          "token",
+          "source code",
+          "exposed secret"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "ibm/storage-scale",
+        "source_root": "GHSA-xr96-mx7v-w32h",
+        "summary": "IBM Storage Scale GUI contains a hardcoded token in source code used for cluster communication and REST API authentication."
       }
     ],
     "security_logging_alerting_failure": [
       {
-        "source_root": "GHSA-q83p-h7pj-3m3p",
-        "source_project": "ibm/db2",
-        "family": "security_logging_alerting_failure",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "published_at": "2026-08-12",
-        "summary": "IBM Db2 logging can write sensitive plaintext passwords into trace files.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
         "description": "The published advisory states that local attackers can obtain sensitive information because plain text passwords are logged in Db2 trace files. The logging path therefore records credential data without redaction.",
-        "semantic_facts": ["logging", "log", "sensitive", "password", "plaintext credential", "trace file"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered security-logging semantic audit"
+        "family": "security_logging_alerting_failure",
+        "published_at": "2026-08-12",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered security-logging semantic audit",
+        "semantic_facts": [
+          "logging",
+          "log",
+          "sensitive",
+          "password",
+          "plaintext credential",
+          "trace file"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "ibm/db2",
+        "source_root": "GHSA-q83p-h7pj-3m3p",
+        "summary": "IBM Db2 logging can write sensitive plaintext passwords into trace files."
       }
     ],
     "server_side_template_injection": [
       {
-        "source_root": "OWNPAY-ISSUE-438",
-        "source_project": "own-pay/OwnPay",
-        "family": "server_side_template_injection",
-        "canonical_advisory_url": "https://github.com/own-pay/OwnPay/issues/438",
-        "source_kind": "project_member_security_audit_issue",
         "advisory_source_type": "project_audit_issue",
-        "published_at": "2026-08-12",
-        "summary": "OwnPay security audit found full server-side template injection in TwigFactory because editable templates render with the full unsandboxed Twig environment.",
+        "canonical_advisory_url": "https://github.com/own-pay/OwnPay/issues/438",
         "description": "A project-member audit issue documents non-superadmin-controlled Twig template source reaching the server-side Twig Environment without SandboxExtension. Injected Twig expressions are rendered by the full template engine and can read secrets, invoke registered hooks and potentially reach code execution through plugin functions.",
-        "semantic_facts": ["server-side template injection", "SSTI", "template injection", "Twig", "template", "render", "expression"],
-        "selection_basis": "fresh project-member security audit issue selected before scoring using the preregistered SSTI semantic audit"
+        "family": "server_side_template_injection",
+        "published_at": "2026-08-12",
+        "selection_basis": "fresh project-member security audit issue selected before scoring using the preregistered SSTI semantic audit",
+        "semantic_facts": [
+          "server-side template injection",
+          "SSTI",
+          "template injection",
+          "Twig",
+          "template",
+          "render",
+          "expression"
+        ],
+        "source_kind": "project_member_security_audit_issue",
+        "source_project": "own-pay/OwnPay",
+        "source_root": "OWNPAY-ISSUE-438",
+        "summary": "OwnPay security audit found full server-side template injection in TwigFactory because editable templates render with the full unsandboxed Twig environment."
       }
     ],
     "unrestricted_resource_consumption": [
       {
-        "source_root": "GHSA-2cg2-hxr7-q7f4",
-        "source_project": "systerel/S2OPC",
-        "family": "unrestricted_resource_consumption",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
-        "source_kind": "github_advisory_database_record",
         "advisory_source_type": "published",
-        "summary": "S2OPC contains uncontrolled resource consumption in monitored-item queue resize handling that can cause remote denial of service.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
         "description": "The published CWE-400 advisory identifies remote denial of service through monitored-item event-queue resizing. Attacker-controlled queue changes can consume application resources until service availability is lost, representing an unbounded resource-consumption path.",
-        "semantic_facts": ["resource consumption", "unbounded", "resource", "queue", "denial of service", "DoS"],
-        "selection_basis": "fresh published advisory selected before scoring using the preregistered resource-consumption semantic audit"
+        "family": "unrestricted_resource_consumption",
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered resource-consumption semantic audit",
+        "semantic_facts": [
+          "resource consumption",
+          "unbounded",
+          "resource",
+          "queue",
+          "denial of service",
+          "DoS"
+        ],
+        "source_kind": "github_advisory_database_record",
+        "source_project": "systerel/S2OPC",
+        "source_root": "GHSA-2cg2-hxr7-q7f4",
+        "summary": "S2OPC contains uncontrolled resource consumption in monitored-item queue resize handling that can cause remote denial of service."
       }
     ]
-  }
+  },
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v6_unscored_complement_overrides",
+  "ranking_output_used": false,
+  "rule_version": "2026.08.14.6.31.6",
+  "scoring_executed": false,
+  "version": "1.2.0"
 }

@@ -293,11 +293,10 @@
       "firewall": {
         "allowed": true,
         "checked_project_aliases": [
-          "advisories/ghsa-44cc-pg2q-9x56",
-          "paloaltonetworks/globalprotect-macos"
+          "paloaltonetworks/globalprotect-app-windows"
         ],
         "checked_root_aliases": [
-          "ghsa-44cc-pg2q-9x56"
+          "cve-2025-0120"
         ],
         "firewall_rule_version": "2026.08.14.6.31.1",
         "firewall_version": "1.1.1",
@@ -305,26 +304,22 @@
         "project_overlap": [],
         "root_overlap": [],
         "scoring_executed": false,
-        "source_project": "paloaltonetworks/globalprotect-macos",
-        "source_root": "ghsa-44cc-pg2q-9x56",
+        "source_project": "paloaltonetworks/globalprotect-app-windows",
+        "source_root": "cve-2025-0120",
         "url_overlap": []
       },
       "grounding_url_overlap": [],
       "semantic_audit_hits": [
         [
-          "concurrent",
-          "race condition",
-          "toctou"
+          "race condition"
         ],
         [
-          "atomic",
-          "concurrent",
           "race"
         ]
       ],
-      "semantic_audit_score": 16,
-      "source_project": "paloaltonetworks/globalprotect-macos",
-      "source_root": "GHSA-44cc-pg2q-9x56"
+      "semantic_audit_score": 12,
+      "source_project": "paloaltonetworks/globalprotect-app-windows",
+      "source_root": "CVE-2025-0120"
     },
     "secret_exposure": {
       "firewall": {
