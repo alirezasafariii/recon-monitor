@@ -84,16 +84,12 @@ jobs:
           pattern: v6-*-captures
           path: captured
           merge-multiple: false
-      - name: Flatten capture artifacts
-        run: |
-          mkdir -p captured-flat
-          find captured -type f -name '*.json' -exec cp {} captured-flat/ \;
       - name: Publish and verify
         env:
           PYTHONPATH: app
         run: |
           set -euo pipefail
-          python app/v6_literal_evidence_publish.py captured-flat
+          python app/v6_literal_evidence_publish.py captured
           python app/v6_literal_capture_plan.py
           python app/v6_literal_capture_ingest.py --allow-incomplete
           python app/v6_literal_partial_verify.py
