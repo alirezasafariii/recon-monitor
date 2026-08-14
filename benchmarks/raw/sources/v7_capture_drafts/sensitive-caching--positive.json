@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/directus/directus/blob/e522e0251f46ceb8578421038a679cc379ac0f22/api/src/utils/get-cache-key.test.ts",
+  "captured_at": "2026-08-14T18:58:04.417798+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sensitive_caching",
+  "raw": {
+    "details": {
+      "line_end": 88,
+      "line_start": 75,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "e522e0251f46ceb8578421038a679cc379ac0f22",
+      "source_excerpt": "\t},\n\t{\n\t\tname: 'an authenticated GraphQL POST query request',\n\t\tparams: { method: 'POST', originalUrl: graphQlUrl, accountability, body: { query: 'query { test { name } }' } },\n\t\tkey: '358336a2c61f7ea2b41b5c1566bbebe692be601d',\n\t},\n];\n\nconst cases = requests.map(({ name, params, key }) => [name, params, key]);\n\nbeforeEach(() => {\n\tvi.mocked(useEnv).mockReturnValue({});\n});\n",
+      "source_excerpt_sha256": "9d348f883ea27fc781192928fbecdbc50db7a840c5a796721db5fe763318907c",
+      "source_file": "api/src/utils/get-cache-key.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "directus/directus",
+  "source_root": "GHSA-c6w9-5g5j-jh2p",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 88,
+      "line_start": 75,
+      "revision_sha": "e522e0251f46ceb8578421038a679cc379ac0f22",
+      "source_excerpt": "\t},\n\t{\n\t\tname: 'an authenticated GraphQL POST query request',\n\t\tparams: { method: 'POST', originalUrl: graphQlUrl, accountability, body: { query: 'query { test { name } }' } },\n\t\tkey: '358336a2c61f7ea2b41b5c1566bbebe692be601d',\n\t},\n];\n\nconst cases = requests.map(({ name, params, key }) => [name, params, key]);\n\nbeforeEach(() => {\n\tvi.mocked(useEnv).mockReturnValue({});\n});\n",
+      "source_excerpt_sha256": "9d348f883ea27fc781192928fbecdbc50db7a840c5a796721db5fe763318907c",
+      "source_file": "api/src/utils/get-cache-key.test.ts"
+    },
+    "reference": "https://github.com/directus/directus/blob/e522e0251f46ceb8578421038a679cc379ac0f22/api/src/utils/get-cache-key.test.ts",
+    "retrieved_at": "2026-08-14T18:58:04.417803+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

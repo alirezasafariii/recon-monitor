@@ -1,0 +1,173 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+  "captured_at": "2026-08-14T18:58:04.411516+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "mass_assignment",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "kimai/kimai",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "package": "kimai/kimai",
+          "patched_version": "2.53.0",
+          "vulnerable_version_range": "<=2.52.0"
+        },
+        {
+          "ecosystem": "composer",
+          "package": "kimai/kimai",
+          "patched_version": "2.53.0",
+          "vulnerable_version_range": "<= 2.52.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "kimai/kimai",
+  "source_root": "GHSA-qh43-xrjm-4ggp",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "udaypali",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/69238780?v=4",
+            "events_url": "https://api.github.com/users/udaypali/events{/privacy}",
+            "followers_url": "https://api.github.com/users/udaypali/followers",
+            "following_url": "https://api.github.com/users/udaypali/following{/other_user}",
+            "gists_url": "https://api.github.com/users/udaypali/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/udaypali",
+            "id": 69238780,
+            "login": "udaypali",
+            "node_id": "MDQ6VXNlcjY5MjM4Nzgw",
+            "organizations_url": "https://api.github.com/users/udaypali/orgs",
+            "received_events_url": "https://api.github.com/users/udaypali/received_events",
+            "repos_url": "https://api.github.com/users/udaypali/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/udaypali/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/udaypali/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/udaypali",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-40486",
+      "cvss": {
+        "score": 4.3,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 4.3,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-915"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-915",
+          "name": "Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+        }
+      ],
+      "description": "### Summary\r\nA Mass Assignment / Broken Object Property Level Authorization (BOPA) vulnerability in the User Preferences API allows any authenticated user (even those with the lowest privileges) to arbitrarily modify restricted financial attributes on their profile, specifically their `hourly_rate` and `internal_rate`.\r\n\r\n### Details\r\nKimai restrictively protects the `hourly_rate` and `internal_rate` parameters during standard GUI flow. Users lacking the `hourly-rate` role permissions cannot see or edit these fields via the standard Web Form (`UserApiEditForm` / `UserEditType`). \r\n\r\nThe vulnerability exists in the dedicated preferences API endpoint: `src/API/UserController.php::updateUserPreference`.\r\n\r\nWhen a `PATCH` request is sent to `/api/users/{id}/preferences`, the endpoint iterates through the submitted JSON array and blindly applies the new values:\r\n```php\r\nforeach ($request->request->all() as $preference) {\r\n    // ... validation omitted ...\r\n    if (null === ($meta = $profile->getPreference($name))) {\r\n        throw $this->createNotFoundException(\\sprintf('Unknown custom-field \"%s\" requested', $name));\r\n    }\r\n\r\n    $meta->setValue($value); // <-- VULNERABILITY\r\n}\r\n```\r\n\r\nThe underlying Role-Based Access Control logic (`UserPreferenceSubscriber::getDefaultPreferences`) accurately identifies that standard users lack the `hourly-rate` role, and flags the dynamically generated preference object as disabled (`$preference->setEnabled(false)`). \r\n\r\nHowever, the `updateUserPreference` API endpoint entirely ignores this `isEnabled()` flag and forcefully saves the mutated object to the database natively via Doctrine ORM. This allows unauthorized accounts to manipulate the business-logic variables calculating their own financial earnings.\r\n\r\n### PoC\r\n1. Log into Kimai as an unprivileged, standard employee account (a user with absolutely no `roles` array privileges). \r\n2. Capture the `cookie` or Session cookies. (In this example, the user's ID is `2`).\r\n3. Send the following cURL request (or intercept via Burp Suite) targeting your own user ID:\r\n\r\n```bash\r\ncurl -i -X PATCH \"http://localhost:8001/api/users/2/preferences\" \\\r\n  -H \"Content-Type: application/json\" \\\r\n  -H \"cookie: <YOUR_STANDARD_USER_TOKEN>\" \\\r\n  -d '[\r\n  {\r\n    \"name\": \"hourly_rate\",\r\n    \"value\": \"1337\"\r\n  },\r\n  {\r\n    \"name\": \"internal_rate\",\r\n    \"value\": \"1337\"\r\n  }\r\n]'\r\n```\r\n\r\n4. The server responds with `HTTP/1.1 200 OK`. (Note: The `hourly_rate` will intentionally NOT appear in the JSON echo due to `User::getVisiblePreferences` sanitizing output based on the same disabled flag).\r\n5. If an Administrator organically views User 2's profile within Kimai, or if the user logs any new timesheets, the active and billed `hourly_rate` applied to their account will be confirmed as `1337`.\r\n<img width=\"1542\" height=\"1039\" alt=\"user_account\" src=\"https://github.com/user-attachments/assets/fff5e2da-d598-408d-8a01-784499ade844\" />\r\n<img width=\"1539\" height=\"1037\" alt=\"admin_account\" src=\"https://github.com/user-attachments/assets/86a6e8c3-a97f-4be3-9f9f-2e23fad1d8a0\" />\r\n\r\n### Impact\r\nThis is a Privilege Escalation and Business Logic Flaw impacting the core financial calculations of the application. An attacker with a standard user account can manipulate their own billing rate multipliers unbeknownst to administrators, resulting in fraudulent invoices, distorted timesheet exports, and unauthorized financial tampering.",
+      "ghsa_id": "GHSA-qh43-xrjm-4ggp",
+      "html_url": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-qh43-xrjm-4ggp"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-40486"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-04-14T14:05:11Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/533162?v=4",
+        "events_url": "https://api.github.com/users/kevinpapst/events{/privacy}",
+        "followers_url": "https://api.github.com/users/kevinpapst/followers",
+        "following_url": "https://api.github.com/users/kevinpapst/following{/other_user}",
+        "gists_url": "https://api.github.com/users/kevinpapst/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/kevinpapst",
+        "id": 533162,
+        "login": "kevinpapst",
+        "node_id": "MDQ6VXNlcjUzMzE2Mg==",
+        "organizations_url": "https://api.github.com/users/kevinpapst/orgs",
+        "received_events_url": "https://api.github.com/users/kevinpapst/received_events",
+        "repos_url": "https://api.github.com/users/kevinpapst/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/kevinpapst/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/kevinpapst/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/kevinpapst",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "User Preferences API allows standard users to modify: hourly_rate, internal_rate",
+      "updated_at": "2026-04-19T14:22:13Z",
+      "url": "https://api.github.com/repos/kimai/kimai/security-advisories/GHSA-qh43-xrjm-4ggp",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "composer",
+            "name": "kimai/kimai"
+          },
+          "patched_versions": "2.53.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<=2.52.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+    "retrieved_at": "2026-08-14T18:58:04.411521+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

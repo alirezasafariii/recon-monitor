@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/langchain-ai/langgraphjs/blob/428c4e3f2946cc2b06f8550aa6974d5bdb2352c2/libs/checkpoint-mongodb/src/checkpoint.ts",
+  "captured_at": "2026-08-14T18:58:04.411857+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "line_end": 33,
+      "line_start": 20,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "428c4e3f2946cc2b06f8550aa6974d5bdb2352c2",
+      "source_excerpt": "   * When true, writes an `upserted_at` BSON date to documents on every upsert.\n   * Useful for MongoDB TTL indexes, auditing, or debugging.\n   */\n  enableTimestamps?: boolean;\n};\n\n/**\n * A LangGraph checkpoint saver backed by a MongoDB database.\n */\nexport class MongoDBSaver extends BaseCheckpointSaver {\n  protected client: MongoClient;\n\n  protected db: MongoDatabase;\n",
+      "source_excerpt_sha256": "aff00655cffd04cb41b38ba20eddd52c92c2ffb8706269fb89df704e1a8427bb",
+      "source_file": "libs/checkpoint-mongodb/src/checkpoint.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "langchain-ai/langgraphjs",
+  "source_root": "GHSA-98xf-r82g-9mhx",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 33,
+      "line_start": 20,
+      "revision_sha": "428c4e3f2946cc2b06f8550aa6974d5bdb2352c2",
+      "source_excerpt": "   * When true, writes an `upserted_at` BSON date to documents on every upsert.\n   * Useful for MongoDB TTL indexes, auditing, or debugging.\n   */\n  enableTimestamps?: boolean;\n};\n\n/**\n * A LangGraph checkpoint saver backed by a MongoDB database.\n */\nexport class MongoDBSaver extends BaseCheckpointSaver {\n  protected client: MongoClient;\n\n  protected db: MongoDatabase;\n",
+      "source_excerpt_sha256": "aff00655cffd04cb41b38ba20eddd52c92c2ffb8706269fb89df704e1a8427bb",
+      "source_file": "libs/checkpoint-mongodb/src/checkpoint.ts"
+    },
+    "reference": "https://github.com/langchain-ai/langgraphjs/blob/428c4e3f2946cc2b06f8550aa6974d5bdb2352c2/libs/checkpoint-mongodb/src/checkpoint.ts",
+    "retrieved_at": "2026-08-14T18:58:04.411862+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

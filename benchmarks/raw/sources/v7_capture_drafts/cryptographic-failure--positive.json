@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/oras-project/oras-go/blob/d593d504779be8b69f0ba034ac9fd407d1fc8cfc/registry/remote/auth/client.go",
+  "captured_at": "2026-08-14T18:58:04.405211+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "line_end": 33,
+      "line_start": 20,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "d593d504779be8b69f0ba034ac9fd407d1fc8cfc",
+      "source_excerpt": "\t\"context\"\n\t\"encoding/base64\"\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"strings\"\n\n\t\"oras.land/oras-go/v2/registry/remote/internal/errutil\"\n\t\"oras.land/oras-go/v2/registry/remote/retry\"\n)\n",
+      "source_excerpt_sha256": "783c3ba99b82e6111b17016256e0558b3ebe6856aab50525d34476987bca7645",
+      "source_file": "registry/remote/auth/client.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oras-project/oras-go",
+  "source_root": "GHSA-xf85-363p-868w",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 33,
+      "line_start": 20,
+      "revision_sha": "d593d504779be8b69f0ba034ac9fd407d1fc8cfc",
+      "source_excerpt": "\t\"context\"\n\t\"encoding/base64\"\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"strings\"\n\n\t\"oras.land/oras-go/v2/registry/remote/internal/errutil\"\n\t\"oras.land/oras-go/v2/registry/remote/retry\"\n)\n",
+      "source_excerpt_sha256": "783c3ba99b82e6111b17016256e0558b3ebe6856aab50525d34476987bca7645",
+      "source_file": "registry/remote/auth/client.go"
+    },
+    "reference": "https://github.com/oras-project/oras-go/blob/d593d504779be8b69f0ba034ac9fd407d1fc8cfc/registry/remote/auth/client.go",
+    "retrieved_at": "2026-08-14T18:58:04.405216+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

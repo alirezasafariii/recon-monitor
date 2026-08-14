@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/ethyca/fides/blob/0e320b20934eb5af3a3d5127dba2691605d7ff37/tests/ops/api/v1/endpoints/privacy_request/test_privacy_request_endpoints.py",
+  "captured_at": "2026-08-14T18:58:04.403249+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "0e320b20934eb5af3a3d5127dba2691605d7ff37",
+      "source_file": "tests/ops/api/v1/endpoints/privacy_request/test_privacy_request_endpoints.py",
+      "test_control_excerpt": "    )\n    def test_create_privacy_request_invalid_location(\n        self,\n        run_access_request_mock,\n        url,\n        db,\n        api_client: TestClient,\n        policy,\n    ):\n        data = [\n            {\n                \"requested_at\": \"2021-08-30T16:09:37.359Z\",\n                \"policy_key\": policy.key,\n                \"identity\": {\n                    \"email\": \"test@example.com\",\n                },\n                \"location\": \"INVALID\",  # Invalid location format\n            }\n        ]\n        resp = api_client.post(url, json=data)\n        assert resp.status_code == 422  # Validation error\n        assert \"Invalid location format\" in resp.text\n\n    @mock.patch(\n        \"fides.api.service.privacy_request.request_runner_service.run_privacy_request.apply_async\"\n    )\n    def test_create_privacy_request_stores_multivalue_custom_fields(\n        self,"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "ethyca/fides",
+  "source_root": "GHSA-qx5f-ghc2-7g5c",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "revision_sha": "0e320b20934eb5af3a3d5127dba2691605d7ff37",
+      "source_file": "tests/ops/api/v1/endpoints/privacy_request/test_privacy_request_endpoints.py",
+      "test_control_excerpt": "    )\n    def test_create_privacy_request_invalid_location(\n        self,\n        run_access_request_mock,\n        url,\n        db,\n        api_client: TestClient,\n        policy,\n    ):\n        data = [\n            {\n                \"requested_at\": \"2021-08-30T16:09:37.359Z\",\n                \"policy_key\": policy.key,\n                \"identity\": {\n                    \"email\": \"test@example.com\",\n                },\n                \"location\": \"INVALID\",  # Invalid location format\n            }\n        ]\n        resp = api_client.post(url, json=data)\n        assert resp.status_code == 422  # Validation error\n        assert \"Invalid location format\" in resp.text\n\n    @mock.patch(\n        \"fides.api.service.privacy_request.request_runner_service.run_privacy_request.apply_async\"\n    )\n    def test_create_privacy_request_stores_multivalue_custom_fields(\n        self,",
+      "test_control_excerpt_sha256": "34fbc0703ed537926669e962ddb2e36512e389c2112ec6c469792dfccf66b437"
+    },
+    "reference": "https://github.com/ethyca/fides/blob/0e320b20934eb5af3a3d5127dba2691605d7ff37/tests/ops/api/v1/endpoints/privacy_request/test_privacy_request_endpoints.py",
+    "retrieved_at": "2026-08-14T18:58:04.403255+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

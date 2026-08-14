@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/oscal-compass/compliance-trestle/blob/d107cd16efe8eb15d46be3c1d97f1ec73d32447c/tests/trestle/core/remote/cache_security_test.py",
+  "captured_at": "2026-08-14T18:58:04.421521+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "normal",
+        "valid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "d107cd16efe8eb15d46be3c1d97f1ec73d32447c",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py",
+      "test_control_excerpt": "    \"\"\"Test path validation functions.\"\"\"\n\n    def test_validate_url_path_normal(self) -> None:\n        \"\"\"Test that normal paths pass validation.\"\"\"\n        PathSecurityValidator.validate_url_path_for_cache('/normal/path.json')  # Should not raise\n        PathSecurityValidator.validate_url_path_for_cache('/path/to/file.json')  # Should not raise\n        PathSecurityValidator.validate_url_path_for_cache('/data/catalog.json')  # Should not raise\n\n    def test_validate_url_path_blocks_traversal(self) -> None:\n        \"\"\"Test that paths with .. are blocked.\"\"\"\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../../../etc/passwd')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/path/../file.json')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../file.json')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../../../../../../tmp/pwned.json')\n\n\nclass TestPathSecurityValidator:\n    \"\"\"Test path security validation.\"\"\"\n\n    def test_validate_cache_path_within_cache(self, tmp_path: pathlib.Path) -> None:\n        \"\"\"Test that valid paths within cache are accepted.\"\"\""
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oscal-compass/compliance-trestle",
+  "source_root": "GHSA-h47f-gmjp-m7rr",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "normal",
+        "valid"
+      ],
+      "revision_sha": "d107cd16efe8eb15d46be3c1d97f1ec73d32447c",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py",
+      "test_control_excerpt": "    \"\"\"Test path validation functions.\"\"\"\n\n    def test_validate_url_path_normal(self) -> None:\n        \"\"\"Test that normal paths pass validation.\"\"\"\n        PathSecurityValidator.validate_url_path_for_cache('/normal/path.json')  # Should not raise\n        PathSecurityValidator.validate_url_path_for_cache('/path/to/file.json')  # Should not raise\n        PathSecurityValidator.validate_url_path_for_cache('/data/catalog.json')  # Should not raise\n\n    def test_validate_url_path_blocks_traversal(self) -> None:\n        \"\"\"Test that paths with .. are blocked.\"\"\"\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../../../etc/passwd')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/path/../file.json')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../file.json')\n\n        with pytest.raises(TrestleError, match='Security violation:.*[Pp]ath traversal blocked'):\n            PathSecurityValidator.validate_url_path_for_cache('/../../../../../../tmp/pwned.json')\n\n\nclass TestPathSecurityValidator:\n    \"\"\"Test path security validation.\"\"\"\n\n    def test_validate_cache_path_within_cache(self, tmp_path: pathlib.Path) -> None:\n        \"\"\"Test that valid paths within cache are accepted.\"\"\"",
+      "test_control_excerpt_sha256": "ef2f5b4521e18bc66099e4f48125860e65e7e0ba4279a732d0b5ef01d0071350"
+    },
+    "reference": "https://github.com/oscal-compass/compliance-trestle/blob/d107cd16efe8eb15d46be3c1d97f1ec73d32447c/tests/trestle/core/remote/cache_security_test.py",
+    "retrieved_at": "2026-08-14T18:58:04.421527+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

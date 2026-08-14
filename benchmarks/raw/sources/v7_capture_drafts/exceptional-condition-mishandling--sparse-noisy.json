@@ -1,0 +1,168 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sipsorcery-org/sipsorcery/security/advisories/GHSA-pfvm-w89x-94jw",
+  "captured_at": "2026-08-14T18:58:04.407199+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "sipsorcery-org/sipsorcery",
+      "version_boundaries": [
+        {
+          "ecosystem": "nuget",
+          "package": "SIPSorcery",
+          "patched_version": "10.0.14",
+          "vulnerable_version_range": ">= 10.0.5, <= 10.0.13"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "sipsorcery-org/sipsorcery",
+  "source_root": "GHSA-pfvm-w89x-94jw",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "manus-use",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/213290975?v=4",
+            "events_url": "https://api.github.com/users/manus-use/events{/privacy}",
+            "followers_url": "https://api.github.com/users/manus-use/followers",
+            "following_url": "https://api.github.com/users/manus-use/following{/other_user}",
+            "gists_url": "https://api.github.com/users/manus-use/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/manus-use",
+            "id": 213290975,
+            "login": "manus-use",
+            "node_id": "U_kgDODLaP3w",
+            "organizations_url": "https://api.github.com/users/manus-use/orgs",
+            "received_events_url": "https://api.github.com/users/manus-use/received_events",
+            "repos_url": "https://api.github.com/users/manus-use/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/manus-use/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/manus-use/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/manus-use",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": 7.5,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 7.5,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-248",
+        "CWE-755"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-248",
+          "name": "Uncaught Exception"
+        },
+        {
+          "cwe_id": "CWE-755",
+          "name": "Improper Handling of Exceptional Conditions"
+        }
+      ],
+      "description": "## Summary\r\n`TurnServer.ReceiveUdpAsync` places its generic `catch (Exception)` OUTSIDE the `while` receive loop, and `Start()` launches the loop fire-and-forget with no supervision or restart. A single pre-authentication UDP datagram whose STUN header first byte is in `0x80–0xFF` causes `STUNHeader.ParseSTUNHeader` to throw `ApplicationException`, which unwinds past the loop and terminates it. The TURN UDP relay is then dead for ALL clients until the process is restarted.\r\n\r\n## Root Cause\r\n`src/SIPSorcery/net/TURN/TurnServer.cs`:\r\n- `ReceiveUdpAsync` (:555-577): the inner `try` (:562-567) wraps only `_udpSocket.ReceiveAsync()`; `HandleUdpDatagram(result.Buffer, result.RemoteEndPoint)` (:569) is inside the `while` body but OUTSIDE that inner try. The generic `catch (Exception ex)` (:573) is lexically OUTSIDE the `while`.\r\n- `Start()` does `_ = ReceiveUdpAsync();` (:381) — fire-and-forget, no restart.\r\n- `HandleUdpDatagram` (:579) calls `STUNMessage.ParseSTUNMessage(data, data.Length)` (:600) for any non-ChannelData datagram; `ParseSTUNMessage` (STUNMessage.cs:94) has no try/catch.\r\n\r\n## Impact\r\n`ApplicationException` propagates out of the `while`, is caught at :573, logged, and the method returns. `_running` remains true but nothing re-invokes `ReceiveUdpAsync` → TURN UDP relay permanently unavailable for all clients (whole-server DoS). Pre-authentication: STUN parsing precedes any TURN allocation/credential check.\r\n\r\n## Proof of Concept\r\nSend one UDP datagram to the TURN port (default 3478) with first byte `0x80` (e.g. `80 00 00 00`). `0x80 & 0xC0 = 0x80 ≠ 0x40` → not ChannelData → `ParseSTUNMessage` → `ParseSTUNHeader` executes `if ((Array[startIndex] & 0xC0) != 0) throw new ApplicationException(...)` (STUNHeader.cs:169-172); `0x80 & 0xC0 = 0x80 ≠ 0` → throws.\r\n\r\n## Attack Chain\r\n1. Entry: one UDP datagram to the TURN port, first byte `0x80–0xFF`. Guard: ChannelData branch requires `(data[0] & 0xC0) == 0x40` (:583). Bypass: `0x80 & 0xC0 = 0x80 ≠ 0x40` → falls through to `ParseSTUNMessage` (:600).\r\n2. Sink: `STUNMessage.ParseSTUNMessage` → `STUNHeader.ParseSTUNHeader` (STUNHeader.cs:169-172) throws `ApplicationException`. Guard: none before the throw; `ParseSTUNMessage` has no try/catch. Bypass: `0x80 & 0xC0 = 0x80 ≠ 0` → throws.\r\n3. Impact: exception unwinds past the `while` into `catch(Exception)` at :573 → logged → method returns → loop exits. Guard: none — no restart (`Start()` :381 fire-and-forget). Bypass: N/A. TURN UDP relay dead for all clients until process restart.\r\n\r\n## Bypass Evidence\r\n- Loop/catch structure: catch at TurnServer.cs:573 is outside the `while` at :559; `HandleUdpDatagram` at :569 is outside the inner try (:562-567).\r\n- Unguarded `ParseSTUNMessage` at :600; throw at STUNHeader.cs:169-172.\r\n- Fire-and-forget start at :381 with no restart in `Start()`.\r\n- `TurnServerConfig.ListenAddress` defaults to `IPAddress.Loopback` (:42), but a functioning TURN server must bind a routable address to serve clients, so real deployments are exposed. Non-default config narrows the vulnerable population, not the attack difficulty → AC:L.\r\n\r\n## Affected Versions\r\n`nuget:SIPSorcery <= 10.0.13` (TurnServer component present since 10.0.5; verified on release tag v10.0.13 and HEAD).\r\n\r\n## Dedup\r\nNOT a duplicate of GHSA-28gm-jrmw-xx93 (CVE-2026-54632), which covers the client RTP/ICE socket (`UdpReceiver`/`RTPChannel`). `TurnServer` is a distinct shipped RFC 5766 server component with its own loop and fix location.\r\n\r\n## Suggested Fix\r\nWrap `HandleUdpDatagram` in a per-datagram try/log-and-continue INSIDE the `while` (matching the drop-and-continue intent of fix bdb76cb), and/or add loop supervision/restart.\r\n\r\n---\r\nReported by **zx (Jace)** — GitHub: @manus-use",
+      "ghsa_id": "GHSA-pfvm-w89x-94jw",
+      "html_url": "https://github.com/sipsorcery-org/sipsorcery/security/advisories/GHSA-pfvm-w89x-94jw",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-pfvm-w89x-94jw"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-08-10T17:54:32Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/197660?v=4",
+        "events_url": "https://api.github.com/users/sipsorcery/events{/privacy}",
+        "followers_url": "https://api.github.com/users/sipsorcery/followers",
+        "following_url": "https://api.github.com/users/sipsorcery/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sipsorcery/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/sipsorcery",
+        "id": 197660,
+        "login": "sipsorcery",
+        "node_id": "MDQ6VXNlcjE5NzY2MA==",
+        "organizations_url": "https://api.github.com/users/sipsorcery/orgs",
+        "received_events_url": "https://api.github.com/users/sipsorcery/received_events",
+        "repos_url": "https://api.github.com/users/sipsorcery/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/sipsorcery/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sipsorcery/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/sipsorcery",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "Malformed UDP datagram crashes TurnServer receive loop with no restart, disabling TURN UDP relay for all clients (DoS)",
+      "updated_at": "2026-08-10T17:54:32Z",
+      "url": "https://api.github.com/repos/sipsorcery-org/sipsorcery/security-advisories/GHSA-pfvm-w89x-94jw",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "nuget",
+            "name": "SIPSorcery"
+          },
+          "patched_versions": "10.0.14",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">= 10.0.5, <= 10.0.13"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/sipsorcery-org/sipsorcery/security/advisories/GHSA-pfvm-w89x-94jw",
+    "retrieved_at": "2026-08-14T18:58:04.407204+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

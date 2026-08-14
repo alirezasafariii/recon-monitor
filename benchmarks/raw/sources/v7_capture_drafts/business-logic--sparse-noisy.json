@@ -1,0 +1,212 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+  "captured_at": "2026-08-14T18:58:04.403604+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "ethyca/fides",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "package": "ethyca-fides",
+          "patched_version": "2.83.2",
+          "vulnerable_version_range": ">=2.75.0"
+        },
+        {
+          "ecosystem": "pip",
+          "package": "ethyca-fides",
+          "patched_version": "2.83.2",
+          "vulnerable_version_range": ">= 2.75.0, < 2.83.2"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "ethyca/fides",
+  "source_root": "GHSA-qx5f-ghc2-7g5c",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "RobertKeyser",
+          "type": "finder"
+        },
+        {
+          "login": "daveqnet",
+          "type": "analyst"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "finder",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/39230492?v=4",
+            "events_url": "https://api.github.com/users/RobertKeyser/events{/privacy}",
+            "followers_url": "https://api.github.com/users/RobertKeyser/followers",
+            "following_url": "https://api.github.com/users/RobertKeyser/following{/other_user}",
+            "gists_url": "https://api.github.com/users/RobertKeyser/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/RobertKeyser",
+            "id": 39230492,
+            "login": "RobertKeyser",
+            "node_id": "MDQ6VXNlcjM5MjMwNDky",
+            "organizations_url": "https://api.github.com/users/RobertKeyser/orgs",
+            "received_events_url": "https://api.github.com/users/RobertKeyser/received_events",
+            "repos_url": "https://api.github.com/users/RobertKeyser/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/RobertKeyser/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/RobertKeyser/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/RobertKeyser",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "analyst",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/83430497?v=4",
+            "events_url": "https://api.github.com/users/daveqnet/events{/privacy}",
+            "followers_url": "https://api.github.com/users/daveqnet/followers",
+            "following_url": "https://api.github.com/users/daveqnet/following{/other_user}",
+            "gists_url": "https://api.github.com/users/daveqnet/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/daveqnet",
+            "id": 83430497,
+            "login": "daveqnet",
+            "node_id": "MDQ6VXNlcjgzNDMwNDk3",
+            "organizations_url": "https://api.github.com/users/daveqnet/orgs",
+            "received_events_url": "https://api.github.com/users/daveqnet/received_events",
+            "repos_url": "https://api.github.com/users/daveqnet/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/daveqnet/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/daveqnet/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/daveqnet",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-42303",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": 6.1,
+          "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:H/SA:N"
+        }
+      },
+      "cwe_ids": [
+        "CWE-288",
+        "CWE-306",
+        "CWE-841"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-288",
+          "name": "Authentication Bypass Using an Alternate Path or Channel"
+        },
+        {
+          "cwe_id": "CWE-306",
+          "name": "Missing Authentication for Critical Function"
+        },
+        {
+          "cwe_id": "CWE-841",
+          "name": "Improper Enforcement of Behavioral Workflow"
+        }
+      ],
+      "description": "### Summary\r\n\r\nFides deployments that enable both subject identity verification and duplicate privacy request detection are affected by a vulnerability in which an administrator can approve a privacy request whose identity was never verified. For erasure policies, this can result in unauthorized deletion of a data subject's records across every integration configured in the affected deployment.\r\n\r\nA related lower-severity denial-of-service issue, in which an unauthenticated attacker could prevent a legitimate data subject from completing their own privacy requests, is also patched in the fix for this vulnerability.\r\n\r\n### Am I affected?\r\n\r\nThis vulnerability only affects deployments that use Fides's privacy request (data subject request) features, also known collectively as \"Lethe\". Deployments that do not submit, process, or manage privacy requests through Fides are not affected.\r\n\r\nWithin deployments that do use privacy request features, your deployment is affected if both of the following settings are effectively set to `true`:\r\n\r\n- `subject_identity_verification_required`\r\n- `privacy_request_duplicate_detection.enabled`\r\n\r\nBoth settings default to `false`.\r\n\r\nEach setting can be configured in multiple places. If the same setting is configured in more than one place, Fides resolves conflicts in the following precedence order, highest priority first:\r\n\r\n1. **Admin UI / configuration API** - stored in the application database and applied at runtime\r\n2. **Environment variables** - read at webserver startup\r\n3. **`fides.toml`** - read at webserver startup\r\n4. **Default value** - used if none of the above set the value\r\n\r\nTo determine whether your deployment is affected, check each setting in every location that applies to your configuration management.\r\n\r\n**`subject_identity_verification_required`**\r\n\r\n- `fides.toml`: under the `[execution]` section as `subject_identity_verification_required = true`\r\n- Environment variable: `FIDES__EXECUTION__SUBJECT_IDENTITY_VERIFICATION_REQUIRED=true`\r\n- No Admin UI control - this setting is not exposed through the Admin UI and cannot be set via the configuration API\r\n\r\n**`privacy_request_duplicate_detection.enabled`**\r\n\r\n- `fides.toml`: under the `[privacy_request_duplicate_detection]` section as `enabled = true`\r\n- Environment variable: `FIDES__PRIVACY_REQUEST_DUPLICATE_DETECTION__ENABLED=true`\r\n- Admin UI: **Settings → Privacy requests → Duplicate detection**, via the \"Enable duplicate detection\" toggle. The toggle reflects only values set through the Admin UI or configuration API. A value set via `fides.toml` or environment variable will not appear here.\r\n\r\n<figure>\r\n<img width=\"1392\" height=\"940\" alt=\"GHSA - Duplicate Detection Enabled\" src=\"https://github.com/user-attachments/assets/e384f273-ce68-403c-adb2-93536eca5f3a\" />\r\n<figcaption>\r\n<em>\r\nThe \"Enable duplicate detection\" toggle when it's enabled, under Settings → Privacy requests in the Admin UI.\r\n</em>\r\n</figcaption>\r\n</figure>\r\n\r\n### Details\r\n\r\nWhen duplicate detection classifies a privacy request as a duplicate before its identity has been verified, the administrative interface presents that request with Approve, Deny, and Delete options. An administrator performing routine duplicate request triage may approve such a request without realising the identity was never verified. The request is then processed as if verification had succeeded.\r\n\r\nAn attacker exploits this by submitting two privacy requests using a target's email address, never completing the OTP verification. The second request is classified as a duplicate and becomes approvable through the administrative interface.\r\n\r\nThe fix for this vulnerability also patches a lower-severity issue, present in versions `2.82.0` through `2.83.1`, in which a legitimate data subject could not complete identity verification on a privacy request that had been classified as a duplicate, allowing an unauthenticated attacker to block that data subject from exercising their privacy rights through the affected deployment.\r\n\r\n### Impact\r\n\r\nAn unauthenticated attacker who knows a target's email address and can reach the public Privacy Center can cause an erasure privacy request to be approved by an administrator and processed without identity verification. The result is unauthorized deletion of the data subject's records across every integration configured in the affected deployment. Effects may be permanent and may cascade into downstream systems.\r\n\r\nAccess privacy requests are a less meaningful vector: the resulting access package is delivered to the data subject's registered email address, not to the attacker, so the attacker does not gain the data. The request still represents unauthorized processing.\r\n\r\n### Patches\r\n\r\nThe vulnerabilities have been patched in Fides OSS version `2.83.2`. Users are advised to upgrade to this version or later to secure their systems against these threats.\r\n\r\nFides Enterprise (fidesplus) version `2.83.2` contains the same patch.\r\n\r\n### Workarounds\r\n\r\nDisable duplicate detection by setting `privacy_request_duplicate_detection.enabled` to `false`. This can be changed under **Settings → Privacy Requests → Duplicate detection** in the Admin UI). This fully mitigates the vulnerability and is the recommended interim workaround for deployments that cannot immediately upgrade.\r\n\r\n<figure>\r\n<p>\r\n<img width=\"1392\" height=\"880\" alt=\"GHSA - Disable Duplicate Detection\" src=\"https://github.com/user-attachments/assets/fc0c87a1-7e40-4698-ba9e-e1721f591310\" />\r\n<figcaption>\r\n<em>\r\nThe \"Enable duplicate detection\" toggle when it's disabled, under Settings → Privacy requests in the Admin UI.\r\n</em>\r\n</figcaption>\r\n<p>\r\n</figure>\r\n\r\nAdministrators of deployments that must retain duplicate detection should deny or delete, rather than approve, any privacy request whose identity has not been verified. This reduces the likelihood of exploitation but relies on administrator vigilance during each triage action.\r\n\r\n<img width=\"1392\" height=\"1044\" alt=\"GHSA - Admin Approval of Unverified Privacy Request\" src=\"https://github.com/user-attachments/assets/b2ad4940-40d3-468b-897e-8cca6ce4707e\" />\r\n<figcaption>\r\n<em>\r\nAn administrator's view when approving an unverified privacy request in the Admin UI.\r\n</em>\r\n</figcaption>\r\n</figure>\r\n\r\n### Severity\r\n\r\nThis vulnerability has been assigned a severity of **MEDIUM**.\r\n\r\nThe rating reflects the fact that exploitation requires an administrator to approve the malicious request. An attacker alone cannot cause a privacy request to be processed. The administrative interface understates the verification state of a duplicate-classified request, which increases the likelihood of inadvertent approval during routine triage, but without administrator user interaction the vulnerability is not exploitable.\r\n\r\nThe related denial-of-service issue addressed in the same patch is also rated medium-severity in isolation and does not raise the overall severity of this advisory.\r\n\r\n### References\r\n\r\n- Fides OSS `2.83.2` release: https://github.com/ethyca/fides/releases/tag/2.83.2\r\n- Fix for the identity bypass vulnerability: [PR #7972](https://github.com/ethyca/fides/pull/7972), commit [`e7a6527`](https://github.com/ethyca/fides/commit/e7a6527b0f9fdc9887b86a89bb5453e7421882dd)\r\n- Fix for the related denial-of-service issue: [PR #7971](https://github.com/ethyca/fides/pull/7971), commit [`0e320b2`](https://github.com/ethyca/fides/commit/0e320b20934eb5af3a3d5127dba2691605d7ff37)",
+      "ghsa_id": "GHSA-qx5f-ghc2-7g5c",
+      "html_url": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-qx5f-ghc2-7g5c"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-42303"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-04-27T08:36:40Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/83430497?v=4",
+        "events_url": "https://api.github.com/users/daveqnet/events{/privacy}",
+        "followers_url": "https://api.github.com/users/daveqnet/followers",
+        "following_url": "https://api.github.com/users/daveqnet/following{/other_user}",
+        "gists_url": "https://api.github.com/users/daveqnet/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/daveqnet",
+        "id": 83430497,
+        "login": "daveqnet",
+        "node_id": "MDQ6VXNlcjgzNDMwNDk3",
+        "organizations_url": "https://api.github.com/users/daveqnet/orgs",
+        "received_events_url": "https://api.github.com/users/daveqnet/received_events",
+        "repos_url": "https://api.github.com/users/daveqnet/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/daveqnet/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/daveqnet/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/daveqnet",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Privacy Request Identity Verification Bypass Vulnerability via Duplicate Detection",
+      "updated_at": "2026-04-27T08:36:40Z",
+      "url": "https://api.github.com/repos/ethyca/fides/security-advisories/GHSA-qx5f-ghc2-7g5c",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "pip",
+            "name": "ethyca-fides"
+          },
+          "patched_versions": "2.83.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=2.75.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+    "retrieved_at": "2026-08-14T18:58:04.403608+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

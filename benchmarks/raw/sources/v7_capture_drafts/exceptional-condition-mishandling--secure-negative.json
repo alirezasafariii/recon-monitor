@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sipsorcery-org/sipsorcery/blob/ccb0b5a845efa2fb131fd00de4f5321bae627f29/src/SIPSorcery/net/TURN/TurnServer.cs",
+  "captured_at": "2026-08-14T18:58:04.407019+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "line_end": 520,
+      "line_start": 499,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "ccb0b5a845efa2fb131fd00de4f5321bae627f29",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        try\n                        {\n                            HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                        }\n                        catch (Exception channelDataExcp)\n                        {\n                            logger.LogWarning(channelDataExcp, \"TURN server dropped channel data from TCP client {Client} that could not be processed. {ErrorMessage}\", clientId, channelDataExcp.Message);\n                        }\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "f91eb3d0850bed9e15d846d961d4d62f10dc2b5e6138cd63a5c84c84702698c7",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "sipsorcery-org/sipsorcery",
+  "source_root": "GHSA-pfvm-w89x-94jw",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 520,
+      "line_start": 499,
+      "revision_sha": "ccb0b5a845efa2fb131fd00de4f5321bae627f29",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        try\n                        {\n                            HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                        }\n                        catch (Exception channelDataExcp)\n                        {\n                            logger.LogWarning(channelDataExcp, \"TURN server dropped channel data from TCP client {Client} that could not be processed. {ErrorMessage}\", clientId, channelDataExcp.Message);\n                        }\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "f91eb3d0850bed9e15d846d961d4d62f10dc2b5e6138cd63a5c84c84702698c7",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "reference": "https://github.com/sipsorcery-org/sipsorcery/blob/ccb0b5a845efa2fb131fd00de4f5321bae627f29/src/SIPSorcery/net/TURN/TurnServer.cs",
+    "retrieved_at": "2026-08-14T18:58:04.407023+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

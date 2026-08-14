@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/cfd07048019694d2aaeaa9247a63991703173858/README.md",
+  "captured_at": "2026-08-14T18:58:04.407519+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "file_upload",
+  "raw": {
+    "details": {
+      "line_end": 169,
+      "line_start": 148,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "cfd07048019694d2aaeaa9247a63991703173858",
+      "source_excerpt": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to `storage/app/public/` when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+      "source_excerpt_sha256": "bbc3507a2c136819f150737630430e349329ea70d73ef3cdfd5d00aba179bd25",
+      "source_file": "README.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "mckenziearts/livewire-markdown-editor",
+  "source_root": "GHSA-gxxh-8vcj-w2mh",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 169,
+      "line_start": 148,
+      "revision_sha": "cfd07048019694d2aaeaa9247a63991703173858",
+      "source_excerpt": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to `storage/app/public/` when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+      "source_excerpt_sha256": "bbc3507a2c136819f150737630430e349329ea70d73ef3cdfd5d00aba179bd25",
+      "source_file": "README.md"
+    },
+    "reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/cfd07048019694d2aaeaa9247a63991703173858/README.md",
+    "retrieved_at": "2026-08-14T18:58:04.407523+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

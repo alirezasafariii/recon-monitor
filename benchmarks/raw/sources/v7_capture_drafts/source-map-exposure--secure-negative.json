@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/postcss/postcss/blob/7beca139e70f9075c6b19700fcb00dd8033e5da8/lib/previous-map.js",
+  "captured_at": "2026-08-14T18:58:04.420012+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "line_end": 103,
+      "line_start": 83,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "7beca139e70f9075c6b19700fcb00dd8033e5da8",
+      "source_excerpt": "      this.annotation = this.getAnnotationURL(css.substring(start, end))\n    }\n  }\n\n  loadFile(path, cssFile, trusted) {\n    if (!trusted && !this.unsafeMap) {\n      if (!/\\.map$/i.test(path)) return undefined\n      if (!cssFile) return undefined\n\n      let rel = relative(dirname(cssFile), path)\n      if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) {\n        return undefined\n      }\n    }\n    this.root = dirname(path)\n    if (existsSync(path)) {\n      this.mapFile = path\n      return readFileSync(path, 'utf-8').toString().trim()\n    }\n  }\n",
+      "source_excerpt_sha256": "c64a004d81fb9ec279074b5740ad1107638bbf05979a817bf1b2984f1b99f4b3",
+      "source_file": "lib/previous-map.js"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "postcss/postcss",
+  "source_root": "GHSA-fxqj-rqcc-2cmp",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 103,
+      "line_start": 83,
+      "revision_sha": "7beca139e70f9075c6b19700fcb00dd8033e5da8",
+      "source_excerpt": "      this.annotation = this.getAnnotationURL(css.substring(start, end))\n    }\n  }\n\n  loadFile(path, cssFile, trusted) {\n    if (!trusted && !this.unsafeMap) {\n      if (!/\\.map$/i.test(path)) return undefined\n      if (!cssFile) return undefined\n\n      let rel = relative(dirname(cssFile), path)\n      if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) {\n        return undefined\n      }\n    }\n    this.root = dirname(path)\n    if (existsSync(path)) {\n      this.mapFile = path\n      return readFileSync(path, 'utf-8').toString().trim()\n    }\n  }\n",
+      "source_excerpt_sha256": "c64a004d81fb9ec279074b5740ad1107638bbf05979a817bf1b2984f1b99f4b3",
+      "source_file": "lib/previous-map.js"
+    },
+    "reference": "https://github.com/postcss/postcss/blob/7beca139e70f9075c6b19700fcb00dd8033e5da8/lib/previous-map.js",
+    "retrieved_at": "2026-08-14T18:58:04.420017+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

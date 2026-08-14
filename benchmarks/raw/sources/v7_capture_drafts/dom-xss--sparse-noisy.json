@@ -1,0 +1,136 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+  "captured_at": "2026-08-14T18:58:04.406537+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "dom_xss",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "gogs/gogs",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "gogs.io/gogs",
+          "patched_version": "0.14.3",
+          "vulnerable_version_range": "< 0.14.3"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "gogs/gogs",
+  "source_root": "GHSA-vcm5-gvmp-78mp",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [],
+      "credits_detailed": [],
+      "cve_id": "CVE-2026-52807",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-79"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-79",
+          "name": "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+        }
+      ],
+      "description": "### Summary\r\nThe fix for GHSA-vgjm-2cpf-4g7c (DOM-based XSS via milestone selection) was only applied to `templates/repo/issue/view_content.tmpl` but not to `templates/repo/issue/new_form.tmpl`. An attacker can store an HTML/JavaScript payload in a milestone name, and when any user opens the New Issue page and interacts with the milestone dropdown, the payload executes in their browser via Semantic UI's `preserveHTML` behavior.\r\n\r\n### Details\r\nGHSA-vgjm-2cpf-4g7c was patched by adding `| Sanitize` (bluemonday HTML tag stripping) to milestone name rendering in `view_content.tmpl`. However, the same milestone dropdown exists in `new_form.tmpl` and was **not** patched.\r\n\r\nIn `new_form.tmpl`, milestone names are rendered with Go's default auto-escaping (`{{.Name}}`), which converts `<` to `&lt;` etc. This prevents direct HTML injection. However, when the browser renders the DOM, the text content of the element contains the **decoded** original payload (e.g., `<img src=x onerror=alert(1)>`).\r\n\r\nSemantic UI 2.4.2's dropdown component has `preserveHTML: true` as the default setting. When a user selects a dropdown item, the internal `set.text()` method calls jQuery's `.html()` with the item's text content. This re-parses the decoded text as HTML, creating the injected element and triggering the JavaScript event handler.\r\n\r\n### PoC\r\n[poc.zip](https://github.com/user-attachments/files/26508268/poc.zip)\r\nPlease extract the uploaded compressed file before proceeding\r\n\r\n1. docker compose up --build\r\n\r\n<img width=\"1325\" height=\"315\" alt=\"스크린샷 2026-04-06 오후 9 34 05\" src=\"https://github.com/user-attachments/assets/87895cce-5b8e-4320-829a-87a5890cc0d9\" />\r\n\r\n### Impact\r\n- Stored DOM XSS: Any user with write access to a repository can create a malicious milestone. Any other user who visits the New Issue page and interacts with the milestone dropdown will have arbitrary JavaScript executed in their browser session.\r\n- Session hijacking: The attacker can steal session cookies, perform actions as the victim, or escalate privileges.\r\n",
+      "ghsa_id": "GHSA-vcm5-gvmp-78mp",
+      "html_url": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-vcm5-gvmp-78mp"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-52807"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-19T02:19:30Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/2946214?v=4",
+        "events_url": "https://api.github.com/users/unknwon/events{/privacy}",
+        "followers_url": "https://api.github.com/users/unknwon/followers",
+        "following_url": "https://api.github.com/users/unknwon/following{/other_user}",
+        "gists_url": "https://api.github.com/users/unknwon/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/unknwon",
+        "id": 2946214,
+        "login": "unknwon",
+        "node_id": "MDQ6VXNlcjI5NDYyMTQ=",
+        "organizations_url": "https://api.github.com/users/unknwon/orgs",
+        "received_events_url": "https://api.github.com/users/unknwon/received_events",
+        "repos_url": "https://api.github.com/users/unknwon/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/unknwon/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/unknwon/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/unknwon",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "DOM-based XSS via Milestone Name on New Issue Page",
+      "updated_at": "2026-06-19T02:19:30Z",
+      "url": "https://api.github.com/repos/gogs/gogs/security-advisories/GHSA-vcm5-gvmp-78mp",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "gogs.io/gogs"
+          },
+          "patched_versions": "0.14.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 0.14.3"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+    "retrieved_at": "2026-08-14T18:58:04.406542+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

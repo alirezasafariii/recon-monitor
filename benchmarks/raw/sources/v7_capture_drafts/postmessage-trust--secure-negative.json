@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/tinacms/tinacms/blob/c491fc55e612725f5d775eeb1fdf3f8ba82314fa/.changeset/twenty-toes-design.md",
+  "captured_at": "2026-08-14T18:58:04.413675+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "postmessage_trust",
+  "raw": {
+    "details": {
+      "line_end": 9,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "c491fc55e612725f5d775eeb1fdf3f8ba82314fa",
+      "source_excerpt": "---\n\"@tinacms/app\": patch\n\"@tinacms/mdx\": patch\n\"tinacms\": patch\n---\n\nHarden cross-window message handling and rich-text URL sanitization.\n\nAdds stricter origin/source checks for trusted message flows, use explicit target origins for preview iframe message, and applies URL sanitization to slatejson rich-text parsing and default rich-text link/image rendering.",
+      "source_excerpt_sha256": "e99af2ac4dc5381486436e7ed5907b4749336f2386e44654854749a357cbaae4",
+      "source_file": ".changeset/twenty-toes-design.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "tinacms/tinacms",
+  "source_root": "GHSA-g5qx-h5f3-mp2f",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 9,
+      "line_start": 1,
+      "revision_sha": "c491fc55e612725f5d775eeb1fdf3f8ba82314fa",
+      "source_excerpt": "---\n\"@tinacms/app\": patch\n\"@tinacms/mdx\": patch\n\"tinacms\": patch\n---\n\nHarden cross-window message handling and rich-text URL sanitization.\n\nAdds stricter origin/source checks for trusted message flows, use explicit target origins for preview iframe message, and applies URL sanitization to slatejson rich-text parsing and default rich-text link/image rendering.",
+      "source_excerpt_sha256": "e99af2ac4dc5381486436e7ed5907b4749336f2386e44654854749a357cbaae4",
+      "source_file": ".changeset/twenty-toes-design.md"
+    },
+    "reference": "https://github.com/tinacms/tinacms/blob/c491fc55e612725f5d775eeb1fdf3f8ba82314fa/.changeset/twenty-toes-design.md",
+    "retrieved_at": "2026-08-14T18:58:04.413679+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

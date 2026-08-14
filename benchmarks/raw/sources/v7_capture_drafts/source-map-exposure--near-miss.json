@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/postcss/postcss/blob/7beca139e70f9075c6b19700fcb00dd8033e5da8/test/previous-map.test.ts",
+  "captured_at": "2026-08-14T18:58:04.419830+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "7beca139e70f9075c6b19700fcb00dd8033e5da8",
+      "source_file": "test/previous-map.test.ts",
+      "test_control_excerpt": "})\n\ntest('removes map on request', () => {\n  let uri = 'data:application/json,' + decodeURI(map)\n  let css = `a{}\\n/*# sourceMappingURL=${uri} */`\n\n  let input = parse(css, { map: { prev: false } }).source?.input\n  type(input?.map, 'undefined')\n})\n\ntest('raises on unknown inline encoding', () => {\n  let css =\n    'a { }\\n/*# sourceMappingURL=data:application/json;' +\n    'md5,68b329da9893e34099c7d8ad5cb9c940*/'\n\n  throws(() => {\n    parse(css)\n  }, 'Unsupported source map encoding md5')\n})\n\ntest('raises on unknown map format', () => {\n  throws(() => {\n    // @ts-expect-error Invalid input\n    parse('a{}', { map: { prev: 1 } })\n  }, 'Unsupported previous source map format: 1')\n})\n\ntest('reads map from annotation', () => {"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "postcss/postcss",
+  "source_root": "GHSA-fxqj-rqcc-2cmp",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "revision_sha": "7beca139e70f9075c6b19700fcb00dd8033e5da8",
+      "source_file": "test/previous-map.test.ts",
+      "test_control_excerpt": "})\n\ntest('removes map on request', () => {\n  let uri = 'data:application/json,' + decodeURI(map)\n  let css = `a{}\\n/*# sourceMappingURL=${uri} */`\n\n  let input = parse(css, { map: { prev: false } }).source?.input\n  type(input?.map, 'undefined')\n})\n\ntest('raises on unknown inline encoding', () => {\n  let css =\n    'a { }\\n/*# sourceMappingURL=data:application/json;' +\n    'md5,68b329da9893e34099c7d8ad5cb9c940*/'\n\n  throws(() => {\n    parse(css)\n  }, 'Unsupported source map encoding md5')\n})\n\ntest('raises on unknown map format', () => {\n  throws(() => {\n    // @ts-expect-error Invalid input\n    parse('a{}', { map: { prev: 1 } })\n  }, 'Unsupported previous source map format: 1')\n})\n\ntest('reads map from annotation', () => {",
+      "test_control_excerpt_sha256": "3da6a9f982a50968409731a872c45032a9774b5932ec2ff0fccf2307ab646fe2"
+    },
+    "reference": "https://github.com/postcss/postcss/blob/7beca139e70f9075c6b19700fcb00dd8033e5da8/test/previous-map.test.ts",
+    "retrieved_at": "2026-08-14T18:58:04.419835+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

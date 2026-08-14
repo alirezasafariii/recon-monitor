@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/oras-project/oras-go/blob/7a9f4b0b9558821b0422152ebe21ae56930fe764/registry/remote/auth/client_test.go",
+  "captured_at": "2026-08-14T18:58:04.405387+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "7a9f4b0b9558821b0422152ebe21ae56930fe764",
+      "source_file": "registry/remote/auth/client_test.go",
+      "test_control_excerpt": "}\n\nfunc TestClient_Do_Basic_Auth(t *testing.T) {\n\tusername := \"test_user\"\n\tpassword := \"test_password\"\n\tvar requestCount, wantRequestCount int64\n\tvar successCount, wantSuccessCount int64\n\tts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n\t\tatomic.AddInt64(&requestCount, 1)\n\t\tif r.Method != http.MethodGet || r.URL.Path != \"/\" {\n\t\t\tt.Errorf(\"unexpected access: %s %s\", r.Method, r.URL)\n\t\t\tw.WriteHeader(http.StatusNotFound)\n\t\t\treturn\n\t\t}\n\t\theader := \"Basic \" + base64.StdEncoding.EncodeToString([]byte(username+\":\"+password))\n\t\tif auth := r.Header.Get(\"Authorization\"); auth != header {\n\t\t\tw.Header().Set(\"Www-Authenticate\", `Basic realm=\"Test Server\"`)\n\t\t\tw.WriteHeader(http.StatusUnauthorized)\n\t\t\treturn\n\t\t}\n\t\tatomic.AddInt64(&successCount, 1)\n\t}))\n\tdefer ts.Close()\n\turi, err := url.Parse(ts.URL)\n\tif err != nil {\n\t\tt.Fatalf(\"invalid test http server: %v\", err)\n\t}\n"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oras-project/oras-go",
+  "source_root": "GHSA-xf85-363p-868w",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "invalid"
+      ],
+      "revision_sha": "7a9f4b0b9558821b0422152ebe21ae56930fe764",
+      "source_file": "registry/remote/auth/client_test.go",
+      "test_control_excerpt": "}\n\nfunc TestClient_Do_Basic_Auth(t *testing.T) {\n\tusername := \"test_user\"\n\tpassword := \"test_password\"\n\tvar requestCount, wantRequestCount int64\n\tvar successCount, wantSuccessCount int64\n\tts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n\t\tatomic.AddInt64(&requestCount, 1)\n\t\tif r.Method != http.MethodGet || r.URL.Path != \"/\" {\n\t\t\tt.Errorf(\"unexpected access: %s %s\", r.Method, r.URL)\n\t\t\tw.WriteHeader(http.StatusNotFound)\n\t\t\treturn\n\t\t}\n\t\theader := \"Basic \" + base64.StdEncoding.EncodeToString([]byte(username+\":\"+password))\n\t\tif auth := r.Header.Get(\"Authorization\"); auth != header {\n\t\t\tw.Header().Set(\"Www-Authenticate\", `Basic realm=\"Test Server\"`)\n\t\t\tw.WriteHeader(http.StatusUnauthorized)\n\t\t\treturn\n\t\t}\n\t\tatomic.AddInt64(&successCount, 1)\n\t}))\n\tdefer ts.Close()\n\turi, err := url.Parse(ts.URL)\n\tif err != nil {\n\t\tt.Fatalf(\"invalid test http server: %v\", err)\n\t}\n",
+      "test_control_excerpt_sha256": "7a254d83fc2c7517a2a3a8fed5321d48c0912d449c2e00b4f42f2b8b373fa26b"
+    },
+    "reference": "https://github.com/oras-project/oras-go/blob/7a9f4b0b9558821b0422152ebe21ae56930fe764/registry/remote/auth/client_test.go",
+    "retrieved_at": "2026-08-14T18:58:04.405391+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/surrealdb/surrealdb/blob/cfd5f99e63030c9d89a57de668f0c9dfd22f949e/surrealdb/core/src/rpc/error.rs",
+  "captured_at": "2026-08-14T18:58:04.414253+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "race_condition",
+  "raw": {
+    "details": {
+      "line_end": 113,
+      "line_start": 91,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "cfd5f99e63030c9d89a57de668f0c9dfd22f949e",
+      "source_excerpt": "/// Deserialization error.\npub fn deserialize(msg: impl Into<String>) -> TypesError {\n\tTypesError::serialization(msg.into(), SerializationError::Deserialization)\n}\n\n/// Session not found.\npub fn session_not_found(id: Option<Uuid>) -> TypesError {\n\tlet (message, id_str) = match id {\n\t\tSome(id) => (format!(\"Session not found: {id:?}\"), Some(id.to_string())),\n\t\tNone => (\"Default session not found\".to_string(), None),\n\t};\n\tTypesError::not_found(\n\t\tmessage,\n\t\tNotFoundError::Session {\n\t\t\tid: id_str,\n\t\t},\n\t)\n}\n\n/// Session already exists.\npub fn session_exists(id: Uuid) -> TypesError {\n\tTypesError::already_exists(\n\t\tformat!(\"Session already exists: {id}\"),",
+      "source_excerpt_sha256": "80706e56193a218fc410aec3f3e4e45397ae4ffd9c0801ad91e010bd6a665363",
+      "source_file": "surrealdb/core/src/rpc/error.rs"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "surrealdb/surrealdb",
+  "source_root": "GHSA-4vgr-h27g-cf9p",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 113,
+      "line_start": 91,
+      "revision_sha": "cfd5f99e63030c9d89a57de668f0c9dfd22f949e",
+      "source_excerpt": "/// Deserialization error.\npub fn deserialize(msg: impl Into<String>) -> TypesError {\n\tTypesError::serialization(msg.into(), SerializationError::Deserialization)\n}\n\n/// Session not found.\npub fn session_not_found(id: Option<Uuid>) -> TypesError {\n\tlet (message, id_str) = match id {\n\t\tSome(id) => (format!(\"Session not found: {id:?}\"), Some(id.to_string())),\n\t\tNone => (\"Default session not found\".to_string(), None),\n\t};\n\tTypesError::not_found(\n\t\tmessage,\n\t\tNotFoundError::Session {\n\t\t\tid: id_str,\n\t\t},\n\t)\n}\n\n/// Session already exists.\npub fn session_exists(id: Uuid) -> TypesError {\n\tTypesError::already_exists(\n\t\tformat!(\"Session already exists: {id}\"),",
+      "source_excerpt_sha256": "80706e56193a218fc410aec3f3e4e45397ae4ffd9c0801ad91e010bd6a665363",
+      "source_file": "surrealdb/core/src/rpc/error.rs"
+    },
+    "reference": "https://github.com/surrealdb/surrealdb/blob/cfd5f99e63030c9d89a57de668f0c9dfd22f949e/surrealdb/core/src/rpc/error.rs",
+    "retrieved_at": "2026-08-14T18:58:04.414258+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

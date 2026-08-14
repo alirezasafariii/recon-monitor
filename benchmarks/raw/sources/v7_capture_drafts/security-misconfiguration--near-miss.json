@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/server/config/lunch_flow_test.go",
+  "captured_at": "2026-08-14T18:58:04.416095+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "allowed",
+        "valid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_file": "server/config/lunch_flow_test.go",
+      "test_control_excerpt": ")\n\nfunc TestLunchFlow_ValidateConfig(t *testing.T) {\n\tt.Run(\"disabled is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        false,\n\t\t\tAllowedApiUrls: []string{\"not a valid url\"},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"no allowed urls is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"valid urls are accepted\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t\tAllowedApiUrls: []string{\n\t\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\t\"http://lunchflow.app/api/v1\",\n\t\t\t},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "allowed",
+        "valid"
+      ],
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_file": "server/config/lunch_flow_test.go",
+      "test_control_excerpt": ")\n\nfunc TestLunchFlow_ValidateConfig(t *testing.T) {\n\tt.Run(\"disabled is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        false,\n\t\t\tAllowedApiUrls: []string{\"not a valid url\"},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"no allowed urls is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"valid urls are accepted\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t\tAllowedApiUrls: []string{\n\t\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\t\"http://lunchflow.app/api/v1\",\n\t\t\t},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})",
+      "test_control_excerpt_sha256": "5dfc83e3b703aed189d684c2ef85bfa884e2e857f0de0f5b34ec2c68d369bf36"
+    },
+    "reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/server/config/lunch_flow_test.go",
+    "retrieved_at": "2026-08-14T18:58:04.416099+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

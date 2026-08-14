@@ -1,0 +1,213 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+  "captured_at": "2026-08-14T18:58:04.423093+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "unrestricted_resource_consumption",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "juliangruber/brace-expansion",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "brace-expansion",
+          "patched_version": "5.0.9, 3.0.6, 2.1.4, 1.1.18",
+          "vulnerable_version_range": "< 1.1.18, >= 2.0.0 < 2.1.4, >= 3.0.0 < 3.0.6, >= 4.0.0 < 5.0.9"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "brace-expansion",
+          "patched_version": "1.1.18",
+          "vulnerable_version_range": "< 1.1.18"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "brace-expansion",
+          "patched_version": "2.1.4",
+          "vulnerable_version_range": ">= 2.0.0, < 2.1.4"
+        }
+      ],
+      "version_boundary_count": 5
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "juliangruber/brace-expansion",
+  "source_root": "GHSA-rgw5-rvv9-x895",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "G-Rath",
+          "type": "remediation_developer"
+        },
+        {
+          "login": "katzj",
+          "type": "coordinator"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "remediation_developer",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/3151613?v=4",
+            "events_url": "https://api.github.com/users/G-Rath/events{/privacy}",
+            "followers_url": "https://api.github.com/users/G-Rath/followers",
+            "following_url": "https://api.github.com/users/G-Rath/following{/other_user}",
+            "gists_url": "https://api.github.com/users/G-Rath/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/G-Rath",
+            "id": 3151613,
+            "login": "G-Rath",
+            "node_id": "MDQ6VXNlcjMxNTE2MTM=",
+            "organizations_url": "https://api.github.com/users/G-Rath/orgs",
+            "received_events_url": "https://api.github.com/users/G-Rath/received_events",
+            "repos_url": "https://api.github.com/users/G-Rath/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/G-Rath/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/G-Rath/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/G-Rath",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "coordinator",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/141657?v=4",
+            "events_url": "https://api.github.com/users/katzj/events{/privacy}",
+            "followers_url": "https://api.github.com/users/katzj/followers",
+            "following_url": "https://api.github.com/users/katzj/following{/other_user}",
+            "gists_url": "https://api.github.com/users/katzj/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/katzj",
+            "id": 141657,
+            "login": "katzj",
+            "node_id": "MDQ6VXNlcjE0MTY1Nw==",
+            "organizations_url": "https://api.github.com/users/katzj/orgs",
+            "received_events_url": "https://api.github.com/users/katzj/received_events",
+            "repos_url": "https://api.github.com/users/katzj/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/katzj/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/katzj/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/katzj",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-69152",
+      "cvss": {
+        "score": 7.5,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 7.5,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-400",
+          "name": "Uncontrolled Resource Consumption"
+        },
+        {
+          "cwe_id": "CWE-770",
+          "name": "Allocation of Resources Without Limits or Throttling"
+        }
+      ],
+      "description": "### Summary\r\n\r\nThe `maxLength` mitigation added in `5.0.8` for GHSA-mh99-v99m-4gvg / CVE-2026-14257 is incomplete. It bounds the accumulator where results are *combined*, but not the intermediate arrays that feed it. A ~25 KB input still crashes the Node process with an **uncatchable** out-of-memory error, so `try/catch` around `expand()` does not help.\r\n\r\nA second, related path in the same function lets a ~400 KB input block the event loop for over two minutes without ever exceeding the memory bound.\r\n\r\n### Details\r\n\r\n`maxLength` was enforced in `combine()`, the single place output grows. Two arrays are built *before* `combine()` runs, and neither was bounded.\r\n\r\n**1. Comma alternatives accumulate without a running total (memory exhaustion)**\r\n\r\nEach alternative in `{a,b,c,...}` is expanded by its own recursive `expand_()` call, so each receives a full, independent `maxLength` allowance. The results were then concatenated into a single `values` array with no cumulative limit:\r\n\r\n```js\r\nvalues = []\r\nfor (let j = 0; j < n.length; j++) {\r\n  values.push.apply(values, expand_(n[j], max, maxLength, false))\r\n}\r\n\r\nacc = combine(acc, pre, values, max, maxLength, ...)\r\n```\r\n\r\nWith `A` alternatives, `values` can reach `A * maxLength` characters before `combine()` gets a chance to truncate it. At the default `maxLength` of 4,000,000 and 400 alternatives, that is well past any default heap.\r\n\r\n**2. Padded sequences ignore `maxLength` while generating (CPU exhaustion)**\r\n\r\n`expandSequence()` was bounded by `max` (the result *count*) but never consulted `maxLength`. A padded sequence's element width follows the input, so `{0...01..100000}` with a wide pad generates `max` elements, each as wide as the input, only for `combine()` to discard all but a handful.\r\n\r\nMemory stays flat here, because V8 represents the padded strings as cons-strings, which is likely why this path was not caught alongside the original issue. The cost is time: work proportional to `max * width`.\r\n\r\n| pad width | input bytes | results kept | time (5.0.8) | time (patched) |\r\n|---|---|---|---|---|\r\n| 20,000 | 20 KB | 199 | ~7.3 s | ~20 ms |\r\n| 100,000 | 100 KB | 39 | ~32 s | ~20 ms |\r\n| 400,000 | 400 KB | 9 | ~124 s | ~18 ms |\r\n\r\nOutput is byte-identical before and after the fix; only the wasted work is removed.\r\n\r\n### Proof of concept\r\n\r\nMemory exhaustion, against `5.0.8`:\r\n\r\n```js\r\nimport { expand } from 'brace-expansion'\r\n\r\nconst part = '{' + '0'.repeat(50) + '1..100000}'\r\nconst input = '{' + Array(400).fill(part).join(',') + '}'  // ~25 KB\r\n\r\ntry {\r\n  expand(input)\r\n} catch (e) {\r\n  // never reached - the process is already dead\r\n}\r\n```\r\n\r\n```\r\nFATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory\r\nAborted\r\n```\r\n\r\nEvent-loop stall, against `5.0.8`:\r\n\r\n```js\r\nimport { expand } from 'brace-expansion'\r\n\r\n// ~400 KB input, returns 9 results after roughly two minutes of blocking CPU\r\nexpand('{' + '0'.repeat(400_000) + '1..100000}')\r\n```\r\n\r\n### Impact\r\n\r\nDenial of service. Any application that passes attacker-controlled input to `expand()`, directly or transitively through a glob or pattern-matching library, can be remotely crashed or stalled. The out-of-memory variant terminates the process and cannot be handled with `try/catch`.\r\n\r\nApplications already on `5.0.8` are affected: the `5.0.8` mitigation does not cover these paths.\r\n\r\n### Patches\r\n\r\nBoth intermediate arrays are now bounded as they are built, using the same `max` and `maxLength` limits already applied in `combine()`:\r\n\r\n- `values` tracks a running result count and character length while alternatives are appended, and stops once either bound is reached.\r\n- `expandSequence()` accepts `maxLength` and stops generating once the sequence's own characters reach it.\r\n\r\nAs with the existing limits, output is truncated rather than allowed to grow without bound, which matches how `max` already behaves. The defaults sit well above any realistic expansion, so legitimate input is unaffected.\r\n\r\n### Workarounds\r\n\r\nIf upgrading is not immediately possible, avoid passing untrusted input to `expand()` or to glob brace patterns, or pass an explicitly small `max` **and** `maxLength`.\r\n\r\nNote that a small `maxLength` alone was not sufficient on affected versions: it was applied per alternative rather than cumulatively, which is the root of the first issue above.\r\n\r\n### Credits\r\n\r\nThe memory-exhaustion bypass was reported by Alessio Della Libera, CEO & Co-founder at [Numyra](https://numyra.ai/).\r\n\r\nThe sequence-generation issue was found while verifying that report.\r\n",
+      "ghsa_id": "GHSA-rgw5-rvv9-x895",
+      "html_url": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-rgw5-rvv9-x895"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-69152"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-07-30T10:17:39Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/10247?v=4",
+        "events_url": "https://api.github.com/users/juliangruber/events{/privacy}",
+        "followers_url": "https://api.github.com/users/juliangruber/followers",
+        "following_url": "https://api.github.com/users/juliangruber/following{/other_user}",
+        "gists_url": "https://api.github.com/users/juliangruber/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/juliangruber",
+        "id": 10247,
+        "login": "juliangruber",
+        "node_id": "MDQ6VXNlcjEwMjQ3",
+        "organizations_url": "https://api.github.com/users/juliangruber/orgs",
+        "received_events_url": "https://api.github.com/users/juliangruber/received_events",
+        "repos_url": "https://api.github.com/users/juliangruber/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/juliangruber/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/juliangruber/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/juliangruber",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "DoS via unbounded intermediate arrays, bypassing the GHSA-mh99-v99m-4gvg mitigation",
+      "updated_at": "2026-08-03T16:27:40Z",
+      "url": "https://api.github.com/repos/juliangruber/brace-expansion/security-advisories/GHSA-rgw5-rvv9-x895",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "brace-expansion"
+          },
+          "patched_versions": "5.0.9, 3.0.6, 2.1.4, 1.1.18",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 1.1.18, >= 2.0.0 < 2.1.4, >= 3.0.0 < 3.0.6, >= 4.0.0 < 5.0.9"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895",
+    "retrieved_at": "2026-08-14T18:58:04.423098+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sebhildebrandt/systeminformation/blob/bbfddde48672d0ee124fefdb3cb4442fd9dd4f03/CHANGELOG.md",
+  "captured_at": "2026-08-14T18:58:04.404216+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "line_end": 102,
+      "line_start": 88,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+      "source_excerpt": "For major (breaking) changes - **version 4, 3 and 2** - see end of page.\n\n## Version History\n\n| Version | Date       | Comment                                                                                             |\n| ------- | ---------- | --------------------------------------------------------------------------------------------------- |\n| 5.31.7  | 2026-05-29 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.6  | 2026-05-07 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.5  | 2026-03-19 | `netStats()` netstat command adaption (mac OS)                                                      |\n| 5.31.4  | 2026-03-09 | `diskLayout()` USB tahoe compatibility  (mac OS)                                                    |\n| 5.31.3  | 2026-03-04 | `system()` updated Mac 2026 mopdel numbers (mac OS)                                                 |\n| 5.31.2  | 2026-03-03 | `system()` updated Mac mopdel numbers (mac OS)                                                      |\n| 5.31.1  | 2026-02-17 | `docs` updated (security advisory)                                                                  |\n| 5.31.0  | 2026-02-15 | `diskLayout()` added smartmontools support (macOS), `versions()` command injection issue (linux)    |\n| 5.30.8  | 2026-02-14 | `wifiNetworks()` fixed CWE-78 command injection issue (linux)                                       |",
+      "source_excerpt_sha256": "0c8a837a38cdbc7ca7d1320fc218b642ee543cc2355049d6538a6a4b7a204825",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "sebhildebrandt/systeminformation",
+  "source_root": "GHSA-5xpp-75jx-m839",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 102,
+      "line_start": 88,
+      "revision_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+      "source_excerpt": "For major (breaking) changes - **version 4, 3 and 2** - see end of page.\n\n## Version History\n\n| Version | Date       | Comment                                                                                             |\n| ------- | ---------- | --------------------------------------------------------------------------------------------------- |\n| 5.31.7  | 2026-05-29 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.6  | 2026-05-07 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.5  | 2026-03-19 | `netStats()` netstat command adaption (mac OS)                                                      |\n| 5.31.4  | 2026-03-09 | `diskLayout()` USB tahoe compatibility  (mac OS)                                                    |\n| 5.31.3  | 2026-03-04 | `system()` updated Mac 2026 mopdel numbers (mac OS)                                                 |\n| 5.31.2  | 2026-03-03 | `system()` updated Mac mopdel numbers (mac OS)                                                      |\n| 5.31.1  | 2026-02-17 | `docs` updated (security advisory)                                                                  |\n| 5.31.0  | 2026-02-15 | `diskLayout()` added smartmontools support (macOS), `versions()` command injection issue (linux)    |\n| 5.30.8  | 2026-02-14 | `wifiNetworks()` fixed CWE-78 command injection issue (linux)                                       |",
+      "source_excerpt_sha256": "0c8a837a38cdbc7ca7d1320fc218b642ee543cc2355049d6538a6a4b7a204825",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/sebhildebrandt/systeminformation/blob/bbfddde48672d0ee124fefdb3cb4442fd9dd4f03/CHANGELOG.md",
+    "retrieved_at": "2026-08-14T18:58:04.404221+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

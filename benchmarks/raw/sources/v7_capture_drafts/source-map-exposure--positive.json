@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/postcss/postcss/blob/decea51421682341401575b3740709fda0e12930/lib/previous-map.js",
+  "captured_at": "2026-08-14T18:58:04.419624+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "line_end": 109,
+      "line_start": 83,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "decea51421682341401575b3740709fda0e12930",
+      "source_excerpt": "      this.annotation = this.getAnnotationURL(css.substring(start, end))\n    }\n  }\n\n  loadFile(path, cssFile, trusted) {\n    if (!trusted && !this.unsafeMap) {\n      if (!/\\.map$/i.test(path)) {\n        return undefined\n      }\n      if (cssFile) {\n        let relativePath = relative(dirname(cssFile), path)\n        if (\n          relativePath === '..' ||\n          relativePath.startsWith('..' + sep) ||\n          isAbsolute(relativePath)\n        ) {\n          return undefined\n        }\n      }\n    }\n    this.root = dirname(path)\n    if (existsSync(path)) {\n      this.mapFile = path\n      return readFileSync(path, 'utf-8').toString().trim()\n    }\n  }\n",
+      "source_excerpt_sha256": "7f15a664fdfba8b601eccff527c9ded79118df934e96f8f0e1c0e421289f5609",
+      "source_file": "lib/previous-map.js"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "postcss/postcss",
+  "source_root": "GHSA-fxqj-rqcc-2cmp",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 109,
+      "line_start": 83,
+      "revision_sha": "decea51421682341401575b3740709fda0e12930",
+      "source_excerpt": "      this.annotation = this.getAnnotationURL(css.substring(start, end))\n    }\n  }\n\n  loadFile(path, cssFile, trusted) {\n    if (!trusted && !this.unsafeMap) {\n      if (!/\\.map$/i.test(path)) {\n        return undefined\n      }\n      if (cssFile) {\n        let relativePath = relative(dirname(cssFile), path)\n        if (\n          relativePath === '..' ||\n          relativePath.startsWith('..' + sep) ||\n          isAbsolute(relativePath)\n        ) {\n          return undefined\n        }\n      }\n    }\n    this.root = dirname(path)\n    if (existsSync(path)) {\n      this.mapFile = path\n      return readFileSync(path, 'utf-8').toString().trim()\n    }\n  }\n",
+      "source_excerpt_sha256": "7f15a664fdfba8b601eccff527c9ded79118df934e96f8f0e1c0e421289f5609",
+      "source_file": "lib/previous-map.js"
+    },
+    "reference": "https://github.com/postcss/postcss/blob/decea51421682341401575b3740709fda0e12930/lib/previous-map.js",
+    "retrieved_at": "2026-08-14T18:58:04.419628+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

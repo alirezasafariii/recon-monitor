@@ -1,0 +1,202 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+  "captured_at": "2026-08-14T18:58:04.409955+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "improper_inventory_management",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "edgexfoundry/edgex-go",
+      "version_boundaries": [
+        {
+          "ecosystem": "edgex foundry",
+          "package": "",
+          "patched_version": ">=v2.1.1",
+          "vulnerable_version_range": "<2.1.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/edgexfoundry/device-sdk-go/v2",
+          "patched_version": "2.1.1, 2.2.0",
+          "vulnerable_version_range": "<2.1.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/edgexfoundry/app-functions-sdk-go/v2",
+          "patched_version": "2.1.1, 2.2.0",
+          "vulnerable_version_range": "<2.1.1"
+        }
+      ],
+      "version_boundary_count": 5
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "edgexfoundry/edgex-go",
+  "source_root": "GHSA-g63h-q855-vp3q",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "bnevis-i",
+          "type": "analyst"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "analyst",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/21301128?v=4",
+            "events_url": "https://api.github.com/users/bnevis-i/events{/privacy}",
+            "followers_url": "https://api.github.com/users/bnevis-i/followers",
+            "following_url": "https://api.github.com/users/bnevis-i/following{/other_user}",
+            "gists_url": "https://api.github.com/users/bnevis-i/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/bnevis-i",
+            "id": 21301128,
+            "login": "bnevis-i",
+            "node_id": "MDQ6VXNlcjIxMzAxMTI4",
+            "organizations_url": "https://api.github.com/users/bnevis-i/orgs",
+            "received_events_url": "https://api.github.com/users/bnevis-i/received_events",
+            "repos_url": "https://api.github.com/users/bnevis-i/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/bnevis-i/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/bnevis-i/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/bnevis-i",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2022-31066",
+      "cvss": {
+        "score": 5.9,
+        "vector_string": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 5.9,
+          "vector_string": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-200",
+        "CWE-284"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-200",
+          "name": "Exposure of Sensitive Information to an Unauthorized Actor"
+        },
+        {
+          "cwe_id": "CWE-284",
+          "name": "Improper Access Control"
+        }
+      ],
+      "description": "### Impact\r\nThe /api/v2/config endpoint exposes message bus credentials to local unauthenticated users.  In security-enabled mode, message bus credentials are supposed to be kept in the EdgeX secret store and require authentication to access.  This vulnerability bypasses the access controls on message bus credentials when running in security-enabled mode.  (No credentials are required when running in security-disabled mode.)  As a result, attackers could intercept data or inject fake data into the EdgeX message bus.\r\n\r\n### Patches\r\nUsers should upgrade to EdgeXFoundry Kamakura release (2.2.0) or to the June 2022 EdgeXFoundry LTS Jakarta release (2.1.1).\r\n\r\nThe issue has been patched in the following docker containers and snaps:\r\n\r\n#### Patched go modules\r\ngithub.com/edgexfoundry/device-sdk-go/v2 >= v2.1.1\r\ngithub.com/edgexfoundry/app-functions-sdk-go/v2 >= v2.1.1\r\n\r\n#### Patched docker containers\r\nURL: https://hub.docker.com/r/edgexfoundry\r\n- docker.io/edgexfoundry/core-metadata:>=2.1.1\r\n- docker.io/edgexfoundry/core-metadata-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/core-data:>=2.1.1\r\n- docker.io/edgexfoundry/core-data-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/core-command:>=2.1.1\r\n- docker.io/edgexfoundry/core-command-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/support-notifications:>=2.1.1\r\n- docker.io/edgexfoundry/support-notifications-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/support-scheduler:>=2.1.1\r\n- docker.io/edgexfoundry/support-scheduler-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/sys-mgmt-agent:>=2.1.1\r\n- docker.io/edgexfoundry/sys-mgmt-agent-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/security-proxy-setup:>=2.1.1\r\n- docker.io/edgexfoundry/security-proxy-setup-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/security-secretstore-setup:>=2.1.1\r\n- docker.io/edgexfoundry/security-secretstore-setup-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/security-bootstrapper:>=2.1.1\r\n- docker.io/edgexfoundry/security-bootstrapper-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/app-rfid-llrp-inventory:>=2.1.1\r\n- docker.io/edgexfoundry/app-rfid-llrp-inventory-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/app-service-configurable:>=2.1.1\r\n- docker.io/edgexfoundry/app-service-configurable-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-camera:>=2.2.0\r\n- docker.io/edgexfoundry/device-camera-arm64:>=2.2.0\r\n- docker.io/edgexfoundry/device-gpio:>=2.1.1\r\n- docker.io/edgexfoundry/device-gpio-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-modbus:>=2.1.1\r\n- docker.io/edgexfoundry/device-modbus-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-mqtt:>=2.1.1\r\n- docker.io/edgexfoundry/device-mqtt-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-rest:>=2.1.1\r\n- docker.io/edgexfoundry/device-rest-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-rfid-llrp:>=2.1.1\r\n- docker.io/edgexfoundry/device-rfid-llrp-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-snmp:>=2.1.1\r\n- docker.io/edgexfoundry/device-snmp-arm64:>=2.1.1\r\n- docker.io/edgexfoundry/device-virtual:>=2.1.1\r\n- docker.io/edgexfoundry/device-virtual-arm64:>=2.1.1\r\n\r\n#### Patched snaps\r\nURL: https://snapcraft.io/edgexfoundry\r\nedgexfoundry  2.1/stable  (will be automatically upgraded to 2.1.1)\r\n\r\n### Workarounds\r\nNo workaround available.\r\n\r\n### References\r\n* https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q\r\n* https://github.com/edgexfoundry/device-sdk-go/pull/1161 (patch against Kamakura)\r\n* https://github.com/edgexfoundry/edgex-go/pull/4016 (patch against Kamakura)\r\n* https://github.com/edgexfoundry/edgex-go/pull/4039 (cherry-pick patch against Jakarta)\r\n* https://github.com/edgexfoundry/device-sdk-go/pull/1167 (differs from patch on main: don't copy PW in vs delete it after)\r\n\r\n### For more information\r\nIf you have any questions or comments about this advisory:\r\n* Contact us in the [Slack #security channel](https://slack.edgexfoundry.org/)\r\n* Open an issue in [edgex-go](https://github.com/edgexfoundry/edgex-go)\r\n* Email us at [EdgeX-TSC-Security@lists.edgexfoundry.org](mailto:EdgeX-TSC-Security@lists.edgexfoundry.org)\r\n",
+      "ghsa_id": "GHSA-g63h-q855-vp3q",
+      "html_url": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-g63h-q855-vp3q"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2022-31066"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2022-06-14T15:58:05Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1403599?v=4",
+        "events_url": "https://api.github.com/users/eb-oss/events{/privacy}",
+        "followers_url": "https://api.github.com/users/eb-oss/followers",
+        "following_url": "https://api.github.com/users/eb-oss/following{/other_user}",
+        "gists_url": "https://api.github.com/users/eb-oss/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/eb-oss",
+        "id": 1403599,
+        "login": "eb-oss",
+        "node_id": "MDQ6VXNlcjE0MDM1OTk=",
+        "organizations_url": "https://api.github.com/users/eb-oss/orgs",
+        "received_events_url": "https://api.github.com/users/eb-oss/received_events",
+        "repos_url": "https://api.github.com/users/eb-oss/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/eb-oss/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/eb-oss/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/eb-oss",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Configuration API in EdgeXFoundry 2.1.0 and earlier exposes message bus credentials to local unauthenticated users",
+      "updated_at": "2022-07-11T20:31:48Z",
+      "url": "https://api.github.com/repos/edgexfoundry/edgex-go/security-advisories/GHSA-g63h-q855-vp3q",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "edgex foundry",
+            "name": ""
+          },
+          "patched_versions": ">=v2.1.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<2.1.1"
+        },
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "github.com/edgexfoundry/device-sdk-go/v2"
+          },
+          "patched_versions": "2.1.1, 2.2.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<2.1.1"
+        },
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "github.com/edgexfoundry/app-functions-sdk-go/v2"
+          },
+          "patched_versions": "2.1.1, 2.2.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<2.1.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+    "retrieved_at": "2026-08-14T18:58:04.409960+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

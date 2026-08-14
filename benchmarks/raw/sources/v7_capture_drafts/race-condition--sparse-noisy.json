@@ -1,0 +1,169 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/surrealdb/surrealdb/security/advisories/GHSA-4vgr-h27g-cf9p",
+  "captured_at": "2026-08-14T18:58:04.414617+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "race_condition",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "surrealdb/surrealdb",
+      "version_boundaries": [
+        {
+          "ecosystem": "rust",
+          "package": "surrealdb",
+          "patched_version": "3.1.0",
+          "vulnerable_version_range": "<3.1.0"
+        },
+        {
+          "ecosystem": "rust",
+          "package": "surrealdb",
+          "patched_version": "3.1.0",
+          "vulnerable_version_range": "< 3.1.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "surrealdb/surrealdb",
+  "source_root": "GHSA-4vgr-h27g-cf9p",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "addcontent",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/59762500?v=4",
+            "events_url": "https://api.github.com/users/addcontent/events{/privacy}",
+            "followers_url": "https://api.github.com/users/addcontent/followers",
+            "following_url": "https://api.github.com/users/addcontent/following{/other_user}",
+            "gists_url": "https://api.github.com/users/addcontent/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/addcontent",
+            "id": 59762500,
+            "login": "addcontent",
+            "node_id": "MDQ6VXNlcjU5NzYyNTAw",
+            "organizations_url": "https://api.github.com/users/addcontent/orgs",
+            "received_events_url": "https://api.github.com/users/addcontent/received_events",
+            "repos_url": "https://api.github.com/users/addcontent/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/addcontent/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/addcontent/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/addcontent",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": 8.1,
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 8.1,
+          "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-362"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-362",
+          "name": "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')"
+        }
+      ],
+      "description": "The HTTP `/rpc` endpoint has a time-of-check/time-of-use (TOCTOU) race condition on internal session state. When authenticated and unauthenticated requests are processed concurrently, the unauthenticated request can inherit the authenticated user's session and privileges. The `/rpc` endpoint is the primary interface used by all official SurrealDB SDKs.\r\n\r\nThe HTTP `/rpc` handler does not bind each incoming request to an isolated session context. Instead, concurrent requests share mutable authentication state. When an authenticated request sets the session context and an unauthenticated request races in before it is cleared, the unauthenticated request executes with the authenticated user's privileges.\r\n\r\nThe impact depends on the privilege level of the session that is hijacked. If a root or namespace-level user session is inherited, the attacker can read and modify any data, delete records, and create persistent namespace-level users. If a scoped record user session is inherited, the attacker is limited to that user's permissions.\r\n\r\nThe attack requires no credentials, tokens, or session knowledge — only the ability to send concurrent HTTP requests to the `/rpc` endpoint while legitimate authenticated traffic is active.\r\n\r\n## Impact\r\n\r\nAn unauthenticated attacker who can reach the `/rpc` endpoint can escalate privileges by racing against any active authenticated session. The severity of the impact depends on the permissions of the user whose session was hijacked. This could include escalation to root user of SurrealDB instance\r\n\r\n## Patches\r\n\r\nVersions prior to SurrealDB `v3.1.0` are vulnerable.\r\n\r\nA patch has been introduced that replaces the shared default session with per-request session isolation. Every `POST /rpc` request now allocates a fresh, server-side UUID and runs entirely within that session's scope for the duration of the request. The session-map signatures across the RPC protocol have been changed from `Option<Uuid>` to `Uuid` so the \"default session\" can no longer be represented at the type level, preventing future regressions of the same shape.\r\n\r\n## Workarounds\r\n\r\nThere is no configuration-level mitigation that fully addresses this vulnerability. Network-level controls restricting access to the `/rpc` endpoint to trusted clients can reduce exposure.\r\n\r\n## Links\r\n\r\n- [SurrealDB Documentation - Capabilities](https://surrealdb.com/docs/surrealdb/security/capabilities)\r\n- [SurrealDB Documentation - Guest Access](https://surrealdb.com/docs/surrealdb/security/capabilities#guest-access)\r\n- [SurrealDB RPC Protocol Documentation](https://surrealdb.com/docs/surrealdb/integration/rpc)\r\n- commit `2f53e6e86`— type-level isolation and per-request session id\r\n- commit `fd800fc7c` — adds the caller-identity ownership gate on top of the isolation work, closing the related GHSA-5qfp-32cf-69jh",
+      "ghsa_id": "GHSA-4vgr-h27g-cf9p",
+      "html_url": "https://github.com/surrealdb/surrealdb/security/advisories/GHSA-4vgr-h27g-cf9p",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-4vgr-h27g-cf9p"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-05-27T17:26:06Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/36425137?v=4",
+        "events_url": "https://api.github.com/users/rowan-baker/events{/privacy}",
+        "followers_url": "https://api.github.com/users/rowan-baker/followers",
+        "following_url": "https://api.github.com/users/rowan-baker/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rowan-baker/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/rowan-baker",
+        "id": 36425137,
+        "login": "rowan-baker",
+        "node_id": "MDQ6VXNlcjM2NDI1MTM3",
+        "organizations_url": "https://api.github.com/users/rowan-baker/orgs",
+        "received_events_url": "https://api.github.com/users/rowan-baker/received_events",
+        "repos_url": "https://api.github.com/users/rowan-baker/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/rowan-baker/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rowan-baker/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/rowan-baker",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "HTTP RPC Session Race Condition Allows Privilege Escalation",
+      "updated_at": "2026-05-27T17:26:06Z",
+      "url": "https://api.github.com/repos/surrealdb/surrealdb/security-advisories/GHSA-4vgr-h27g-cf9p",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "rust",
+            "name": "surrealdb"
+          },
+          "patched_versions": "3.1.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<3.1.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/surrealdb/surrealdb/security/advisories/GHSA-4vgr-h27g-cf9p",
+    "retrieved_at": "2026-08-14T18:58:04.414621+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

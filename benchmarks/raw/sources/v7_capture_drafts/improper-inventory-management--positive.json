@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/edgexfoundry/edgex-go/blob/fefff5dfcf757bf5669fadd7ace0412839b30723/internal/core/data/messaging/messaging.go",
+  "captured_at": "2026-08-14T18:58:04.409567+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "improper_inventory_management",
+  "raw": {
+    "details": {
+      "line_end": 37,
+      "line_start": 19,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "fefff5dfcf757bf5669fadd7ace0412839b30723",
+      "source_excerpt": "\t\"strings\"\n\t\"sync\"\n\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/messaging\"\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types\"\n\n\t\"github.com/edgexfoundry/edgex-go/internal/core/data/container\"\n\tbootstrapContainer \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/container\"\n\tbootstrapMessaging \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/messaging\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/startup\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/di\"\n)\n\n// BootstrapHandler fulfills the BootstrapHandler contract.  if enabled, tt creates and initializes the Messaging client\n// and adds it to the DIC\nfunc BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {\n\tlc := bootstrapContainer.LoggingClientFrom(dic.Get)\n\tmessageBusInfo := container.ConfigurationFrom(dic.Get).MessageQueue\n",
+      "source_excerpt_sha256": "7c8167b031e5cb9db00575f613722340f364334bfd51b913967132caad4a5c33",
+      "source_file": "internal/core/data/messaging/messaging.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "edgexfoundry/edgex-go",
+  "source_root": "GHSA-g63h-q855-vp3q",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 37,
+      "line_start": 19,
+      "revision_sha": "fefff5dfcf757bf5669fadd7ace0412839b30723",
+      "source_excerpt": "\t\"strings\"\n\t\"sync\"\n\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/messaging\"\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types\"\n\n\t\"github.com/edgexfoundry/edgex-go/internal/core/data/container\"\n\tbootstrapContainer \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/container\"\n\tbootstrapMessaging \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/messaging\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/startup\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/di\"\n)\n\n// BootstrapHandler fulfills the BootstrapHandler contract.  if enabled, tt creates and initializes the Messaging client\n// and adds it to the DIC\nfunc BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {\n\tlc := bootstrapContainer.LoggingClientFrom(dic.Get)\n\tmessageBusInfo := container.ConfigurationFrom(dic.Get).MessageQueue\n",
+      "source_excerpt_sha256": "7c8167b031e5cb9db00575f613722340f364334bfd51b913967132caad4a5c33",
+      "source_file": "internal/core/data/messaging/messaging.go"
+    },
+    "reference": "https://github.com/edgexfoundry/edgex-go/blob/fefff5dfcf757bf5669fadd7ace0412839b30723/internal/core/data/messaging/messaging.go",
+    "retrieved_at": "2026-08-14T18:58:04.409571+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

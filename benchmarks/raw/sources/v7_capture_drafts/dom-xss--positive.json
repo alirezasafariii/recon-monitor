@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/gogs/gogs/blob/a9dbafbfd8e1020bacc626420238c01d75d03364/CHANGELOG.md",
+  "captured_at": "2026-08-14T18:58:04.406148+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "dom_xss",
+  "raw": {
+    "details": {
+      "line_end": 33,
+      "line_start": 20,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "a9dbafbfd8e1020bacc626420238c01d75d03364",
+      "source_excerpt": "- _Security:_ Organization team and member management actions accepted GET requests, allowing a logged-in owner to be tricked into adding an attacker to the Owners team via a crafted link. [#8321](https://github.com/gogs/gogs/pull/8321) - [GHSA-pwx3-qcgw-vh7h](https://github.com/gogs/gogs/security/advisories/GHSA-pwx3-qcgw-vh7h)\n- _Security:_ SSRF via mirror address update bypassing clone address validation. [#8225](https://github.com/gogs/gogs/pull/8225) - [GHSA-wv27-2vqp-j7g5](https://github.com/gogs/gogs/security/advisories/GHSA-wv27-2vqp-j7g5)\n- _Security:_ Open redirect on login and other post-action flows via the `redirect_to` query parameter. [#8322](https://github.com/gogs/gogs/pull/8322) - [GHSA-xxhq-69mf-w8cr](https://github.com/gogs/gogs/security/advisories/GHSA-xxhq-69mf-w8cr)\n- _Security:_ Privilege escalation to repository owner via collaboration access mode update. [#8227](https://github.com/gogs/gogs/pull/8227) - [GHSA-4565-r4x7-hg8j](https://github.com/gogs/gogs/security/advisories/GHSA-4565-r4x7-hg8j)\n- _Security:_ Remote command execution via pull request rebase merges with crafted branch names. [#8301](https://github.com/gogs/gogs/pull/8301) - [GHSA-qf6p-p7ww-cwr9](https://github.com/gogs/gogs/security/advisories/GHSA-qf6p-p7ww-cwr9)\n- _Security:_ SSRF in repository migration and recurring mirror sync via HTTP redirects and stale host validation on stored mirror URLs. [#8324](https://github.com/gogs/gogs/pull/8324) - [GHSA-g2f5-gjr4-qjvm](https://github.com/gogs/gogs/security/advisories/GHSA-g2f5-gjr4-qjvm)\n\n### Removed\n\n- The `gogs cert` subcommand. [#8153](https://github.com/gogs/gogs/pull/8153)\n- The `[email] DISABLE_HELO` configuration option. HELO/EHLO is now always sent during SMTP handshake. [#8164](https://github.com/gogs/gogs/pull/8164)\n- Support for MSSQL as the database backend. Stay on 0.14 for continued usage. [#8173](https://github.com/gogs/gogs/pull/8173)\n- Support for `memcache` as the cache adapter. Stay on 0.14 for continued usage. [#8270](https://github.com/gogs/gogs/pull/8270)\n- The `/debug`, `/debug/pprof/*`, `/debug/profile/*`, and `/urlmap.json` endpoints. [#8271](https://github.com/gogs/gogs/pull/8271)",
+      "source_excerpt_sha256": "05c40809d3190ef6640a53e0681e25eb25447620c0b0748c6694ade8036971c3",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "gogs/gogs",
+  "source_root": "GHSA-vcm5-gvmp-78mp",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 33,
+      "line_start": 20,
+      "revision_sha": "a9dbafbfd8e1020bacc626420238c01d75d03364",
+      "source_excerpt": "- _Security:_ Organization team and member management actions accepted GET requests, allowing a logged-in owner to be tricked into adding an attacker to the Owners team via a crafted link. [#8321](https://github.com/gogs/gogs/pull/8321) - [GHSA-pwx3-qcgw-vh7h](https://github.com/gogs/gogs/security/advisories/GHSA-pwx3-qcgw-vh7h)\n- _Security:_ SSRF via mirror address update bypassing clone address validation. [#8225](https://github.com/gogs/gogs/pull/8225) - [GHSA-wv27-2vqp-j7g5](https://github.com/gogs/gogs/security/advisories/GHSA-wv27-2vqp-j7g5)\n- _Security:_ Open redirect on login and other post-action flows via the `redirect_to` query parameter. [#8322](https://github.com/gogs/gogs/pull/8322) - [GHSA-xxhq-69mf-w8cr](https://github.com/gogs/gogs/security/advisories/GHSA-xxhq-69mf-w8cr)\n- _Security:_ Privilege escalation to repository owner via collaboration access mode update. [#8227](https://github.com/gogs/gogs/pull/8227) - [GHSA-4565-r4x7-hg8j](https://github.com/gogs/gogs/security/advisories/GHSA-4565-r4x7-hg8j)\n- _Security:_ Remote command execution via pull request rebase merges with crafted branch names. [#8301](https://github.com/gogs/gogs/pull/8301) - [GHSA-qf6p-p7ww-cwr9](https://github.com/gogs/gogs/security/advisories/GHSA-qf6p-p7ww-cwr9)\n- _Security:_ SSRF in repository migration and recurring mirror sync via HTTP redirects and stale host validation on stored mirror URLs. [#8324](https://github.com/gogs/gogs/pull/8324) - [GHSA-g2f5-gjr4-qjvm](https://github.com/gogs/gogs/security/advisories/GHSA-g2f5-gjr4-qjvm)\n\n### Removed\n\n- The `gogs cert` subcommand. [#8153](https://github.com/gogs/gogs/pull/8153)\n- The `[email] DISABLE_HELO` configuration option. HELO/EHLO is now always sent during SMTP handshake. [#8164](https://github.com/gogs/gogs/pull/8164)\n- Support for MSSQL as the database backend. Stay on 0.14 for continued usage. [#8173](https://github.com/gogs/gogs/pull/8173)\n- Support for `memcache` as the cache adapter. Stay on 0.14 for continued usage. [#8270](https://github.com/gogs/gogs/pull/8270)\n- The `/debug`, `/debug/pprof/*`, `/debug/profile/*`, and `/urlmap.json` endpoints. [#8271](https://github.com/gogs/gogs/pull/8271)",
+      "source_excerpt_sha256": "05c40809d3190ef6640a53e0681e25eb25447620c0b0748c6694ade8036971c3",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/gogs/gogs/blob/a9dbafbfd8e1020bacc626420238c01d75d03364/CHANGELOG.md",
+    "retrieved_at": "2026-08-14T18:58:04.406153+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

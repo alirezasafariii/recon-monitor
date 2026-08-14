@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/juliangruber/brace-expansion/blob/139d015104e71433ad52a41d19467c48ecbb2c7d/test/cve.js",
+  "captured_at": "2026-08-14T18:58:04.422630+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "unrestricted_resource_consumption",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "valid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "139d015104e71433ad52a41d19467c48ecbb2c7d",
+      "source_file": "test/cve.js",
+      "test_control_excerpt": "// the process with an uncatchable out-of-memory error.\ntest('total expansion length is bounded', function () {\n  const str = '{a,b}'.repeat(1500)\n  const startTime = performance.now()\n  const expanded = expand(str)\n  const endTime = performance.now()\n\n  const totalLength = expanded.reduce((sum, s) => sum + s.length, 0)\n  assert.ok(\n    totalLength <= EXPANSION_MAX_LENGTH,\n    `Expected total length (${totalLength}) to be bounded`\n  )\n  assert.ok(expanded.length > 0, 'still returns a (truncated) result')\n  assert.ok(\n    expanded.every(s => /^[ab]+$/.test(s)),\n    'results are valid expansions'\n  )\n  assert.ok(\n    endTime - startTime < 5000,\n    `Expected time (${endTime - startTime}ms) to be less than 5000ms`\n  )\n\n  // The bound is a single accumulator, not a per-level limit, so it holds no\n  // matter how many brace groups are chained - not `groups * maxLength`.\n  for (const groups of [100, 1500, 5000]) {\n    const total = expand('{a,b}'.repeat(groups)).reduce(\n      (sum, s) => sum + s.length,\n      0"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "juliangruber/brace-expansion",
+  "source_root": "GHSA-rgw5-rvv9-x895",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "valid"
+      ],
+      "revision_sha": "139d015104e71433ad52a41d19467c48ecbb2c7d",
+      "source_file": "test/cve.js",
+      "test_control_excerpt": "// the process with an uncatchable out-of-memory error.\ntest('total expansion length is bounded', function () {\n  const str = '{a,b}'.repeat(1500)\n  const startTime = performance.now()\n  const expanded = expand(str)\n  const endTime = performance.now()\n\n  const totalLength = expanded.reduce((sum, s) => sum + s.length, 0)\n  assert.ok(\n    totalLength <= EXPANSION_MAX_LENGTH,\n    `Expected total length (${totalLength}) to be bounded`\n  )\n  assert.ok(expanded.length > 0, 'still returns a (truncated) result')\n  assert.ok(\n    expanded.every(s => /^[ab]+$/.test(s)),\n    'results are valid expansions'\n  )\n  assert.ok(\n    endTime - startTime < 5000,\n    `Expected time (${endTime - startTime}ms) to be less than 5000ms`\n  )\n\n  // The bound is a single accumulator, not a per-level limit, so it holds no\n  // matter how many brace groups are chained - not `groups * maxLength`.\n  for (const groups of [100, 1500, 5000]) {\n    const total = expand('{a,b}'.repeat(groups)).reduce(\n      (sum, s) => sum + s.length,\n      0",
+      "test_control_excerpt_sha256": "f92ea0fdcbeb94896004dce8b23cf513044d7c52723c0bd3fb27f217608860e1"
+    },
+    "reference": "https://github.com/juliangruber/brace-expansion/blob/139d015104e71433ad52a41d19467c48ecbb2c7d/test/cve.js",
+    "retrieved_at": "2026-08-14T18:58:04.422635+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/nocobase/nocobase/blob/68d64e3fcfb8be2ae4f3bfc9e1ee3f85b87c89ce/packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/__tests__/server.test.ts",
+  "captured_at": "2026-08-14T18:58:04.420719+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "line_end": 417,
+      "line_start": 256,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "68d64e3fcfb8be2ae4f3bfc9e1ee3f85b87c89ce",
+      "source_excerpt": "\n      const res = await currUserAgent.resource('myInAppChannels').list({ filter: { name: targetChannel.name } });\n\n      expect(res.body.data.length).toBe(1);\n      expect(res.body.data[0].name).toBe(targetChannel.name);\n    });\n\n    test('filter channel by latest message receive timestamp', async () => {\n      const channels = await channelsRepo.create({\n        values: [\n          {\n            title: 'old_channel',\n            notificationType: 'in-app-message',\n          },\n          {\n            title: 'new_channel',\n            notificationType: 'in-app-message',\n          },\n        ],\n      });\n      const oldChannel = channels.find((channel) => channel.title === 'old_channel');\n      const newChannel = channels.find((channel) => channel.title === 'new_channel');\n      const now = Date.now();\n\n      await messagesRepo.create({\n        values: [\n          {\n            channelName: oldChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'old message',\n            content: 'old content',\n            receiveTimestamp: now - 1000,\n          },\n          {\n            channelName: newChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'new message',\n            content: 'new content',\n            receiveTimestamp: now,\n          },\n        ],\n      });\n\n      const res = await currUserAgent.resource('myInAppChannels').list({\n        filter: {\n          latestMsgReceiveTimestamp: {\n            $lt: now,\n          },\n        },\n      });\n\n      expect(res.status).toBe(200);\n      expect(res.body.data.length).toBe(1);\n      expect(res.body.data[0].name).toBe(oldChannel.name);\n    });\n\n    test('should accept numeric string latest message receive timestamp filter', async () => {\n      const channels = await channelsRepo.create({\n        values: [\n          {\n            title: 'old_channel',\n            notificationType: 'in-app-message',\n          },\n          {\n            title: 'new_channel',\n            notificationType: 'in-app-message',\n          },\n        ],\n      });\n      const oldChannel = channels.find((channel) => channel.title === 'old_channel');\n      const newChannel = channels.find((channel) => channel.title === 'new_channel');\n      const now = Date.now();\n\n      await messagesRepo.create({\n        values: [\n          {\n            channelName: oldChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'old message',\n            content: 'old content',\n            receiveTimestamp: now - 1000,\n          },\n      ",
+      "source_excerpt_sha256": "7709bd96500828b6f34eb9ba1113c0f3ca21d2fd4e990cb7ae4dc4c6cb9e2b30",
+      "source_file": "packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/__tests__/server.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "nocobase/nocobase",
+  "source_root": "GHSA-p849-8hwh-84j9",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 417,
+      "line_start": 256,
+      "revision_sha": "68d64e3fcfb8be2ae4f3bfc9e1ee3f85b87c89ce",
+      "source_excerpt": "\n      const res = await currUserAgent.resource('myInAppChannels').list({ filter: { name: targetChannel.name } });\n\n      expect(res.body.data.length).toBe(1);\n      expect(res.body.data[0].name).toBe(targetChannel.name);\n    });\n\n    test('filter channel by latest message receive timestamp', async () => {\n      const channels = await channelsRepo.create({\n        values: [\n          {\n            title: 'old_channel',\n            notificationType: 'in-app-message',\n          },\n          {\n            title: 'new_channel',\n            notificationType: 'in-app-message',\n          },\n        ],\n      });\n      const oldChannel = channels.find((channel) => channel.title === 'old_channel');\n      const newChannel = channels.find((channel) => channel.title === 'new_channel');\n      const now = Date.now();\n\n      await messagesRepo.create({\n        values: [\n          {\n            channelName: oldChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'old message',\n            content: 'old content',\n            receiveTimestamp: now - 1000,\n          },\n          {\n            channelName: newChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'new message',\n            content: 'new content',\n            receiveTimestamp: now,\n          },\n        ],\n      });\n\n      const res = await currUserAgent.resource('myInAppChannels').list({\n        filter: {\n          latestMsgReceiveTimestamp: {\n            $lt: now,\n          },\n        },\n      });\n\n      expect(res.status).toBe(200);\n      expect(res.body.data.length).toBe(1);\n      expect(res.body.data[0].name).toBe(oldChannel.name);\n    });\n\n    test('should accept numeric string latest message receive timestamp filter', async () => {\n      const channels = await channelsRepo.create({\n        values: [\n          {\n            title: 'old_channel',\n            notificationType: 'in-app-message',\n          },\n          {\n            title: 'new_channel',\n            notificationType: 'in-app-message',\n          },\n        ],\n      });\n      const oldChannel = channels.find((channel) => channel.title === 'old_channel');\n      const newChannel = channels.find((channel) => channel.title === 'new_channel');\n      const now = Date.now();\n\n      await messagesRepo.create({\n        values: [\n          {\n            channelName: oldChannel.name,\n            userId: currUserId,\n            status: 'unread',\n            title: 'old message',\n            content: 'old content',\n            receiveTimestamp: now - 1000,\n          },\n      ",
+      "source_excerpt_sha256": "7709bd96500828b6f34eb9ba1113c0f3ca21d2fd4e990cb7ae4dc4c6cb9e2b30",
+      "source_file": "packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/__tests__/server.test.ts"
+    },
+    "reference": "https://github.com/nocobase/nocobase/blob/68d64e3fcfb8be2ae4f3bfc9e1ee3f85b87c89ce/packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/__tests__/server.test.ts",
+    "retrieved_at": "2026-08-14T18:58:04.420724+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

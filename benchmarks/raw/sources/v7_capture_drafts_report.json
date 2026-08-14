@@ -1,0 +1,1030 @@
+{
+  "draft_count": 92,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_literal_capture_draft_build",
+  "first_blind_consumed": false,
+  "missing_literal_source_count": 52,
+  "planned_count": 144,
+  "rows": [
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "account_enumeration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "account_enumeration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "account_enumeration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/account-enumeration--sparse-noisy.json",
+      "family": "account_enumeration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--positive.json",
+      "family": "authentication_session",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--near-miss.json",
+      "family": "authentication_session",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--secure-negative.json",
+      "family": "authentication_session",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--sparse-noisy.json",
+      "family": "authentication_session",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "broken_function_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "broken_function_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "broken_function_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-function-authorization--sparse-noisy.json",
+      "family": "broken_function_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "broken_object_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "broken_object_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "broken_object_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-object-authorization--sparse-noisy.json",
+      "family": "broken_object_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/business-logic--positive.json",
+      "family": "business_logic",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/business-logic--near-miss.json",
+      "family": "business_logic",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/business-logic--secure-negative.json",
+      "family": "business_logic",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/business-logic--sparse-noisy.json",
+      "family": "business_logic",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--positive.json",
+      "family": "command_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "command_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--secure-negative.json",
+      "family": "command_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--sparse-noisy.json",
+      "family": "command_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "cors_misconfiguration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "cors_misconfiguration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "cors_misconfiguration",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cors-misconfiguration--sparse-noisy.json",
+      "family": "cors_misconfiguration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--positive.json",
+      "family": "cryptographic_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--near-miss.json",
+      "family": "cryptographic_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--secure-negative.json",
+      "family": "cryptographic_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--sparse-noisy.json",
+      "family": "cryptographic_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--positive.json",
+      "family": "dom_xss",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "dom_xss",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--secure-negative.json",
+      "family": "dom_xss",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--sparse-noisy.json",
+      "family": "dom_xss",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--positive.json",
+      "family": "exceptional_condition_mishandling",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "exceptional_condition_mishandling",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--secure-negative.json",
+      "family": "exceptional_condition_mishandling",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--sparse-noisy.json",
+      "family": "exceptional_condition_mishandling",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--positive.json",
+      "family": "file_upload",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--near-miss.json",
+      "family": "file_upload",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--secure-negative.json",
+      "family": "file_upload",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--sparse-noisy.json",
+      "family": "file_upload",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-authorization--positive.json",
+      "family": "graphql_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-authorization--near-miss.json",
+      "family": "graphql_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-authorization--secure-negative.json",
+      "family": "graphql_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-authorization--sparse-noisy.json",
+      "family": "graphql_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "graphql_data_exposure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "graphql_data_exposure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "graphql_data_exposure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-data-exposure--sparse-noisy.json",
+      "family": "graphql_data_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/improper-inventory-management--positive.json",
+      "family": "improper_inventory_management",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "improper_inventory_management",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/improper-inventory-management--secure-negative.json",
+      "family": "improper_inventory_management",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/improper-inventory-management--sparse-noisy.json",
+      "family": "improper_inventory_management",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/information-disclosure--positive.json",
+      "family": "information_disclosure",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "information_disclosure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/information-disclosure--secure-negative.json",
+      "family": "information_disclosure",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/information-disclosure--sparse-noisy.json",
+      "family": "information_disclosure",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "ldap_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "ldap_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "ldap_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ldap-injection--sparse-noisy.json",
+      "family": "ldap_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "mass_assignment",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "mass_assignment",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "mass_assignment",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/mass-assignment--sparse-noisy.json",
+      "family": "mass_assignment",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--positive.json",
+      "family": "nosql_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--near-miss.json",
+      "family": "nosql_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--secure-negative.json",
+      "family": "nosql_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--sparse-noisy.json",
+      "family": "nosql_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "open_redirect",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "open_redirect",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "open_redirect",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/open-redirect--sparse-noisy.json",
+      "family": "open_redirect",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "path_traversal",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "path_traversal",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "path_traversal",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--sparse-noisy.json",
+      "family": "path_traversal",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/postmessage-trust--positive.json",
+      "family": "postmessage_trust",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/postmessage-trust--near-miss.json",
+      "family": "postmessage_trust",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/postmessage-trust--secure-negative.json",
+      "family": "postmessage_trust",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/postmessage-trust--sparse-noisy.json",
+      "family": "postmessage_trust",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/race-condition--positive.json",
+      "family": "race_condition",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "race_condition",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/race-condition--secure-negative.json",
+      "family": "race_condition",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/race-condition--sparse-noisy.json",
+      "family": "race_condition",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--positive.json",
+      "family": "secret_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "secret_exposure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--secure-negative.json",
+      "family": "secret_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--sparse-noisy.json",
+      "family": "secret_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "security_logging_alerting_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "security_logging_alerting_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "security_logging_alerting_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-logging-alerting-failure--sparse-noisy.json",
+      "family": "security_logging_alerting_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--positive.json",
+      "family": "security_misconfiguration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--near-miss.json",
+      "family": "security_misconfiguration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--secure-negative.json",
+      "family": "security_misconfiguration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--sparse-noisy.json",
+      "family": "security_misconfiguration",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--positive.json",
+      "family": "sensitive_business_flow_abuse",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--near-miss.json",
+      "family": "sensitive_business_flow_abuse",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--secure-negative.json",
+      "family": "sensitive_business_flow_abuse",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--sparse-noisy.json",
+      "family": "sensitive_business_flow_abuse",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--positive.json",
+      "family": "sensitive_caching",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--near-miss.json",
+      "family": "sensitive_caching",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--secure-negative.json",
+      "family": "sensitive_caching",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--sparse-noisy.json",
+      "family": "sensitive_caching",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "server_side_template_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "server_side_template_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "server_side_template_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/server-side-template-injection--sparse-noisy.json",
+      "family": "server_side_template_injection",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "software_data_integrity_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "software_data_integrity_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "software_data_integrity_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/software-data-integrity-failure--sparse-noisy.json",
+      "family": "software_data_integrity_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "software_supply_chain_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "software_supply_chain_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "software_supply_chain_failure",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/software-supply-chain-failure--sparse-noisy.json",
+      "family": "software_supply_chain_failure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--positive.json",
+      "family": "source_map_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--near-miss.json",
+      "family": "source_map_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--secure-negative.json",
+      "family": "source_map_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--sparse-noisy.json",
+      "family": "source_map_exposure",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--positive.json",
+      "family": "sql_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "sql_injection",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--secure-negative.json",
+      "family": "sql_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--sparse-noisy.json",
+      "family": "sql_injection",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ssrf--positive.json",
+      "family": "ssrf",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ssrf--near-miss.json",
+      "family": "ssrf",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ssrf--secure-negative.json",
+      "family": "ssrf",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ssrf--sparse-noisy.json",
+      "family": "ssrf",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unrestricted-resource-consumption--positive.json",
+      "family": "unrestricted_resource_consumption",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unrestricted-resource-consumption--near-miss.json",
+      "family": "unrestricted_resource_consumption",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unrestricted-resource-consumption--secure-negative.json",
+      "family": "unrestricted_resource_consumption",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unrestricted-resource-consumption--sparse-noisy.json",
+      "family": "unrestricted_resource_consumption",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "unsafe_api_consumption",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "unsafe_api_consumption",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "family": "unsafe_api_consumption",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unsafe-api-consumption--sparse-noisy.json",
+      "family": "unsafe_api_consumption",
+      "status": "draft_ready_for_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent/fix source snippet available",
+      "case_kind": "positive",
+      "draft_path": null,
+      "family": "websocket_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "family": "websocket_authorization",
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/websocket-authorization--secure-negative.json",
+      "family": "websocket_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    },
+    {
+      "block_reason": "literal family confirmation required before publish",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/websocket-authorization--sparse-noisy.json",
+      "family": "websocket_authorization",
+      "status": "blocked_targeted_family_adjudication"
+    }
+  ],
+  "rule_version": "2026.08.14.6.33.v7.drafts.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5c2c81075b870fe43db817c59a65f27423012f08",
+  "status_counts": {
+    "blocked_missing_literal_source": 52,
+    "blocked_targeted_family_adjudication": 36,
+    "draft_ready_for_semantic_review": 56
+  },
+  "target_contact_performed": false,
+  "targeted_family_blocked_count": 36,
+  "third_party_code_executed": false,
+  "version": "1.0.0"
+}

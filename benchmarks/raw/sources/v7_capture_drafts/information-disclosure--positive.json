@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/OpenListTeam/OpenList/blob/757f9d383db8e61d06a35c0b79701d6f85f75804/internal/op/sharing.go",
+  "captured_at": "2026-08-14T18:58:04.410304+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "information_disclosure",
+  "raw": {
+    "details": {
+      "line_end": 101,
+      "line_start": 88,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "757f9d383db8e61d06a35c0b79701d6f85f75804",
+      "source_excerpt": "}\n\nfunc GetSharingUnwrapPath(sharing *model.Sharing, path string) (unwrapPath string, err error) {\n\tif len(sharing.Files) == 0 {\n\t\treturn \"\", errors.New(\"cannot get actual path of an invalid sharing\")\n\t}\n\tif len(sharing.Files) == 1 {\n\t\treturn stdpath.Join(sharing.Files[0], path), nil\n\t}\n\tpath = utils.FixAndCleanPath(path)[1:]\n\tif len(path) == 0 {\n\t\treturn \"\", errors.New(\"cannot get actual path of a sharing root path\")\n\t}\n\tmapPath := \"\"",
+      "source_excerpt_sha256": "ff3f8b9798e02e083108430b8a81ed1c206c6a767c4555b57c776e61febcc52a",
+      "source_file": "internal/op/sharing.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "OpenListTeam/OpenList",
+  "source_root": "GHSA-p6ph-3jx2-3337",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 101,
+      "line_start": 88,
+      "revision_sha": "757f9d383db8e61d06a35c0b79701d6f85f75804",
+      "source_excerpt": "}\n\nfunc GetSharingUnwrapPath(sharing *model.Sharing, path string) (unwrapPath string, err error) {\n\tif len(sharing.Files) == 0 {\n\t\treturn \"\", errors.New(\"cannot get actual path of an invalid sharing\")\n\t}\n\tif len(sharing.Files) == 1 {\n\t\treturn stdpath.Join(sharing.Files[0], path), nil\n\t}\n\tpath = utils.FixAndCleanPath(path)[1:]\n\tif len(path) == 0 {\n\t\treturn \"\", errors.New(\"cannot get actual path of a sharing root path\")\n\t}\n\tmapPath := \"\"",
+      "source_excerpt_sha256": "ff3f8b9798e02e083108430b8a81ed1c206c6a767c4555b57c776e61febcc52a",
+      "source_file": "internal/op/sharing.go"
+    },
+    "reference": "https://github.com/OpenListTeam/OpenList/blob/757f9d383db8e61d06a35c0b79701d6f85f75804/internal/op/sharing.go",
+    "retrieved_at": "2026-08-14T18:58:04.410308+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

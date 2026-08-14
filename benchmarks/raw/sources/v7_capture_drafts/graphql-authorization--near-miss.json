@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/nautobot/nautobot/blob/36cde7148a207234de6212ec074f321dbc9d1b5b/nautobot/extras/tests/test_api.py",
+  "captured_at": "2026-08-14T18:58:04.408544+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "graphql_authorization",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "deny"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "36cde7148a207234de6212ec074f321dbc9d1b5b",
+      "source_file": "nautobot/extras/tests/test_api.py",
+      "test_control_excerpt": "    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_approve_approval_workflow_stage_anonymous(self):\n        self._test_workflow_stage_action_anonymous(\"approve\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_deny_approval_workflow_stage_anonymous(self):\n        self._test_workflow_stage_action_anonymous(\"deny\")\n\n    def _test_approval_workflow_stage_action_without_permission(self, action):\n        for case in self.approval_workflow_content_type_cases:\n            with self.subTest(case=case[\"content_type\"], action=action):\n                url = reverse(f\"extras-api:approvalworkflowstage-{action}\", kwargs={\"pk\": case[\"stage\"].pk})\n                with disable_warnings(\"django.request\"):\n                    response = self.client.post(url, **self.header)\n                self.assertHttpStatus(response, status.HTTP_403_FORBIDDEN)\n                self.assertIn(response.data[\"detail\"], \"You do not have permission to perform this action.\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_approve_approval_workflow_stage_without_permission(self):\n        self._test_approval_workflow_stage_action_without_permission(\"approve\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_deny_approval_workflow_stage_without_permission(self):\n        self._test_approval_workflow_stage_action_without_permission(\"deny\")\n\n    def _test_approval_workflow_stage_action_without_approvalworkflow_permission(self, action):\n        for case in self.approval_workflow_content_type_cases:\n            content_type = case[\"content_type\"]"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "nautobot/nautobot",
+  "source_root": "GHSA-wpxj-44w3-2j6x",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "deny"
+      ],
+      "revision_sha": "36cde7148a207234de6212ec074f321dbc9d1b5b",
+      "source_file": "nautobot/extras/tests/test_api.py",
+      "test_control_excerpt": "    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_approve_approval_workflow_stage_anonymous(self):\n        self._test_workflow_stage_action_anonymous(\"approve\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_deny_approval_workflow_stage_anonymous(self):\n        self._test_workflow_stage_action_anonymous(\"deny\")\n\n    def _test_approval_workflow_stage_action_without_permission(self, action):\n        for case in self.approval_workflow_content_type_cases:\n            with self.subTest(case=case[\"content_type\"], action=action):\n                url = reverse(f\"extras-api:approvalworkflowstage-{action}\", kwargs={\"pk\": case[\"stage\"].pk})\n                with disable_warnings(\"django.request\"):\n                    response = self.client.post(url, **self.header)\n                self.assertHttpStatus(response, status.HTTP_403_FORBIDDEN)\n                self.assertIn(response.data[\"detail\"], \"You do not have permission to perform this action.\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_approve_approval_workflow_stage_without_permission(self):\n        self._test_approval_workflow_stage_action_without_permission(\"approve\")\n\n    @override_settings(EXEMPT_VIEW_PERMISSIONS=[\"*\"])\n    def test_deny_approval_workflow_stage_without_permission(self):\n        self._test_approval_workflow_stage_action_without_permission(\"deny\")\n\n    def _test_approval_workflow_stage_action_without_approvalworkflow_permission(self, action):\n        for case in self.approval_workflow_content_type_cases:\n            content_type = case[\"content_type\"]",
+      "test_control_excerpt_sha256": "70aa991435da905b962eff1b21979bd9fd4442fe137f40fcaca3bd7f47dc7f7d"
+    },
+    "reference": "https://github.com/nautobot/nautobot/blob/36cde7148a207234de6212ec074f321dbc9d1b5b/nautobot/extras/tests/test_api.py",
+    "retrieved_at": "2026-08-14T18:58:04.408548+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

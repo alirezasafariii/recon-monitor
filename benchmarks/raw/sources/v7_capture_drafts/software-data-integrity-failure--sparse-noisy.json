@@ -1,0 +1,209 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/crossplane/crossplane/security/advisories/GHSA-wfqx-gjrf-g28r",
+  "captured_at": "2026-08-14T18:58:04.419011+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "software_data_integrity_failure",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "crossplane/crossplane",
+      "version_boundaries": [
+        {
+          "ecosystem": "",
+          "package": "crossplane",
+          "patched_version": "v2.3.3, v2.2.3",
+          "vulnerable_version_range": "<=v2.3.2"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/crossplane/crossplane/v2",
+          "patched_version": "",
+          "vulnerable_version_range": ">= 2.3.0-rc.0, <= 2.3.2"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/crossplane/crossplane/v2",
+          "patched_version": "",
+          "vulnerable_version_range": "<= 2.2.2"
+        }
+      ],
+      "version_boundary_count": 4
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "crossplane/crossplane",
+  "source_root": "GHSA-wfqx-gjrf-g28r",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "bugbunny-research",
+          "type": "reporter"
+        },
+        {
+          "login": "tonghuaroot",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/262839898?v=4",
+            "events_url": "https://api.github.com/users/bugbunny-research/events{/privacy}",
+            "followers_url": "https://api.github.com/users/bugbunny-research/followers",
+            "following_url": "https://api.github.com/users/bugbunny-research/following{/other_user}",
+            "gists_url": "https://api.github.com/users/bugbunny-research/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/bugbunny-research",
+            "id": 262839898,
+            "login": "bugbunny-research",
+            "node_id": "U_kgDOD6qeWg",
+            "organizations_url": "https://api.github.com/users/bugbunny-research/orgs",
+            "received_events_url": "https://api.github.com/users/bugbunny-research/received_events",
+            "repos_url": "https://api.github.com/users/bugbunny-research/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/bugbunny-research/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/bugbunny-research/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/bugbunny-research",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/23011166?v=4",
+            "events_url": "https://api.github.com/users/tonghuaroot/events{/privacy}",
+            "followers_url": "https://api.github.com/users/tonghuaroot/followers",
+            "following_url": "https://api.github.com/users/tonghuaroot/following{/other_user}",
+            "gists_url": "https://api.github.com/users/tonghuaroot/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/tonghuaroot",
+            "id": 23011166,
+            "login": "tonghuaroot",
+            "node_id": "MDQ6VXNlcjIzMDExMTY2",
+            "organizations_url": "https://api.github.com/users/tonghuaroot/orgs",
+            "received_events_url": "https://api.github.com/users/tonghuaroot/received_events",
+            "repos_url": "https://api.github.com/users/tonghuaroot/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/tonghuaroot/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/tonghuaroot/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/tonghuaroot",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": 9.0,
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 9.0,
+          "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-345",
+        "CWE-367"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-345",
+          "name": "Insufficient Verification of Data Authenticity"
+        },
+        {
+          "cwe_id": "CWE-367",
+          "name": "Time-of-check Time-of-use (TOCTOU) Race Condition"
+        }
+      ],
+      "description": "## Summary\r\n\r\nCrossplane allows package signature verification to be configured via the `ImageConfig` mechanism. When enabled, the package manager uses cosign to verify that packages are correctly signed before pulling and installing them.\r\n\r\nWhen a package is installed using a tag reference (e.g., a semantic version), a malicious OCI registry could serve a correctly signed image for verification, then subsequently serve an unsigned image for installation. This is possible because Crossplane resolves the tag reference separately for each step.\r\n\r\nThis vulnerability is relevant only for users who do all three of the following:\r\n\r\n1. Configure signature verification for packages,\r\n2. Install packages using tag references rather than digests, and\r\n3. Install packages from registries they do not control.\r\n\r\n## Mitigation\r\n\r\nInstalling packages by image digest rather than using tags avoids this issue.\r\n\r\n## Fix\r\n\r\nThe package manager has been updated to resolve tag references once and use the resulting digest for both signature verification and image fetching. This ensures that Crossplane pulls the same content that had its signature verified. The fix has been applied to Crossplane's `main` branch and backported to the v2.3 and v2.2 release branches; it will be released in v2.3.3 and v2.2.3.\r\n\r\n## Note on Fixed Versions\r\n\r\nThe Crossplane maintainers are *not* planning to backport the fix for this advisory to the 1.20 branch, for two reasons:\r\n\r\n1. The advisory is relevant only when an alpha feature is enabled and configured, and has a reasonable mitigation that is already a security best practice.\r\n2. Doing so would require a major refactor of package manager internals to match the refactor that shipped in Crossplane v2.2. Such a refactor would be an unnecessary risk given the policy that v1.20 receives only critical fixes and that this advisory affects only users of an alpha feature.\r\n\r\n## Credits\r\n\r\nThis issue was reported, independently, by @bugbunny-research and @tonghuaroot.",
+      "ghsa_id": "GHSA-wfqx-gjrf-g28r",
+      "html_url": "https://github.com/crossplane/crossplane/security/advisories/GHSA-wfqx-gjrf-g28r",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-wfqx-gjrf-g28r"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-16T15:15:51Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/414574?v=4",
+        "events_url": "https://api.github.com/users/adamwg/events{/privacy}",
+        "followers_url": "https://api.github.com/users/adamwg/followers",
+        "following_url": "https://api.github.com/users/adamwg/following{/other_user}",
+        "gists_url": "https://api.github.com/users/adamwg/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/adamwg",
+        "id": 414574,
+        "login": "adamwg",
+        "node_id": "MDQ6VXNlcjQxNDU3NA==",
+        "organizations_url": "https://api.github.com/users/adamwg/orgs",
+        "received_events_url": "https://api.github.com/users/adamwg/received_events",
+        "repos_url": "https://api.github.com/users/adamwg/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/adamwg/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/adamwg/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/adamwg",
+        "user_view_type": "public"
+      },
+      "severity": "critical",
+      "state": "published",
+      "submission": null,
+      "summary": "Signature verification TOCTOU allows installing unverified package content",
+      "updated_at": "2026-08-03T16:14:37Z",
+      "url": "https://api.github.com/repos/crossplane/crossplane/security-advisories/GHSA-wfqx-gjrf-g28r",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "",
+            "name": "crossplane"
+          },
+          "patched_versions": "v2.3.3, v2.2.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<=v2.3.2"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/crossplane/crossplane/security/advisories/GHSA-wfqx-gjrf-g28r",
+    "retrieved_at": "2026-08-14T18:58:04.419016+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

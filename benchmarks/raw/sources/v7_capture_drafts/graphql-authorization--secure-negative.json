@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/nautobot/nautobot/blob/36cde7148a207234de6212ec074f321dbc9d1b5b/changes/GHSA-wpxj-44w3-2j6x.fixed",
+  "captured_at": "2026-08-14T18:58:04.408752+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "graphql_authorization",
+  "raw": {
+    "details": {
+      "line_end": 3,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "36cde7148a207234de6212ec074f321dbc9d1b5b",
+      "source_excerpt": "Fixed `ImageAttachment` REST API incorrectly marking the `image_height` and `image_width` as required fields.\nFixed `ImageAttachment` REST API incorrectly allowing creation of attachments to an unsupported `content_type`.\nFixed `ContactAssociation` REST API incorrectly allowing creation of associations to an invalid `associated_object_type`.",
+      "source_excerpt_sha256": "ed9d58c4607a500c59aa202237b02aab085cad4465bcaa5fa1436e45f1d025af",
+      "source_file": "changes/GHSA-wpxj-44w3-2j6x.fixed"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "nautobot/nautobot",
+  "source_root": "GHSA-wpxj-44w3-2j6x",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 3,
+      "line_start": 1,
+      "revision_sha": "36cde7148a207234de6212ec074f321dbc9d1b5b",
+      "source_excerpt": "Fixed `ImageAttachment` REST API incorrectly marking the `image_height` and `image_width` as required fields.\nFixed `ImageAttachment` REST API incorrectly allowing creation of attachments to an unsupported `content_type`.\nFixed `ContactAssociation` REST API incorrectly allowing creation of associations to an invalid `associated_object_type`.",
+      "source_excerpt_sha256": "ed9d58c4607a500c59aa202237b02aab085cad4465bcaa5fa1436e45f1d025af",
+      "source_file": "changes/GHSA-wpxj-44w3-2j6x.fixed"
+    },
+    "reference": "https://github.com/nautobot/nautobot/blob/36cde7148a207234de6212ec074f321dbc9d1b5b/changes/GHSA-wpxj-44w3-2j6x.fixed",
+    "retrieved_at": "2026-08-14T18:58:04.408757+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

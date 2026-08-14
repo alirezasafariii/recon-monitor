@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/getkin/kin-openapi/blob/f0407d53b0730280266f454b755010e7eeb985da/openapi3filter/validation_error_test.go",
+  "captured_at": "2026-08-14T18:58:04.401466+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "authentication_session",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "invalid",
+        "valid"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "f0407d53b0730280266f454b755010e7eeb985da",
+      "source_file": "openapi3filter/validation_error_test.go",
+      "test_control_excerpt": "}\n\nfunc TestValidationHandler_ServeHTTP(t *testing.T) {\n\tt.Run(\"errors on invalid requests\", func(t *testing.T) {\n\t\ttype pig struct{}\n\t\thttpCtx := context.WithValue(t.Context(), pig{}, \"tails\")\n\t\tr, err := http.NewRequest(http.MethodGet, \"http://unknown-host.com/v2/pet\", nil)\n\t\trequire.NoError(t, err)\n\t\tr = r.WithContext(httpCtx)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.False(t, handler.Called)\n\t\trequire.True(t, encoder.Called)\n\t\trequire.Equal(t, httpCtx, encoder.Ctx)\n\t\trequire.NotNil(t, encoder.Err)\n\t})\n\n\tt.Run(\"passes valid requests through\", func(t *testing.T) {\n\t\tr := newPetstoreRequest(t, http.MethodGet, \"/pet/findByStatus?status=sold\", nil)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.True(t, handler.Called)"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "getkin/kin-openapi",
+  "source_root": "GHSA-r277-6w6q-xmqw",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "invalid",
+        "valid"
+      ],
+      "revision_sha": "f0407d53b0730280266f454b755010e7eeb985da",
+      "source_file": "openapi3filter/validation_error_test.go",
+      "test_control_excerpt": "}\n\nfunc TestValidationHandler_ServeHTTP(t *testing.T) {\n\tt.Run(\"errors on invalid requests\", func(t *testing.T) {\n\t\ttype pig struct{}\n\t\thttpCtx := context.WithValue(t.Context(), pig{}, \"tails\")\n\t\tr, err := http.NewRequest(http.MethodGet, \"http://unknown-host.com/v2/pet\", nil)\n\t\trequire.NoError(t, err)\n\t\tr = r.WithContext(httpCtx)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.False(t, handler.Called)\n\t\trequire.True(t, encoder.Called)\n\t\trequire.Equal(t, httpCtx, encoder.Ctx)\n\t\trequire.NotNil(t, encoder.Err)\n\t})\n\n\tt.Run(\"passes valid requests through\", func(t *testing.T) {\n\t\tr := newPetstoreRequest(t, http.MethodGet, \"/pet/findByStatus?status=sold\", nil)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.True(t, handler.Called)",
+      "test_control_excerpt_sha256": "5a38fcf4500cd879e03e48711facaf5f5167d0a535df2eeae31d076dac9bd724"
+    },
+    "reference": "https://github.com/getkin/kin-openapi/blob/f0407d53b0730280266f454b755010e7eeb985da/openapi3filter/validation_error_test.go",
+    "retrieved_at": "2026-08-14T18:58:04.401471+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

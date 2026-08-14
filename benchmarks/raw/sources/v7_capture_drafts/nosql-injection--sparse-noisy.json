@@ -1,0 +1,225 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx",
+  "captured_at": "2026-08-14T18:58:04.412387+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "langchain-ai/langgraphjs",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "@langchain/langgraph-checkpoint-mongodb",
+          "patched_version": "1.3.1",
+          "vulnerable_version_range": "<= 1.3.0"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "langchain-ai/langgraphjs",
+  "source_root": "GHSA-98xf-r82g-9mhx",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "Nagendhra-web",
+          "type": "reporter"
+        },
+        {
+          "login": "etairl",
+          "type": "remediation_developer"
+        },
+        {
+          "login": "hntrl",
+          "type": "remediation_reviewer"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/219036912?v=4",
+            "events_url": "https://api.github.com/users/Nagendhra-web/events{/privacy}",
+            "followers_url": "https://api.github.com/users/Nagendhra-web/followers",
+            "following_url": "https://api.github.com/users/Nagendhra-web/following{/other_user}",
+            "gists_url": "https://api.github.com/users/Nagendhra-web/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/Nagendhra-web",
+            "id": 219036912,
+            "login": "Nagendhra-web",
+            "node_id": "U_kgDODQ488A",
+            "organizations_url": "https://api.github.com/users/Nagendhra-web/orgs",
+            "received_events_url": "https://api.github.com/users/Nagendhra-web/received_events",
+            "repos_url": "https://api.github.com/users/Nagendhra-web/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/Nagendhra-web/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/Nagendhra-web/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/Nagendhra-web",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "remediation_developer",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/9601971?v=4",
+            "events_url": "https://api.github.com/users/etairl/events{/privacy}",
+            "followers_url": "https://api.github.com/users/etairl/followers",
+            "following_url": "https://api.github.com/users/etairl/following{/other_user}",
+            "gists_url": "https://api.github.com/users/etairl/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/etairl",
+            "id": 9601971,
+            "login": "etairl",
+            "node_id": "MDQ6VXNlcjk2MDE5NzE=",
+            "organizations_url": "https://api.github.com/users/etairl/orgs",
+            "received_events_url": "https://api.github.com/users/etairl/received_events",
+            "repos_url": "https://api.github.com/users/etairl/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/etairl/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/etairl/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/etairl",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "remediation_reviewer",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/40191806?v=4",
+            "events_url": "https://api.github.com/users/hntrl/events{/privacy}",
+            "followers_url": "https://api.github.com/users/hntrl/followers",
+            "following_url": "https://api.github.com/users/hntrl/following{/other_user}",
+            "gists_url": "https://api.github.com/users/hntrl/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/hntrl",
+            "id": 40191806,
+            "login": "hntrl",
+            "node_id": "MDQ6VXNlcjQwMTkxODA2",
+            "organizations_url": "https://api.github.com/users/hntrl/orgs",
+            "received_events_url": "https://api.github.com/users/hntrl/received_events",
+            "repos_url": "https://api.github.com/users/hntrl/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/hntrl/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/hntrl/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/hntrl",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-48121",
+      "cvss": {
+        "score": 6.7,
+        "vector_string": "CVSS:3.1/AV:A/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:N"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 6.7,
+          "vector_string": "CVSS:3.1/AV:A/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:N"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-943"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-943",
+          "name": "Improper Neutralization of Special Elements in Data Query Logic"
+        }
+      ],
+      "description": "## Summary\r\n\r\nA NoSQL injection vulnerability existed in `MongoDBSaver` where checkpoint identifier fields from `config.configurable` were used in MongoDB queries without strict type enforcement. In vulnerable versions, attacker-controlled object payloads (for example MongoDB operators like `$gt` and `$ne`) could be interpreted as query operators instead of literal identifier values.\r\n\r\nThis could bypass intended thread scoping and return checkpoints from other tenants.\r\n\r\n## Attack surface\r\n\r\nThe vulnerable path was in `MongoDBSaver.getTuple()`, where `thread_id`, `checkpoint_ns`, and `checkpoint_id` were used in MongoDB `find()` queries. The same unvalidated values were then reused to fetch pending writes.\r\n\r\nApplications were exposed when untrusted input was forwarded into `config.configurable` (for example, directly from request bodies or query parameters) without string coercion or schema validation.\r\n\r\n## Who is affected?\r\n\r\nApplications are vulnerable if they:\r\n\r\n- Use `@langchain/langgraph-checkpoint-mongodb` with multi-tenant or user-isolated thread models.\r\n- Accept user-controlled values for `thread_id`, `checkpoint_ns`, or `checkpoint_id`.\r\n- Pass those values into `app.invoke()`, `app.stream()`, or direct saver methods without validation.\r\n\r\nApplications are generally not vulnerable if they:\r\n\r\n- Use server-issued identifiers only.\r\n- Source `thread_id` from trusted URL params that remain strings.\r\n- Enforce schema validation that rejects non-string identifier fields.\r\n\r\n## Impact\r\n\r\nAn attacker with control over configurable checkpoint identifiers could read checkpoint data outside their authorized thread boundary.\r\n\r\nPotentially exposed data includes:\r\n\r\n- Checkpoint state\r\n- Metadata\r\n- Pending writes\r\n\r\nThis is a confidentiality issue with cross-tenant data disclosure risk.\r\n\r\n## Exploit example\r\n\r\nAn attacker-controlled request can inject MongoDB operators:\r\n\r\n```ts\r\ngraph = new StateGraph(...)\r\n  .compile({\r\n    checkpointer: new MongoDBSaver()\r\n  });\r\n\r\ngraph.invoke(..., {\r\n  configurable: {  \r\n    \"thread_id\": { \"$gt\": \"\" },\r\n    \"checkpoint_ns\": { \"$ne\": null }\r\n  }\r\n});\r\n```\r\n\r\nIf this payload is forwarded into `config.configurable`, the resulting query may match checkpoints outside the intended tenant/thread scope.\r\n\r\n## Security hardening changes\r\n\r\nVersion `1.3.1` hardens `@langchain/langgraph-checkpoint-mongodb` by adding runtime validation for configurable checkpoint identifiers and rejecting invalid values before MongoDB query/write paths execute.\r\n\r\nThe patch also includes regression tests covering object/operator payloads across affected methods.\r\n\r\n## Migration guide\r\n\r\nUpgrade to `@langchain/langgraph-checkpoint-mongodb@1.3.1` or later.\r\n\r\nNo API migration is required for valid callers. However, applications that currently pass non-string identifier values in `config.configurable` will now receive explicit errors and should normalize/validate inputs.\r\n\r\nAs defense in depth, validate identifier fields at API boundaries and avoid passing raw client objects into graph config.\r\n\r\n## References\r\n\r\n- Issue: https://github.com/langchain-ai/langgraphjs/issues/2351\r\n- Fix PR: https://github.com/langchain-ai/langgraphjs/pull/2397\r\n",
+      "ghsa_id": "GHSA-98xf-r82g-9mhx",
+      "html_url": "https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-98xf-r82g-9mhx"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-48121"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-05-21T05:40:35Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/40191806?v=4",
+        "events_url": "https://api.github.com/users/hntrl/events{/privacy}",
+        "followers_url": "https://api.github.com/users/hntrl/followers",
+        "following_url": "https://api.github.com/users/hntrl/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hntrl/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/hntrl",
+        "id": 40191806,
+        "login": "hntrl",
+        "node_id": "MDQ6VXNlcjQwMTkxODA2",
+        "organizations_url": "https://api.github.com/users/hntrl/orgs",
+        "received_events_url": "https://api.github.com/users/hntrl/received_events",
+        "repos_url": "https://api.github.com/users/hntrl/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/hntrl/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hntrl/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/hntrl",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "NoSQL parameter injection in MongoDBSaver allows cross-tenant state access",
+      "updated_at": "2026-05-21T15:10:25Z",
+      "url": "https://api.github.com/repos/langchain-ai/langgraphjs/security-advisories/GHSA-98xf-r82g-9mhx",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "@langchain/langgraph-checkpoint-mongodb"
+          },
+          "patched_versions": "1.3.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 1.3.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx",
+    "retrieved_at": "2026-08-14T18:58:04.412391+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

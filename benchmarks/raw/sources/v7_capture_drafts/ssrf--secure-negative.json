@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/oscal-compass/compliance-trestle/blob/d107cd16efe8eb15d46be3c1d97f1ec73d32447c/tests/trestle/core/remote/cache_security_test.py",
+  "captured_at": "2026-08-14T18:58:04.421762+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "line_end": 916,
+      "line_start": 705,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "d107cd16efe8eb15d46be3c1d97f1ec73d32447c",
+      "source_excerpt": "\n    validator = URLSecurityValidator()\n    with pytest.raises(TrestleError, match='Invalid IP address'):\n        validator.validate_url('https://example.com/path')\n\n\nclass TestSSRFBypassVulnerabilities:\n    \"\"\"Test fixes for SSRF bypass vulnerabilities (GHSA-h47f-gmjp-m7rr).\"\"\"\n\n    def test_blocks_ipv4_mapped_ipv6_cloud_metadata(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 cloud metadata addresses are blocked.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 address\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:169.254.169.254 (IPv4-mapped IPv6 for AWS metadata)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:169.254.169.254', 443, 0, 0))]\n\n        monkeypatch.setattr(socket, 'getaddrinfo', mock_getaddrinfo)\n\n        # Should block IPv4-mapped IPv6 cloud metadata address\n        # The metadata endpoint check catches it first with \"cloud metadata endpoints\" message\n        with pytest.raises(TrestleError, match='cloud metadata endpoints'):\n            HTTPSFetcher(tmp_path, 'https://[::ffff:169.254.169.254]/latest/meta-data/')\n\n    def test_blocks_ipv4_mapped_ipv6_loopback(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 loopback addresses are blocked.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 loopback\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:127.0.0.1 (IPv4-mapped IPv6 for loopback)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:127.0.0.1', 443, 0, 0))]\n\n        monkeypatch.setattr(socket, 'getaddrinfo', mock_getaddrinfo)\n\n        # Should block IPv4-mapped IPv6 loopback\n        with pytest.raises(TrestleError, match='127.0.0.0/8'):\n            HTTPSFetcher(tmp_path, 'https://[::ffff:127.0.0.1]/admin')\n\n    def test_blocks_ipv4_mapped_ipv6_rfc1918(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 RFC 1918 addresses are blocked when configured.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n        monkeypatch.setenv('TRESTLE_BLOCK_PRIVATE_IPS', 'true')\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 private address\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:10.0.0.1 (IPv4-mapped IPv6 for RFC 1918)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:10.0.0.1', 443, 0, 0))]\n\n        monkeypatch.setattr(socke",
+      "source_excerpt_sha256": "8952746d37ab25891c911b65a8940077637c392d5ec5a3ecac596d6fcb658629",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oscal-compass/compliance-trestle",
+  "source_root": "GHSA-h47f-gmjp-m7rr",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 916,
+      "line_start": 705,
+      "revision_sha": "d107cd16efe8eb15d46be3c1d97f1ec73d32447c",
+      "source_excerpt": "\n    validator = URLSecurityValidator()\n    with pytest.raises(TrestleError, match='Invalid IP address'):\n        validator.validate_url('https://example.com/path')\n\n\nclass TestSSRFBypassVulnerabilities:\n    \"\"\"Test fixes for SSRF bypass vulnerabilities (GHSA-h47f-gmjp-m7rr).\"\"\"\n\n    def test_blocks_ipv4_mapped_ipv6_cloud_metadata(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 cloud metadata addresses are blocked.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 address\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:169.254.169.254 (IPv4-mapped IPv6 for AWS metadata)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:169.254.169.254', 443, 0, 0))]\n\n        monkeypatch.setattr(socket, 'getaddrinfo', mock_getaddrinfo)\n\n        # Should block IPv4-mapped IPv6 cloud metadata address\n        # The metadata endpoint check catches it first with \"cloud metadata endpoints\" message\n        with pytest.raises(TrestleError, match='cloud metadata endpoints'):\n            HTTPSFetcher(tmp_path, 'https://[::ffff:169.254.169.254]/latest/meta-data/')\n\n    def test_blocks_ipv4_mapped_ipv6_loopback(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 loopback addresses are blocked.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 loopback\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:127.0.0.1 (IPv4-mapped IPv6 for loopback)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:127.0.0.1', 443, 0, 0))]\n\n        monkeypatch.setattr(socket, 'getaddrinfo', mock_getaddrinfo)\n\n        # Should block IPv4-mapped IPv6 loopback\n        with pytest.raises(TrestleError, match='127.0.0.0/8'):\n            HTTPSFetcher(tmp_path, 'https://[::ffff:127.0.0.1]/admin')\n\n    def test_blocks_ipv4_mapped_ipv6_rfc1918(self, tmp_path: pathlib.Path, monkeypatch) -> None:\n        \"\"\"Test that IPv4-mapped IPv6 RFC 1918 addresses are blocked when configured.\"\"\"\n        test_utils.ensure_trestle_config_dir(tmp_path)\n        monkeypatch.setenv('TRESTLE_BLOCK_PRIVATE_IPS', 'true')\n\n        # Mock DNS resolution to return IPv4-mapped IPv6 private address\n        def mock_getaddrinfo(hostname, port):\n            # Return ::ffff:10.0.0.1 (IPv4-mapped IPv6 for RFC 1918)\n            return [(socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:10.0.0.1', 443, 0, 0))]\n\n        monkeypatch.setattr(socke",
+      "source_excerpt_sha256": "8952746d37ab25891c911b65a8940077637c392d5ec5a3ecac596d6fcb658629",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py"
+    },
+    "reference": "https://github.com/oscal-compass/compliance-trestle/blob/d107cd16efe8eb15d46be3c1d97f1ec73d32447c/tests/trestle/core/remote/cache_security_test.py",
+    "retrieved_at": "2026-08-14T18:58:04.421768+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sipsorcery-org/sipsorcery/blob/b5786e4409714a7813fd3391880e86ef660deadb/src/SIPSorcery/net/TURN/TurnServer.cs",
+  "captured_at": "2026-08-14T18:58:04.406833+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "exceptional_condition_mishandling",
+  "raw": {
+    "details": {
+      "line_end": 513,
+      "line_start": 499,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "b5786e4409714a7813fd3391880e86ef660deadb",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "ff22b82c8053a82879ffbcaac28f21cf2334e69ee2008cde02ca4ebbfd8b004f",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "sipsorcery-org/sipsorcery",
+  "source_root": "GHSA-pfvm-w89x-94jw",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 513,
+      "line_start": 499,
+      "revision_sha": "b5786e4409714a7813fd3391880e86ef660deadb",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "ff22b82c8053a82879ffbcaac28f21cf2334e69ee2008cde02ca4ebbfd8b004f",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "reference": "https://github.com/sipsorcery-org/sipsorcery/blob/b5786e4409714a7813fd3391880e86ef660deadb/src/SIPSorcery/net/TURN/TurnServer.cs",
+    "retrieved_at": "2026-08-14T18:58:04.406838+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

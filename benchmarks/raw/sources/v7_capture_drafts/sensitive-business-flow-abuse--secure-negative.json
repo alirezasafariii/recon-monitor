@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/CHANGELOG.md",
+  "captured_at": "2026-08-14T18:58:04.417278+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sensitive_business_flow_abuse",
+  "raw": {
+    "details": {
+      "line_end": 614,
+      "line_start": 600,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_excerpt": "- Models/OpenAI forward compat: add support for `openai/gpt-5.4`, `openai/gpt-5.4-pro`, and `openai-codex/gpt-5.4`, including direct OpenAI Responses `serviceTier` passthrough safeguards for valid values. (#36590) Thanks @dorukardahan.\n- Android/Play package ID: rename the Android app package to `ai.openclaw.app`, including matching benchmark and Android tooling references for Play publishing. (#38712) Thanks @obviyus.\n\n### Fixes\n\n- Models/provider config precedence: prefer exact `models.providers.<name>` matches before normalized provider aliases in embedded model resolution, preventing alias/canonical key collisions from applying the wrong provider `api`, `baseUrl`, or headers. (#35934) thanks @RealKai42.\n- Hooks/auth throttling: reject non-`POST` `/hooks/*` requests before auth-failure accounting so unsupported methods can no longer burn the hook auth lockout budget and block legitimate webhook delivery. Thanks @P1ck3d for reporting.\n- Network/fetch guard redirect auth stripping: switch cross-origin redirect handling in `fetchWithSsrFGuard` from a narrow sensitive-header denylist to a safe-header allowlist so custom auth headers like `X-Api-Key` and `Private-Token` no longer leak on origin changes. Thanks @Rickidevs for reporting.\n- Logging/Subsystem console timestamps: route subsystem console timestamp rendering through `formatConsoleTimestamp(...)` so `pretty` and timestamp-prefix output use local timezone formatting consistently instead of inline UTC `toISOString()` paths. (#25970) Thanks @openperf.\n- Feishu/Multi-account + reply reliability: add `channels.feishu.defaultAccount` outbound routing support with schema validation, prevent inbound preview text from leaking into prompt system events, keep quoted-message extraction text-first (post/interactive/file placeholders instead of raw JSON), route Feishu video sends as `msg_type: \"file\"`, and avoid websocket event blocking by using non-blocking event handling in monitor dispatch. Landed from contributor PRs #31209, #29610, #30432, #30331, and #29501. Thanks @stakeswky, @hclsys, @bmendonca3, @patrick-yingxi-pan, and @zwffff.\n- Feishu/Target routing + replies + dedupe: normalize provider-prefixed targets (`feishu:`/`lark:`), prefer configured `channels.feishu.defaultAccount` for tool execution, honor Feishu outbound `renderMode` in adapter text/caption sends, fall back to normal send when reply targets are withdrawn/deleted, and add synchronous in-memory dedupe guard for concurrent duplicate inbound events. Landed from contributor PRs #30428, #30438, #29958, #30444, and #29463. Thanks @bmendonca3 an",
+      "source_excerpt_sha256": "e10c4966c0ad3999e1f025a59ba3d8a8cfc88dfad874d52705618a75c5f534c1",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "openclaw/openclaw",
+  "source_root": "GHSA-6rmx-gvvg-vh6j",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 614,
+      "line_start": 600,
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_excerpt": "- Models/OpenAI forward compat: add support for `openai/gpt-5.4`, `openai/gpt-5.4-pro`, and `openai-codex/gpt-5.4`, including direct OpenAI Responses `serviceTier` passthrough safeguards for valid values. (#36590) Thanks @dorukardahan.\n- Android/Play package ID: rename the Android app package to `ai.openclaw.app`, including matching benchmark and Android tooling references for Play publishing. (#38712) Thanks @obviyus.\n\n### Fixes\n\n- Models/provider config precedence: prefer exact `models.providers.<name>` matches before normalized provider aliases in embedded model resolution, preventing alias/canonical key collisions from applying the wrong provider `api`, `baseUrl`, or headers. (#35934) thanks @RealKai42.\n- Hooks/auth throttling: reject non-`POST` `/hooks/*` requests before auth-failure accounting so unsupported methods can no longer burn the hook auth lockout budget and block legitimate webhook delivery. Thanks @P1ck3d for reporting.\n- Network/fetch guard redirect auth stripping: switch cross-origin redirect handling in `fetchWithSsrFGuard` from a narrow sensitive-header denylist to a safe-header allowlist so custom auth headers like `X-Api-Key` and `Private-Token` no longer leak on origin changes. Thanks @Rickidevs for reporting.\n- Logging/Subsystem console timestamps: route subsystem console timestamp rendering through `formatConsoleTimestamp(...)` so `pretty` and timestamp-prefix output use local timezone formatting consistently instead of inline UTC `toISOString()` paths. (#25970) Thanks @openperf.\n- Feishu/Multi-account + reply reliability: add `channels.feishu.defaultAccount` outbound routing support with schema validation, prevent inbound preview text from leaking into prompt system events, keep quoted-message extraction text-first (post/interactive/file placeholders instead of raw JSON), route Feishu video sends as `msg_type: \"file\"`, and avoid websocket event blocking by using non-blocking event handling in monitor dispatch. Landed from contributor PRs #31209, #29610, #30432, #30331, and #29501. Thanks @stakeswky, @hclsys, @bmendonca3, @patrick-yingxi-pan, and @zwffff.\n- Feishu/Target routing + replies + dedupe: normalize provider-prefixed targets (`feishu:`/`lark:`), prefer configured `channels.feishu.defaultAccount` for tool execution, honor Feishu outbound `renderMode` in adapter text/caption sends, fall back to normal send when reply targets are withdrawn/deleted, and add synchronous in-memory dedupe guard for concurrent duplicate inbound events. Landed from contributor PRs #30428, #30438, #29958, #30444, and #29463. Thanks @bmendonca3 an",
+      "source_excerpt_sha256": "e10c4966c0ad3999e1f025a59ba3d8a8cfc88dfad874d52705618a75c5f534c1",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/CHANGELOG.md",
+    "retrieved_at": "2026-08-14T18:58:04.417282+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

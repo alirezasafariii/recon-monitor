@@ -1,0 +1,207 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/security/advisories/GHSA-8rrq-wcg8-cv5q",
+  "captured_at": "2026-08-14T18:58:04.415552+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "security_logging_alerting_failure",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "go.opentelemetry.io/obi",
+          "patched_version": "v0.9.0",
+          "vulnerable_version_range": "> v0.0.0-rc.1+build"
+        },
+        {
+          "ecosystem": "go",
+          "package": "go.opentelemetry.io/obi",
+          "patched_version": "0.9.0",
+          "vulnerable_version_range": "< 0.9.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+  "source_root": "GHSA-8rrq-wcg8-cv5q",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "MrAlias",
+          "type": "reporter"
+        },
+        {
+          "login": "grcevski",
+          "type": "remediation_developer"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/5543599?v=4",
+            "events_url": "https://api.github.com/users/MrAlias/events{/privacy}",
+            "followers_url": "https://api.github.com/users/MrAlias/followers",
+            "following_url": "https://api.github.com/users/MrAlias/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MrAlias/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/MrAlias",
+            "id": 5543599,
+            "login": "MrAlias",
+            "node_id": "MDQ6VXNlcjU1NDM1OTk=",
+            "organizations_url": "https://api.github.com/users/MrAlias/orgs",
+            "received_events_url": "https://api.github.com/users/MrAlias/received_events",
+            "repos_url": "https://api.github.com/users/MrAlias/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/MrAlias/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MrAlias/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/MrAlias",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "remediation_developer",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/6207777?v=4",
+            "events_url": "https://api.github.com/users/grcevski/events{/privacy}",
+            "followers_url": "https://api.github.com/users/grcevski/followers",
+            "following_url": "https://api.github.com/users/grcevski/following{/other_user}",
+            "gists_url": "https://api.github.com/users/grcevski/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/grcevski",
+            "id": 6207777,
+            "login": "grcevski",
+            "node_id": "MDQ6VXNlcjYyMDc3Nzc=",
+            "organizations_url": "https://api.github.com/users/grcevski/orgs",
+            "received_events_url": "https://api.github.com/users/grcevski/received_events",
+            "repos_url": "https://api.github.com/users/grcevski/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/grcevski/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/grcevski/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/grcevski",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-45679",
+      "cvss": {
+        "score": 6.5,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 6.5,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-117",
+        "CWE-532"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-117",
+          "name": "Improper Output Neutralization for Logs"
+        },
+        {
+          "cwe_id": "CWE-532",
+          "name": "Insertion of Sensitive Information into Log File"
+        }
+      ],
+      "description": "### Summary\r\n\r\nOBI exports raw Redis error text as the span status message. Because Redis error replies can contain attacker-controlled or sensitive values, this behavior can exfiltrate tokens, PII, or other confidential input into telemetry backends and inject untrusted text into downstream analysis systems.\r\n\r\n### Details\r\n\r\nIn [pkg/ebpf/common/redis_detect_transform.go](https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/4f35facce2fe611319672595838ab875490f404d/pkg/components/ebpf/common/redis_detect_transform.go#L60-L74), `getRedisError` trims the raw error buffer and stores it directly in `request.DBError.Description`.\r\n\r\nLater, [pkg/appolly/app/request/span.go](https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/4f35facce2fe611319672595838ab875490f404d/pkg/app/request/span.go#L347-L352) returns that description as the exported status message for Redis spans whenever the span status is non-zero.\r\n\r\nThere is no opt-in control or sanitization beyond CRLF trimming. As a result, raw Redis error text becomes part of OTLP-exported status metadata by default.\r\n\r\n### PoC\r\n\r\nLocal request-layer testing recorded a status message containing `ERR invalid password for user bob secret=TOPSECRET`, which shows that unfiltered Redis error text reaches the exported status message.\r\n\r\nUse a vulnerable build:\r\n\r\n```bash\r\ngit checkout v0.0.0-rc.1+build\r\nmake build\r\n```\r\n\r\nStart Redis and OBI:\r\n\r\n```bash\r\ndocker run --rm -p 6379:6379 redis:7\r\nsudo ./bin/obi\r\n```\r\n\r\nSend a command that causes Redis to return an error containing caller-supplied text:\r\n\r\n```bash\r\nredis-cli -p 6379 'NOTACMD my-secret-token-123'\r\n```\r\n\r\nCapture the exported span or inspect the local telemetry output. On a vulnerable build, the span status message contains the Redis error text, including the supplied command fragment. This demonstrates that raw Redis error text is exported into telemetry by default and that values embedded in that text, including data supplied unintentionally by a caller, can be carried into tracing systems.\r\n\r\n### Impact\r\n\r\nThis is an information disclosure and telemetry injection issue. It affects any deployment that traces Redis traffic and exports spans to collectors, logs, or dashboards. Sensitive values, tokens, or PII present in Redis error text can be exfiltrated into telemetry systems, and untrusted text can contaminate downstream analysis.",
+      "ghsa_id": "GHSA-8rrq-wcg8-cv5q",
+      "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/security/advisories/GHSA-8rrq-wcg8-cv5q",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-8rrq-wcg8-cv5q"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-45679"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-05-12T14:11:30Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/5543599?v=4",
+        "events_url": "https://api.github.com/users/MrAlias/events{/privacy}",
+        "followers_url": "https://api.github.com/users/MrAlias/followers",
+        "following_url": "https://api.github.com/users/MrAlias/following{/other_user}",
+        "gists_url": "https://api.github.com/users/MrAlias/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/MrAlias",
+        "id": 5543599,
+        "login": "MrAlias",
+        "node_id": "MDQ6VXNlcjU1NDM1OTk=",
+        "organizations_url": "https://api.github.com/users/MrAlias/orgs",
+        "received_events_url": "https://api.github.com/users/MrAlias/received_events",
+        "repos_url": "https://api.github.com/users/MrAlias/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/MrAlias/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/MrAlias/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/MrAlias",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Redis error text is exported in span status messages",
+      "updated_at": "2026-05-13T05:39:04Z",
+      "url": "https://api.github.com/repos/open-telemetry/opentelemetry-ebpf-instrumentation/security-advisories/GHSA-8rrq-wcg8-cv5q",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "go.opentelemetry.io/obi"
+          },
+          "patched_versions": "v0.9.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "> v0.0.0-rc.1+build"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/security/advisories/GHSA-8rrq-wcg8-cv5q",
+    "retrieved_at": "2026-08-14T18:58:04.415556+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

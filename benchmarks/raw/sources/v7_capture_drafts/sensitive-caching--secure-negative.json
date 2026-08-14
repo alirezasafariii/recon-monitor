@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/.changeset/thick-buttons-visit.md",
+  "captured_at": "2026-08-14T18:58:04.418165+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sensitive_caching",
+  "raw": {
+    "details": {
+      "line_end": 5,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_excerpt": "---\n'@directus/api': patch\n---\n\nAdded a namespace to shares cache keys",
+      "source_excerpt_sha256": "6b7bc47ee49fedd7f906f47024ddb95f76911014c6155f23afa5ea3878972f66",
+      "source_file": ".changeset/thick-buttons-visit.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "directus/directus",
+  "source_root": "GHSA-c6w9-5g5j-jh2p",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 5,
+      "line_start": 1,
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_excerpt": "---\n'@directus/api': patch\n---\n\nAdded a namespace to shares cache keys",
+      "source_excerpt_sha256": "6b7bc47ee49fedd7f906f47024ddb95f76911014c6155f23afa5ea3878972f66",
+      "source_file": ".changeset/thick-buttons-visit.md"
+    },
+    "reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/.changeset/thick-buttons-visit.md",
+    "retrieved_at": "2026-08-14T18:58:04.418170+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/tinacms/tinacms/blob/c491fc55e612725f5d775eeb1fdf3f8ba82314fa/packages/@tinacms/mdx/src/parse/index.test.ts",
+  "captured_at": "2026-08-14T18:58:04.413496+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "postmessage_trust",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "safe"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "c491fc55e612725f5d775eeb1fdf3f8ba82314fa",
+      "source_file": "packages/@tinacms/mdx/src/parse/index.test.ts",
+      "test_control_excerpt": "    });\n\n    it('leaves arbitrary props untouched', () => {\n      const input = {\n        type: 'root',\n        children: [\n          {\n            type: 'mdxJsxFlowElement',\n            name: 'Embed',\n            props: {\n              // A prop literally named `url` is not a slate node and must be left as-is\n              url: 'javascript:alert(1)',\n              // A `children` prop that is not slate content must be left as-is\n              children: 'javascript:alert(1)',\n            },\n            children: [{ type: 'text', text: '' }],\n          },\n        ],\n      };\n      const tree = parseMDX(input as any, slateField, passthrough);\n      const props = (tree.children[0] as any).props;\n      expect(props.url).toBe('javascript:alert(1)');\n      expect(props.children).toBe('javascript:alert(1)');\n    });\n\n    it('preserves a safe link URL', () => {\n      const input = {\n        type: 'root',"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "tinacms/tinacms",
+  "source_root": "GHSA-g5qx-h5f3-mp2f",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "safe"
+      ],
+      "revision_sha": "c491fc55e612725f5d775eeb1fdf3f8ba82314fa",
+      "source_file": "packages/@tinacms/mdx/src/parse/index.test.ts",
+      "test_control_excerpt": "    });\n\n    it('leaves arbitrary props untouched', () => {\n      const input = {\n        type: 'root',\n        children: [\n          {\n            type: 'mdxJsxFlowElement',\n            name: 'Embed',\n            props: {\n              // A prop literally named `url` is not a slate node and must be left as-is\n              url: 'javascript:alert(1)',\n              // A `children` prop that is not slate content must be left as-is\n              children: 'javascript:alert(1)',\n            },\n            children: [{ type: 'text', text: '' }],\n          },\n        ],\n      };\n      const tree = parseMDX(input as any, slateField, passthrough);\n      const props = (tree.children[0] as any).props;\n      expect(props.url).toBe('javascript:alert(1)');\n      expect(props.children).toBe('javascript:alert(1)');\n    });\n\n    it('preserves a safe link URL', () => {\n      const input = {\n        type: 'root',",
+      "test_control_excerpt_sha256": "b78f7d6a8abb7edaa6f96f53035eef9f9479d1cec7d2f7350b4d169b40767699"
+    },
+    "reference": "https://github.com/tinacms/tinacms/blob/c491fc55e612725f5d775eeb1fdf3f8ba82314fa/packages/@tinacms/mdx/src/parse/index.test.ts",
+    "retrieved_at": "2026-08-14T18:58:04.413501+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

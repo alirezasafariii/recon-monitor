@@ -1,0 +1,54 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Independent upstream control-like test excerpt; must remain non-positive after adjudication.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/src/gateway/server.hooks.test.ts",
+  "captured_at": "2026-08-14T18:58:04.417086+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "sensitive_business_flow_abuse",
+  "raw": {
+    "details": {
+      "control_keyword_match": [
+        "empty"
+      ],
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_file": "src/gateway/server.hooks.test.ts",
+      "test_control_excerpt": "  });\n\n  test(\"denies explicit agentId when hooks.allowedAgentIds is empty\", async () => {\n    testState.hooksConfig = {\n      enabled: true,\n      token: HOOK_TOKEN,\n      allowedAgentIds: [],\n    };\n    testState.agentsConfig = {\n      list: [{ id: \"main\", default: true }, { id: \"hooks\" }],\n    };\n    await withGatewayServer(async ({ port }) => {\n      const resDenied = await postHook(port, \"/hooks/agent\", {\n        message: \"Denied\",\n        agentId: \"hooks\",\n      });\n      expect(resDenied.status).toBe(400);\n      const deniedBody = (await resDenied.json()) as { error?: string };\n      expect(deniedBody.error).toContain(\"hooks.allowedAgentIds\");\n      expect(peekSystemEvents(resolveMainKey()).length).toBe(0);\n    });\n  });\n\n  test(\"throttles repeated hook auth failures and resets after success\", async () => {\n    testState.hooksConfig = { enabled: true, token: HOOK_TOKEN };\n    await withGatewayServer(async ({ port }) => {\n      const firstFail = await postHook(\n        port,"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "openclaw/openclaw",
+  "source_root": "GHSA-6rmx-gvvg-vh6j",
+  "source_snapshot": {
+    "payload": {
+      "control_keyword_match": [
+        "empty"
+      ],
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_file": "src/gateway/server.hooks.test.ts",
+      "test_control_excerpt": "  });\n\n  test(\"denies explicit agentId when hooks.allowedAgentIds is empty\", async () => {\n    testState.hooksConfig = {\n      enabled: true,\n      token: HOOK_TOKEN,\n      allowedAgentIds: [],\n    };\n    testState.agentsConfig = {\n      list: [{ id: \"main\", default: true }, { id: \"hooks\" }],\n    };\n    await withGatewayServer(async ({ port }) => {\n      const resDenied = await postHook(port, \"/hooks/agent\", {\n        message: \"Denied\",\n        agentId: \"hooks\",\n      });\n      expect(resDenied.status).toBe(400);\n      const deniedBody = (await resDenied.json()) as { error?: string };\n      expect(deniedBody.error).toContain(\"hooks.allowedAgentIds\");\n      expect(peekSystemEvents(resolveMainKey()).length).toBe(0);\n    });\n  });\n\n  test(\"throttles repeated hook auth failures and resets after success\", async () => {\n    testState.hooksConfig = { enabled: true, token: HOOK_TOKEN };\n    await withGatewayServer(async ({ port }) => {\n      const firstFail = await postHook(\n        port,",
+      "test_control_excerpt_sha256": "026108ff92606d112d590ae68793250a9386c3343e079a00256f4a88e9726ff9"
+    },
+    "reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/src/gateway/server.hooks.test.ts",
+    "retrieved_at": "2026-08-14T18:58:04.417091+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

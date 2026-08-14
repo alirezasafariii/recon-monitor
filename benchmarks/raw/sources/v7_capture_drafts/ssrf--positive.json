@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/oscal-compass/compliance-trestle/blob/e92bde95d24ac9cec46618c031d7cb9c19b3e833/tests/trestle/core/remote/cache_security_test.py",
+  "captured_at": "2026-08-14T18:58:04.421254+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "line_end": 711,
+      "line_start": 705,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "e92bde95d24ac9cec46618c031d7cb9c19b3e833",
+      "source_excerpt": "\n    validator = URLSecurityValidator()\n    with pytest.raises(TrestleError, match='Invalid IP address'):\n        validator.validate_url('https://example.com/path')\n\n\n# Made with Bob",
+      "source_excerpt_sha256": "cd5c29c7c7d3e03adb02c85a7666b9bcfbbf26e1257a67272698e1a9ce904b8a",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oscal-compass/compliance-trestle",
+  "source_root": "GHSA-h47f-gmjp-m7rr",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 711,
+      "line_start": 705,
+      "revision_sha": "e92bde95d24ac9cec46618c031d7cb9c19b3e833",
+      "source_excerpt": "\n    validator = URLSecurityValidator()\n    with pytest.raises(TrestleError, match='Invalid IP address'):\n        validator.validate_url('https://example.com/path')\n\n\n# Made with Bob",
+      "source_excerpt_sha256": "cd5c29c7c7d3e03adb02c85a7666b9bcfbbf26e1257a67272698e1a9ce904b8a",
+      "source_file": "tests/trestle/core/remote/cache_security_test.py"
+    },
+    "reference": "https://github.com/oscal-compass/compliance-trestle/blob/e92bde95d24ac9cec46618c031d7cb9c19b3e833/tests/trestle/core/remote/cache_security_test.py",
+    "retrieved_at": "2026-08-14T18:58:04.421259+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

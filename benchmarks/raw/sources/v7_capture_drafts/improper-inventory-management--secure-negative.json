@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/edgexfoundry/edgex-go/blob/1da00045c508a7d59c26af6ad2625d77986b1a8c/internal/core/data/messaging/messaging.go",
+  "captured_at": "2026-08-14T18:58:04.409775+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "improper_inventory_management",
+  "raw": {
+    "details": {
+      "line_end": 38,
+      "line_start": 19,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "1da00045c508a7d59c26af6ad2625d77986b1a8c",
+      "source_excerpt": "\t\"strings\"\n\t\"sync\"\n\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/messaging\"\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types\"\n\n\tbootstrapContainer \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/container\"\n\tbootstrapMessaging \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/messaging\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/startup\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/di\"\n\n\t\"github.com/edgexfoundry/edgex-go/internal/core/data/container\"\n)\n\n// BootstrapHandler fulfills the BootstrapHandler contract.  if enabled, tt creates and initializes the Messaging client\n// and adds it to the DIC\nfunc BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {\n\tlc := bootstrapContainer.LoggingClientFrom(dic.Get)\n\tmessageBusInfo := container.ConfigurationFrom(dic.Get).MessageQueue\n",
+      "source_excerpt_sha256": "2112b76606fe1747f6918410d711c13f751e35862e8674f95b5619db560482f5",
+      "source_file": "internal/core/data/messaging/messaging.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "edgexfoundry/edgex-go",
+  "source_root": "GHSA-g63h-q855-vp3q",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 38,
+      "line_start": 19,
+      "revision_sha": "1da00045c508a7d59c26af6ad2625d77986b1a8c",
+      "source_excerpt": "\t\"strings\"\n\t\"sync\"\n\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/messaging\"\n\t\"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types\"\n\n\tbootstrapContainer \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/container\"\n\tbootstrapMessaging \"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/messaging\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/bootstrap/startup\"\n\t\"github.com/edgexfoundry/go-mod-bootstrap/v2/di\"\n\n\t\"github.com/edgexfoundry/edgex-go/internal/core/data/container\"\n)\n\n// BootstrapHandler fulfills the BootstrapHandler contract.  if enabled, tt creates and initializes the Messaging client\n// and adds it to the DIC\nfunc BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {\n\tlc := bootstrapContainer.LoggingClientFrom(dic.Get)\n\tmessageBusInfo := container.ConfigurationFrom(dic.Get).MessageQueue\n",
+      "source_excerpt_sha256": "2112b76606fe1747f6918410d711c13f751e35862e8674f95b5619db560482f5",
+      "source_file": "internal/core/data/messaging/messaging.go"
+    },
+    "reference": "https://github.com/edgexfoundry/edgex-go/blob/1da00045c508a7d59c26af6ad2625d77986b1a8c/internal/core/data/messaging/messaging.go",
+    "retrieved_at": "2026-08-14T18:58:04.409780+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/tinacms/tinacms/blob/42760d8f5afd201107e27e274308af37f96ba8d0/packages/@tinacms/app/package.json",
+  "captured_at": "2026-08-14T18:58:04.413317+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "postmessage_trust",
+  "raw": {
+    "details": {
+      "line_end": 17,
+      "line_start": 1,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "42760d8f5afd201107e27e274308af37f96ba8d0",
+      "source_excerpt": "{\n\t\"name\": \"@tinacms/app\",\n\t\"version\": \"2.5.5\",\n\t\"main\": \"src/main.tsx\",\n\t\"license\": \"Apache-2.0\",\n\t\"devDependencies\": {\n\t\t\"@types/react\": \"^18.3.18\",\n\t\t\"@types/react-dom\": \"catalog:\",\n\t\t\"typescript\": \"^5.7.3\"\n\t},\n\t\"peerDependencies\": {\n\t\t\"react\": \">=18.3.1 <20.0.0\",\n\t\t\"react-dom\": \">=18.3.1 <20.0.0\"\n\t},\n\t\"dependencies\": {\n\t\t\"@graphiql/toolkit\": \"catalog:\",\n\t\t\"@headlessui/react\": \"2.1.8\",",
+      "source_excerpt_sha256": "c6c108d97c96e9a6ff4fe5190fce3b65a35b72c172164c692312eb52369328b5",
+      "source_file": "packages/@tinacms/app/package.json"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "tinacms/tinacms",
+  "source_root": "GHSA-g5qx-h5f3-mp2f",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 17,
+      "line_start": 1,
+      "revision_sha": "42760d8f5afd201107e27e274308af37f96ba8d0",
+      "source_excerpt": "{\n\t\"name\": \"@tinacms/app\",\n\t\"version\": \"2.5.5\",\n\t\"main\": \"src/main.tsx\",\n\t\"license\": \"Apache-2.0\",\n\t\"devDependencies\": {\n\t\t\"@types/react\": \"^18.3.18\",\n\t\t\"@types/react-dom\": \"catalog:\",\n\t\t\"typescript\": \"^5.7.3\"\n\t},\n\t\"peerDependencies\": {\n\t\t\"react\": \">=18.3.1 <20.0.0\",\n\t\t\"react-dom\": \">=18.3.1 <20.0.0\"\n\t},\n\t\"dependencies\": {\n\t\t\"@graphiql/toolkit\": \"catalog:\",\n\t\t\"@headlessui/react\": \"2.1.8\",",
+      "source_excerpt_sha256": "c6c108d97c96e9a6ff4fe5190fce3b65a35b72c172164c692312eb52369328b5",
+      "source_file": "packages/@tinacms/app/package.json"
+    },
+    "reference": "https://github.com/tinacms/tinacms/blob/42760d8f5afd201107e27e274308af37f96ba8d0/packages/@tinacms/app/package.json",
+    "retrieved_at": "2026-08-14T18:58:04.413322+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

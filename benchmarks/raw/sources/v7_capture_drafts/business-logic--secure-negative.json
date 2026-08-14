@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/ethyca/fides/blob/0e320b20934eb5af3a3d5127dba2691605d7ff37/changelog/7971-fix-duplicate-request-identity-verification.yaml",
+  "captured_at": "2026-08-14T18:58:04.403431+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "line_end": 4,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "0e320b20934eb5af3a3d5127dba2691605d7ff37",
+      "source_excerpt": "type: Security\ndescription: Restored identity verification path for privacy requests classified as duplicates to prevent denial of service [GHSA-qx5f-ghc2-7g5c](https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c)\npr: 7971\nlabels: []",
+      "source_excerpt_sha256": "a6a06db68a293d6a6d19e14dd15496ac58817e750dd2d0f5e00682ead8cffd76",
+      "source_file": "changelog/7971-fix-duplicate-request-identity-verification.yaml"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "ethyca/fides",
+  "source_root": "GHSA-qx5f-ghc2-7g5c",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 4,
+      "line_start": 1,
+      "revision_sha": "0e320b20934eb5af3a3d5127dba2691605d7ff37",
+      "source_excerpt": "type: Security\ndescription: Restored identity verification path for privacy requests classified as duplicates to prevent denial of service [GHSA-qx5f-ghc2-7g5c](https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c)\npr: 7971\nlabels: []",
+      "source_excerpt_sha256": "a6a06db68a293d6a6d19e14dd15496ac58817e750dd2d0f5e00682ead8cffd76",
+      "source_file": "changelog/7971-fix-duplicate-request-identity-verification.yaml"
+    },
+    "reference": "https://github.com/ethyca/fides/blob/0e320b20934eb5af3a3d5127dba2691605d7ff37/changelog/7971-fix-duplicate-request-identity-verification.yaml",
+    "retrieved_at": "2026-08-14T18:58:04.403436+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

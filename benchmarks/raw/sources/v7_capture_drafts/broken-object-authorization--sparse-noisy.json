@@ -1,0 +1,162 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/n8n-io/n8n/security/advisories/GHSA-2xgm-wc4g-5jvg",
+  "captured_at": "2026-08-14T18:58:04.402724+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "broken_object_authorization",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "n8n-io/n8n",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "n8n",
+          "patched_version": ">= 2.28.0",
+          "vulnerable_version_range": "< 2.28.0"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "n8n",
+          "patched_version": "2.28.0",
+          "vulnerable_version_range": "< 2.28.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "n8n-io/n8n",
+  "source_root": "GHSA-2xgm-wc4g-5jvg",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "HO-9",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/104442059?v=4",
+            "events_url": "https://api.github.com/users/HO-9/events{/privacy}",
+            "followers_url": "https://api.github.com/users/HO-9/followers",
+            "following_url": "https://api.github.com/users/HO-9/following{/other_user}",
+            "gists_url": "https://api.github.com/users/HO-9/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/HO-9",
+            "id": 104442059,
+            "login": "HO-9",
+            "node_id": "U_kgDOBjmoyw",
+            "organizations_url": "https://api.github.com/users/HO-9/orgs",
+            "received_events_url": "https://api.github.com/users/HO-9/received_events",
+            "repos_url": "https://api.github.com/users/HO-9/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/HO-9/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/HO-9/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/HO-9",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": 5.3,
+          "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:L/VA:N/SC:N/SI:L/SA:N"
+        }
+      },
+      "cwe_ids": [],
+      "cwes": [],
+      "description": "## Impact\nAn authenticated user with permission to create workflows in one project could bypass project/folder authorization boundaries during workflow creation. By supplying a crafted request payload, the user could associate a newly created workflow with a folder belonging to a different project they do not have access to.\n\nThe workflow itself remains in the attacker's project and is not visible to the target project's members. The target project's folder ownership is not changed, and no data from the target project is exposed. The impact is limited to a logical integrity violation of the target project's folder structure at the database level.\n\nThis issue affects instances with multi-project and folder support enabled.\n\n## Patches\nThe issue has been fixed in n8n version 2.28.0. Users should upgrade to this version or later to remediate the vulnerability.\n\n## Workarounds\nIf upgrading is not immediately possible, administrators should consider the following temporary mitigations:\n- Restrict project membership and workflow creation permissions to fully trusted users only.\n\nThis workaround does not fully remediate the risk and should only be used as a short-term mitigation measure.",
+      "ghsa_id": "GHSA-2xgm-wc4g-5jvg",
+      "html_url": "https://github.com/n8n-io/n8n/security/advisories/GHSA-2xgm-wc4g-5jvg",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-2xgm-wc4g-5jvg"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-24T12:00:12Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/7038894?v=4",
+        "events_url": "https://api.github.com/users/Jubke/events{/privacy}",
+        "followers_url": "https://api.github.com/users/Jubke/followers",
+        "following_url": "https://api.github.com/users/Jubke/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Jubke/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/Jubke",
+        "id": 7038894,
+        "login": "Jubke",
+        "node_id": "MDQ6VXNlcjcwMzg4OTQ=",
+        "organizations_url": "https://api.github.com/users/Jubke/orgs",
+        "received_events_url": "https://api.github.com/users/Jubke/received_events",
+        "repos_url": "https://api.github.com/users/Jubke/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/Jubke/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Jubke/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/Jubke",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Improper Authorization Allows Authenticated Users to Assign Workflows to Folders in Other Projects",
+      "updated_at": "2026-06-24T12:00:12Z",
+      "url": "https://api.github.com/repos/n8n-io/n8n/security-advisories/GHSA-2xgm-wc4g-5jvg",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "n8n"
+          },
+          "patched_versions": ">= 2.28.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 2.28.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/n8n-io/n8n/security/advisories/GHSA-2xgm-wc4g-5jvg",
+    "retrieved_at": "2026-08-14T18:58:04.402729+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

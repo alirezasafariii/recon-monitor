@@ -1,0 +1,183 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+  "captured_at": "2026-08-14T18:58:04.416520+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "monetr/monetr",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/monetr/monetr",
+          "patched_version": "v1.12.5",
+          "vulnerable_version_range": "<= v1.12.4"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/monetr/monetr",
+          "patched_version": "1.12.5",
+          "vulnerable_version_range": "< 1.12.5"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "elliotcourant",
+          "type": "remediation_developer"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "remediation_developer",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/37967690?v=4",
+            "events_url": "https://api.github.com/users/elliotcourant/events{/privacy}",
+            "followers_url": "https://api.github.com/users/elliotcourant/followers",
+            "following_url": "https://api.github.com/users/elliotcourant/following{/other_user}",
+            "gists_url": "https://api.github.com/users/elliotcourant/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/elliotcourant",
+            "id": 37967690,
+            "login": "elliotcourant",
+            "node_id": "MDQ6VXNlcjM3OTY3Njkw",
+            "organizations_url": "https://api.github.com/users/elliotcourant/orgs",
+            "received_events_url": "https://api.github.com/users/elliotcourant/received_events",
+            "repos_url": "https://api.github.com/users/elliotcourant/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/elliotcourant/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/elliotcourant/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/elliotcourant",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-41644",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": 8.3,
+          "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:N/VA:L/SC:H/SI:N/SA:N"
+        }
+      },
+      "cwe_ids": [
+        "CWE-209",
+        "CWE-770",
+        "CWE-918"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-209",
+          "name": "Generation of Error Message Containing Sensitive Information"
+        },
+        {
+          "cwe_id": "CWE-770",
+          "name": "Allocation of Resources Without Limits or Throttling"
+        },
+        {
+          "cwe_id": "CWE-918",
+          "name": "Server-Side Request Forgery (SSRF)"
+        }
+      ],
+      "description": "### Impact\r\n\r\nA server-side request forgery (SSRF) vulnerability in monetr's Lunch Flow integration allowed any authenticated user on\r\na self-hosted instance to cause the monetr server to issue HTTP GET requests to arbitrary URLs supplied by the caller,\r\nwith the response body from non-200 upstream responses reflected back in the API error message.\r\n\r\nThe URL validator on `POST /api/lunch_flow/link` only checked the URL scheme and rejected query parameters; it did not\r\nfilter loopback, RFC1918, link-local, or cloud-provider metadata addresses. The outbound HTTP client read the response\r\nbody via an unbounded `io.ReadAll`, and the controller intentionally surfaced the resulting error (which contained the\r\nupstream body) as the JSON `error` field of the API response.\r\n\r\n**Who is affected:** self-hosted monetr deployments running the default configuration. Out of the box,\r\n`LunchFlow.Enabled=true`, `AllowSignUp=true`, and billing is not enforced, so any user who can register on the instance\r\ncan reach the vulnerable endpoint. Deployments running in a cloud environment where instance metadata is reachable from\r\nthe pod (e.g. AWS EC2 without IMDSv2 enforced) expand the impact to include potential exposure of instance metadata\r\nthrough the reflected error body.\r\n\r\n**Who is NOT affected:** the hosted `my.monetr.app` service, which runs with `LunchFlow.Enabled=false`. Self-hosted\r\noperators who had already disabled public sign-up (`MONETR_ALLOW_SIGN_UP=false`) substantially reduce their exposure\r\nsince only operator-trusted users can reach the endpoint.\r\n\r\nA secondary denial-of-service vector also existed: because the outbound response body was read with no size cap, an\r\nattacker-influenced upstream could return a multi-GB body that monetr would fully buffer into memory.\r\n\r\n### Patches\r\n\r\nFixed in monetr `v1.12.5`. Users should upgrade to this release or later.\r\n\r\nThe fix introduces a new config field `LunchFlow.AllowedApiUrls` (a list of permitted Lunch Flow API URLs) with a\r\ndefault of `[\"https://lunchflow.app/api/v1\"]`. URLs outside the allowlist are rejected both at link-creation time and at\r\nclient-construction time, with a server-side warning log on rejection. Response body reads are capped at 10 MiB for both\r\nsuccess and error paths. The UI renders the API URL field as a disabled pre-filled input when a single URL is allowed,\r\nor a dropdown when multiple are allowed, so operators who need to use a staging or self-hosted Lunch Flow API opt in\r\nexplicitly via config.\r\n\r\n**Upgrade note for self-hosters with a custom Lunch Flow URL:** if your existing `LunchFlowLink` records point at a URL\r\nother than `https://lunchflow.app/api/v1`, set your `lunchFlow.allowedApiUrls` in your yaml config to include your\r\ncustom URL before upgrading. Otherwise existing links will fail on next refresh or sync with a `\"Rejected Lunch Flow API\r\nURL that is not in the configured allowlist\"` warning in the server log.\r\n\r\n### Workarounds\r\n\r\nFor operators who cannot upgrade immediately, any of the following materially reduces or eliminates exposure:\r\n\r\n- **Disable public sign-up:** set `MONETR_ALLOW_SIGN_UP=false` so only operator-trusted users can reach the vulnerable\r\nendpoint. Recommended in general for internet-exposed self-hosted deployments.\r\n- **Disable Lunch Flow entirely:** set `lunchFlow.enabled: false` in your config file. The endpoints will return 404 for\r\nall callers.\r\n- **Network-level egress restriction:** restrict outbound HTTP egress from the monetr pod/container to only\r\n`lunchflow.app` (or whichever legitimate Lunch Flow hosts you use). Blocks the SSRF primitive regardless of\r\napplication-layer validation.\r\n- **On AWS EC2 specifically:** enforce IMDSv2 on the instance. This eliminates the cloud-metadata exfil path even if the\r\nSSRF primitive remains reachable.\r\n",
+      "ghsa_id": "GHSA-29v9-frvh-c426",
+      "html_url": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-29v9-frvh-c426"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-41644"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-04-18T00:31:34Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/37967690?v=4",
+        "events_url": "https://api.github.com/users/elliotcourant/events{/privacy}",
+        "followers_url": "https://api.github.com/users/elliotcourant/followers",
+        "following_url": "https://api.github.com/users/elliotcourant/following{/other_user}",
+        "gists_url": "https://api.github.com/users/elliotcourant/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/elliotcourant",
+        "id": 37967690,
+        "login": "elliotcourant",
+        "node_id": "MDQ6VXNlcjM3OTY3Njkw",
+        "organizations_url": "https://api.github.com/users/elliotcourant/orgs",
+        "received_events_url": "https://api.github.com/users/elliotcourant/received_events",
+        "repos_url": "https://api.github.com/users/elliotcourant/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/elliotcourant/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/elliotcourant/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/elliotcourant",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "Server-side request forgery in Lunch Flow link creation and refresh",
+      "updated_at": "2026-04-22T04:35:32Z",
+      "url": "https://api.github.com/repos/monetr/monetr/security-advisories/GHSA-29v9-frvh-c426",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "github.com/monetr/monetr"
+          },
+          "patched_versions": "v1.12.5",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= v1.12.4"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+    "retrieved_at": "2026-08-14T18:58:04.416525+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

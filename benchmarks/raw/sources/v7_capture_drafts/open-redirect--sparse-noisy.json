@@ -1,0 +1,163 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/go-chi/chi/security/advisories/GHSA-vrw8-fxc6-2r93",
+  "captured_at": "2026-08-14T18:58:04.412776+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "open_redirect",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "go-chi/chi",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "chi",
+          "patched_version": "v5.2.2",
+          "vulnerable_version_range": "v5.2.1"
+        }
+      ],
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "go-chi/chi",
+  "source_root": "GHSA-xcvf-46f4-xwxf",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "anuraagbaishya",
+          "type": "reporter"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/9999954?v=4",
+            "events_url": "https://api.github.com/users/anuraagbaishya/events{/privacy}",
+            "followers_url": "https://api.github.com/users/anuraagbaishya/followers",
+            "following_url": "https://api.github.com/users/anuraagbaishya/following{/other_user}",
+            "gists_url": "https://api.github.com/users/anuraagbaishya/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/anuraagbaishya",
+            "id": 9999954,
+            "login": "anuraagbaishya",
+            "node_id": "MDQ6VXNlcjk5OTk5NTQ=",
+            "organizations_url": "https://api.github.com/users/anuraagbaishya/orgs",
+            "received_events_url": "https://api.github.com/users/anuraagbaishya/received_events",
+            "repos_url": "https://api.github.com/users/anuraagbaishya/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/anuraagbaishya/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/anuraagbaishya/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/anuraagbaishya",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": null,
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": 5.1,
+          "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+        }
+      },
+      "cwe_ids": [
+        "CWE-601"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-601",
+          "name": "URL Redirection to Untrusted Site ('Open Redirect')"
+        }
+      ],
+      "description": "### Summary\r\nThe RedirectSlashes function in middleware/strip.go is vulnerable to host header injection which leads to open redirect.\r\n\r\nWe consider this a **lower-severity** open redirect, as it can't be exploited from browsers or email clients (requires manipulation of a Host header).\r\n\r\n### Details\r\nThe RedirectSlashes method uses the Host header to construct the redirectURL at this line https://github.com/go-chi/chi/blob/master/middleware/strip.go#L55\r\n\r\nThe Host header can be manipulated by a user to be any arbitrary host. This leads to open redirect when using the RedirectSlashes middleware\r\n\r\n### PoC\r\nCreate a simple server which uses the RedirectSlashes middleware\r\n```\r\npackage main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"net/http\"\r\n\r\n\t\"github.com/go-chi/chi/v5\"\r\n\t\"github.com/go-chi/chi/v5/middleware\" // Import the middleware package\r\n)\r\n\r\nfunc main() {\r\n\t// Create a new Chi router\r\n\tr := chi.NewRouter()\r\n\r\n\t// Use the built-in RedirectSlashes middleware\r\n\tr.Use(middleware.RedirectSlashes) // Use middleware.RedirectSlashes\r\n\r\n\t// Define a route handler\r\n\tr.Get(\"/\", func(w http.ResponseWriter, r *http.Request) {\r\n\t\t// A simple response\r\n\t\tw.Write([]byte(\"Hello, World!\"))\r\n\t})\r\n\r\n\t// Start the server\r\n\tfmt.Println(\"Starting server on :8080\")\r\n\thttp.ListenAndServe(\":8080\", r)\r\n}\r\n```\r\nRun the server `go run main.go`\r\n\r\nOnce the server is running, send a request that will trigger the RedirectSlashes function with an arbitrary Host header\r\n`curl -iL -H \"Host: example.com\" http://localhost:8080/test/`\r\n\r\nObserve that the request will be redirected to example.com\r\n\r\n```\r\ncurl -L -H \"Host: example.com\" http://localhost:8080/test/\r\n\r\n<!doctype html>\r\n<html>\r\n<head>\r\n    <title>Example Domain</title>\r\n\r\n    <meta charset=\"utf-8\" />\r\n    <meta http-equiv=\"Content-type\" content=\"text/html; charset=utf-8\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\r\n    <style type=\"text/css\">\r\n    body {\r\n        background-color: #f0f0f2;\r\n        margin: 0;\r\n        padding: 0;\r\n        font-family: -apple-system, system-ui, BlinkMacSystemFont, \"Segoe UI\", \"Open Sans\", \"Helvetica Neue\", Helvetica, Arial, sans-serif;\r\n... snipped ...\r\n```\r\nWithout the host header, the response is returned from the test server\r\n```\r\ncurl -L http://localhost:8080/test/\r\n\r\n404 page not found\r\n```\r\n\r\n### Impact\r\nAn open redirect vulnerability allows attackers to trick users into visiting malicious sites. This can lead to phishing attacks, credential theft, and malware distribution, as users trust the application’s domain while being redirected to harmful sites.\r\n\r\n### Potential mitigation\r\nIt seems that the purpose of the RedirectSlashes function is to redirect within the same application. In that case r.RequestURI can be used instead of r.Host by default. If there is a use case to redirect to a different host, a flag can be added to use the Host header instead. As this flag will be controlled by the developer they will make the decision of allowing redirects to arbitrary hosts  based on their judgement.",
+      "ghsa_id": "GHSA-vrw8-fxc6-2r93",
+      "html_url": "https://github.com/go-chi/chi/security/advisories/GHSA-vrw8-fxc6-2r93",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-vrw8-fxc6-2r93"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2025-06-20T12:14:52Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/139342?v=4",
+        "events_url": "https://api.github.com/users/VojtechVitek/events{/privacy}",
+        "followers_url": "https://api.github.com/users/VojtechVitek/followers",
+        "following_url": "https://api.github.com/users/VojtechVitek/following{/other_user}",
+        "gists_url": "https://api.github.com/users/VojtechVitek/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/VojtechVitek",
+        "id": 139342,
+        "login": "VojtechVitek",
+        "node_id": "MDQ6VXNlcjEzOTM0Mg==",
+        "organizations_url": "https://api.github.com/users/VojtechVitek/orgs",
+        "received_events_url": "https://api.github.com/users/VojtechVitek/received_events",
+        "repos_url": "https://api.github.com/users/VojtechVitek/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/VojtechVitek/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/VojtechVitek/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/VojtechVitek",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Host Header Injection Leads to Open Redirect in RedirectSlashes",
+      "updated_at": "2025-06-21T13:10:08Z",
+      "url": "https://api.github.com/repos/go-chi/chi/security-advisories/GHSA-vrw8-fxc6-2r93",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "chi"
+          },
+          "patched_versions": "v5.2.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "v5.2.1"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/go-chi/chi/security/advisories/GHSA-vrw8-fxc6-2r93",
+    "retrieved_at": "2026-08-14T18:58:04.412781+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

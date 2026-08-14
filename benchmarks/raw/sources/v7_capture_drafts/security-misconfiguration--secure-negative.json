@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/.github/dictionary.txt",
+  "captured_at": "2026-08-14T18:58:04.416282+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "details": {
+      "line_end": 15,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_excerpt": "1Password\n3D\nAPI.*\nAVX\nAVX512\nAboutFeatures\nAllowlist\nBackgroundGradientAnimation\nBiometric\nBitnami\nBlogHeader\nBlogIndex\nBlogMeme\nCLI\nCMake",
+      "source_excerpt_sha256": "dd3236af189b47293402581e646118b7437d6af179fdaeb38a6b905231e51843",
+      "source_file": ".github/dictionary.txt"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 15,
+      "line_start": 1,
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_excerpt": "1Password\n3D\nAPI.*\nAVX\nAVX512\nAboutFeatures\nAllowlist\nBackgroundGradientAnimation\nBiometric\nBitnami\nBlogHeader\nBlogIndex\nBlogMeme\nCLI\nCMake",
+      "source_excerpt_sha256": "dd3236af189b47293402581e646118b7437d6af179fdaeb38a6b905231e51843",
+      "source_file": ".github/dictionary.txt"
+    },
+    "reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/.github/dictionary.txt",
+    "retrieved_at": "2026-08-14T18:58:04.416287+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

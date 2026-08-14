@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/ethyca/fides/blob/bf01d67a5624ef14a94e4812514fa453454afa43/src/fides/api/models/privacy_request/privacy_request.py",
+  "captured_at": "2026-08-14T18:58:04.403025+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "line_end": 675,
+      "line_start": 658,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "bf01d67a5624ef14a94e4812514fa453454afa43",
+      "source_excerpt": "                \"value\": field.encrypted_value[\"value\"],\n            }\n            for field in self.custom_fields  # type: ignore[attr-defined]\n        }\n\n    def verify_identity(self, db: Session, provided_code: str) -> \"PrivacyRequest\":\n        \"\"\"Verify the identification code supplied by the user\n        If verified, change the status of the request to \"pending\", and set the datetime the identity was verified.\n        \"\"\"\n        if self.status != PrivacyRequestStatus.identity_unverified:\n            raise IdentityVerificationException(\n                f\"Invalid identity verification request. Privacy request '{self.id}' status = {self.status.value}.\"  # type: ignore # pylint: disable=no-member\n            )\n\n        self._verify_identity(provided_code=provided_code)\n\n        self.status = PrivacyRequestStatus.pending\n        self.identity_verified_at = datetime.utcnow()",
+      "source_excerpt_sha256": "608729950ea2403dc840c7f5ac544abcecf0ec4d996957cdfb15b1b6d4f7f86a",
+      "source_file": "src/fides/api/models/privacy_request/privacy_request.py"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "ethyca/fides",
+  "source_root": "GHSA-qx5f-ghc2-7g5c",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 675,
+      "line_start": 658,
+      "revision_sha": "bf01d67a5624ef14a94e4812514fa453454afa43",
+      "source_excerpt": "                \"value\": field.encrypted_value[\"value\"],\n            }\n            for field in self.custom_fields  # type: ignore[attr-defined]\n        }\n\n    def verify_identity(self, db: Session, provided_code: str) -> \"PrivacyRequest\":\n        \"\"\"Verify the identification code supplied by the user\n        If verified, change the status of the request to \"pending\", and set the datetime the identity was verified.\n        \"\"\"\n        if self.status != PrivacyRequestStatus.identity_unverified:\n            raise IdentityVerificationException(\n                f\"Invalid identity verification request. Privacy request '{self.id}' status = {self.status.value}.\"  # type: ignore # pylint: disable=no-member\n            )\n\n        self._verify_identity(provided_code=provided_code)\n\n        self.status = PrivacyRequestStatus.pending\n        self.identity_verified_at = datetime.utcnow()",
+      "source_excerpt_sha256": "608729950ea2403dc840c7f5ac544abcecf0ec4d996957cdfb15b1b6d4f7f86a",
+      "source_file": "src/fides/api/models/privacy_request/privacy_request.py"
+    },
+    "reference": "https://github.com/ethyca/fides/blob/bf01d67a5624ef14a94e4812514fa453454afa43/src/fides/api/models/privacy_request/privacy_request.py",
+    "retrieved_at": "2026-08-14T18:58:04.403030+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

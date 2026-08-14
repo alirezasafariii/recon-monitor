@@ -1,0 +1,168 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/rancher/steve/security/advisories/GHSA-95fc-g4gj-mqmx",
+  "captured_at": "2026-08-14T18:58:04.423466+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "unsafe_api_consumption",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "rancher/steve",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.2.1",
+          "vulnerable_version_range": ">=0.2.0, <0.2.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.3.3",
+          "vulnerable_version_range": ">=0.3.0, <0.3.3"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.4.4",
+          "vulnerable_version_range": ">=0.4.0, <0.4.4"
+        }
+      ],
+      "version_boundary_count": 8
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "rancher/steve",
+  "source_root": "GHSA-95fc-g4gj-mqmx",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [],
+      "credits_detailed": [],
+      "cve_id": "CVE-2023-32198",
+      "cvss": {
+        "score": 8.0,
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:H"
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": 8.0,
+          "vector_string": "CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [],
+      "cwes": [],
+      "description": "### Impact\r\nA vulnerability has been identified in Steve where by default it was using an insecure option that did not validate the certificate presented by the remote server while performing a TLS connection. This could allow the execution of a man-in-the-middle (MitM) attack against services using Steve.\r\n\r\nFor example, Rancher relies on Steve as a dependency for its user interface (UI) to proxy requests to Kubernetes clusters. Users who have the permission to create a service in Rancher’s local cluster can take over Rancher’s UI and display their own UI to gather sensitive information. This is only possible when the setting `ui-offline-preferred` is manually set to `remote` (by default Rancher sets it to `dynamic`). This enables further attacks such as cross-site scripting (XSS), or tampering the UI to collect passwords from other users etc.\r\n\r\nPlease consult the associated  [MITRE ATT&CK - Technique - Adversary-in-the-Middle](https://attack.mitre.org/techniques/T1557/) for further information about this category of attack.\r\n\r\n### Patches\r\nPatched versions of Steve include releases `v0.2.1`, `v0.3.3`, `v0.4.4` and `v0.5.13`.\r\n\r\nThis vulnerability is addressed by changing Steve to always verify a server’s certificate based on Go’s TLS settings.\r\n\r\n### Workarounds\r\nIf you can't upgrade to a fixed version, please make sure that you are only using Steve to connect to trusted servers.\r\n\r\n### References\r\nIf you have any questions or comments about this advisory:\r\n- Reach out to the [SUSE Rancher Security team](https://github.com/rancher/rancher/security/policy) for security related inquiries.\r\n- Open an issue in the [Rancher](https://github.com/rancher/rancher/issues/new/choose) repository.\r\n- Verify with our [support matrix](https://www.suse.com/suse-rancher/support-matrix/all-supported-versions/) and [product support lifecycle](https://www.suse.com/lifecycle/).\r\n",
+      "ghsa_id": "GHSA-95fc-g4gj-mqmx",
+      "html_url": "https://github.com/rancher/steve/security/advisories/GHSA-95fc-g4gj-mqmx",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-95fc-g4gj-mqmx"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2023-32198"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2025-04-25T12:13:18Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/136379529?v=4",
+        "events_url": "https://api.github.com/users/pdellamore/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pdellamore/followers",
+        "following_url": "https://api.github.com/users/pdellamore/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pdellamore/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/pdellamore",
+        "id": 136379529,
+        "login": "pdellamore",
+        "node_id": "U_kgDOCCD8iQ",
+        "organizations_url": "https://api.github.com/users/pdellamore/orgs",
+        "received_events_url": "https://api.github.com/users/pdellamore/received_events",
+        "repos_url": "https://api.github.com/users/pdellamore/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pdellamore/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pdellamore/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/pdellamore",
+        "user_view_type": "public"
+      },
+      "severity": "high",
+      "state": "published",
+      "submission": null,
+      "summary": "Steve doesn’t verify a server’s certificate and is susceptible to man-in-the-middle (MitM) attacks",
+      "updated_at": "2025-04-25T12:13:18Z",
+      "url": "https://api.github.com/repos/rancher/steve/security-advisories/GHSA-95fc-g4gj-mqmx",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": " github.com/rancher/steve"
+          },
+          "patched_versions": "0.2.1",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=0.2.0, <0.2.1"
+        },
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": " github.com/rancher/steve"
+          },
+          "patched_versions": "0.3.3",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=0.3.0, <0.3.3"
+        },
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": " github.com/rancher/steve"
+          },
+          "patched_versions": "0.4.4",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=0.4.0, <0.4.4"
+        },
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": " github.com/rancher/steve"
+          },
+          "patched_versions": "0.5.13",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": ">=0.5.0. <0.5.13"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/rancher/steve/security/advisories/GHSA-95fc-g4gj-mqmx",
+    "retrieved_at": "2026-08-14T18:58:04.423470+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

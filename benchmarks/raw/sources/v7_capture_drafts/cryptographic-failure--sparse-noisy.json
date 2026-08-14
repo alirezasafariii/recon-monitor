@@ -1,0 +1,184 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Partial public-source metadata only; intentionally insufficient as a positive condition.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/oras-project/oras-go/security/advisories/GHSA-xf85-363p-868w",
+  "captured_at": "2026-08-14T18:58:04.405762+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "cryptographic_failure",
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "source_project": "oras-project/oras-go",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "oras-go",
+          "patched_version": "v2.6.2",
+          "vulnerable_version_range": "v2.6.0"
+        },
+        {
+          "ecosystem": "go",
+          "package": "oras.land/oras-go/v2",
+          "patched_version": "2.6.1",
+          "vulnerable_version_range": "< 2.6.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "oras.land/oras-go",
+          "patched_version": "",
+          "vulnerable_version_range": "<= 1.2.7"
+        }
+      ],
+      "version_boundary_count": 3
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "oras-project/oras-go",
+  "source_root": "GHSA-xf85-363p-868w",
+  "source_snapshot": {
+    "payload": {
+      "author": null,
+      "closed_at": null,
+      "collaborating_teams": null,
+      "collaborating_users": null,
+      "created_at": null,
+      "credits": [
+        {
+          "login": "1seal",
+          "type": "analyst"
+        }
+      ],
+      "credits_detailed": [
+        {
+          "state": "accepted",
+          "type": "analyst",
+          "user": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/239602944?v=4",
+            "events_url": "https://api.github.com/users/1seal/events{/privacy}",
+            "followers_url": "https://api.github.com/users/1seal/followers",
+            "following_url": "https://api.github.com/users/1seal/following{/other_user}",
+            "gists_url": "https://api.github.com/users/1seal/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/1seal",
+            "id": 239602944,
+            "login": "1seal",
+            "node_id": "U_kgDODkgNAA",
+            "organizations_url": "https://api.github.com/users/1seal/orgs",
+            "received_events_url": "https://api.github.com/users/1seal/received_events",
+            "repos_url": "https://api.github.com/users/1seal/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/1seal/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/1seal/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/1seal",
+            "user_view_type": "public"
+          }
+        }
+      ],
+      "cve_id": "CVE-2026-48978",
+      "cvss": {
+        "score": null,
+        "vector_string": null
+      },
+      "cvss_severities": {
+        "cvss_v3": {
+          "score": null,
+          "vector_string": null
+        },
+        "cvss_v4": {
+          "score": null,
+          "vector_string": null
+        }
+      },
+      "cwe_ids": [
+        "CWE-319",
+        "CWE-918"
+      ],
+      "cwes": [
+        {
+          "cwe_id": "CWE-319",
+          "name": "Cleartext Transmission of Sensitive Information"
+        },
+        {
+          "cwe_id": "CWE-918",
+          "name": "Server-Side Request Forgery (SSRF)"
+        }
+      ],
+      "description": "## Summary\r\n\r\noras-go's `auth.Client` follows the `realm` URL from a registry's `WWW-Authenticate: Bearer` challenge without validating its scheme or host. The `realm` field is server-controlled by design in the OCI/distribution spec — registries legitimately point token requests at a separate auth endpoint (e.g. Docker Hub's `registry-1.docker.io` -> `auth.docker.io`), so cross-host realms on public DNS names are not in themselves a vulnerability. Two specific patterns, however, are never legitimate under any registry trust model and can be abused by a malicious or compromised registry (or a man-in-the-middle on a plaintext connection):\r\n\r\n1. **SSRF to internal networks.** A realm of `http://169.254.169.254/...` (AWS/Azure IMDS), `http://10.0.0.x/...` (RFC 1918), or `http://127.0.0.1/...` causes oras-go running on a cloud VM or corporate workstation to issue outbound HTTP requests from inside the user's trust boundary to an endpoint the user did not choose. The user's stored credentials are attached to those requests, but the principal harm is the network primitive — probing internal endpoints from the client. On IMDSv1 the response body is recoverable from log channels; on IMDSv2 the probe itself can still be used for service discovery.\r\n\r\n2. **TLS downgrade.** A registry contacted over `https://` can return a realm with an `http://` scheme, causing oras-go to send the user's credentials over plaintext to the token endpoint. This defeats the transport security the user chose when typing `https://`.\r\n\r\n## What is NOT claimed\r\n\r\nThis advisory does **not** claim that credential forwarding to an arbitrary public attacker host through a server-controlled realm is, on its own, a vulnerability. The distribution spec defines `realm` as a server-controlled field; a strict same-host or same-eTLD+1 enforcement would deviate from the spec and break legitimate split-host deployments. Operators who want defense-in-depth against cross-host realm forwarding can use the opt-in `Client.TrustedRealmHosts` allowlist (added separately).\r\n\r\n## Affected versions\r\n\r\n`oras.land/oras-go/v2 <= v2.6.0`\r\n\r\n## Severity\r\n\r\nMedium. Network attack vector, low complexity, no privileges required, user interaction required (victim runs an oras command against the malicious or MITM'd registry), unchanged scope. Confidentiality impact is limited — IMDS probe responses can disclose information, and TLS downgrade exposes the realm request to passive observers — but the attacker does not obtain credentials beyond what the malicious endpoint already controls.\r\n\r\n## Affected code\r\n\r\n- `registry/remote/auth/client.go` — `Client.Do()` (bearer challenge handling)\r\n- `registry/remote/auth/client.go` — `Client.fetchBearerToken()` / `fetchDistributionToken` / `fetchOAuth2Token`\r\n\r\nThe `realm` parameter from `parseChallenge` is threaded through to `http.NewRequestWithContext` without scheme or host validation.\r\n\r\n## CWE\r\n\r\n- CWE-918: Server-Side Request Forgery (SSRF)\r\n- CWE-319: Cleartext Transmission of Sensitive Information\r\n\r\n## Patch\r\n\r\n`registry/remote/auth/client.go` now rejects realm URLs that:\r\n\r\n- use a scheme other than `http` or `https`\r\n- use `http` when the registry was contacted over `https` (TLS downgrade)\r\n- use an IP literal in a loopback, link-local, private, or unspecified range, unless the registry itself was reached at the same hostname (so loopback / in-cluster deployments are unaffected)\r\n\r\nCross-host realms on public DNS names continue to be accepted.\r\n\r\n## Credit\r\n\r\nReported by bugbunny.ai.",
+      "ghsa_id": "GHSA-xf85-363p-868w",
+      "html_url": "https://github.com/oras-project/oras-go/security/advisories/GHSA-xf85-363p-868w",
+      "identifiers": [
+        {
+          "type": "GHSA",
+          "value": "GHSA-xf85-363p-868w"
+        },
+        {
+          "type": "CVE",
+          "value": "CVE-2026-48978"
+        }
+      ],
+      "private_fork": null,
+      "published_at": "2026-06-11T19:39:49Z",
+      "publisher": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/104113?v=4",
+        "events_url": "https://api.github.com/users/TerryHowe/events{/privacy}",
+        "followers_url": "https://api.github.com/users/TerryHowe/followers",
+        "following_url": "https://api.github.com/users/TerryHowe/following{/other_user}",
+        "gists_url": "https://api.github.com/users/TerryHowe/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/TerryHowe",
+        "id": 104113,
+        "login": "TerryHowe",
+        "node_id": "MDQ6VXNlcjEwNDExMw==",
+        "organizations_url": "https://api.github.com/users/TerryHowe/orgs",
+        "received_events_url": "https://api.github.com/users/TerryHowe/received_events",
+        "repos_url": "https://api.github.com/users/TerryHowe/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/TerryHowe/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/TerryHowe/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/TerryHowe",
+        "user_view_type": "public"
+      },
+      "severity": "medium",
+      "state": "published",
+      "submission": null,
+      "summary": "Bearer realm URL not validated, enabling SSRF to internal networks and TLS downgrade",
+      "updated_at": "2026-06-11T19:39:49Z",
+      "url": "https://api.github.com/repos/oras-project/oras-go/security-advisories/GHSA-xf85-363p-868w",
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "go",
+            "name": "oras-go"
+          },
+          "patched_versions": "v2.6.2",
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "v2.6.0"
+        }
+      ],
+      "withdrawn_at": null
+    },
+    "reference": "https://github.com/oras-project/oras-go/security/advisories/GHSA-xf85-363p-868w",
+    "retrieved_at": "2026-08-14T18:58:04.405767+00:00",
+    "snapshot_role": "canonical_source"
+  }
+}

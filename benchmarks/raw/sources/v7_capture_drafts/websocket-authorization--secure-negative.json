@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Exact source neighborhood from the upstream fixed revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/pipecat-ai/pipecat/blob/4e3bf19311e466c03ffda800685ec0757c9f6080/changelog/4660.security.md",
+  "captured_at": "2026-08-14T18:58:04.423814+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "websocket_authorization",
+  "raw": {
+    "details": {
+      "line_end": 3,
+      "line_start": 1,
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "4e3bf19311e466c03ffda800685ec0757c9f6080",
+      "source_excerpt": "- Added optional HMAC token authentication for WebSocket connections in the development runner. Set `PIPECAT_WEBSOCKET_AUTH=token` (or pass `--ws-auth token`) to require clients to call `POST /start` and obtain a short-lived signed session token before connecting. Tokens are one-time use and expire after 5 minutes.\n  - Clients can supply the token via `Authorization: Bearer <token>` header, `?token=<token>` query parameter, or URL path segment (`/ws/<token>`, `/ws-client/<token>`) — the path form is recommended for telephony providers like Twilio.\n  - Both the telephony WebSocket (`/ws`) and plain WebSocket (`/ws-client`) endpoints are protected. Connections with invalid, expired, or replayed tokens are rejected with WebSocket close code 4003.",
+      "source_excerpt_sha256": "049f42f6918f1dd3e95668c4dd12650421516aeddc510922b0c65f9072a4f930",
+      "source_file": "changelog/4660.security.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "pipecat-ai/pipecat",
+  "source_root": "GHSA-j8cv-x86q-rj85",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 3,
+      "line_start": 1,
+      "revision_sha": "4e3bf19311e466c03ffda800685ec0757c9f6080",
+      "source_excerpt": "- Added optional HMAC token authentication for WebSocket connections in the development runner. Set `PIPECAT_WEBSOCKET_AUTH=token` (or pass `--ws-auth token`) to require clients to call `POST /start` and obtain a short-lived signed session token before connecting. Tokens are one-time use and expire after 5 minutes.\n  - Clients can supply the token via `Authorization: Bearer <token>` header, `?token=<token>` query parameter, or URL path segment (`/ws/<token>`, `/ws-client/<token>`) — the path form is recommended for telephony providers like Twilio.\n  - Both the telephony WebSocket (`/ws`) and plain WebSocket (`/ws-client`) endpoints are protected. Connections with invalid, expired, or replayed tokens are rejected with WebSocket close code 4003.",
+      "source_excerpt_sha256": "049f42f6918f1dd3e95668c4dd12650421516aeddc510922b0c65f9072a4f930",
+      "source_file": "changelog/4660.security.md"
+    },
+    "reference": "https://github.com/pipecat-ai/pipecat/blob/4e3bf19311e466c03ffda800685ec0757c9f6080/changelog/4660.security.md",
+    "retrieved_at": "2026-08-14T18:58:04.423819+00:00",
+    "snapshot_role": "patched_or_unaffected_control"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "literal vulnerable-parent source neighborhood at an upstream fix boundary"
+    ],
+    "notes": "Exact source neighborhood from the vulnerable parent revision.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/nautobot/nautobot/blob/98ffb8e450114485e4398c2fc47173c78346d181/nautobot/core/api/serializers.py",
+  "captured_at": "2026-08-14T18:58:04.408368+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_public_source_literal_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "1.0.0"
+  },
+  "family": "graphql_authorization",
+  "raw": {
+    "details": {
+      "line_end": 13,
+      "line_start": 1,
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "98ffb8e450114485e4398c2fc47173c78346d181",
+      "source_excerpt": "import contextlib\nimport logging\nimport uuid\n\nfrom django.contrib.contenttypes.fields import GenericRel\nfrom django.contrib.contenttypes.models import ContentType\nfrom django.core.exceptions import (\n    FieldDoesNotExist,\n    FieldError,\n    MultipleObjectsReturned,\n    ObjectDoesNotExist,\n    ValidationError as DjangoValidationError,\n)",
+      "source_excerpt_sha256": "77057111f3724224e9d915784ee167c3815fb3dc8eaac0785a1b8759e01b5cf2",
+      "source_file": "nautobot/core/api/serializers.py"
+    },
+    "method": "UNKNOWN"
+  },
+  "source_project": "nautobot/nautobot",
+  "source_root": "GHSA-wpxj-44w3-2j6x",
+  "source_snapshot": {
+    "payload": {
+      "line_end": 13,
+      "line_start": 1,
+      "revision_sha": "98ffb8e450114485e4398c2fc47173c78346d181",
+      "source_excerpt": "import contextlib\nimport logging\nimport uuid\n\nfrom django.contrib.contenttypes.fields import GenericRel\nfrom django.contrib.contenttypes.models import ContentType\nfrom django.core.exceptions import (\n    FieldDoesNotExist,\n    FieldError,\n    MultipleObjectsReturned,\n    ObjectDoesNotExist,\n    ValidationError as DjangoValidationError,\n)",
+      "source_excerpt_sha256": "77057111f3724224e9d915784ee167c3815fb3dc8eaac0785a1b8759e01b5cf2",
+      "source_file": "nautobot/core/api/serializers.py"
+    },
+    "reference": "https://github.com/nautobot/nautobot/blob/98ffb8e450114485e4398c2fc47173c78346d181/nautobot/core/api/serializers.py",
+    "retrieved_at": "2026-08-14T18:58:04.408373+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}
