@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_grounding",
   "scoring_executed": false,
@@ -16,7 +16,8 @@
     "forbid_grounding_url_as_candidate_provenance": true,
     "forbid_prior_v1_v5_and_analysis_630_exposure": true,
     "forbid_detector_admission_or_ranking_output_for_source_selection": true,
-    "production_rule_changes_before_first_score": false
+    "production_rule_changes_before_first_score": false,
+    "fresh_pool_selection": "Existing unscored v6 discovery pools may be re-audited against these WSTG/OWASP and write-up semantic boundaries; the source firewall remains mandatory and unchanged."
   },
   "families": {
     "business_logic": {
