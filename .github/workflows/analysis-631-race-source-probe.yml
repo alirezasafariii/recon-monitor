@@ -1,4 +1,4 @@
-name: Analysis 6.31 Race Source Probe
+name: Analysis 6.31 Race Source Correction
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
       - .github/workflows/analysis-631-race-source-probe.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  probe:
+  correct:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,39 +20,81 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe official Palo Alto race-condition source without scoring
+
+      - name: Replace invalid race source with firewall-passed vendor advisory
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
+          from pathlib import Path
           from raw_recon_v5_source_audit import audit_row
           from raw_recon_v6_source_firewall import check_candidate, exposure_index
 
+          path = Path('benchmarks/raw/sources/v6_complement_overrides.json')
+          doc = json.loads(path.read_text(encoding='utf-8'))
           row = {
-              'family': 'race_condition',
               'source_root': 'CVE-2025-0120',
               'source_project': 'paloaltonetworks/globalprotect-app-windows',
+              'family': 'race_condition',
               'canonical_advisory_url': 'https://security.paloaltonetworks.com/CVE-2025-0120',
+              'source_kind': 'vendor_security_advisory',
+              'advisory_source_type': 'vendor',
               'summary': 'Palo Alto Networks GlobalProtect App on Windows allows local privilege escalation where exploitation requires successfully winning a race condition.',
-              'description': 'The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but execution requires the user to successfully exploit a race condition. The affected and fixed Windows versions are explicitly identified by the vendor.',
+              'description': 'The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but successful exploitation requires winning a race condition. The vendor identifies the affected and fixed GlobalProtect App for Windows versions.',
+              'semantic_facts': ['race condition', 'race', 'local privilege escalation', 'Windows', 'non-administrative user', 'SYSTEM'],
+              'selection_basis': 'fresh primary vendor advisory selected before scoring using the preregistered race-condition semantic audit after the previous GHSA reference proved non-retrievable',
           }
           fw = check_candidate(row, index=exposure_index())
-          passed, hits, score = audit_row(row['family'], row)
-          result = {
-              'family': row['family'],
-              'source_root': row['source_root'],
-              'source_project': row['source_project'],
-              'audit_passed': bool(passed),
-              'audit_score': int(score),
-              'audit_hits': hits,
-              'firewall_allowed': bool(fw['allowed']),
-              'firewall': fw,
-              'eligible': bool(passed and fw['allowed']),
-              'scoring_executed': False,
-              'detector_output_used': False,
-          }
-          print(json.dumps(result, indent=2, sort_keys=True))
-          if not result['eligible']:
-              raise SystemExit(2)
+          passed, hits, score = audit_row('race_condition', row)
+          assert passed, (hits, score)
+          assert fw['allowed'], fw
+          doc['version'] = '1.2.0'
+          doc['rule_version'] = '2026.08.14.6.31.6'
+          doc['candidates_by_family']['race_condition'] = [row]
+          path.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps({'audit_passed': passed, 'audit_score': score, 'firewall': fw, 'scoring_executed': False}, indent=2, sort_keys=True))
           PY
+
+      - name: Rebuild canonical 36-family shortlist without scoring
+        env:
+          PYTHONPATH: app
+        run: python app/v6_source_finalize.py
+
+      - name: Assert hardened shortlist still passes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
+          report = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
+          assert shortlist['family_count'] == 36
+          assert shortlist['unique_root_count'] == 36
+          assert shortlist['unique_project_count'] == 36
+          assert shortlist['firewall']['passed'] is True
+          assert shortlist['firewall']['rejected'] == []
+          assert shortlist['selection_executes_scoring'] is False
+          assert report['scoring_executed'] is False
+          race = next(row for row in shortlist['selected'] if row['family'] == 'race_condition')
+          assert race['source_root'] == 'CVE-2025-0120'
+          assert race['source_project'] == 'paloaltonetworks/globalprotect-app-windows'
+          PY
+
+      - name: Regenerate unscored literal capture plan against corrected shortlist
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_plan.py
+
+      - name: Commit corrected source selection and capture plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_complement_overrides.json \
+                  benchmarks/raw/sources/v6_shortlist.json \
+                  benchmarks/raw/sources/v6_selection_final_report.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Replace invalid Analysis 6.31 race source with vendor advisory'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
