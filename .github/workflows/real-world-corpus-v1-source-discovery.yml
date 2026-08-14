@@ -33,10 +33,22 @@ jobs:
             --output benchmarks/real_world/v1/source_candidates.json \
             --report benchmarks/real_world/v1/source_discovery_report.json
 
+      - name: Discover family-targeted candidates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_targeted.py \
+            --max-pages-per-cwe 3 \
+            --target-buffer-families 60 \
+            --output benchmarks/real_world/v1/targeted_candidates.json \
+            --report benchmarks/real_world/v1/targeted_discovery_report.json
+
       - name: Focused corpus regressions
         run: |
           python -m unittest tests/test_real_world_corpus_v1.py -q
           python -m unittest tests/test_real_world_corpus_v1_discovery.py -q
+          python -m unittest tests/test_real_world_corpus_v1_targeted.py -q
 
       - name: Full regression suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
@@ -46,7 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           git add benchmarks/real_world/v1/source_candidates.json \
-                  benchmarks/real_world/v1/source_discovery_report.json
+                  benchmarks/real_world/v1/source_discovery_report.json \
+                  benchmarks/real_world/v1/targeted_candidates.json \
+                  benchmarks/real_world/v1/targeted_discovery_report.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
             | xargs -0 sha256sum > MANIFEST.sha256
@@ -60,6 +74,8 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add benchmarks/real_world/v1/source_candidates.json \
                   benchmarks/real_world/v1/source_discovery_report.json \
+                  benchmarks/real_world/v1/targeted_candidates.json \
+                  benchmarks/real_world/v1/targeted_discovery_report.json \
                   MANIFEST.sha256
           if git diff --cached --quiet; then
             echo 'No discovery changes to commit.'
