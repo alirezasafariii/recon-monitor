@@ -1,0 +1,89 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.31",
+  "evaluation_kind": "fresh_blind_v6_pre_score_grounding",
+  "scoring_executed": false,
+  "grounding_counts_as_target_evidence": false,
+  "owasp_testing_project": {
+    "name": "OWASP Testing Project / Web Security Testing Guide",
+    "stable_introduction": "https://owasp.org/www-project-web-security-testing-guide/stable/2-Introduction/README",
+    "project": "https://owasp.org/www-project-web-security-testing-guide/",
+    "latest_toc": "https://owasp.org/www-project-web-security-testing-guide/latest/"
+  },
+  "selection_policy": {
+    "require_wstg_or_owasp_anchor": true,
+    "require_independent_primary_advisory_or_writeup_semantics": true,
+    "forbid_grounding_url_as_candidate_provenance": true,
+    "forbid_prior_v1_v5_and_analysis_630_exposure": true,
+    "forbid_detector_admission_or_ranking_output_for_source_selection": true,
+    "production_rule_changes_before_first_score": false
+  },
+  "families": {
+    "business_logic": {
+      "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"],
+      "semantic_boundary": "Require an observed workflow, value, state, or invariant violation; workflow naming alone is surface evidence only."
+    },
+    "cors_misconfiguration": {
+      "wstg_ids": ["WSTG-CLNT-07"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/"],
+      "semantic_boundary": "Require unsafe origin policy plus credentialed or sensitive cross-origin impact; permissive-looking headers alone are insufficient."
+    },
+    "dom_xss": {
+      "wstg_ids": ["WSTG-CLNT-01"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/01-Testing_for_DOM-Based_Cross_Site_Scripting",
+      "writeups": ["https://securitylab.github.com/advisories/"],
+      "semantic_boundary": "Require a traceable attacker-controlled browser source reaching an executable or HTML sink without effective sanitization."
+    },
+    "graphql_data_exposure": {
+      "wstg_ids": ["WSTG-APIT-03"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/03-Testing_for_Excessive_Data_Exposure",
+      "owasp_companion": "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2026-035_Wekan/"],
+      "semantic_boundary": "Require sensitive fields to cross the caller's actual field/property policy; schema or field-name visibility alone is insufficient."
+    },
+    "improper_inventory_management": {
+      "wstg_ids": ["WSTG-APIT-01", "WSTG-CONF-04"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/01-API_Reconnaissance",
+      "owasp_companion": "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2023-192_GHSL-2023-194_bazarr/"],
+      "semantic_boundary": "Require a stale, undocumented, deprecated, beta, or legacy deployment that remains reachable with weaker controls, real data, or security drift."
+    },
+    "nosql_injection": {
+      "wstg_ids": ["WSTG-INPV-05.6"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
+      "writeups": ["https://securitylab.github.com/advisories/"],
+      "semantic_boundary": "Require structured attacker input to become NoSQL/document-query operators or otherwise alter document-query logic."
+    },
+    "postmessage_trust": {
+      "wstg_ids": ["WSTG-CLNT-11"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/11-Testing_Web_Messaging",
+      "writeups": [
+        "https://securitylab.github.com/research/gchq-stroom-xss/",
+        "https://securitylab.github.com/advisories/GHSL-2024-027_GHSL-2024-028_codeium-chrome/"
+      ],
+      "semantic_boundary": "Require attacker-controlled cross-window messaging to reach sensitive behavior when sender origin/source validation is insufficient."
+    },
+    "sensitive_business_flow_abuse": {
+      "wstg_ids": ["WSTG-BUSL-05", "WSTG-BUSL-06", "WSTG-BUSL-07"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
+      "owasp_companion": "https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"],
+      "semantic_boundary": "Require a sensitive business operation whose anti-automation, frequency, sequencing, or usage-limit control is absent or bypassable."
+    },
+    "sensitive_caching": {
+      "wstg_ids": ["WSTG-ATHN-06"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/04-Authentication_Testing/06-Testing_for_Browser_Cache_Weaknesses",
+      "writeups": ["https://github.com/dpgaspar/Flask-AppBuilder/security/advisories/GHSA-fw5r-6m3x-rh7p"],
+      "semantic_boundary": "Require sensitive or authenticated content whose caching policy permits retention, shared-cache exposure, or cross-context reuse."
+    },
+    "software_supply_chain_failure": {
+      "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-02"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/",
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2024-171_QGIS/"],
+      "semantic_boundary": "Require untrusted, compromised, stale, or attacker-influenced supply-chain input to affect a privileged build, dependency, artifact, component, or update path."
+    }
+  }
+}
