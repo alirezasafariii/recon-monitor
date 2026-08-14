@@ -1,4 +1,4 @@
-name: Analysis 6.31 Final SSTI Probe
+name: Analysis 6.31 Final Secret And Logging Probe
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe SSTI source without scoring
+      - name: Probe final secret and logging sources without scoring
         env:
           PYTHONPATH: app
         run: |
@@ -30,31 +30,50 @@ jobs:
           from raw_recon_v5_source_audit import audit_row
           from raw_recon_v6_source_firewall import check_candidate, exposure_index
 
-          row = {
-              'family': 'server_side_template_injection',
-              'source_root': 'OWNPAY-ISSUE-438',
-              'source_project': 'own-pay/OwnPay',
-              'canonical_advisory_url': 'https://github.com/own-pay/OwnPay/issues/438',
-              'summary': 'OwnPay security audit found full server-side template injection in TwigFactory because editable templates render with the full unsandboxed Twig environment.',
-              'description': 'A project-member audit issue documents non-superadmin-controlled Twig template source reaching the server-side Twig Environment without SandboxExtension. Injected Twig expressions are rendered by the full template engine and can read secrets, invoke registered hooks and potentially reach code execution through plugin functions.',
-          }
+          rows = [
+            {
+              'family': 'secret_exposure',
+              'source_root': 'GHSA-xr96-mx7v-w32h',
+              'source_project': 'ibm/storage-scale',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-xr96-mx7v-w32h',
+              'summary': 'IBM Storage Scale GUI contains a hardcoded token in source code used for cluster communication and REST API authentication.',
+              'description': 'The published advisory states that a hardcoded authentication token is present in the application source code and reused for inter-node and REST API authentication, exposing a reusable credential/secret through the software source.',
+            },
+            {
+              'family': 'security_logging_alerting_failure',
+              'source_root': 'GHSA-cjv4-7hp2-2x9h',
+              'source_project': 'apache/airflow',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-cjv4-7hp2-2x9h',
+              'summary': 'Apache Airflow audit logging wrote secret Variable values and Connection extra contents to the audit log in cleartext.',
+              'description': 'The published advisory documents a logging failure where sensitive secret values submitted through bulk endpoints were not masked before being written to the audit log. Users with log access could recover secrets verbatim from logging output.',
+            },
+          ]
+
           prior = exposure_index()
-          fw = check_candidate(row, index=prior)
-          passed, hits, score = audit_row(row['family'], row)
-          result = {
-              'family': row['family'],
-              'source_root': row['source_root'],
-              'source_project': row['source_project'],
-              'audit_passed': bool(passed),
-              'audit_score': int(score),
-              'audit_hits': hits,
-              'firewall_allowed': bool(fw['allowed']),
-              'firewall': fw,
-              'eligible': bool(passed and fw['allowed']),
+          results = []
+          for row in rows:
+              fw = check_candidate(row, index=prior)
+              passed, hits, score = audit_row(row['family'], row)
+              results.append({
+                  'family': row['family'],
+                  'source_root': row['source_root'],
+                  'source_project': row['source_project'],
+                  'audit_passed': bool(passed),
+                  'audit_score': int(score),
+                  'audit_hits': hits,
+                  'firewall_allowed': bool(fw['allowed']),
+                  'firewall': fw,
+                  'eligible': bool(passed and fw['allowed']),
+              })
+
+          print(json.dumps({
               'scoring_executed': False,
               'detector_output_used': False,
-          }
-          print(json.dumps(result, indent=2, sort_keys=True))
-          if not result['eligible']:
+              'candidate_count': len(rows),
+              'eligible_count': sum(1 for row in results if row['eligible']),
+              'all_eligible': all(row['eligible'] for row in results),
+              'results': results,
+          }, indent=2, sort_keys=True))
+          if not all(row['eligible'] for row in results):
               raise SystemExit(2)
           PY
