@@ -14,7 +14,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 import bug_candidates_family21 as _family21_import
 from family_analyzers.base import FamilyAnalyzerContext
-from family_analyzers.router import analyzer_for_family
+from family_analyzers.router import analyzer_for_family, raw_analysis_budget_snapshot
 from family_reasoning import candidate_evidence_schema_map
 from owasp_family_catalog import (
     BUG_FAMILY_METADATA,
@@ -76,8 +76,8 @@ _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
 _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
-RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.0.0"
-RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.08.14.1"
+RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.1.0"
+RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.08.14.2"
 _RAW_SURFACE_LIMIT = 5000
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
@@ -836,6 +836,7 @@ def generate_bug_candidates(
             (analysis_id,),
         )["count"]
     )
+    raw_budget = raw_analysis_budget_snapshot(analysis_id)
     result["raw_surface_routing"] = {
         "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
         "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
@@ -844,6 +845,15 @@ def generate_bug_candidates(
         "families": raw_families,
         "surface_limit": _RAW_SURFACE_LIMIT,
         "active_requests": 0,
+        "analyzer_budget": {
+            "version": str(raw_budget.get("version") or ""),
+            "limit": int(raw_budget.get("limit") or 0),
+            "attempted": int(raw_budget.get("attempted") or 0),
+            "executed": int(raw_budget.get("executed") or 0),
+            "skipped": int(raw_budget.get("skipped") or 0),
+            "exhausted": bool(raw_budget.get("exhausted")),
+            "families": dict(raw_budget.get("families") or {}),
+        },
     }
     return result
 
