@@ -1,0 +1,187 @@
+name: Analysis 6.31 OWASP Pool Selection
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - benchmarks/raw/sources/v6_owasp_writeup_grounding.json
+      - .github/workflows/analysis-631-owasp-pool-selection.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Select from fresh v6 discovery pools using OWASP boundaries
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v6_source_firewall import check_candidate
+
+          src = Path('benchmarks/raw/sources')
+          targets = {
+              'business_logic', 'cors_misconfiguration', 'graphql_data_exposure',
+              'improper_inventory_management', 'nosql_injection', 'postmessage_trust',
+              'sensitive_caching', 'software_supply_chain_failure',
+          }
+          contracts = {
+              'business_logic': (
+                  ('workflow','payment','checkout','order','quota','balance','transaction','fulfillment'),
+                  ('bypass','improper','incorrect','unvalidated','fails to verify','without proper','insecure','accepts'),
+                  ('state','payment','quota','order','transaction','fulfillment'),
+              ),
+              'cors_misconfiguration': (
+                  ('cors','access-control-allow-origin','cross-origin resource sharing'),
+                  ('origin','cross-origin'),
+                  ('credential','sensitive','data exposure','information disclosure'),
+              ),
+              'graphql_data_exposure': (
+                  ('graphql',),
+                  ('sensitive','pii','private','data exposure','information disclosure'),
+                  ('resolver','field','query','scope','authorization','property'),
+              ),
+              'improper_inventory_management': (
+                  ('legacy','deprecated','old api','api v1','v1','beta','obsolete','retired'),
+                  ('endpoint','api','route','version'),
+                  ('unauthenticated','without authentication','still reachable','remained accessible','operational','weaker','missing authentication'),
+              ),
+              'nosql_injection': (
+                  ('nosql','mongodb','mongo','document query'),
+                  ('filter','query','operator','selector'),
+                  ('inject','unvalidated','unintended','alter','bypass'),
+              ),
+              'postmessage_trust': (
+                  ('postmessage','post message','message event','webview','message bridge','javascript bridge','window message'),
+                  ('origin','source','frame','cross-origin'),
+                  ('missing','without','fails to validate','no origin','insufficient','arbitrary'),
+              ),
+              'sensitive_caching': (
+                  ('cache','cached','caching','cdn','transfercache'),
+                  ('sensitive','authenticated','session','private','user data','response'),
+                  ('leak','shared','cross-request','reuse','poison','retention','public cache'),
+              ),
+              'software_supply_chain_failure': (
+                  ('dependency','package','artifact','build','pipeline','release','registry','component'),
+                  ('compromised','malicious','untrusted','poison','hijack','tamper'),
+                  ('supply chain','dependency','install','update','build','release'),
+              ),
+          }
+
+          def load_pool(path):
+              if not path.exists():
+                  return {}
+              data = json.loads(path.read_text())
+              assert data.get('scoring_executed') is False
+              return data.get('candidates_by_family') or {}
+
+          pools = [
+              load_pool(src / 'v6_candidates.json'),
+              load_pool(src / 'v6_supplement_candidates.json'),
+          ]
+          keyword = src / 'v6_keyword_candidates.json'
+          if keyword.exists():
+              pools.append(load_pool(keyword))
+
+          selected = {}
+          diagnostics = {}
+          used_roots = set()
+          used_projects = set()
+          for family in sorted(targets):
+              eligible = []
+              seen = set()
+              for pool in pools:
+                  for raw in pool.get(family) or []:
+                      root = str(raw.get('source_root') or '').strip()
+                      project = str(raw.get('source_project') or '').strip()
+                      if not root or not project or (root, project) in seen:
+                          continue
+                      seen.add((root, project))
+                      firewall = check_candidate(raw)
+                      if not firewall['allowed']:
+                          continue
+                      text = (' '.join([
+                          str(raw.get('summary') or ''),
+                          str(raw.get('description') or ''),
+                      ])).lower()
+                      group_hits = []
+                      for group in contracts[family]:
+                          hits = sorted(term for term in group if term in text)
+                          group_hits.append(hits)
+                      if not all(group_hits):
+                          continue
+                      row = dict(raw)
+                      row['wstg_ids'] = json.loads((src/'v6_owasp_writeup_grounding.json').read_text())['families'][family]['wstg_ids']
+                      row['semantic_facts'] = sorted({hit for group in group_hits for hit in group})
+                      row['owasp_grounding_audit'] = {
+                          'passed': True,
+                          'group_hits': group_hits,
+                          'grounding_only': True,
+                          'counts_as_target_evidence': False,
+                      }
+                      score = sum(len(group) for group in group_hits)
+                      eligible.append((score, 1 if row.get('repository_advisory_url') else 0, row.get('published_at') or '', row))
+              eligible.sort(key=lambda item: item[:3], reverse=True)
+              chosen = None
+              for _, _, _, row in eligible:
+                  root = str(row['source_root']); project = str(row['source_project'])
+                  if root in used_roots or project in used_projects:
+                      continue
+                  chosen = row
+                  used_roots.add(root); used_projects.add(project)
+                  break
+              if chosen is not None:
+                  selected[family] = chosen
+              diagnostics[family] = {
+                  'eligible_count': len(eligible),
+                  'selected_root': str(chosen.get('source_root') or '') if chosen else '',
+                  'selected_project': str(chosen.get('source_project') or '') if chosen else '',
+              }
+
+          missing = sorted(targets - set(selected))
+          report = {
+              'version': '1.0.0',
+              'rule_version': '2026.08.14.6.31',
+              'evaluation_kind': 'fresh_blind_v6_unscored_owasp_pool_selection',
+              'scoring_executed': False,
+              'detector_output_used': False,
+              'admission_output_used': False,
+              'ranking_output_used': False,
+              'target_family_count': len(targets),
+              'selected_family_count': len(selected),
+              'families_without_eligible_source': missing,
+              'diagnostics': diagnostics,
+              'candidates_by_family': {family: [selected[family]] for family in sorted(selected)},
+          }
+          (src/'v6_owasp_pool_candidates.json').write_text(json.dumps(report, indent=2, sort_keys=True)+'\n')
+          print(json.dumps({
+              'selected_family_count': len(selected),
+              'missing': missing,
+              'diagnostics': diagnostics,
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Commit OWASP pool selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_owasp_pool_candidates.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Select fresh v6 sources with OWASP semantic grounding'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
