@@ -1,0 +1,439 @@
+{
+  "family_count": 36,
+  "grounding_provenance_reuse_count": 0,
+  "hard_family_validation": {
+    "business_logic": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "approval workflow",
+          "business workflow",
+          "workflow"
+        ],
+        [
+          "approval",
+          "gate",
+          "invariant",
+          "state transition"
+        ],
+        [
+          "bypass",
+          "untrusted accepted"
+        ]
+      ],
+      "source_project": "meshtastic/firmware",
+      "source_root": "GHSA-mjx5-98jq-q736",
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-BUSL-06"
+      ]
+    },
+    "cors_misconfiguration": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "cors",
+          "cross-origin"
+        ],
+        [
+          "origin",
+          "trusted origin",
+          "untrusted origin"
+        ],
+        [
+          "credential",
+          "data",
+          "sensitive"
+        ]
+      ],
+      "source_project": "eramba/eramba",
+      "source_root": "CVE-2025-55462",
+      "wstg_ids": [
+        "WSTG-CLNT-07"
+      ]
+    },
+    "dom_xss": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "client-side",
+          "dom xss"
+        ],
+        [
+          "browser",
+          "render",
+          "sink",
+          "svg"
+        ],
+        [
+          "bypass",
+          "sanit"
+        ]
+      ],
+      "source_project": "ThinkInAIXYZ/deepchat",
+      "source_root": "GHSA-7r59-67v3-3mgp",
+      "wstg_ids": [
+        "WSTG-CLNT-01"
+      ]
+    },
+    "graphql_authorization": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "access control",
+          "authorization",
+          "permission"
+        ],
+        [
+          "editor",
+          "manage",
+          "operation",
+          "role",
+          "service"
+        ]
+      ],
+      "source_project": "aimeos/ai-admin-graphql",
+      "source_root": "GHSA-jj68-cp4v-98qf",
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-ATHZ-02"
+      ]
+    },
+    "graphql_data_exposure": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "data exposure",
+          "restricted"
+        ],
+        [
+          "filter",
+          "query",
+          "scope"
+        ]
+      ],
+      "source_project": "theforeman/foreman",
+      "source_root": "CVE-2025-9572",
+      "wstg_ids": [
+        "WSTG-APIT-03"
+      ]
+    },
+    "improper_inventory_management": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "legacy api",
+          "old api",
+          "older arm api"
+        ],
+        [
+          "api",
+          "version"
+        ],
+        [
+          "still exploitable",
+          "version drift",
+          "weaker authorization"
+        ]
+      ],
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-CONF-04"
+      ]
+    },
+    "nosql_injection": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "mongo",
+          "mongodb",
+          "nosql"
+        ],
+        [
+          "query"
+        ],
+        [
+          "alter",
+          "inject",
+          "injection",
+          "semantics",
+          "unvalidated"
+        ]
+      ],
+      "source_project": "ahnlab/epp-management",
+      "source_root": "CVE-2025-60357",
+      "wstg_ids": [
+        "WSTG-INPV-05.6"
+      ]
+    },
+    "postmessage_trust": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "message event",
+          "postmessage"
+        ],
+        [
+          "iframe source",
+          "origin",
+          "sender"
+        ],
+        [
+          "correct iframe",
+          "trust",
+          "validation"
+        ]
+      ],
+      "source_project": "auth0/auth0.js",
+      "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "wstg_ids": [
+        "WSTG-CLNT-11"
+      ]
+    },
+    "sensitive_business_flow_abuse": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "business",
+          "invite"
+        ],
+        [
+          "duplicate",
+          "flood",
+          "repeat"
+        ],
+        [
+          "anti-abuse",
+          "frequency",
+          "rate limit"
+        ]
+      ],
+      "source_project": "frappe/press",
+      "source_root": "GHSA-68qm-vp8f-rpr3",
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-06",
+        "WSTG-BUSL-07"
+      ]
+    },
+    "sensitive_caching": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "cache",
+          "cached"
+        ],
+        [
+          "api key",
+          "authenticated",
+          "sensitive"
+        ],
+        [
+          "edge",
+          "shared cache",
+          "unauthenticated cache hit"
+        ]
+      ],
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+      "wstg_ids": [
+        "WSTG-ATHN-06"
+      ]
+    },
+    "software_supply_chain_failure": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "dependency",
+          "supply chain"
+        ],
+        [
+          "compromised",
+          "malicious"
+        ],
+        [
+          "installation",
+          "package",
+          "published"
+        ]
+      ],
+      "source_project": "cap-js/cds-dbs",
+      "source_root": "GHSA-pvw4-cvr4-97p8",
+      "wstg_ids": [
+        "WSTG-CONF-01",
+        "WSTG-CONF-02"
+      ]
+    },
+    "source_map_exposure": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "source map",
+          "source-map"
+        ],
+        [
+          "debug artifact",
+          "source code"
+        ],
+        [
+          "expose",
+          "obtainable",
+          "read"
+        ]
+      ],
+      "source_project": "ibm/datapower-gateways",
+      "source_root": "IBM-APAR-IT42976",
+      "wstg_ids": [
+        "WSTG-INFO-05"
+      ]
+    },
+    "unsafe_api_consumption": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "http client",
+          "remote service"
+        ],
+        [
+          "cross-host",
+          "redirect",
+          "response"
+        ],
+        [
+          "credential",
+          "forwarded",
+          "proxy-authorization",
+          "trust boundary"
+        ]
+      ],
+      "source_project": "Perl-Toolchain-Gang/HTTP-Tiny",
+      "source_root": "GHSA-pgc4-5jjm-7rr7",
+      "wstg_ids": [
+        "WSTG-INFO-10"
+      ]
+    },
+    "websocket_authorization": {
+      "firewall": {
+        "allowed": true,
+        "grounding_url_overlap": [],
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "semantic_group_hits": [
+        [
+          "websocket"
+        ],
+        [
+          "access control",
+          "authentication",
+          "authorization"
+        ],
+        [
+          "bypass"
+        ]
+      ],
+      "source_project": "ansible/eda-server",
+      "source_root": "CVE-2026-11807",
+      "wstg_ids": [
+        "WSTG-ATHZ-02",
+        "WSTG-CLNT-10"
+      ]
+    }
+  },
+  "legacy_semantic_family_count": 22,
+  "owasp_grounded_family_count": 14,
+  "rule_version": "2026.08.14.6.31",
+  "scoring_executed": false,
+  "status": "selected",
+  "supplement_pool_used": false,
+  "unique_project_count": 36,
+  "unique_root_count": 36,
+  "version": "1.2.0"
+}
