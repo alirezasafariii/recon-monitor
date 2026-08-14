@@ -14,8 +14,8 @@ from raw_recon_v6_source_firewall import (
     exposure_index,
 )
 
-VERSION = "1.0.1"
-RULE_VERSION = "2026.08.14.6.31.2"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.31.3"
 SRC = ROOT / "benchmarks/raw/sources"
 
 BASE_HARD = {
@@ -27,6 +27,13 @@ EXTENSION_HARD = {
     "graphql_authorization", "source_map_exposure", "unsafe_api_consumption", "websocket_authorization",
 }
 HARD = BASE_HARD | EXTENSION_HARD
+COMPLEMENT_OVERRIDE_FAMILIES = {
+    "account_enumeration", "authentication_session", "broken_function_authorization",
+    "command_injection", "cryptographic_failure", "exceptional_condition_mishandling",
+    "file_upload", "mass_assignment", "race_condition",
+    "server_side_template_injection", "unrestricted_resource_consumption",
+}
+LEGACY_DISCOVERY_FAMILIES = set(DETECTOR_SPECS) - HARD - COMPLEMENT_OVERRIDE_FAMILIES
 
 CONTRACTS: dict[str, tuple[tuple[str, ...], ...]] = {
     "business_logic": (
@@ -102,6 +109,22 @@ def _semantic_audit(family: str, row: Mapping[str, Any]) -> list[list[str]]:
     return group_hits
 
 
+def _reserve_identity(
+    family: str,
+    row: Mapping[str, Any],
+    used_roots: set[str],
+    used_projects: set[str],
+) -> None:
+    root = _identity(row.get("source_root"))
+    project = _identity(row.get("source_project"))
+    if not root or not project:
+        raise RuntimeError(f"{family}: missing source identity")
+    if root in used_roots or project in used_projects:
+        raise RuntimeError(f"{family}: global source uniqueness collision root={root!r} project={project!r}")
+    used_roots.add(root)
+    used_projects.add(project)
+
+
 def finalize() -> dict[str, Any]:
     if (SRC / "v6_corpus_freeze.json").exists():
         raise RuntimeError("v6 source selection is immutable after corpus freeze")
@@ -111,11 +134,16 @@ def finalize() -> dict[str, Any]:
     manual = _load("v6_owasp_writeup_candidates.json")
     exact = _load("v6_owasp_exact_overrides.json")
     extension = _load("v6_owasp_extension_candidates.json")
+    complement = _load("v6_complement_overrides.json")
     discovered = _load("v6_candidates.json")
 
-    for doc in (grounding, grounding_ext, manual, exact, extension, discovered):
+    for doc in (grounding, grounding_ext, manual, exact, extension, complement, discovered):
         if doc.get("scoring_executed") is not False:
             raise RuntimeError("all v6 source artifacts must remain unscored")
+    for doc in (manual, exact, extension, complement):
+        for key in ("detector_output_used", "admission_output_used", "ranking_output_used"):
+            if key in doc and doc.get(key) is not False:
+                raise RuntimeError(f"{key} must remain false during v6 source selection")
     if grounding.get("grounding_counts_as_target_evidence") is not False or grounding_ext.get("grounding_counts_as_target_evidence") is not False:
         raise RuntimeError("grounding must not count as target evidence")
 
@@ -124,6 +152,10 @@ def finalize() -> dict[str, Any]:
         raise RuntimeError("exact override family coverage mismatch")
     if set(extension.get("candidates_by_family") or {}) != EXTENSION_HARD:
         raise RuntimeError("extension family coverage mismatch")
+    if set(complement.get("candidates_by_family") or {}) != COMPLEMENT_OVERRIDE_FAMILIES:
+        raise RuntimeError("complement override family coverage mismatch")
+    if int(complement.get("candidate_count") or 0) != len(COMPLEMENT_OVERRIDE_FAMILIES):
+        raise RuntimeError("complement override candidate count mismatch")
 
     grounding_families: dict[str, Any] = {}
     grounding_families.update(grounding.get("families") or {})
@@ -135,6 +167,7 @@ def finalize() -> dict[str, Any]:
 
     selected: dict[str, dict[str, Any]] = {}
     hard_report: dict[str, Any] = {}
+    complement_report: dict[str, Any] = {}
     used_roots: set[str] = set()
     used_projects: set[str] = set()
 
@@ -154,13 +187,7 @@ def finalize() -> dict[str, Any]:
         grounding_overlap = sorted(_candidate_urls(row) & grounding_urls)
         if not fw["allowed"] or grounding_overlap:
             raise RuntimeError(f"{family}: source firewall rejected candidate: firewall={fw} grounding_overlap={grounding_overlap}")
-
-        root = _identity(row.get("source_root"))
-        project = _identity(row.get("source_project"))
-        if root in used_roots or project in used_projects:
-            raise RuntimeError(f"{family}: grounded source uniqueness collision")
-        used_roots.add(root)
-        used_projects.add(project)
+        _reserve_identity(family, row, used_roots, used_projects)
         row["freshness_validated"] = True
         row["v6_firewall_allowed"] = True
         row["source_selection_track"] = "owasp_wstg_writeup_grounded_exact"
@@ -172,9 +199,39 @@ def finalize() -> dict[str, Any]:
             "firewall": fw, "grounding_url_overlap": grounding_overlap,
         }
 
+    for family in sorted(COMPLEMENT_OVERRIDE_FAMILIES):
+        rows = (complement.get("candidates_by_family") or {}).get(family) or []
+        if len(rows) != 1:
+            raise RuntimeError(f"{family}: expected exactly one complement override")
+        row = dict(rows[0])
+        fw = check_candidate(row, index=prior)
+        grounding_overlap = sorted(_candidate_urls(row) & grounding_urls)
+        passed, hits, score = audit_row(family, row)
+        if not passed:
+            raise RuntimeError(f"{family}: complement override failed semantic audit hits={hits} score={score}")
+        if not fw["allowed"] or grounding_overlap:
+            raise RuntimeError(f"{family}: complement override rejected firewall={fw} grounding_overlap={grounding_overlap}")
+        _reserve_identity(family, row, used_roots, used_projects)
+        row["freshness_validated"] = True
+        row["v6_firewall_allowed"] = True
+        row["source_family_audit_version"] = AUDIT_VERSION
+        row["source_family_audit_rule_version"] = AUDIT_RULE_VERSION
+        row["source_family_audit_score"] = int(score)
+        row["source_family_audit_group_hits"] = hits
+        row["source_selection_track"] = "fresh_exact_complement_override"
+        selected[family] = row
+        complement_report[family] = {
+            "source_root": row.get("source_root"),
+            "source_project": row.get("source_project"),
+            "semantic_audit_score": int(score),
+            "semantic_audit_hits": hits,
+            "firewall": fw,
+            "grounding_url_overlap": grounding_overlap,
+        }
+
     pool = discovered.get("candidates_by_family") or {}
     eligible: dict[str, list[dict[str, Any]]] = {}
-    for family in sorted(set(DETECTOR_SPECS) - HARD):
+    for family in sorted(LEGACY_DISCOVERY_FAMILIES):
         rows: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
         for raw in pool.get(family) or []:
@@ -184,7 +241,8 @@ def finalize() -> dict[str, Any]:
                 continue
             seen.add((root, project))
             fw = check_candidate(raw, index=prior)
-            if not fw["allowed"]:
+            grounding_overlap = sorted(_candidate_urls(raw) & grounding_urls)
+            if not fw["allowed"] or grounding_overlap:
                 continue
             passed, hits, score = audit_row(family, raw)
             if not passed:
@@ -208,7 +266,7 @@ def finalize() -> dict[str, Any]:
 
     missing = sorted(family for family, rows in eligible.items() if not rows)
     if missing:
-        raise RuntimeError("non-hard semantic source gaps: " + ", ".join(missing))
+        raise RuntimeError("remaining legacy-discovery semantic source gaps: " + ", ".join(missing))
 
     for family in sorted(eligible, key=lambda name: (len(eligible[name]), name)):
         chosen = None
@@ -221,9 +279,8 @@ def finalize() -> dict[str, Any]:
             break
         if chosen is None:
             raise RuntimeError("global uniqueness gap: " + family)
+        _reserve_identity(family, chosen, used_roots, used_projects)
         selected[family] = chosen
-        used_roots.add(_identity(chosen.get("source_root")))
-        used_projects.add(_identity(chosen.get("source_project")))
 
     if set(selected) != set(DETECTOR_SPECS):
         raise RuntimeError(f"family coverage mismatch {len(selected)}/36")
@@ -242,21 +299,28 @@ def finalize() -> dict[str, Any]:
         "firewall_rule_version": FIREWALL_RULE_VERSION, "scoring_executed": False,
     }
     shortlist = {
-        "version": "3.3.1", "rule_version": RULE_VERSION,
+        "version": "3.4.0", "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v6_unscored_source_selection",
         "selection_executes_scoring": False, "selection_uses_detector_output": False,
         "selection_uses_admission_results": False, "selection_uses_ranking_results": False,
         "grounding_counts_as_target_evidence": False,
         "family_count": 36, "unique_root_count": 36, "unique_project_count": 36,
-        "owasp_grounded_family_count": 14, "legacy_semantic_family_count": 22,
-        "supplement_pool_used": False, "firewall": final_firewall, "selected": rows,
+        "owasp_grounded_family_count": 14,
+        "complement_family_count": 22,
+        "complement_override_family_count": 11,
+        "legacy_semantic_family_count": 11,
+        "supplement_pool_used": False,
+        "firewall": final_firewall, "selected": rows,
     }
     report = {
-        "version": "1.3.1", "rule_version": RULE_VERSION, "status": "selected",
+        "version": "1.4.0", "rule_version": RULE_VERSION, "status": "selected",
         "scoring_executed": False, "family_count": 36, "unique_root_count": 36,
         "unique_project_count": 36, "owasp_grounded_family_count": 14,
-        "legacy_semantic_family_count": 22, "supplement_pool_used": False,
-        "grounding_provenance_reuse_count": 0, "hard_family_validation": hard_report,
+        "complement_family_count": 22, "complement_override_family_count": 11,
+        "legacy_semantic_family_count": 11, "supplement_pool_used": False,
+        "grounding_provenance_reuse_count": 0,
+        "hard_family_validation": hard_report,
+        "complement_override_validation": complement_report,
         "firewall_rule_version": FIREWALL_RULE_VERSION,
     }
     (SRC / "v6_shortlist.json").write_text(json.dumps(shortlist, indent=2, sort_keys=True) + "\n", encoding="utf-8")
