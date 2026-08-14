@@ -1,0 +1,37 @@
+{
+  "evaluation_kind": "real_world_corpus_v1_controlled_capture_plan",
+  "family_assignment_is_final": false,
+  "human_labels_created": false,
+  "next_transition": "resolve_source_research_and_near_miss_control_design_before_capture_execution",
+  "plan_sha256": "0d8245d194651546febeac369acd4e95f3d9dd11764c70b4281c21c12a0cb3bf",
+  "rule_version": "2026.08.14.6",
+  "scoring_executed": false,
+  "status": "capture_plan_complete_with_research_blockers",
+  "target_contact_performed": false,
+  "validation": {
+    "blocked_case_count": 4,
+    "case_count": 400,
+    "control_design_required_count": 99,
+    "design_status_counts": {
+      "blocked": 4,
+      "control_design_required": 99,
+      "ready_to_collect": 291,
+      "source_research_required": 6
+    },
+    "errors": [],
+    "family_target_count": 60,
+    "passed": true,
+    "ready_to_collect_count": 291,
+    "source_origin_count": 100,
+    "source_research_required_count": 6,
+    "unique_source_project_count": 100,
+    "unique_source_root_count": 100
+  },
+  "variant_contract": [
+    "positive",
+    "near_miss",
+    "secure_negative",
+    "sparse_noisy"
+  ],
+  "version": "1.0.0"
+}
