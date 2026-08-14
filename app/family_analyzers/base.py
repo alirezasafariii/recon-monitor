@@ -3,7 +3,7 @@ from __future__ import annotations
 """Shared, evidence-preserving contract for vulnerability-family analyzers.
 
 Family analyzers may classify, explain and prioritize already-collected target
-observations.  They must not turn CWE/WSTG/write-up knowledge into target
+observations. They must not turn CWE/WSTG/write-up knowledge into target
 evidence and must not perform active validation.
 """
 
@@ -14,8 +14,8 @@ from typing import Any, Mapping
 from core import Database
 
 
-FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.0.0"
-FAMILY_ANALYZER_RULE_VERSION = "2026.08.10.1"
+FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.1.0"
+FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.1"
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,27 @@ class FamilyAnalyzerContext:
     method: str
     details: Mapping[str, Any]
     business_context: str = "general"
+
+    def __post_init__(self) -> None:
+        """Attach stored Semantic/Behavioral context without creating evidence.
+
+        The bridge is fail-soft: older/minimal databases that do not contain
+        optional intelligence tables continue with the original details.
+        """
+        try:
+            from family_signal_bridge import augment_family_details
+
+            enriched = augment_family_details(
+                self.db,
+                analysis_id=self.analysis_id,
+                target=self.target,
+                endpoint=self.endpoint,
+                method=self.method,
+                details=self.details,
+            )
+        except Exception:
+            return
+        object.__setattr__(self, "details", enriched)
 
 
 class FamilyAnalyzer(ABC):
