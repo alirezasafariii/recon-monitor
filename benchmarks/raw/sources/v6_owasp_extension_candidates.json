@@ -1,6 +1,6 @@
 {
-  "version": "1.1.2",
-  "rule_version": "2026.08.14.6.31",
+  "version": "1.2.0",
+  "rule_version": "2026.08.14.6.31.2",
   "evaluation_kind": "fresh_blind_v6_unscored_owasp_extension_sources",
   "scoring_executed": false,
   "detector_output_used": false,
@@ -27,53 +27,50 @@
     ],
     "source_map_exposure": [
       {
-        "source_root": "IBM-APAR-IT42976",
-        "source_project": "ibm/datapower-gateways",
+        "source_root": "GOV-BB-ISSUE-2092",
+        "source_project": "govtech-bb/gov-bb",
         "family": "source_map_exposure",
-        "canonical_advisory_url": "https://www.ibm.com/support/pages/apar/IT42976",
-        "source_kind": "official_vendor_apar",
-        "advisory_source_type": "vendor_security_fix_record",
-        "published_at": "2023-04-24",
-        "summary": "IBM DataPower removed access to a JavaScript source map because source maps can be used to read and debug JavaScript files and should not be accessible.",
-        "description": "IBM APAR IT42976 documents an exposed JavaScript source-map artifact in DataPower Gateways. IBM states that JavaScript source maps can be used to help read and debug JavaScript files and that source maps should not be accessible. The relevant evidence is an obtainable debug artifact that exposes readable source information rather than a sourceMappingURL marker alone.",
+        "canonical_advisory_url": "https://github.com/govtech-bb/gov-bb/issues/2092",
+        "source_kind": "project_security_audit_issue",
+        "advisory_source_type": "security_audit_issue",
+        "published_at": "2026-07-25",
+        "summary": "gov-bb's security audit documented sourceMappingURL-driven arbitrary .map-file disclosure in its PostCSS build chain, with source maps capable of exposing original source code and sensitive build outputs.",
+        "description": "The project security-audit issue records a vulnerable PostCSS dependency that auto-loads previous source maps referenced by sourceMappingURL. Attacker-controlled CSS can cause arbitrary .map files to be read outside the intended directory. The issue explicitly identifies sourcesContent and original source code, secrets embedded in build artifacts and sensitive build outputs as exposed information, making the security condition an obtainable source-map/debug artifact disclosure rather than a marker-only observation.",
         "wstg_ids": ["WSTG-INFO-05"],
-        "semantic_facts": ["source map", "JavaScript source map", "debug artifact", "read", "accessible", "source code exposure"],
-        "selection_basis": "fresh official vendor APAR selected before scoring using WSTG-INFO-05 source-map information-leakage semantics"
+        "semantic_facts": ["source map", "sourceMappingURL", "debug artifact", "source code", "original source", "sourcesContent", "read", "disclosure", "expose"],
+        "selection_basis": "fresh project security-audit issue selected before scoring using WSTG-INFO-05 source-map and original-source disclosure semantics"
       }
     ],
     "unsafe_api_consumption": [
       {
-        "source_root": "GHSA-pgc4-5jjm-7rr7",
-        "source_project": "Perl-Toolchain-Gang/HTTP-Tiny",
+        "source_root": "RICKBOT-ISSUE-38",
+        "source_project": "zachlagden/rickbot",
         "family": "unsafe_api_consumption",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-pgc4-5jjm-7rr7",
-        "source_code_location": "https://github.com/Perl-Toolchain-Gang/HTTP-Tiny/pull/36",
-        "source_kind": "github_advisory_with_upstream_fix_reference",
-        "advisory_source_type": "github_advisory",
-        "published_at": "2026-07-07",
-        "summary": "HTTP::Tiny forwarded caller-supplied Authorization, Cookie and Proxy-Authorization credentials when following a redirect to a different origin.",
-        "description": "The advisory documents an HTTP client consuming a remote 3xx response and following its Location across scheme, host or port boundaries while re-sending caller-supplied credential headers. The changed redirect destination is therefore trusted without re-applying the original credential boundary, causing Authorization and Proxy-Authorization data to cross to a different host or even an HTTPS-to-HTTP downgrade.",
+        "canonical_advisory_url": "https://github.com/zachlagden/rickbot/issues/38",
+        "source_kind": "maintainer_security_issue",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2026-08-13",
+        "summary": "rickbot's maintainer documented reachable aiohttp HTTP-client vulnerabilities including credential leakage when a remote response redirects the client across origins.",
+        "description": "The project-owner security issue establishes that discord.py uses aiohttp as an HTTP and WebSocket client and enumerates reachable client-side defects. Among them, a remote redirect to a different origin can cause per-request cookies or Cookie/Proxy-Authorization credentials to cross the host boundary. This is an external HTTP-client trust-boundary failure in which the client consumes a redirect response and carries credential material into the redirected origin rather than re-validating the changed remote-service boundary.",
         "wstg_ids": ["WSTG-INFO-10"],
-        "semantic_facts": ["HTTP client", "remote service", "redirect", "cross-host", "response", "Authorization", "Proxy-Authorization", "credential", "trust boundary", "forwarded"],
-        "selection_basis": "fresh upstream-linked advisory selected before scoring using OWASP API10 unsafe-consumption semantics with WSTG-INFO-10 third-party/API trust-boundary mapping"
+        "semantic_facts": ["HTTP client", "external API", "remote service", "response", "redirect", "cross-host", "cross-origin", "credential", "Proxy-Authorization", "trust boundary", "forwarded"],
+        "selection_basis": "fresh project-owner security issue selected before scoring using OWASP API10 unsafe-consumption semantics with WSTG-INFO-10 external-service trust-boundary mapping"
       }
     ],
     "websocket_authorization": [
       {
-        "source_root": "CVE-2026-11807",
-        "source_project": "ansible/eda-server",
+        "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+        "source_project": "bazauto/layout-orchestration",
         "family": "websocket_authorization",
-        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-11807",
-        "source_code_location": "https://github.com/ansible/eda-server",
-        "source_kind": "vendor_product_cve_record",
-        "advisory_source_type": "redhat_ansible_cve_record",
-        "published_at": "2026-01-21",
-        "summary": "Event-Driven Ansible's WebSocket API failed to verify permissions for worker messages, allowing an authenticated user to bypass authorization and receive sensitive credentials for arbitrary activations.",
-        "description": "The vulnerability record describes missing authorization in the Event-Driven Ansible WebSocket endpoint /api/eda/ws/ansible-rulebook. The endpoint does not verify the user's permission for Worker messages, so an authenticated user can forge an arbitrary activation_id and bypass the intended access-control boundary, receiving plaintext OAuth tokens, vault passwords or SSH keys associated with that activation.",
-        "references": ["https://access.redhat.com/security/cve/CVE-2026-11807"],
+        "canonical_advisory_url": "https://github.com/bazauto/layout-orchestration/issues/20",
+        "source_kind": "maintainer_security_review_issue",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2026-08-06",
+        "summary": "layout-orchestration documented a WebSocket control channel with no authentication or authorization, allowing anonymous control operations until the upgrade path was gated.",
+        "description": "The project-owner security review states that both HTTP and WebSocket surfaces lacked authentication and authorization. The throttle and point WebSocket control channel already issued hardware commands, so an anonymous caller could cross the intended access-control boundary and influence sensitive state. The required fix explicitly covers WebSocket upgrade authentication and acceptance requires unauthenticated WebSocket upgrades to be rejected, demonstrating the authorization bypass boundary rather than generic WebSocket presence.",
         "wstg_ids": ["WSTG-CLNT-10", "WSTG-ATHZ-02"],
-        "semantic_facts": ["WebSocket", "authorization", "access control", "authentication", "authorization bypass", "sensitive credentials"],
-        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG WebSocket and authorization-boundary semantics"
+        "semantic_facts": ["WebSocket", "authentication", "authorization", "access control", "authorization bypass", "sensitive updates", "control channel", "unauthenticated"],
+        "selection_basis": "fresh project-owner security review selected before scoring using WSTG WebSocket and authorization-enforcement semantics"
       }
     ]
   }
