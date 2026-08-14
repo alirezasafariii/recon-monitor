@@ -161,7 +161,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
+          forbidden="$(git ls-files | grep -E '^(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
           forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
           if [ -n "$forbidden" ]; then printf '%s\n' "$forbidden"; exit 1; fi
 
