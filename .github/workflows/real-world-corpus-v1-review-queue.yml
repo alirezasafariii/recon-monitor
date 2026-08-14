@@ -1,0 +1,82 @@
+name: Real-World Corpus V1 Human Review Queue
+
+on:
+  push:
+    branches: [agent/real-world-corpus-v1-review-queue]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout review queue branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build 300-record pending human review queue
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_review_queue.py \
+            --public-evidence benchmarks/real_world/v1/public_source_evidence.json \
+            --revision-evidence benchmarks/real_world/v1/revision_pair_evidence.json \
+            --output benchmarks/real_world/v1/human_review_queue.json \
+            --report benchmarks/real_world/v1/human_review_queue_report.json
+
+      - name: Focused queue and corpus regressions
+        run: |
+          set -euo pipefail
+          python -m unittest tests/test_real_world_corpus_v1_review_queue.py -q
+          python -m unittest tests/test_real_world_corpus_v1_revision_capture.py -q
+          python -m unittest tests/test_real_world_corpus_v1_public_capture.py -q
+          python -m unittest tests/test_real_world_corpus_v1_calibration_roles.py -q
+
+      - name: Full regression suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)|\.jsonl$' || true)"
+          forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
+          if [ -n "$forbidden" ]; then
+            echo 'Forbidden runtime artifacts are tracked:'
+            printf '%s\n' "$forbidden"
+            exit 1
+          fi
+
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/real_world/v1/human_review_queue.json \
+                  benchmarks/real_world/v1/human_review_queue_report.json
+          git ls-files -z \
+            | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
+            | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit review queue and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add benchmarks/real_world/v1/human_review_queue.json \
+                  benchmarks/real_world/v1/human_review_queue_report.json \
+                  MANIFEST.sha256
+          if git diff --cached --quiet; then
+            echo 'No review queue changes to commit.'
+            exit 0
+          fi
+          git commit -m 'chore(corpus-v1): build pending human review queue'
+          git push
