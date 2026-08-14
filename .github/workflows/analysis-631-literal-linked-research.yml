@@ -1,0 +1,64 @@
+name: Analysis 6.31 Passive Linked Evidence Research
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - app/v6_literal_linked_research.py
+      - .github/workflows/analysis-631-literal-linked-research.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refuse linked research after corpus freeze
+        run: |
+          if [[ -f benchmarks/raw/sources/v6_corpus_freeze.json ]]; then
+            echo 'Analysis 6.31 corpus is frozen; linked source research is immutable.' >&2
+            exit 1
+          fi
+      - name: Collect passive linked upstream evidence references
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v6_literal_linked_research.py --require-some
+      - name: Assert no benchmark consumption
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('benchmarks/raw/sources/v6_literal_linked_research.json').read_text(encoding='utf-8'))
+          assert report['family_count'] == 36
+          assert report['scoring_executed'] is False
+          assert report['first_blind_consumed'] is False
+          assert report['detector_output_used'] is False
+          assert report['admission_output_used'] is False
+          assert report['ranking_output_used'] is False
+          assert report['active_target_validation_performed'] is False
+          assert report['successful_link_snapshot_count'] > 0
+          PY
+      - name: Commit passive linked research inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_linked_research.json
+          if git diff --cached --quiet; then
+            echo 'Linked research inventory unchanged.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Collect passive Analysis 6.31 linked evidence research'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
