@@ -39,7 +39,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "broken_object_authorization": [
@@ -70,7 +70,7 @@
         "updated_at": "2026-08-13T18:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -99,7 +99,7 @@
         "updated_at": "2026-08-13T18:31:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -130,7 +130,7 @@
         "updated_at": "2026-08-14T00:32:12Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -160,7 +160,7 @@
         "updated_at": "2026-08-13T15:34:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -189,7 +189,7 @@
         "updated_at": "2026-08-13T18:32:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -218,7 +218,7 @@
         "updated_at": "2026-08-13T18:32:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "business_logic": [],
@@ -251,7 +251,7 @@
         "updated_at": "2026-08-12T18:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -281,7 +281,7 @@
         "updated_at": "2026-08-12T18:31:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -309,7 +309,7 @@
         "updated_at": "2026-08-12T12:33:05Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "cors_misconfiguration": [],
@@ -342,7 +342,7 @@
         "updated_at": "2026-03-11T15:32:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -371,7 +371,7 @@
         "updated_at": "2025-12-11T21:32:38Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -400,7 +400,7 @@
         "updated_at": "2025-08-21T21:33:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -428,7 +428,7 @@
         "updated_at": "2025-05-31T00:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -457,7 +457,7 @@
         "updated_at": "2025-05-02T15:31:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -486,7 +486,7 @@
         "updated_at": "2025-05-02T15:31:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -515,7 +515,7 @@
         "updated_at": "2025-05-02T15:31:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -544,7 +544,7 @@
         "updated_at": "2025-06-27T15:31:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -573,7 +573,7 @@
         "updated_at": "2024-11-13T18:32:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -602,7 +602,7 @@
         "updated_at": "2024-10-22T18:33:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "dom_xss": [
@@ -636,7 +636,7 @@
         "updated_at": "2026-08-13T13:46:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -667,7 +667,7 @@
         "updated_at": "2026-08-12T19:32:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -696,7 +696,7 @@
         "updated_at": "2026-08-13T21:36:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -726,7 +726,7 @@
         "updated_at": "2026-08-13T18:31:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -756,7 +756,7 @@
         "updated_at": "2026-08-13T15:34:45Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -785,7 +785,7 @@
         "updated_at": "2026-08-13T12:31:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -815,7 +815,7 @@
         "updated_at": "2026-08-12T21:31:44Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -845,7 +845,7 @@
         "updated_at": "2026-08-12T18:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -875,7 +875,7 @@
         "updated_at": "2026-08-12T18:31:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -903,7 +903,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -935,7 +935,7 @@
         "updated_at": "2026-08-11T21:33:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -965,7 +965,7 @@
         "updated_at": "2026-08-11T15:32:40Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -993,7 +993,7 @@
         "updated_at": "2026-08-11T12:30:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1021,7 +1021,7 @@
         "updated_at": "2026-08-11T12:30:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1053,7 +1053,7 @@
         "updated_at": "2026-08-10T21:32:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1082,7 +1082,7 @@
         "updated_at": "2026-08-10T12:32:01Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1111,7 +1111,7 @@
         "updated_at": "2026-08-10T12:32:01Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1141,7 +1141,7 @@
         "updated_at": "2026-08-07T21:30:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1169,7 +1169,7 @@
         "updated_at": "2026-08-07T00:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1197,7 +1197,7 @@
         "updated_at": "2026-08-07T00:31:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1225,7 +1225,7 @@
         "updated_at": "2026-08-07T00:31:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1257,7 +1257,7 @@
         "updated_at": "2026-08-07T00:31:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1286,7 +1286,7 @@
         "updated_at": "2026-08-06T15:32:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1316,7 +1316,7 @@
         "updated_at": "2026-08-05T18:31:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1344,7 +1344,7 @@
         "updated_at": "2026-08-05T15:32:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1372,7 +1372,7 @@
         "updated_at": "2026-08-05T15:32:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1400,7 +1400,7 @@
         "updated_at": "2026-08-05T12:31:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "exceptional_condition_mishandling": [],
@@ -1432,7 +1432,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1464,7 +1464,7 @@
         "updated_at": "2026-08-11T21:33:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1495,7 +1495,7 @@
         "updated_at": "2026-08-11T18:31:58Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1525,7 +1525,7 @@
         "updated_at": "2026-08-11T15:32:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1557,7 +1557,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1585,7 +1585,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1618,7 +1618,7 @@
         "updated_at": "2026-08-06T09:30:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1648,7 +1648,7 @@
         "updated_at": "2026-08-06T15:32:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1678,7 +1678,7 @@
         "updated_at": "2026-08-05T21:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1708,7 +1708,7 @@
         "updated_at": "2026-08-05T21:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1737,7 +1737,7 @@
         "updated_at": "2026-08-05T15:32:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1766,7 +1766,7 @@
         "updated_at": "2026-08-05T12:31:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1794,7 +1794,7 @@
         "updated_at": "2026-08-05T12:31:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1822,7 +1822,7 @@
         "updated_at": "2026-08-05T12:31:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1854,7 +1854,7 @@
         "updated_at": "2026-08-05T00:30:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1884,7 +1884,7 @@
         "updated_at": "2026-08-03T21:31:44Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1912,7 +1912,7 @@
         "updated_at": "2026-07-29T18:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1941,7 +1941,7 @@
         "updated_at": "2026-07-29T15:31:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -1976,7 +1976,7 @@
         "updated_at": "2026-07-24T18:31:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2006,7 +2006,7 @@
         "updated_at": "2026-07-21T21:32:52Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2036,7 +2036,7 @@
         "updated_at": "2026-07-19T00:30:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2065,7 +2065,7 @@
         "updated_at": "2026-07-17T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2097,7 +2097,7 @@
         "updated_at": "2026-07-17T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2127,7 +2127,7 @@
         "updated_at": "2026-07-16T18:31:40Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2159,7 +2159,7 @@
         "updated_at": "2026-07-10T18:32:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "graphql_data_exposure": [
@@ -2189,7 +2189,7 @@
         "updated_at": "2026-08-13T14:13:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2217,7 +2217,7 @@
         "updated_at": "2026-08-11T12:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2245,7 +2245,7 @@
         "updated_at": "2026-08-11T12:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2278,7 +2278,7 @@
         "updated_at": "2026-08-06T06:31:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2307,7 +2307,7 @@
         "updated_at": "2026-08-07T00:31:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2341,7 +2341,7 @@
         "updated_at": "2026-07-28T15:32:16Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2374,7 +2374,7 @@
         "updated_at": "2026-07-26T12:30:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "improper_inventory_management": [
@@ -2404,7 +2404,7 @@
         "updated_at": "2026-08-13T14:13:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2432,7 +2432,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2464,7 +2464,7 @@
         "updated_at": "2026-08-11T21:33:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2495,7 +2495,7 @@
         "updated_at": "2026-08-11T18:31:58Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2525,7 +2525,7 @@
         "updated_at": "2026-08-11T15:32:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2553,7 +2553,7 @@
         "updated_at": "2026-08-11T12:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2581,7 +2581,7 @@
         "updated_at": "2026-08-11T12:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2613,7 +2613,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2641,7 +2641,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2674,7 +2674,7 @@
         "updated_at": "2026-08-06T09:30:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2707,7 +2707,7 @@
         "updated_at": "2026-08-06T06:31:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2737,7 +2737,7 @@
         "updated_at": "2026-08-05T21:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2767,7 +2767,7 @@
         "updated_at": "2026-08-05T21:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2796,7 +2796,7 @@
         "updated_at": "2026-08-05T15:32:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2825,7 +2825,7 @@
         "updated_at": "2026-08-05T12:31:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2857,7 +2857,7 @@
         "updated_at": "2026-08-05T00:30:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2886,7 +2886,7 @@
         "updated_at": "2026-08-07T00:31:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2920,7 +2920,7 @@
         "updated_at": "2026-07-28T15:32:16Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2953,7 +2953,7 @@
         "updated_at": "2026-07-26T12:30:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -2986,7 +2986,7 @@
         "updated_at": "2024-01-18T05:06:52Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3015,7 +3015,7 @@
         "updated_at": "2025-01-27T21:30:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "information_disclosure": [
@@ -3045,7 +3045,7 @@
         "updated_at": "2026-08-13T14:13:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "ldap_injection": [
@@ -3075,7 +3075,7 @@
         "updated_at": "2025-02-11T00:32:54Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3106,7 +3106,7 @@
         "updated_at": "2025-09-17T18:31:25Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "mass_assignment": [],
@@ -3142,7 +3142,7 @@
         "updated_at": "2026-08-13T13:46:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3172,7 +3172,7 @@
         "updated_at": "2026-08-13T18:31:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "path_traversal": [
@@ -3202,7 +3202,7 @@
         "updated_at": "2026-08-13T14:17:14Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3233,7 +3233,7 @@
         "updated_at": "2026-08-12T18:31:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3268,7 +3268,7 @@
         "updated_at": "2026-08-14T03:31:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3301,7 +3301,7 @@
         "updated_at": "2026-08-14T03:31:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3334,7 +3334,7 @@
         "updated_at": "2026-08-14T03:31:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3367,7 +3367,7 @@
         "updated_at": "2026-08-14T03:31:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3402,7 +3402,7 @@
         "updated_at": "2026-08-14T03:31:31Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3435,7 +3435,7 @@
         "updated_at": "2026-08-14T00:32:12Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3465,7 +3465,7 @@
         "updated_at": "2026-08-13T18:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "postmessage_trust": [
@@ -3496,7 +3496,7 @@
         "updated_at": "2026-08-06T15:32:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3530,7 +3530,7 @@
         "updated_at": "2026-06-30T18:31:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3558,7 +3558,7 @@
         "updated_at": "2024-08-01T15:32:57Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3586,7 +3586,7 @@
         "updated_at": "2024-08-01T15:32:57Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3614,7 +3614,7 @@
         "updated_at": "2025-06-06T18:30:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3642,7 +3642,7 @@
         "updated_at": "2024-08-14T15:32:17Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "race_condition": [],
@@ -3673,7 +3673,7 @@
         "updated_at": "2026-08-13T14:13:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3703,7 +3703,7 @@
         "updated_at": "2026-08-13T18:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3733,7 +3733,7 @@
         "updated_at": "2026-08-13T00:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "security_logging_alerting_failure": [
@@ -3762,7 +3762,7 @@
         "updated_at": "2026-08-13T14:14:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "security_misconfiguration": [
@@ -3791,7 +3791,7 @@
         "updated_at": "2026-08-13T14:14:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -3823,7 +3823,7 @@
         "updated_at": "2026-08-13T13:46:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "sensitive_business_flow_abuse": [],
@@ -3862,7 +3862,7 @@
         "updated_at": "2026-02-13T15:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3890,7 +3890,7 @@
         "updated_at": "2026-08-11T12:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3920,7 +3920,7 @@
         "updated_at": "2026-08-10T21:32:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3949,7 +3949,7 @@
         "updated_at": "2026-07-27T18:32:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -3977,7 +3977,7 @@
         "updated_at": "2026-07-27T18:31:42Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4010,7 +4010,7 @@
         "updated_at": "2026-07-27T18:32:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4044,7 +4044,7 @@
         "updated_at": "2026-06-29T00:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4078,7 +4078,7 @@
         "updated_at": "2026-06-28T09:31:49Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4111,7 +4111,7 @@
         "updated_at": "2026-04-13T18:31:44Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4141,7 +4141,7 @@
         "updated_at": "2026-04-02T18:31:45Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4176,7 +4176,7 @@
         "updated_at": "2026-03-22T15:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4215,7 +4215,7 @@
         "updated_at": "2026-04-18T06:30:14Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4247,7 +4247,7 @@
         "updated_at": "2025-11-19T18:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4276,7 +4276,7 @@
         "updated_at": "2025-10-24T18:32:04Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4305,7 +4305,7 @@
         "updated_at": "2025-06-23T15:31:49Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4334,7 +4334,7 @@
         "updated_at": "2025-11-03T18:31:17Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4364,7 +4364,7 @@
         "updated_at": "2025-03-16T21:35:03Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4394,7 +4394,7 @@
         "updated_at": "2024-09-06T15:34:02Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4434,7 +4434,7 @@
         "updated_at": "2025-10-02T15:32:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4462,7 +4462,7 @@
         "updated_at": "2024-08-01T15:32:52Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4491,7 +4491,7 @@
         "updated_at": "2024-02-22T05:08:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4540,7 +4540,7 @@
         "updated_at": "2025-11-04T21:32:00Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4584,7 +4584,7 @@
         "updated_at": "2024-06-15T09:31:38Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4613,7 +4613,7 @@
         "updated_at": "2025-03-06T18:30:50Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4643,7 +4643,7 @@
         "updated_at": "2026-07-05T03:31:53Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4676,7 +4676,7 @@
         "updated_at": "2024-04-04T02:49:38Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4706,7 +4706,7 @@
         "updated_at": "2023-01-28T05:04:58Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4737,7 +4737,7 @@
         "updated_at": "2025-04-20T03:48:02Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "software_supply_chain_failure": [
@@ -4772,7 +4772,7 @@
         "updated_at": "2024-01-18T05:06:52Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4801,7 +4801,7 @@
         "updated_at": "2025-01-27T21:30:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "source_map_exposure": [
@@ -4831,7 +4831,7 @@
         "updated_at": "2026-08-13T14:13:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4859,7 +4859,7 @@
         "updated_at": "2026-08-11T12:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4887,7 +4887,7 @@
         "updated_at": "2026-08-11T12:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4920,7 +4920,7 @@
         "updated_at": "2026-08-06T06:31:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4949,7 +4949,7 @@
         "updated_at": "2026-08-07T00:31:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -4983,7 +4983,7 @@
         "updated_at": "2026-07-28T15:32:16Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5016,7 +5016,7 @@
         "updated_at": "2026-07-26T12:30:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "sql_injection": [
@@ -5050,7 +5050,7 @@
         "updated_at": "2026-08-13T18:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5081,7 +5081,7 @@
         "updated_at": "2026-08-13T18:31:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "ssrf": [
@@ -5111,7 +5111,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5143,7 +5143,7 @@
         "updated_at": "2026-08-14T03:31:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5176,7 +5176,7 @@
         "updated_at": "2026-08-14T03:31:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5208,7 +5208,7 @@
         "updated_at": "2026-08-14T00:32:12Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5241,7 +5241,7 @@
         "updated_at": "2026-08-14T00:32:06Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5274,7 +5274,7 @@
         "updated_at": "2026-08-14T00:32:00Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -5303,7 +5303,7 @@
         "updated_at": "2026-08-13T12:31:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "unrestricted_resource_consumption": [],
@@ -5337,7 +5337,7 @@
         "updated_at": "2026-07-28T14:29:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5364,7 +5364,7 @@
         "updated_at": "2026-07-13T23:49:14Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5391,7 +5391,7 @@
         "updated_at": "2026-08-04T21:25:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5418,7 +5418,7 @@
         "updated_at": "2026-07-02T17:15:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5445,7 +5445,7 @@
         "updated_at": "2026-07-01T20:32:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5475,7 +5475,7 @@
         "updated_at": "2026-08-12T16:14:44Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5507,7 +5507,7 @@
         "updated_at": "2026-07-15T22:30:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5538,7 +5538,7 @@
         "updated_at": "2026-06-08T23:35:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5568,7 +5568,7 @@
         "updated_at": "2026-06-08T23:35:01Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5601,7 +5601,7 @@
         "updated_at": "2026-05-15T23:46:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5629,7 +5629,7 @@
         "updated_at": "2026-07-08T17:36:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5657,7 +5657,7 @@
         "updated_at": "2026-04-16T21:17:13Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5685,7 +5685,7 @@
         "updated_at": "2026-04-16T21:16:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5715,7 +5715,7 @@
         "updated_at": "2026-04-08T19:26:31Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5746,7 +5746,7 @@
         "updated_at": "2026-04-08T19:13:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5774,7 +5774,7 @@
         "updated_at": "2026-05-04T16:59:38Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5804,7 +5804,7 @@
         "updated_at": "2026-03-20T20:35:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5832,7 +5832,7 @@
         "updated_at": "2026-03-20T20:35:00Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5861,7 +5861,7 @@
         "updated_at": "2026-03-11T00:32:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5892,7 +5892,7 @@
         "updated_at": "2026-03-20T21:31:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5923,7 +5923,7 @@
         "updated_at": "2026-02-25T22:46:42Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5960,7 +5960,7 @@
         "updated_at": "2026-03-26T21:31:19Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -5994,7 +5994,7 @@
         "updated_at": "2026-03-27T00:31:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6022,7 +6022,7 @@
         "updated_at": "2026-01-29T03:22:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6050,7 +6050,7 @@
         "updated_at": "2025-10-15T20:40:10Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6078,7 +6078,7 @@
         "updated_at": "2025-10-15T20:37:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6107,7 +6107,7 @@
         "updated_at": "2025-10-16T14:43:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6138,7 +6138,7 @@
         "updated_at": "2025-10-15T20:09:53Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6169,7 +6169,7 @@
         "updated_at": "2025-10-13T20:38:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "reviewed",
@@ -6200,7 +6200,7 @@
         "updated_at": "2026-01-21T16:54:32Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6230,7 +6230,7 @@
         "updated_at": "2026-08-11T12:30:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6258,7 +6258,7 @@
         "updated_at": "2026-08-11T09:32:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6289,7 +6289,7 @@
         "updated_at": "2026-08-07T18:31:54Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6318,7 +6318,7 @@
         "updated_at": "2026-08-05T15:32:21Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6352,7 +6352,7 @@
         "updated_at": "2026-08-05T00:30:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6384,7 +6384,7 @@
         "updated_at": "2026-08-04T21:30:37Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6412,7 +6412,7 @@
         "updated_at": "2026-08-04T21:30:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6441,7 +6441,7 @@
         "updated_at": "2026-08-07T00:32:15Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6470,7 +6470,7 @@
         "updated_at": "2026-08-07T00:32:14Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6498,7 +6498,7 @@
         "updated_at": "2026-07-30T12:32:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6526,7 +6526,7 @@
         "updated_at": "2026-07-30T12:32:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6556,7 +6556,7 @@
         "updated_at": "2026-07-28T12:31:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6586,7 +6586,7 @@
         "updated_at": "2026-07-24T21:33:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6615,7 +6615,7 @@
         "updated_at": "2026-07-27T18:32:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6648,7 +6648,7 @@
         "updated_at": "2026-07-23T00:31:31Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6677,7 +6677,7 @@
         "updated_at": "2026-07-22T18:33:40Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6710,7 +6710,7 @@
         "updated_at": "2026-07-19T06:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6745,7 +6745,7 @@
         "updated_at": "2026-07-19T06:30:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6778,7 +6778,7 @@
         "updated_at": "2026-08-11T18:31:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6809,7 +6809,7 @@
         "updated_at": "2026-07-16T12:33:30Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6842,7 +6842,7 @@
         "updated_at": "2026-07-13T12:34:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6876,7 +6876,7 @@
         "updated_at": "2026-07-13T09:31:50Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6909,7 +6909,7 @@
         "updated_at": "2026-07-09T18:31:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6939,7 +6939,7 @@
         "updated_at": "2026-07-09T15:32:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6969,7 +6969,7 @@
         "updated_at": "2026-07-08T21:30:27Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -6999,7 +6999,7 @@
         "updated_at": "2026-07-09T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7029,7 +7029,7 @@
         "updated_at": "2026-07-09T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7063,7 +7063,7 @@
         "updated_at": "2026-07-05T06:30:33Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7092,7 +7092,7 @@
         "updated_at": "2026-07-04T12:30:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7125,7 +7125,7 @@
         "updated_at": "2026-07-04T09:31:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7156,7 +7156,7 @@
         "updated_at": "2026-07-02T21:32:15Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7186,7 +7186,7 @@
         "updated_at": "2026-07-02T12:31:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7216,7 +7216,7 @@
         "updated_at": "2026-07-02T09:32:10Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7250,7 +7250,7 @@
         "updated_at": "2026-06-29T09:30:29Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7280,7 +7280,7 @@
         "updated_at": "2026-07-01T18:31:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7309,7 +7309,7 @@
         "updated_at": "2026-06-27T21:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7338,7 +7338,7 @@
         "updated_at": "2026-06-27T21:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7367,7 +7367,7 @@
         "updated_at": "2026-06-27T21:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7396,7 +7396,7 @@
         "updated_at": "2026-06-27T18:35:15Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7425,7 +7425,7 @@
         "updated_at": "2026-06-27T21:30:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7454,7 +7454,7 @@
         "updated_at": "2026-06-26T21:32:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7483,7 +7483,7 @@
         "updated_at": "2026-06-26T21:32:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7512,7 +7512,7 @@
         "updated_at": "2026-06-26T21:32:12Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7541,7 +7541,7 @@
         "updated_at": "2026-06-26T21:33:14Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7570,7 +7570,7 @@
         "updated_at": "2026-06-26T18:34:50Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7599,7 +7599,7 @@
         "updated_at": "2026-06-26T18:34:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7630,7 +7630,7 @@
         "updated_at": "2026-06-30T03:37:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7662,7 +7662,7 @@
         "updated_at": "2026-06-18T18:35:31Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7692,7 +7692,7 @@
         "updated_at": "2026-06-10T15:31:47Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7724,7 +7724,7 @@
         "updated_at": "2026-06-09T18:31:10Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7753,7 +7753,7 @@
         "updated_at": "2026-06-04T21:31:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7783,7 +7783,7 @@
         "updated_at": "2026-05-26T21:33:01Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7813,7 +7813,7 @@
         "updated_at": "2026-05-21T18:33:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7843,7 +7843,7 @@
         "updated_at": "2026-05-21T18:33:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7873,7 +7873,7 @@
         "updated_at": "2026-05-21T18:33:15Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7903,7 +7903,7 @@
         "updated_at": "2026-05-21T18:33:22Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7931,7 +7931,7 @@
         "updated_at": "2026-04-27T18:32:02Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7960,7 +7960,7 @@
         "updated_at": "2026-07-02T15:33:00Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -7988,7 +7988,7 @@
         "updated_at": "2026-04-16T21:31:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8018,7 +8018,7 @@
         "updated_at": "2026-03-11T15:32:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8048,7 +8048,7 @@
         "updated_at": "2026-02-23T21:31:28Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8078,7 +8078,7 @@
         "updated_at": "2026-02-23T18:32:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8108,7 +8108,7 @@
         "updated_at": "2026-02-12T15:33:50Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8139,7 +8139,7 @@
         "updated_at": "2026-01-01T00:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8167,7 +8167,7 @@
         "updated_at": "2026-01-07T18:31:31Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8195,7 +8195,7 @@
         "updated_at": "2025-12-11T18:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8224,7 +8224,7 @@
         "updated_at": "2025-12-11T21:32:38Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8253,7 +8253,7 @@
         "updated_at": "2025-12-11T21:32:37Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8284,7 +8284,7 @@
         "updated_at": "2025-09-17T18:31:24Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8313,7 +8313,7 @@
         "updated_at": "2025-08-21T21:33:08Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8341,7 +8341,7 @@
         "updated_at": "2025-05-31T00:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8370,7 +8370,7 @@
         "updated_at": "2025-05-02T15:31:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8399,7 +8399,7 @@
         "updated_at": "2025-05-02T15:31:51Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8428,7 +8428,7 @@
         "updated_at": "2025-05-02T15:31:43Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8457,7 +8457,7 @@
         "updated_at": "2025-06-27T15:31:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8486,7 +8486,7 @@
         "updated_at": "2024-11-13T18:32:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8515,7 +8515,7 @@
         "updated_at": "2024-10-22T18:33:18Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ],
     "websocket_authorization": [
@@ -8545,7 +8545,7 @@
         "updated_at": "2026-08-12T15:30:55Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8577,7 +8577,7 @@
         "updated_at": "2026-08-11T21:33:09Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8608,7 +8608,7 @@
         "updated_at": "2026-08-11T18:31:58Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8638,7 +8638,7 @@
         "updated_at": "2026-08-11T15:32:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8670,7 +8670,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8698,7 +8698,7 @@
         "updated_at": "2026-08-10T15:33:59Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8731,7 +8731,7 @@
         "updated_at": "2026-08-06T09:30:39Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8761,7 +8761,7 @@
         "updated_at": "2026-08-06T15:32:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8791,7 +8791,7 @@
         "updated_at": "2026-08-05T21:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8821,7 +8821,7 @@
         "updated_at": "2026-08-05T21:31:48Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8850,7 +8850,7 @@
         "updated_at": "2026-08-05T15:32:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8879,7 +8879,7 @@
         "updated_at": "2026-08-05T12:31:41Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8907,7 +8907,7 @@
         "updated_at": "2026-08-05T12:31:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8935,7 +8935,7 @@
         "updated_at": "2026-08-05T12:31:36Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8967,7 +8967,7 @@
         "updated_at": "2026-08-05T00:30:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -8997,7 +8997,7 @@
         "updated_at": "2026-08-03T21:31:44Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9025,7 +9025,7 @@
         "updated_at": "2026-07-29T18:31:46Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9054,7 +9054,7 @@
         "updated_at": "2026-07-29T15:31:11Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9089,7 +9089,7 @@
         "updated_at": "2026-07-24T18:31:26Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9119,7 +9119,7 @@
         "updated_at": "2026-07-21T21:32:52Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9149,7 +9149,7 @@
         "updated_at": "2026-07-19T00:30:23Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9178,7 +9178,7 @@
         "updated_at": "2026-07-17T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9210,7 +9210,7 @@
         "updated_at": "2026-07-17T18:31:34Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9240,7 +9240,7 @@
         "updated_at": "2026-07-16T18:31:40Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       },
       {
         "advisory_source_type": "unreviewed",
@@ -9272,7 +9272,7 @@
         "updated_at": "2026-07-10T18:32:20Z",
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.14.6.31.1",
-        "v6_firewall_version": "1.1.0"
+        "v6_firewall_version": "1.1.1"
       }
     ]
   },
@@ -16212,7 +16212,7 @@
     ]
   },
   "source_firewall_rule_version": "2026.08.14.6.31.1",
-  "source_firewall_version": "1.1.0",
+  "source_firewall_version": "1.1.1",
   "supplemented_families": [
     "business_logic"
   ],
