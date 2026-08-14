@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -19,9 +19,9 @@
         "advisory_source_type": "github_reviewed",
         "published_at": "2026-07-21",
         "summary": "Gitea's fork pull-request workflow approval gate treated a contributor's prior workflow approval as permanent trust across future pull requests.",
-        "description": "The reviewed advisory documents a workflow-state business-logic failure: a security-sensitive CI approval gate was bound to a coarse historical approved flag rather than the current pull request or commit. After one approval, later workflow runs from the same contributor could bypass the intended per-workflow trust decision. This is a concrete workflow invariant and state-transition failure.",
+        "description": "The reviewed advisory documents a workflow-state business-logic failure: a security-sensitive CI approval gate was bound to a coarse historical approved flag rather than the current pull request or commit. After one approval, later workflow runs from the same contributor could bypass the intended per-workflow trust decision and execute with the runner's ambient privilege. This is a concrete workflow invariant, privilege-boundary, and state-transition failure.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business logic", "workflow approval gate", "workflow invariant", "state transition", "approval bypass", "trust decision"],
+        "semantic_facts": ["business logic", "workflow approval gate", "workflow invariant", "state transition", "approval bypass", "trust decision", "privilege boundary"],
         "selection_basis": "independent reviewed advisory selected before scoring using WSTG business-logic workflow and state-transition semantics"
       }
     ],
@@ -34,10 +34,10 @@
         "source_kind": "github_reviewed_advisory",
         "advisory_source_type": "github_reviewed",
         "published_at": "2026-05-21",
-        "summary": "Network-AI exposed a local MCP HTTP service to arbitrary web origins through permissive CORS while the default secret could be empty.",
-        "description": "The reviewed advisory describes cross-origin invocation of sensitive local MCP tools from an arbitrary web page. Its remediation explicitly restricts Access-Control-Allow-Origin to trusted localhost origins and moves CORS handling behind authentication. This provides a direct WSTG CORS boundary with untrusted-origin access to sensitive operations and data.",
+        "summary": "Network-AI exposed a local MCP HTTP service to arbitrary and untrusted web origins through permissive CORS while the default secret could be empty.",
+        "description": "The reviewed advisory describes cross-origin invocation of sensitive local MCP tools from an arbitrary untrusted web page. Its remediation explicitly restricts Access-Control-Allow-Origin to trusted localhost origins and moves CORS handling behind authentication. This provides a direct WSTG CORS boundary with untrusted-origin access to sensitive operations and data.",
         "wstg_ids": ["WSTG-CLNT-07"],
-        "semantic_facts": ["CORS", "cross-origin", "arbitrary origin", "sensitive tools", "credentials", "sensitive data"],
+        "semantic_facts": ["CORS", "cross-origin", "arbitrary origin", "untrusted origin", "sensitive tools", "credentials", "sensitive data"],
         "selection_basis": "independent reviewed advisory selected before scoring using WSTG-CLNT-07 and GitHub Security Lab CORS semantics"
       }
     ],
@@ -52,9 +52,9 @@
         "advisory_source_type": "repository",
         "published_at": "2025-05-05",
         "summary": "Keystone GraphQL field-level filtering controls could be bypassed to probe the existence or value of otherwise unreadable sensitive fields.",
-        "description": "The maintainer advisory explains that GraphQL update and delete mutations with multiple unique filters could use fields that access policy intended to make non-filterable. The result acts as an oracle for hidden field values. This is a field/property-level GraphQL exposure condition because data policy is crossed even though the sensitive value may be inferred rather than directly returned.",
+        "description": "The maintainer advisory explains that GraphQL update and delete mutations with multiple unique filters could use fields that access policy intended to make non-filterable. The result acts as an oracle for hidden field values. This is a field/property-level GraphQL data exposure condition because data policy is crossed even though the sensitive value may be inferred rather than directly returned.",
         "wstg_ids": ["WSTG-APIT-03"],
-        "semantic_facts": ["GraphQL", "sensitive fields", "hidden field", "field-level access control", "data exposure", "filter oracle"],
+        "semantic_facts": ["GraphQL", "sensitive fields", "hidden field", "field-level access control", "property-level policy", "data exposure", "filter oracle"],
         "selection_basis": "independent primary advisory selected before scoring using WSTG API excessive-data-exposure and field/property-authorization semantics"
       }
     ],
