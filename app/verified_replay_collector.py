@@ -20,8 +20,8 @@ from verified_replay_contract import (
 )
 from vulnerability_knowledge import rank_families, retrieve_writeups
 
-VERIFIED_REPLAY_COLLECTOR_VERSION = "1.0.0"
-VERIFIED_REPLAY_COLLECTOR_RULE_VERSION = "2026.08.14.1"
+VERIFIED_REPLAY_COLLECTOR_VERSION = "1.1.0"
+VERIFIED_REPLAY_COLLECTOR_RULE_VERSION = "2026.08.14.2"
 DECISIVE_REVIEW_DECISIONS = frozenset({"confirmed_by_analyst", "rejected"})
 NON_HUMAN_ACTORS = frozenset({"", "system", "automation", "autopilot", "investigation-preview"})
 CANONICAL_FAMILIES = frozenset(str(family) for family in FAMILY_ORDER)
@@ -41,18 +41,13 @@ def _stable_json(value: Any) -> str:
 
 
 def _evidence_snapshot_id(candidate: Mapping[str, Any]) -> str:
-    """Hash evidence state only; the analyst label is deliberately excluded."""
+    """Hash logical evidence state only; labels, run identity and derived scores are excluded."""
 
     material = {
         "candidate_fingerprint": str(candidate.get("candidate_fingerprint") or ""),
-        "analysis_id": str(candidate.get("analysis_id") or ""),
-        "source_run_id": str(candidate.get("source_run_id") or ""),
         "family": str(candidate.get("bug_family") or ""),
         "variant": str(candidate.get("bug_variant") or ""),
         "endpoint": str(candidate.get("endpoint") or ""),
-        "likelihood_score": int(candidate.get("likelihood_score") or 0),
-        "evidence_strength": int(candidate.get("evidence_strength") or 0),
-        "evidence_coverage": int(candidate.get("evidence_coverage") or 0),
         "support": _loads(candidate.get("supporting_evidence_json"), []),
         "contradict": _loads(candidate.get("contradicting_evidence_json"), []),
         "missing": _loads(candidate.get("missing_evidence_json"), []),
@@ -171,7 +166,7 @@ def collect_verified_replay_drafts(db: Any, *, limit: int = 1000) -> dict[str, A
                 "label_source": "investigation_cluster_decision",
                 "reviewer_id": str(event.get("actor") or "").strip(),
                 "reviewed_at": str(event.get("created_at") or "").strip(),
-                "case_origin_id": f"{case_id}:{candidate_id}",
+                "case_origin_id": f"candidate:{str(candidate.get('candidate_fingerprint') or candidate_id)}",
                 "evidence_snapshot_id": snapshot_id,
                 "evidence_quality": {},
                 "review_context": {
@@ -206,6 +201,7 @@ def collect_verified_replay_drafts(db: Any, *, limit: int = 1000) -> dict[str, A
             "changes_calibration_activation": False,
             "labels_come_from_human_investigation_decisions": True,
             "evidence_snapshot_excludes_label": True,
+            "evidence_snapshot_is_cross_run_stable": True,
             "evidence_quality_requires_explicit_review": True,
         },
     }
