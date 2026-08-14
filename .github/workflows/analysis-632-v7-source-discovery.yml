@@ -1,0 +1,100 @@
+name: Analysis 6.32 v7 Fresh Source Discovery
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-source-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-v7-source-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover-v7-sources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.32
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify v7 protocol is unscored and independent
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('benchmarks/raw/sources/v7_protocol.json').read_text())
+          assert p['family_count'] == 36
+          assert p['required_literal_capture_count'] == 144
+          assert p['scoring_executed'] is False
+          assert p['first_blind_consumed'] is False
+          assert p['research_contract']['prior_v6_score_used_for_source_selection'] is False
+          assert p['research_contract']['prior_v6_case_errors_used_for_source_selection'] is False
+          PY
+
+      - name: Validate v7 firewall includes consumed v6 exposure
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import check_candidate, exposure_index
+          index=exposure_index()
+          shortlist=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          rows=shortlist.get('selected') or []
+          assert len(rows) == 36
+          rejected=0
+          for row in rows:
+              if not check_candidate(row, index=index)['allowed']:
+                  rejected += 1
+          assert rejected == 36, rejected
+          print({'v6_shortlist_rejected_by_v7_firewall': rejected, 'prior_roots': len(index['roots']), 'prior_projects': len(index['projects'])})
+          PY
+
+      - name: Discover fresh passive v7 candidates
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_source_discovery.py
+
+      - name: Assert discovery did not score or reuse v6 result errors
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          assert report['scoring_executed'] is False
+          assert report['candidate_selection_uses_detector_scores'] is False
+          assert report['candidate_selection_uses_admission_results'] is False
+          assert report['candidate_selection_uses_ranking_results'] is False
+          assert report['candidate_selection_uses_v6_first_blind_score'] is False
+          assert report['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert report['active_target_validation_performed'] is False
+          assert report['family_count'] == 36
+          PY
+
+      - name: Commit v7 candidate pool
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_candidates.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record Analysis 6.32 v7 fresh source candidates'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
