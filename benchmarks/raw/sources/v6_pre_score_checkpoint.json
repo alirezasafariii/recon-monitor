@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "7_literal_families_complete_28_of_144_pending_remaining_evidence",
+  "checkpoint_status": "8_literal_families_complete_32_of_144_pending_remaining_evidence",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -14,6 +14,12 @@
     "strict_partial_literal_evidence_gate": "success"
   },
   "completed_real_collectors": {
+    "business_logic": {
+      "capture_run_id": null,
+      "positive_observation": "The historical CI entry ran on pull_request_target and explicitly checked out the submitting fork repository and branch without an observed trusted-author approval gate before that code entered the build/check path.",
+      "source": "GHSA-mjx5-98jq-q736 / meshtastic/firmware",
+      "status": "passed_4_of_4"
+    },
     "graphql_authorization": {
       "capture_run_id": 31777275736,
       "positive_observation": "exact vulnerable GraphQL resource config allowed admin on locale.site.save while the patch restricts that operation to super",
@@ -80,8 +86,9 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "28_of_144_evidence_present",
+    "capture_plan_status": "32_of_144_evidence_present",
     "complete_families": [
+      "business_logic",
       "graphql_authorization",
       "information_disclosure",
       "path_traversal",
@@ -90,15 +97,15 @@
       "software_data_integrity_failure",
       "ssrf"
     ],
-    "complete_family_count": 7,
+    "complete_family_count": 8,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 116,
-    "evidence_present_count": 28,
+    "evidence_missing_count": 112,
+    "evidence_present_count": 32,
     "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 29,
+    "remaining_family_count": 28,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -109,7 +116,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 29 families / 116 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Continue controlled evidence collection for the remaining 28 families / 112 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

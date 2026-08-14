@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "A separate current automation also uses pull_request_target, but it has empty global permissions and never checks out PR code; the trigger name alone therefore does not establish the target trust-boundary failure.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/meshtastic/firmware/blob/develop/.github/workflows/first_time_contributor.yml",
+  "captured_at": "2026-08-14T15:35:05.361851+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "checkout exact upstream state and inspect .github/workflows/first_time_contributor.yml",
+    "source_file": ".github/workflows/first_time_contributor.yml",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "event": "pull_request_target",
+      "global_permissions": "none",
+      "job_purpose": "static welcome comment and labels",
+      "repository_checkout_observed": false
+    },
+    "endpoint": ".github/workflows/first_time_contributor.yml",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Meshtastic contributor welcome automation"
+  },
+  "raw_sha256": "5527ae42283682ce96bf45335ca809cc05a175e0cea7116da18bc983def27fd3",
+  "schema_version": "1.0",
+  "source_project": "meshtastic/firmware",
+  "source_root": "GHSA-mjx5-98jq-q736",
+  "source_snapshot": {
+    "content_sha256": "506f175876ba19e465164b6d20cce70677d30a7e3957768811f3807b4c15478f",
+    "payload": {
+      "content": "name: Welcome First-Time Contributor\n\non:\n  issues:\n    types: opened\n  pull_request_target:\n    types: opened\n\npermissions: {}\n\njobs:\n  welcome:\n    runs-on: ubuntu-latest\n    permissions:\n      issues: write # Required to post comments and labels on issues\n      pull-requests: write # Required to post comments and labels on PRs\n    steps:\n      - uses: plbstl/first-contribution@v4\n        with:\n          labels: first-contribution\n          issue-opened-msg: |\n            ### @{fc-author}, Welcome to Meshtastic! :wave:\n\n            Thanks for opening your first issue. If it's helpful, an easy way\n            to get logs is the \"Open Serial Monitor\" button on the [Web Flasher](https://flasher.meshtastic.org).\n\n            If you have ideas for features, note that we often debate big ideas\n            in the [discussions tab](https://github.com/meshtastic/firmware/discussions/categories/ideas)\n            first. This tracker tends to be for ideas that have community\n            consensus and a clear implementation.\n\n            We're very active [on discord](https://discord.com/invite/meshtastic),\n            especially the \\#firmware and \\#alphanauts-testing channels. If you'll\n            be around for a while, we'd love to see you there!\n\n            Welcome to the community! :heart:\n\n          pr-opened-msg: |\n            ### @{fc-author}, Welcome to Meshtastic!\n\n            Thanks for opening your first pull request. We really appreciate it.\n\n            We discuss work as a team in discord, please join us in the [#firmware channel](https://discord.com/invite/meshtastic).\n            There's a big backlog of patches at the moment. If you have time,\n            please help us with some code review and testing of [other PRs](https://github.com/meshtastic/firmware/pulls)!\n\n            Welcome to the team :smile:\n",
+      "revision": "develop-current-at-capture"
+    },
+    "reference": "https://github.com/meshtastic/firmware/blob/develop/.github/workflows/first_time_contributor.yml",
+    "retrieved_at": "2026-08-14T15:35:05.361851+00:00"
+  }
+}

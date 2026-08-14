@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "This separate target-triggered automation is deliberately narrow: it does not check out PR code and applies an author-association filter. It is related context but does not reproduce the privileged fork execution state.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/meshtastic/firmware/blob/develop/.github/workflows/flasher-link-placeholder.yml",
+  "captured_at": "2026-08-14T15:35:05.361851+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "checkout exact upstream state and inspect .github/workflows/flasher-link-placeholder.yml",
+    "source_file": ".github/workflows/flasher-link-placeholder.yml",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "business_logic",
+  "raw": {
+    "details": {
+      "author_association_filter_observed": true,
+      "event": "pull_request_target",
+      "repository_checkout_observed": false,
+      "static_comment_path_observed": true
+    },
+    "endpoint": ".github/workflows/flasher-link-placeholder.yml",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Meshtastic flasher placeholder automation"
+  },
+  "raw_sha256": "861cf8e5d855d96358007809b48b30bf072d001fde6316d9b5601b31acf8d483",
+  "schema_version": "1.0",
+  "source_project": "meshtastic/firmware",
+  "source_root": "GHSA-mjx5-98jq-q736",
+  "source_snapshot": {
+    "content_sha256": "14616e68e01a1e92af68ac6263a85bd915f74b25d34bd82f11c3b351184f4d5f",
+    "payload": {
+      "content": "name: Post Web Flasher Build Placeholder\n\n# Drops an immediate \"build in progress\" comment when a PR opens, so the web\n# flasher entry shows up right away. The real CI-driven workflow\n# (flasher-link-comment.yml) later replaces it in place via the shared marker.\n#\n# SECURITY: this uses pull_request_target (write token, runs for fork PRs) but is\n# safe because it never checks out or runs PR code and posts a fully static body\n# - no PR title, branch name, or other untrusted input is used anywhere.\n\non:\n  pull_request_target:\n    types: [opened, reopened]\n\npermissions:\n  pull-requests: write\n\njobs:\n  post-placeholder:\n    if: github.repository == 'meshtastic/firmware'\n    continue-on-error: true\n    runs-on: ubuntu-latest\n    steps:\n      - name: Post web flasher build-in-progress placeholder\n        uses: actions/github-script@v9\n        with:\n          script: |\n            const marker = '<!-- web-flasher-link -->';\n            const { owner, repo } = context.repo;\n            const pr = context.payload.pull_request;\n\n            // Trusted authors only (matches the real workflow). author_association\n            // can't reflect private org membership for the token, so concealed\n            // members appear as CONTRIBUTOR - include it, or maintainers are excluded.\n            const allowedAssociations = ['OWNER', 'MEMBER', 'COLLABORATOR', 'CONTRIBUTOR'];\n            if (!allowedAssociations.includes(pr.author_association)) {\n              core.info(`Author association ${pr.author_association} is not trusted; skipping.`);\n              return;\n            }\n\n            // Only seed a placeholder when no flasher comment exists yet - never\n            // overwrite a real (or existing placeholder) comment.\n            const comments = await github.paginate(github.rest.issues.listComments, {\n              owner, repo, issue_number: pr.number, per_page: 100,\n            });\n            if (comments.some((c) => c.body?.includes(marker))) {\n              core.info('Flasher comment already exists; nothing to do.');\n              return;\n            }\n\n            const body = [\n              marker,\n              '## ⚡ Try this PR in the Web Flasher',\n              '',\n              '> [!NOTE]',\n              '> Building this pull request… the flash button, badges and supported-board',\n              '> list will appear here automatically once CI finishes.',\n            ].join('\\n');\n\n            await github.rest.issues.createComment({\n              owner, repo, issue_number: pr.number, body,\n            });\n",
+      "revision": "develop-current-at-capture"
+    },
+    "reference": "https://github.com/meshtastic/firmware/blob/develop/.github/workflows/flasher-link-placeholder.yml",
+    "retrieved_at": "2026-08-14T15:35:05.361851+00:00"
+  }
+}

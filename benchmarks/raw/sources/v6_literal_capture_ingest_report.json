@@ -5,7 +5,7 @@
   "errors": [],
   "evaluation_kind": "fresh_blind_v6_literal_capture_ingest_unscored",
   "first_blind_consumed": false,
-  "missing_capture_count": 116,
+  "missing_capture_count": 112,
   "missing_capture_ids": [
     "v6-account_enumeration-near_miss",
     "v6-account_enumeration-positive",
@@ -23,10 +23,6 @@
     "v6-broken_object_authorization-positive",
     "v6-broken_object_authorization-secure_negative",
     "v6-broken_object_authorization-sparse_noisy",
-    "v6-business_logic-near_miss",
-    "v6-business_logic-positive",
-    "v6-business_logic-secure_negative",
-    "v6-business_logic-sparse_noisy",
     "v6-command_injection-near_miss",
     "v6-command_injection-positive",
     "v6-command_injection-secure_negative",
@@ -125,12 +121,12 @@
     "v6-websocket_authorization-sparse_noisy"
   ],
   "passed": true,
-  "plan_sha256": "d96678a30d4b13c5fe2a418c304455d9aa3a87ca8d0d9e5f0471e0f1be779f08",
+  "plan_sha256": "6f8bf2cb62257974a0b068efaf0c748e7d2cc65a7e87b169cc2b69b309b5906e",
   "ranking_output_used": false,
   "require_complete": false,
   "rule_version": "2026.08.14.6.31.2",
   "scoring_executed": false,
   "shortlist_sha256": "b4c11f5e8454f6428f8631fbe2d9e128fc6440dbf8de001c4160714a05c7bd65",
-  "valid_capture_count": 28,
+  "valid_capture_count": 32,
   "version": "1.0.1"
 }
