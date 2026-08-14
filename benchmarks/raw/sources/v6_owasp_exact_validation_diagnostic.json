@@ -20,8 +20,6 @@
   "results": {
     "business_logic": {
       "errors": [
-        "semantic:('invariant', 'duplicate email', 'uniqueness')",
-        "semantic:('password reset', 'ambiguity', 'privilege')",
         "project_overlap"
       ],
       "firewall": {
@@ -32,10 +30,21 @@
       "passed": false,
       "semantic_group_hits": [
         [
+          "approval workflow",
+          "business workflow",
           "workflow"
         ],
-        [],
-        []
+        [
+          "approval",
+          "gate",
+          "required approver",
+          "state transition"
+        ],
+        [
+          "bypass",
+          "invalid state transition",
+          "self-approve"
+        ]
       ],
       "source_project": "nautobot/nautobot",
       "source_root": "GHSA-q4c5-2j6f-r476",
@@ -61,10 +70,14 @@
         ],
         [
           "origin",
-          "untrusted"
+          "origin restriction",
+          "trusted origin",
+          "untrusted origin"
         ],
         [
-          "sensitive"
+          "data",
+          "sensitive",
+          "state-changing"
         ]
       ],
       "source_project": "parse-community/parse-server",
@@ -89,6 +102,7 @@
         [
           "browser",
           "render",
+          "sink",
           "svg"
         ],
         [
@@ -114,13 +128,19 @@
       "passed": false,
       "semantic_group_hits": [
         [
-          "graphql"
+          "graphql",
+          "shop api"
         ],
         [
-          "data exposure"
+          "data exposure",
+          "non-public"
         ],
         [
-          "property"
+          "entity",
+          "filter",
+          "property",
+          "query",
+          "scope"
         ]
       ],
       "source_project": "vendurehq/vendure",
@@ -175,15 +195,19 @@
       "passed": false,
       "semantic_group_hits": [
         [
+          "mongo",
           "mongodb",
           "nosql"
         ],
         [
           "operator",
-          "query"
+          "query",
+          "selector"
         ],
         [
+          "alter",
           "inject",
+          "injection",
           "semantics",
           "unintended"
         ]
@@ -319,5 +343,5 @@
   },
   "rule_version": "2026.08.14.6.31",
   "scoring_executed": false,
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
