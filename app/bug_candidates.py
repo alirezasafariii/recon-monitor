@@ -245,6 +245,29 @@ def _promote_extension_result(
     return True
 
 
+def _extension_families_for_alert(
+    category: str,
+    schema: Mapping[str, Any],
+    details: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """Return only families that can consume this stored observation safely.
+
+    Endpoint observations keep the complete expansion family set. Infrastructure
+    observations fail closed except for DNS CNAME changes, which are routed only
+    to the Subdomain Takeover analyzer. A CNAME is discovery context, never
+    takeover proof; Family Reasoning still requires independent target evidence
+    before admission.
+    """
+
+    category = str(category or "")
+    if category == "dns_change":
+        rrtype = str(details.get("rrtype") or "").upper().strip()
+        return ("subdomain_takeover",) if rrtype == "CNAME" else ()
+    if schema.get("is_endpoint") is False or category in {"new_subdomain", "new_port"}:
+        return ()
+    return EXTENSION_FAMILY_ORDER
+
+
 def _alert_candidates_with_owasp_expansion(
     db: Any,
     analysis_id: str,
@@ -255,12 +278,14 @@ def _alert_candidates_with_owasp_expansion(
     count = _ORIGINAL_ALERT_CANDIDATES(db, analysis_id, run_id, row)
     target = str(row["target"])
     schema = _core._loads(row.get("endpoint_schema_json"), {})
+    details = _core._loads(row.get("details_json"), {})
     category = str(row.get("category") or "")
-    if schema.get("is_endpoint") is False or category in {"dns_change", "new_subdomain", "new_port"}:
+    families = _extension_families_for_alert(category, schema, details)
+    if not families:
         return count
     endpoint = str(schema.get("endpoint") or row.get("item") or "")
     alert_id = int(row["alert_id"])
-    for family in EXTENSION_FAMILY_ORDER:
+    for family in families:
         dedicated = _extension_analyzer_result(
             db,
             analysis_id=analysis_id,
