@@ -1,0 +1,78 @@
+name: Analysis 6.32 v7 Build Checkpoint
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-checkpoint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - name: Write compact checkpoint
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.')
+          def load(rel):
+              p=root/rel
+              if not p.exists(): return {}
+              try:return json.loads(p.read_text())
+              except:return {}
+          patch=load('benchmarks/raw/sources/v7_candidates_patchable.json')
+          short=load('benchmarks/raw/sources/v7_shortlist.json')
+          source=load('benchmarks/raw/sources/v7_literal_source_research.json')
+          linked=load('benchmarks/raw/sources/v7_literal_linked_research.json')
+          plan=load('benchmarks/raw/sources/v7_literal_capture_plan.json')
+          verify=load('benchmarks/raw/sources/v7_literal_capture_verification.json')
+          material=load('benchmarks/raw/sources/v7_materialization_report.json')
+          validation=load('benchmarks/raw/sources/v7_validation_report.json')
+          freeze=load('benchmarks/raw/sources/v7_corpus_freeze.json')
+          evalfreeze=load('benchmarks/raw/sources/v7_evaluator_freeze.json')
+          result={
+            'patchable_family_count':36-len(patch.get('families_without_candidates') or []) if patch else 0,
+            'patchable_missing_families':patch.get('families_without_candidates') or [],
+            'shortlist_selected_count':len(short.get('selected') or []),
+            'shortlist_complete':short.get('global_assignment_complete') is True,
+            'shortlist_firewall_passed':bool((short.get('firewall') or {}).get('passed')),
+            'canonical_snapshot_count':source.get('successful_snapshot_count',0),
+            'canonical_unresolved_count':source.get('unresolved_snapshot_count',0),
+            'linked_snapshot_count':linked.get('successful_link_snapshot_count',0),
+            'linked_unresolved_count':linked.get('unresolved_link_snapshot_count',0),
+            'required_capture_count':plan.get('required_capture_count',0),
+            'evidence_present_count':plan.get('evidence_present_count',0),
+            'evidence_missing_count':plan.get('evidence_missing_count',0),
+            'evidence_verify_passed':verify.get('passed') is True,
+            'verified_capture_count':verify.get('capture_count',0),
+            'unique_evidence_hash_count':verify.get('unique_evidence_hash_count',0),
+            'materialized_case_count':material.get('case_count',0),
+            'validation_passed':validation.get('passed') is True,
+            'label_leakage_count':validation.get('label_leakage_count',None),
+            'corpus_freeze_status':freeze.get('evaluation_status','missing'),
+            'evaluator_frozen':evalfreeze.get('first_blind_evaluator_frozen') is True,
+            'scoring_executed':False,
+            'first_blind_consumed':False,
+          }
+          Path('benchmarks/raw/sources/v7_build_checkpoint.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(result,sort_keys=True))
+          PY
+      - name: Commit checkpoint
+        shell: bash
+        run: |
+          git add benchmarks/raw/sources/v7_build_checkpoint.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record Analysis 6.32 v7 build checkpoint'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
