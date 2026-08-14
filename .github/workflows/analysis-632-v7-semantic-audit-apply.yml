@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - '.github/workflows/analysis-632-v7-semantic-audit-apply.yml'
+      - 'tools/apply_v7_semantic_audit.py'
   workflow_dispatch:
 
 permissions:
