@@ -10,19 +10,21 @@ from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
 from raw_recon_v7_source_firewall import check_candidate, exposure_index
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.33.v7.unseen.1"
+VERSION = "1.1.1"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.2"
 OUT = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 
 
 def discover(**kwargs: Any) -> dict[str, Any]:
     # Reuse preregistered standards/CWE semantic discovery, but replace its
     # freshness index with the strict V1-V6 + pinned Corpus V1 exposure
-    # firewall. No prior score, case error, label, or evidence is used to rank
-    # candidates.
+    # firewall. Build the strict index once per discovery run so every
+    # candidate is checked against one immutable snapshot without repeatedly
+    # rescanning the historical evidence registry.
+    strict_index = exposure_index()
     original_exposure_index = v5.exposure_index
     try:
-        v5.exposure_index = exposure_index
+        v5.exposure_index = lambda: strict_index
         report = v5.discover(**kwargs)
     finally:
         v5.exposure_index = original_exposure_index
@@ -37,7 +39,7 @@ def discover(**kwargs: Any) -> dict[str, Any]:
             if not isinstance(raw, Mapping):
                 continue
             row = dict(raw)
-            check = check_candidate(row)
+            check = check_candidate(row, index=strict_index)
             row["v7_firewall_allowed"] = bool(check["allowed"])
             row["v7_firewall_version"] = FIREWALL_VERSION
             row["v7_firewall_rule_version"] = FIREWALL_RULE_VERSION
@@ -69,6 +71,7 @@ def discover(**kwargs: Any) -> dict[str, Any]:
         "source_firewall_version": FIREWALL_VERSION,
         "source_firewall_rule_version": FIREWALL_RULE_VERSION,
         "prior_exposure_scope": PRIOR_SCOPE,
+        "strict_exposure_index_cached_once": True,
         "candidates_by_family": filtered,
         "family_candidate_counts": {family: len(rows) for family, rows in filtered.items()},
         "source_firewall_rejections": rejected,
