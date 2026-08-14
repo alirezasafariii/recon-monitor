@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -13,13 +14,14 @@ from raw_recon_corpus import ROOT
 from v6_benchmark_validate import validate_v6_corpus
 from v6_freeze_verify import verify_freeze
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.31.2"
+VERSION = "1.2.0"
+RULE_VERSION = "2026.08.14.6.31.16"
 DEFAULT_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v6.jsonl"
 DEFAULT_SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 DEFAULT_PROTOCOL = ROOT / "benchmarks/raw/sources/v6_protocol.json"
 DEFAULT_FREEZE = ROOT / "benchmarks/raw/sources/v6_corpus_freeze.json"
 DEFAULT_EVALUATOR_FREEZE = ROOT / "benchmarks/raw/sources/v6_evaluator_freeze.json"
+DEFAULT_CONSUMPTION_RECEIPT = ROOT / "benchmarks/raw/sources/v6_first_blind_consumption.json"
 
 
 def _ratio(numerator: int | float, denominator: int | float) -> float:
@@ -32,6 +34,33 @@ def _sha256(path: Path) -> str:
 
 def _load_cases(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def _require_canonical_path(name: str, supplied: Path, expected: Path) -> Path:
+    supplied = Path(supplied)
+    expected = Path(expected)
+    if supplied.resolve() != expected.resolve():
+        raise RuntimeError(
+            f"v6 First Blind {name} override is forbidden; only the canonical frozen artifact may be scored"
+        )
+    return expected
+
+
+def _require_consumption_authorization() -> dict[str, Any]:
+    if not DEFAULT_CONSUMPTION_RECEIPT.exists():
+        raise RuntimeError("v6 First Blind consumption receipt is required before scoring")
+    receipt = json.loads(DEFAULT_CONSUMPTION_RECEIPT.read_text(encoding="utf-8"))
+    if receipt.get("state") != "consumed_before_scoring":
+        raise RuntimeError(
+            f"v6 First Blind receipt is not in consumed_before_scoring state: {receipt.get('state')!r}"
+        )
+    run_id = str(os.environ.get("GITHUB_RUN_ID") or "")
+    run_attempt = str(os.environ.get("GITHUB_RUN_ATTEMPT") or "")
+    if not run_id or not run_attempt:
+        raise RuntimeError("v6 First Blind scoring must run inside its authorized GitHub Actions attempt")
+    if run_id != str(receipt.get("github_run_id") or "") or run_attempt != str(receipt.get("github_run_attempt") or ""):
+        raise RuntimeError("v6 First Blind workflow identity does not match the persisted consumption authorization")
+    return receipt
 
 
 def _gate_spec(protocol: Mapping[str, Any], section: str) -> dict[str, tuple[str, float]]:
@@ -256,7 +285,12 @@ def run_v6_benchmark(
     protocol_path: Path = DEFAULT_PROTOCOL,
     freeze_path: Path = DEFAULT_FREEZE,
 ) -> dict[str, Any]:
-    freeze_path = Path(freeze_path)
+    corpus_path = _require_canonical_path("corpus", corpus_path, DEFAULT_CORPUS)
+    shortlist_path = _require_canonical_path("shortlist", shortlist_path, DEFAULT_SHORTLIST)
+    protocol_path = _require_canonical_path("protocol", protocol_path, DEFAULT_PROTOCOL)
+    freeze_path = _require_canonical_path("corpus freeze", freeze_path, DEFAULT_FREEZE)
+    consumption_receipt = _require_consumption_authorization()
+
     freeze_check = verify_freeze(freeze_path, require_freeze=True, require_evaluator_frozen=True)
     if not freeze_check["passed"]:
         raise RuntimeError("v6 corpus/evaluator freeze verification failed: " + "; ".join(freeze_check["errors"]))
@@ -309,6 +343,11 @@ def run_v6_benchmark(
             "evaluator_sha256": evaluator_freeze.get("evaluator_sha256"),
             "protocol_sha256": evaluator_freeze.get("protocol_sha256"),
             "corpus_freeze_sha256": evaluator_freeze.get("corpus_freeze_sha256"),
+        },
+        "consumption_authorization": {
+            "github_run_id": consumption_receipt.get("github_run_id"),
+            "github_run_attempt": consumption_receipt.get("github_run_attempt"),
+            "state": consumption_receipt.get("state"),
         },
         "single_family": single_report,
         "pair_family": pair_report,
