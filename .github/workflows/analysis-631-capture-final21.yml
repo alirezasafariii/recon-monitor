@@ -7,6 +7,7 @@ on:
       - agent/analysis-engine-6.31-fresh-blind-v6-validation
     paths:
       - 'app/v6_remaining_final21_collector.py'
+      - 'app/v6_remaining_final21_run.py'
       - '.github/workflows/analysis-631-capture-final21.yml'
 
 permissions:
@@ -35,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf captured-final21
-          python app/v6_remaining_final21_collector.py captured-final21 | tee final21-capture-report.json
+          python app/v6_remaining_final21_run.py captured-final21 | tee final21-capture-report.json
           test "$(find captured-final21 -type f -name '*.json' | wc -l)" -eq 84
       - name: Upload final 21 capture artifact
         uses: actions/upload-artifact@v4
