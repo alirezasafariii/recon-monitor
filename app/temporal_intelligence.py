@@ -4,7 +4,7 @@ from __future__ import annotations
 
 The engine looks across a bounded history of completed Analysis snapshots and
 emits context-only protocol findings for recurrence, authentication-boundary
-drift, response-shape growth and endpoint-contract expansion.  Temporal output
+drift, response-shape growth and endpoint-contract expansion. Temporal output
 is intentionally non-decisive: it can guide a family analyzer toward the right
 surface but cannot by itself admit or confirm a vulnerability.
 """
@@ -16,8 +16,8 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, utc_now
 
-TEMPORAL_INTELLIGENCE_VERSION = "1.0.0"
-TEMPORAL_RULE_VERSION = "2026.08.14.1"
+TEMPORAL_INTELLIGENCE_VERSION = "1.0.1"
+TEMPORAL_RULE_VERSION = "2026.08.14.2"
 DEFAULT_HISTORY_LIMIT = 6
 PROTECTED_BOUNDARIES = {
     "authentication_required",
@@ -289,38 +289,40 @@ def generate_temporal_intelligence(
                     }
                 )
             if len(sensitive_series) >= 2:
-                previous_max = max((item["count"] for item in sensitive_series[:-1]), default=0)
-                current_count = sensitive_series[-1]["count"]
-                historical_keys = {
-                    key for item in sensitive_series[:-1] for key in item["keys"]
-                }
-                current_keys = set(sensitive_series[-1]["keys"])
-                new_sensitive = sorted(current_keys - historical_keys)
-                if current_count > previous_max or new_sensitive:
-                    confidence = min(94, 60 + min(20, len(new_sensitive) * 6) + min(12, current_count * 2))
-                    _insert_temporal_finding(
-                        db,
-                        analysis_id=analysis_id,
-                        target=target,
-                        endpoint=endpoint,
-                        kind="temporal_sensitive_response_growth_surface",
-                        confidence=confidence,
-                        severity="medium" if new_sensitive else "low",
-                        summary="Stored response-shape history became more sensitive or data-rich over time.",
-                        evidence={
-                            "series": sensitive_series,
-                            "new_sensitive_keys": new_sensitive,
-                            "current_sensitive_count": current_count,
-                            "previous_max_sensitive_count": previous_max,
-                        },
-                    )
-                    counts["sensitive_growth"] += 1
-                    target_counts["sensitive_growth"] += 1
+                current_items = [item for item in sensitive_series if item["analysis_id"] == analysis_id]
+                historical_items = [item for item in sensitive_series if item["analysis_id"] != analysis_id]
+                if current_items and historical_items:
+                    current = current_items[-1]
+                    previous_max = max((item["count"] for item in historical_items), default=0)
+                    current_count = current["count"]
+                    historical_keys = {key for item in historical_items for key in item["keys"]}
+                    current_keys = set(current["keys"])
+                    new_sensitive = sorted(current_keys - historical_keys)
+                    if current_count > previous_max or new_sensitive:
+                        confidence = min(94, 60 + min(20, len(new_sensitive) * 6) + min(12, current_count * 2))
+                        _insert_temporal_finding(
+                            db,
+                            analysis_id=analysis_id,
+                            target=target,
+                            endpoint=endpoint,
+                            kind="temporal_sensitive_response_growth_surface",
+                            confidence=confidence,
+                            severity="medium" if new_sensitive else "low",
+                            summary="Stored response-shape history became more sensitive or data-rich over time.",
+                            evidence={
+                                "series": sensitive_series,
+                                "new_sensitive_keys": new_sensitive,
+                                "current_sensitive_count": current_count,
+                                "previous_max_sensitive_count": previous_max,
+                            },
+                        )
+                        counts["sensitive_growth"] += 1
+                        target_counts["sensitive_growth"] += 1
 
             if contracts:
                 historical_methods = {
                     str(row.get("method") or "UNKNOWN").upper()
-                    for row in contracts[:-1]
+                    for row in contracts
                     if str(row.get("analysis_id") or "") != analysis_id
                 }
                 current_methods = {
