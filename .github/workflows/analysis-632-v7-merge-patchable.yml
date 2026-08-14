@@ -1,0 +1,51 @@
+name: Analysis 6.32 v7 Merge Patchable Replacements
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - 'benchmarks/raw/sources/v7_missing5_supplement.json'
+      - '.github/workflows/analysis-632-v7-merge-patchable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Merge final-five patchable replacements
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_merge_patchable.py
+      - name: Require complete 36-family patchable coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          assert r['patchable_family_count']==36, r['families_without_candidates']
+          assert r['families_without_candidates']==[]
+          assert all(v>0 for v in r['family_candidate_counts'].values())
+          assert r['scoring_executed'] is False
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          PY
+      - name: Commit complete patchable pool
+        shell: bash
+        run: |
+          git add benchmarks/raw/sources/v7_candidates_patchable.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Complete Analysis 6.32 v7 patchable source pool'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
