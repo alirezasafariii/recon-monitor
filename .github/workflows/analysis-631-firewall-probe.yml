@@ -21,52 +21,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe historical exposure only
+      - name: Probe replacement candidates against historical exposure
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
           from raw_recon_v6_source_firewall import canonical_url, exposure_index
-
           prior = exposure_index()
           candidates = [
-              ('business_logic', 'GHSA-mjx5-98jq-q736', 'meshtastic/firmware', ['https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736']),
-              ('cors_misconfiguration', 'GHSA-88fw-hqm2-52qc', 'honojs/hono', ['https://github.com/honojs/hono/security/advisories/GHSA-88fw-hqm2-52qc']),
-              ('dom_xss', 'GHSA-7r59-67v3-3mgp', 'ThinkInAIXYZ/deepchat', ['https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp']),
-              ('graphql_authorization', 'GHSA-jj68-cp4v-98qf', 'aimeos/ai-admin-graphql', ['https://github.com/aimeos/ai-admin-graphql/security/advisories/GHSA-jj68-cp4v-98qf']),
-              ('graphql_data_exposure', 'GHSA-qpm9-h556-mwxm', 'nl-portal/nl-portal-backend-libraries', ['https://github.com/nl-portal/nl-portal-backend-libraries/security/advisories/GHSA-qpm9-h556-mwxm']),
-              ('improper_inventory_management', 'BINARYSECURITY-APIM-OLD-API-2024-11-05', 'microsoft/azure-api-management', ['https://www.binarysecurity.no/posts/2024/11/apim-privesc']),
-              ('nosql_injection', 'GHSA-pmpg-2mxq-6xwr', 'Budibase/budibase', ['https://github.com/Budibase/budibase/security/advisories/GHSA-pmpg-2mxq-6xwr']),
-              ('postmessage_trust', 'AUTH0-AUTH0JS-ISSUE-508', 'auth0/auth0.js', ['https://github.com/auth0/auth0.js/issues/508']),
-              ('sensitive_business_flow_abuse', 'GHSA-68qm-vp8f-rpr3', 'frappe/press', ['https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3']),
-              ('sensitive_caching', 'RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22', 'rubygems/rubygems.org', ['https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html']),
-              ('software_supply_chain_failure', 'GHSA-pvw4-cvr4-97p8', 'cap-js/cds-dbs', ['https://github.com/advisories/GHSA-pvw4-cvr4-97p8']),
-              ('source_map_exposure', 'GHSA-67mh-4wv8-2f99', 'evanw/esbuild', ['https://github.com/advisories/GHSA-67mh-4wv8-2f99']),
-              ('unsafe_api_consumption', 'GHSA-vhjm-w67q-g75c', 'hapijs/wreck', ['https://github.com/hapijs/wreck/security/advisories/GHSA-vhjm-w67q-g75c']),
-              ('websocket_authorization', 'GHSL-2025-118', 'outline/outline', ['https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/']),
+            ('cors_opencode','cors_misconfiguration','GHSA-vxw4-wv6m-9hhh','anomalyco/opencode',['https://github.com/anomalyco/opencode/security/advisories/GHSA-vxw4-wv6m-9hhh','https://github.com/advisories/GHSA-vxw4-wv6m-9hhh']),
+            ('cors_anythingllm','cors_misconfiguration','GHSA-24qj-pw4h-3jmm','Mintplex-Labs/anything-llm',['https://github.com/Mintplex-Labs/anything-llm/security/advisories/GHSA-24qj-pw4h-3jmm']),
+            ('graphql_craft','graphql_data_exposure','GHSA-gj2p-p9m4-c8gw','craftcms/cms',['https://github.com/craftcms/cms/security/advisories/GHSA-gj2p-p9m4-c8gw']),
+            ('nosql_cockpit','nosql_injection','GHSA-fm6c-rhcf-7439','Cockpit-HQ/Cockpit',['https://github.com/advisories/GHSA-fm6c-rhcf-7439']),
+            ('sourcemap_postcss','source_map_exposure','GHSA-r28c-9q8g-f849','postcss/postcss',['https://github.com/advisories/GHSA-r28c-9q8g-f849']),
+            ('sourcemap_babel','source_map_exposure','GHSA-4x5r-pxfx-6jf8','babel/babel',['https://github.com/advisories/GHSA-4x5r-pxfx-6jf8']),
+            ('unsafe_guzzle','unsafe_api_consumption','GHSA-94pj-82f3-465w','guzzle/guzzle',['https://github.com/guzzle/guzzle/security/advisories/GHSA-94pj-82f3-465w']),
+            ('unsafe_axios','unsafe_api_consumption','GHSA-j5f8-grm9-p9fc','axios/axios',['https://github.com/advisories/GHSA-j5f8-grm9-p9fc']),
+            ('unsafe_angular_sw','unsafe_api_consumption','GHSA-qxh6-94w6-9r5p','angular/angular',['https://github.com/advisories/GHSA-qxh6-94w6-9r5p']),
+            ('websocket_marimo','websocket_authorization','GHSA-2679-6mx9-h9xc','marimo-team/marimo',['https://github.com/advisories/GHSA-2679-6mx9-h9xc']),
           ]
-          results = []
-          for name, root, project, raw_urls in candidates:
-              urls = {canonical_url(u) for u in raw_urls if canonical_url(u)}
-              row = {
-                  'family': name,
-                  'source_root': root,
-                  'source_project': project,
-                  'root_overlap': root in prior['roots'],
-                  'project_overlap': project in prior['projects'],
-                  'url_overlap': sorted(urls & prior['urls']),
-              }
-              row['fresh_against_historical_exposure'] = not (
-                  row['root_overlap'] or row['project_overlap'] or row['url_overlap']
-              )
-              results.append(row)
-          print(json.dumps({
-              'scoring_executed': False,
-              'detector_output_used': False,
-              'prior_counts': {k: len(v) for k, v in prior.items()},
-              'fresh_count': sum(1 for r in results if r['fresh_against_historical_exposure']),
-              'overlap_count': sum(1 for r in results if not r['fresh_against_historical_exposure']),
-              'results': results,
-          }, indent=2, sort_keys=True))
+          results=[]
+          for label,family,root,project,raw_urls in candidates:
+            urls={canonical_url(u) for u in raw_urls if canonical_url(u)}
+            row={'label':label,'family':family,'source_root':root,'source_project':project,
+                 'root_overlap':root in prior['roots'],'project_overlap':project in prior['projects'],
+                 'url_overlap':sorted(urls & prior['urls'])}
+            row['fresh']=not(row['root_overlap'] or row['project_overlap'] or row['url_overlap'])
+            results.append(row)
+          print(json.dumps({'scoring_executed':False,'detector_output_used':False,'results':results},indent=2,sort_keys=True))
           PY
