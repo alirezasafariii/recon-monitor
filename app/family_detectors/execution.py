@@ -11,6 +11,7 @@ from typing import Any, Iterable, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
 from raw_condition_reconstruction import reconstruct_raw_evidence
+from analysis_632_evidence import reconstruct_asserted_evidence
 
 EXECUTION_ENGINE_VERSION = "1.4.0"
 EXECUTION_RULE_VERSION = "2026.08.13.6.30"
@@ -926,6 +927,16 @@ def execute_detector_intelligence(*, target: str, endpoint: str, method: str, en
         business_context=str(business_context or "general"),
     )
     for family, packet in reconstructed.items():
+        target_packet = _packet_for(result, family)
+        for side in ("support", "contradict"):
+            for item in packet.get(side) or []:
+                _add(target_packet, side, dict(item))
+    asserted = reconstruct_asserted_evidence(
+        target=str(target or ""), endpoint=str(endpoint or ""), method=str(method or "UNKNOWN"),
+        endpoint_schema=endpoint_schema, details=details, category=str(category or ""),
+        business_context=str(business_context or "general"),
+    )
+    for family, packet in asserted.items():
         target_packet = _packet_for(result, family)
         for side in ("support", "contradict"):
             for item in packet.get(side) or []:

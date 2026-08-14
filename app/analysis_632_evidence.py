@@ -3,8 +3,13 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable, Mapping
 
-from family_detectors.registry import DETECTOR_SPECS
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES
+
+
+def _detector_specs():
+    # Lazy import avoids package __init__ -> execution -> reconstruction cycle.
+    from family_detectors.registry import DETECTOR_SPECS
+    return DETECTOR_SPECS
 
 ENGINE_VERSION = "1.0.0"
 RULE_VERSION = "2026.08.14.6.32.1"
@@ -326,6 +331,16 @@ def _truthy(value: Any) -> bool:
     }
 
 
+def _falsey(value: Any) -> bool:
+    if value is False:
+        return True
+    if isinstance(value, (int, float)) and value == 0:
+        return True
+    return str(value or "").strip().lower() in {
+        "false", "no", "0", "absent", "missing", "disabled", "rejected", "denied", "blocked"
+    }
+
+
 def _fact_text(path: str, value: Any) -> str:
     text = f"{path.replace('.', ' ')} {value}".replace("_", " ")
     return re.sub(r"\s+", " ", text).strip().lower()
@@ -367,7 +382,7 @@ def _looks_secure_control(text: str) -> bool:
 
 
 def _emit(packet: dict[str, list[dict[str, Any]]], family: str, signal: str, text: str, *, role: str, path: str) -> None:
-    spec = DETECTOR_SPECS[family]
+    spec = _detector_specs()[family]
     allowed = spec.identity_signals | spec.condition_signals | spec.blocking_controls
     if signal not in allowed:
         return
@@ -389,6 +404,12 @@ def _emit(packet: dict[str, list[dict[str, Any]]], family: str, signal: str, tex
         "analysis_632_engine_version": ENGINE_VERSION,
         "analysis_632_rule_version": RULE_VERSION,
         "analysis_632_basis": "explicit_stored_fact_semantic_reconstruction",
+        "execution_engine_version": "1.4.0",
+        "execution_rule_version": "2026.08.13.6.30",
+        "execution_family": family,
+        "execution_strategy": "analysis_632_stored_assertion_bridge",
+        "execution_basis": "passive_stored_assertion",
+        "execution_passive_only": True,
     }
     key = (item["type"], item["source_group"], item["text"], side)
     if any((row.get("type"), row.get("source_group"), row.get("text"), side) == key for row in packet[side]):
@@ -429,18 +450,24 @@ def reconstruct_asserted_evidence(
     context_text = _identity_context(target, endpoint, category, business_context, facts)
     result: dict[str, dict[str, Any]] = {}
 
-    for family, spec in DETECTOR_SPECS.items():
+    for family, spec in _detector_specs().items():
         packet = {"support": [], "contradict": []}
         policy = FAMILY_ADMISSION_POLICIES[family]
         identity_signals = set(spec.identity_signals)
         condition_signals = set(spec.condition_signals)
         control_signals = set(spec.blocking_controls)
 
-        # Identity reconstruction is allowed from the combined stored context,
-        # but still requires a semantic match to the canonical identity signal.
-        for signal in sorted(identity_signals):
-            if _semantic_match(signal, context_text, condition=False) >= 0.67:
-                _emit(packet, family, signal, f"Stored context supports family identity signal: {signal}.", role="identity", path="stored_context")
+        # Analysis 6.32 intentionally does not infer family identity from broad
+        # narrative context. Existing physical detectors own surface identity.
+        # Only an explicit stored boolean/key matching a canonical identity
+        # signal may add identity evidence here.
+        for path, value in facts:
+            leaf = _norm(path.split(".")[-1])
+            if not _truthy(value):
+                continue
+            for signal in sorted(identity_signals):
+                if leaf == _norm(signal):
+                    _emit(packet, family, signal, f"Stored fact explicitly asserts family identity signal {signal}.", role="identity", path=path)
 
         # Conditions and controls must come from an explicit fact. A generic
         # endpoint/category token can never create a decisive condition.
@@ -451,8 +478,9 @@ def reconstruct_asserted_evidence(
             for signal in sorted(condition_signals):
                 key_match = _semantic_match(signal, path.replace("_", " "), condition=True)
                 text_match = _semantic_match(signal, text, condition=True)
-                explicit_boolean = _truthy(value) and key_match >= 0.60
-                if explicit_boolean or text_match >= 0.72 or _phrase_hit(signal, text):
+                leaf = _norm(path.split(".")[-1])
+                explicit_boolean = _truthy(value) and (leaf == _norm(signal) or key_match >= 0.90)
+                if explicit_boolean or text_match >= 0.82 or _phrase_hit(signal, text):
                     # Secure/fixed wording must not be converted into a positive
                     # condition unless the signal itself expresses a missing or
                     # failed control and the stored fact explicitly asserts it.
@@ -461,9 +489,13 @@ def reconstruct_asserted_evidence(
                     _emit(packet, family, signal, f"Stored fact supports decisive condition {signal}: {text}", role="condition", path=path)
 
             for signal in sorted(control_signals):
-                key_match = _semantic_match(signal, path.replace("_", " "), condition=False)
+                leaf = _norm(path.split(".")[-1])
                 text_match = _semantic_match(signal, text, condition=False)
-                if (_truthy(value) and key_match >= 0.60) or (_looks_secure_control(text) and text_match >= 0.65):
+                explicit_control = _truthy(value) and leaf == _norm(signal)
+                # A false-valued control flag (for example signature_verified=false)
+                # is evidence that the control is absent, never proof that it exists.
+                secure_narrative = (not _falsey(value)) and _looks_secure_control(text) and text_match >= 0.95
+                if explicit_control or secure_narrative:
                     _emit(packet, family, signal, f"Stored fact supports blocking control {signal}: {text}", role="control", path=path)
 
         if packet["support"] or packet["contradict"]:

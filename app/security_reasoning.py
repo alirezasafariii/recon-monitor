@@ -12,6 +12,7 @@ from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
 from hypothesis_admission import hypothesis_summary, knowledge_for_family
 from security_family_ranker import production_family_rankings
+from researcher_logic import researcher_logic_for_family
 
 REASONING_ENGINE_VERSION = "6.30.0"
 REASONING_RULE_VERSION = "2026.08.13.6.30"
@@ -848,7 +849,12 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             "causal_chain": causal,
             "evidence_lineage": evidence_meta,
             "maturity_limiter": maturity_limiter,
-            "knowledge_context": {"role": "detection_guidance_only_not_target_evidence", "references": knowledge_for_family(family)},
+            "researcher_logic": researcher_logic_for_family(family),
+            "knowledge_context": {
+                "role": "reasoning_guidance_only_not_target_evidence",
+                "reference_count": len(knowledge_for_family(family)),
+                "provenance_hidden_from_normal_reasoning": True,
+            },
             "scores": {
                 "raw_likelihood": raw_likelihood,
                 "calibrated_likelihood": calibrated,
