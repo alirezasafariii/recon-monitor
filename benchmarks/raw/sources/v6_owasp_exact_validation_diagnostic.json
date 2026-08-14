@@ -20,6 +20,8 @@
   "results": {
     "business_logic": {
       "errors": [
+        "semantic:('invariant', 'duplicate email', 'uniqueness')",
+        "semantic:('password reset', 'ambiguity', 'privilege')",
         "project_overlap"
       ],
       "firewall": {
@@ -30,18 +32,13 @@
       "passed": false,
       "semantic_group_hits": [
         [
-          "business logic",
           "workflow"
         ],
-        [
-          "invariant"
-        ],
-        [
-          "privilege"
-        ]
+        [],
+        []
       ],
-      "source_project": "go-gitea/gitea",
-      "source_root": "GHSA-777r-4v59-6486",
+      "source_project": "nautobot/nautobot",
+      "source_root": "GHSA-q4c5-2j6f-r476",
       "wstg_ids": [
         "WSTG-BUSL-01",
         "WSTG-BUSL-06"
@@ -67,12 +64,11 @@
           "untrusted"
         ],
         [
-          "credential",
           "sensitive"
         ]
       ],
-      "source_project": "Jovancoding/Network-AI",
-      "source_root": "GHSA-j3vx-cx2r-pvg8",
+      "source_project": "parse-community/parse-server",
+      "source_root": "CVE-2026-34373",
       "wstg_ids": [
         "WSTG-CLNT-07"
       ]
@@ -108,16 +104,12 @@
     },
     "graphql_data_exposure": {
       "errors": [
-        "root_overlap",
-        "project_overlap",
-        "url_overlap"
+        "project_overlap"
       ],
       "firewall": {
         "project_overlap": true,
-        "root_overlap": true,
-        "url_overlap": [
-          "https://github.com/keystonejs/keystone/security/advisories/GHSA-hg9m-67mm-7pg3"
-        ]
+        "root_overlap": false,
+        "url_overlap": []
       },
       "passed": false,
       "semantic_group_hits": [
@@ -128,12 +120,11 @@
           "data exposure"
         ],
         [
-          "field",
           "property"
         ]
       ],
-      "source_project": "keystonejs/keystone",
-      "source_root": "GHSA-hg9m-67mm-7pg3",
+      "source_project": "vendurehq/vendure",
+      "source_root": "GHSA-xf65-r35x-wmmv",
       "wstg_ids": [
         "WSTG-APIT-03"
       ]
@@ -171,12 +162,15 @@
     },
     "nosql_injection": {
       "errors": [
-        "root_overlap"
+        "project_overlap",
+        "url_overlap"
       ],
       "firewall": {
-        "project_overlap": false,
-        "root_overlap": true,
-        "url_overlap": []
+        "project_overlap": true,
+        "root_overlap": false,
+        "url_overlap": [
+          "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat"
+        ]
       },
       "passed": false,
       "semantic_group_hits": [
@@ -190,11 +184,12 @@
         ],
         [
           "inject",
-          "semantics"
+          "semantics",
+          "unintended"
         ]
       ],
-      "source_project": "budibase/budibase",
-      "source_root": "GHSA-qw6m-8fw2-2v64",
+      "source_project": "RocketChat/Rocket.Chat",
+      "source_root": "CVE-2026-30833",
       "wstg_ids": [
         "WSTG-INPV-05.6"
       ]
