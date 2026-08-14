@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_grounding",
   "scoring_executed": false,
@@ -71,7 +71,7 @@
       "wstg_ids": ["WSTG-BUSL-05", "WSTG-BUSL-06", "WSTG-BUSL-07"],
       "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
       "owasp_companion": "https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/",
-      "writeups": ["https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"],
+      "writeups": ["https://github.com/schule111/Schule/security/advisories/GHSA-h3f2-mc85-67gc"],
       "semantic_boundary": "Require a sensitive business operation whose anti-automation, frequency, sequencing, or usage-limit control is absent or bypassable."
     },
     "sensitive_caching": {
