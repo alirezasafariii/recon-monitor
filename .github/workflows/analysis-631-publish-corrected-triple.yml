@@ -1,0 +1,106 @@
+name: Analysis 6.31 Publish Corrected Triple Signals
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-publish-corrected-triple.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download successful capture artifacts from source run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: v6-*-captures
+          path: captured
+          merge-multiple: false
+          run-id: 31816328033
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Correct only canonical positive signal metadata
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          canonical = {
+              'command_injection': 'process_execution_reached',
+              'software_supply_chain_failure': 'known_vulnerable_component_observed',
+              'source_map_exposure': 'direct_reachability',
+          }
+          changed = []
+          for path in sorted(Path('captured').rglob('*.json')):
+              doc = json.loads(path.read_text(encoding='utf-8'))
+              family = str(doc.get('family') or '')
+              kind = str(doc.get('case_kind') or '')
+              if family not in canonical:
+                  raise SystemExit(f'unexpected family in source artifacts: {family}')
+              before_raw = json.dumps(doc.get('raw'), sort_keys=True, separators=(',', ':'))
+              before_snapshot = json.dumps(doc.get('source_snapshot'), sort_keys=True, separators=(',', ':'))
+              if kind == 'positive':
+                  doc['adjudication']['expected_condition_signals'] = [canonical[family]]
+                  changed.append(f'{family}:{kind}')
+              elif doc['adjudication'].get('expected_condition_signals'):
+                  raise SystemExit(f'non-positive capture unexpectedly carries signals: {family}/{kind}')
+              if before_raw != json.dumps(doc.get('raw'), sort_keys=True, separators=(',', ':')):
+                  raise SystemExit(f'raw observation changed while correcting signal metadata: {family}/{kind}')
+              if before_snapshot != json.dumps(doc.get('source_snapshot'), sort_keys=True, separators=(',', ':')):
+                  raise SystemExit(f'source snapshot changed while correcting signal metadata: {family}/{kind}')
+              path.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          if sorted(changed) != sorted(f'{family}:positive' for family in canonical):
+              raise SystemExit(f'expected exactly three positive corrections, got {changed}')
+          print(json.dumps({'corrected_positive_signal_metadata': sorted(changed)}, indent=2))
+          PY
+
+      - name: Publish and verify corrected unscored evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py --allow-missing
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+
+      - name: Commit verified evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/software-supply-chain-failure--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/source-map-exposure--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/command-injection--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'Corrected triple evidence already present.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Publish verified Analysis 6.31 supply source-map command evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
