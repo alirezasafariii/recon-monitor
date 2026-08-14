@@ -10,8 +10,8 @@ from family_reasoners import FAMILY_REASONER_PROFILES
 from raw_recon_corpus import ROOT
 from raw_recon_v4_materialize import EXPECTED_CONDITION, V4_VARIANTS, _fixture_target, _source_date, _template
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.13.6.31"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.31.1"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 CORPUS = ROOT / "benchmarks/raw/analysis_raw_v6.jsonl"
 REPORT = ROOT / "benchmarks/raw/sources/v6_materialization_report.json"
@@ -45,9 +45,12 @@ def _groups(size: int) -> list[tuple[str, ...]]:
 
 
 def _noise(raw: Mapping[str, Any], family: str) -> dict[str, Any]:
+    del family  # family identity must never influence raw fixture identifiers
     out = copy.deepcopy(dict(raw))
     details = dict(out.get("details") or {}) if isinstance(out.get("details"), Mapping) else {}
-    details["fixture_transport"] = {"capture": "normalized", "trace_id": f"v6-{family[:8]}", "retry_count": 0}
+    seed = json.dumps(out, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    trace_id = "v6-" + hashlib.sha256(seed).hexdigest()[:12]
+    details["fixture_transport"] = {"capture": "normalized", "trace_id": trace_id, "retry_count": 0}
     details["unrelated_observation"] = {"server_hint": "fixture", "timing_bucket": "normal"}
     out["details"] = details
     out["category"] = str(out.get("category") or "") + " normalized-v6"
@@ -66,6 +69,7 @@ def _provenance(row: Mapping[str, Any]) -> dict[str, Any]:
         "advisory_source_type": str(row.get("advisory_source_type") or ""),
         "primary_source": bool(row.get("repository_advisory_url")) or "/security/advisories/" in canonical,
         "literal_capture": False,
+        "capture_mode": "normalized_v4_template_fixture",
     }
 
 
@@ -164,8 +168,11 @@ def materialize() -> dict[str, Any]:
     report = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
-        "evaluation_kind": "fresh_blind_v6_materialized_unscored",
+        "evaluation_kind": "fresh_source_normalized_fixture_unscored",
         "scoring_executed": False,
+        "fresh_raw_claim": False,
+        "raw_capture_mode": "normalized_v4_template_fixture",
+        "literal_single_capture_count": 0,
         "single_case_count": len(singles),
         "pair_case_count": len(pairs),
         "triad_case_count": len(triads),
