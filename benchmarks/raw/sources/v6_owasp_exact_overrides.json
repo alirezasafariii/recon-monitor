@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
-  "rule_version": "2026.08.14.6.31",
+  "version": "1.6.0",
+  "rule_version": "2026.08.14.6.31.2",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
   "detector_output_used": false,
@@ -28,42 +28,34 @@
     ],
     "cors_misconfiguration": [
       {
-        "source_root": "CVE-2025-55462",
-        "source_project": "eramba/eramba",
+        "source_root": "HARMONIA-ISSUE-710",
+        "source_project": "forkwright/harmonia",
         "family": "cors_misconfiguration",
-        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-55462",
-        "source_kind": "vendor_product_cve_record",
-        "advisory_source_type": "cve_vendor_record",
-        "published_at": "2025-09-12",
-        "summary": "Eramba reflected attacker-controlled Origin values while credentialed CORS was enabled, allowing untrusted origins to make authenticated cross-origin requests.",
-        "description": "The vulnerability record describes an improper CORS policy in Eramba where the request Origin is reflected in Access-Control-Allow-Origin while Access-Control-Allow-Credentials is true. A malicious origin can therefore make credentialed cross-origin API requests and read sensitive authenticated data, including user-session information.",
-        "references": [
-          "https://discussions.eramba.org/t/release-3-28-0/7860",
-          "http://eramba.com"
-        ],
+        "canonical_advisory_url": "https://github.com/forkwright/harmonia/issues/710",
+        "source_kind": "maintainer_security_issue",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2026-08-12",
+        "summary": "Harmonia applied permissive CORS to the entire router, including live authentication endpoints, allowing arbitrary origins to issue cross-origin auth requests and read responses.",
+        "description": "The project-owner security issue documents CorsLayer::permissive() over the router carrying /api/auth/login and /api/auth/refresh. Any origin, method and header are allowed. The issue explains that an untrusted origin can make cross-origin requests to the authentication surface and read returned bearer-token data, while cookie-backed credential mode would create a cross-site credential boundary risk. The proposed correction is an explicit trusted-origin allowlist or scoping CORS away from authentication routes.",
         "wstg_ids": ["WSTG-CLNT-07"],
-        "semantic_facts": ["CORS", "cross-origin", "Origin", "untrusted origin", "credential", "authenticated", "sensitive data"],
-        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG-CLNT-07 unsafe-origin and credentialed cross-origin semantics"
+        "semantic_facts": ["CORS", "cross-origin", "Origin", "untrusted origin", "authentication", "credential", "bearer token", "sensitive data"],
+        "selection_basis": "fresh project-owner security issue selected before scoring using WSTG-CLNT-07 unsafe-origin and authentication-response exposure semantics"
       }
     ],
     "graphql_data_exposure": [
       {
-        "source_root": "CVE-2025-9572",
-        "source_project": "theforeman/foreman",
+        "source_root": "EYESPIE-ISSUE-122",
+        "source_project": "ryjen/eyespie",
         "family": "graphql_data_exposure",
-        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-9572",
-        "source_kind": "vendor_product_cve_record",
-        "advisory_source_type": "redhat_foreman_cve_record",
-        "published_at": "2025-08-27",
-        "summary": "Foreman's GraphQL API exposed restricted metadata beyond the caller's assigned permissions because GraphQL authorization filtering was not applied correctly.",
-        "description": "The vulnerability record describes a Foreman GraphQL authorization flaw where low-privilege users can access metadata beyond their assigned permissions. The equivalent REST path enforces access controls, while the GraphQL endpoint fails to apply the proper filtering, causing restricted data exposure across the caller's authorization scope.",
-        "references": [
-          "https://access.redhat.com/security/cve/CVE-2025-9572",
-          "https://theforeman.org/security.html#2025-9572"
-        ],
+        "canonical_advisory_url": "https://github.com/ryjen/eyespie/issues/122",
+        "source_kind": "maintainer_privacy_security_issue",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2026-08-13",
+        "summary": "EyeSpie documented overbroad Thing authority data exposure where authenticated users could select full Thing rows while the GraphQL client needed only a narrow gameplay projection.",
+        "description": "The project-owner issue states that current RLS lets all authenticated users SELECT all Thing rows containing precise location, proof/clue data, embeddings and long-lived image capabilities. It explicitly notes that the GameNode GraphQL query needs only a narrower field projection and warns that GraphQL field selection is not authorization. The required repair narrows full authority access and replaces broad row-returning discovery/matching paths with purpose-specific projections so restricted properties do not cross user scope.",
         "wstg_ids": ["WSTG-APIT-03"],
-        "semantic_facts": ["GraphQL", "restricted metadata", "data exposure", "scope", "filter", "query"],
-        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG GraphQL restricted-data and authorization-scope exposure semantics"
+        "semantic_facts": ["GraphQL", "query", "field", "property", "restricted data", "sensitive data", "data exposure", "user scope", "filter", "projection"],
+        "selection_basis": "fresh project-owner privacy/security issue selected before scoring using WSTG GraphQL restricted-property and authorization-scope exposure semantics"
       }
     ],
     "improper_inventory_management": [
@@ -84,22 +76,18 @@
     ],
     "nosql_injection": [
       {
-        "source_root": "CVE-2025-60357",
-        "source_project": "ahnlab/epp-management",
+        "source_root": "ACTOR-TS-ISSUE-738",
+        "source_project": "pathosDev/actor-ts",
         "family": "nosql_injection",
-        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-60357",
-        "source_kind": "vendor_product_cve_record",
-        "advisory_source_type": "cve_vendor_record",
-        "published_at": "2025-10-10",
-        "summary": "AhnLab EPP Management contained NoSQL injection in the eventlog agent-event list interface, allowing crafted input to alter backend database query behavior.",
-        "description": "The vulnerability record and supporting disclosure describe insufficient validation and sanitization in the eventlog/agentEvent/list path that permits NoSQL injection. Crafted input can reach the backend MongoDB query interface and alter intended query semantics.",
-        "references": [
-          "https://ahnlab.com",
-          "https://vuldb.com/cve/CVE-2025-60357"
-        ],
+        "canonical_advisory_url": "https://github.com/pathosDev/actor-ts/issues/738",
+        "source_kind": "maintainer_security_issue",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2026-08-02",
+        "summary": "actor-ts documented caller-controlled tag values entering a MongoDB query document so an object can become a Mongo operator expression and alter the intended filter semantics.",
+        "description": "The project-owner security issue traces caller-supplied TagFilter values into MongoQuery and then directly into collection.find without a read-side runtime type check. An object such as a $ne expression becomes MongoDB query syntax instead of a literal string and broadens the server-side pre-filter. The issue carefully limits the verified impact to request-driven full collection scan and memory/CPU/IO pressure rather than claiming reliable cross-tenant disclosure, while still demonstrating direct structured-input injection into MongoDB query semantics.",
         "wstg_ids": ["WSTG-INPV-05.6"],
-        "semantic_facts": ["NoSQL injection", "MongoDB", "query", "unvalidated", "injection", "alter query semantics"],
-        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG NoSQL injection and document-query semantics"
+        "semantic_facts": ["NoSQL injection", "MongoDB", "query", "filter", "operator", "unvalidated", "injection", "alter query semantics", "unintended query"],
+        "selection_basis": "fresh project-owner security issue selected before scoring using WSTG NoSQL structured-query injection semantics"
       }
     ],
     "postmessage_trust": [
