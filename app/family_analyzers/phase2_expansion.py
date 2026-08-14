@@ -15,7 +15,7 @@ from owasp_phase2_catalog import PHASE2_FAMILY_ORDER, PHASE2_FAMILY_SPECS
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .remaining_common import add_unique, finalize_result, observations, scalar, truth
 
-PHASE2_ANALYZER_VERSION = "1.0.0"
+PHASE2_ANALYZER_VERSION = "1.1.0"
 
 
 def _truth(details: Mapping[str, Any], key: str) -> bool:
@@ -30,6 +30,21 @@ def _controlled_benign(item: Mapping[str, Any]) -> bool:
         "benign_test_marker", "safe_test_marker", "non_destructive_test", "harmless_test",
     ))) is True
     return bool(controlled and benign)
+
+
+def _bridge_provenance(details: Mapping[str, Any], evidence_type: str) -> list[str]:
+    """Return advisory bridge sources without changing evidence independence."""
+
+    bridge = details.get("_family_signal_bridge")
+    if not isinstance(bridge, Mapping):
+        return []
+    sources = bridge.get("sources")
+    if not isinstance(sources, Mapping):
+        return []
+    raw = sources.get(evidence_type)
+    if not isinstance(raw, (list, tuple, set)):
+        return []
+    return [str(item) for item in raw if str(item)][:12]
 
 
 def _semantic_blob(
@@ -67,17 +82,29 @@ def analyze_phase2_family(
     support: list[dict[str, Any]] = []
     contradict: list[dict[str, Any]] = []
     manual = spec["validation"] == "manual_only"
+    bridged_context_types: list[str] = []
 
     explicit_context = False
     for evidence_type in spec["context"]:
         if _truth(details, evidence_type):
             explicit_context = True
+            provenance = _bridge_provenance(details, evidence_type)
+            if provenance:
+                bridged_context_types.append(evidence_type)
             add_unique(support, {
                 "type": evidence_type,
-                "source": "stored_surface_context",
+                "source": "recon_context_bridge" if provenance else "stored_surface_context",
+                # Keep one context root even when several Recon tables contributed.
+                # Bridge provenance is audit metadata, not an independent evidence root.
                 "source_group": "stored_surface_context",
-                "weight": 18,
-                "text": f"Stored target context identifies {evidence_type.replace('_', ' ')}.",
+                "weight": 14 if provenance else 18,
+                "text": (
+                    f"Stored Recon context identifies {evidence_type.replace('_', ' ')} "
+                    f"from {', '.join(provenance[:4])}."
+                    if provenance
+                    else f"Stored target context identifies {evidence_type.replace('_', ' ')}."
+                ),
+                "provenance": provenance,
             })
 
     blob = _semantic_blob(endpoint, method, body_fields, query_fields, path_fields, semantic_text)
@@ -216,6 +243,7 @@ def analyze_phase2_family(
         base=24,
         extra_meta={
             "runtime_observation_count": len(runtime),
+            "bridge_context_signals": sorted(set(bridged_context_types)),
             "payload_generated": False,
             "active_request_performed": False,
             "state_changing_action_performed": False,
