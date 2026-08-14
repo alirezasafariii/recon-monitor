@@ -1,0 +1,81 @@
+name: Analysis 6.31 Historical Firewall Probe
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-firewall-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe historical exposure only
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from raw_recon_v6_source_firewall import canonical_url, exposure_index
+
+          prior = exposure_index()
+          candidates = [
+              {
+                  'name': 'dynatrace_mcp_approval_gate',
+                  'root': 'GHSA-pc2w-4mq8-32qw',
+                  'project': 'dynatrace-oss/dynatrace-mcp',
+                  'urls': [
+                      'https://github.com/advisories/GHSA-pc2w-4mq8-32qw',
+                      'https://github.com/dynatrace-oss/dynatrace-mcp/security/advisories/GHSA-pc2w-4mq8-32qw',
+                  ],
+              },
+              {
+                  'name': 'clerk_combined_authorization_predicate',
+                  'root': 'GHSA-w24r-5266-9c3c',
+                  'project': 'clerk/javascript',
+                  'urls': ['https://github.com/advisories/GHSA-w24r-5266-9c3c'],
+              },
+              {
+                  'name': 'xmldom_workflow_flag_injection',
+                  'root': 'GHSA-wh4c-j3r5-mjhp',
+                  'project': 'xmldom/xmldom',
+                  'urls': ['https://github.com/advisories/GHSA-wh4c-j3r5-mjhp'],
+              },
+              {
+                  'name': 'meshtastic_ci_approval_gate',
+                  'root': 'GHSA-mjx5-98jq-q736',
+                  'project': 'meshtastic/firmware',
+                  'urls': ['https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736'],
+              },
+          ]
+          results = []
+          for c in candidates:
+              urls = {canonical_url(u) for u in c['urls'] if canonical_url(u)}
+              row = {
+                  'name': c['name'],
+                  'root_overlap': c['root'] in prior['roots'],
+                  'project_overlap': c['project'] in prior['projects'],
+                  'url_overlap': sorted(urls & prior['urls']),
+              }
+              row['fresh_against_historical_exposure'] = not (
+                  row['root_overlap'] or row['project_overlap'] or row['url_overlap']
+              )
+              results.append(row)
+          print(json.dumps({
+              'scoring_executed': False,
+              'detector_output_used': False,
+              'prior_counts': {k: len(v) for k, v in prior.items()},
+              'results': results,
+          }, indent=2, sort_keys=True))
+          PY
