@@ -12,8 +12,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Mapping
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.12"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.13"
 EXPECTED_PAIRS = 66
 TEST_PATH = re.compile(r"(^|/)(tests?|specs?|__tests__)(/|$)|[^/]*(test|spec)[._-]", re.I)
 TEST_PATTERNS = (
@@ -26,6 +26,9 @@ TEST_PATTERNS = (
 NEAR = {"valid","normal","benign","safe","allowed","legitimate","unaffected","plain","default","ordinary","without"}
 SECURE = {"reject","rejected","deny","denied","block","blocked","sanitize","sanitized","escape","escaped","invalid","forbid","forbidden","prevent","protected"}
 POSITIVE = {"exploit","vulnerable","vulnerability","bypass","injection","traversal","xss","ssrf","race","malicious","attack","exposure","leak"}
+SECURE_STEMS = ("reject", "den", "block", "sanit", "escap", "invalid", "forbid", "prevent", "protect", "restrict", "disallow")
+NEAR_STEMS = ("valid", "normal", "benign", "safe", "allow", "legitim", "unaffect", "ordinary")
+POSITIVE_STEMS = ("exploit", "vulnerab", "bypass", "inject", "travers", "malicious", "attack", "expos", "leak")
 
 
 def text(v: Any) -> str:
@@ -55,9 +58,9 @@ def identifiers(src: str) -> list[str]:
 def classify(name: str) -> str:
     normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name).lower()
     tokens = {x for x in re.split(r"[^a-z0-9]+", normalized) if x}
-    if tokens & SECURE: return "secure_control_candidate"
-    if tokens & NEAR: return "near_miss_candidate"
-    if tokens & POSITIVE: return "positive_regression_candidate"
+    if tokens & SECURE or any(token.startswith(SECURE_STEMS) for token in tokens): return "secure_control_candidate"
+    if tokens & NEAR or any(token.startswith(NEAR_STEMS) for token in tokens): return "near_miss_candidate"
+    if tokens & POSITIVE or any(token.startswith(POSITIVE_STEMS) for token in tokens): return "positive_regression_candidate"
     return "unclassified"
 
 
@@ -85,7 +88,8 @@ def mine_all(pairs: list[dict[str,Any]], token: str) -> dict[str,Any]:
     for p in sorted(pairs, key=lambda x:(text(x.get("source_root")), text(x.get("source_project")))):
         try: rows.append(mine_pair(p, token))
         except Exception as exc: failures.append({"source_root":text(p.get("source_root")),"error":type(exc).__name__})
-    totals = Counter(k for r in rows for k,n in r["classification_counts"].items() for _ in range(int(n)))
+    totals = Counter()
+    for row in rows: totals.update(row["classification_counts"])
     gates = {"all_pairs_processed":len(rows)==66 and not failures,"no_source_contents_persisted":all(not r["source_contents_persisted"] for r in rows),"no_code_executed":all(not r["third_party_code_executed"] for r in rows),"no_labels":all(not r["human_verified"] for r in rows),"no_scoring":all(not r["scoring_executed"] for r in rows),"no_target_contact":all(not r["target_contact_performed"] for r in rows)}
     return {"version":VERSION,"rule_version":RULE_VERSION,"evaluation_kind":"real_world_corpus_v1_upstream_test_control_mining","passed":all(gates.values()),"gates":gates,"processed_pair_count":len(rows),"failure_count":len(failures),"failures":failures,"sources_with_changed_test_files":sum(r["test_file_count"]>0 for r in rows),"sources_with_near_miss_test_candidates":sum(r["near_miss_candidate_count"]>0 for r in rows),"sources_with_secure_control_test_candidates":sum(r["secure_control_candidate_count"]>0 for r in rows),"test_file_count":sum(r["test_file_count"] for r in rows),"test_identifier_count":sum(r["test_identifier_count"] for r in rows),"classification_counts":dict(sorted(totals.items())),"human_verified_record_count":0,"source_contents_persisted":False,"third_party_code_executed":False,"scoring_executed":False,"target_contact_performed":False,"sources":rows}
 
