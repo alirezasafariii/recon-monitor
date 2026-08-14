@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "36_literal_families_complete_144_of_144_ready_for_materialization_and_freeze",
+  "checkpoint_status": "pre_first_blind_ready_waiting_explicit_approval",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -233,7 +233,7 @@
   },
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
   "first_blind_consumed": false,
-  "first_blind_evaluator_frozen": false,
+  "first_blind_evaluator_frozen": true,
   "hardening": {
     "centralized_dynamic_freeze_surface": true,
     "detector_admission_ranking_output_forbidden_during_adjudication": true,
@@ -294,13 +294,13 @@
       "websocket_authorization"
     ],
     "complete_family_count": 36,
-    "corpus_freeze_status": "not_run",
-    "corpus_validation_status": "not_run_on_complete_literal_corpus",
+    "corpus_freeze_status": "sealed_evidence_backed_literal_fresh_unscored_corpus",
+    "corpus_validation_status": "passed_276_of_276_zero_label_leakage",
     "cross_variant_mutation_forbidden": true,
-    "evaluator_freeze_status": "not_run",
+    "evaluator_freeze_status": "frozen_against_exact_corpus_freeze",
     "evidence_missing_count": 0,
     "evidence_present_count": 144,
-    "materialization_status": "ready_after_complete_evidence_ingest",
+    "materialization_status": "materialized_276_literal_fresh_cases",
     "remaining_family_count": 0,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
@@ -312,7 +312,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Run strict evidence-only ingest and verification, materialize the 276-case corpus, validate it, freeze corpus/evidence, freeze the evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "STOP. Await explicit approval before the single-consumption First Blind score. Do not merge or finalize before explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

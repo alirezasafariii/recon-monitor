@@ -1,0 +1,44 @@
+{
+  "corpus_freeze_sha256": "3193934edfef046e8dfb867ced2f8bde3ceed77fe8fbea073e7f17f8cc4567ca",
+  "evaluator_sha256": "7db75b63d135f59ee2db524f61d0e8856929016198e13ba11f19373b30995489",
+  "first_blind_consumed": false,
+  "first_blind_evaluator_frozen": true,
+  "mutation_policy": "evaluator code, canonical frozen corpus inputs, protocol gates, and the protected First Blind consumption wrapper are immutable before the single score",
+  "pre_registered_gates": {
+    "pair": {
+      "dual_positive_both_admitted_rate_min": 0.9,
+      "dual_secure_rejection_rate_min": 0.98,
+      "exact_admission_set_accuracy_min": 0.95,
+      "expected_condition_recall_min": 0.9,
+      "expected_family_top3_coverage_min": 0.95,
+      "unexpected_promotion_rate_max": 0.03
+    },
+    "single": {
+      "abstention_accuracy_min": 0.95,
+      "admission_precision_min": 0.97,
+      "admission_recall_min": 0.9,
+      "condition_extraction_precision_min": 0.95,
+      "condition_extraction_recall_min": 0.9,
+      "end_to_end_accuracy_min": 0.9,
+      "false_promotion_rate_max": 0.03,
+      "prior_source_root_overlap_rate_max": 0.0,
+      "raw_label_leakage_rate_max": 0.0,
+      "routing_top1_accuracy_min": 0.9,
+      "routing_top3_accuracy_min": 0.97,
+      "wrong_family_promotion_rate_max": 0.02
+    },
+    "triad": {
+      "exact_admission_set_accuracy_min": 0.9,
+      "expected_condition_recall_min": 0.88,
+      "expected_family_top3_coverage_min": 0.85,
+      "expected_family_top5_coverage_min": 0.97,
+      "triple_positive_all_admitted_rate_min": 0.8,
+      "triple_secure_rejection_rate_min": 0.98,
+      "unexpected_promotion_rate_max": 0.04
+    }
+  },
+  "protocol_sha256": "fed800eba46f4fadc2556d93c1dfc650a230260c5a628bf6ce1289262235df35",
+  "rule_version": "2026.08.14.6.31.15",
+  "scoring_executed": false,
+  "version": "1.1.0"
+}
