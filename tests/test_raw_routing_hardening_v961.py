@@ -86,11 +86,17 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
 
             result = run_analysis(paths, db, "RUN-HARDEN", "example.test")
             routing = result["bug_candidates"]["raw_surface_routing"]
+            budget = routing["analyzer_budget"]
 
             self.assertEqual(result["alerts"], 0)
             self.assertEqual(result["analysis_inputs"], "raw_only")
             self.assertGreater(routing["hypotheses"], 0)
             self.assertEqual(routing["promoted"], 0)
+            self.assertGreater(budget["attempted"], 0)
+            self.assertGreater(budget["executed"], 0)
+            self.assertEqual(budget["skipped"], 0)
+            self.assertFalse(budget["exhausted"])
+            self.assertGreaterEqual(budget["limit"], 100_000)
             self.assertEqual(
                 db.one(
                     "SELECT COUNT(*) count FROM bug_candidates WHERE analysis_id=?",
@@ -161,6 +167,45 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
         finally:
             family_router.RAW_ANALYZER_INVOCATION_LIMIT = original_limit
             family_router.clear_raw_analysis_budget(analysis_id)
+
+    def test_budget_exhaustion_is_visible_in_analysis_summary(self):
+        original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
+        temp, paths, db, now = self.project()
+        analysis_id = ""
+        try:
+            db.execute(
+                "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.test",
+                    "https://example.test/api/profile?id=demo",
+                    "absolute_url",
+                    "api",
+                    80,
+                    json_dumps([{"category": "api", "confidence": 80}]),
+                    json_dumps(["Budget visibility regression surface"]),
+                    json_dumps(["budget-summary-test"]),
+                    now,
+                    now,
+                    "RUN-HARDEN",
+                ),
+            )
+            family_router.RAW_ANALYZER_INVOCATION_LIMIT = 5
+            result = run_analysis(paths, db, "RUN-HARDEN", "example.test")
+            analysis_id = str(result["analysis_id"])
+            budget = result["bug_candidates"]["raw_surface_routing"]["analyzer_budget"]
+
+            self.assertEqual(budget["limit"], 5)
+            self.assertEqual(budget["executed"], 5)
+            self.assertGreater(budget["attempted"], budget["executed"])
+            self.assertGreater(budget["skipped"], 0)
+            self.assertTrue(budget["exhausted"])
+        finally:
+            family_router.RAW_ANALYZER_INVOCATION_LIMIT = original_limit
+            if analysis_id:
+                family_router.clear_raw_analysis_budget(analysis_id)
+            db.close()
+            temp.cleanup()
 
     def test_router_status_exposes_scale_guard_without_generic_fallback(self):
         status = family_router.router_status()
