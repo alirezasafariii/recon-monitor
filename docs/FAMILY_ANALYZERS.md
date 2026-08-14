@@ -470,11 +470,12 @@ Business Logic and Race Condition share only the offline `workflow_intelligence`
 
 Static GraphQL and WebSocket Candidate Engine bypasses are migrated to hypothesis-first handling. GraphQL/WebSocket/cache protocol findings remain correlation surfaces and no longer bypass Family Reasoning via protocol-severity direct insertion.
 
-## Family Analyzer completion status
+## Core Family Analyzer completion status
 
-Production-routed analyzers: **21 / 21**.
+Production-routed core analyzers: **21 / 21**.
 
-Pending dedicated analyzers: **0**.
+Across the phase-one and phase-two OWASP expansions, the canonical runtime
+router resolves **74 / 74** families. Pending dedicated analyzers: **0**.
 
 The router has no generic family-analyzer fallback. Every canonical family in `FAMILY_ORDER` resolves to an independently versioned analyzer. Knowledge/write-up similarity remains non-evidentiary for every family.
 
@@ -486,12 +487,12 @@ Family analyzers may use either the shared non-evidentiary corpus in `vulnerabil
 
 `app/bola_intelligence.py` remains the BOLA compatibility import surface.
 
-The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated alert-family analyzers run before `record_hypothesis → Family Reasoning admission → promotion`. DOM-XSS, postMessage Trust, Open Redirect, Source-map Exposure and Secret Exposure additionally migrate their static JavaScript/intelligence paths to hypothesis-first handling. SSRF, File Upload / Import, Path Traversal and Information Disclosure migrate their alert/endpoint surfaces through dedicated analyzers before admission, so structural remote-fetch, upload/import, path/file-operation or sensitive-marker semantics remain hidden until independent stored target behavior exists. Non-migrated families continue through the legacy implementation until their dedicated migration is complete.
+The historical Candidate Engine implementation remains in `app/bug_candidates_core.py`; public `app/bug_candidates.py` is the additive integration layer. Dedicated analyzers run before `record_hypothesis → Family Reasoning admission → promotion` for the historical core and both OWASP expansion phases. Raw endpoint, fingerprint, validation, finding and CNAME observations use the same admission path, so structural or discovery-only semantics remain hidden until independent stored target behavior exists.
 
 
 ## Router status
 
-All **21 / 21** canonical families are production-routed through dedicated analyzers. Pending: **0**. Generic fallback: **disabled**.
+All **74 / 74** canonical families are production-routed through dedicated analyzers. Pending: **0**. Generic fallback: **disabled**.
 
 ## Migration order
 

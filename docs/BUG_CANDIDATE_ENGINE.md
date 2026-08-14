@@ -1,8 +1,8 @@
-# Bug Candidate Engine 4.3
+# Bug Candidate Engine 6.0
 
 Bug Candidate Engine converts normalized recon and analysis observations into evidence-linked probable vulnerability families. It does not confirm vulnerabilities and does not perform exploitation or active validation.
 
-Version 4.3 includes the original 4.1 candidate mapping, Candidate Reliability Engine 4.2, and Semantic Candidate Intelligence 4.3.
+Version 6.0 preserves the original candidate mapping, reliability and semantic layers, then adds alert-independent raw-surface routing into the canonical 74-family analyzer catalog. The route is bounded and offline-only; it records hidden hypotheses first and cannot bypass Family Reasoning admission.
 
 ## Inputs
 
@@ -11,6 +11,7 @@ Version 4.3 includes the original 4.1 candidate mapping, Candidate Reliability E
 - authentication-boundary observations;
 - redacted response-shape fingerprints;
 - HTTP/TLS and alert metadata;
+- stored raw endpoints, validations, findings and DNS CNAME context, including baseline runs with no Alerts;
 - semantic JavaScript units and source-to-sink candidates;
 - feature flags;
 - source-map and redacted secret intelligence;
@@ -39,6 +40,8 @@ Each candidate can store:
 Only an analyst can assign `confirmed_by_analyst`. Automatic analysis never confirms a vulnerability.
 
 ## Supported probable vulnerability families
+
+The runtime catalog contains **74 canonical families**: the historical 21-family core, the 10-family OWASP phase-one expansion, and the 43-family phase-two expansion. The complete canonical mapping is documented in `OWASP_EXPANSION_PHASE2.md` and `ARCHITECTURE_SINGLE_SOURCE.md`. Representative groups include:
 
 - BOLA / IDOR and cross-object authorization boundaries;
 - broken function-level authorization;
