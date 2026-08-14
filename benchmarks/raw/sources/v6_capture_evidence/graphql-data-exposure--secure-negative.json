@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue independently records a current GraphQL query that already omits exact location and embedding, demonstrating a real narrower field projection.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ryjen/eyespie/issues/122",
+  "captured_at": "2026-08-14T16:22:22.834787+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "graphql_data_exposure",
+  "raw": {
+    "details": {
+      "embedding_requested": false,
+      "exact_location_requested": false,
+      "narrow_gameplay_projection_observed": true
+    },
+    "endpoint": "GameNode GraphQL query",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "EyeSpie current GameNode client projection"
+  },
+  "raw_sha256": "42ef3c2345ff2762e294f925b60d7cdeb6bd53814c9ace154a74d5fe9742fb5d",
+  "schema_version": "1.0",
+  "source_project": "ryjen/eyespie",
+  "source_root": "EYESPIE-ISSUE-122",
+  "source_snapshot": {
+    "content_sha256": "f8a70d53d8e870d54117226db6f71d9b4de3fc66a860a7401df75c864800f30d",
+    "payload": {
+      "excerpt": "does **not** request exact Thing location or embedding",
+      "issue": 122
+    },
+    "reference": "https://github.com/ryjen/eyespie/issues/122",
+    "retrieved_at": "2026-08-14T16:22:22.834787+00:00"
+  }
+}

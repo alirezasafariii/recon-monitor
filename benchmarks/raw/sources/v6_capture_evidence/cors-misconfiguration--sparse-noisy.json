@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Live authentication-route evidence establishes a sensitive surface but does not itself show the cross-origin response policy.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/forkwright/harmonia/issues/710",
+  "captured_at": "2026-08-14T16:22:22.614122+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "cors_misconfiguration",
+  "raw": {
+    "details": {
+      "cross_origin_response_headers_not_present_in_this_observation": true,
+      "live_auth_routes_recorded": true
+    },
+    "endpoint": "/api/auth/login /api/auth/refresh",
+    "endpoint_schema": {},
+    "method": "POST",
+    "target": "harmonia auth route inventory"
+  },
+  "raw_sha256": "b737de20b6322fa9d83473f33d4ebcfae3633a2374621392a878b6c45d3bde10",
+  "schema_version": "1.0",
+  "source_project": "forkwright/harmonia",
+  "source_root": "HARMONIA-ISSUE-710",
+  "source_snapshot": {
+    "content_sha256": "424c450b49fc6561ed0b7aca4a0aaaaf5e171a0aa9c49e61e57770b23b308ef9",
+    "payload": {
+      "excerpt": "integration tests post to /api/auth/login and /api/auth/refresh",
+      "issue": 710
+    },
+    "reference": "https://github.com/forkwright/harmonia/issues/710",
+    "retrieved_at": "2026-08-14T16:22:22.614122+00:00"
+  }
+}

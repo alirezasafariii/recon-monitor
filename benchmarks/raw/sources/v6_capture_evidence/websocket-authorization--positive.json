@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "channel_authorization_failure"
+    ],
+    "notes": "The upstream security review records an unauthenticated WebSocket channel already capable of issuing hardware control commands.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+  "captured_at": "2026-08-14T16:22:24.225173+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "websocket_authorization",
+  "raw": {
+    "details": {
+      "hardware_commands_available": true,
+      "identity_scope_enforcement_absent": true,
+      "websocket_control_channel_unauthenticated": true
+    },
+    "endpoint": "/ws",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "layout-orchestration realtime control channel"
+  },
+  "raw_sha256": "3e7981a4a33c2ba039c1f28075e0ae1525677efaaf51c15daaf703b176bbf0f4",
+  "schema_version": "1.0",
+  "source_project": "bazauto/layout-orchestration",
+  "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+  "source_snapshot": {
+    "content_sha256": "a55319cb1b8f4778a4f09ebdd5d97dd62406de02a0875173223380487c458c6d",
+    "payload": {
+      "excerpt": "The throttle and point WebSocket control channel is already unauthenticated, and already commands hardware.",
+      "issue": 20
+    },
+    "reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+    "retrieved_at": "2026-08-14T16:22:24.225173+00:00"
+  }
+}

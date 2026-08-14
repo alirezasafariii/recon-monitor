@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The same upstream audit records an implemented framework invariant: credentialed CORS cannot be combined with the permissive wildcard origin, so that combination is rejected rather than exposed.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/forkwright/harmonia/issues/710",
+  "captured_at": "2026-08-14T16:22:22.613953+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "cors_misconfiguration",
+  "raw": {
+    "details": {
+      "credentialed_cross_origin_read_not_permitted_under_that_combination": true,
+      "wildcard_origin_with_credentials_rejected_by_framework": true
+    },
+    "endpoint": "credentialed CORS invariant",
+    "endpoint_schema": {},
+    "method": "OPTIONS",
+    "target": "tower_http credentialed wildcard guard noted by harmonia audit"
+  },
+  "raw_sha256": "405369164dfad4afce71304c7666b3e02d41d581c13bb4a5cc946322ee8b404b",
+  "schema_version": "1.0",
+  "source_project": "forkwright/harmonia",
+  "source_root": "HARMONIA-ISSUE-710",
+  "source_snapshot": {
+    "content_sha256": "ef8fa389c9abd4b389785ae3d207970439e44acf921bca7c93566c8e06bc5cbb",
+    "payload": {
+      "excerpt": "`CorsLayer::permissive()` and `allow_credentials(true)` are\nmutually exclusive in `tower_http` by design — the wildcard origin is rejected with credentials",
+      "issue": 710
+    },
+    "reference": "https://github.com/forkwright/harmonia/issues/710",
+    "retrieved_at": "2026-08-14T16:22:22.613953+00:00"
+  }
+}

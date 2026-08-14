@@ -1,0 +1,52 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "message_schema_unvalidated"
+    ],
+    "notes": "The upstream issue records silent-authentication messages accepted without origin, source-window, or content validation, including interference from an unrelated iframe.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/auth0/auth0.js/issues/508",
+  "captured_at": "2026-08-14T16:22:23.862706+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "postmessage_trust",
+  "raw": {
+    "details": {
+      "message_content_validation_missing": true,
+      "origin_validation_missing": true,
+      "source_iframe_validation_missing": true,
+      "unrelated_iframe_message_reached_handler": true
+    },
+    "endpoint": "renewAuth usePostMessage",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "auth0-js silent authentication message handler"
+  },
+  "raw_sha256": "e6dea6aae49dbf6d1b60dd62ae8a9228d07ee5690b00622b66e6a1f1a01ce92e",
+  "schema_version": "1.0",
+  "source_project": "auth0/auth0.js",
+  "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+  "source_snapshot": {
+    "content_sha256": "4f5edb4962884f01e7016fff2d4f1c493a02f35555fec38c9d5e739d7a49616a",
+    "payload": {
+      "issue": 508,
+      "observed_gaps": [
+        "origin is correct for the message",
+        "no check that the message is from the correct iFrame",
+        "There is no validation of the message content"
+      ],
+      "version": "auth0-js@8.10.0"
+    },
+    "reference": "https://github.com/auth0/auth0.js/issues/508",
+    "retrieved_at": "2026-08-14T16:22:23.862706+00:00"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue explicitly distinguishes permissive development CORS as a legitimate adjacent context; wildcard policy alone is therefore not sufficient.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/forkwright/harmonia/issues/710",
+  "captured_at": "2026-08-14T16:22:22.613491+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "cors_misconfiguration",
+  "raw": {
+    "details": {
+      "permissive_policy_can_be_intended_for_development": true,
+      "sensitive_authenticated_response_not_established_by_this_observation": true
+    },
+    "endpoint": "moving frontend API",
+    "endpoint_schema": {},
+    "method": "OPTIONS",
+    "target": "harmonia development CORS context"
+  },
+  "raw_sha256": "c7c63980756e2dbb8482f617e9b3c50bb61418b586526b17166331f26c506c01",
+  "schema_version": "1.0",
+  "source_project": "forkwright/harmonia",
+  "source_root": "HARMONIA-ISSUE-710",
+  "source_snapshot": {
+    "content_sha256": "a75da87857eca195411bc70ce8f4aed1e96438d17d28f33410ce9ce97c3222f3",
+    "payload": {
+      "excerpt": "`permissive()` is the correct default while a frontend is being developed against a moving API",
+      "issue": 710
+    },
+    "reference": "https://github.com/forkwright/harmonia/issues/710",
+    "retrieved_at": "2026-08-14T16:22:22.613491+00:00"
+  }
+}

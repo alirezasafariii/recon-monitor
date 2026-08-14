@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Generic authentication is a real adjacent control, but it does not establish function-level privilege enforcement.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+  "captured_at": "2026-08-14T16:22:22.379699+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "broken_function_authorization",
+  "raw": {
+    "details": {
+      "generic_authentication_required": true,
+      "privileged_function_policy_observed": false
+    },
+    "endpoint": "Program.cs authorization requirement",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Andy RBAC generic authentication layer"
+  },
+  "raw_sha256": "d981b2dfb0189abd2399a8d1ff047edd2912b949ed68eb85e7672a9adec41dfd",
+  "schema_version": "1.0",
+  "source_project": "rivoli-ai/andy-rbac",
+  "source_root": "ANDY-RBAC-ISSUE-97",
+  "source_snapshot": {
+    "content_sha256": "62b0b03a98d4cb913fab4abe977d9fabb455d0e9ea1f2da5a97a80b3c72159eb",
+    "payload": {
+      "excerpt": "Program.cs:280` adds only a generic authorization requirement.",
+      "issue": 97
+    },
+    "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+    "retrieved_at": "2026-08-14T16:22:22.379699+00:00"
+  }
+}

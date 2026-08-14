@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Current upstream authentication design records and implements the shared request hook covering `/ws`, rejecting unauthenticated upgrade requests before protocol switch.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/bazauto/layout-orchestration/blob/main/docs/auth.md",
+  "captured_at": "2026-08-14T16:22:24.225496+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "current docs/auth.md implementation record",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "websocket_authorization",
+  "raw": {
+    "details": {
+      "session_cookie_required_on_upgrade": true,
+      "shared_on_request_auth_hook_covers_websocket": true,
+      "unauthenticated_upgrade_rejected_before_protocol_switch": true
+    },
+    "endpoint": "/ws upgrade",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "layout-orchestration current authentication edge"
+  },
+  "raw_sha256": "b5986f519f8e4880ad81603f4bf6544f83c2c5773c74d8e02b3288478b1124f3",
+  "schema_version": "1.0",
+  "source_project": "bazauto/layout-orchestration",
+  "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+  "source_snapshot": {
+    "content_sha256": "17674dcb14d710090822a32771415bcb8695808d0e7e7743162ab32459814b5e",
+    "payload": {
+      "excerpt": "shared onRequest hook rejects unauthenticated /ws upgrade",
+      "path": "docs/auth.md"
+    },
+    "reference": "https://github.com/bazauto/layout-orchestration/blob/main/docs/auth.md",
+    "retrieved_at": "2026-08-14T16:22:24.225496+00:00"
+  }
+}

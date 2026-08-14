@@ -1,0 +1,51 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Tracker linkage is source-grounded privacy context without a response payload and is intentionally sparse.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ryjen/eyespie/issues/122",
+  "captured_at": "2026-08-14T16:22:22.835068+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "graphql_data_exposure",
+  "raw": {
+    "details": {
+      "privacy_tracker_links_present": true,
+      "response_payload_not_present": true
+    },
+    "endpoint": "tracker relationships",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "EyeSpie privacy issue linkage"
+  },
+  "raw_sha256": "03cc6a8a72cd03f77a26e48be14d7a6ed43e2e4a69c1927cca401c8dac359629",
+  "schema_version": "1.0",
+  "source_project": "ryjen/eyespie",
+  "source_root": "EYESPIE-ISSUE-122",
+  "source_snapshot": {
+    "content_sha256": "d59e9ae9e489c1b50b2162f2bc102f13da2a66dc3bcff40f7e69c4d803f34bbd",
+    "payload": {
+      "blocks": [
+        18,
+        90
+      ],
+      "issue": 122,
+      "refs": [
+        92,
+        94,
+        126
+      ]
+    },
+    "reference": "https://github.com/ryjen/eyespie/issues/122",
+    "retrieved_at": "2026-08-14T16:22:22.835068+00:00"
+  }
+}

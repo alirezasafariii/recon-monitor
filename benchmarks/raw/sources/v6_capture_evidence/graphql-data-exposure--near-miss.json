@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Long-lived signed image capability is sensitive adjacent exposure, but by itself does not establish excessive GraphQL field projection and is retained as a near-miss.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ryjen/eyespie/issues/122",
+  "captured_at": "2026-08-14T16:22:22.834931+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "graphql_data_exposure",
+  "raw": {
+    "details": {
+      "graphql_field_policy_outcome_not_established_by_this_observation": true,
+      "long_lived_signed_url_persisted": true
+    },
+    "endpoint": "Thing.image_url",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "EyeSpie signed image capability"
+  },
+  "raw_sha256": "4ecf3276884e93e59857bf3340cedc7c03d85c2523a8fc6f55621f3c770075b6",
+  "schema_version": "1.0",
+  "source_project": "ryjen/eyespie",
+  "source_root": "EYESPIE-ISSUE-122",
+  "source_snapshot": {
+    "content_sha256": "d3008e6ce89daf94637bfa6e9994d2e032e3ce57fb5e970166bd39c0dab3c201",
+    "payload": {
+      "excerpt": "creates a **365-day signed URL**",
+      "issue": 122
+    },
+    "reference": "https://github.com/ryjen/eyespie/issues/122",
+    "retrieved_at": "2026-08-14T16:22:22.834931+00:00"
+  }
+}

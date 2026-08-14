@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "authenticated_context"
+    ],
+    "notes": "The upstream source records a wildcard cross-origin policy applied at router scope that includes live authentication endpoints.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/forkwright/harmonia/issues/710",
+  "captured_at": "2026-08-14T16:22:22.613182+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "cors_misconfiguration",
+  "raw": {
+    "details": {
+      "authentication_routes_under_same_policy": true,
+      "cross_origin_auth_response_surface": true,
+      "wildcard_origin_policy": true
+    },
+    "endpoint": "/api/auth/*",
+    "endpoint_schema": {},
+    "method": "OPTIONS",
+    "target": "harmonia router"
+  },
+  "raw_sha256": "1d14d271cd657251e578d6c3ecebf11d2d06c66b3da95ea8268651e0e970ffe5",
+  "schema_version": "1.0",
+  "source_project": "forkwright/harmonia",
+  "source_root": "HARMONIA-ISSUE-710",
+  "source_snapshot": {
+    "content_sha256": "0118afd564acccf589b22e253684157e6922cb1095ca633820b903b3f16c50ae",
+    "payload": {
+      "excerpt": "CorsLayer::permissive()` allows any origin, any method, and any header. authentication surface is included rather than exempted.",
+      "issue": 710
+    },
+    "reference": "https://github.com/forkwright/harmonia/issues/710",
+    "retrieved_at": "2026-08-14T16:22:22.613182+00:00"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The historical content-validation concern is source-grounded but was explicitly uncertain and contains no sensitive action outcome, so it is sparse/noisy.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/auth0/auth0.js/issues/508",
+  "captured_at": "2026-08-14T16:22:23.863331+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "postmessage_trust",
+  "raw": {
+    "details": {
+      "content_validation_concern_recorded": true,
+      "sensitive_action_outcome_not_recorded": true
+    },
+    "endpoint": "authResult callback",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "auth0-js historical message schema concern"
+  },
+  "raw_sha256": "6be8f50466bc887bb71be6096304824ce5fea296eeb793a45412579652d23ba7",
+  "schema_version": "1.0",
+  "source_project": "auth0/auth0.js",
+  "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+  "source_snapshot": {
+    "content_sha256": "60c8602586bd22580f289465f7bdc811809c35770ca6e46d1a1dcec82ca9e6c8",
+    "payload": {
+      "excerpt": "message content validation described as possibly paranoid",
+      "issue": 508
+    },
+    "reference": "https://github.com/auth0/auth0.js/issues/508",
+    "retrieved_at": "2026-08-14T16:22:23.863331+00:00"
+  }
+}

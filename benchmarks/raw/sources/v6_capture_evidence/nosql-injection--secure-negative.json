@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The same verified source records SQLite and Cassandra sibling implementations using parameter/prepared binding, providing independent secure query-construction controls.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/pathosDev/actor-ts/issues/738",
+  "captured_at": "2026-08-14T16:22:23.441245+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "cassandra_prepared_binding": true,
+      "non_string_operator_document_not_interpreted_as_mongo_operator": true,
+      "sqlite_parameter_binding": true
+    },
+    "endpoint": "SqliteQuery/CassandraQuery tag query",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "actor-ts indexed sibling query backends"
+  },
+  "raw_sha256": "b9cf49fef61126f72de7c350bb6c9ccbd8fa3fd599c8b3ca75c0e8845d2688d1",
+  "schema_version": "1.0",
+  "source_project": "pathosDev/actor-ts",
+  "source_root": "ACTOR-TS-ISSUE-738",
+  "source_snapshot": {
+    "content_sha256": "9317f11aa910a4b2e629615f0d760a3d43502c8701bb59cb3b1a29324ceafcdf",
+    "payload": {
+      "excerpts": [
+        "SqliteQuery.ts:81 `stmts.fetchByTag.all(allTags[0]!, fromOffset.timestamp)`",
+        "CassandraQuery.ts:98-103 `client.execute('... WHERE tag = ? AND timestamp >= ?', [tag, fromTimestamp], ...)`"
+      ],
+      "issue": 738
+    },
+    "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+    "retrieved_at": "2026-08-14T16:22:23.441245+00:00"
+  }
+}

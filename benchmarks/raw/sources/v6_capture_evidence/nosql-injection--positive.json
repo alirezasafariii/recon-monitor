@@ -1,0 +1,49 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "nosql_auth_bypass_observed"
+    ],
+    "notes": "The upstream audit and verifier record caller-controlled structured values entering the Mongo query document as operator expressions.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/pathosDev/actor-ts/issues/738",
+  "captured_at": "2026-08-14T16:22:23.440928+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "caller_value_embedded_in_query_document": true,
+      "non_string_value_becomes_operator_expression": true,
+      "server_query_semantics_influenced": true
+    },
+    "endpoint": "currentEventsByTag Mongo filter",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "actor-ts MongoQuery"
+  },
+  "raw_sha256": "eafeec95165c6f3baf889b2dc2cf214627e11ef04d053dac45690f97fd2e0c2c",
+  "schema_version": "1.0",
+  "source_project": "pathosDev/actor-ts",
+  "source_root": "ACTOR-TS-ISSUE-738",
+  "source_snapshot": {
+    "content_sha256": "ae9bd47b2cb74f45971350c71b02708f1d7f701283d435f6f19a0fb4bab1f607",
+    "payload": {
+      "excerpts": [
+        "MongoQuery` embeds the tag value as a filter value",
+        "MongoDB interprets an object in that position as an operator expression"
+      ],
+      "issue": 738
+    },
+    "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+    "retrieved_at": "2026-08-14T16:22:23.440928+00:00"
+  }
+}

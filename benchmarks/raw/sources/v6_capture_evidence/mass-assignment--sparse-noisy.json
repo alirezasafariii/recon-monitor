@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The unallowlisted downstream storage fetch expands impact but is not itself a mass-assignment observation, so it is intentionally sparse/noisy for this family.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+  "captured_at": "2026-08-14T16:22:23.211169+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "mass_assignment",
+  "raw": {
+    "details": {
+      "bucket_allowlist_absent_reported": true,
+      "request_property_acceptance_outcome_not_present": true
+    },
+    "endpoint": "get_file_from_s3",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "Narrative Modeling storage fetch boundary"
+  },
+  "raw_sha256": "a55c5cabb9be5b76a17e63143d403366296c619fa3b99f9bfb479d0f9f0d911f",
+  "schema_version": "1.0",
+  "source_project": "frankbria/narrative-modeling-app",
+  "source_root": "NARRATIVE-MODELING-ISSUE-451",
+  "source_snapshot": {
+    "content_sha256": "e07cd8da72e8dbaf8cb6d3018a4b776bacc625a89349389fb460fed287afcd18",
+    "payload": {
+      "excerpt": "get_file_from_s3 has no bucket allowlist",
+      "issue": 451
+    },
+    "reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+    "retrieved_at": "2026-08-14T16:22:23.211169+00:00"
+  }
+}

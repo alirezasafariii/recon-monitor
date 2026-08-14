@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "15_literal_families_complete_60_of_144_pending_remaining_evidence",
+  "checkpoint_status": "22_literal_families_complete_88_of_144_pending_remaining_evidence",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -20,6 +20,12 @@
       "source": "GHSA-hp2m-55fj-8mw5 / postgres/postgres",
       "status": "passed_4_of_4"
     },
+    "broken_function_authorization": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream audit records authenticated non-admin access to privileged management mutations because only generic authentication was enforced.",
+      "source": "ANDY-RBAC-ISSUE-97 / rivoli-ai/andy-rbac",
+      "status": "passed_4_of_4"
+    },
     "broken_object_authorization": {
       "capture_run_id": null,
       "positive_observation": "The upstream reproduction transcript records an Enterprise A token receiving HTTP 200 and Enterprise B service data when the tenant-b path is substituted.",
@@ -36,6 +42,12 @@
       "capture_run_id": null,
       "positive_observation": "The advisory records crafted unauthenticated SMTP input reaching arbitrary operating-system command execution through SNMP notification processing.",
       "source": "GHSA-jqh7-pchh-v74j / zimbra/zimbra-collaboration",
+      "status": "passed_4_of_4"
+    },
+    "cors_misconfiguration": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream source records a wildcard cross-origin policy applied at router scope that includes live authentication endpoints.",
+      "source": "HARMONIA-ISSUE-710 / forkwright/harmonia",
       "status": "passed_4_of_4"
     },
     "cryptographic_failure": {
@@ -56,16 +68,40 @@
       "source": "GHSA-jj68-cp4v-98qf / aimeos/ai-admin-graphql",
       "status": "passed_4_of_4"
     },
+    "graphql_data_exposure": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream issue records multiple query paths returning full Thing authority state to broadly authenticated callers rather than a field-minimized projection.",
+      "source": "EYESPIE-ISSUE-122 / ryjen/eyespie",
+      "status": "passed_4_of_4"
+    },
     "information_disclosure": {
       "capture_run_id": 31775666846,
       "positive_observation": "vulnerable Etherpad v3.0.0 returned the controlled author token in the tokenTransfer response body",
       "source": "GHSA-vqfp-p66c-xrp9 / ether/etherpad",
       "status": "passed_4_of_4"
     },
+    "mass_assignment": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream finding records a server-authoritative storage property exposed on the writable request model and persisted from client input.",
+      "source": "NARRATIVE-MODELING-ISSUE-451 / frankbria/narrative-modeling-app",
+      "status": "passed_4_of_4"
+    },
+    "nosql_injection": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream audit and verifier record caller-controlled structured values entering the Mongo query document as operator expressions.",
+      "source": "ACTOR-TS-ISSUE-738 / pathosDev/actor-ts",
+      "status": "passed_4_of_4"
+    },
     "path_traversal": {
       "capture_run_id": 31776353749,
       "positive_observation": "vulnerable Joomla extractor wrote a controlled ../ ZIP entry outside the destination root",
       "source": "GHSA-f3gp-9xr4-qmvc / joomla/joomla-cms",
+      "status": "passed_4_of_4"
+    },
+    "postmessage_trust": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream issue records silent-authentication messages accepted without origin, source-window, or content validation, including interference from an unrelated iframe.",
+      "source": "AUTH0-AUTH0JS-ISSUE-508 / auth0/auth0.js",
       "status": "passed_4_of_4"
     },
     "sensitive_business_flow_abuse": {
@@ -103,6 +139,12 @@
       "positive_observation": "exact parent _fetch_page forwarded a controlled metadata URL to requests.get without a destination policy",
       "source": "GHSA-wx9v-ffw3-45wg / vulnerability-lookup/vulnerability-lookup",
       "status": "passed_4_of_4"
+    },
+    "websocket_authorization": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream security review records an unauthenticated WebSocket channel already capable of issuing hardware control commands.",
+      "source": "LAYOUT-ORCHESTRATION-ISSUE-20 / bazauto/layout-orchestration",
+      "status": "passed_4_of_4"
     }
   },
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
@@ -128,33 +170,40 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "60_of_144_evidence_present",
+    "capture_plan_status": "88_of_144_evidence_present",
     "complete_families": [
       "account_enumeration",
+      "broken_function_authorization",
       "broken_object_authorization",
       "business_logic",
       "command_injection",
+      "cors_misconfiguration",
       "cryptographic_failure",
       "exceptional_condition_mishandling",
       "graphql_authorization",
+      "graphql_data_exposure",
       "information_disclosure",
+      "mass_assignment",
+      "nosql_injection",
       "path_traversal",
+      "postmessage_trust",
       "sensitive_business_flow_abuse",
       "sensitive_caching",
       "software_data_integrity_failure",
       "software_supply_chain_failure",
       "source_map_exposure",
-      "ssrf"
+      "ssrf",
+      "websocket_authorization"
     ],
-    "complete_family_count": 15,
+    "complete_family_count": 22,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 84,
-    "evidence_present_count": 60,
+    "evidence_missing_count": 56,
+    "evidence_present_count": 88,
     "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 21,
+    "remaining_family_count": 14,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -165,7 +214,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 21 families / 84 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Continue controlled evidence collection for the remaining 14 families / 56 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

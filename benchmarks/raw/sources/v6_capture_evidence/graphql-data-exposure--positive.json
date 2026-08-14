@@ -1,0 +1,51 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "cross_context"
+    ],
+    "notes": "The upstream issue records multiple query paths returning full Thing authority state to broadly authenticated callers rather than a field-minimized projection.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ryjen/eyespie/issues/122",
+  "captured_at": "2026-08-14T16:22:22.834468+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "graphql_data_exposure",
+  "raw": {
+    "details": {
+      "authenticated_users_can_select_full_rows": true,
+      "match_serializes_full_row": true,
+      "nearby_returns_full_thing": true,
+      "sensitive_authority_fields_cross_client_boundary": true
+    },
+    "endpoint": "GraphQL/RPC Thing projections",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "EyeSpie Thing authority data"
+  },
+  "raw_sha256": "6412daa2c70e79974efb6cd7fcb142fd21a8e076037abc6d79aaf94a6115c66f",
+  "schema_version": "1.0",
+  "source_project": "ryjen/eyespie",
+  "source_root": "EYESPIE-ISSUE-122",
+  "source_snapshot": {
+    "content_sha256": "d59fca0df246261b2a7b4e804a17be7769c5475decd0fbe7bdaf2bbf1d70131d",
+    "payload": {
+      "excerpts": [
+        "current RLS permits **all authenticated users to SELECT all Thing rows**",
+        "`thingsnearby` returns `SETOF Thing`",
+        "`match_things` returns `to_jsonb(t.*)`"
+      ],
+      "issue": 122
+    },
+    "reference": "https://github.com/ryjen/eyespie/issues/122",
+    "retrieved_at": "2026-08-14T16:22:22.834468+00:00"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Current upstream source applies the Administrator authorization policy to create, update, and delete policy operations, providing an implemented privileged-function control.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/rivoli-ai/andy-rbac/blob/main/src/Andy.Rbac.Api/Controllers/PoliciesController.cs",
+  "captured_at": "2026-08-14T16:22:22.379889+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "current PoliciesController.cs",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "broken_function_authorization",
+  "raw": {
+    "details": {
+      "administrator_policy_on_create": true,
+      "administrator_policy_on_delete": true,
+      "administrator_policy_on_update": true
+    },
+    "endpoint": "PoliciesController mutations",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Andy RBAC current policy mutations"
+  },
+  "raw_sha256": "8dcae2358d563192e5a31d0f7bc0f0f380fc24f3d33dce16dada4a2068b6dcb1",
+  "schema_version": "1.0",
+  "source_project": "rivoli-ai/andy-rbac",
+  "source_root": "ANDY-RBAC-ISSUE-97",
+  "source_snapshot": {
+    "content_sha256": "216b825d5b495234e4b62fdc42944c5d0945fec6a07fb583192164a0e9b67957",
+    "payload": {
+      "administrator_policy_occurrences": 3,
+      "path": "PoliciesController.cs"
+    },
+    "reference": "https://github.com/rivoli-ai/andy-rbac/blob/main/src/Andy.Rbac.Api/Controllers/PoliciesController.cs",
+    "retrieved_at": "2026-08-14T16:22:22.379889+00:00"
+  }
+}

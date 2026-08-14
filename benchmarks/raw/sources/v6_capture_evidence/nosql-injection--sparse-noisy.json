@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Write-side validation is a real adjacent control but does not cover read-side Mongo query construction, so it is intentionally sparse for the target condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/pathosDev/actor-ts/issues/738",
+  "captured_at": "2026-08-14T16:22:23.441496+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "read_side_query_outcome_not_present": true,
+      "write_side_tag_validation_present": true
+    },
+    "endpoint": "journal append",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "actor-ts write-side tag validation"
+  },
+  "raw_sha256": "bc27d1ce00a8b6b4ffcf5639b3290f28a8ba90c0c996ae5c6c2294939d3b6fe9",
+  "schema_version": "1.0",
+  "source_project": "pathosDev/actor-ts",
+  "source_root": "ACTOR-TS-ISSUE-738",
+  "source_snapshot": {
+    "content_sha256": "aac1c04c1bbebb4e6d12ef9212de7532488e63ca0500c8fb78cbb9921c2460b3",
+    "payload": {
+      "excerpt": "assertValidTags` genuinely covers the write path",
+      "issue": 738
+    },
+    "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+    "retrieved_at": "2026-08-14T16:22:23.441496+00:00"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Related issue references are source-grounded context but contain no privileged-operation outcome and are intentionally sparse.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+  "captured_at": "2026-08-14T16:22:22.380043+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "broken_function_authorization",
+  "raw": {
+    "details": {
+      "management_request_outcome_present": false,
+      "related_enumeration_issue": 48,
+      "related_web_ui_auth_issue": 51
+    },
+    "endpoint": "related issue references",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Andy RBAC related security inventory"
+  },
+  "raw_sha256": "73c06d0d7c93299d25045b882a919890dee3ac4c041249e0567c658c475725c4",
+  "schema_version": "1.0",
+  "source_project": "rivoli-ai/andy-rbac",
+  "source_root": "ANDY-RBAC-ISSUE-97",
+  "source_snapshot": {
+    "content_sha256": "b9721fa725f4a27bc42efd7cd068c0ce7de764db361d9f7515a2bd3697d2d453",
+    "payload": {
+      "issue": 97,
+      "related": [
+        51,
+        48
+      ]
+    },
+    "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+    "retrieved_at": "2026-08-14T16:22:22.380043+00:00"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The source explicitly verifies a post-query refinement that prevents the stronger data-disclosure outcome while leaving server-side scan impact; this is a genuine near-miss/confounder.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/pathosDev/actor-ts/issues/738",
+  "captured_at": "2026-08-14T16:22:23.441386+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "nosql_injection",
+  "raw": {
+    "details": {
+      "cross_tenant_disclosure_neutralized": true,
+      "post_query_refinement_present": true,
+      "server_side_scan_still_possible": true
+    },
+    "endpoint": "eventMatchesTagFilter",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "actor-ts post-query JS refinement"
+  },
+  "raw_sha256": "c17f8404f3311a8953bf89cff2dd5c2854ccf7d4f428302ee497f4fd39285fce",
+  "schema_version": "1.0",
+  "source_project": "pathosDev/actor-ts",
+  "source_root": "ACTOR-TS-ISSUE-738",
+  "source_snapshot": {
+    "content_sha256": "bbb676b8072e8cd58c5c568e58cd350ecc2a2dede56dacef580a39078899b656",
+    "payload": {
+      "excerpt": "JS refinement drops all-branch object matches",
+      "issue": 738
+    },
+    "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+    "retrieved_at": "2026-08-14T16:22:23.441386+00:00"
+  }
+}

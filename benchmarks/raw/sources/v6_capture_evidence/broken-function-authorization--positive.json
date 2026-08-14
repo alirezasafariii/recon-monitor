@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "authorization_response_differential"
+    ],
+    "notes": "The upstream audit records authenticated non-admin access to privileged management mutations because only generic authentication was enforced.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+  "captured_at": "2026-08-14T16:22:22.379267+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "fetch upstream issue and/or current upstream source",
+    "source_file": "GitHub issue",
+    "tool": "github-actions/source-grounded-issue-batch"
+  },
+  "family": "broken_function_authorization",
+  "raw": {
+    "details": {
+      "function_permission_check_absent": true,
+      "lower_privileged_authenticated_caller_can_mutate_management_resources": true,
+      "valid_bearer_token_only": true
+    },
+    "endpoint": "management mutations",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Andy RBAC management API"
+  },
+  "raw_sha256": "6e9e7d6f11958eee4e0f60cb28b558fc00a7ee5ec58a1632972854ab5c5be7f7",
+  "schema_version": "1.0",
+  "source_project": "rivoli-ai/andy-rbac",
+  "source_root": "ANDY-RBAC-ISSUE-97",
+  "source_snapshot": {
+    "content_sha256": "b0df2e4f0fe42bce3886d7a38dd99b42fcc09a380b63f6a53da651b3c2b71bac",
+    "payload": {
+      "excerpt": "Any valid bearer token can create, update, or delete applications, roles, teams, subjects, policies, and grants.",
+      "issue": 97
+    },
+    "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+    "retrieved_at": "2026-08-14T16:22:22.379267+00:00"
+  }
+}
