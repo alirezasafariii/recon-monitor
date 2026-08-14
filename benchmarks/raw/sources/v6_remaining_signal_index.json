@@ -1,0 +1,368 @@
+{
+  "admission_output_used": false,
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v6_remaining_signal_index_unscored",
+  "families": {
+    "authentication_session": {
+      "blocking_controls": [
+        "pkce_present",
+        "stable_boundary",
+        "state_present"
+      ],
+      "condition_signals": [
+        "authentication_boundary_regression",
+        "boundary_regression",
+        "missing_state",
+        "protected_to_public",
+        "session_validation_failure",
+        "token_exposure",
+        "token_rotation_failure"
+      ]
+    },
+    "broken_function_authorization": {
+      "blocking_controls": [
+        "confirmed_role_enforcement",
+        "lower_privilege_denied",
+        "role_boundary_enforced"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "function_access_without_role",
+        "lower_privilege_success",
+        "role_boundary_failure",
+        "role_boundary_regression",
+        "unauthorized_function_response"
+      ]
+    },
+    "command_injection": {
+      "blocking_controls": [
+        "command_allowlist",
+        "exec_file_argument_array",
+        "input_not_used_in_command",
+        "shell_disabled"
+      ],
+      "condition_signals": [
+        "command_output_observed",
+        "command_time_delay_observed",
+        "process_execution_reached",
+        "shell_metacharacter_effect",
+        "unsafe_command_construction"
+      ]
+    },
+    "cors_misconfiguration": {
+      "blocking_controls": [
+        "credentials_disabled",
+        "public_intended",
+        "strict_origin_allowlist"
+      ],
+      "condition_signals": [
+        "authenticated_context",
+        "credentials_allowed",
+        "sensitive_cross_origin_response"
+      ]
+    },
+    "dom_xss": {
+      "blocking_controls": [
+        "constant_value",
+        "non_reachable",
+        "recognized_sanitizer",
+        "text_only_sink"
+      ],
+      "condition_signals": [
+        "javascript_runtime",
+        "no_sanitizer",
+        "reachable_route",
+        "runtime_reachable_flow"
+      ]
+    },
+    "file_upload": {
+      "blocking_controls": [
+        "inert_storage",
+        "server_generated_filename",
+        "strict_type_allowlist",
+        "upload_rejected"
+      ],
+      "condition_signals": [
+        "active_content_served",
+        "content_type_mismatch_accepted",
+        "dangerous_type_accepted",
+        "executable_upload",
+        "filename_control_reaches_storage",
+        "unsafe_storage",
+        "upload_validation_bypass"
+      ]
+    },
+    "graphql_data_exposure": {
+      "blocking_controls": [
+        "field_authorization",
+        "minimal_projection",
+        "schema_only"
+      ],
+      "condition_signals": [
+        "cross_context",
+        "field_expansion",
+        "response_data",
+        "sensitive_expansion",
+        "unauthorized_data_response"
+      ]
+    },
+    "improper_inventory_management": {
+      "blocking_controls": [
+        "inventory_documented",
+        "legacy_controls_equivalent",
+        "nonproduction_isolated",
+        "retired_endpoint_unreachable"
+      ],
+      "condition_signals": [
+        "deprecated_version_still_reachable",
+        "inventory_drift_observed",
+        "nonproduction_with_production_data",
+        "older_version_weaker_controls",
+        "retired_endpoint_active",
+        "undocumented_host_observed",
+        "unprotected_legacy_endpoint"
+      ]
+    },
+    "ldap_injection": {
+      "blocking_controls": [
+        "ldap_filter_escaped",
+        "ldap_input_rejected",
+        "ldap_parameter_binding"
+      ],
+      "condition_signals": [
+        "ldap_auth_bypass_observed",
+        "ldap_error_observed",
+        "ldap_filter_influence",
+        "ldap_response_differential"
+      ]
+    },
+    "mass_assignment": {
+      "blocking_controls": [
+        "field_allowlist",
+        "privileged_fields_removed",
+        "privileged_property_rejected",
+        "read_only_contract"
+      ],
+      "condition_signals": [
+        "privileged_property_accepted",
+        "property_authorization_differential",
+        "response_reflects_privileged_change",
+        "unauthorized_property_change"
+      ]
+    },
+    "nosql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "nosql_operator_rejected",
+        "operator_allowlist",
+        "typed_query_schema"
+      ],
+      "condition_signals": [
+        "nosql_auth_bypass_observed",
+        "nosql_error_observed",
+        "nosql_operator_accepted",
+        "nosql_response_differential",
+        "query_operator_influence"
+      ]
+    },
+    "open_redirect": {
+      "blocking_controls": [
+        "constant_value",
+        "host_allowlist",
+        "relative_path_only",
+        "same_origin_only"
+      ],
+      "condition_signals": [
+        "allowlist_bypass",
+        "external_destination",
+        "external_url",
+        "same_origin_bypass",
+        "unrestricted_destination"
+      ]
+    },
+    "postmessage_trust": {
+      "blocking_controls": [
+        "schema_validation",
+        "source_window_check",
+        "strict_origin_check"
+      ],
+      "condition_signals": [
+        "message_schema_unvalidated",
+        "missing_origin_check",
+        "missing_source_window_check",
+        "wildcard_origin"
+      ]
+    },
+    "race_condition": {
+      "blocking_controls": [
+        "duplicate_rejected",
+        "idempotency_control",
+        "transaction_lock"
+      ],
+      "condition_signals": [
+        "atomicity_failure",
+        "concurrency_invariant_violation",
+        "double_spend_observed",
+        "duplicate_effect_observed"
+      ]
+    },
+    "secret_exposure": {
+      "blocking_controls": [
+        "example_value",
+        "placeholder",
+        "redacted_only"
+      ],
+      "condition_signals": [
+        "credential_context",
+        "high_entropy_value",
+        "non_placeholder_secret",
+        "token_exposure"
+      ]
+    },
+    "security_logging_alerting_failure": {
+      "blocking_controls": [
+        "alert_triggered",
+        "log_encoding_present",
+        "log_integrity_protected",
+        "security_event_logged"
+      ],
+      "condition_signals": [
+        "alerting_absent_observed",
+        "log_injection_observed",
+        "log_integrity_missing",
+        "security_event_not_logged",
+        "sensitive_data_logged"
+      ]
+    },
+    "security_misconfiguration": {
+      "blocking_controls": [
+        "debug_disabled",
+        "hardening_observed",
+        "method_rejected",
+        "security_headers_present",
+        "tls_enforced"
+      ],
+      "condition_signals": [
+        "debug_mode_exposed",
+        "desync_processing_difference",
+        "directory_listing_observed",
+        "insecure_http_enabled",
+        "security_header_missing_on_sensitive_response",
+        "stack_trace_exposed",
+        "unnecessary_method_enabled",
+        "unsafe_default_configuration"
+      ]
+    },
+    "server_side_template_injection": {
+      "blocking_controls": [
+        "client_side_only",
+        "literal_template_rendering",
+        "template_input_escaped",
+        "template_sandbox_enforced"
+      ],
+      "condition_signals": [
+        "server_template_execution",
+        "template_engine_error_observed",
+        "template_expression_evaluated",
+        "template_output_differential"
+      ]
+    },
+    "software_supply_chain_failure": {
+      "blocking_controls": [
+        "component_current_and_supported",
+        "component_not_deployed",
+        "pipeline_untrusted_code_isolated",
+        "trusted_component_source"
+      ],
+      "condition_signals": [
+        "component_update_path_compromised",
+        "known_vulnerable_component_observed",
+        "privileged_pipeline_executes_untrusted_code",
+        "unmaintained_component_confirmed",
+        "untrusted_component_source"
+      ]
+    },
+    "source_map_exposure": {
+      "blocking_controls": [
+        "empty_map",
+        "intended_public",
+        "non_reachable"
+      ],
+      "condition_signals": [
+        "direct_reachability",
+        "public_observation"
+      ]
+    },
+    "sql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "parameterized_query",
+        "query_builder_binding",
+        "uniform_database_behavior"
+      ],
+      "condition_signals": [
+        "boolean_response_differential",
+        "database_error_observed",
+        "database_time_delay_observed",
+        "query_structure_influence",
+        "sql_error_differential",
+        "unsafe_query_construction"
+      ]
+    },
+    "unrestricted_resource_consumption": {
+      "blocking_controls": [
+        "batch_limit_enforced",
+        "page_size_capped",
+        "payload_size_rejected",
+        "rate_limit_enforced",
+        "spending_limit_enforced",
+        "timeout_enforced"
+      ],
+      "condition_signals": [
+        "batch_limit_absent_observed",
+        "cost_amplification_observed",
+        "oversized_payload_accepted",
+        "rate_limit_absent_observed",
+        "resource_exhaustion_differential",
+        "timeout_limit_absent",
+        "unbounded_page_size_observed"
+      ]
+    },
+    "unsafe_api_consumption": {
+      "blocking_controls": [
+        "third_party_schema_validation",
+        "upstream_redirect_restricted",
+        "upstream_response_capped",
+        "upstream_timeout_enforced",
+        "upstream_tls_enforced"
+      ],
+      "condition_signals": [
+        "third_party_auth_weak",
+        "third_party_data_unsanitized",
+        "unsafe_upstream_data_reaches_sink",
+        "upstream_certificate_validation_failure",
+        "upstream_redirect_followed_unrestricted",
+        "upstream_response_unbounded",
+        "upstream_timeout_absent",
+        "upstream_tls_missing"
+      ]
+    },
+    "websocket_authorization": {
+      "blocking_controls": [
+        "authenticated_handshake",
+        "channel_authorization",
+        "cross_context_denied"
+      ],
+      "condition_signals": [
+        "channel_authorization_failure",
+        "cross_context",
+        "message_received_outside_scope",
+        "unauthorized_subscription"
+      ]
+    }
+  },
+  "first_blind_consumed": false,
+  "ranking_output_used": false,
+  "remaining_family_count": 24,
+  "scoring_executed": false
+}
