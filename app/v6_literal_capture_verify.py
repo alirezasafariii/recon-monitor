@@ -12,8 +12,8 @@ from typing import Any, Mapping
 from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.31.2"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 CAPTURES = ROOT / "benchmarks/raw/sources/v6_literal_captures.jsonl"
 EVIDENCE_ROOT = ROOT / "benchmarks/raw/sources/v6_capture_evidence"
@@ -24,6 +24,13 @@ ALLOWED_CAPTURE_METHODS = {
     "cli_output",
     "packet_or_log_capture",
     "regression_test_output",
+    "repository_test_fixture",
+}
+ALLOWED_ADJUDICATION_BASES = {
+    "source_observation",
+    "upstream_regression",
+    "patched_control",
+    "source_log_or_trace",
     "repository_test_fixture",
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -86,6 +93,20 @@ def _snapshot_digest(snapshot: Mapping[str, Any]) -> str:
     if "payload" not in snapshot:
         return ""
     return _sha256_json(snapshot.get("payload"))
+
+
+def _signal_contract(family: str, kind: str, values: Any, cid: str, errors: list[str]) -> list[str]:
+    signals = [str(value) for value in values or [] if str(value)]
+    if len(signals) != len(set(signals)):
+        errors.append(f"{cid}: duplicate expected condition signals")
+    allowed = set(DETECTOR_SPECS[family].condition_signals)
+    if set(signals) - allowed:
+        errors.append(f"{cid}: expected condition signals contain non-canonical detector signal")
+    if kind == "positive" and not signals:
+        errors.append(f"{cid}: positive capture requires at least one pre-score expected condition signal")
+    if kind != "positive" and signals:
+        errors.append(f"{cid}: non-positive capture cannot carry expected condition signals")
+    return signals
 
 
 def verify_capture_set(
@@ -156,10 +177,17 @@ def verify_capture_set(
             continue
         raw_sha = _sha256_json(raw)
         raw_hashes[family].add(raw_sha)
+        capture_signals = _signal_contract(family, kind, row.get("expected_condition_signals"), cid, errors)
 
         provenance = row.get("provenance") if isinstance(row.get("provenance"), Mapping) else {}
         if provenance.get("literal_capture") is not True:
             errors.append(f"{cid}: provenance.literal_capture must be true")
+        if provenance.get("detector_output_used") is not False:
+            errors.append(f"{cid}: provenance must state detector_output_used=false")
+        if provenance.get("admission_output_used") is not False:
+            errors.append(f"{cid}: provenance must state admission_output_used=false")
+        if provenance.get("ranking_output_used") is not False:
+            errors.append(f"{cid}: provenance must state ranking_output_used=false")
         capture_reference = str(provenance.get("capture_reference") or "").strip()
         if not capture_reference.startswith("https://"):
             errors.append(f"{cid}: capture_reference must be an https source reference")
@@ -224,6 +252,32 @@ def verify_capture_set(
         if evidence_raw_sha != raw_sha:
             errors.append(f"{cid}: evidence.raw_sha256 does not match evidence raw")
 
+        adjudication = evidence.get("adjudication") if isinstance(evidence.get("adjudication"), Mapping) else {}
+        if not adjudication:
+            errors.append(f"{cid}: evidence adjudication object is required")
+        if adjudication.get("detector_output_used") is not False:
+            errors.append(f"{cid}: evidence adjudication must state detector_output_used=false")
+        if adjudication.get("admission_output_used") is not False:
+            errors.append(f"{cid}: evidence adjudication must state admission_output_used=false")
+        if adjudication.get("ranking_output_used") is not False:
+            errors.append(f"{cid}: evidence adjudication must state ranking_output_used=false")
+        basis = str(adjudication.get("basis") or "").strip()
+        if basis not in ALLOWED_ADJUDICATION_BASES:
+            errors.append(f"{cid}: evidence adjudication basis is missing or unsupported")
+        if _identity(provenance.get("adjudication_basis")) != _identity(basis):
+            errors.append(f"{cid}: provenance adjudication basis does not match evidence")
+        if not str(adjudication.get("notes") or "").strip():
+            errors.append(f"{cid}: evidence adjudication notes are required")
+        evidence_signals = _signal_contract(
+            family,
+            kind,
+            adjudication.get("expected_condition_signals"),
+            f"{cid}:evidence",
+            errors,
+        )
+        if capture_signals != evidence_signals:
+            errors.append(f"{cid}: capture expected_condition_signals do not exactly match evidence adjudication")
+
         collector = evidence.get("collector") if isinstance(evidence.get("collector"), Mapping) else {}
         if not str(collector.get("tool") or "").strip():
             errors.append(f"{cid}: evidence collector.tool is required")
@@ -239,6 +293,8 @@ def verify_capture_set(
         computed_snapshot_sha = _snapshot_digest(snapshot)
         if not SHA256_RE.fullmatch(snapshot_sha) or not computed_snapshot_sha or snapshot_sha != computed_snapshot_sha:
             errors.append(f"{cid}: source_snapshot content hash is missing or invalid")
+        if str(provenance.get("source_snapshot_sha256") or "").strip().lower() != snapshot_sha:
+            errors.append(f"{cid}: provenance source_snapshot_sha256 does not match evidence snapshot")
 
     if require_complete:
         if len(rows) != 144:
