@@ -1,4 +1,4 @@
-name: Analysis 6.31 Final Replacement Firewall Probe
+name: Analysis 6.31 Vendor Source Firewall Probe
 
 on:
   push:
@@ -21,56 +21,53 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe five primary advisory candidates
+      - name: Probe canonical vendor-product sources
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
           from raw_recon_v6_source_firewall import canonical_url, exposure_index
-
           prior = exposure_index()
           candidates = [
-              ('cors_misconfiguration','GHSA-8hmm-4crw-vm2c','musistudio/claude-code-router',[
-                  'https://github.com/musistudio/claude-code-router/security/advisories/GHSA-8hmm-4crw-vm2c',
-                  'https://github.com/musistudio/claude-code-router/issues/549',
-                  'https://github.com/advisories/GHSA-8hmm-4crw-vm2c',
+              ('cors_misconfiguration','CVE-2025-55462','eramba/eramba',[
+                  'https://nvd.nist.gov/vuln/detail/CVE-2025-55462',
+                  'https://discussions.eramba.org/t/release-3-28-0/7860',
+                  'http://eramba.com',
               ]),
-              ('graphql_data_exposure','GHSA-38hg-ww64-rrwc','directus/directus',[
-                  'https://github.com/directus/directus/security/advisories/GHSA-38hg-ww64-rrwc',
-                  'https://github.com/advisories/GHSA-38hg-ww64-rrwc',
+              ('graphql_data_exposure','CVE-2025-9572','theforeman/foreman',[
+                  'https://nvd.nist.gov/vuln/detail/CVE-2025-9572',
+                  'https://access.redhat.com/security/cve/CVE-2025-9572',
+                  'https://theforeman.org/security.html#2025-9572',
               ]),
-              ('nosql_injection','GHSA-422w-vrfj-72g6','labring/FastGPT',[
-                  'https://github.com/labring/FastGPT/security/advisories/GHSA-422w-vrfj-72g6',
+              ('nosql_injection','CVE-2025-60357','ahnlab/epp-management',[
+                  'https://nvd.nist.gov/vuln/detail/CVE-2025-60357',
+                  'https://ahnlab.com',
+                  'https://vuldb.com/cve/CVE-2025-60357',
               ]),
-              ('source_map_exposure','GHSA-49w6-73cw-chjr','withastro/astro',[
-                  'https://github.com/withastro/astro/security/advisories/GHSA-49w6-73cw-chjr',
-                  'https://github.com/withastro/astro/issues/12703',
-                  'https://github.com/advisories/GHSA-49w6-73cw-chjr',
+              ('source_map_exposure','CVE-2024-38327','ibm/analytics-content-hub',[
+                  'https://nvd.nist.gov/vuln/detail/CVE-2024-38327',
+                  'https://www.ibm.com/support/pages/node/7234122',
               ]),
-              ('websocket_authorization','GHSA-7893-256g-m822','jumpserver/jumpserver',[
-                  'https://github.com/jumpserver/jumpserver/security/advisories/GHSA-7893-256g-m822',
+              ('websocket_authorization','CVE-2026-11807','ansible/eda-server',[
+                  'https://nvd.nist.gov/vuln/detail/CVE-2026-11807',
+                  'https://access.redhat.com/security/cve/CVE-2026-11807',
+                  'https://github.com/ansible/eda-server',
               ]),
           ]
           results=[]
           for family,root,project,raw_urls in candidates:
               urls={canonical_url(u) for u in raw_urls if canonical_url(u)}
               result={
-                  'family':family,
-                  'source_root':root,
-                  'source_project':project,
-                  'root_overlap':root in prior['roots'],
-                  'project_overlap':project in prior['projects'],
+                  'family':family,'source_root':root,'source_project':project,
+                  'root_overlap':root in prior['roots'],'project_overlap':project in prior['projects'],
                   'url_overlap':sorted(urls & prior['urls']),
               }
               result['fresh']=not(result['root_overlap'] or result['project_overlap'] or result['url_overlap'])
               results.append(result)
           print(json.dumps({
-              'evaluation_kind':'analysis_631_unscored_final_replacement_firewall_probe',
-              'scoring_executed':False,
-              'detector_output_used':False,
-              'admission_output_used':False,
-              'ranking_output_used':False,
+              'evaluation_kind':'analysis_631_unscored_vendor_source_firewall_probe',
+              'scoring_executed':False,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False,
               'historical_exposure_counts':{k:len(v) for k,v in prior.items()},
               'fresh_count':sum(1 for r in results if r['fresh']),
               'results':results,
