@@ -1,0 +1,95 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "backend_fetch",
+      "server_fetch_observed",
+      "server_request_function"
+    ],
+    "notes": "Controlled execution of the exact upstream parent _fetch_page function passed a link-local cloud-metadata URL directly into requests.get without destination validation.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/c97aa9d5443000d28aa581005f4401c51dbe2d9e",
+  "captured_at": "2026-08-14T06:36:43.002377Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "python capture_ssrf.py",
+    "source_file": "website/scripts/sync.py",
+    "tool": "Exact upstream _fetch_page AST execution plus exact patched remote_url.safe_get controlled sink capture"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream source execution with request sink stubs; no internal or external target contacted",
+      "literal_server_fetch_observation": {
+        "captured_at": "2026-08-14T06:36:43.002377Z",
+        "input_url": "http://169.254.169.254/latest/meta-data/iam/info",
+        "observation": "exact upstream parent function passed an internal metadata URL to requests.get without a destination policy",
+        "requests_get_calls": [
+          {
+            "kwargs": {
+              "headers": {
+                "User-Agent": "v6-controlled"
+              },
+              "params": {
+                "page": 1
+              },
+              "timeout": 1
+            },
+            "url": "http://169.254.169.254/latest/meta-data/iam/info"
+          }
+        ],
+        "returned_payload": {
+          "controlled": "metadata-like-response"
+        },
+        "upstream_function": "_fetch_page",
+        "upstream_revision": "c97aa9d5443000d28aa581005f4401c51dbe2d9e",
+        "upstream_source_file": "website/scripts/sync.py"
+      }
+    },
+    "endpoint": "remote-instance-sync-outbound-fetch",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "SERVER_GET",
+    "target": "controlled-local-vulnerability-lookup"
+  },
+  "raw_sha256": "15d82a44a5f2782a83defe383b1c2e3aa8e2d8c605b9bb1865ef5579dee5e94e",
+  "schema_version": "1.0",
+  "source_project": "vulnerability-lookup/vulnerability-lookup",
+  "source_root": "GHSA-wx9v-ffw3-45wg",
+  "source_snapshot": {
+    "content_sha256": "7d8074a1dc78e59c8cea92451414775c026ac2e84b4a805559a68a2b6f85d3cd",
+    "payload": {
+      "captured_at": "2026-08-14T06:36:43.002377Z",
+      "input_url": "http://169.254.169.254/latest/meta-data/iam/info",
+      "observation": "exact upstream parent function passed an internal metadata URL to requests.get without a destination policy",
+      "requests_get_calls": [
+        {
+          "kwargs": {
+            "headers": {
+              "User-Agent": "v6-controlled"
+            },
+            "params": {
+              "page": 1
+            },
+            "timeout": 1
+          },
+          "url": "http://169.254.169.254/latest/meta-data/iam/info"
+        }
+      ],
+      "returned_payload": {
+        "controlled": "metadata-like-response"
+      },
+      "upstream_function": "_fetch_page",
+      "upstream_revision": "c97aa9d5443000d28aa581005f4401c51dbe2d9e",
+      "upstream_source_file": "website/scripts/sync.py"
+    },
+    "reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/c97aa9d5443000d28aa581005f4401c51dbe2d9e",
+    "retrieved_at": "2026-08-14T06:36:43.002377Z"
+  }
+}

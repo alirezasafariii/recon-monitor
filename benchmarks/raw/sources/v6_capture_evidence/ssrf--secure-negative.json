@@ -1,0 +1,59 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled execution of the exact patched safe_get rejected the direct metadata IP before requests.get could be called.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+  "captured_at": "2026-08-14T06:36:43.003754Z",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "python capture_ssrf.py",
+    "source_file": "website/lib/remote_url.py",
+    "tool": "Exact upstream _fetch_page AST execution plus exact patched remote_url.safe_get controlled sink capture"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream source execution with request sink stubs; no internal or external target contacted",
+      "literal_server_fetch_observation": {
+        "blocked_error": "Host '169.254.169.254' resolves to non-public address 169.254.169.254.",
+        "captured_at": "2026-08-14T06:36:43.003754Z",
+        "input_url": "http://169.254.169.254/latest/meta-data/iam/info",
+        "observation": "patched safe_get rejected the link-local metadata IP before issuing any request",
+        "requests_get_calls": [],
+        "upstream_revision": "a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+        "upstream_source_file": "website/lib/remote_url.py"
+      }
+    },
+    "endpoint": "remote-instance-sync-outbound-fetch",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "SERVER_GET",
+    "target": "controlled-local-vulnerability-lookup"
+  },
+  "raw_sha256": "3da6b29dcdf38919f0661c2b3c8ed2aa966d49b44dd97964ebc0e179ed9dde1a",
+  "schema_version": "1.0",
+  "source_project": "vulnerability-lookup/vulnerability-lookup",
+  "source_root": "GHSA-wx9v-ffw3-45wg",
+  "source_snapshot": {
+    "content_sha256": "c94a1a92878dd3aecf1303fb627a6eaceddafd845eceebffa123f89cc6c700ee",
+    "payload": {
+      "blocked_error": "Host '169.254.169.254' resolves to non-public address 169.254.169.254.",
+      "captured_at": "2026-08-14T06:36:43.003754Z",
+      "input_url": "http://169.254.169.254/latest/meta-data/iam/info",
+      "observation": "patched safe_get rejected the link-local metadata IP before issuing any request",
+      "requests_get_calls": [],
+      "upstream_revision": "a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+      "upstream_source_file": "website/lib/remote_url.py"
+    },
+    "reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+    "retrieved_at": "2026-08-14T06:36:43.003754Z"
+  }
+}

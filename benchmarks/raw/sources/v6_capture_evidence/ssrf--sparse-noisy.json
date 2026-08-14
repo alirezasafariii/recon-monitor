@@ -1,0 +1,85 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "upstream_regression",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled execution of patched safe_get retained the intended public non-redirecting fetch path, producing a server-side request to a public destination without an SSRF boundary violation.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+  "captured_at": "2026-08-14T06:36:43.004131Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "python capture_ssrf.py",
+    "source_file": "website/lib/remote_url.py",
+    "tool": "Exact upstream _fetch_page AST execution plus exact patched remote_url.safe_get controlled sink capture"
+  },
+  "family": "ssrf",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream source execution with request sink stubs; no internal or external target contacted",
+      "literal_server_fetch_observation": {
+        "asserted_hosts": [
+          "example.org"
+        ],
+        "captured_at": "2026-08-14T06:36:43.004131Z",
+        "input_url": "http://example.org/api/comment/",
+        "observation": "patched safe_get allowed a controlled public non-redirecting destination under the outbound policy",
+        "requests_get_calls": [
+          {
+            "kwargs": {
+              "allow_redirects": false,
+              "headers": null,
+              "params": null,
+              "timeout": null
+            },
+            "url": "http://example.org/api/comment/"
+          }
+        ],
+        "response_status_code": 204,
+        "upstream_revision": "a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+        "upstream_source_file": "website/lib/remote_url.py"
+      }
+    },
+    "endpoint": "remote-instance-sync-outbound-fetch",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "SERVER_GET",
+    "target": "controlled-local-vulnerability-lookup"
+  },
+  "raw_sha256": "c76e2bdc1ea8bb3f763bf94ba73c22f6eea4e0a850a986405d8e576717c6fa03",
+  "schema_version": "1.0",
+  "source_project": "vulnerability-lookup/vulnerability-lookup",
+  "source_root": "GHSA-wx9v-ffw3-45wg",
+  "source_snapshot": {
+    "content_sha256": "b6bed7bc8e20f02edea738f64ef339f333c16b1420456c5ce086cd096d0dcfd6",
+    "payload": {
+      "asserted_hosts": [
+        "example.org"
+      ],
+      "captured_at": "2026-08-14T06:36:43.004131Z",
+      "input_url": "http://example.org/api/comment/",
+      "observation": "patched safe_get allowed a controlled public non-redirecting destination under the outbound policy",
+      "requests_get_calls": [
+        {
+          "kwargs": {
+            "allow_redirects": false,
+            "headers": null,
+            "params": null,
+            "timeout": null
+          },
+          "url": "http://example.org/api/comment/"
+        }
+      ],
+      "response_status_code": 204,
+      "upstream_revision": "a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+      "upstream_source_file": "website/lib/remote_url.py"
+    },
+    "reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+    "retrieved_at": "2026-08-14T06:36:43.004131Z"
+  }
+}
