@@ -10,7 +10,7 @@ from raw_recon_corpus import ROOT, prior_source_index
 from raw_recon_v5_source_discovery import exposure_index as prior_discovery_exposure
 import raw_recon_v4_source_discovery as v4
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 RULE_VERSION = "2026.08.14.6.31.1"
 V5_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v5.jsonl"
 V5_SOURCE_FILES = (
@@ -183,8 +183,12 @@ def exposure_index() -> dict[str, set[str]]:
     return index
 
 
-def check_candidate(row: Mapping[str, Any]) -> dict[str, Any]:
-    index = exposure_index()
+def check_candidate(
+    row: Mapping[str, Any],
+    *,
+    index: Mapping[str, set[str]] | None = None,
+) -> dict[str, Any]:
+    prior = index if index is not None else exposure_index()
     urls = _row_urls(row)
     roots = _row_roots(row, urls)
     projects = _row_projects(row, urls)
@@ -192,10 +196,10 @@ def check_candidate(row: Mapping[str, Any]) -> dict[str, Any]:
     for value in roots | urls:
         identifiers.update(_identifiers(value))
 
-    root_overlap = sorted(roots & index["roots"])
-    project_overlap = sorted(projects & index["projects"])
-    url_overlap = sorted(urls & index["urls"])
-    identifier_overlap = sorted(identifiers & index["identifiers"])
+    root_overlap = sorted(roots & prior["roots"])
+    project_overlap = sorted(projects & prior["projects"])
+    url_overlap = sorted(urls & prior["urls"])
+    identifier_overlap = sorted(identifiers & prior["identifiers"])
     primary_root = _identity(row.get("source_root"))
     primary_project = _identity(row.get("source_project"))
     allowed = bool(primary_root and primary_project) and not (
@@ -219,7 +223,8 @@ def check_candidate(row: Mapping[str, Any]) -> dict[str, Any]:
 
 def validate_shortlist(rows: Iterable[Mapping[str, Any]], *, required_count: int = 36) -> dict[str, Any]:
     candidates = [dict(row) for row in rows]
-    checks = [check_candidate(row) for row in candidates]
+    prior = exposure_index()
+    checks = [check_candidate(row, index=prior) for row in candidates]
     roots = {_identity(row.get("source_root")) for row in candidates if _identity(row.get("source_root"))}
     projects = {_identity(row.get("source_project")) for row in candidates if _identity(row.get("source_project"))}
     failed = [check for check in checks if not check["allowed"]]
