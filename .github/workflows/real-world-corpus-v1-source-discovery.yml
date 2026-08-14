@@ -53,12 +53,23 @@ jobs:
             --output benchmarks/real_world/v1/source_shortlist.json \
             --report benchmarks/real_world/v1/shortlist_report.json
 
+      - name: Assess passive source feasibility
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_feasibility.py \
+            --shortlist benchmarks/real_world/v1/source_shortlist.json \
+            --output benchmarks/real_world/v1/source_feasibility.json \
+            --report benchmarks/real_world/v1/source_feasibility_report.json
+
       - name: Focused corpus regressions
         run: |
           python -m unittest tests/test_real_world_corpus_v1.py -q
           python -m unittest tests/test_real_world_corpus_v1_discovery.py -q
           python -m unittest tests/test_real_world_corpus_v1_targeted.py -q
           python -m unittest tests/test_real_world_corpus_v1_shortlist.py -q
+          python -m unittest tests/test_real_world_corpus_v1_feasibility.py -q
 
       - name: Full regression suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
@@ -72,7 +83,9 @@ jobs:
                   benchmarks/real_world/v1/targeted_candidates.json \
                   benchmarks/real_world/v1/targeted_discovery_report.json \
                   benchmarks/real_world/v1/source_shortlist.json \
-                  benchmarks/real_world/v1/shortlist_report.json
+                  benchmarks/real_world/v1/shortlist_report.json \
+                  benchmarks/real_world/v1/source_feasibility.json \
+                  benchmarks/real_world/v1/source_feasibility_report.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
             | xargs -0 sha256sum > MANIFEST.sha256
@@ -90,10 +103,12 @@ jobs:
                   benchmarks/real_world/v1/targeted_discovery_report.json \
                   benchmarks/real_world/v1/source_shortlist.json \
                   benchmarks/real_world/v1/shortlist_report.json \
+                  benchmarks/real_world/v1/source_feasibility.json \
+                  benchmarks/real_world/v1/source_feasibility_report.json \
                   MANIFEST.sha256
           if git diff --cached --quiet; then
             echo 'No corpus source changes to commit.'
             exit 0
           fi
-          git commit -m 'chore(corpus-v1): refresh source shortlist'
+          git commit -m 'chore(corpus-v1): refresh source feasibility'
           git push
