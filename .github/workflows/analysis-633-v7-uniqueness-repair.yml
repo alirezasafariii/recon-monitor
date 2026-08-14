@@ -1,0 +1,125 @@
+name: Analysis 6.33 V7 Uniqueness Repair
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+    paths:
+      - '.github/workflows/analysis-633-v7-uniqueness-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-uniqueness-repair
+  cancel-in-progress: false
+
+jobs:
+  repair-freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify frozen engine and persisted pre-scoring pool
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          git cat-file -e b8b15261cc4049a1e5e425a83e57b6378a856113^{commit}
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import check_candidate, engine_exposure_index, research_exposure_index
+          candidates=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          assert candidates['scoring_executed'] is False
+          assert candidates['first_blind_consumed'] is False
+          hard=engine_exposure_index(); research=research_exposure_index()
+          ext=json.loads(Path('benchmarks/raw/sources/v7_external_exclusions.json').read_text())
+          assert sum(not check_candidate(r,index=hard,research_index=research)['allowed'] for r in ext['sources']) == 100
+          v6=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          assert sum(not check_candidate(r,index=hard,research_index=research)['allowed'] for r in v6['selected']) == 36
+          PY
+
+      - name: Discover alternate engine-unseen BFLA projects
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app/v7_uniqueness_repair.py \
+            --candidates benchmarks/raw/sources/v7_candidates.json \
+            --report benchmarks/raw/sources/v7_uniqueness_repair_report.json \
+            --max-pages 20 --target 20
+
+      - name: Select 36 globally unique sources after repair
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_source_selection.py
+
+      - name: Verify final engine-unseen source assignment
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import validate_shortlist
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert r['global_assignment_complete'] is True, r['global_uniqueness_diagnostics']
+          assert len(r['selected']) == 36
+          assert len({x['source_root'].casefold() for x in r['selected']}) == 36
+          assert len({x['source_project'].casefold() for x in r['selected']}) == 36
+          assert r['firewall']['passed'] is True
+          assert r['firewall']['engine_seen_count'] == 0
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          check=validate_shortlist(r['selected'])
+          assert check['passed'] and check['engine_seen_count']==0, check
+          print({
+            'selected':36,
+            'unique_roots':36,
+            'unique_projects':36,
+            'engine_seen_overlap':0,
+            'research_preexposed_selected':r['selected_research_preexposed_count'],
+            'targeted_fallback_selected':r['selected_targeted_fallback_count'],
+          })
+          PY
+
+      - name: Focused strict unseen regressions
+        env:
+          PYTHONPATH: app
+        run: python -m unittest tests/test_v7_strict_unseen_firewall.py -q
+
+      - name: Full regression suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Regenerate strict manifest
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_uniqueness_repair_report.json \
+                  benchmarks/raw/sources/v7_shortlist.json
+          git ls-files -z \
+            | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
+            | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit frozen V7 source assignment
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_uniqueness_repair_report.json \
+                  benchmarks/raw/sources/v7_shortlist.json \
+                  MANIFEST.sha256
+          git commit -m 'chore(analysis-633): freeze engine-unseen V7 source assignment'
+          git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
