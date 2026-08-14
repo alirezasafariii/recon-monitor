@@ -1,12 +1,6 @@
 name: Analysis 6.31 Passive Literal Source Research
 
 on:
-  push:
-    branches:
-      - agent/analysis-engine-6.31-fresh-blind-v6-validation
-    paths:
-      - app/v6_literal_source_research.py
-      - .github/workflows/analysis-631-literal-source-research.yml
   workflow_dispatch:
 
 permissions:
@@ -31,26 +25,28 @@ jobs:
             exit 1
           fi
 
-      - name: Collect passive public GitHub source metadata
+      - name: Collect all passive canonical source snapshots
         env:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python app/v6_literal_source_research.py
+        run: python app/v6_literal_source_research.py --require-all
 
-      - name: Assert research did not consume benchmark
+      - name: Assert complete unscored passive research
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           report = json.loads(Path('benchmarks/raw/sources/v6_literal_source_research.json').read_text(encoding='utf-8'))
           assert report['family_count'] == 36
+          assert report['successful_snapshot_count'] == 36
+          assert report['unresolved_snapshot_count'] == 0
+          assert report['unresolved_sources'] == []
           assert report['scoring_executed'] is False
           assert report['first_blind_consumed'] is False
           assert report['detector_output_used'] is False
           assert report['admission_output_used'] is False
           assert report['ranking_output_used'] is False
           assert report['active_target_validation_performed'] is False
-          assert report['successful_snapshot_count'] + report['unresolved_snapshot_count'] == 36
           PY
 
       - name: Commit passive source research snapshot
@@ -64,6 +60,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Collect passive Analysis 6.31 literal source research'
+          git commit -m 'Refresh complete passive Analysis 6.31 source research'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
