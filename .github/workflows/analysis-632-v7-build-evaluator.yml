@@ -1,0 +1,64 @@
+name: Analysis 6.32 v7 Preregister Evaluator
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-build-evaluator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preregister:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refuse post-freeze evaluator mutation
+        run: |
+          test ! -e benchmarks/raw/sources/v7_corpus_freeze.json
+          test ! -e benchmarks/raw/sources/v7_evaluator_freeze.json
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+      - name: Build evaluator and protected single-consumption wrapper
+        run: python tools/build_v7_evaluator.py
+      - name: Compile preregistered v7 scoring surface
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/v7_benchmark_evaluate.py app/v7_first_blind_consume.py app/v7_freeze_verify.py
+      - name: Assert canonical v7-only paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          e=Path('app/v7_benchmark_evaluate.py').read_text()
+          c=Path('app/v7_first_blind_consume.py').read_text()
+          for text,name in [(e,'evaluator'),(c,'consumer')]:
+              for forbidden in ('analysis_raw_v6.jsonl','v6_first_blind_consumption.json','run_v6_benchmark','v6_freeze_verify'):
+                  assert forbidden not in text,(name,forbidden)
+          assert 'analysis_raw_v7.jsonl' in e
+          assert 'v7_first_blind_consumption.json' in e
+          assert 'analysis_raw_v7.jsonl' in c
+          assert 'v7_first_blind_consumption.json' in c
+          PY
+      - name: Prove no v7 scoring occurred
+        run: |
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+      - name: Commit preregistered v7 scoring surface
+        shell: bash
+        run: |
+          git add app/v7_benchmark_evaluate.py app/v7_first_blind_consume.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Preregister Analysis 6.32 v7 evaluator and consumption guard'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
