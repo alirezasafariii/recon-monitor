@@ -1,12 +1,7 @@
 name: Analysis 6.31 Corpus Freeze
 
 on:
-  push:
-    branches:
-      - agent/analysis-engine-6.31-fresh-blind-v6-validation
-    paths:
-      - benchmarks/raw/sources/v6_validation_report.json
-      - .github/workflows/analysis-631-corpus-freeze.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,32 +15,62 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Freeze validated unscored corpus
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refuse second corpus freeze
+        run: |
+          if [[ -f benchmarks/raw/sources/v6_corpus_freeze.json ]]; then
+            echo 'Analysis 6.31 corpus is already frozen. Create a new protocol/version instead of mutating this freeze.' >&2
+            exit 1
+          fi
+
+      - name: Revalidate literal-fresh unscored corpus
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_benchmark_validate import validate_v6_corpus
+
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
+          cases = [json.loads(line) for line in Path('benchmarks/raw/analysis_raw_v6.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
+          validation = validate_v6_corpus(cases, shortlist, require_literal_single_capture=True)
+          Path('benchmarks/raw/sources/v6_validation_report.json').write_text(
+              json.dumps(validation, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          assert validation['passed'], validation['errors']
+          assert validation['scoring_executed'] is False
+          assert validation['label_leakage_count'] == 0
+          assert validation['literal_single_capture_count'] == 144
+          assert validation['source_firewall']['passed'] is True
+          PY
+
+      - name: Freeze validated corpus and protected implementation
         run: |
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
 
-          validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text())
-          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
-          selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text())
-          protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text())
+          validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text(encoding='utf-8'))
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
+          selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
+          protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
 
           assert validation['passed'] is True
           assert validation['scoring_executed'] is False
+          assert validation['literal_single_capture_count'] == 144
           assert validation['label_leakage_count'] == 0
           assert validation['source_firewall']['passed'] is True
           assert shortlist['selection_executes_scoring'] is False
-          assert shortlist['supplement_pool_used'] is False
           assert shortlist['family_count'] == 36
           assert shortlist['unique_root_count'] == 36
           assert shortlist['unique_project_count'] == 36
-          assert shortlist['owasp_grounded_family_count'] == 14
-          assert shortlist['legacy_semantic_family_count'] == 22
           assert selection['scoring_executed'] is False
           assert selection['family_count'] == 36
-          assert selection['supplement_pool_used'] is False
-          assert selection['grounding_provenance_reuse_count'] == 0
 
           paths = [
             'benchmarks/raw/sources/v6_protocol.json',
@@ -62,8 +87,15 @@ jobs:
             'benchmarks/raw/sources/v6_validation_report.json',
             'app/raw_recon_v6_source_firewall.py',
             'app/raw_recon_v6_source_discovery.py',
+            'app/v6_source_finalize.py',
             'app/v6_benchmark_dataset.py',
             'app/v6_benchmark_validate.py',
+            'app/v6_benchmark_evaluate.py',
+            'app/v6_freeze_verify.py',
+            '.github/workflows/analysis-631-validation.yml',
+            '.github/workflows/analysis-631-owasp-exact-finalize.yml',
+            '.github/workflows/analysis-631-materialize.yml',
+            '.github/workflows/analysis-631-corpus-freeze.yml',
           ]
           protected = {}
           for value in paths:
@@ -72,53 +104,49 @@ jobs:
             protected[value] = hashlib.sha256(path.read_bytes()).hexdigest()
 
           report = {
-            'version': '1.1.0',
-            'rule_version': '2026.08.14.6.31',
-            'evaluation_status': 'sealed_unscored_corpus',
+            'version': '1.2.0',
+            'rule_version': '2026.08.14.6.31.1',
+            'evaluation_status': 'sealed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
             'first_blind_evaluator_frozen': False,
             'case_count': 276,
+            'single_case_count': 144,
+            'pair_case_count': 72,
+            'triad_case_count': 60,
+            'literal_single_capture_count': 144,
             'family_count': 36,
             'source_root_count': shortlist['unique_root_count'],
             'source_project_count': shortlist['unique_project_count'],
-            'owasp_grounded_family_count': shortlist['owasp_grounded_family_count'],
-            'legacy_semantic_family_count': shortlist['legacy_semantic_family_count'],
-            'supplement_pool_used': False,
-            'grounding_provenance_reuse_count': selection['grounding_provenance_reuse_count'],
             'pre_registered_gates': {
               'single': protocol['single_quality_gates'],
               'pair': protocol['pair_quality_gates'],
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'excluded_deprecated_discovery_artifacts': [
-              'benchmarks/raw/sources/v6_supplement_candidates.json',
-              'benchmarks/raw/sources/v6_keyword_candidates.json',
-            ],
-            'mutation_policy': 'protocol, selected source inputs, shortlist, corpus and validation artifacts are immutable after this corpus freeze; evaluator freeze is a separate pre-score step',
+            'mutation_policy': 'protected source inputs, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
-              json.dumps(report, indent=2, sort_keys=True) + '\n'
+              json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
           )
-          print({
-              'evaluation_status': report['evaluation_status'],
-              'case_count': 276,
-              'family_count': 36,
-              'owasp_grounded_family_count': report['owasp_grounded_family_count'],
-              'supplement_pool_used': report['supplement_pool_used'],
-          })
+          Path('benchmarks/raw/sources/v6_freeze_manifest.sha256').write_text(
+              ''.join(f'{digest}  {path}\n' for path, digest in sorted(protected.items())),
+              encoding='utf-8'
+          )
           PY
+
+      - name: Verify newly generated freeze
+        env:
+          PYTHONPATH: app
+        run: python app/v6_freeze_verify.py --require-freeze
 
       - name: Commit corpus freeze
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/sources/v6_corpus_freeze.json
+          git add benchmarks/raw/sources/v6_validation_report.json benchmarks/raw/sources/v6_corpus_freeze.json benchmarks/raw/sources/v6_freeze_manifest.sha256
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Freeze validated unscored Analysis 6.31 v6 corpus'
+          git commit -m 'Freeze validated literal-fresh unscored Analysis 6.31 corpus'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
-
-# Retrigger only after successful materialization; freeze semantics are unchanged.
