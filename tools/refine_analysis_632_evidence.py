@@ -69,7 +69,9 @@ new = '''            for signal in sorted(control_signals):
                 leaf = _norm(path.split(".")[-1])
                 text_match = _semantic_match(signal, text, condition=False)
                 explicit_control = _truthy(value) and leaf == _norm(signal)
-                secure_narrative = _looks_secure_control(text) and text_match >= 0.95
+                # A false-valued control flag (for example signature_verified=false)
+                # is evidence that the control is absent, never proof that it exists.
+                secure_narrative = (not _falsey(value)) and _looks_secure_control(text) and text_match >= 0.95
                 if explicit_control or secure_narrative:
                     _emit(packet, family, signal, f"Stored fact supports blocking control {signal}: {text}", role="control", path=path)
 '''
