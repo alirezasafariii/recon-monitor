@@ -1,0 +1,88 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.32.v7.1",
+  "evaluation_kind": "fresh_blind_v7_post_calibration",
+  "purpose": "Evaluate Analysis 6.32 on a new evidence-backed holdout after the consumed v6 First Blind without reusing v6 sources, labels, results, or corpus observations as target evidence.",
+  "family_count": 36,
+  "variants_per_family": 4,
+  "variant_contract": ["positive", "near_miss", "secure_negative", "sparse_noisy"],
+  "required_literal_capture_count": 144,
+  "materialized_case_contract": {
+    "single_case_count": 144,
+    "pair_case_count": 72,
+    "triad_case_count": 60,
+    "case_count": 276
+  },
+  "source_independence": {
+    "scope": "all exposed source identities and provenance from v1 through consumed v6",
+    "unique_root_per_family": true,
+    "unique_project_per_family": true,
+    "forbid_prior_root_overlap": true,
+    "forbid_prior_project_overlap": true,
+    "forbid_prior_url_overlap": true,
+    "forbid_prior_identifier_overlap": true,
+    "forbid_grounding_writeup_reuse_as_target_evidence": true,
+    "firewall_module": "raw_recon_v7_source_firewall"
+  },
+  "research_contract": {
+    "active_target_validation_performed": false,
+    "public_passive_sources_only": true,
+    "detector_output_used": false,
+    "admission_output_used": false,
+    "ranking_output_used": false,
+    "prior_v6_score_used_for_source_selection": false,
+    "prior_v6_case_errors_used_for_source_selection": false,
+    "owasp_wstg_cwe_writeup_logic_role": "reasoning_and_label_guidance_only_not_target_evidence"
+  },
+  "capture_contract": {
+    "synthetic_fixture_generation_forbidden": true,
+    "cross_variant_mutation_forbidden": true,
+    "raw_must_be_source_grounded": true,
+    "source_snapshot_hash_required": true,
+    "raw_hash_required": true,
+    "four_variants_must_be_independently_adjudicated": true,
+    "secure_negative_requires_implemented_control_fixed_or_unaffected_evidence": true,
+    "recommendation_text_alone_cannot_be_secure_negative": true
+  },
+  "freeze_contract": {
+    "corpus_freeze_required_before_score": true,
+    "evaluator_freeze_required_before_score": true,
+    "production_reasoning_freeze_required_before_score": true,
+    "single_consumption_authorization_required": true,
+    "explicit_user_approval_required_before_first_blind": true,
+    "rerun_forbidden_after_consumption": true
+  },
+  "single_quality_gates": {
+    "routing_top1_accuracy_min": 0.9,
+    "routing_top3_accuracy_min": 0.97,
+    "admission_precision_min": 0.97,
+    "admission_recall_min": 0.9,
+    "condition_extraction_precision_min": 0.95,
+    "condition_extraction_recall_min": 0.9,
+    "end_to_end_accuracy_min": 0.9,
+    "abstention_accuracy_min": 0.95,
+    "false_promotion_rate_max": 0.03,
+    "wrong_family_promotion_rate_max": 0.02,
+    "prior_source_root_overlap_rate_max": 0.0,
+    "raw_label_leakage_rate_max": 0.0
+  },
+  "pair_quality_gates": {
+    "exact_admission_set_accuracy_min": 0.95,
+    "expected_condition_recall_min": 0.9,
+    "dual_positive_both_admitted_rate_min": 0.9,
+    "dual_secure_rejection_rate_min": 0.98,
+    "expected_family_top3_coverage_min": 0.95,
+    "unexpected_promotion_rate_max": 0.03
+  },
+  "triad_quality_gates": {
+    "exact_admission_set_accuracy_min": 0.9,
+    "expected_condition_recall_min": 0.88,
+    "triple_positive_all_admitted_rate_min": 0.8,
+    "triple_secure_rejection_rate_min": 0.98,
+    "expected_family_top3_coverage_min": 0.85,
+    "expected_family_top5_coverage_min": 0.97,
+    "unexpected_promotion_rate_max": 0.04
+  },
+  "scoring_executed": false,
+  "first_blind_consumed": false
+}
