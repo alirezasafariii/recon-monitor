@@ -73,7 +73,7 @@ def probe(token:str|None=None)->dict[str,Any]:
             route,project,ident=ref;s,p,e,api=_patch(route,project,ident,token);calls+=1
             if s!=200:reasons.append(f'patch_http_{s}');continue
             files=_files(p,route);added,removed,context,patch_text=_lines(files)
-            if not files or not added or not removed or not patch_text:reasons.append('patch_not_bidirectional');continue
+            if not files or not added or not patch_text:reasons.append('patch_has_no_added_fix');continue
             enriched=dict(row);enriched['patch_text']=patch_text;enriched['description']=(str(row.get('description') or '')+'\n\nUPSTREAM PATCH\n'+patch_text).strip()
             passed,hits,score=audit_row(family,enriched);signals,condition_hits=audit_conditions(family,enriched)
             if not passed:reasons.append('family_semantic');continue

@@ -161,8 +161,8 @@ def probe(token: str | None = None) -> dict[str, Any]:
                 continue
             files = _files(payload, route)
             added, removed, context, patch_text = _patch_lines(files)
-            if not files or not patch_text or not added or not removed:
-                rejected["patch_not_bidirectional"] = rejected.get("patch_not_bidirectional", 0) + 1
+            if not files or not patch_text or not added:
+                rejected["patch_has_no_added_fix"] = rejected.get("patch_has_no_added_fix", 0) + 1
                 continue
 
             enriched = dict(row)

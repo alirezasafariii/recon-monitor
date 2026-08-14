@@ -188,8 +188,8 @@ def collect(output_dir: Path) -> dict[str, Any]:
         source_signals, source_hits = audit_conditions(family, source)
         if not set(expected).issubset(set(source_signals)):
             raise RuntimeError(f"{family}: selected condition label is not reproducible from source text")
-        if not added or not removed:
-            raise RuntimeError(f"{family}: upstream patch is not bidirectional")
+        if not added:
+            raise RuntimeError(f"{family}: upstream merged patch has no added fix implementation")
         near = _non_decisive_context(family, context)
         if not near:
             # A near miss must be a genuine adjacent upstream observation that does
@@ -210,6 +210,7 @@ def collect(output_dir: Path) -> dict[str, Any]:
                     **common,
                     "source_security_narrative": source_text[:30000],
                     "vulnerable_or_removed_patch_lines": removed[:80],
+                    "positive_source_basis": "Fresh upstream security narrative is the positive proof; removed patch lines are supplemental when the fix replaces existing code.",
                     "source_condition_phrase_hits": source_hits,
                 },
                 signals=expected,

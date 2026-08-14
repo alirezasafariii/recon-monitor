@@ -69,7 +69,7 @@ def _prepare_pool(family: str, rows: list[Any], prior_index: Mapping[str, set[st
         row = dict(raw)
         if row.get("patch_probe_passed") is not True:
             continue
-        if int(row.get("patch_added_line_count") or 0) <= 0 or int(row.get("patch_removed_line_count") or 0) <= 0:
+        if int(row.get("patch_added_line_count") or 0) <= 0:
             continue
         firewall = check_candidate(row, index=prior_index)
         if not firewall["allowed"]:
