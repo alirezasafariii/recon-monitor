@@ -5,19 +5,26 @@ from __future__ import annotations
 
 The established CLI implementation remains in ``recon_monitor_core``. This
 module preserves every existing command and adds Analysis-only compatibility
-actions for Investigation Queue and offline verified-replay draft collection.
+actions for Investigation Queue, offline verified-replay draft collection, and
+human-verified real-world calibration reports.
 """
 
 import sys
-from typing import Any
+from typing import Any, Iterable
 
 import recon_monitor_core as _base
+from analysis_benchmark_v2 import load_verified_replay_jsonl_with_diagnostics
 from correlation_engine import (
     CORRELATION_ENGINE_VERSION,
     CORRELATION_RULE_VERSION,
     investigation_queue,
 )
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
+from real_world_calibration import (
+    REAL_WORLD_CALIBRATION_RULE_VERSION,
+    REAL_WORLD_CALIBRATION_VERSION,
+    build_real_world_calibration_report,
+)
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
     VERIFIED_REPLAY_COLLECTOR_VERSION,
@@ -25,7 +32,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.1.0"
+INVESTIGATION_CLI_VERSION = "1.2.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -61,11 +68,25 @@ def build_parser():
         if getattr(action, "dest", "") != "action":
             continue
         choices = list(getattr(action, "choices", []) or [])
-        for extra_action in ("investigation-queue", "verified-replay-drafts"):
+        for extra_action in (
+            "investigation-queue",
+            "verified-replay-drafts",
+            "real-world-calibration",
+        ):
             if extra_action not in choices:
                 choices.append(extra_action)
         action.choices = choices
         break
+
+    existing_dests = {str(getattr(action, "dest", "")) for action in getattr(analysis_parser, "_actions", [])}
+    if "verified_corpus" not in existing_dests:
+        analysis_parser.add_argument(
+            "--verified-corpus",
+            action="append",
+            default=[],
+            dest="verified_corpus",
+            help="Path to a human-verified replay JSONL corpus; repeat for multiple files",
+        )
     return parser
 
 
@@ -143,15 +164,57 @@ def verified_replay_drafts_cli_payload(db: Any, *, limit: int = 1000) -> dict[st
     }
 
 
+def real_world_calibration_cli_payload(corpus_paths: Iterable[str]) -> dict[str, Any]:
+    """Load verified replay JSONL and produce a holdout/shadow-learning report."""
+
+    paths = [str(path).strip() for path in corpus_paths if str(path).strip()]
+    ingestion = load_verified_replay_jsonl_with_diagnostics(paths)
+    report = build_real_world_calibration_report(ingestion["records"])
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "real-world-calibration",
+        "engine": {
+            "version": REAL_WORLD_CALIBRATION_VERSION,
+            "rule_version": REAL_WORLD_CALIBRATION_RULE_VERSION,
+        },
+        "corpus_paths": paths,
+        "ingestion": {
+            "accepted_count": int(ingestion["accepted_count"]),
+            "rejected_count": int(ingestion["rejected_count"]),
+            "duplicate_count": int(ingestion["duplicate_count"]),
+            "source_files": int(ingestion["source_files"]),
+            "mean_evidence_quality": float(ingestion["mean_evidence_quality"]),
+            "rejected": list(ingestion["rejected"]),
+        },
+        "report": report,
+        "operator_guidance": {
+            "metrics_are_out_of_sample_when_holdout_ready": True,
+            "candidate_thresholds_are_learned_from_train_only": True,
+            "feedback_is_shadow_only": True,
+            "manual_policy_review_required_even_when_ready": True,
+            "production_activation_is_not_performed_by_this_command": True,
+        },
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
     if len(translated) >= 2 and translated[0] == "analysis" and translated[1] in {
         "investigation-queue",
         "verified-replay-drafts",
+        "real-world-calibration",
     }:
         parser = build_parser()
         args = parser.parse_args(translated)
+
+        if translated[1] == "real-world-calibration":
+            payload = real_world_calibration_cli_payload(
+                list(getattr(args, "verified_corpus", []) or []),
+            )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+
         paths = _base.AppPaths.from_root(_base.ROOT_DIR)
         paths.ensure()
         if not paths.config.exists():
