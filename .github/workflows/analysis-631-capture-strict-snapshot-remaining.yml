@@ -1,0 +1,90 @@
+name: Analysis 6.31 Capture Strict Snapshot Remaining
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - 'app/v6_remaining_strict_snapshot_collector.py'
+      - '.github/workflows/analysis-631-capture-strict-snapshot-remaining.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analysis-631-strict-snapshot-remaining
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Select only source-grounded remaining observations
+        env:
+          PYTHONPATH: app
+        run: python app/v6_remaining_strict_snapshot_collector.py captured | tee strict-snapshot-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-strict-snapshot-remaining
+          path: |
+            captured/**/*.json
+            strict-snapshot-report.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-strict-snapshot-remaining
+          path: artifact
+      - name: Publish completed subset through canonical gates
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py artifact/captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py --allow-missing
+          python app/v6_literal_raw_precheck.py
+          python app/v6_remaining_capture_manifest.py
+          python app/v6_remaining_capture_index.py
+          python app/v6_pre_score_checkpoint_refresh.py
+          cat artifact/strict-snapshot-report.json
+      - name: Commit only verifier-accepted progress
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_remaining_capture_manifest.json \
+                  benchmarks/raw/sources/v6_remaining_capture_index.tsv \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if [[ -f benchmarks/raw/sources/v6_literal_capture_verification.json ]]; then git add benchmarks/raw/sources/v6_literal_capture_verification.json; fi
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Publish strict sealed-snapshot Analysis 6.31 evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
