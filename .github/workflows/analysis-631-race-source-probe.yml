@@ -1,4 +1,4 @@
-name: Analysis 6.31 Race Source Correction
+name: Analysis 6.31 Final Source Research Correction
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  correct:
+  finalize-research:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,80 +21,59 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Replace invalid race source with firewall-passed vendor advisory
-        env:
-          PYTHONPATH: app
+      - name: Allow exact Palo Alto vendor source in passive research
         run: |
           python - <<'PY'
-          import json
           from pathlib import Path
-          from raw_recon_v5_source_audit import audit_row
-          from raw_recon_v6_source_firewall import check_candidate, exposure_index
-
-          path = Path('benchmarks/raw/sources/v6_complement_overrides.json')
-          doc = json.loads(path.read_text(encoding='utf-8'))
-          row = {
-              'source_root': 'CVE-2025-0120',
-              'source_project': 'paloaltonetworks/globalprotect-app-windows',
-              'family': 'race_condition',
-              'canonical_advisory_url': 'https://security.paloaltonetworks.com/CVE-2025-0120',
-              'source_kind': 'vendor_security_advisory',
-              'advisory_source_type': 'vendor',
-              'summary': 'Palo Alto Networks GlobalProtect App on Windows allows local privilege escalation where exploitation requires successfully winning a race condition.',
-              'description': 'The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but successful exploitation requires winning a race condition. The vendor identifies the affected and fixed GlobalProtect App for Windows versions.',
-              'semantic_facts': ['race condition', 'race', 'local privilege escalation', 'Windows', 'non-administrative user', 'SYSTEM'],
-              'selection_basis': 'fresh primary vendor advisory selected before scoring using the preregistered race-condition semantic audit after the previous GHSA reference proved non-retrievable',
-          }
-          fw = check_candidate(row, index=exposure_index())
-          passed, hits, score = audit_row('race_condition', row)
-          assert passed, (hits, score)
-          assert fw['allowed'], fw
-          doc['version'] = '1.2.0'
-          doc['rule_version'] = '2026.08.14.6.31.6'
-          doc['candidates_by_family']['race_condition'] = [row]
-          path.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-          print(json.dumps({'audit_passed': passed, 'audit_score': score, 'firewall': fw, 'scoring_executed': False}, indent=2, sort_keys=True))
+          path = Path('app/v6_literal_source_research.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('VERSION = "1.1.0"', 'VERSION = "1.1.1"')
+          text = text.replace('RULE_VERSION = "2026.08.14.6.31.3"', 'RULE_VERSION = "2026.08.14.6.31.4"')
+          needle = '    "blog.rubygems.org",\n}'
+          replacement = '    "blog.rubygems.org",\n    "security.paloaltonetworks.com",\n}'
+          if '"security.paloaltonetworks.com"' not in text:
+              if needle not in text:
+                  raise SystemExit('expected external-source allowlist anchor not found')
+              text = text.replace(needle, replacement)
+          path.write_text(text, encoding='utf-8')
           PY
 
-      - name: Rebuild canonical 36-family shortlist without scoring
+      - name: Collect all 36 passive canonical source snapshots
         env:
           PYTHONPATH: app
-        run: python app/v6_source_finalize.py
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v6_literal_source_research.py --require-all
 
-      - name: Assert hardened shortlist still passes
+      - name: Assert passive research is complete and unscored
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
-          report = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
-          assert shortlist['family_count'] == 36
-          assert shortlist['unique_root_count'] == 36
-          assert shortlist['unique_project_count'] == 36
-          assert shortlist['firewall']['passed'] is True
-          assert shortlist['firewall']['rejected'] == []
-          assert shortlist['selection_executes_scoring'] is False
+          report = json.loads(Path('benchmarks/raw/sources/v6_literal_source_research.json').read_text(encoding='utf-8'))
+          assert report['family_count'] == 36
+          assert report['successful_snapshot_count'] == 36
+          assert report['unresolved_snapshot_count'] == 0
+          assert report['unresolved_sources'] == []
           assert report['scoring_executed'] is False
-          race = next(row for row in shortlist['selected'] if row['family'] == 'race_condition')
+          assert report['first_blind_consumed'] is False
+          assert report['detector_output_used'] is False
+          assert report['admission_output_used'] is False
+          assert report['ranking_output_used'] is False
+          assert report['active_target_validation_performed'] is False
+          race = next(row for row in report['entries'] if row['family'] == 'race_condition')
           assert race['source_root'] == 'CVE-2025-0120'
-          assert race['source_project'] == 'paloaltonetworks/globalprotect-app-windows'
+          assert race['canonical_reference'] == 'https://security.paloaltonetworks.com/CVE-2025-0120'
+          assert race['fetch_status'] == 200
+          assert race['snapshot_payload'] is not None
           PY
 
-      - name: Regenerate unscored literal capture plan against corrected shortlist
-        env:
-          PYTHONPATH: app
-        run: python app/v6_literal_capture_plan.py
-
-      - name: Commit corrected source selection and capture plan
+      - name: Commit complete passive source research
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/sources/v6_complement_overrides.json \
-                  benchmarks/raw/sources/v6_shortlist.json \
-                  benchmarks/raw/sources/v6_selection_final_report.json \
-                  benchmarks/raw/sources/v6_literal_capture_plan.json
+          git add app/v6_literal_source_research.py benchmarks/raw/sources/v6_literal_source_research.json
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Replace invalid Analysis 6.31 race source with vendor advisory'
+          git commit -m 'Complete passive Analysis 6.31 source research 36 of 36'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
