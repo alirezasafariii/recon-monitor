@@ -1,0 +1,154 @@
+{
+  "case_count": 276,
+  "corpus_sha256": "b1e35c443aac57cd6207993ccd2acea7ba9fca6b1b3fd1a27457b5d72ebf48b2",
+  "evaluation_kind": "fresh_blind_v6_literal_raw_materialization_unscored",
+  "family_count": 36,
+  "fresh_raw_claim": true,
+  "input_capture_count": 144,
+  "literal_capture_input_sha256": "f298ee227acf06dc27cc62aba9e9b6be4928a601fabca1ad6c83073178246f11",
+  "literal_single_capture_count": 144,
+  "pair_case_count": 72,
+  "pair_groups": [
+    [
+      "information_disclosure",
+      "source_map_exposure"
+    ],
+    [
+      "security_misconfiguration",
+      "improper_inventory_management"
+    ],
+    [
+      "broken_function_authorization",
+      "mass_assignment"
+    ],
+    [
+      "sql_injection",
+      "server_side_template_injection"
+    ],
+    [
+      "race_condition",
+      "sensitive_business_flow_abuse"
+    ],
+    [
+      "unsafe_api_consumption",
+      "ssrf"
+    ],
+    [
+      "authentication_session",
+      "secret_exposure"
+    ],
+    [
+      "graphql_authorization",
+      "graphql_data_exposure"
+    ],
+    [
+      "dom_xss",
+      "postmessage_trust"
+    ],
+    [
+      "exceptional_condition_mishandling",
+      "security_logging_alerting_failure"
+    ],
+    [
+      "software_data_integrity_failure",
+      "software_supply_chain_failure"
+    ],
+    [
+      "file_upload",
+      "path_traversal"
+    ],
+    [
+      "ldap_injection",
+      "nosql_injection"
+    ],
+    [
+      "broken_object_authorization",
+      "websocket_authorization"
+    ],
+    [
+      "cryptographic_failure",
+      "sensitive_caching"
+    ],
+    [
+      "account_enumeration",
+      "unrestricted_resource_consumption"
+    ],
+    [
+      "business_logic",
+      "open_redirect"
+    ],
+    [
+      "command_injection",
+      "cors_misconfiguration"
+    ]
+  ],
+  "raw_capture_mode": "literal_source_capture",
+  "rule_version": "2026.08.14.6.31.2",
+  "scoring_executed": false,
+  "shortlist_sha256": "b4c11f5e8454f6428f8631fbe2d9e128fc6440dbf8de001c4160714a05c7bd65",
+  "single_case_count": 144,
+  "triad_case_count": 60,
+  "triad_groups": [
+    [
+      "information_disclosure",
+      "source_map_exposure",
+      "secret_exposure"
+    ],
+    [
+      "security_misconfiguration",
+      "improper_inventory_management",
+      "software_supply_chain_failure"
+    ],
+    [
+      "broken_function_authorization",
+      "mass_assignment",
+      "broken_object_authorization"
+    ],
+    [
+      "sql_injection",
+      "server_side_template_injection",
+      "command_injection"
+    ],
+    [
+      "race_condition",
+      "sensitive_business_flow_abuse",
+      "business_logic"
+    ],
+    [
+      "open_redirect",
+      "ssrf",
+      "unsafe_api_consumption"
+    ],
+    [
+      "authentication_session",
+      "account_enumeration",
+      "cryptographic_failure"
+    ],
+    [
+      "graphql_authorization",
+      "graphql_data_exposure",
+      "websocket_authorization"
+    ],
+    [
+      "dom_xss",
+      "postmessage_trust",
+      "unrestricted_resource_consumption"
+    ],
+    [
+      "exceptional_condition_mishandling",
+      "security_logging_alerting_failure",
+      "software_data_integrity_failure"
+    ],
+    [
+      "file_upload",
+      "path_traversal",
+      "sensitive_caching"
+    ],
+    [
+      "ldap_injection",
+      "nosql_injection",
+      "cors_misconfiguration"
+    ]
+  ],
+  "version": "2.0.0"
+}
