@@ -1,0 +1,88 @@
+name: Analysis 6.32 v7 Prepare Literal Captures
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - 'benchmarks/raw/sources/v7_shortlist.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-v7-prep-captures
+  cancel-in-progress: false
+
+jobs:
+  prepare-v7-captures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify fresh sealed shortlist contract
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import validate_shortlist
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert len(r['selected']) == 36
+          assert r['global_assignment_complete'] is True
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          assert r['selection_uses_v6_first_blind_score'] is False
+          assert r['selection_uses_v6_first_blind_case_errors'] is False
+          check=validate_shortlist(r['selected'])
+          assert check['passed'], check
+          PY
+      - name: Collect 36 canonical passive source snapshots
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_literal_source_research.py --require-all
+      - name: Freeze canonical condition/control vocabulary
+        env:
+          PYTHONPATH: app
+        run: python app/v7_literal_label_schema.py
+      - name: Build 144-capture acquisition plan
+        env:
+          PYTHONPATH: app
+        run: python app/v7_literal_capture_plan.py
+      - name: Assert pre-capture state
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          research=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
+          labels=json.loads(Path('benchmarks/raw/sources/v7_literal_label_schema.json').read_text())
+          plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
+          assert research['successful_snapshot_count']==36 and research['unresolved_snapshot_count']==0
+          assert research['v6_first_blind_score_used'] is False and research['v6_first_blind_case_errors_used'] is False
+          assert labels['family_count']==36 and labels['scoring_executed'] is False
+          assert plan['family_count']==36 and plan['required_capture_count']==144
+          assert plan['evidence_present_count']==0 and plan['evidence_missing_count']==144
+          assert plan['v6_first_blind_score_used'] is False and plan['v6_first_blind_case_errors_used'] is False
+          assert plan['scoring_executed'] is False
+          PY
+      - name: Commit v7 pre-capture artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            benchmarks/raw/sources/v7_literal_source_research.json \
+            benchmarks/raw/sources/v7_literal_label_schema.json \
+            benchmarks/raw/sources/v7_literal_capture_plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare Analysis 6.32 v7 literal capture protocol'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
