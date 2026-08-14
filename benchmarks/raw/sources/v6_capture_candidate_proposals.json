@@ -1,0 +1,699 @@
+{
+  "admission_output_used": false,
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v6_capture_candidate_proposals_unscored",
+  "families_with_three_excerpt_candidates": 21,
+  "first_blind_consumed": false,
+  "proposal_only_no_evidence_written": true,
+  "proposals": [
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 11,
+      "family": "account_enumeration",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+        "resource_type": "canonical",
+        "text": "This requires the probed user to have a non-default scram_iterations count, because the authentication challenge for a nonexistent user reports the default scram_iterations."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+        "resource_type": "canonical",
+        "text": "Observable response discrepancy in PostgreSQL SCRAM authentication allows an unauthenticated user to test the existence of a user via observing the SCRAM iteration count."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+        "resource_type": "canonical",
+        "text": "Versions before PostgreSQL 16 are unaffected."
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 7,
+      "family": "authentication_session",
+      "near_miss": {
+        "origin": 2,
+        "path": "summary",
+        "reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+        "resource_type": "canonical",
+        "text": "IBM i 7.6, 7.5, 7.4, and 7.3 could allow a remote attacker to access server resources with the pr..."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+        "resource_type": "canonical",
+        "text": "IBM i 7.6, 7.5, 7.4, and 7.3 could allow a remote attacker to access server resources with the privileges of an authenticated user due to improper authentication during NTLM session negotiation."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 39,
+      "family": "broken_function_authorization",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+        "resource_type": "canonical",
+        "text": "## Evidence - `src/Andy.Rbac.Api/Controllers/ApplicationsController.cs:14,67-137` - `src/Andy.Rbac.Api/Controllers/RolesController.cs:12,63-142` - `src/Andy.Rbac.Api/Controllers/PoliciesController.cs:10-16,54-104` - `src/Andy.Rbac.Api/Controllers/GrantsController.cs:23-47` - `src/Andy.Rbac.Api/Program.cs:280` adds only a generic authorization requirement."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+        "resource_type": "canonical",
+        "text": "- Decide and document whether cross-application management requires a global permission or application-scoped permission."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+        "resource_type": "canonical",
+        "text": "- Return 403 for authenticated callers without the required permission."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 61,
+      "family": "broken_object_authorization",
+      "near_miss": {
+        "origin": 3,
+        "path": "body",
+        "reference": "https://github.com/goodrain/rainbond/issues/2665",
+        "resource_type": "issue",
+        "text": "PASS ``` Negative and sanity controls run in the same session: ``` === NEGATIVE CONTROL 1: no Authorization header === HTTP Status: 401 (expect 401) === NEGATIVE CONTROL 2: unknown/garbage bearer token === HTTP Status: 401 (expect 401) === CONTROL 3: Enterprise A's token against its OWN tenant-a (sanity check) === HTTP Status: 200 (expect 200, empty list since tenant-a has no services seeded) ``` Direct database contents at the time of the request (confirming the seeded state matched the intended scenario, no coincidental match): ``` mysql> SELECT ID,name,uuid,eid FROM tenants; ID name uuid eid 1 tenant-a uuid-tenant-a-0001 enterprise-A 2 tenant-b uuid-tenant-b-0002 enterprise-B mysql> SELECT ID,eid,api_range,validity_period,token FROM user_region_info; ID eid api_range validity_period token 1 enterprise-A all_power 1785717062 Lbe4HhpkJ0I6qsNRp9m9A7hax3FyuFL8 mysql> SELECT tenant_id,service_id,service_alias,comment FROM tenant_services; tenant_id service_id service_alias comment uuid-tenant-b-0002 svc-enterprise-b-secret-0001 enterprise-b-internal-billing Enterprise B private service - should NEVER be visible to Enterprise A ``` ### 截图 ## Impact On any Rainbond region deployment shared by more than one enterprise (the exact scenario the `EID`/`RegionUserInfo` schema exists to support), a valid API token belonging to one enterprise can be used to access any other enterprise's tenants simply by substituting that enterprise's `tenant_name` into the URL path."
+      },
+      "positive": {
+        "origin": 3,
+        "path": "title",
+        "reference": "https://github.com/goodrain/rainbond/issues/2665",
+        "resource_type": "issue",
+        "text": "Cross-enterprise tenant IDOR in the region API server: any valid region API token can read (and, by the same code path, modify) any other enterprise's tenant resources on a shared multi-tenant Rainbond region"
+      },
+      "secure_negative": {
+        "origin": 3,
+        "path": "body",
+        "reference": "https://github.com/goodrain/rainbond/issues/2665",
+        "resource_type": "issue",
+        "text": "However, the token-validation function (`CheckToken`) only checks validity period and a broad \"API class\" (`ALLPOWER` / `SERVERSOURCE` / `NODEMANAGER`); it never reads or compares the token's `EID`."
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 10,
+      "family": "command_injection",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+        "resource_type": "canonical",
+        "text": "A remote code execution vulnerability exists in Zimbra Collaboration (ZCS) before 10.1.20 when the optional zimbra-snmp package is installed and SNMP notifications are enabled."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+        "resource_type": "canonical",
+        "text": "Due to improper sanitization of untrusted input during SNMP notification processing, an unauthenticated attacker can send specially crafted SMTP requests that may result in execution of arbitrary operating system commands as the Zimbra user."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 41,
+      "family": "cors_misconfiguration",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/forkwright/harmonia/issues/710",
+        "resource_type": "canonical",
+        "text": "The severity depends on how the resulting session is carried: if credentials ride in a cookie, `permissive()` is the precondition for cross-site request forgery against those endpoints; if a bearer token is returned in the body, any origin the user visits can read a token minted for this service."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/forkwright/harmonia/issues/710",
+        "resource_type": "canonical",
+        "text": "## Why this matters Permissive CORS on an authentication surface means any origin can issue cross-origin requests to login and token-refresh endpoints and read the responses."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/forkwright/harmonia/issues/710",
+        "resource_type": "canonical",
+        "text": "If credentials are cookie-borne, note that `CorsLayer::permissive()` and `allow_credentials(true)` are mutually exclusive in `tower_http` by design — the wildcard origin is rejected with credentials — so confirm which mode the client actually relies on before changing it, or the fix will surface as a client breakage rather than as the security change it is."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 35,
+      "family": "cryptographic_failure",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/eddiethedean/hedron/issues/196",
+        "resource_type": "canonical",
+        "text": "## Impact - User impact: apps can ship to production with forgeable session secrets while believing the gate protected them."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/eddiethedean/hedron/issues/196",
+        "resource_type": "canonical",
+        "text": "## Affected Components - `packages/hedron-core/src/hedron_core/production_gate.py` — `_is_weak_secret`, `assert_production_security_config` ## Steps to Reproduce ```python import os from hedron_core.production_gate import assert_production_security_config os.environ[\"HEDRON_ENV\"] = \"production\" assert_production_security_config( production=True, security_profile=\"standard\", session_secret=\"x\", explorer_mode=\"off\", content_security_policy=\"default-src 'self'\", ) # incorrectly succeeds ``` ## Expected Behavior Reject secrets below a minimum entropy/length threshold (and expand known-weak markers), matching the documented gate message."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/eddiethedean/hedron/issues/196",
+        "resource_type": "canonical",
+        "text": "## Suggested Fix Enforce a minimum length (e.g."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 53,
+      "family": "dom_xss",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+        "resource_type": "canonical",
+        "text": "### Affected products - **Ecosystem**: npm - **Package name**: deepchat - **Affected versions**: All untracked versions up to current standard."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+        "resource_type": "canonical",
+        "text": "### Advisory Details **Title**: Persistent DOM XSS via HTML Entity Encoding in ` ` SVG Rendering (Bypass of `svgSanitizer.ts`) **Description**: ### Summary A Stored/Reflected Cross-Site Scripting (XSS) vulnerability exists due to a discrepancy between the backend validation layer and the frontend browser rendering engine."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+        "resource_type": "canonical",
+        "text": "- **Patched versions**: ### Severity - **Severity**: High - **Vector string**: CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:N ### Weaknesses - **CWE**: CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting') - **CWE**: CWE-116: Improper Encoding or Escaping of Output ### Occurrences | Permalink | Description | | :--- | :--- | | [src/main/lib/svgSanitizer.ts#L227-L236](src/main/lib/svgSanitizer.ts) | Unsound usage of basic plain-text regex (`replace(/javascript:/)`) that bypasses obfuscated HTML Entities filtering."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 36,
+      "family": "exceptional_condition_mishandling",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/louisalexander/time-safe/issues/35",
+        "resource_type": "canonical",
+        "text": "if os.environ.get(\"TIMESAFE_DEBUG\") == \"1\": _write(stderr, \"\".join(traceback.format_exception_only(type(exc), exc))) _emit_error(stderr, VaultError(\"Internal error.\")) return 4 ``` Note it prints `format_exception_only` even in debug mode — deliberately no frames, so no locals."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/louisalexander/time-safe/issues/35",
+        "resource_type": "canonical",
+        "text": "From the installed `textual` 8.2.7, `App._fatal_error`: ```python def _fatal_error(self) -> None: \"\"\"Exits the app after an unhandled exception.\"\"\" from rich.traceback import Traceback self.bell() traceback = Traceback( show_locals=True, width=None, locals_max_length=5, suppress=[rich] ) self._exit_renderables.append(...) ``` (`textual/app.py:3285-3296`.) The renderable is printed to the error console as the app exits."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/louisalexander/time-safe/issues/35",
+        "resource_type": "canonical",
+        "text": "On the add path the plaintext is a live local in at least three frames — `text` in `AddSecretScreen._save` ([add_secret.py:50](../blob/master/timesafe/screens/add_secret.py#L50)), the `text` parameter of `_do_save` ([add_secret.py:66-70](../blob/master/timesafe/screens/add_secret.py#L66-L70)), and `plaintext` in `Vault.put_secret` ([vault.py:42-51](../blob/master/timesafe/vault/vault.py#L42-L51))."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 10,
+      "family": "file_upload",
+      "near_miss": {
+        "origin": 2,
+        "path": "summary",
+        "reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+        "resource_type": "canonical",
+        "text": "An unrestricted file upload vulnerability in dulldusk/phpfm through 1.8.0 allows an unauthenticat..."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+        "resource_type": "canonical",
+        "text": "The application ships with an empty upload extension filter ( = array) and no authentication enabled by default (auth_pass is empty string), allowing an unauthenticated attacker to upload a PHP webshell and execute it by browsing to the uploaded path."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+        "resource_type": "canonical",
+        "text": "An unrestricted file upload vulnerability in dulldusk/phpfm through 1.8.0 allows an unauthenticated remote attacker to execute arbitrary PHP code on the server."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 82,
+      "family": "graphql_data_exposure",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/ryjen/eyespie/issues/122",
+        "resource_type": "canonical",
+        "text": "### Storage authorization Define explicit Supabase Storage policies for `images`: - upload only to an authorized/owned namespace; - read only after Thing/game authorization appropriate to the requested object; - no overwrite/delete of another user's object; - explicit deletion lifecycle; - no reliance on path unguessability; - bounded signed URL only if authenticated download cannot satisfy the client flow."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/ryjen/eyespie/issues/122",
+        "resource_type": "canonical",
+        "text": "## Tests - account A cannot select arbitrary unrelated Thing authority fields from account B; - creator can read/update its allowed Thing authority; - authorized game participant gets the minimum game projection required by #92; - unrelated authenticated account cannot recover exact location, embedding, hidden proof, or image bearer capability through direct table access, GraphQL relation, nearby RPC, or matching RPC; - nearby result contains only the documented listing allowlist; - match result contains only the documented verification allowlist; - stored Thing contains object key/identity, not signed URL query/token; - authorized rendering can access image transiently; - unauthorized Storage read/write/delete fails; - any signed URL TTL is bounded and the URL is not persisted; - legacy signed-URL migration does not expose tokens in logs; - complete #92 two-player flow still succeeds."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/ryjen/eyespie/issues/122",
+        "resource_type": "canonical",
+        "text": "If RLS recursion makes direct policy joins fragile, use a tightly scoped reviewed `SECURITY DEFINER` predicate/function with fixed `search_path`, boolean/minimum return data, and no general data-extraction capability."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 530,
+      "family": "improper_inventory_management",
+      "near_miss": {
+        "origin": 2,
+        "path": "body_text",
+        "reference": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+        "resource_type": "canonical",
+        "text": "The built-in APIM Service Reader role has the following permissions: { \"assignableScopes\" : [ \"/\" ], \"description\" : \"Read-only access to service and APIs\" , \"id\" : \"/providers/Microsoft.Authorization/roleDefinitions/71522526-b88f-4d52-b57f-d31fc3546d0d\" , \"name\" : \"71522526-b88f-4d52-b57f-d31fc3546d0d\" , \"permissions\" : [ { \"actions\" : [ \"Microsoft.ApiManagement/service/*/read\" , \"Microsoft.ApiManagement/service/read\" , \"Microsoft.Authorization/*/read\" , \"Microsoft.Insights/alertRules/*\" , \"Microsoft.ResourceHealth/availabilityStatuses/read\" , \"Microsoft.Resources/deployments/*\" , \"Microsoft.Resources/subscriptions/resourceGroups/read\" , \"Microsoft.Support/*\" ], \"notActions\" : [ \"Microsoft.ApiManagement/service/users/keys/read\" ], \"dataActions\" : [], \"notDataActions\" : [] } ], \"roleName\" : \"API Management Service Reader Role\" , \"roleType\" : \"BuiltInRole\" , \"type\" : \"Microsoft.Authorization/roleDefinitions\" } Subscription keys - a security boundary?"
+      },
+      "positive": {
+        "origin": 3,
+        "path": "body_text",
+        "reference": "https://www.binarysecurity.no/feed.xml",
+        "resource_type": "external_source",
+        "text": "There is another option, which is to tie the workflow file to a specific commit SHA as follows: name: run terraform plan and apply on: workflow_dispatch permissions: id-token: write contents: read jobs: terraform: uses: ndc-security-demo/reusable-workflows/.github/workflows/reusable-terraform.yaml@6e0e1a08367bc26a4cd2fbb00f70f3e403dba49e secrets: azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }} azure_client_id: ${{ secrets.AZURE_CLIENT_ID }} azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }} Now, even if the ndc-security-demo/reusable-workflows repository were to be completely compromised, our calling repository wouldn’t be affected, as the commit hash ensures we’re still using the expected version of the workflow."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body_text",
+        "reference": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+        "resource_type": "canonical",
+        "text": "After receiving our reports, Microsoft has fixed some of these for all users, but other fixes remain hidden behind the toggle “Disable old API versions”."
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 9,
+      "family": "ldap_injection",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-pm9m-75p4-7h69",
+        "resource_type": "canonical",
+        "text": "Due to improper sanitization of user input, an unauthenticated attacker is then able to perform various malicious actions, such as creating arbitrary accounts and spraying passwords."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-pm9m-75p4-7h69",
+        "resource_type": "canonical",
+        "text": "When LDAP connection is activated in Teedy versions between 1.9 to 1.12, the username field of the login form is vulnerable to LDAP injection."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 37,
+      "family": "mass_assignment",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+        "resource_type": "canonical",
+        "text": "So a tenant can name any S3 key — including another tenant's dataset object, or any object in the bucket — and then read its contents back through a legitimately-scoped endpoint."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+        "resource_type": "canonical",
+        "text": "## Problem `apps/backend/app/api/routes/user_data.py:24` — `POST /api/v1/user_data/` accepts a client-supplied `s3_url` and persists it onto the `UserData` document, and `PUT /api/v1/user_data/{id}` mass-assigns the same field."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+        "resource_type": "canonical",
+        "text": "`get_file_from_s3` validates the bucket against an allowlist and the key against the caller's tenant prefix, as defense in depth for any path that still reaches it."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 75,
+      "family": "nosql_injection",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+        "resource_type": "canonical",
+        "text": "**Component:** `src/persistence/query/MongoQuery.ts` **Severity (assessment):** LOW **CWE:** CWE-943 (Improper Neutralization of Special Elements in Data Query Logic) **Related:** #136 `assertValidTags` is called at every journal `append`, which the module documents as \"the single choke point every backend shares\"."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+        "resource_type": "canonical",
+        "text": "AND timestamp >= ?` with `{ prepare: true }` (CassandraQuery.ts:94-103) — both would reject a non-string binding at the driver, so MongoDB is the only backend where an object becomes an operator expression."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/pathosDev/actor-ts/issues/738",
+        "resource_type": "canonical",
+        "text": "The `all` branch is neutralised by `eventMatchesTagFilter` refinement (an object never `includes`-matches a string tag), and `$in` with a `$`-prefixed document is rejected by current MongoDB servers; what survives is a request-driven unindexed collection scan, i.e."
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 12,
+      "family": "open_redirect",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-jjjg-67rc-qf87",
+        "resource_type": "canonical",
+        "text": "Attackers can craft a malicious logout URL containing an arbitrary external domain or javascript: URI scheme to redirect authenticated users to attacker-controlled phishing pages after session destruction, enabling credential theft and OAuth redirect abuse."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-jjjg-67rc-qf87",
+        "resource_type": "canonical",
+        "text": "Saurus CMS Community Edition contains an unauthenticated open redirect vulnerability in the logout handling code in classes/port.inc.php, where the url parameter supplied via GET or POST is passed directly to the Location header without domain allowlist, scheme validation, or relative path enforcement."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 44,
+      "family": "postmessage_trust",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/auth0/auth0.js/issues/508",
+        "resource_type": "canonical",
+        "text": "auth0-js@8.10.0 chrome & linux A little more investigation turned up a few problems with the way you're handling things (and explaining why I was getting gibberish): 1) You're not confirming, in either IframeHandler.prototype.eventListener or SilentAuthenticationHandler.prototype.getEventValidator.isValid, that the origin is correct for the message."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/auth0/auth0.js/issues/508",
+        "resource_type": "canonical",
+        "text": "[MDN's postMessage documentation](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage)) 2) Assuming you have a message from the correct origin, there is no check that the message is from the correct iFrame."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/auth0/auth0.js/issues/508",
+        "resource_type": "canonical",
+        "text": "3) There is no validation of the message content, once you're certain that it's coming from the right place, before shuffling it off to the callback."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 16,
+      "family": "race_condition",
+      "near_miss": {
+        "origin": 2,
+        "path": "body_text",
+        "reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+        "resource_type": "canonical",
+        "text": "\"> Attack Vector LOCAL Attack Complexity LOW Attack Requirements PRESENT Automatable NO User Interaction NONE Product Confidentiality NONE Product Integrity HIGH Product Availability NONE Privileges Required LOW Subsequent Confidentiality HIGH Subsequent Integrity HIGH Subsequent Availability HIGH CVE JSON CSAF Published 2025-04-09 Updated 2025-05-02 Reference GPC-19862, GPC-19858 Discovered externally Description A vulnerability with a privilege management mechanism in the Palo Alto Networks GlobalProtect™ app on Windows devices allows a locally authenticated non-administrative Windows user to escalate their privileges to NT AUTHORITY\\SYSTEM."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body_text",
+        "reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+        "resource_type": "canonical",
+        "text": "CVE-2025-0120 GlobalProtect App: Local Privilege Escalation (PE) Vulnerability Security advisories Report vulnerabilities Bug Bounty Get support Subscribe RSS feed Login Palo Alto Networks Security Advisories / CVE-2025-0120 CVE-2025-0120 GlobalProtect App: Local Privilege Escalation (PE) Vulnerability Urgency MODERATE 0 4 7 9 10 Severity 4 · MEDIUM Exploit Maturity UNREPORTED Response Effort MODERATE Recovery USER Value Density CONCENTRATED the attacker exploits the vulnerability by accessing the target system locally (e.g., keyboard, console), or remotely (e.g., SSH); or the attacker relies on User Interaction by another person to perform actions required to exploit the vulnerability (e.g., using social engineering techniques to trick a legitimate user into opening a malicious document)."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body_text",
+        "reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+        "resource_type": "canonical",
+        "text": "Weakness Type and Impact CWE-250 Execution with Unnecessary Privileges CAPEC-233 Privilege Escalation Solution Version Suggested Solution GlobalProtect App 6.3 on Windows Upgrade to 6.3.3 or later GlobalProtect App 6.2 on Windows Upgrade to 6.2.7-1077 or 6.2.8 or later GlobalProtect App 6.1 on Windows Upgrade to 6.2.8 or later or upgrade to 6.3.3 or later GlobalProtect App 6.0 on Windows Upgrade to 6.2.8 or later or upgrade to 6.3.3 or later GlobalProtect App on macOS No action needed GlobalProtect App on Linux No action needed GlobalProtect App on iOS No action needed GlobalProtect App on Android No action needed GlobalProtect UWP App No action needed Workarounds and Mitigations No workaround or mitigation is available."
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 7,
+      "family": "secret_exposure",
+      "near_miss": {
+        "origin": 2,
+        "path": "summary",
+        "reference": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
+        "resource_type": "canonical",
+        "text": "IBM Storage Scale 5.2.3.0 through 5.2.3.8, and 6.0.0.0 through 6.0.1.0 GUI contains a hardcoded t..."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
+        "resource_type": "canonical",
+        "text": "IBM Storage Scale 5.2.3.0 through 5.2.3.8, and 6.0.0.0 through 6.0.1.0 GUI contains a hardcoded token in the source code, which was used for inter-node cluster communication and REST API authentication between GUI."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 8,
+      "family": "security_logging_alerting_failure",
+      "near_miss": {
+        "origin": 2,
+        "path": "summary",
+        "reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+        "resource_type": "canonical",
+        "text": "IBM Db2 11.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux, UNIX and Windows (includes DB..."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+        "resource_type": "canonical",
+        "text": "IBM Db2 11.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux, UNIX and Windows (includes DB2 Connect Server) could allow a local attacker to obtain sensitive information due to the logging of plain text passwords in trace files."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 40,
+      "family": "security_misconfiguration",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+        "resource_type": "canonical",
+        "text": "That error carries the full Axios configuration, including the `X-Vault-Token` header and the request body."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+        "resource_type": "canonical",
+        "text": "## Impact When consuming applications log intercepted exceptions, sensitive credentials such as tokens, passwords, and secrets are unknowingly exposed to application logs, monitoring services, and APM systems via the raw `AxiosError`."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+        "resource_type": "canonical",
+        "text": "Users should upgrade to a version that includes this fix."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 39,
+      "family": "server_side_template_injection",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/own-pay/OwnPay/issues/438",
+        "resource_type": "canonical",
+        "text": "## Audit Finding: VW-3 - **Severity**: `HIGH` - **Category**: View / SSTI - **File**: ``/home/z/my-project/ownpay/src/View/TwigFactory.php:95-112`` ## Description `TwigFactory::create()` builds the `Twig\\Environment` with `autoescape => 'html'` (good for XSS) but does NOT enable `Twig\\Sandbox\\Extension\\SandboxExtension`."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/own-pay/OwnPay/issues/438",
+        "resource_type": "canonical",
+        "text": "## Recommended Fix For any template whose source is editable by non-superadmins (email templates, invoice notes rendered as Twig, theme templates uploaded by brand admins), wrap the Twig environment with `SandboxExtension` configured with a strict `SecurityPolicy` (allow-list of tags, filters, functions, and methods)."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/own-pay/OwnPay/issues/438",
+        "resource_type": "canonical",
+        "text": "For core/plugin-shipped templates from trusted developers, the unsandboxed environment can remain — but the `env()` and `setting()` functions should be removed or restricted regardless (per FINDING VW-1)."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 38,
+      "family": "software_supply_chain_failure",
+      "near_miss": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/cap-js/cds-dbs/security/advisories/GHSA-pvw4-cvr4-97p8",
+        "resource_type": "security_advisory",
+        "text": "## Impact On April 29, 2026, compromised versions of `@cap-js/sqlite@2.2.2`, `@cap-js/postgres@2.2.2`, and `@cap-js/db-service@2.10.1` were published."
+      },
+      "positive": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/cap-js/cds-dbs/security/advisories/GHSA-pvw4-cvr4-97p8",
+        "resource_type": "security_advisory",
+        "text": "The malicious packages harvested credentials and attempted self-propagation."
+      },
+      "secure_negative": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/cap-js/cds-dbs/security/advisories/GHSA-pvw4-cvr4-97p8",
+        "resource_type": "security_advisory",
+        "text": "## Patches Upgrade to `@cap-js/sqlite` >= 2.4.0, `@cap-js/postgres` >= 2.3.0, `@cap-js/db-service` >= 2.11.0."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 91,
+      "family": "source_map_exposure",
+      "near_miss": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+        "resource_type": "security_advisory",
+        "text": "*/` comment inside the CSS text it is asked to parse and, unless the caller explicitly passes `map: false`, attempts to load that path from disk as a \"previous source map.\" This happens on every `postcss.parse()` / `postcss().process()` call by default (opt-out, not opt-in)."
+      },
+      "positive": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+        "resource_type": "security_advisory",
+        "text": "### Verification Dynamically confirmed on v8.5.16 (current npm release / repo HEAD) via a standalone Node.js harness against `lib/postcss.js`: a \"secret\" `.map` file placed two directories outside a simulated project directory was read via a crafted `sourceMappingURL` comment in otherwise-innocuous CSS, with its `sourcesContent` appearing verbatim in `result.map.toString()` — with no `map` option set by the caller."
+      },
+      "secure_negative": {
+        "origin": 3,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+        "resource_type": "security_advisory",
+        "text": "} } ``` ### Recommended Fix Constrain the resolved path to remain inside the CSS file's own directory instead of relying solely on a filename-extension check: ```js loadFile(path, cssFile, trusted) { if (!trusted && !this.unsafeMap) { if (!/\\.map$/i.test(path)) { return undefined } if (!cssFile) return undefined let root = resolve(dirname(cssFile)) let resolvedPath = resolve(root, path) if (resolvedPath !== root && !resolvedPath.startsWith(root + sep)) { return undefined } } this.root = dirname(path) if (existsSync(path)) { this.mapFile = path return readFileSync(path, 'utf-8').toString().trim() } } ``` I've implemented, tested (full existing test suite — 660/660 passing, plus new PoC-based regression checks for both the traversal and legitimate same-directory cases), and can share this fix on request or via a private fork if invited."
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 59,
+      "family": "sql_injection",
+      "near_miss": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+        "resource_type": "canonical",
+        "text": "Attackers can bypass the application's keyword blocklist by interleaving the string 'master' within blocked SQL terms to extract sensitive database contents."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+        "resource_type": "canonical",
+        "text": "ASP-CMS contains a SQL injection vulnerability in the commentList.asp endpoint that allows unauthenticated remote attackers to inject arbitrary SQL by manipulating the id parameter in GET requests to the comment listing script."
+      },
+      "secure_negative": {
+        "origin": 3,
+        "path": "body",
+        "reference": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+        "resource_type": "issue",
+        "text": "### Template Information: AspCMS commentList.asp SQLI app=\"ASPCMS\" ### Nuclei Template: ```yaml id: aspcms-commentlist-sqli info: name: aspcms-commentlist-sqli author: SleepingBag945 severity: medium description: | AspCMS commentList.asp 存在SQL注入漏洞，攻击者通过漏洞可以获取管理员md5的密码 metadata: fofa-query: app=\"ASPCMS\" tags: sqli http: - raw: - | GET /plug/comment/commentList.asp?id=-1%20unmasterion%20semasterlect%20top%201%20UserID,GroupID,LoginName,Password,now(),null,1%20%20frmasterom%20{prefix}user HTTP/1.1 Host: {{Hostname}} User-Agent: Mozilla/5.0(X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0 extractors: - type: regex group: 1 regex: - \" (.*?) \" matchers: - type: dsl dsl: - \"status_code_1 == 200 && contains(body_1,'clistbox') && contains(body_1,'UserID,GroupID,LoginName,Password')\" condition: and ```"
+      }
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 12,
+      "family": "unrestricted_resource_consumption",
+      "near_miss": {
+        "origin": 2,
+        "path": "summary",
+        "reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+        "resource_type": "canonical",
+        "text": "An issue in Systerel S2OPC 1.7.3 allows a remote attacker to cause a denial of service via the ev..."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "description",
+        "reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+        "resource_type": "canonical",
+        "text": "An issue in Systerel S2OPC 1.7.3 allows a remote attacker to cause a denial of service via the event monitored-item queue resize handling"
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "references.4",
+        "reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+        "resource_type": "canonical",
+        "text": "https://github.com/systerel/S2OPC/blob/S2OPC_Toolkit_1.7.3/tests/ClientServer/validation_tests/server/toolkit_test_server.c"
+      }
+    },
+    {
+      "all_three_proposed": false,
+      "candidate_excerpt_count": 34,
+      "family": "unsafe_api_consumption",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/zachlagden/rickbot/issues/38",
+        "resource_type": "canonical",
+        "text": "Querying OSV for that exact version returns **70 advisories**, and contrary to the \"it's all server-side\" assumption, several are squarely on the **client** path that discord.py uses."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/zachlagden/rickbot/issues/38",
+        "resource_type": "canonical",
+        "text": "These advisories are in exactly that code: | CVE | Severity | Fixed in | Why it reaches this bot | |---|---|---|---| | CVE-2026-69244 | **HIGH** | 3.14.3 | Out-of-bounds heap read in the C HTTP **response** parser, malformed chunked response | | CVE-2025-69223 | **HIGH** | 3.13.3 | `auto_decompress` zip bomb — response decompression | | CVE-2026-59881 | MODERATE | 3.14.2 | WebSocket **client** accepts compressed frames without negotiated permessage-deflate | | CVE-2026-47265 | MODERATE | 3.14.0 | Per-request cookies leak on cross-origin redirect | | CVE-2026-34520 | LOW | — | C parser accepts null bytes/control chars in **response** header values | | CVE-2026-34518 | LOW | 3.13.4 | `Cookie` / `Proxy-Authorization` leak on cross-origin redirect | | CVE-2026-54275 | LOW | 3.14.1 | TLS server-hostname override ignored on HTTPS connection reuse | | CVE-2026-54279 | LOW | 3.14.1 | Host-only cookies become domain cookies after CookieJar persistence | The remaining ~60 are `aiohttp.web` server-side (static file handler, multipart parsing, `client_max_size`) and genuinely do not apply — this bot runs no HTTP server."
+      },
+      "secure_negative": null
+    },
+    {
+      "all_three_proposed": true,
+      "candidate_excerpt_count": 47,
+      "family": "websocket_authorization",
+      "near_miss": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+        "resource_type": "canonical",
+        "text": "## Scope - Decide the model above, then implement: an auth hook covering REST and the WebSocket upgrade, session handling, and a local/offline path."
+      },
+      "positive": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+        "resource_type": "canonical",
+        "text": "The HTTP and WebSocket surface has no authentication or authorization of any kind."
+      },
+      "secure_negative": {
+        "origin": 2,
+        "path": "body",
+        "reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+        "resource_type": "canonical",
+        "text": "## Acceptance - Unauthenticated requests to control and config endpoints are rejected - WebSocket upgrade rejects unauthenticated connections - CORS restricted to known origins - Integration tests for both the authorized and unauthorized paths - Simulator mode still runs with no external dependency Found during the security review of #19."
+      }
+    }
+  ],
+  "ranking_output_used": false,
+  "remaining_family_count": 28,
+  "scoring_executed": false
+}
