@@ -38,10 +38,6 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
-      - name: Probe changed manifest hashes
-        shell: bash
-        run: sha256sum app/bug_candidates.py tests/test_raw_routing_hardening_v961.py
-
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
