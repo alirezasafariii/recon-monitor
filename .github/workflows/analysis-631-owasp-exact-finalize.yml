@@ -8,6 +8,8 @@ on:
     paths:
       - benchmarks/raw/sources/v6_owasp_exact_overrides.json
       - benchmarks/raw/sources/v6_owasp_extension_candidates.json
+      - benchmarks/raw/sources/v6_complement_overrides.json
+      - app/v6_source_finalize.py
       - .github/workflows/analysis-631-owasp-exact-finalize.yml
 
 permissions:
@@ -54,4 +56,4 @@ jobs:
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
 
-      # This push trigger is temporary for the hardened-source rebuild and is removed after a successful run.
+      # Push trigger is temporary and will be removed after this hardened source rebuild succeeds.
