@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
+from raw_recon_v7_gap_discovery import GAP_FAMILIES, _context_match, _family_cwes
 from raw_recon_v7_source_firewall import HARD_SCOPE, RESEARCH_SCOPE
 from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
@@ -15,14 +16,14 @@ from raw_recon_v7_source_firewall import (
     validate_shortlist,
 )
 
-VERSION = "1.3.0"
-RULE_VERSION = "2026.08.14.6.33.v7.unseen.4"
+VERSION = "1.4.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.5"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 OUT = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 
 
-def _targeted_pending_adjudication(row: Mapping[str, Any]) -> bool:
-    return bool(
+def _targeted_pending_adjudication(row: Mapping[str, Any], family: str) -> tuple[bool, list[str]]:
+    explicit = bool(
         row.get("v7_targeted_gap_candidate") is True
         and row.get("v7_targeted_exact_cwe") is True
         and row.get("v7_targeted_context_match") is True
@@ -30,6 +31,26 @@ def _targeted_pending_adjudication(row: Mapping[str, Any]) -> bool:
         and row.get("v7_target_family_requires_literal_adjudication") is True
         and row.get("scoring_executed") is False
     )
+    if explicit:
+        return True, [str(v) for v in row.get("v7_targeted_context_tokens") or []]
+
+    # A targeted candidate can already exist in the base discovery pool. The
+    # merge intentionally deduplicates by source root, so recompute the same
+    # exact-CWE + context proof here instead of depending on copied metadata.
+    if family not in GAP_FAMILIES:
+        return False, []
+    matched_cwes = {str(value).strip() for value in row.get("matched_cwes") or [] if str(value).strip()}
+    if not (matched_cwes & set(_family_cwes(family))):
+        return False, []
+    context_ok, tokens = _context_match(family, row)
+    if not context_ok:
+        return False, []
+    # Source selection is still pre-scoring even when older base rows do not
+    # carry an explicit scoring_executed field of their own. The containing
+    # candidate registry is separately required to be unscored in select().
+    if row.get("scoring_executed") not in (None, False):
+        return False, []
+    return True, tokens
 
 
 def _quality_key(row: Mapping[str, Any], family: str) -> tuple[Any, ...]:
@@ -41,8 +62,6 @@ def _quality_key(row: Mapping[str, Any], family: str) -> tuple[Any, ...]:
     description_length = min(len(str(row.get("description") or "")), 5000)
     published = str(row.get("published_at") or "")
     research_fresh = int(not bool(row.get("v7_research_preexposed")))
-    # Fully audited semantic candidates win. Targeted CWE+context candidates are
-    # fallback only and remain unlabelled until literal source adjudication.
     semantically_audited = int(passed)
     return (
         semantically_audited, research_fresh, score, reviewed, repository_location,
@@ -68,7 +87,7 @@ def _prepare_pool(
         if not firewall["allowed"] or firewall["engine_seen"]:
             continue
         passed, hits, score = audit_row(family, row)
-        targeted_pending = _targeted_pending_adjudication(row)
+        targeted_pending, targeted_tokens = _targeted_pending_adjudication(row, family)
         if not passed and not targeted_pending:
             continue
         root = str(row.get("source_root") or "").strip().casefold()
@@ -89,10 +108,12 @@ def _prepare_pool(
             "source_family_audit_group_hits": hits,
             "source_family_audit_score": score,
             "source_family_targeted_fallback_pending_literal_adjudication": bool(targeted_pending and not passed),
+            "source_family_targeted_context_tokens": targeted_tokens if targeted_pending else [],
+            "source_family_target_is_not_final_until_literal_adjudication": bool(targeted_pending and not passed),
             "source_selection_track": "fresh_v7_engine_unseen_global_semantic_or_targeted_context_pool",
             "selection_basis": (
                 "passive source selected before scoring; hard-blocked against all materialized/scored Analysis corpora and pinned Corpus V1; "
-                "research-only preexposure recorded and deprioritized; normal candidates require semantic audit; targeted gap fallback requires exact advisory CWE plus family context and remains candidate-only pending literal source adjudication; global root/project uniqueness enforced"
+                "research-only preexposure recorded and deprioritized; normal candidates require semantic audit; targeted fallback requires exact advisory CWE plus family context and remains candidate-only pending literal source adjudication; global root/project uniqueness enforced"
             ),
             "hard_engine_exposure_scope": HARD_SCOPE,
             "research_preexposure_scope": RESEARCH_SCOPE,
