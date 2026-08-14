@@ -225,7 +225,18 @@ class BaselineRawAnalysisV960Tests(unittest.TestCase):
                 (result["analysis_id"],),
             )
             self.assertIsNotNone(hypothesis)
-            self.assertIn(hypothesis["state"], {"shadow_partial", "abstained", "admitted"})
+            self.assertIn(
+                hypothesis["state"],
+                {"shadow_signal", "shadow_partial", "abstained", "admitted"},
+            )
+            self.assertNotEqual(hypothesis["state"], "promoted")
+            self.assertIsNone(
+                db.one(
+                    "SELECT candidate_id FROM bug_candidates "
+                    "WHERE analysis_id=? AND bug_family='csv_injection'",
+                    (result["analysis_id"],),
+                )
+            )
         finally:
             db.close()
             temp.cleanup()
