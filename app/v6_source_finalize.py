@@ -14,8 +14,8 @@ from raw_recon_v6_source_firewall import (
     exposure_index,
 )
 
-VERSION = "1.2.0"
-RULE_VERSION = "2026.08.14.6.31.4"
+VERSION = "1.3.0"
+RULE_VERSION = "2026.08.14.6.31.5"
 SRC = ROOT / "benchmarks/raw/sources"
 
 BASE_HARD = {
@@ -30,8 +30,9 @@ HARD = BASE_HARD | EXTENSION_HARD
 COMPLEMENT_OVERRIDE_FAMILIES = {
     "account_enumeration", "authentication_session", "broken_function_authorization",
     "command_injection", "cryptographic_failure", "exceptional_condition_mishandling",
-    "file_upload", "mass_assignment", "race_condition",
-    "server_side_template_injection", "unrestricted_resource_consumption",
+    "file_upload", "mass_assignment", "race_condition", "secret_exposure",
+    "security_logging_alerting_failure", "server_side_template_injection",
+    "unrestricted_resource_consumption",
 }
 LEGACY_DISCOVERY_FAMILIES = set(DETECTOR_SPECS) - HARD - COMPLEMENT_OVERRIDE_FAMILIES
 
@@ -331,7 +332,7 @@ def finalize() -> dict[str, Any]:
         "firewall_rule_version": FIREWALL_RULE_VERSION, "scoring_executed": False,
     }
     shortlist = {
-        "version": "3.5.0", "rule_version": RULE_VERSION,
+        "version": "3.6.0", "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v6_unscored_source_selection",
         "selection_executes_scoring": False, "selection_uses_detector_output": False,
         "selection_uses_admission_results": False, "selection_uses_ranking_results": False,
@@ -339,17 +340,17 @@ def finalize() -> dict[str, Any]:
         "family_count": 36, "unique_root_count": 36, "unique_project_count": 36,
         "owasp_grounded_family_count": 14,
         "complement_family_count": 22,
-        "complement_override_family_count": 11,
-        "legacy_semantic_family_count": 11,
+        "complement_override_family_count": 13,
+        "legacy_semantic_family_count": 9,
         "supplement_pool_used": False,
         "firewall": final_firewall, "selected": rows,
     }
     report = {
-        "version": "1.5.0", "rule_version": RULE_VERSION, "status": "selected",
+        "version": "1.6.0", "rule_version": RULE_VERSION, "status": "selected",
         "scoring_executed": False, "family_count": 36, "unique_root_count": 36,
         "unique_project_count": 36, "owasp_grounded_family_count": 14,
-        "complement_family_count": 22, "complement_override_family_count": 11,
-        "legacy_semantic_family_count": 11, "supplement_pool_used": False,
+        "complement_family_count": 22, "complement_override_family_count": 13,
+        "legacy_semantic_family_count": 9, "supplement_pool_used": False,
         "grounding_provenance_reuse_count": 0,
         "hard_family_validation": hard_report,
         "complement_override_validation": complement_report,
