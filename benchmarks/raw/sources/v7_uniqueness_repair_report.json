@@ -1,0 +1,254 @@
+{
+  "added": [
+    {
+      "context_tokens": [
+        "management",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "oban-bg/oban_web",
+      "source_root": "GHSA-389x-rgxr-8m33"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-3q6q-26vg-v97x"
+    },
+    {
+      "context_tokens": [
+        "function",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "SolidInvoice/SolidInvoice",
+      "source_root": "GHSA-7vfx-4246-jcfh"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-c6w6-57jj-62vh"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "verbb/formie",
+      "source_root": "GHSA-cvpc-hccg-wmw4"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "nick-pape/grackle",
+      "source_root": "GHSA-f9ff-5x35-7gfw"
+    },
+    {
+      "context_tokens": [
+        "privileged",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kite-org/kite",
+      "source_root": "GHSA-gvhc-wv3v-7pf8"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-j5mc-p8qg-39j7"
+    },
+    {
+      "context_tokens": [
+        "endpoint",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "czlonkowski/n8n-mcp",
+      "source_root": "GHSA-j6r7-6fhx-77wx"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "coder/coder",
+      "source_root": "GHSA-jqj2-x4c5-jfxm"
+    },
+    {
+      "context_tokens": [
+        "privileged",
+        "unauthorized"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "apolloconfig/apollo",
+      "source_root": "GHSA-jxpj-9j24-w337"
+    },
+    {
+      "context_tokens": [
+        "operation",
+        "access control"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "julien040/anyquery",
+      "source_root": "GHSA-mf78-3rpf-r784"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "avo-hq/avo",
+      "source_root": "GHSA-pqpw-cvm4-8mv9"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "privilege escalation"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "woodpecker-ci/woodpecker",
+      "source_root": "GHSA-qf34-295c-26v8"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "openclaw/openclaw",
+      "source_root": "GHSA-qjpc-qf9m-xwmr"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-rw46-qg69-vg6h"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "ArcadeData/arcadedb",
+      "source_root": "GHSA-vg6x-6pg9-6qwg"
+    },
+    {
+      "context_tokens": [
+        "permission",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "code16/sharp",
+      "source_root": "GHSA-vmwx-m75v-qvch"
+    },
+    {
+      "context_tokens": [
+        "permission",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "surrealdb/surrealdb",
+      "source_root": "GHSA-wp87-mgvq-5j93"
+    },
+    {
+      "context_tokens": [
+        "admin",
+        "authorization"
+      ],
+      "matched_cwes": [
+        "CWE-862"
+      ],
+      "research_preexposed": true,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-xv4r-4885-gwpg"
+    }
+  ],
+  "added_count": 20,
+  "api_request_count": 10,
+  "engine_seen_added_count": 0,
+  "evaluation_kind": "fresh_blind_v7_project_uniqueness_repair",
+  "family": "broken_function_authorization",
+  "first_blind_consumed": false,
+  "forbidden_conflicting_project": "getgrav/grav",
+  "rule_version": "2026.08.14.6.33.v7.uniqueness.1",
+  "scoring_executed": false,
+  "version": "1.0.0"
+}
