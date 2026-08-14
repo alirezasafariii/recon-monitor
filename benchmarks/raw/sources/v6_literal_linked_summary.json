@@ -1,0 +1,598 @@
+{
+  "evaluation_kind": "fresh_blind_v6_passive_linked_research_summary_unscored",
+  "families": {
+    "account_enumeration": {
+      "canonical_reference": "https://github.com/advisories/GHSA-hp2m-55fj-8mw5",
+      "source_project": "postgres/postgres",
+      "source_root": "GHSA-hp2m-55fj-8mw5",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "authentication_session": {
+      "canonical_reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+      "source_project": "ibm/ibm-i",
+      "source_root": "GHSA-vxcg-gxwh-hqw8",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "broken_function_authorization": {
+      "canonical_reference": "https://github.com/rivoli-ai/andy-rbac/issues/97",
+      "source_project": "rivoli-ai/andy-rbac",
+      "source_root": "ANDY-RBAC-ISSUE-97",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "broken_object_authorization": {
+      "canonical_reference": "https://github.com/advisories/GHSA-5xhp-2v8r-m7wh",
+      "source_project": "goodrain/rainbond",
+      "source_root": "GHSA-5xhp-2v8r-m7wh",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/goodrain/rainbond/issues/2665",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/goodrain/rainbond/issues/2665",
+            "message": null,
+            "number": 2665,
+            "sha": null,
+            "title": "Cross-enterprise tenant IDOR in the region API server: any valid region API token can read (and, by the same code path, modify) any other enterprise's tenant resources on a shared multi-tenant Rainbond region"
+          },
+          "reference": "https://github.com/goodrain/rainbond/issues/2665",
+          "resource_type": "issue",
+          "snapshot_sha256": "d6ee776ec64a80d1cd336c4486365049579b58cacc974841f5f5bdde4ca30beb"
+        }
+      ]
+    },
+    "business_logic": {
+      "canonical_reference": "https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736",
+      "source_project": "meshtastic/firmware",
+      "source_root": "GHSA-mjx5-98jq-q736",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/meshtastic/firmware/security-advisories/GHSA-6mwm-v2vv-pp96",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/meshtastic/firmware/security/advisories/GHSA-6mwm-v2vv-pp96",
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://github.com/meshtastic/firmware/security/advisories/GHSA-6mwm-v2vv-pp96",
+          "resource_type": "security_advisory",
+          "snapshot_sha256": "a8b488fd56b492dd1e4cd4596963dc91d70e1f67e9e03c27b100d1a74fa78233"
+        }
+      ]
+    },
+    "command_injection": {
+      "canonical_reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+      "source_project": "zimbra/zimbra-collaboration",
+      "source_root": "GHSA-jqh7-pchh-v74j",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "cors_misconfiguration": {
+      "canonical_reference": "https://github.com/forkwright/harmonia/issues/710",
+      "source_project": "forkwright/harmonia",
+      "source_root": "HARMONIA-ISSUE-710",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "cryptographic_failure": {
+      "canonical_reference": "https://github.com/eddiethedean/hedron/issues/196",
+      "source_project": "eddiethedean/hedron",
+      "source_root": "HEDRON-ISSUE-196",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "dom_xss": {
+      "canonical_reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+      "source_project": "ThinkInAIXYZ/deepchat",
+      "source_root": "GHSA-7r59-67v3-3mgp",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "exceptional_condition_mishandling": {
+      "canonical_reference": "https://github.com/louisalexander/time-safe/issues/35",
+      "source_project": "louisalexander/time-safe",
+      "source_root": "TIME-SAFE-ISSUE-35",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "file_upload": {
+      "canonical_reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+      "source_project": "dulldusk/phpfm",
+      "source_root": "GHSA-gxgp-6wm7-xrhr",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "graphql_authorization": {
+      "canonical_reference": "https://github.com/aimeos/ai-admin-graphql/security/advisories/GHSA-jj68-cp4v-98qf",
+      "source_project": "aimeos/ai-admin-graphql",
+      "source_root": "GHSA-jj68-cp4v-98qf",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "graphql_data_exposure": {
+      "canonical_reference": "https://github.com/ryjen/eyespie/issues/122",
+      "source_project": "ryjen/eyespie",
+      "source_root": "EYESPIE-ISSUE-122",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "improper_inventory_management": {
+      "canonical_reference": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "successful_resource_count": 3,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://binarysecurity.no/posts/2023/06/function-apps-rce",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://binarysecurity.no/posts/2023/06/function-apps-rce",
+          "resource_type": "external_source",
+          "snapshot_sha256": "a275d7e287dd26511cd08888d8145b72a0d177f99ecd841d9000c1d3618c414e"
+        },
+        {
+          "fetch_reference": "https://www.binarysecurity.no/assets/images/dark_png.png",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://www.binarysecurity.no/assets/images/dark_png.png",
+          "resource_type": "external_source",
+          "snapshot_sha256": "5cc914f0ef4169819025108b66aa749eec8d97d43d3847e1d1dbd110bf935866"
+        },
+        {
+          "fetch_reference": "https://www.binarysecurity.no/feed.xml",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://www.binarysecurity.no/feed.xml",
+          "resource_type": "external_source",
+          "snapshot_sha256": "0e8adf05b435b1c62fb65c2a5be62e735f0843e86d331911578672d7e7e10afb"
+        }
+      ]
+    },
+    "information_disclosure": {
+      "canonical_reference": "https://github.com/ether/etherpad/security/advisories/GHSA-vqfp-p66c-xrp9",
+      "source_project": "ether/etherpad",
+      "source_root": "GHSA-vqfp-p66c-xrp9",
+      "successful_resource_count": 2,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/ether/etherpad/commits/8c6104c",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/ether/etherpad/commit/8c6104c5d5daf41f0d454acc04d42dffa0e0d996",
+            "message": "harden: assorted server-side tightening for 3.0.2 (#7784)\n\n* harden: assorted security tightening across server entry points\n\nA bundle of defence-in-depth hardening picked up during an internal\naudit pass. Each change is small on its own; landing them together\nkeeps the diff cohesive for review and the release notes simple.\n\nProduction-side changes:\n  - src/node/handler/APIHandler.ts: tighten the OAuth JWT validation\n    path on the HTTP API. Verify the signature before reading any\n    claim off the payload, and require the admin claim to be strictly\n    true (not just present). Switch the apikey comparison to\n    crypto.timingSafeEqual.\n  - src/node/handler/{Import,Export}Handler.ts: derive temp-file path\n    tokens from crypto.randomBytes(16) instead of Math.random.\n  - src/node/hooks/express/tokenTransfer.ts: enforce a 5-minute TTL\n    on transfer records, make redemption single-use (remove before\n    response), and drop the author token from the response body \u2014\n    the HttpOnly cookie is the only delivery channel.\n  - src/node/utils/sanitizeProxyPath.ts (new): shared sanitiser for\n    the `x-proxy-path` header. Used by admin.ts (HTML/JS/CSS\n    substitution) and specialpages.ts (legacy timeslider redirect).\n    Strips characters outside [A-Za-z0-9_./-], collapses leading\n    `//+` to a single `/`, rejects `..` traversal. admin.ts also\n    emits Vary: x-proxy-path and Cache-Control: private, no-store.\n  - src/node/db/Pad.ts + src/node/utils/ImportHtml.ts: centralise\n    the \"every insert op carries an author attribute\" invariant in\n    Pad.appendRevision so all non-wire callers (setText, setHTML,\n    restoreRevision, plugin paths) get the same check the socket\n    handler already enforces. Pad.init and setPadHTML now\n    substitute SYSTEM_AUTHOR_ID when no author is supplied \u2014 same\n    pattern setText/spliceText already use.\n\nTests:\n  - src/tests/backend/specs/api/jwtAdminClaim.ts (5 cases)\n  - src/tests/backend/specs/tokenTransfer.ts (6 cases)\n  - src/tests/backend/specs/proxyPathRedirect.ts (5 cases)\n  - src/tests/backend/specs/padInsertAuthorInvariant.ts (4 cases)\n  - src/tests/backend-new/specs/sanitizeProxyPath.test.ts (14 vitest cases)\n  - src/tests/backend/common.ts: add generateJWTTokenAdminFalse helper.\n\nRegression sweep across 16 backend spec files: same 5 pre-existing\nfailures on develop reproduce after this change; +20 new passing\ntests; no new failures introduced.\n\nCo-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>\n\n* harden: rewrite imported .etherpad records to satisfy the insert-op invariant\n\nLegacy .etherpad exports (and exports from older server-internal flows\nthat didn't substitute SYSTEM_AUTHOR_ID) can contain `+content` insert\nops without an `author` attribute. The previous commit's appendRevision\nguard rejects that shape, but setPadRaw bulk-writes records directly\nto the DB and never goes through appendRevision -- so a hand-crafted\n.etherpad file could persist non-conforming data that any subsequent\nsetText / setHTML / restoreRevision call would then refuse to extend.\n\nAdd a pre-pass over the parsed import that:\n\n  - walks revs in numeric order, sanitising each changeset's `+` ops\n    against the cumulative pad pool (mutating the pool to register\n    SYSTEM_AUTHOR_ID when needed);\n  - re-applies each (post-sanitisation) changeset to a running atext\n    so the head atext and any key-rev meta.atext / meta.pool\n    snapshots are re-derived in lock-step with the rewritten revs\n    (otherwise pad.check's deep-equal at the end of setPadRaw would\n    fail on the attribute-number drift between the sanitised head\n    state and the now-stale key-rev snapshot);\n  - leaves already-conforming payloads untouched (no log noise on\n    good imports).\n\nReturns the number of ops rewritten so the import can log a single\nwarning per legacy file rather than per-record. Pure-newline `+` ops\nare exempted -- same whitelist as the wire-side guard.\n\nTests:\n  - tests/backend/specs/padInsertAuthorInvariant.ts: two new cases\n    drive setPadRaw end-to-end with a hand-crafted legacy payload\n    (asserts the head atext gains a `*N` attribute reference and the\n    pool registers `[author, a.etherpad-system]`) and with a\n    conforming payload (asserts the data round-trips unchanged).\n\nRegression sweep across 17 backend spec files: 209 passing / 12\npending / 5 failing -- same 5 pre-existing failures present on\nunmodified develop. +2 new passing tests; no new failures introduced.\n\nCo-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+            "number": null,
+            "sha": "8c6104c5d5daf41f0d454acc04d42dffa0e0d996",
+            "title": null
+          },
+          "reference": "https://github.com/ether/etherpad/commit/8c6104c",
+          "resource_type": "commit",
+          "snapshot_sha256": "5680ac9b0f50a96f3a86f8e34aeeaefcb695c5b198cc4673766917d4e6f7980b"
+        },
+        {
+          "fetch_reference": "https://api.github.com/repos/ether/etherpad/pulls/7784",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/ether/etherpad/pull/7784",
+            "message": null,
+            "number": 7784,
+            "sha": null,
+            "title": "harden: assorted server-side tightening for 3.0.2"
+          },
+          "reference": "https://github.com/ether/etherpad/pull/7784",
+          "resource_type": "pull_request",
+          "snapshot_sha256": "4d0e6267fa8f9af991f487c65bb5e0fbe5f4c81f15c3d680a6dd70666dfcf425"
+        }
+      ]
+    },
+    "ldap_injection": {
+      "canonical_reference": "https://github.com/advisories/GHSA-pm9m-75p4-7h69",
+      "source_project": "Tanguy-Boisset/CVE",
+      "source_root": "GHSA-pm9m-75p4-7h69",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "mass_assignment": {
+      "canonical_reference": "https://github.com/frankbria/narrative-modeling-app/issues/451",
+      "source_project": "frankbria/narrative-modeling-app",
+      "source_root": "NARRATIVE-MODELING-ISSUE-451",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "nosql_injection": {
+      "canonical_reference": "https://github.com/pathosDev/actor-ts/issues/738",
+      "source_project": "pathosDev/actor-ts",
+      "source_root": "ACTOR-TS-ISSUE-738",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "open_redirect": {
+      "canonical_reference": "https://github.com/advisories/GHSA-jjjg-67rc-qf87",
+      "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+      "source_root": "GHSA-jjjg-67rc-qf87",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "path_traversal": {
+      "canonical_reference": "https://github.com/advisories/GHSA-f3gp-9xr4-qmvc",
+      "source_project": "joomla/joomla-cms",
+      "source_root": "GHSA-f3gp-9xr4-qmvc",
+      "successful_resource_count": 2,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/joomla/joomla-cms/commits/9678a171d37e1e10ca75c9124bdafe20fe14fa5b",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/joomla/joomla-cms/commit/9678a171d37e1e10ca75c9124bdafe20fe14fa5b",
+            "message": "Update administrator/components/com_joomlaupdate/extract.php\n\nCo-authored-by: Richard Fath <richard67@users.noreply.github.com>",
+            "number": null,
+            "sha": "9678a171d37e1e10ca75c9124bdafe20fe14fa5b",
+            "title": null
+          },
+          "reference": "https://github.com/joomla/joomla-cms/commit/9678a171d37e1e10ca75c9124bdafe20fe14fa5b",
+          "resource_type": "commit",
+          "snapshot_sha256": "8332348c4c3eab81410e8adbba34370018061949a3e2aaae49dda0d1e45123c4"
+        },
+        {
+          "fetch_reference": "https://api.github.com/repos/joomla/joomla-cms/pulls/48057",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/joomla/joomla-cms/pull/48057",
+            "message": null,
+            "number": 48057,
+            "sha": null,
+            "title": "[5.4] [com_joomlaupdate] Fix path traversal (Zip Slip) in extract.php"
+          },
+          "reference": "https://github.com/joomla/joomla-cms/pull/48057",
+          "resource_type": "pull_request",
+          "snapshot_sha256": "c6d9bb542d78f7dd3979204e6f7116333bd848badaccd7d08184d8873ff67a19"
+        }
+      ]
+    },
+    "postmessage_trust": {
+      "canonical_reference": "https://github.com/auth0/auth0.js/issues/508",
+      "source_project": "auth0/auth0.js",
+      "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "race_condition": {
+      "canonical_reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+      "source_project": "paloaltonetworks/globalprotect-app-windows",
+      "source_root": "CVE-2025-0120",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://security.paloaltonetworks.com/MEDIUM.png",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://security.paloaltonetworks.com/MEDIUM.png",
+          "resource_type": "external_source",
+          "snapshot_sha256": "abe336129170fef95054744342c71ab31d6cafa266d8801e7baab7e9251aaec3"
+        }
+      ]
+    },
+    "secret_exposure": {
+      "canonical_reference": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
+      "source_project": "ibm/storage-scale",
+      "source_root": "GHSA-xr96-mx7v-w32h",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "security_logging_alerting_failure": {
+      "canonical_reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+      "source_project": "ibm/db2",
+      "source_root": "GHSA-q83p-h7pj-3m3p",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "security_misconfiguration": {
+      "canonical_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+      "source_project": "kyndryl-open-source/hashi-vault-js",
+      "source_root": "GHSA-5pq8-3ffp-7w5m",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "sensitive_business_flow_abuse": {
+      "canonical_reference": "https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3",
+      "source_project": "frappe/press",
+      "source_root": "GHSA-68qm-vp8f-rpr3",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/frappe/press/commits/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+            "message": "fix(invite-member): rate limit and disallow duplicate invite for a day",
+            "number": null,
+            "sha": "83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+            "title": null
+          },
+          "reference": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+          "resource_type": "commit",
+          "snapshot_sha256": "a7c7c5069eab717b888671530d617ba09e0fd2b860a93c056d1d0d6b670f60b0"
+        }
+      ]
+    },
+    "sensitive_caching": {
+      "canonical_reference": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html",
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+      "successful_resource_count": 6,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://blog.rubygems.org/#organization",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://blog.rubygems.org/#organization",
+          "resource_type": "external_source",
+          "snapshot_sha256": "42f7a799d7be99c332ab9b9685e2c99d3935d4be5732184e9e6889291a5f11b0"
+        },
+        {
+          "fetch_reference": "https://blog.rubygems.org/#website",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://blog.rubygems.org/#website",
+          "resource_type": "external_source",
+          "snapshot_sha256": "be8d5f46f8afee0bb1fd07db472adef06d4f698b67b1f4dcd7ce4589bec9a89d"
+        },
+        {
+          "fetch_reference": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html#article",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html#article",
+          "resource_type": "external_source",
+          "snapshot_sha256": "ec6acb60882c4d667648396affaafd512998b65c42c33bd9d567f32a6ec4a2ef"
+        },
+        {
+          "fetch_reference": "https://blog.rubygems.org/assets/images/og/posts/security-advisory-legacy-api-key-leak.png",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": null,
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://blog.rubygems.org/assets/images/og/posts/security-advisory-legacy-api-key-leak.png",
+          "resource_type": "external_source",
+          "snapshot_sha256": "eba7933ad88e473108f1a162469f7ed2fb4e6e93e5da26b9cc1a1c88d8932e42"
+        },
+        {
+          "fetch_reference": "https://api.github.com/repos/ruby/rubygems/pulls/3840",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/ruby/rubygems/pull/3840",
+            "message": null,
+            "number": 3840,
+            "sha": null,
+            "title": "Update endpoint of gem signin command"
+          },
+          "reference": "https://github.com/ruby/rubygems/pull/3840",
+          "resource_type": "pull_request",
+          "snapshot_sha256": "fe229377999019f43ec0115245a54775cb9f1f3f5320930f857f5e1a2cfded11"
+        },
+        {
+          "fetch_reference": "https://api.github.com/repos/rubygems/rubygems.org/security-advisories/GHSA-9j48-x3c3-mrp2",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/rubygems/rubygems.org/security/advisories/GHSA-9j48-x3c3-mrp2",
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://github.com/rubygems/rubygems.org/security/advisories/GHSA-9j48-x3c3-mrp2",
+          "resource_type": "security_advisory",
+          "snapshot_sha256": "ab1f220badcf861602ccba0d091706e4ff7c1df13b953ab3a19d8073bc6bbe18"
+        }
+      ]
+    },
+    "server_side_template_injection": {
+      "canonical_reference": "https://github.com/own-pay/OwnPay/issues/438",
+      "source_project": "own-pay/OwnPay",
+      "source_root": "OWNPAY-ISSUE-438",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "software_data_integrity_failure": {
+      "canonical_reference": "https://github.com/advisories/GHSA-cqx4-h5ph-3xj9",
+      "source_project": "notepad-plus-plus/notepad-plus-plus",
+      "source_root": "GHSA-cqx4-h5ph-3xj9",
+      "successful_resource_count": 2,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/commits/bcf2aa68ef414338d717e20e059459570ed6c5ab",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/commit/bcf2aa68ef414338d717e20e059459570ed6c5ab",
+            "message": "Security Enhancement: verify certificate & signature on update installer\n\nForce WinGUp to verify the code signing certificate & to validate the signature on the downloaded installer.\nIf the signature is not valid or the certificate is incorrect, the update will be aborted.",
+            "number": null,
+            "sha": "bcf2aa68ef414338d717e20e059459570ed6c5ab",
+            "title": null
+          },
+          "reference": "https://github.com/notepad-plus-plus/notepad-plus-plus/commit/bcf2aa68ef414338d717e20e059459570ed6c5ab",
+          "resource_type": "commit",
+          "snapshot_sha256": "090e6156bdb92ebb5177c11b74e854abc770b87ae3bb3989c0d038db286c1c79"
+        },
+        {
+          "fetch_reference": "https://api.github.com/repos/notepad-plus-plus/wingup/commits/ce0037549995ed0396cc363544d14b3425614fdb",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/notepad-plus-plus/wingup/commit/ce0037549995ed0396cc363544d14b3425614fdb",
+            "message": "Security enhancement: Add checking code signing certificate ability\n\nAdd options to verify the code signing certificate signature on downloaded file before running it.\nIf there's any error during the verification, WinGUp exit & downloaded file won't be run.\n\nAdded options:\n    -chkCertSig= : Enable signature check on downloaded binary with \"-chkCertSig=yes\".\n                   Otherwise all the other \"-chkCert*\" options will be ignored.\n    -chkCertTrustChain : Enable signature trust chain verification.\n    -chkCertRevoc : Enable the verification of certificate revocation state.\n    -chkCertName= : Verify certificate name (quotes allowed for white-spaces).\n    -chkCertSubject= : Verify subject name (quotes allowed for white-spaces).\n    -chkCertKeyId= : Verify certificate key identifier.\n    -chkCertAuthorityKeyId= : Verify certificate authority key identifier.",
+            "number": null,
+            "sha": "ce0037549995ed0396cc363544d14b3425614fdb",
+            "title": null
+          },
+          "reference": "https://github.com/notepad-plus-plus/wingup/commit/ce0037549995ed0396cc363544d14b3425614fdb",
+          "resource_type": "commit",
+          "snapshot_sha256": "49051566ece6f659593bc1573e58b0e397e07d2b49224290bf616fe1600c69f4"
+        }
+      ]
+    },
+    "software_supply_chain_failure": {
+      "canonical_reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+      "source_project": "cap-js/cds-dbs",
+      "source_root": "GHSA-pvw4-cvr4-97p8",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/cap-js/cds-dbs/security-advisories/GHSA-pvw4-cvr4-97p8",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/cap-js/cds-dbs/security/advisories/GHSA-pvw4-cvr4-97p8",
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://github.com/cap-js/cds-dbs/security/advisories/GHSA-pvw4-cvr4-97p8",
+          "resource_type": "security_advisory",
+          "snapshot_sha256": "45eb3cacffa9d3f30962047ea9c290b85235f8cae4f94ab48a4f98d3f28ccb39"
+        }
+      ]
+    },
+    "source_map_exposure": {
+      "canonical_reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+      "source_project": "govtech-bb/gov-bb",
+      "source_root": "GOV-BB-ISSUE-2092",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/advisories/GHSA-r28c-9q8g-f849",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+            "message": null,
+            "number": null,
+            "sha": null,
+            "title": null
+          },
+          "reference": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+          "resource_type": "security_advisory",
+          "snapshot_sha256": "1e28430ee4a56154dfebf8c263bbd333e320f7ba3725e00e6a4e34e83b2fc17b"
+        }
+      ]
+    },
+    "sql_injection": {
+      "canonical_reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+      "source_project": "projectdiscovery/nuclei-templates",
+      "source_root": "GHSA-h325-4hh9-393v",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/projectdiscovery/nuclei-templates/issues/7968",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+            "message": null,
+            "number": 7968,
+            "sha": null,
+            "title": "AspCMS commentList.asp SQLI"
+          },
+          "reference": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+          "resource_type": "issue",
+          "snapshot_sha256": "1911280417fe366b2607260927475a4f0a56eb52d47aa56f6ea33b25383e97b5"
+        }
+      ]
+    },
+    "ssrf": {
+      "canonical_reference": "https://github.com/advisories/GHSA-wx9v-ffw3-45wg",
+      "source_project": "vulnerability-lookup/vulnerability-lookup",
+      "source_root": "GHSA-wx9v-ffw3-45wg",
+      "successful_resource_count": 1,
+      "successful_resources": [
+        {
+          "fetch_reference": "https://api.github.com/repos/vulnerability-lookup/vulnerability-lookup/commits/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+          "has_body_or_message": true,
+          "payload_identity": {
+            "html_url": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+            "message": "fix: [security] enforce outbound-URL policy on remote-instance sync (SSRF-VULN-01)\n\nRemote-instance addresses were validated for URL syntax only, then dereferenced\nby the sync worker with requests.get() following redirects and with no network\nboundary. An admin (admin:access + CSRF) could therefore point sync at internal\nor cloud-metadata HTTP(S) services, a stored server-side request forgery.\n\nAdd a shared outbound-URL policy (website/lib/remote_url.py) applied at two\npoints:\n\n- storage time: RemoteInstance.address and the admin form reject non-HTTP(S)\n  URLs and IP-literal hosts in private, loopback, link-local, multicast,\n  reserved or unspecified ranges;\n- request time: safe_get() resolves the host, rejects any non-public resolved\n  address, and follows redirects manually so a 3xx to an internal host is\n  rejected instead of followed.\n\nThe sync worker now fetches through safe_get() and treats a blocked\ndestination as a non-retryable failure. Adds tests for the policy, host\nresolution, and redirect-to-internal rejection.\n\nReported-by: openai/gpt-5.5-cyber-preview (reasoning level: high)\nReported-by: EUVD @ ENISA Team\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+            "number": null,
+            "sha": "a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+            "title": null
+          },
+          "reference": "https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f",
+          "resource_type": "commit",
+          "snapshot_sha256": "b570d36bc3ffc81c91379aa123bda45ca0548ba508888f50ce0180874585991b"
+        }
+      ]
+    },
+    "unrestricted_resource_consumption": {
+      "canonical_reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+      "source_project": "systerel/S2OPC",
+      "source_root": "GHSA-2cg2-hxr7-q7f4",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "unsafe_api_consumption": {
+      "canonical_reference": "https://github.com/zachlagden/rickbot/issues/38",
+      "source_project": "zachlagden/rickbot",
+      "source_root": "RICKBOT-ISSUE-38",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    },
+    "websocket_authorization": {
+      "canonical_reference": "https://github.com/bazauto/layout-orchestration/issues/20",
+      "source_project": "bazauto/layout-orchestration",
+      "source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+      "successful_resource_count": 0,
+      "successful_resources": []
+    }
+  },
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "rule_version": "2026.08.14.6.31.1",
+  "scoring_executed": false,
+  "successful_resource_count": 23,
+  "version": "1.0.0"
+}
