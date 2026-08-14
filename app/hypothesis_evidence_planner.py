@@ -2,10 +2,11 @@ from __future__ import annotations
 
 """Safety-aware next-evidence planner for incomplete vulnerability hypotheses.
 
-The planner converts missing-evidence gaps into bounded next-step guidance.  It
-never performs requests, never creates supporting evidence, and never changes
-admission.  Automatic execution remains restricted to the existing Safe
-Validation engine and its scope/approval rules.
+The planner converts missing-evidence gaps into bounded next-step guidance. It
+never performs live requests, never creates supporting evidence by itself, and
+never changes admission. Controlled recommendations can now point to the
+offline controlled-evidence executor, which compares explicitly authorized,
+test-owned stored captures without credential storage or network execution.
 """
 
 import json
@@ -15,8 +16,9 @@ from typing import Any, Iterable, Mapping
 from core import Database
 from family_reasoning import validation_level_for_family
 
-EVIDENCE_PLANNER_VERSION = "1.1.0"
-EVIDENCE_PLANNER_RULE_VERSION = "2026.08.14.2"
+
+EVIDENCE_PLANNER_VERSION = "1.2.0"
+EVIDENCE_PLANNER_RULE_VERSION = "2026.08.14.3"
 MAX_HYPOTHESES = 500
 MAX_STEPS_PER_HYPOTHESIS = 3
 
@@ -51,6 +53,11 @@ def _step_for_gap(gap: str, family: str, validation_level: str) -> dict[str, Any
             "level": "controlled",
             "automatic": False,
             "requires_explicit_test_identity_or_resource": True,
+            "execution_contract": "explicit_authorized_stored_capture_pair",
+            "executor": "controlled_evidence_executor",
+            "live_request_execution": False,
+            "credentials_stored": False,
+            "imported_or_test_capture_required": True,
             "purpose": gap,
         }
     if any(token in lower for token in (
@@ -63,6 +70,7 @@ def _step_for_gap(gap: str, family: str, validation_level: str) -> dict[str, Any
             "level": "manual_only",
             "automatic": False,
             "requires_analyst_control": True,
+            "controlled_capture_comparison_available_after_safe_manual_capture": True,
             "purpose": gap,
         }
     if any(token in lower for token in (
@@ -131,6 +139,10 @@ def plan_result_evidence(family: str, missing: Iterable[Any]) -> dict[str, Any]:
         "network_requests": False,
         "creates_target_evidence": False,
         "changes_admission": False,
+        "controlled_executor_available": any(
+            str(step.get("executor") or "") == "controlled_evidence_executor"
+            for step in steps
+        ),
     }
 
 
@@ -190,6 +202,7 @@ def plan_hypothesis_evidence(
             "state": str(row.get("state") or ""),
             "family_validation_level": compact["family_validation_level"],
             "minimum_next_step_level": compact["minimum_next_step_level"],
+            "controlled_executor_available": compact["controlled_executor_available"],
             "admitted": bool(admission.get("admitted")),
             "steps": compact["steps"],
         })
@@ -207,6 +220,8 @@ def plan_hypothesis_evidence(
             "creates_target_evidence": False,
             "changes_admission": False,
             "controlled_steps_require_explicit_test_identity_or_resource": True,
+            "controlled_executor_uses_stored_capture_pairs_only": True,
+            "controlled_executor_stores_no_credentials": True,
             "manual_only_steps_never_auto_execute": True,
             "passive_live_execution_remains_scope_and_approval_gated": True,
         },
