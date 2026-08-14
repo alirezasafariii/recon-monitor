@@ -28,8 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           python app/real_world_corpus_v1.py discover \
-            --max-pages 10 \
-            --selection-limit 160 \
+            --max-pages 50 \
+            --selection-limit 200 \
             --output benchmarks/real_world/v1/source_candidates.json \
             --report benchmarks/real_world/v1/source_discovery_report.json
 
