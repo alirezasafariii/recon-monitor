@@ -1,0 +1,51 @@
+name: Analysis 6.32 v7 Preferred Patch Probe
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-preferred-patch-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preferred-v7-patch-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe preferred fresh source patch set
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_preferred_patch_probe.py
+      - name: Assert clean preferred patch pool
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          assert r['family_count']==36
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert r['scoring_executed'] is False
+          print({'family_candidate_counts':r['family_candidate_counts'],'families_without_candidates':r['families_without_candidates']})
+          PY
+      - name: Commit preferred patch-feasible pool
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_candidates_patchable.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record preferred Analysis 6.32 v7 patch-feasible pool'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
