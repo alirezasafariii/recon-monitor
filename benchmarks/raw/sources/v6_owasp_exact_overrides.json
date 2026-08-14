@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,18 +11,19 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSL-2025-038",
-        "source_project": "github/branch-deploy",
+        "source_root": "GHSA-9v5m-39wh-5chq",
+        "source_project": "shopware/shopware",
         "family": "business_logic",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/",
-        "source_kind": "github_security_lab_writeup",
-        "advisory_source_type": "coordinated_disclosure_writeup",
-        "published_at": "2025-04-22",
-        "summary": "GitHub IssueOps Branch Deploy Action had a .deploy approval bypass caused by a time-of-check/time-of-use workflow-state failure.",
-        "description": "GitHub Security Lab documents a .deploy workflow whose approval safety check can be satisfied for one commit and then raced by replacing the commit before privileged deployment. The security-relevant condition is an approval gate and state-transition invariant being bypassed before privileged execution. This is an independent WSTG business-logic workflow-gate example and not detector evidence.",
+        "canonical_advisory_url": "https://github.com/shopware/shopware/security/advisories/GHSA-9v5m-39wh-5chq",
+        "repository_advisory_url": "https://github.com/shopware/shopware/security/advisories/GHSA-9v5m-39wh-5chq",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "maintainer_security_advisory",
+        "published_at": "2026-05-19",
+        "summary": "Shopware allowed a caller to trigger the payment workflow for another customer's order through a foreign orderId, bypassing the workflow ownership gate.",
+        "description": "The maintainer advisory documents a business workflow integrity failure in the Store API payment path. A caller-controlled foreign orderId could reach payment handling without the ownership and guest-authentication gate enforced by the normal order path. This bypass accepts an untrusted order context into a payment state transition and violates the workflow invariant that only the legitimate order owner or authenticated guest may initiate or retry payment.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "workflow", "approval gate", "approval", "state transition", "bypass", "invalid state transition"],
-        "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG business-logic workflow and state-transition semantics"
+        "semantic_facts": ["business workflow", "payment workflow", "workflow invariant", "ownership gate", "state transition", "bypass", "untrusted accepted", "foreign order"],
+        "selection_basis": "independent primary maintainer advisory selected before scoring using WSTG business-logic workflow, ownership-gate and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
