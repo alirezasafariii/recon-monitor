@@ -1,0 +1,1462 @@
+{
+  "admission_output_used": false,
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v6_capture_source_replacement_feasibility_unscored",
+  "families": [
+    {
+      "current_feasibility_reasons": [
+        "reviewed_advisory"
+      ],
+      "current_feasibility_score": 2,
+      "current_source_project": "postgres/postgres",
+      "current_source_root": "GHSA-hp2m-55fj-8mw5",
+      "family": "account_enumeration",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "ibm/ibm-i",
+      "current_source_root": "GHSA-vxcg-gxwh-hqw8",
+      "family": "authentication_session",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "rivoli-ai/andy-rbac",
+      "current_source_root": "ANDY-RBAC-ISSUE-97",
+      "family": "broken_function_authorization",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1",
+        "multiple_independent_references"
+      ],
+      "current_feasibility_score": 6,
+      "current_source_project": "goodrain/rainbond",
+      "current_source_root": "GHSA-5xhp-2v8r-m7wh",
+      "family": "broken_object_authorization",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-xrvm-rxhf-gwgp",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/Roskus/prospero-flow-crm/commit/f36c2a115f4c28c82181f1798c01582ae953b932",
+            "https://github.com/Roskus/prospero-flow-crm/releases/tag/v5.5.3",
+            "https://github.com/advisories/GHSA-xrvm-rxhf-gwgp",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-19734",
+            "https://secur0.com/en/cna/cve-list/cve-2026-19734-idor-in-prospero-flow-crm-allows-cross-tenant-product-disclosure-and-hijacking"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/Roskus/prospero-flow-crm/commit/f36c2a115f4c28c82181f1798c01582ae953b932",
+          "source_project": "Roskus/prospero-flow-crm",
+          "source_root": "GHSA-xrvm-rxhf-gwgp"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-pr4j-5x2h-5vr8",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 20,
+          "references": [
+            "https://github.com/advisories/GHSA-pr4j-5x2h-5vr8",
+            "https://github.com/streamaserver/streama",
+            "https://github.com/streamaserver/streama/commit/1fa79534ee09e25f2473cc4787b106996008a442",
+            "https://github.com/streamaserver/streama/issues/1170",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-73039",
+            "https://www.vulncheck.com/advisories/streama-insecure-direct-object-reference-via-viewingstatuscontroller"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/streamaserver/streama/issues/1170",
+          "source_project": "streamaserver/streama",
+          "source_root": "GHSA-pr4j-5x2h-5vr8"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-8pgg-45wg-rcx3",
+          "feasibility_reasons": [
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 16,
+          "references": [
+            "https://github.com/CERTCC/VINCE",
+            "https://github.com/CERTCC/VINCE/pull/235",
+            "https://github.com/advisories/GHSA-8pgg-45wg-rcx3",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18744"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/CERTCC/VINCE/pull/235",
+          "source_project": "CERTCC/VINCE",
+          "source_root": "GHSA-8pgg-45wg-rcx3"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-fmgm-gh7c-hwv2",
+          "feasibility_reasons": [
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 16,
+          "references": [
+            "https://github.com/CERTCC/VINCE",
+            "https://github.com/CERTCC/VINCE/pull/235",
+            "https://github.com/advisories/GHSA-fmgm-gh7c-hwv2",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18749"
+          ],
+          "severity": "critical",
+          "source_code_location": "https://github.com/CERTCC/VINCE/pull/235",
+          "source_project": "CERTCC/VINCE",
+          "source_root": "GHSA-fmgm-gh7c-hwv2"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-j5jq-5w3c-xc48",
+          "feasibility_reasons": [
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 16,
+          "references": [
+            "https://certcc.github.com/CERTCC/VINCE",
+            "https://github.com/CERTCC/VINCE/pull/235",
+            "https://github.com/advisories/GHSA-j5jq-5w3c-xc48",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18750"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/CERTCC/VINCE/pull/235",
+          "source_project": "CERTCC/VINCE",
+          "source_root": "GHSA-j5jq-5w3c-xc48"
+        }
+      ],
+      "replacement_candidate_count": 5
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_security_advisory"
+      ],
+      "current_feasibility_score": 5,
+      "current_source_project": "meshtastic/firmware",
+      "current_source_root": "GHSA-mjx5-98jq-q736",
+      "family": "business_logic",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "zimbra/zimbra-collaboration",
+      "current_source_root": "GHSA-jqh7-pchh-v74j",
+      "family": "command_injection",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-7f69-cxp9-gxx9",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-7f69-cxp9-gxx9",
+            "https://github.com/cloudflare/wrangler-action",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-11325"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/cloudflare/wrangler-action",
+          "source_project": "cloudflare/wrangler-action",
+          "source_root": "GHSA-7f69-cxp9-gxx9"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-f3vr-3658-6fxw",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/NagiosEnterprises/nagioscore/blob/master/Changelog",
+            "https://github.com/advisories/GHSA-f3vr-3658-6fxw",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-48554",
+            "https://www.nagios.com/security-disclosures/nagios-core",
+            "https://www.vulncheck.com/advisories/nagios-core-xi-authenticated-rce-via-unfiltered-notification-family-macro-substitution"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/NagiosEnterprises/nagioscore/blob/master/Changelog",
+          "source_project": "NagiosEnterprises/nagioscore",
+          "source_root": "GHSA-f3vr-3658-6fxw"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r6wg-9vj9-rm67",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/NagiosEnterprises/nagioscore/blob/master/Changelog",
+            "https://github.com/advisories/GHSA-r6wg-9vj9-rm67",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-48553",
+            "https://www.nagios.com/security-disclosures/nagios-core",
+            "https://www.vulncheck.com/advisories/nagios-core-xi-authenticated-rce-via-custom-variable-macro-injection"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/NagiosEnterprises/nagioscore/blob/master/Changelog",
+          "source_project": "NagiosEnterprises/nagioscore",
+          "source_root": "GHSA-r6wg-9vj9-rm67"
+        }
+      ],
+      "replacement_candidate_count": 3
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "forkwright/harmonia",
+      "current_source_root": "HARMONIA-ISSUE-710",
+      "family": "cors_misconfiguration",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "eddiethedean/hedron",
+      "current_source_root": "HEDRON-ISSUE-196",
+      "family": "cryptographic_failure",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-mj67-2mvx-f778",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-mj67-2mvx-f778",
+            "https://github.com/phpipam/phpipam/commit/ddf70ef6801442eb8b0be5eea829e470e653c70e",
+            "https://huntr.com/bounties/725bce8f-328f-4fbc-acf5-46ea920cd3c1",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-10718"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/phpipam/phpipam/commit/ddf70ef6801442eb8b0be5eea829e470e653c70e",
+          "source_project": "phpipam/phpipam",
+          "source_root": "GHSA-mj67-2mvx-f778"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-52r5-crc5-6473",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://gist.github.com/zcxlighthouse/ae89b0542ef3e39cd6dcac9d529c2c69",
+            "https://github.com/Nexusoft",
+            "https://github.com/Nexusoft/NexusInterface",
+            "https://github.com/advisories/GHSA-52r5-crc5-6473",
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-70048"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/Nexusoft/NexusInterface",
+          "source_project": "Nexusoft/NexusInterface",
+          "source_root": "GHSA-52r5-crc5-6473"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-5c3g-gw2g-j2h9",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "http://vilo.com",
+            "https://github.com/advisories/GHSA-5c3g-gw2g-j2h9",
+            "https://github.com/byu-cybersecurity-research/vilo/blob/main/vulns/CVE-2024-40090.md",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-40090"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/byu-cybersecurity-research/vilo/blob/main/vulns/CVE-2024-40090.md",
+          "source_project": "byu-cybersecurity-research/vilo",
+          "source_root": "GHSA-5c3g-gw2g-j2h9"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-9cgq-h66g-4xhp",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+            "https://github.com/advisories/GHSA-9cgq-h66g-4xhp",
+            "https://gotenna.com",
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-32881"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+          "source_project": "Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+          "source_root": "GHSA-9cgq-h66g-4xhp"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-9rr5-mrc9-96h4",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+            "https://github.com/advisories/GHSA-9rr5-mrc9-96h4",
+            "https://gotenna.com",
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-32884"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+          "source_project": "Dollarhyde/goTenna_v1_and_Mesh_vulnerabilities",
+          "source_root": "GHSA-9rr5-mrc9-96h4"
+        }
+      ],
+      "replacement_candidate_count": 10
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_security_advisory"
+      ],
+      "current_feasibility_score": 5,
+      "current_source_project": "ThinkInAIXYZ/deepchat",
+      "current_source_root": "GHSA-7r59-67v3-3mgp",
+      "family": "dom_xss",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r9w2-wp2g-mfgm",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/GramSearch/telegram-search",
+            "https://github.com/GramSearch/telegram-search/issues/653",
+            "https://github.com/GramSearch/telegram-search/pull/654",
+            "https://github.com/advisories/GHSA-r9w2-wp2g-mfgm",
+            "https://github.com/groupultra/telegram-search/commit/54f6adced844ce9990228d75e31348bfed934e05",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-73031",
+            "https://www.vulncheck.com/advisories/telegram-search-stored-xss-via-v-html-in-messagelist-vue"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/GramSearch/telegram-search/issues/653",
+          "source_project": "GramSearch/telegram-search",
+          "source_root": "GHSA-r9w2-wp2g-mfgm"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-w92g-j683-fhvq",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-w92g-j683-fhvq",
+            "https://github.com/xpf0000/FlyEnv/commit/68fd6d7b200273ad0a8bce09424b8bd87134cfb6",
+            "https://github.com/xpf0000/FlyEnv/issues/809",
+            "https://github.com/xpf0000/FlyEnv/pull/810",
+            "https://github.com/xpf0000/FlyEnv/releases/tag/v4.18.0",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-69116",
+            "https://www.vulncheck.com/advisories/flyenv-cross-site-scripting-via-v-html"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/xpf0000/FlyEnv/issues/809",
+          "source_project": "xpf0000/FlyEnv",
+          "source_root": "GHSA-w92g-j683-fhvq"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-2rhm-fmxx-8mf9",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-2rhm-fmxx-8mf9",
+            "https://github.com/ccyl13/Pentestify/commit/714e05ef7cfaf4d822193b8d18eacafbd89f5019",
+            "https://github.com/ccyl13/Pentestify/releases/tag/v1.1.1",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-19716",
+            "https://secur0.com/en/cna/cve-list/cve-2026-19716-stored-xss-in-pentestify-user-account-deletion-via-unescaped-username"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/ccyl13/Pentestify/commit/714e05ef7cfaf4d822193b8d18eacafbd89f5019",
+          "source_project": "ccyl13/Pentestify",
+          "source_root": "GHSA-2rhm-fmxx-8mf9"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-3f8p-349v-j5h8",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-3f8p-349v-j5h8",
+            "https://github.com/domoticz/domoticz",
+            "https://github.com/domoticz/domoticz/commit/f734fde31a4c2ecab3edd825ceb9854719444f64",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-11425",
+            "https://www.vulncheck.com/advisories/domoticz-mobile-dashboard-versions-prior-to-stored-xss-via-text-alert-device-rendering"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/domoticz/domoticz/commit/f734fde31a4c2ecab3edd825ceb9854719444f64",
+          "source_project": "domoticz/domoticz",
+          "source_root": "GHSA-3f8p-349v-j5h8"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-5fp2-v633-2824",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-5fp2-v633-2824",
+            "https://github.com/projectsend/projectsend",
+            "https://github.com/projectsend/projectsend/commit/b4ad95b1bd3d18b23261b7c3496bfbac8ebfe324",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-53992",
+            "https://www.vulncheck.com/advisories/reflected-xss-in-projectsend-thumbnails-regenerate-php-via-start-date-end-date-parameters"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/projectsend/projectsend/commit/b4ad95b1bd3d18b23261b7c3496bfbac8ebfe324",
+          "source_project": "projectsend/projectsend",
+          "source_root": "GHSA-5fp2-v633-2824"
+        }
+      ],
+      "replacement_candidate_count": 25
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "louisalexander/time-safe",
+      "current_source_root": "TIME-SAFE-ISSUE-35",
+      "family": "exceptional_condition_mishandling",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "dulldusk/phpfm",
+      "current_source_root": "GHSA-gxgp-6wm7-xrhr",
+      "family": "file_upload",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "ryjen/eyespie",
+      "current_source_root": "EYESPIE-ISSUE-122",
+      "family": "graphql_data_exposure",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r4xf-9fv3-cx9j",
+          "feasibility_reasons": [
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 16,
+          "references": [
+            "https://github.com/advisories/GHSA-r4xf-9fv3-cx9j",
+            "https://github.com/nextlevelbuilder/goclaw",
+            "https://github.com/nextlevelbuilder/goclaw/issues/1226",
+            "https://github.com/nextlevelbuilder/goclaw/pull/1230",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18038",
+            "https://vuldb.com/cve/CVE-2026-18038",
+            "https://vuldb.com/submit/862538",
+            "https://vuldb.com/vuln/383813",
+            "https://vuldb.com/vuln/383813/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/nextlevelbuilder/goclaw/issues/1226",
+          "source_project": "nextlevelbuilder/goclaw",
+          "source_root": "GHSA-r4xf-9fv3-cx9j"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-7v78-v35x-cqg5",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-7v78-v35x-cqg5",
+            "https://github.com/netease-youdao/LobsterAI",
+            "https://github.com/netease-youdao/LobsterAI/issues/2176",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18995",
+            "https://vuldb.com/cve/CVE-2026-18995",
+            "https://vuldb.com/submit/862623",
+            "https://vuldb.com/vuln/386378",
+            "https://vuldb.com/vuln/386378/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/netease-youdao/LobsterAI/issues/2176",
+          "source_project": "netease-youdao/LobsterAI",
+          "source_root": "GHSA-7v78-v35x-cqg5"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r93g-497c-7qvg",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-r93g-497c-7qvg",
+            "https://github.com/nasa/cFS",
+            "https://github.com/nasa/cFS/issues/1073",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-67972"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/nasa/cFS/issues/1073",
+          "source_project": "nasa/cFS",
+          "source_root": "GHSA-r93g-497c-7qvg"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-wx37-g239-qv72",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-wx37-g239-qv72",
+            "https://github.com/mf-yang/openclaw-cn",
+            "https://github.com/mf-yang/openclaw-cn/issues/561",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-17457",
+            "https://vuldb.com/cve/CVE-2026-17457",
+            "https://vuldb.com/submit/862452",
+            "https://vuldb.com/vuln/383319",
+            "https://vuldb.com/vuln/383319/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/mf-yang/openclaw-cn/issues/561",
+          "source_project": "mf-yang/openclaw-cn",
+          "source_root": "GHSA-wx37-g239-qv72"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-5w47-3cxw-fxxf",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/OpenSignLabs/OpenSign",
+            "https://github.com/advisories/GHSA-5w47-3cxw-fxxf",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-72548"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/OpenSignLabs/OpenSign",
+          "source_project": "OpenSignLabs/OpenSign",
+          "source_root": "GHSA-5w47-3cxw-fxxf"
+        }
+      ],
+      "replacement_candidate_count": 6
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "microsoft/azure-api-management",
+      "current_source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "family": "improper_inventory_management",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-m2wp-hqw2-j56m",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-m2wp-hqw2-j56m",
+            "https://github.com/bitwarden/server/commit/2aa92a3c8675a28e305e8207ff16592227f96291",
+            "https://github.com/bitwarden/server/pull/7934",
+            "https://github.com/bitwarden/server/releases/tag/v2026.7.2",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-71959",
+            "https://sanjokkarki.com.np/blog/bitwarden-audit-log-forgery",
+            "https://www.vulncheck.com/advisories/bitwarden-server-audit-log-injection-via-post-collect"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/bitwarden/server/pull/7934",
+          "source_project": "bitwarden/server",
+          "source_root": "GHSA-m2wp-hqw2-j56m"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-pp5r-q37v-qxvp",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-pp5r-q37v-qxvp",
+            "https://github.com/openimsdk/open-im-server",
+            "https://github.com/openimsdk/open-im-server/commit/193870b2f938278b27a2d8347bd7e4db5f8f9dfc",
+            "https://github.com/openimsdk/open-im-server/issues/3778",
+            "https://github.com/openimsdk/open-im-server/pull/3781",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-69115",
+            "https://www.vulncheck.com/advisories/openim-server-missing-authorization-on-user-and-group-enumeration-endpoints"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/openimsdk/open-im-server/issues/3778",
+          "source_project": "openimsdk/open-im-server",
+          "source_root": "GHSA-pp5r-q37v-qxvp"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-2wg2-5v89-cgh7",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/Roskus/prospero-flow-crm/commit/b2b6ffdace0972ab62d1f7e8cdab0ed213bfc4a9",
+            "https://github.com/Roskus/prospero-flow-crm/releases/tag/v5.5.3",
+            "https://github.com/advisories/GHSA-2wg2-5v89-cgh7",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-19539",
+            "https://secur0.com/en/cna/cve-list/cve-2026-19539-idor-in-prospero-flow-crm-allows-cross-tenant-ticket-read-hijacking-and-deletion"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/Roskus/prospero-flow-crm/commit/b2b6ffdace0972ab62d1f7e8cdab0ed213bfc4a9",
+          "source_project": "Roskus/prospero-flow-crm",
+          "source_root": "GHSA-2wg2-5v89-cgh7"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-f3qf-gc58-29p6",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-f3qf-gc58-29p6",
+            "https://github.com/facebook/hhvm/commit/083f5ffdee661f61512909d16f9a5b98cff3cf0b",
+            "https://hhvm.com/blog/2023/01/20/security-update.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-36937"
+          ],
+          "severity": "critical",
+          "source_code_location": "https://github.com/facebook/hhvm/commit/083f5ffdee661f61512909d16f9a5b98cff3cf0b",
+          "source_project": "facebook/hhvm",
+          "source_root": "GHSA-f3qf-gc58-29p6"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-7jfx-c8jj-p569",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "repository_issue_context:2",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 20,
+          "references": [
+            "https://aydinnyunus.github.io/2026/06/16/odysseus-embedding-endpoint-takeover",
+            "https://github.com/advisories/GHSA-7jfx-c8jj-p569",
+            "https://github.com/odysseus-dev/odysseus/commit/bf325f6b2185cb42bc5d8f5713a64aecffb766d4",
+            "https://github.com/odysseus-dev/odysseus/issues/132",
+            "https://github.com/odysseus-dev/odysseus/issues/80",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-70619",
+            "https://www.vulncheck.com/advisories/odysseus-missing-admin-authorization-via-embedding-endpoint-routes"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/odysseus-dev/odysseus/issues/132",
+          "source_project": "odysseus-dev/odysseus",
+          "source_root": "GHSA-7jfx-c8jj-p569"
+        }
+      ],
+      "replacement_candidate_count": 19
+    },
+    {
+      "current_feasibility_reasons": [
+        "multiple_independent_references"
+      ],
+      "current_feasibility_score": 2,
+      "current_source_project": "Tanguy-Boisset/CVE",
+      "current_source_root": "GHSA-pm9m-75p4-7h69",
+      "family": "ldap_injection",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-pcvx-8r6m-5h8r",
+          "feasibility_reasons": [
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 8,
+          "references": [
+            "https://github.com/advisories/GHSA-pcvx-8r6m-5h8r",
+            "https://github.com/cisagov/thorium/commit/7c94a0b9bc2dc55e0c307360452f348bac06820c#diff-45e1e58dfb6faacf9efe778c31ead287d8e13ae07c5dad084c792bc4a0605a68R1007-R1008",
+            "https://github.com/cisagov/thorium/releases/tag/1.1.1",
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-35431",
+            "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/IT/white/2025/va-25-259-01.json",
+            "https://www.cve.org/CVERecord?id=CVE-2025-35431"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/cisagov/thorium/commit/7c94a0b9bc2dc55e0c307360452f348bac06820c#diff-45e1e58dfb6faacf9efe778c31ead287d8e13ae07c5dad084c792bc4a0605a68R1007-R1008",
+          "source_project": "cisagov/thorium",
+          "source_root": "GHSA-pcvx-8r6m-5h8r"
+        }
+      ],
+      "replacement_candidate_count": 1
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "frankbria/narrative-modeling-app",
+      "current_source_root": "NARRATIVE-MODELING-ISSUE-451",
+      "family": "mass_assignment",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "pathosDev/actor-ts",
+      "current_source_root": "ACTOR-TS-ISSUE-738",
+      "family": "nosql_injection",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "multiple_independent_references"
+      ],
+      "current_feasibility_score": 2,
+      "current_source_project": "sauruscms/Saurus-CMS-Community-Edition",
+      "current_source_root": "GHSA-jjjg-67rc-qf87",
+      "family": "open_redirect",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "auth0/auth0.js",
+      "current_source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "family": "postmessage_trust",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-pcww-cvpx-6v39",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/Eukaryot/sonic3air/commit/2492d1882cd2cf1cc1d7415729ce5c4fd686cd4f",
+            "https://github.com/advisories/GHSA-pcww-cvpx-6v39",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-66732",
+            "https://www.vulncheck.com/advisories/sonic-3-a-i-r-missing-source-address-validation-in-connectionmanager"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/Eukaryot/sonic3air/commit/2492d1882cd2cf1cc1d7415729ce5c4fd686cd4f",
+          "source_project": "Eukaryot/sonic3air",
+          "source_root": "GHSA-pcww-cvpx-6v39"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-q796-5g5h-cqcc",
+          "feasibility_reasons": [
+            "pull_request_context:5",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 19,
+          "references": [
+            "https://github.com/HKUDS/Vibe-Trading/pull/241",
+            "https://github.com/HKUDS/Vibe-Trading/pull/242",
+            "https://github.com/HKUDS/Vibe-Trading/pull/243",
+            "https://github.com/HKUDS/Vibe-Trading/pull/245",
+            "https://github.com/HKUDS/Vibe-Trading/pull/293",
+            "https://github.com/HKUDS/Vibe-Trading/releases/tag/v0.1.10",
+            "https://github.com/advisories/GHSA-q796-5g5h-cqcc",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-58169",
+            "https://www.vulncheck.com/advisories/vibe-trading-loopback-trust-and-missing-host-validation-enable-dns-rebinding-authentication-bypass-and-remote-code-execution"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/HKUDS/Vibe-Trading/pull/241",
+          "source_project": "HKUDS/Vibe-Trading",
+          "source_root": "GHSA-q796-5g5h-cqcc"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-c9q3-f5v3-g7hw",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-c9q3-f5v3-g7hw",
+            "https://github.com/ouuan/router-vuln-report/blob/master/nat-rst/tl-7dr5130-nat-rst.md",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-37662"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/ouuan/router-vuln-report/blob/master/nat-rst/tl-7dr5130-nat-rst.md",
+          "source_project": "ouuan/router-vuln-report",
+          "source_root": "GHSA-c9q3-f5v3-g7hw"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-fxvf-jcp9-ch47",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-fxvf-jcp9-ch47",
+            "https://github.com/ouuan/router-vuln-report/blob/master/icmp-redirect/tl-7dr5130-redirect.md",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-37661"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/ouuan/router-vuln-report/blob/master/icmp-redirect/tl-7dr5130-redirect.md",
+          "source_project": "ouuan/router-vuln-report",
+          "source_root": "GHSA-fxvf-jcp9-ch47"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-hc77-8v8p-w9rp",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-hc77-8v8p-w9rp",
+            "https://github.com/ouuan/router-vuln-report/blob/master/nat-rst/redmi-rb03-nat-rst.md",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-37664"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/ouuan/router-vuln-report/blob/master/nat-rst/redmi-rb03-nat-rst.md",
+          "source_project": "ouuan/router-vuln-report",
+          "source_root": "GHSA-hc77-8v8p-w9rp"
+        }
+      ],
+      "replacement_candidate_count": 6
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "paloaltonetworks/globalprotect-app-windows",
+      "current_source_root": "CVE-2025-0120",
+      "family": "race_condition",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "ibm/storage-scale",
+      "current_source_root": "GHSA-xr96-mx7v-w32h",
+      "family": "secret_exposure",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-jr78-52g9-xcm6",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://cyberpanel.net/KnowledgeBase/home/change-logs",
+            "https://github.com/advisories/GHSA-jr78-52g9-xcm6",
+            "https://github.com/usmannasir/cyberpanel/issues/1858",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-67614",
+            "https://www.vulncheck.com/advisories/cyberpanel-hard-coded-jwt-secret-authentication-bypass-via-webterminal"
+          ],
+          "severity": "critical",
+          "source_code_location": "https://github.com/usmannasir/cyberpanel/issues/1858",
+          "source_project": "usmannasir/cyberpanel",
+          "source_root": "GHSA-jr78-52g9-xcm6"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/wolfsoftwaresystemsltd/WolfStack/security/advisories/GHSA-r3mw-2wmq-j6jg",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-pm35-p792-8vr3",
+            "https://github.com/wolfsoftwaresystemsltd/WolfStack/releases?page=7#release-v25.9.2",
+            "https://github.com/wolfsoftwaresystemsltd/WolfStack/security/advisories/GHSA-r3mw-2wmq-j6jg",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-73519",
+            "https://www.vulncheck.com/advisories/wolfstack-hard-coded-secret-authentication-bypass-via-x-wolfstack-secret"
+          ],
+          "severity": "critical",
+          "source_code_location": "",
+          "source_project": "wolfsoftwaresystemsltd/WolfStack",
+          "source_root": "GHSA-pm35-p792-8vr3"
+        }
+      ],
+      "replacement_candidate_count": 2
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "ibm/db2",
+      "current_source_root": "GHSA-q83p-h7pj-3m3p",
+      "family": "security_logging_alerting_failure",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_security_advisory",
+        "multiple_independent_references",
+        "reviewed_advisory"
+      ],
+      "current_feasibility_score": 9,
+      "current_source_project": "kyndryl-open-source/hashi-vault-js",
+      "current_source_root": "GHSA-5pq8-3ffp-7w5m",
+      "family": "security_misconfiguration",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "own-pay/OwnPay",
+      "current_source_root": "OWNPAY-ISSUE-438",
+      "family": "server_side_template_injection",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "cap-js/cds-dbs",
+      "current_source_root": "GHSA-pvw4-cvr4-97p8",
+      "family": "software_supply_chain_failure",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-f3qf-gc58-29p6",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/advisories/GHSA-f3qf-gc58-29p6",
+            "https://github.com/facebook/hhvm/commit/083f5ffdee661f61512909d16f9a5b98cff3cf0b",
+            "https://hhvm.com/blog/2023/01/20/security-update.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-36937"
+          ],
+          "severity": "critical",
+          "source_code_location": "https://github.com/facebook/hhvm/commit/083f5ffdee661f61512909d16f9a5b98cff3cf0b",
+          "source_project": "facebook/hhvm",
+          "source_root": "GHSA-f3qf-gc58-29p6"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-ccqc-vx6w-76x6",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/advisories/GHSA-ccqc-vx6w-76x6",
+            "https://github.com/haile01/perl_spreadsheet_excel_rce_poc",
+            "https://github.com/jmcnamara/spreadsheet-parseexcel/blob/c7298592e102a375d43150cd002feed806557c15/lib/Spreadsheet/ParseExcel/Utility.pm#L171",
+            "https://github.com/mandiant/Vulnerability-Disclosures/blob/master/2023/MNDT-2023-0019.md",
+            "https://metacpan.org/dist/Spreadsheet-ParseExcel",
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-7102",
+            "https://www.barracuda.com/company/legal/esg-vulnerability",
+            "https://www.cve.org/CVERecord?id=CVE-2023-7101"
+          ],
+          "severity": "critical",
+          "source_code_location": "https://github.com/jmcnamara/spreadsheet-parseexcel/blob/c7298592e102a375d43150cd002feed806557c15/lib/Spreadsheet/ParseExcel/Utility.pm#L171",
+          "source_project": "jmcnamara/spreadsheet-parseexcel",
+          "source_root": "GHSA-ccqc-vx6w-76x6"
+        }
+      ],
+      "replacement_candidate_count": 2
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "govtech-bb/gov-bb",
+      "current_source_root": "GOV-BB-ISSUE-2092",
+      "family": "source_map_exposure",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r4xf-9fv3-cx9j",
+          "feasibility_reasons": [
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 16,
+          "references": [
+            "https://github.com/advisories/GHSA-r4xf-9fv3-cx9j",
+            "https://github.com/nextlevelbuilder/goclaw",
+            "https://github.com/nextlevelbuilder/goclaw/issues/1226",
+            "https://github.com/nextlevelbuilder/goclaw/pull/1230",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18038",
+            "https://vuldb.com/cve/CVE-2026-18038",
+            "https://vuldb.com/submit/862538",
+            "https://vuldb.com/vuln/383813",
+            "https://vuldb.com/vuln/383813/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/nextlevelbuilder/goclaw/issues/1226",
+          "source_project": "nextlevelbuilder/goclaw",
+          "source_root": "GHSA-r4xf-9fv3-cx9j"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-7v78-v35x-cqg5",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-7v78-v35x-cqg5",
+            "https://github.com/netease-youdao/LobsterAI",
+            "https://github.com/netease-youdao/LobsterAI/issues/2176",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-18995",
+            "https://vuldb.com/cve/CVE-2026-18995",
+            "https://vuldb.com/submit/862623",
+            "https://vuldb.com/vuln/386378",
+            "https://vuldb.com/vuln/386378/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/netease-youdao/LobsterAI/issues/2176",
+          "source_project": "netease-youdao/LobsterAI",
+          "source_root": "GHSA-7v78-v35x-cqg5"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-r93g-497c-7qvg",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-r93g-497c-7qvg",
+            "https://github.com/nasa/cFS",
+            "https://github.com/nasa/cFS/issues/1073",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-67972"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/nasa/cFS/issues/1073",
+          "source_project": "nasa/cFS",
+          "source_root": "GHSA-r93g-497c-7qvg"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-wx37-g239-qv72",
+          "feasibility_reasons": [
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 6,
+          "references": [
+            "https://github.com/advisories/GHSA-wx37-g239-qv72",
+            "https://github.com/mf-yang/openclaw-cn",
+            "https://github.com/mf-yang/openclaw-cn/issues/561",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-17457",
+            "https://vuldb.com/cve/CVE-2026-17457",
+            "https://vuldb.com/submit/862452",
+            "https://vuldb.com/vuln/383319",
+            "https://vuldb.com/vuln/383319/cti"
+          ],
+          "severity": "low",
+          "source_code_location": "https://github.com/mf-yang/openclaw-cn/issues/561",
+          "source_project": "mf-yang/openclaw-cn",
+          "source_root": "GHSA-wx37-g239-qv72"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-5w47-3cxw-fxxf",
+          "feasibility_reasons": [
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 2,
+          "references": [
+            "https://github.com/OpenSignLabs/OpenSign",
+            "https://github.com/advisories/GHSA-5w47-3cxw-fxxf",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-72548"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/OpenSignLabs/OpenSign",
+          "source_project": "OpenSignLabs/OpenSign",
+          "source_root": "GHSA-5w47-3cxw-fxxf"
+        }
+      ],
+      "replacement_candidate_count": 6
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1",
+        "multiple_independent_references"
+      ],
+      "current_feasibility_score": 6,
+      "current_source_project": "projectdiscovery/nuclei-templates",
+      "current_source_root": "GHSA-h325-4hh9-393v",
+      "family": "sql_injection",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [],
+      "current_feasibility_score": 0,
+      "current_source_project": "systerel/S2OPC",
+      "current_source_root": "GHSA-2cg2-hxr7-q7f4",
+      "family": "unrestricted_resource_consumption",
+      "recommended_replacements": [],
+      "replacement_candidate_count": 0
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "zachlagden/rickbot",
+      "current_source_root": "RICKBOT-ISSUE-38",
+      "family": "unsafe_api_consumption",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "reviewed",
+          "canonical_advisory_url": "https://github.com/elixir-webrtc/ex_webrtc/security/advisories/GHSA-qwfw-ggxw-577c",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "repository_security_advisory",
+            "multiple_independent_references",
+            "reviewed_advisory"
+          ],
+          "feasibility_score": 37,
+          "references": [
+            "https://api.github.com/repos/elixir-webrtc/ex_webrtc/security-advisories/GHSA-qwfw-ggxw-577c",
+            "https://github.com/advisories/GHSA-qwfw-ggxw-577c",
+            "https://github.com/elixir-webrtc/ex_webrtc",
+            "https://github.com/elixir-webrtc/ex_webrtc/commit/658c63221a869fb12bb9989599c3688751b0531b",
+            "https://github.com/elixir-webrtc/ex_webrtc/issues/249",
+            "https://github.com/elixir-webrtc/ex_webrtc/pull/250",
+            "https://github.com/elixir-webrtc/ex_webrtc/releases/tag/v0.15.1",
+            "https://github.com/elixir-webrtc/ex_webrtc/releases/tag/v0.16.1",
+            "https://github.com/elixir-webrtc/ex_webrtc/security/advisories/GHSA-qwfw-ggxw-577c",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-44700"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/elixir-webrtc/ex_webrtc",
+          "source_project": "elixir-webrtc/ex_webrtc",
+          "source_root": "GHSA-qwfw-ggxw-577c"
+        },
+        {
+          "advisory_source_type": "reviewed",
+          "canonical_advisory_url": "https://github.com/oviva-ag/epa4all-client/security/advisories/GHSA-5hhf-xmfx-4vvr",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_security_advisory",
+            "multiple_independent_references",
+            "reviewed_advisory"
+          ],
+          "feasibility_score": 33,
+          "references": [
+            "https://api.github.com/repos/oviva-ag/epa4all-client/security-advisories/GHSA-5hhf-xmfx-4vvr",
+            "https://github.com/advisories/GHSA-5hhf-xmfx-4vvr",
+            "https://github.com/oviva-ag/epa4all-client",
+            "https://github.com/oviva-ag/epa4all-client/commit/9111d6fbb939007036a7f74b2a93bb278cb5af32",
+            "https://github.com/oviva-ag/epa4all-client/pull/36",
+            "https://github.com/oviva-ag/epa4all-client/releases/tag/v1.2.2",
+            "https://github.com/oviva-ag/epa4all-client/security/advisories/GHSA-5hhf-xmfx-4vvr",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-45574"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/oviva-ag/epa4all-client",
+          "source_project": "oviva-ag/epa4all-client",
+          "source_root": "GHSA-5hhf-xmfx-4vvr"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-hq7f-wv7c-w9mp",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:2",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 31,
+          "references": [
+            "https://github.com/advisories/GHSA-hq7f-wv7c-w9mp",
+            "https://github.com/nesquena/hermes-webui/commit/ce272d9cd5f8e5a4521278f56eb5388010901646",
+            "https://github.com/nesquena/hermes-webui/pull/3970",
+            "https://github.com/nesquena/hermes-webui/pull/4338",
+            "https://github.com/nesquena/hermes-webui/releases/tag/v0.51.468",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-55205",
+            "https://www.vulncheck.com/advisories/hermes-webui-resource-exhaustion-via-unauthenticated-oauth-flow-endpoint"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/nesquena/hermes-webui/pull/3970",
+          "source_project": "nesquena/hermes-webui",
+          "source_root": "GHSA-hq7f-wv7c-w9mp"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-wwx5-jq7h-rp7v",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:2",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 31,
+          "references": [
+            "https://github.com/advisories/GHSA-wwx5-jq7h-rp7v",
+            "https://github.com/nesquena/hermes-webui/commit/58528a4d88b0fa4f7b822e31d6051c669769bd3b",
+            "https://github.com/nesquena/hermes-webui/pull/3624",
+            "https://github.com/nesquena/hermes-webui/pull/3674",
+            "https://github.com/nesquena/hermes-webui/releases/tag/v0.51.270",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-49955",
+            "https://www.vulncheck.com/advisories/hermes-webui-resource-exhaustion-via-passkey-options"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/nesquena/hermes-webui/pull/3624",
+          "source_project": "nesquena/hermes-webui",
+          "source_root": "GHSA-wwx5-jq7h-rp7v"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-2qxj-c4c6-p34f",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/Gerapy/Gerapy",
+            "https://github.com/Gerapy/Gerapy/commit/bd4891c60315f17611a3b7a651ffe0fba7cfe71e",
+            "https://github.com/Gerapy/Gerapy/issues/317",
+            "https://github.com/Gerapy/Gerapy/pull/319",
+            "https://github.com/advisories/GHSA-2qxj-c4c6-p34f",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-16209",
+            "https://vuldb.com/cve/CVE-2026-16209",
+            "https://vuldb.com/submit/857926",
+            "https://vuldb.com/vuln/380025",
+            "https://vuldb.com/vuln/380025/cti"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/Gerapy/Gerapy/issues/317",
+          "source_project": "Gerapy/Gerapy",
+          "source_root": "GHSA-2qxj-c4c6-p34f"
+        }
+      ],
+      "replacement_candidate_count": 107
+    },
+    {
+      "current_feasibility_reasons": [
+        "repository_issue_context:1"
+      ],
+      "current_feasibility_score": 4,
+      "current_source_project": "bazauto/layout-orchestration",
+      "current_source_root": "LAYOUT-ORCHESTRATION-ISSUE-20",
+      "family": "websocket_authorization",
+      "recommended_replacements": [
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-62g6-4j9c-6v7p",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:2",
+            "pull_request_context:2",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 33,
+          "references": [
+            "https://github.com/SimpleMachines/SMF/commit/7d048f8d66aab9af51cd6ee110fbad103cf673e8",
+            "https://github.com/SimpleMachines/SMF/commit/a7875e876a647572dd4c45da881b875092caac3d",
+            "https://github.com/SimpleMachines/SMF/pull/9181",
+            "https://github.com/SimpleMachines/SMF/pull/9182",
+            "https://github.com/advisories/GHSA-62g6-4j9c-6v7p",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-39903",
+            "https://www.vulncheck.com/advisories/simple-machines-forum-authorization-bypass-via-attachmentapprove-php"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/SimpleMachines/SMF/pull/9181",
+          "source_project": "SimpleMachines/SMF",
+          "source_root": "GHSA-62g6-4j9c-6v7p"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-g2r8-97m7-62w9",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-g2r8-97m7-62w9",
+            "https://github.com/duckdb/duckdb-aws/commit/7d04119ee8d3f8836e278f0e8cbf21827ff5338b",
+            "https://github.com/duckdb/duckdb-aws/pull/156",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-58139",
+            "https://www.vulncheck.com/advisories/duckdb-aws-extension-security-policy-bypass-via-load-aws-credentials-procedure"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/duckdb/duckdb-aws/pull/156",
+          "source_project": "duckdb/duckdb-aws",
+          "source_root": "GHSA-g2r8-97m7-62w9"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-m2wp-hqw2-j56m",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "source_code_location_is_pull",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-m2wp-hqw2-j56m",
+            "https://github.com/bitwarden/server/commit/2aa92a3c8675a28e305e8207ff16592227f96291",
+            "https://github.com/bitwarden/server/pull/7934",
+            "https://github.com/bitwarden/server/releases/tag/v2026.7.2",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-71959",
+            "https://sanjokkarki.com.np/blog/bitwarden-audit-log-forgery",
+            "https://www.vulncheck.com/advisories/bitwarden-server-audit-log-injection-via-post-collect"
+          ],
+          "severity": "medium",
+          "source_code_location": "https://github.com/bitwarden/server/pull/7934",
+          "source_project": "bitwarden/server",
+          "source_root": "GHSA-m2wp-hqw2-j56m"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-pp5r-q37v-qxvp",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "pull_request_context:1",
+            "repository_issue_context:1",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 30,
+          "references": [
+            "https://github.com/advisories/GHSA-pp5r-q37v-qxvp",
+            "https://github.com/openimsdk/open-im-server",
+            "https://github.com/openimsdk/open-im-server/commit/193870b2f938278b27a2d8347bd7e4db5f8f9dfc",
+            "https://github.com/openimsdk/open-im-server/issues/3778",
+            "https://github.com/openimsdk/open-im-server/pull/3781",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-69115",
+            "https://www.vulncheck.com/advisories/openim-server-missing-authorization-on-user-and-group-enumeration-endpoints"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/openimsdk/open-im-server/issues/3778",
+          "source_project": "openimsdk/open-im-server",
+          "source_root": "GHSA-pp5r-q37v-qxvp"
+        },
+        {
+          "advisory_source_type": "unreviewed",
+          "canonical_advisory_url": "https://github.com/advisories/GHSA-2wg2-5v89-cgh7",
+          "feasibility_reasons": [
+            "direct_patch_or_change_commit:1",
+            "source_code_location_is_commit",
+            "multiple_independent_references"
+          ],
+          "feasibility_score": 22,
+          "references": [
+            "https://github.com/Roskus/prospero-flow-crm/commit/b2b6ffdace0972ab62d1f7e8cdab0ed213bfc4a9",
+            "https://github.com/Roskus/prospero-flow-crm/releases/tag/v5.5.3",
+            "https://github.com/advisories/GHSA-2wg2-5v89-cgh7",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-19539",
+            "https://secur0.com/en/cna/cve-list/cve-2026-19539-idor-in-prospero-flow-crm-allows-cross-tenant-ticket-read-hijacking-and-deletion"
+          ],
+          "severity": "high",
+          "source_code_location": "https://github.com/Roskus/prospero-flow-crm/commit/b2b6ffdace0972ab62d1f7e8cdab0ed213bfc4a9",
+          "source_project": "Roskus/prospero-flow-crm",
+          "source_root": "GHSA-2wg2-5v89-cgh7"
+        }
+      ],
+      "replacement_candidate_count": 24
+    }
+  ],
+  "families_with_better_candidate_count": 13,
+  "first_blind_consumed": false,
+  "policy": "report_only_no_source_mutation; candidates must already be semantic-family candidates and v6_firewall_allowed; unique selected roots/projects are preserved",
+  "ranking_output_used": false,
+  "remaining_family_count": 29,
+  "scoring_executed": false
+}
