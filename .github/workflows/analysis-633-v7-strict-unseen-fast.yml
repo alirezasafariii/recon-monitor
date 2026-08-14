@@ -124,10 +124,38 @@ jobs:
           print({'targeted_gap_counts':r.get('targeted_gap_candidate_counts',{}),'scoring_executed':False})
           PY
 
+      - name: Persist immutable pre-scoring candidate checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add benchmarks/raw/sources/v7_external_exclusions.json \
+                  benchmarks/raw/sources/v7_candidates_fast.json \
+                  benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_gap_discovery_report.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(analysis-633): checkpoint unscored V7 candidate pool'
+            git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+          fi
+
       - name: Select 36 globally unique engine-unseen sources
+        id: select
+        continue-on-error: true
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v7_source_selection.py
+
+      - name: Persist shortlist or uniqueness diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f benchmarks/raw/sources/v7_shortlist.json
+          git add benchmarks/raw/sources/v7_shortlist.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(analysis-633): record V7 shortlist diagnostics'
+            git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+          fi
 
       - name: Strict shortlist gate
         env:
@@ -139,10 +167,12 @@ jobs:
           from raw_recon_v7_source_firewall import validate_shortlist
           r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
           rows=r['selected']
+          if not r['global_assignment_complete']:
+              print(json.dumps(r['global_uniqueness_diagnostics'], indent=2, sort_keys=True))
+              raise SystemExit('V7 source assignment incomplete; diagnostics persisted')
           assert len(rows)==36
           assert len({x['source_root'].casefold() for x in rows})==36
           assert len({x['source_project'].casefold() for x in rows})==36
-          assert r['global_assignment_complete'] is True
           assert r['firewall']['passed'] is True
           assert r['firewall']['engine_seen_count']==0
           assert r['scoring_executed'] is False
@@ -195,14 +225,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add benchmarks/raw/sources/v7_external_exclusions.json \
-                  benchmarks/raw/sources/v7_candidates_fast.json \
-                  benchmarks/raw/sources/v7_candidates.json \
-                  benchmarks/raw/sources/v7_gap_discovery_report.json \
-                  benchmarks/raw/sources/v7_shortlist.json \
-                  MANIFEST.sha256
-          if git diff --cached --quiet; then echo 'No V7 source-freeze changes.'; exit 0; fi
+          git add MANIFEST.sha256
+          if git diff --cached --quiet; then echo 'V7 source set already committed.'; exit 0; fi
           git commit -m 'chore(analysis-633): freeze engine-unseen V7 source set'
           git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
