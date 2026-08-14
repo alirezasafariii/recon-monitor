@@ -1,0 +1,33 @@
+{
+  "classification_counts": {
+    "near_miss_candidate": 354,
+    "positive_regression_candidate": 26,
+    "secure_control_candidate": 441,
+    "unclassified": 2391
+  },
+  "evaluation_kind": "real_world_corpus_v1_upstream_test_control_mining",
+  "failure_count": 0,
+  "failures": [],
+  "gates": {
+    "all_pairs_processed": true,
+    "no_code_executed": true,
+    "no_labels": true,
+    "no_scoring": true,
+    "no_source_contents_persisted": true,
+    "no_target_contact": true
+  },
+  "human_verified_record_count": 0,
+  "passed": true,
+  "processed_pair_count": 66,
+  "rule_version": "2026.08.14.13",
+  "scoring_executed": false,
+  "source_contents_persisted": false,
+  "sources_with_changed_test_files": 50,
+  "sources_with_near_miss_test_candidates": 35,
+  "sources_with_secure_control_test_candidates": 31,
+  "target_contact_performed": false,
+  "test_file_count": 176,
+  "test_identifier_count": 3212,
+  "third_party_code_executed": false,
+  "version": "1.0.1"
+}
