@@ -40,7 +40,7 @@ jobs:
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
             case "$path" in
-              app/raw_recon_v6_*.py|app/v6_benchmark_*.py|app/v6_source_*.py|app/v6_literal_*.py|app/v6_first_blind_*.py|app/v6_pre_score_*.py|app/v6_remaining_*.py|app/v6_freeze_verify.py|app/v6_corpus_freeze.py|tests/test_v6_*.py|benchmarks/raw/sources/v6_*.json|benchmarks/raw/sources/v6_*.jsonl|benchmarks/raw/sources/v6_*.sha256|benchmarks/raw/sources/v6_capture_evidence/*.json|benchmarks/raw/analysis_raw_v6.jsonl|docs/ANALYSIS_ENGINE_6_31_*.md|.github/workflows/analysis-631-*.yml)
+              app/raw_recon_v6_*.py|app/v6_benchmark_*.py|app/v6_source_*.py|app/v6_literal_*.py|app/v6_first_blind_*.py|app/v6_pre_score_*.py|app/v6_remaining_*.py|app/v6_capture_*.py|app/v6_freeze_verify.py|app/v6_corpus_freeze.py|tests/test_v6_*.py|benchmarks/raw/sources/v6_*.json|benchmarks/raw/sources/v6_*.jsonl|benchmarks/raw/sources/v6_*.sha256|benchmarks/raw/sources/v6_capture_evidence/*.json|benchmarks/raw/analysis_raw_v6.jsonl|docs/ANALYSIS_ENGINE_6_31_*.md|.github/workflows/analysis-631-*.yml)
                 ;;
               *)
                 echo "Analysis 6.31 pre-score production boundary violation: $path" >&2
