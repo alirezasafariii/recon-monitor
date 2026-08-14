@@ -125,7 +125,7 @@
     "v6-websocket_authorization-sparse_noisy"
   ],
   "passed": true,
-  "plan_sha256": "9b3d7f0bccc3ed971dbacde368a72dc0a5ba2c493cec9951095f25e31b4f8673",
+  "plan_sha256": "d96678a30d4b13c5fe2a418c304455d9aa3a87ca8d0d9e5f0471e0f1be779f08",
   "ranking_output_used": false,
   "require_complete": false,
   "rule_version": "2026.08.14.6.31.2",

@@ -60,10 +60,10 @@
       "path_parameters": [],
       "query_parameters": []
     },
-    "method": "ZIP_EXTRACT",
+    "method": "UNKNOWN",
     "target": "controlled-local-joomla-extractor"
   },
-  "raw_sha256": "66b259a2e7d1e0c265e06511794060d9e270f163792a9e9349dc87dff1a44582",
+  "raw_sha256": "88917abcd150f962d6b7897d89e7a225ad058702a5246af1a2e4e6489e487dd9",
   "schema_version": "1.0",
   "source_project": "joomla/joomla-cms",
   "source_root": "GHSA-f3gp-9xr4-qmvc",

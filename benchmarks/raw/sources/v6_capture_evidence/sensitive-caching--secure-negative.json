@@ -24,6 +24,7 @@
       "vary_authorization": true
     },
     "endpoint": "/api/v1/api_key",
+    "endpoint_schema": {},
     "method": "GET",
     "schema": {
       "authenticated_secret_response": true,
@@ -31,7 +32,7 @@
     },
     "target": "rubygems.org patched legacy API key response"
   },
-  "raw_sha256": "6c775d3fdfa4e051f64705ce225c995d585a396e9f48db541814e9af207a989b",
+  "raw_sha256": "813b2de296ec3c63d38c1f32276a171f71ef5ccc31a101ae93f97c66ba141197",
   "schema_version": "1.0",
   "source_project": "rubygems/rubygems.org",
   "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",

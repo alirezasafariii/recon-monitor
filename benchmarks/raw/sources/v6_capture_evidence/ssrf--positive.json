@@ -55,10 +55,10 @@
       "path_parameters": [],
       "query_parameters": []
     },
-    "method": "SERVER_GET",
+    "method": "UNKNOWN",
     "target": "controlled-local-vulnerability-lookup"
   },
-  "raw_sha256": "15d82a44a5f2782a83defe383b1c2e3aa8e2d8c605b9bb1865ef5579dee5e94e",
+  "raw_sha256": "a8e7fb057bb757698f63bf4b4321287159d79059ad84c472cdc4432b53671bda",
   "schema_version": "1.0",
   "source_project": "vulnerability-lookup/vulnerability-lookup",
   "source_root": "GHSA-wx9v-ffw3-45wg",

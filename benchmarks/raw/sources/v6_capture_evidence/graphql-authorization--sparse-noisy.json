@@ -47,10 +47,10 @@
       "path_parameters": [],
       "query_parameters": []
     },
-    "method": "GRAPHQL_AUTHORIZATION_CONFIG",
+    "method": "UNKNOWN",
     "target": "controlled-local-aimeos-graphql-config"
   },
-  "raw_sha256": "40ec74540420aefac2b31d70ea29fa9f569f05f674a09a434edf4bebed9ecb21",
+  "raw_sha256": "a849e8e78b8087e647f39f77fda007e957aeb89294877b9f837fdd4f515973d3",
   "schema_version": "1.0",
   "source_project": "aimeos/ai-admin-graphql",
   "source_root": "GHSA-jj68-cp4v-98qf",

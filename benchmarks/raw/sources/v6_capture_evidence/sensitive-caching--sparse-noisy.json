@@ -23,6 +23,7 @@
       "upstream_fixture_expected_status": "unauthorized"
     },
     "endpoint": "/api/v1/api_key",
+    "endpoint_schema": {},
     "method": "HEAD",
     "schema": {
       "credentials_present": false,
@@ -30,7 +31,7 @@
     },
     "target": "rubygems.org API key HEAD control"
   },
-  "raw_sha256": "7830be08bcff3d45fe5c589a5e7c53acfe4280959bb76c2b4ae65117433413b0",
+  "raw_sha256": "c25c1b42d54e2ad1449cbeda585a96df4241cc93fa4305a68e3dd1f24347cddd",
   "schema_version": "1.0",
   "source_project": "rubygems/rubygems.org",
   "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",

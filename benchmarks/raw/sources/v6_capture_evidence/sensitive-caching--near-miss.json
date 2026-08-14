@@ -23,6 +23,7 @@
       "upstream_test_explicitly_allows_cacheability": true
     },
     "endpoint": "/api/v1/profiles/{handle}",
+    "endpoint_schema": {},
     "method": "GET",
     "schema": {
       "public_response": true,
@@ -30,7 +31,7 @@
     },
     "target": "rubygems.org public profile cache behavior"
   },
-  "raw_sha256": "c84d8384f2dccb32e458d4b17fa404ea97ebf989e9795f90d2893846e0aa0ff3",
+  "raw_sha256": "b11311e02a527eccce6b15698dc3c67811b3658e474fd0ac08b2926a9e38b7e0",
   "schema_version": "1.0",
   "source_project": "rubygems/rubygems.org",
   "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",

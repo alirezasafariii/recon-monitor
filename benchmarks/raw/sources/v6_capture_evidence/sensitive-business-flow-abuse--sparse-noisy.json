@@ -63,10 +63,10 @@
       "path_parameters": [],
       "query_parameters": []
     },
-    "method": "BUSINESS_WORKFLOW",
+    "method": "UNKNOWN",
     "target": "controlled-local-frappe-press"
   },
-  "raw_sha256": "e8a4ba82dd3293d6e72ea3ce6e59d795f944b59758e98342b3b343bba5f96d14",
+  "raw_sha256": "07beeeb10804401a5c2e0891514377f6e328259ee97bccdc4cc085f21f67a9f9",
   "schema_version": "1.0",
   "source_project": "frappe/press",
   "source_root": "GHSA-68qm-vp8f-rpr3",
