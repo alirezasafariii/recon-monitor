@@ -6,6 +6,44 @@ ROOT = Path(__file__).resolve().parents[1]
 PATH = ROOT / "app/analysis_632_evidence.py"
 text = PATH.read_text(encoding="utf-8")
 
+old = '''def _truthy(value: Any) -> bool:
+    if value is True:
+        return True
+    if isinstance(value, (int, float)) and value == 1:
+        return True
+    return str(value or "").strip().lower() in {
+        "true", "yes", "1", "observed", "present", "accepted", "enabled", "reachable", "success", "succeeded"
+    }
+
+
+def _fact_text(path: str, value: Any) -> str:
+'''
+new = '''def _truthy(value: Any) -> bool:
+    if value is True:
+        return True
+    if isinstance(value, (int, float)) and value == 1:
+        return True
+    return str(value or "").strip().lower() in {
+        "true", "yes", "1", "observed", "present", "accepted", "enabled", "reachable", "success", "succeeded"
+    }
+
+
+def _falsey(value: Any) -> bool:
+    if value is False:
+        return True
+    if isinstance(value, (int, float)) and value == 0:
+        return True
+    return str(value or "").strip().lower() in {
+        "false", "no", "0", "absent", "missing", "disabled", "rejected", "denied", "blocked"
+    }
+
+
+def _fact_text(path: str, value: Any) -> str:
+'''
+if old not in text:
+    raise RuntimeError("false-value helper anchor missing")
+text = text.replace(old, new, 1)
+
 old = '''        "analysis_632_basis": "explicit_stored_fact_semantic_reconstruction",
     }
 '''
