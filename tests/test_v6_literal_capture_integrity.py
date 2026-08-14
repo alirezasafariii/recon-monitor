@@ -11,7 +11,8 @@ APP = ROOT / "app"
 if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
-from v6_literal_capture_verify import _canonical, _sha256_bytes, _sha256_json, verify_capture_set
+from family_detectors.registry import DETECTOR_SPECS
+from v6_literal_capture_verify import _sha256_bytes, _sha256_json, verify_capture_set
 
 
 class V6LiteralCaptureIntegrityTests(unittest.TestCase):
@@ -20,6 +21,7 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
         cls.shortlist_path = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
         shortlist = json.loads(cls.shortlist_path.read_text(encoding="utf-8"))
         cls.source = dict(shortlist["selected"][0])
+        cls.signal = sorted(DETECTOR_SPECS[cls.source["family"]].condition_signals)[0]
 
     def _base(self, evidence_root: Path) -> tuple[dict, dict, Path]:
         raw = {
@@ -32,6 +34,7 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
         captured_at = "2026-08-14T09:00:00+03:30"
         reference = "https://github.com/example/project/issues/1"
         snapshot_payload = {"status": 200, "body": "literal upstream observation"}
+        snapshot_sha = _sha256_json(snapshot_payload)
         evidence = {
             "schema_version": "1.0",
             "family": self.source["family"],
@@ -46,7 +49,15 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
                 "reference": reference,
                 "retrieved_at": captured_at,
                 "payload": snapshot_payload,
-                "content_sha256": _sha256_json(snapshot_payload),
+                "content_sha256": snapshot_sha,
+            },
+            "adjudication": {
+                "basis": "source_observation",
+                "notes": "Pre-score source observation establishes the expected condition independently of detector output.",
+                "expected_condition_signals": [self.signal],
+                "detector_output_used": False,
+                "admission_output_used": False,
+                "ranking_output_used": False,
             },
             "raw": raw,
             "raw_sha256": _sha256_json(raw),
@@ -59,6 +70,7 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
             "source_root": self.source["source_root"],
             "source_project": self.source["source_project"],
             "raw": raw,
+            "expected_condition_signals": [self.signal],
             "provenance": {
                 "literal_capture": True,
                 "capture_reference": reference,
@@ -67,6 +79,11 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
                 "raw_sha256": _sha256_json(raw),
                 "evidence_path": evidence_path.relative_to(ROOT).as_posix(),
                 "evidence_sha256": _sha256_bytes(evidence_path.read_bytes()),
+                "source_snapshot_sha256": snapshot_sha,
+                "adjudication_basis": "source_observation",
+                "detector_output_used": False,
+                "admission_output_used": False,
+                "ranking_output_used": False,
             },
         }
         return row, evidence, evidence_path
@@ -120,6 +137,28 @@ class V6LiteralCaptureIntegrityTests(unittest.TestCase):
             result = self._run(row, evidence_root)
             self.assertFalse(result["passed"])
             self.assertTrue(any("evidence_path must point" in error for error in result["errors"]))
+
+    def test_expected_signal_cannot_drift_from_evidence_adjudication(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "benchmarks/raw/sources", prefix="v6_capture_test_") as tmp:
+            evidence_root = Path(tmp) / "evidence"
+            evidence_root.mkdir()
+            row, _, _ = self._base(evidence_root)
+            row["expected_condition_signals"] = []
+            result = self._run(row, evidence_root)
+            self.assertFalse(result["passed"])
+            self.assertTrue(any("do not exactly match evidence adjudication" in error for error in result["errors"]))
+
+    def test_adjudication_cannot_claim_detector_output_usage(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "benchmarks/raw/sources", prefix="v6_capture_test_") as tmp:
+            evidence_root = Path(tmp) / "evidence"
+            evidence_root.mkdir()
+            row, evidence, evidence_path = self._base(evidence_root)
+            evidence["adjudication"]["detector_output_used"] = True
+            evidence_path.write_text(json.dumps(evidence, sort_keys=True) + "\n", encoding="utf-8")
+            row["provenance"]["evidence_sha256"] = _sha256_bytes(evidence_path.read_bytes())
+            result = self._run(row, evidence_root)
+            self.assertFalse(result["passed"])
+            self.assertTrue(any("adjudication must state detector_output_used=false" in error for error in result["errors"]))
 
 
 if __name__ == "__main__":
