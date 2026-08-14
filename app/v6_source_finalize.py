@@ -14,8 +14,8 @@ from raw_recon_v6_source_firewall import (
     exposure_index,
 )
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.31.3"
+VERSION = "1.2.0"
+RULE_VERSION = "2026.08.14.6.31.4"
 SRC = ROOT / "benchmarks/raw/sources"
 
 BASE_HARD = {
@@ -123,6 +123,46 @@ def _reserve_identity(
         raise RuntimeError(f"{family}: global source uniqueness collision root={root!r} project={project!r}")
     used_roots.add(root)
     used_projects.add(project)
+
+
+def _assign_legacy_globally(
+    eligible: Mapping[str, list[dict[str, Any]]],
+    base_roots: set[str],
+    base_projects: set[str],
+) -> dict[str, dict[str, Any]]:
+    order = sorted(eligible, key=lambda family: (len(eligible[family]), family))
+    solution: dict[str, dict[str, Any]] = {}
+
+    def visit(position: int, roots: set[str], projects: set[str]) -> bool:
+        if position == len(order):
+            return True
+        family = order[position]
+        for row in eligible[family]:
+            root = _identity(row.get("source_root"))
+            project = _identity(row.get("source_project"))
+            if not root or not project or root in roots or project in projects:
+                continue
+            solution[family] = row
+            if visit(position + 1, roots | {root}, projects | {project}):
+                return True
+            solution.pop(family, None)
+        return False
+
+    if not visit(0, set(base_roots), set(base_projects)):
+        diagnostics = {
+            family: [
+                {
+                    "source_root": row.get("source_root"),
+                    "source_project": row.get("source_project"),
+                    "root_blocked_by_fixed_selection": _identity(row.get("source_root")) in base_roots,
+                    "project_blocked_by_fixed_selection": _identity(row.get("source_project")) in base_projects,
+                }
+                for row in eligible[family]
+            ]
+            for family in order
+        }
+        raise RuntimeError("no globally unique legacy source assignment exists: " + json.dumps(diagnostics, sort_keys=True))
+    return dict(solution)
 
 
 def finalize() -> dict[str, Any]:
@@ -268,17 +308,9 @@ def finalize() -> dict[str, Any]:
     if missing:
         raise RuntimeError("remaining legacy-discovery semantic source gaps: " + ", ".join(missing))
 
-    for family in sorted(eligible, key=lambda name: (len(eligible[name]), name)):
-        chosen = None
-        for row in eligible[family]:
-            root = _identity(row.get("source_root"))
-            project = _identity(row.get("source_project"))
-            if root in used_roots or project in used_projects:
-                continue
-            chosen = row
-            break
-        if chosen is None:
-            raise RuntimeError("global uniqueness gap: " + family)
+    legacy_assignment = _assign_legacy_globally(eligible, used_roots, used_projects)
+    for family in sorted(legacy_assignment):
+        chosen = legacy_assignment[family]
         _reserve_identity(family, chosen, used_roots, used_projects)
         selected[family] = chosen
 
@@ -299,7 +331,7 @@ def finalize() -> dict[str, Any]:
         "firewall_rule_version": FIREWALL_RULE_VERSION, "scoring_executed": False,
     }
     shortlist = {
-        "version": "3.4.0", "rule_version": RULE_VERSION,
+        "version": "3.5.0", "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v6_unscored_source_selection",
         "selection_executes_scoring": False, "selection_uses_detector_output": False,
         "selection_uses_admission_results": False, "selection_uses_ranking_results": False,
@@ -313,7 +345,7 @@ def finalize() -> dict[str, Any]:
         "firewall": final_firewall, "selected": rows,
     }
     report = {
-        "version": "1.4.0", "rule_version": RULE_VERSION, "status": "selected",
+        "version": "1.5.0", "rule_version": RULE_VERSION, "status": "selected",
         "scoring_executed": False, "family_count": 36, "unique_root_count": 36,
         "unique_project_count": 36, "owasp_grounded_family_count": 14,
         "complement_family_count": 22, "complement_override_family_count": 11,
@@ -321,6 +353,7 @@ def finalize() -> dict[str, Any]:
         "grounding_provenance_reuse_count": 0,
         "hard_family_validation": hard_report,
         "complement_override_validation": complement_report,
+        "legacy_assignment_method": "global_backtracking_unique_root_project",
         "firewall_rule_version": FIREWALL_RULE_VERSION,
     }
     (SRC / "v6_shortlist.json").write_text(json.dumps(shortlist, indent=2, sort_keys=True) + "\n", encoding="utf-8")
