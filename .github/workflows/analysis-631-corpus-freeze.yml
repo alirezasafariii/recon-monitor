@@ -27,7 +27,7 @@ jobs:
             exit 1
           fi
 
-      - name: Revalidate literal-fresh unscored corpus
+      - name: Revalidate literal capture evidence and unscored corpus
         env:
           PYTHONPATH: app
         run: |
@@ -35,6 +35,13 @@ jobs:
           import json
           from pathlib import Path
           from v6_benchmark_validate import validate_v6_corpus
+          from v6_literal_capture_verify import verify_capture_set
+
+          capture_verification = verify_capture_set(require_complete=True, write_report=True)
+          assert capture_verification['passed'], capture_verification['errors']
+          assert capture_verification['capture_count'] == 144
+          assert capture_verification['evidence_count'] == 144
+          assert capture_verification['unique_evidence_hash_count'] == 144
 
           shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
           cases = [json.loads(line) for line in Path('benchmarks/raw/analysis_raw_v6.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
@@ -49,18 +56,25 @@ jobs:
           assert validation['source_firewall']['passed'] is True
           PY
 
-      - name: Freeze validated corpus and protected implementation
+      - name: Freeze validated corpus, evidence, and protected implementation
         run: |
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
 
+          capture_verification = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_verification.json').read_text(encoding='utf-8'))
           validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text(encoding='utf-8'))
           shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
           selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
           materialization = json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text(encoding='utf-8'))
           protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
 
+          assert capture_verification['passed'] is True
+          assert capture_verification['scoring_executed'] is False
+          assert capture_verification['capture_count'] == 144
+          assert capture_verification['evidence_count'] == 144
+          assert capture_verification['unique_evidence_hash_count'] == 144
+          assert len(capture_verification['evidence_manifest']) == 144
           assert validation['passed'] is True
           assert validation['scoring_executed'] is False
           assert validation['literal_single_capture_count'] == 144
@@ -95,12 +109,14 @@ jobs:
             'benchmarks/raw/sources/v6_shortlist.json',
             'benchmarks/raw/sources/v6_selection_final_report.json',
             'benchmarks/raw/sources/v6_literal_captures.jsonl',
+            'benchmarks/raw/sources/v6_literal_capture_verification.json',
             'benchmarks/raw/analysis_raw_v6.jsonl',
             'benchmarks/raw/sources/v6_materialization_report.json',
             'benchmarks/raw/sources/v6_validation_report.json',
             'app/raw_recon_v6_source_firewall.py',
             'app/raw_recon_v6_source_discovery.py',
             'app/v6_source_finalize.py',
+            'app/v6_literal_capture_verify.py',
             'app/v6_benchmark_dataset.py',
             'app/v6_benchmark_validate.py',
             'app/v6_benchmark_evaluate.py',
@@ -111,16 +127,23 @@ jobs:
             '.github/workflows/analysis-631-corpus-freeze.yml',
             '.github/workflows/analysis-631-evaluator-freeze.yml',
           ]
+          paths.extend(sorted(capture_verification['evidence_manifest']))
+          if len(paths) != len(set(paths)):
+            raise RuntimeError('duplicate path in v6 freeze protection set')
+
           protected = {}
           for value in paths:
             path = Path(value)
             assert path.exists(), value
-            protected[value] = hashlib.sha256(path.read_bytes()).hexdigest()
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if value in capture_verification['evidence_manifest']:
+              assert digest == capture_verification['evidence_manifest'][value], value
+            protected[value] = digest
 
           report = {
-            'version': '1.4.0',
-            'rule_version': '2026.08.14.6.31.5',
-            'evaluation_status': 'sealed_literal_fresh_unscored_corpus',
+            'version': '1.5.0',
+            'rule_version': '2026.08.14.6.31.6',
+            'evaluation_status': 'sealed_evidence_backed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
             'first_blind_evaluator_frozen': False,
@@ -129,6 +152,7 @@ jobs:
             'pair_case_count': 72,
             'triad_case_count': 60,
             'literal_single_capture_count': 144,
+            'literal_evidence_artifact_count': 144,
             'family_count': 36,
             'source_root_count': shortlist['unique_root_count'],
             'source_project_count': shortlist['unique_project_count'],
@@ -143,7 +167,7 @@ jobs:
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'mutation_policy': 'protected source inputs, literal captures, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
+            'mutation_policy': 'source inputs, all 144 literal evidence artifacts, capture rows, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
@@ -163,9 +187,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/sources/v6_validation_report.json benchmarks/raw/sources/v6_corpus_freeze.json benchmarks/raw/sources/v6_freeze_manifest.sha256
+          git add benchmarks/raw/sources/v6_literal_capture_verification.json benchmarks/raw/sources/v6_validation_report.json benchmarks/raw/sources/v6_corpus_freeze.json benchmarks/raw/sources/v6_freeze_manifest.sha256
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Freeze validated literal-fresh unscored Analysis 6.31 corpus'
+          git commit -m 'Freeze evidence-backed literal-fresh unscored Analysis 6.31 corpus'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
