@@ -14,7 +14,7 @@ from raw_recon_v6_source_firewall import RULE_VERSION, VERSION, canonical_url, c
 
 class V6SourceIndependenceTests(unittest.TestCase):
     def test_version(self) -> None:
-        self.assertEqual(VERSION, "1.1.0")
+        self.assertEqual(VERSION, "1.1.1")
         self.assertEqual(RULE_VERSION, "2026.08.14.6.31.1")
 
     def test_prior_v5_source_is_not_fresh(self) -> None:
