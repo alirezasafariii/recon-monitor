@@ -1,0 +1,1793 @@
+{
+  "evaluation_kind": "fresh_blind_v7_external_exposure_exclusion_registry",
+  "evidence_imported": false,
+  "identity_only": true,
+  "labels_imported": false,
+  "rule_version": "2026.08.14.6.33.v7.unseen.1",
+  "scores_imported": false,
+  "scoring_executed": false,
+  "source": {
+    "commit_sha": "a6f02912343bc0ab9b2da4e5b9d2724108541f75",
+    "name": "real_world_corpus_v1",
+    "path": "benchmarks/real_world/v1/source_shortlist_final.json"
+  },
+  "source_count": 100,
+  "sources": [
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-22p9-r2f5-22mf",
+      "identifiers": [
+        "CVE-2026-54706",
+        "GHSA-22P9-R2F5-22MF"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-22p9-r2f5-22mf",
+        "https://github.com/onionshare/onionshare/commit/48f31cfac077fcc9c04c67c2a6dbf87d956f5eec",
+        "https://github.com/onionshare/onionshare/releases/tag/v2.6.4",
+        "https://github.com/onionshare/onionshare/security/advisories/GHSA-22p9-r2f5-22mf"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/onionshare/onionshare/security-advisories/GHSA-22p9-r2f5-22mf",
+      "source_code_location": "https://github.com/onionshare/onionshare",
+      "source_project": "onionshare/onionshare",
+      "source_root": "GHSA-22P9-R2F5-22MF"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2625-rw7m-5q5x",
+      "identifiers": [
+        "GHSA-2625-RW7M-5Q5X"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-2625-rw7m-5q5x",
+        "https://github.com/hubuum/hubuum-client-rust/commit/5a5c275ffa45f342459b7d3e977926da643bde50",
+        "https://github.com/hubuum/hubuum-client-rust/releases/tag/v0.6.1",
+        "https://github.com/hubuum/hubuum-client-rust/security/advisories/GHSA-2625-rw7m-5q5x"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/hubuum/hubuum-client-rust/security-advisories/GHSA-2625-rw7m-5q5x",
+      "source_code_location": "https://github.com/hubuum/hubuum-client-rust",
+      "source_project": "hubuum/hubuum-client-rust",
+      "source_root": "GHSA-2625-RW7M-5Q5X"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-26gq-p25f-99cp",
+      "identifiers": [
+        "CVE-2026-73564",
+        "GHSA-26GQ-P25F-99CP"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-26gq-p25f-99cp",
+        "https://github.com/fatedier/frp/commit/7dc7be930e2452ae93fd32f2a77f8c6fcd0b652b",
+        "https://github.com/fatedier/frp/pull/5428",
+        "https://github.com/fatedier/frp/releases/tag/v0.70.1",
+        "https://github.com/fatedier/frp/security/advisories/GHSA-26gq-p25f-99cp"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/fatedier/frp/security-advisories/GHSA-26gq-p25f-99cp",
+      "source_code_location": "https://github.com/fatedier/frp",
+      "source_project": "fatedier/frp",
+      "source_root": "GHSA-26GQ-P25F-99CP"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-28f5-38xr-jh2w",
+      "identifiers": [
+        "CVE-2026-43910",
+        "GHSA-28F5-38XR-JH2W"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-28f5-38xr-jh2w",
+        "https://github.com/appium/java-client/commit/2b9cd442b9dbf56ccc6f1e83aeeb411c0ec230c9",
+        "https://github.com/appium/java-client/pull/2408",
+        "https://github.com/appium/java-client/releases/tag/v10.1.1",
+        "https://github.com/appium/java-client/security/advisories/GHSA-28f5-38xr-jh2w"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/appium/java-client/security-advisories/GHSA-28f5-38xr-jh2w",
+      "source_code_location": "https://github.com/appium/java-client",
+      "source_project": "appium/java-client",
+      "source_root": "GHSA-28F5-38XR-JH2W"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "identifiers": [
+        "CVE-2026-67214",
+        "GHSA-28WG-GHJ8-5HJV"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+        "https://github.com/ai/nanoid/commit/6ccc67bbaba71d3d77a21d9b636f4171a268ce49",
+        "https://github.com/ai/nanoid/commit/e835c9b71eab832bc6106944bdd26ea96cf2c66d",
+        "https://github.com/ai/nanoid/pull/600",
+        "https://github.com/ai/nanoid/pull/601",
+        "https://github.com/ai/nanoid/releases/tag/5.1.16",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-67214",
+        "https://www.vulncheck.com/advisories/nanoid-before-infinite-loop-via-negative-size-in-non-secure-module"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/ai/nanoid",
+      "source_project": "ai/nanoid",
+      "source_root": "GHSA-28WG-GHJ8-5HJV"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-29g2-3rmr-qm68",
+      "identifiers": [
+        "CVE-2026-66062",
+        "GHSA-29G2-3RMR-QM68"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-29g2-3rmr-qm68",
+        "https://github.com/sveltejs/kit/commit/82712fc02c24b1dcf5b25d7a52129cd8455f04f5",
+        "https://github.com/sveltejs/kit/releases/tag/@sveltejs/kit@2.70.2",
+        "https://github.com/sveltejs/kit/security/advisories/GHSA-29g2-3rmr-qm68"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/sveltejs/kit/security-advisories/GHSA-29g2-3rmr-qm68",
+      "source_code_location": "https://github.com/sveltejs/kit",
+      "source_project": "sveltejs/kit",
+      "source_root": "GHSA-29G2-3RMR-QM68"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-29rf-f4vv-pvq6",
+      "identifiers": [
+        "CVE-2026-35511",
+        "GHSA-29RF-F4VV-PVQ6"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-29rf-f4vv-pvq6",
+        "https://github.com/authorizerdev/authorizer/commit/66fe488fd2a4e7acf1e517334344d5e8f3ddd296",
+        "https://github.com/authorizerdev/authorizer/releases/tag/2.4.0-rc.16",
+        "https://github.com/authorizerdev/authorizer/security/advisories/GHSA-29rf-f4vv-pvq6"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/authorizerdev/authorizer/security-advisories/GHSA-29rf-f4vv-pvq6",
+      "source_code_location": "https://github.com/authorizerdev/authorizer",
+      "source_project": "authorizerdev/authorizer",
+      "source_root": "GHSA-29RF-F4VV-PVQ6"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-29w2-fq35-v728",
+      "identifiers": [
+        "CVE-2026-16584",
+        "GHSA-29W2-FQ35-V728"
+      ],
+      "references": [
+        "https://aws.amazon.com/security/security-bulletins/2026-063-aws",
+        "https://github.com/advisories/GHSA-29w2-fq35-v728",
+        "https://github.com/awslabs/mcp/commit/ab1bbebc097d674c1cdd4bd75a8f313be18473bf",
+        "https://github.com/awslabs/mcp/pull/4315",
+        "https://github.com/awslabs/mcp/security/advisories/GHSA-29w2-fq35-v728",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-16584",
+        "https://pypi.org/project/awslabs.aws-api-mcp-server/1.3.47"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/awslabs/mcp/security-advisories/GHSA-29w2-fq35-v728",
+      "source_code_location": "https://github.com/awslabs/mcp",
+      "source_project": "awslabs/mcp",
+      "source_root": "GHSA-29W2-FQ35-V728"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2m8v-j782-fhvr",
+      "identifiers": [
+        "CVE-2026-69185",
+        "GHSA-2M8V-J782-FHVR"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-2m8v-j782-fhvr",
+        "https://github.com/socketio/socket.io/commit/7c6ef571a00656718e9e05e3b948fd1758b2a7b4",
+        "https://github.com/socketio/socket.io/commit/9c6323e5cde41bd75df3379b5fc9293664a5f240",
+        "https://github.com/socketio/socket.io/commit/ced94ffa3ac020a8f3c14eb98a3bf34acb14d291",
+        "https://github.com/socketio/socket.io/security/advisories/GHSA-2m8v-j782-fhvr"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/socketio/socket.io/security-advisories/GHSA-2m8v-j782-fhvr",
+      "source_code_location": "https://github.com/socketio/socket.io",
+      "source_project": "socketio/socket.io",
+      "source_root": "GHSA-2M8V-J782-FHVR"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2mhj-fhvg-v428",
+      "identifiers": [
+        "CVE-2026-55072",
+        "GHSA-2MHJ-FHVG-V428"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-2mhj-fhvg-v428",
+        "https://github.com/pimcore/pimcore/commit/33a0e1887e1e31b4283b016ac5440c35ea5697b4",
+        "https://github.com/pimcore/pimcore/security/advisories/GHSA-2mhj-fhvg-v428"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pimcore/pimcore/security-advisories/GHSA-2mhj-fhvg-v428",
+      "source_code_location": "https://github.com/pimcore/pimcore",
+      "source_project": "pimcore/pimcore",
+      "source_root": "GHSA-2MHJ-FHVG-V428"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2rx5-2g7j-2659",
+      "identifiers": [
+        "CVE-2026-49446",
+        "GHSA-2RX5-2G7J-2659"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-2rx5-2g7j-2659",
+        "https://github.com/azukaar/Cosmos-Server/releases/tag/v0.22.19",
+        "https://github.com/azukaar/Cosmos-Server/security/advisories/GHSA-2rx5-2g7j-2659"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/azukaar/Cosmos-Server/security-advisories/GHSA-2rx5-2g7j-2659",
+      "source_code_location": "https://github.com/azukaar/Cosmos-Server",
+      "source_project": "azukaar/cosmos-server",
+      "source_root": "GHSA-2RX5-2G7J-2659"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2xmw-f8j8-wfxc",
+      "identifiers": [
+        "CVE-2026-54659",
+        "GHSA-2XMW-F8J8-WFXC"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-2xmw-f8j8-wfxc",
+        "https://github.com/ddnexus/pagy/commit/efcf09690e9fa7d7abdfb987b785a55f87e287df",
+        "https://github.com/ddnexus/pagy/pull/908",
+        "https://github.com/ddnexus/pagy/releases/tag/43.5.6",
+        "https://github.com/ddnexus/pagy/security/advisories/GHSA-2xmw-f8j8-wfxc"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ddnexus/pagy/security-advisories/GHSA-2xmw-f8j8-wfxc",
+      "source_code_location": "https://github.com/ddnexus/pagy",
+      "source_project": "ddnexus/pagy",
+      "source_root": "GHSA-2XMW-F8J8-WFXC"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-32f8-hmr3-7vxg",
+      "identifiers": [
+        "CVE-2024-35252",
+        "GHSA-32F8-HMR3-7VXG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-32f8-hmr3-7vxg",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-35252",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-35252"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/Azure/azure-storage-net-data-movement",
+      "source_project": "azure/azure-storage-net-data-movement",
+      "source_root": "GHSA-32F8-HMR3-7VXG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-34rh-wp3j-6cxc",
+      "identifiers": [
+        "CVE-2026-54909",
+        "GHSA-34RH-WP3J-6CXC"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-34rh-wp3j-6cxc",
+        "https://github.com/pion/stun/commit/fa9f074a33a8059c76c960b1fbee39f308002423",
+        "https://github.com/pion/stun/pull/278",
+        "https://github.com/pion/stun/releases/tag/v3.1.3",
+        "https://github.com/pion/stun/security/advisories/GHSA-34rh-wp3j-6cxc"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pion/stun/security-advisories/GHSA-34rh-wp3j-6cxc",
+      "source_code_location": "https://github.com/pion/stun",
+      "source_project": "pion/stun",
+      "source_root": "GHSA-34RH-WP3J-6CXC"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3763-qp59-59vf",
+      "identifiers": [
+        "CVE-2026-46369",
+        "GHSA-3763-QP59-59VF"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-3763-qp59-59vf",
+        "https://github.com/nimiq/core-rs-albatross/commit/a530b2434ebca6e3716f07c73079786fcc6f2e41",
+        "https://github.com/nimiq/core-rs-albatross/pull/3772",
+        "https://github.com/nimiq/core-rs-albatross/security/advisories/GHSA-3763-qp59-59vf"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nimiq/core-rs-albatross/security-advisories/GHSA-3763-qp59-59vf",
+      "source_code_location": "https://github.com/nimiq/core-rs-albatross",
+      "source_project": "nimiq/core-rs-albatross",
+      "source_root": "GHSA-3763-QP59-59VF"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-38hq-7x33-php4",
+      "identifiers": [
+        "CVE-2026-73563",
+        "GHSA-38HQ-7X33-PHP4"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-38hq-7x33-php4",
+        "https://github.com/backstage/backstage/commit/274acc51d22a7dd919cdda49d9086cf12c0b8711",
+        "https://github.com/backstage/backstage/commit/6370e53bce8b227c63092300594ffde29c006886",
+        "https://github.com/backstage/backstage/commit/ef606a85545cb6d765e20afd1ff43ae5407a3660",
+        "https://github.com/backstage/backstage/commit/fdc0d2dcd9a571e3839d7f5de4133c4e242a3a41",
+        "https://github.com/backstage/backstage/releases/tag/v1.53.0",
+        "https://github.com/backstage/backstage/security/advisories/GHSA-38hq-7x33-php4"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/backstage/backstage/security-advisories/GHSA-38hq-7x33-php4",
+      "source_code_location": "https://github.com/backstage/backstage",
+      "source_project": "backstage/backstage",
+      "source_root": "GHSA-38HQ-7X33-PHP4"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3fcr-jvgp-7f58",
+      "identifiers": [
+        "CVE-2026-54635",
+        "GHSA-3FCR-JVGP-7F58"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-3fcr-jvgp-7f58",
+        "https://github.com/nessshon/tonapi/commit/854222b7ee68d3fb7b4d6d899d200f388483bd86",
+        "https://github.com/nessshon/tonapi/releases/tag/v2.2.1",
+        "https://github.com/nessshon/tonapi/security/advisories/GHSA-3fcr-jvgp-7f58",
+        "https://github.com/pypa/advisory-database/tree/main/vulns/pytonapi/PYSEC-2026-3614.yaml",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54635"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nessshon/tonapi/security-advisories/GHSA-3fcr-jvgp-7f58",
+      "source_code_location": "https://github.com/nessshon/tonapi",
+      "source_project": "nessshon/tonapi",
+      "source_root": "GHSA-3FCR-JVGP-7F58"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3m6g-2423-7cp3",
+      "identifiers": [
+        "CVE-2026-33210",
+        "GHSA-3M6G-2423-7CP3"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-3m6g-2423-7cp3",
+        "https://github.com/ruby/json/security/advisories/GHSA-3m6g-2423-7cp3",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/json/CVE-2026-33210.yml",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-33210"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ruby/json/security-advisories/GHSA-3m6g-2423-7cp3",
+      "source_code_location": "https://github.com/ruby/json",
+      "source_project": "ruby/json",
+      "source_root": "GHSA-3M6G-2423-7CP3"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3mr9-p497-58f6",
+      "identifiers": [
+        "CVE-2026-55824",
+        "GHSA-3MR9-P497-58F6"
+      ],
+      "references": [
+        "https://contao.org/en/security-advisories/credentials-disclosure-in-the-crawler",
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/contao/contao/CVE-2026-55824.yaml",
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/contao/core-bundle/CVE-2026-55824.yaml",
+        "https://github.com/advisories/GHSA-3mr9-p497-58f6",
+        "https://github.com/contao/contao/commit/5bc6e3f900c439313df57aa561d0865792aafa05",
+        "https://github.com/contao/contao/commit/80425d28cdf66280a209bd3f5bc31b1a76901a04",
+        "https://github.com/contao/contao/security/advisories/GHSA-3mr9-p497-58f6",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-55824"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/contao/contao/security-advisories/GHSA-3mr9-p497-58f6",
+      "source_code_location": "https://github.com/contao/contao",
+      "source_project": "contao/contao",
+      "source_root": "GHSA-3MR9-P497-58F6"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3pwp-g2mj-5p3v",
+      "identifiers": [
+        "CVE-2026-45293",
+        "GHSA-3PWP-G2MJ-5P3V"
+      ],
+      "references": [
+        "https://github.com/WordPress/WordPress-Coding-Standards/commit/a29048d0bbef5cf25d42349c74e4072d3cbc8325",
+        "https://github.com/WordPress/WordPress-Coding-Standards/pull/2771",
+        "https://github.com/WordPress/WordPress-Coding-Standards/releases/tag/3.4.1",
+        "https://github.com/WordPress/WordPress-Coding-Standards/security/advisories/GHSA-3pwp-g2mj-5p3v",
+        "https://github.com/advisories/GHSA-3pwp-g2mj-5p3v"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/WordPress/WordPress-Coding-Standards/security-advisories/GHSA-3pwp-g2mj-5p3v",
+      "source_code_location": "https://github.com/WordPress/WordPress-Coding-Standards",
+      "source_project": "wordpress/wordpress-coding-standards",
+      "source_root": "GHSA-3PWP-G2MJ-5P3V"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3r53-75j5-3g7j",
+      "identifiers": [
+        "CVE-2026-73647",
+        "GHSA-3R53-75J5-3G7J"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-3r53-75j5-3g7j",
+        "https://github.com/quasarframework/quasar/commit/d0a95d95ab3c29d13e1b8ba8c5e5025fd6ce35e7",
+        "https://github.com/quasarframework/quasar/releases/tag/quasar-v2.22.0",
+        "https://github.com/quasarframework/quasar/security/advisories/GHSA-3r53-75j5-3g7j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/quasarframework/quasar/security-advisories/GHSA-3r53-75j5-3g7j",
+      "source_code_location": "https://github.com/quasarframework/quasar",
+      "source_project": "quasarframework/quasar",
+      "source_root": "GHSA-3R53-75J5-3G7J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3whf-vgf2-9w6g",
+      "identifiers": [
+        "GHSA-3WHF-VGF2-9W6G"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-3whf-vgf2-9w6g",
+        "https://github.com/zingolabs/zaino/commit/428822509bc722eb9727681752686ede9bc87e77",
+        "https://github.com/zingolabs/zaino/commit/d874295f1377bec7fd712ef75b364181b8c77d46",
+        "https://github.com/zingolabs/zaino/commit/e05112aac54ec3cdb6da29fbc143ea710b32f009",
+        "https://github.com/zingolabs/zaino/pull/1172",
+        "https://github.com/zingolabs/zaino/security/advisories/GHSA-3whf-vgf2-9w6g"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/zingolabs/zaino/security-advisories/GHSA-3whf-vgf2-9w6g",
+      "source_code_location": "https://github.com/zingolabs/zaino",
+      "source_project": "zingolabs/zaino",
+      "source_root": "GHSA-3WHF-VGF2-9W6G"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-45qg-252v-3f7p",
+      "identifiers": [
+        "CVE-2026-65841",
+        "GHSA-45QG-252V-3F7P"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-45qg-252v-3f7p",
+        "https://github.com/xdan/jodit/commit/49a31f451f6b686f5610022a1d4406ee85138dc5",
+        "https://github.com/xdan/jodit/releases/tag/4.13.6",
+        "https://github.com/xdan/jodit/security/advisories/GHSA-45qg-252v-3f7p"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/xdan/jodit/security-advisories/GHSA-45qg-252v-3f7p",
+      "source_code_location": "https://github.com/xdan/jodit",
+      "source_project": "xdan/jodit",
+      "source_root": "GHSA-45QG-252V-3F7P"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-464c-974j-9xm6",
+      "identifiers": [
+        "GHSA-464C-974J-9XM6"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-464c-974j-9xm6",
+        "https://github.com/aws/aws-cdk/commit/40319185dc645d2afc6acf1d25547a86250e97af",
+        "https://github.com/aws/aws-cdk/pull/37761",
+        "https://github.com/aws/aws-cdk/releases/tag/v2.253.0",
+        "https://github.com/aws/aws-cdk/security/advisories/GHSA-464c-974j-9xm6"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/aws/aws-cdk/security-advisories/GHSA-464c-974j-9xm6",
+      "source_code_location": "https://github.com/aws/aws-cdk",
+      "source_project": "aws/aws-cdk",
+      "source_root": "GHSA-464C-974J-9XM6"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-47pj-3jcm-6whg",
+      "identifiers": [
+        "CVE-2026-71433",
+        "GHSA-47PJ-3JCM-6WHG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-47pj-3jcm-6whg",
+        "https://github.com/langchain-ai/langgraph/commit/66ebe1a0da921e73f0f9f879ba105d314c079f7c",
+        "https://github.com/langchain-ai/langgraph/pull/8478",
+        "https://github.com/langchain-ai/langgraph/releases/tag/checkpointpostgres%3D%3D3.1.1",
+        "https://github.com/langchain-ai/langgraph/releases/tag/checkpointsqlite%3D%3D3.1.1",
+        "https://github.com/langchain-ai/langgraph/security/advisories/GHSA-47pj-3jcm-6whg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/langchain-ai/langgraph/security-advisories/GHSA-47pj-3jcm-6whg",
+      "source_code_location": "https://github.com/langchain-ai/langgraph",
+      "source_project": "langchain-ai/langgraph",
+      "source_root": "GHSA-47PJ-3JCM-6WHG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-48p8-g2fx-3wwm",
+      "identifiers": [
+        "CVE-2026-54526",
+        "GHSA-48P8-G2FX-3WWM"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-48p8-g2fx-3wwm",
+        "https://github.com/argoproj/argo-workflows/commit/277e9cef0ad16d7eaaab253573d0695951a65dbd",
+        "https://github.com/argoproj/argo-workflows/commit/358cc3968c8f06f1be0967e41df191088db0b662",
+        "https://github.com/argoproj/argo-workflows/releases/tag/v3.7.15",
+        "https://github.com/argoproj/argo-workflows/releases/tag/v4.0.6",
+        "https://github.com/argoproj/argo-workflows/security/advisories/GHSA-48p8-g2fx-3wwm",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54526"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/argoproj/argo-workflows/security-advisories/GHSA-48p8-g2fx-3wwm",
+      "source_code_location": "https://github.com/argoproj/argo-workflows",
+      "source_project": "argoproj/argo-workflows",
+      "source_root": "GHSA-48P8-G2FX-3WWM"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-49m4-vp58-wgc9",
+      "identifiers": [
+        "CVE-2026-55071",
+        "GHSA-49M4-VP58-WGC9"
+      ],
+      "references": [
+        "https://github.com/SepineTam/mcp-for-stata/releases/tag/v1.19.0",
+        "https://github.com/SepineTam/mcp-for-stata/security/advisories/GHSA-49m4-vp58-wgc9",
+        "https://github.com/advisories/GHSA-49m4-vp58-wgc9"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/SepineTam/mcp-for-stata/security-advisories/GHSA-49m4-vp58-wgc9",
+      "source_code_location": "https://github.com/SepineTam/mcp-for-stata",
+      "source_project": "sepinetam/mcp-for-stata",
+      "source_root": "GHSA-49M4-VP58-WGC9"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4j38-rw27-97gx",
+      "identifiers": [
+        "CVE-2023-37465",
+        "GHSA-4J38-RW27-97GX"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4j38-rw27-97gx",
+        "https://github.com/xwiki-contrib/application-discussions/security/advisories/GHSA-4j38-rw27-97gx",
+        "https://jira.xwiki.org/browse/DISCUSSION-22"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/xwiki-contrib/application-discussions/security-advisories/GHSA-4j38-rw27-97gx",
+      "source_code_location": "https://github.com/xwiki-contrib/application-discussions",
+      "source_project": "xwiki-contrib/application-discussions",
+      "source_root": "GHSA-4J38-RW27-97GX"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4jc5-g844-4x33",
+      "identifiers": [
+        "CVE-2026-67435",
+        "GHSA-4JC5-G844-4X33"
+      ],
+      "references": [
+        "https://github.com/Linuxfabrik/lib/commit/6573ff9347e541200305d278d2663d2e54e052ff",
+        "https://github.com/Linuxfabrik/lib/releases/tag/v6.0.0",
+        "https://github.com/Linuxfabrik/monitoring-plugins/security/advisories/GHSA-4jc5-g844-4x33",
+        "https://github.com/advisories/GHSA-4jc5-g844-4x33",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-67435"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/Linuxfabrik/monitoring-plugins/security-advisories/GHSA-4jc5-g844-4x33",
+      "source_code_location": "https://github.com/Linuxfabrik/monitoring-plugins",
+      "source_project": "linuxfabrik/monitoring-plugins",
+      "source_root": "GHSA-4JC5-G844-4X33"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4mrv-5p47-p938",
+      "identifiers": [
+        "CVE-2026-54522",
+        "GHSA-4MRV-5P47-P938"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4mrv-5p47-p938",
+        "https://github.com/msgpack/msgpack-ruby/commit/5627d71606b565641d2dd501b82aae862f4abe90",
+        "https://github.com/msgpack/msgpack-ruby/security/advisories/GHSA-4mrv-5p47-p938",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/msgpack/CVE-2026-54522.yml",
+        "https://www.cve.org/CVERecord/SearchResults?query=CVE-2026-54522"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/msgpack/msgpack-ruby/security-advisories/GHSA-4mrv-5p47-p938",
+      "source_code_location": "https://github.com/msgpack/msgpack-ruby",
+      "source_project": "msgpack/msgpack-ruby",
+      "source_root": "GHSA-4MRV-5P47-P938"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4p3g-4hcj-wpvx",
+      "identifiers": [
+        "CVE-2026-54735",
+        "GHSA-4P3G-4HCJ-WPVX"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4p3g-4hcj-wpvx",
+        "https://github.com/prebid/prebid-server/commit/494ac271cd4b5024df9123ef25ca3cff96390be3",
+        "https://github.com/prebid/prebid-server/pull/4802",
+        "https://github.com/prebid/prebid-server/releases/tag/v4.4.0",
+        "https://github.com/prebid/prebid-server/security/advisories/GHSA-4p3g-4hcj-wpvx"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/prebid/prebid-server/security-advisories/GHSA-4p3g-4hcj-wpvx",
+      "source_code_location": "https://github.com/prebid/prebid-server",
+      "source_project": "prebid/prebid-server",
+      "source_root": "GHSA-4P3G-4HCJ-WPVX"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4pj9-g833-qx53",
+      "identifiers": [
+        "CVE-2026-46428",
+        "GHSA-4PJ9-G833-QX53"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4pj9-g833-qx53",
+        "https://github.com/lettre/lettre/commit/f5efffc88360dbdbfcef80f465e42d5bce68ca35",
+        "https://github.com/lettre/lettre/releases/tag/v0.11.22",
+        "https://github.com/lettre/lettre/security/advisories/GHSA-4pj9-g833-qx53",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-46428",
+        "https://rustsec.org/advisories/RUSTSEC-2026-0141.html"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/lettre/lettre/security-advisories/GHSA-4pj9-g833-qx53",
+      "source_code_location": "https://github.com/lettre/lettre",
+      "source_project": "lettre/lettre",
+      "source_root": "GHSA-4PJ9-G833-QX53"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4r9r-4425-74p7",
+      "identifiers": [
+        "CVE-2026-55771",
+        "GHSA-4R9R-4425-74P7"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4r9r-4425-74p7",
+        "https://github.com/cedar-policy/cedar-java/security/advisories/GHSA-4r9r-4425-74p7",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-55771"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/cedar-policy/cedar-java/security-advisories/GHSA-4r9r-4425-74p7",
+      "source_code_location": "https://github.com/cedar-policy/cedar-java",
+      "source_project": "cedar-policy/cedar-java",
+      "source_root": "GHSA-4R9R-4425-74P7"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4w2j-m93h-cj5j",
+      "identifiers": [
+        "GHSA-4W2J-M93H-CJ5J"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-4w2j-m93h-cj5j",
+        "https://github.com/quinn-rs/quinn/commit/fed0321a9a672819662caab37f5662f1ad91308e",
+        "https://github.com/quinn-rs/quinn/pull/2694",
+        "https://github.com/quinn-rs/quinn/releases/tag/quinn-proto-0.11.15",
+        "https://github.com/quinn-rs/quinn/security/advisories/GHSA-4w2j-m93h-cj5j",
+        "https://rustsec.org/advisories/RUSTSEC-2026-0185.html"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/quinn-rs/quinn/security-advisories/GHSA-4w2j-m93h-cj5j",
+      "source_code_location": "https://github.com/quinn-rs/quinn",
+      "source_project": "quinn-rs/quinn",
+      "source_root": "GHSA-4W2J-M93H-CJ5J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-53g2-mvcc-q9x3",
+      "identifiers": [
+        "CVE-2026-73428",
+        "GHSA-53G2-MVCC-Q9X3"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-53g2-mvcc-q9x3",
+        "https://github.com/basecamp/trix/commit/9c0a993d9fc2ffe9d56b013b030bc238f9c0557c",
+        "https://github.com/basecamp/trix/releases/tag/v2.1.18",
+        "https://github.com/basecamp/trix/security/advisories/GHSA-53g2-mvcc-q9x3"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/basecamp/trix/security-advisories/GHSA-53g2-mvcc-q9x3",
+      "source_code_location": "https://github.com/basecamp/trix",
+      "source_project": "basecamp/trix",
+      "source_root": "GHSA-53G2-MVCC-Q9X3"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5597-7rmh-97q5",
+      "identifiers": [
+        "CVE-2026-53637",
+        "GHSA-5597-7RMH-97Q5"
+      ],
+      "references": [
+        "https://github.com/Sylius/Sylius/security/advisories/GHSA-5597-7rmh-97q5",
+        "https://github.com/advisories/GHSA-5597-7rmh-97q5"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/Sylius/Sylius/security-advisories/GHSA-5597-7rmh-97q5",
+      "source_code_location": "https://github.com/Sylius/Sylius",
+      "source_project": "sylius/sylius",
+      "source_root": "GHSA-5597-7RMH-97Q5"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-55q2-fjhq-7xh7",
+      "identifiers": [
+        "GHSA-55Q2-FJHQ-7XH7"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-55q2-fjhq-7xh7",
+        "https://github.com/cure53/DOMPurify/commit/3067f7746769",
+        "https://github.com/cure53/DOMPurify/pull/1557",
+        "https://github.com/cure53/DOMPurify/releases/tag/3.4.13",
+        "https://github.com/cure53/DOMPurify/security/advisories/GHSA-55q2-fjhq-7xh7"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/cure53/DOMPurify/security-advisories/GHSA-55q2-fjhq-7xh7",
+      "source_code_location": "https://github.com/cure53/DOMPurify",
+      "source_project": "cure53/dompurify",
+      "source_root": "GHSA-55Q2-FJHQ-7XH7"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5846-7qm3-r52j",
+      "identifiers": [
+        "CVE-2026-54729",
+        "GHSA-5846-7QM3-R52J"
+      ],
+      "references": [
+        "https://github.com/HackingRepo/dssrf-js/commit/668c21792cd1252baf779a176aa652e2b4c0067d",
+        "https://github.com/HackingRepo/dssrf-js/pull/102",
+        "https://github.com/HackingRepo/dssrf-js/security/advisories/GHSA-5846-7qm3-r52j",
+        "https://github.com/advisories/GHSA-5846-7qm3-r52j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/HackingRepo/dssrf-js/security-advisories/GHSA-5846-7qm3-r52j",
+      "source_code_location": "https://github.com/HackingRepo/dssrf-js",
+      "source_project": "hackingrepo/dssrf-js",
+      "source_root": "GHSA-5846-7QM3-R52J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5c7w-4wm3-85vw",
+      "identifiers": [
+        "GHSA-5C7W-4WM3-85VW"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-5c7w-4wm3-85vw",
+        "https://github.com/asymmetric-effort/specifyjs/commit/25d1fb491d99479efdf501f5f75e0bb80c908f0a",
+        "https://github.com/asymmetric-effort/specifyjs/security/advisories/GHSA-5c7w-4wm3-85vw"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/asymmetric-effort/specifyjs/security-advisories/GHSA-5c7w-4wm3-85vw",
+      "source_code_location": "https://github.com/asymmetric-effort/specifyjs",
+      "source_project": "asymmetric-effort/specifyjs",
+      "source_root": "GHSA-5C7W-4WM3-85VW"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5p2p-6g2c-hf7m",
+      "identifiers": [
+        "CVE-2025-52926",
+        "GHSA-5P2P-6G2C-HF7M"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-5p2p-6g2c-hf7m",
+        "https://github.com/spytrap-org/spytrap-adb/commit/277cec542466b75cf5a8c532581243fd4b7b9713",
+        "https://github.com/spytrap-org/spytrap-adb/pull/65",
+        "https://github.com/spytrap-org/spytrap-adb/releases/tag/v0.3.5",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-52926"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/spytrap-org/spytrap-adb",
+      "source_project": "spytrap-org/spytrap-adb",
+      "source_root": "GHSA-5P2P-6G2C-HF7M"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+      "identifiers": [
+        "GHSA-5P4M-2WFM-XMQJ"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+        "https://github.com/nodeca/js-yaml/security/advisories/GHSA-5p4m-2wfm-xmqj"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nodeca/js-yaml/security-advisories/GHSA-5p4m-2wfm-xmqj",
+      "source_code_location": "https://github.com/nodeca/js-yaml",
+      "source_project": "nodeca/js-yaml",
+      "source_root": "GHSA-5P4M-2WFM-XMQJ"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5p9g-j988-pcwv",
+      "identifiers": [
+        "CVE-2026-67431",
+        "GHSA-5P9G-J988-PCWV"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-5p9g-j988-pcwv",
+        "https://github.com/modelcontextprotocol/ruby-sdk/commit/35466605319a34e4c7808712ae9bb1ca1afb2356",
+        "https://github.com/modelcontextprotocol/ruby-sdk/releases/tag/v0.23.0",
+        "https://github.com/modelcontextprotocol/ruby-sdk/security/advisories/GHSA-5p9g-j988-pcwv",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-67431"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/modelcontextprotocol/ruby-sdk/security-advisories/GHSA-5p9g-j988-pcwv",
+      "source_code_location": "https://github.com/modelcontextprotocol/ruby-sdk",
+      "source_project": "modelcontextprotocol/ruby-sdk",
+      "source_root": "GHSA-5P9G-J988-PCWV"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5qjj-4xww-7phc",
+      "identifiers": [
+        "CVE-2026-59952",
+        "GHSA-5QJJ-4XWW-7PHC"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-5qjj-4xww-7phc",
+        "https://github.com/open-circle/valibot/commit/1bd01c304657cd0809cc92694360b6cc60f700bf",
+        "https://github.com/open-circle/valibot/pull/1522",
+        "https://github.com/open-circle/valibot/releases/tag/v1.4.2",
+        "https://github.com/open-circle/valibot/security/advisories/GHSA-5qjj-4xww-7phc"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/open-circle/valibot/security-advisories/GHSA-5qjj-4xww-7phc",
+      "source_code_location": "https://github.com/open-circle/valibot",
+      "source_project": "open-circle/valibot",
+      "source_root": "GHSA-5QJJ-4XWW-7PHC"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-664h-wqgq-64gw",
+      "identifiers": [
+        "CVE-2026-73562",
+        "GHSA-664H-WQGQ-64GW"
+      ],
+      "references": [
+        "https://github.com/Automattic/mongoose/commit/f494b8430f9097fc70446d6949c8a42a27518e0b",
+        "https://github.com/Automattic/mongoose/pull/16230",
+        "https://github.com/Automattic/mongoose/releases/tag/6.13.10",
+        "https://github.com/Automattic/mongoose/releases/tag/7.8.10",
+        "https://github.com/Automattic/mongoose/releases/tag/8.24.1",
+        "https://github.com/Automattic/mongoose/releases/tag/9.7.2",
+        "https://github.com/Automattic/mongoose/security/advisories/GHSA-664h-wqgq-64gw",
+        "https://github.com/advisories/GHSA-664h-wqgq-64gw"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/Automattic/mongoose/security-advisories/GHSA-664h-wqgq-64gw",
+      "source_code_location": "https://github.com/Automattic/mongoose",
+      "source_project": "automattic/mongoose",
+      "source_root": "GHSA-664H-WQGQ-64GW"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6hr6-w5qg-qmwg",
+      "identifiers": [
+        "CVE-2026-71554",
+        "GHSA-6HR6-W5QG-QMWG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6hr6-w5qg-qmwg",
+        "https://github.com/python-hyper/h2/commit/292a40829feefda98c8509dcdbbb4a57af9bd6a6",
+        "https://github.com/python-hyper/h2/security/advisories/GHSA-6hr6-w5qg-qmwg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/python-hyper/h2/security-advisories/GHSA-6hr6-w5qg-qmwg",
+      "source_code_location": "https://github.com/python-hyper/h2",
+      "source_project": "python-hyper/h2",
+      "source_root": "GHSA-6HR6-W5QG-QMWG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6pvm-2vjj-rx4w",
+      "identifiers": [
+        "CVE-2026-47132",
+        "GHSA-6PVM-2VJJ-RX4W"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6pvm-2vjj-rx4w",
+        "https://github.com/thorsten/phpMyFAQ/commit/bd4b08b012234ccfcff07bfe6518062475b29e0a",
+        "https://github.com/thorsten/phpMyFAQ/security/advisories/GHSA-6pvm-2vjj-rx4w"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/thorsten/phpMyFAQ/security-advisories/GHSA-6pvm-2vjj-rx4w",
+      "source_code_location": "https://github.com/thorsten/phpMyFAQ",
+      "source_project": "thorsten/phpmyfaq",
+      "source_root": "GHSA-6PVM-2VJJ-RX4W"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6r9h-4h75-7q4x",
+      "identifiers": [
+        "CVE-2026-9559",
+        "GHSA-6R9H-4H75-7Q4X"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6r9h-4h75-7q4x",
+        "https://github.com/mautic/mautic/security/advisories/GHSA-6r9h-4h75-7q4x",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-9559"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/mautic/mautic/security-advisories/GHSA-6r9h-4h75-7q4x",
+      "source_code_location": "https://github.com/mautic/mautic",
+      "source_project": "mautic/mautic",
+      "source_root": "GHSA-6R9H-4H75-7Q4X"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6v4j-43gg-vj32",
+      "identifiers": [
+        "CVE-2026-55404",
+        "GHSA-6V4J-43GG-VJ32"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6v4j-43gg-vj32",
+        "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/tag/2026.07.04.221833",
+        "https://github.com/yt-dlp/yt-dlp/commit/6fc85f617a5850307fd5b258477070e6ee177796",
+        "https://github.com/yt-dlp/yt-dlp/commit/b6590aaa1e3808155d69c9a79a797ae484163789",
+        "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04",
+        "https://github.com/yt-dlp/yt-dlp/security/advisories/GHSA-6v4j-43gg-vj32",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-55404"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/yt-dlp/yt-dlp/security-advisories/GHSA-6v4j-43gg-vj32",
+      "source_code_location": "https://github.com/yt-dlp/yt-dlp",
+      "source_project": "yt-dlp/yt-dlp",
+      "source_root": "GHSA-6V4J-43GG-VJ32"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6vch-q96h-7gc3",
+      "identifiers": [
+        "CVE-2026-73500",
+        "GHSA-6VCH-Q96H-7GC3"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6vch-q96h-7gc3",
+        "https://github.com/etcd-io/etcd/commit/2e07efce9745004eb4773cffaada9b5cdf77cff2",
+        "https://github.com/etcd-io/etcd/commit/f73cba7d920019f91a1ea1f6697833e42731f057",
+        "https://github.com/etcd-io/etcd/pull/22130",
+        "https://github.com/etcd-io/etcd/releases/tag/v3.5.33",
+        "https://github.com/etcd-io/etcd/releases/tag/v3.6.14",
+        "https://github.com/etcd-io/etcd/releases/tag/v3.7.1",
+        "https://github.com/etcd-io/etcd/security/advisories/GHSA-6vch-q96h-7gc3"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/etcd-io/etcd/security-advisories/GHSA-6vch-q96h-7gc3",
+      "source_code_location": "https://github.com/etcd-io/etcd",
+      "source_project": "etcd-io/etcd",
+      "source_root": "GHSA-6VCH-Q96H-7GC3"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6vgg-xhvh-38ff",
+      "identifiers": [
+        "GHSA-6VGG-XHVH-38FF"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6vgg-xhvh-38ff",
+        "https://github.com/forgekeep/nebula-mesh/commit/c13d5b2c013b4b323bc0c87a6ecc6afba6384ee5",
+        "https://github.com/juev/nebula-mesh/security/advisories/GHSA-6vgg-xhvh-38ff"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/forgekeep/nebula-mesh/security-advisories/GHSA-6vgg-xhvh-38ff",
+      "source_code_location": "https://github.com/juev/nebula-mesh",
+      "source_project": "juev/nebula-mesh",
+      "source_root": "GHSA-6VGG-XHVH-38FF"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6wcc-39rp-hh9p",
+      "identifiers": [
+        "CVE-2026-54658",
+        "GHSA-6WCC-39RP-HH9P"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6wcc-39rp-hh9p",
+        "https://github.com/hypequery/hypequery/blob/main/packages/clickhouse/CHANGELOG.md#202",
+        "https://github.com/hypequery/hypequery/commit/2879161a810fed2c2222f785816ff05510976960",
+        "https://github.com/hypequery/hypequery/commit/2dc1df7bae",
+        "https://github.com/hypequery/hypequery/commit/4dfa9d77d70a08b970e722268b75ca7d13db0bdf",
+        "https://github.com/hypequery/hypequery/pull/349",
+        "https://github.com/hypequery/hypequery/releases/tag/@hypequery/clickhouse@2.0.2",
+        "https://github.com/hypequery/hypequery/releases/tag/@hypequery/clickhouse@2.5.1",
+        "https://github.com/hypequery/hypequery/security/advisories/GHSA-6wcc-39rp-hh9p",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54658"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/hypequery/hypequery/security-advisories/GHSA-6wcc-39rp-hh9p",
+      "source_code_location": "https://github.com/hypequery/hypequery",
+      "source_project": "hypequery/hypequery",
+      "source_root": "GHSA-6WCC-39RP-HH9P"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6xj8-qv9j-xcjq",
+      "identifiers": [
+        "CVE-2026-73505",
+        "GHSA-6XJ8-QV9J-XCJQ"
+      ],
+      "references": [
+        "https://github.com/JanDeDobbeleer/oh-my-posh/commit/88ddbe0b0a4dd13cc345996108c9869493f2c690",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/releases/tag/v29.35.1",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/releases/tag/v29.36.0",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/security/advisories/GHSA-6xj8-qv9j-xcjq",
+        "https://github.com/advisories/GHSA-6xj8-qv9j-xcjq"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/security-advisories/GHSA-6xj8-qv9j-xcjq",
+      "source_code_location": "https://github.com/JanDeDobbeleer/oh-my-posh",
+      "source_project": "jandedobbeleer/oh-my-posh",
+      "source_root": "GHSA-6XJ8-QV9J-XCJQ"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6xx4-9wp6-65p7",
+      "identifiers": [
+        "GHSA-6XX4-9WP6-65P7"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-6xx4-9wp6-65p7",
+        "https://github.com/manuelmauro/skilo/commit/c14bdc2eddcf26633ab1dcc0b2d5c0ff42c72a3e",
+        "https://github.com/manuelmauro/skilo/pull/11",
+        "https://github.com/manuelmauro/skilo/releases/tag/v0.11.1",
+        "https://github.com/manuelmauro/skilo/security/advisories/GHSA-6xx4-9wp6-65p7"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/manuelmauro/skilo/security-advisories/GHSA-6xx4-9wp6-65p7",
+      "source_code_location": "https://github.com/manuelmauro/skilo",
+      "source_project": "manuelmauro/skilo",
+      "source_root": "GHSA-6XX4-9WP6-65P7"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-7835-87q9-rgvv",
+      "identifiers": [
+        "CVE-2026-55607",
+        "GHSA-7835-87Q9-RGVV"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-7835-87q9-rgvv",
+        "https://github.com/anthropics/claude-code/releases/tag/v2.1.163",
+        "https://github.com/anthropics/claude-code/security/advisories/GHSA-7835-87q9-rgvv",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-55607"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/anthropics/claude-code/security-advisories/GHSA-7835-87q9-rgvv",
+      "source_code_location": "https://github.com/anthropics/claude-code",
+      "source_project": "anthropics/claude-code",
+      "source_root": "GHSA-7835-87Q9-RGVV"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-7c26-995w-6f47",
+      "identifiers": [
+        "CVE-2026-54081",
+        "GHSA-7C26-995W-6F47"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-7c26-995w-6f47",
+        "https://github.com/veraPDF/veraPDF-parser/commit/73d6ec002b98ce1f3f68640442f8e5d5613c80ce",
+        "https://github.com/veraPDF/veraPDF-parser/commit/cb3538607a549d63504299be1088c85ae48605f4",
+        "https://github.com/veraPDF/veraPDF-parser/pull/703",
+        "https://github.com/veraPDF/veraPDF-parser/security/advisories/GHSA-7c26-995w-6f47"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/veraPDF/veraPDF-parser/security-advisories/GHSA-7c26-995w-6f47",
+      "source_code_location": "https://github.com/veraPDF/veraPDF-parser",
+      "source_project": "verapdf/verapdf-parser",
+      "source_root": "GHSA-7C26-995W-6F47"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-7jvp-hj45-2f2m",
+      "identifiers": [
+        "GHSA-7JVP-HJ45-2F2M"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-7jvp-hj45-2f2m",
+        "https://github.com/scriban/scriban/security/advisories/GHSA-7jvp-hj45-2f2m"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/scriban/scriban/security-advisories/GHSA-7jvp-hj45-2f2m",
+      "source_code_location": "https://github.com/scriban/scriban",
+      "source_project": "scriban/scriban",
+      "source_root": "GHSA-7JVP-HJ45-2F2M"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-87x5-vmc3-756j",
+      "identifiers": [
+        "CVE-2026-73559",
+        "GHSA-87X5-VMC3-756J"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-87x5-vmc3-756j",
+        "https://github.com/vllm-project/vllm/commit/675f4295cdfe0d870471c2b51bfeca3a68a9569e",
+        "https://github.com/vllm-project/vllm/pull/47845",
+        "https://github.com/vllm-project/vllm/releases/tag/v0.26.0",
+        "https://github.com/vllm-project/vllm/security/advisories/GHSA-87x5-vmc3-756j",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-73559"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/vllm-project/vllm/security-advisories/GHSA-87x5-vmc3-756j",
+      "source_code_location": "https://github.com/vllm-project/vllm",
+      "source_project": "vllm-project/vllm",
+      "source_root": "GHSA-87X5-VMC3-756J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-88p2-jj8w-j8qg",
+      "identifiers": [
+        "CVE-2026-48786",
+        "GHSA-88P2-JJ8W-J8QG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-88p2-jj8w-j8qg",
+        "https://github.com/fleetdm/fleet/releases/tag/fleet-v4.87.0",
+        "https://github.com/fleetdm/fleet/security/advisories/GHSA-88p2-jj8w-j8qg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/fleetdm/fleet/security-advisories/GHSA-88p2-jj8w-j8qg",
+      "source_code_location": "https://github.com/fleetdm/fleet",
+      "source_project": "fleetdm/fleet",
+      "source_root": "GHSA-88P2-JJ8W-J8QG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-8j5q-mfj2-5q9q",
+      "identifiers": [
+        "CVE-2026-59728",
+        "GHSA-8J5Q-MFJ2-5Q9Q"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-8j5q-mfj2-5q9q",
+        "https://github.com/withastro/astro/commit/fbcfa039dfe3d700b239f595a6c55ee35e45bd06",
+        "https://github.com/withastro/astro/pull/17209",
+        "https://github.com/withastro/astro/releases/tag/@astrojs/rss@4.0.19",
+        "https://github.com/withastro/astro/security/advisories/GHSA-8j5q-mfj2-5q9q",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-59728"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/withastro/astro/security-advisories/GHSA-8j5q-mfj2-5q9q",
+      "source_code_location": "https://github.com/withastro/astro",
+      "source_project": "withastro/astro",
+      "source_root": "GHSA-8J5Q-MFJ2-5Q9Q"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-8mf9-rmgw-33qc",
+      "identifiers": [
+        "CVE-2025-11844",
+        "GHSA-8MF9-RMGW-33QC"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-8mf9-rmgw-33qc",
+        "https://github.com/huggingface/smolagents/commit/f570ed5e17999d4cf7d5e79c2830fbaefab8a794",
+        "https://huntr.com/bounties/01ab4405-9bca-4b26-b7a3-5ca1863a69b4",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-11844"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/huggingface/smolagents",
+      "source_project": "huggingface/smolagents",
+      "source_root": "GHSA-8MF9-RMGW-33QC"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-98pp-vccm-qm25",
+      "identifiers": [
+        "CVE-2026-53599",
+        "GHSA-98PP-VCCM-QM25"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-98pp-vccm-qm25",
+        "https://github.com/redaxo/core/commit/462e36896bb65d292ba22d711044c23c9cfb0340",
+        "https://github.com/redaxo/core/pull/6538",
+        "https://github.com/redaxo/core/releases/tag/5.21.1",
+        "https://github.com/redaxo/core/security/advisories/GHSA-98pp-vccm-qm25"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/redaxo/core/security-advisories/GHSA-98pp-vccm-qm25",
+      "source_code_location": "https://github.com/redaxo/core",
+      "source_project": "redaxo/core",
+      "source_root": "GHSA-98PP-VCCM-QM25"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9h47-pqcx-hjr4",
+      "identifiers": [
+        "GHSA-9H47-PQCX-HJR4"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-9h47-pqcx-hjr4",
+        "https://github.com/better-auth/better-auth/releases/tag/v1.6.11",
+        "https://github.com/better-auth/better-auth/security/advisories/GHSA-9h47-pqcx-hjr4"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/better-auth/better-auth/security-advisories/GHSA-9h47-pqcx-hjr4",
+      "source_code_location": "https://github.com/better-auth/better-auth",
+      "source_project": "better-auth/better-auth",
+      "source_root": "GHSA-9H47-PQCX-HJR4"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9h85-g7w3-rh49",
+      "identifiers": [
+        "CVE-2026-54497",
+        "GHSA-9H85-G7W3-RH49"
+      ],
+      "references": [
+        "https://github.com/ViewComponent/view_component/commit/7b05073be28037f7d5ff141e9dd42f3cf47956a4",
+        "https://github.com/ViewComponent/view_component/releases/tag/v4.12.0",
+        "https://github.com/ViewComponent/view_component/security/advisories/GHSA-9h85-g7w3-rh49",
+        "https://github.com/advisories/GHSA-9h85-g7w3-rh49",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/view_component/CVE-2026-54497.yml",
+        "https://www.cve.org/CVERecord/SearchResults?query=CVE-2026-54497"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ViewComponent/view_component/security-advisories/GHSA-9h85-g7w3-rh49",
+      "source_code_location": "https://github.com/ViewComponent/view_component",
+      "source_project": "viewcomponent/view_component",
+      "source_root": "GHSA-9H85-G7W3-RH49"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9mrh-pw7c-9mqm",
+      "identifiers": [
+        "CVE-2026-62902",
+        "GHSA-9MRH-PW7C-9MQM"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-9mrh-pw7c-9mqm",
+        "https://github.com/dotnet/announcements/issues/433",
+        "https://github.com/dotnet/wpf/security/advisories/GHSA-9mrh-pw7c-9mqm",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-62902",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-62902"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/dotnet/wpf/security-advisories/GHSA-9mrh-pw7c-9mqm",
+      "source_code_location": "https://github.com/dotnet/wpf",
+      "source_project": "dotnet/wpf",
+      "source_root": "GHSA-9MRH-PW7C-9MQM"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-cg9x-g3gm-h5h6",
+      "identifiers": [
+        "CVE-2026-54082",
+        "GHSA-CG9X-G3GM-H5H6"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-cg9x-g3gm-h5h6",
+        "https://github.com/veraPDF/veraPDF-validation/commit/94caa46c1a594512247fbd46c808edae39469542",
+        "https://github.com/veraPDF/veraPDF-validation/commit/cacd9436d0de40b0e58cc7d2dbb06451619e61ec",
+        "https://github.com/veraPDF/veraPDF-validation/pull/730",
+        "https://github.com/veraPDF/veraPDF-validation/security/advisories/GHSA-cg9x-g3gm-h5h6"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/veraPDF/veraPDF-validation/security-advisories/GHSA-cg9x-g3gm-h5h6",
+      "source_code_location": "https://github.com/veraPDF/veraPDF-validation",
+      "source_project": "verapdf/verapdf-validation",
+      "source_root": "GHSA-CG9X-G3GM-H5H6"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-f5vj-f2hx-8m93",
+      "identifiers": [
+        "CVE-2026-14620",
+        "GHSA-F5VJ-F2HX-8M93"
+      ],
+      "references": [
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/advisories/GHSA-f5vj-f2hx-8m93",
+        "https://github.com/webpack/webpack-dev-server/commit/80cd9eea54975fe632a518d8bd902a260f374e7c",
+        "https://github.com/webpack/webpack-dev-server/pull/5698",
+        "https://github.com/webpack/webpack-dev-server/releases/tag/v5.2.6",
+        "https://github.com/webpack/webpack-dev-server/security/advisories/GHSA-f5vj-f2hx-8m93",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-14620"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/webpack/webpack-dev-server/security-advisories/GHSA-f5vj-f2hx-8m93",
+      "source_code_location": "https://github.com/webpack/webpack-dev-server",
+      "source_project": "webpack/webpack-dev-server",
+      "source_root": "GHSA-F5VJ-F2HX-8M93"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-f7vp-7xgx-4w4r",
+      "identifiers": [
+        "CVE-2026-69245",
+        "GHSA-F7VP-7XGX-4W4R"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-f7vp-7xgx-4w4r",
+        "https://github.com/guzzle/guzzle/commit/3aeea0406aab88cbbd86531313d7cebf8ae149a4",
+        "https://github.com/guzzle/guzzle/commit/744101956d78b7c1384d0cbf379db13e859167bf",
+        "https://github.com/guzzle/guzzle/pull/3907",
+        "https://github.com/guzzle/guzzle/pull/3908",
+        "https://github.com/guzzle/guzzle/releases/tag/7.15.2",
+        "https://github.com/guzzle/guzzle/releases/tag/8.0.1",
+        "https://github.com/guzzle/guzzle/security/advisories/GHSA-f7vp-7xgx-4w4r"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/guzzle/guzzle/security-advisories/GHSA-f7vp-7xgx-4w4r",
+      "source_code_location": "https://github.com/guzzle/guzzle",
+      "source_project": "guzzle/guzzle",
+      "source_root": "GHSA-F7VP-7XGX-4W4R"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fcw5-x6j4-ccmp",
+      "identifiers": [
+        "CVE-2026-44727",
+        "GHSA-FCW5-X6J4-CCMP"
+      ],
+      "references": [
+        "https://access.redhat.com/errata/RHSA-2026:43038",
+        "https://access.redhat.com/security/cve/CVE-2026-44727",
+        "https://bugzilla.redhat.com/show_bug.cgi?id=2491516",
+        "https://github.com/advisories/GHSA-fcw5-x6j4-ccmp",
+        "https://github.com/jupyter-server/jupyter_server",
+        "https://github.com/jupyter-server/jupyter_server/commit/6cbee8d65e71abac851c4492fea987ad080580bd",
+        "https://github.com/jupyter-server/jupyter_server/security/advisories/GHSA-fcw5-x6j4-ccmp",
+        "https://github.com/pypa/advisory-database/tree/main/vulns/jupyter-server/PYSEC-2026-366.yaml",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-44727",
+        "https://pypi.org/project/jupyter-server",
+        "https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-44727.json"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jupyter-server/jupyter_server/security-advisories/GHSA-fcw5-x6j4-ccmp",
+      "source_code_location": "https://github.com/jupyter-server/jupyter_server",
+      "source_project": "jupyter-server/jupyter_server",
+      "source_root": "GHSA-FCW5-X6J4-CCMP"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fp43-vj7g-pg92",
+      "identifiers": [
+        "GHSA-FP43-VJ7G-PG92"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-fp43-vj7g-pg92",
+        "https://github.com/omnifaces/omnifaces/commit/59d6c5188c39418546fe500d05036645987a77d1",
+        "https://github.com/omnifaces/omnifaces/commit/a52b92461cf39d983f51ce8724fe7e6b944073e4",
+        "https://github.com/omnifaces/omnifaces/commit/aa42da361821ddfbb85b126564e71587347d2786",
+        "https://github.com/omnifaces/omnifaces/commit/c43eef01174a4dc09cec44eff553ff6284150af7",
+        "https://github.com/omnifaces/omnifaces/commit/d5cae243c4692555efaa4ba774e0f8f60e3f4db5",
+        "https://github.com/omnifaces/omnifaces/security/advisories/GHSA-fp43-vj7g-pg92"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/omnifaces/omnifaces/security-advisories/GHSA-fp43-vj7g-pg92",
+      "source_code_location": "https://github.com/omnifaces/omnifaces",
+      "source_project": "omnifaces/omnifaces",
+      "source_root": "GHSA-FP43-VJ7G-PG92"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fqcv-8859-86x2",
+      "identifiers": [
+        "CVE-2026-23959",
+        "GHSA-FQCV-8859-86X2"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-fqcv-8859-86x2",
+        "https://github.com/coreshop/CoreShop/commit/af80b8f5c7df5f02f44e9c5e0a4a564de274eec2",
+        "https://github.com/coreshop/CoreShop/releases/tag/4.1.9",
+        "https://github.com/coreshop/CoreShop/security/advisories/GHSA-fqcv-8859-86x2",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-23959"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/coreshop/CoreShop/security-advisories/GHSA-fqcv-8859-86x2",
+      "source_code_location": "https://github.com/coreshop/CoreShop",
+      "source_project": "coreshop/coreshop",
+      "source_root": "GHSA-FQCV-8859-86X2"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fr54-72wr-cqvq",
+      "identifiers": [
+        "CVE-2017-20160",
+        "GHSA-FR54-72WR-CQVQ"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-fr54-72wr-cqvq",
+        "https://github.com/flitto/express-param/commit/db94f7391ad0a16dcfcba8b9be1af385b25c42db",
+        "https://github.com/flitto/express-param/pull/19",
+        "https://github.com/flitto/express-param/releases/tag/1.0.0",
+        "https://nvd.nist.gov/vuln/detail/CVE-2017-20160",
+        "https://vuldb.com/?ctiid.217149",
+        "https://vuldb.com/?id.217149"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/flitto/express-param",
+      "source_project": "flitto/express-param",
+      "source_root": "GHSA-FR54-72WR-CQVQ"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gq4g-fpc9-vjfq",
+      "identifiers": [
+        "GHSA-GQ4G-FPC9-VJFQ"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-gq4g-fpc9-vjfq",
+        "https://github.com/web-auth/webauthn-framework/security/advisories/GHSA-gq4g-fpc9-vjfq"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/web-auth/webauthn-framework/security-advisories/GHSA-gq4g-fpc9-vjfq",
+      "source_code_location": "https://github.com/web-auth/webauthn-framework",
+      "source_project": "web-auth/webauthn-framework",
+      "source_root": "GHSA-GQ4G-FPC9-VJFQ"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gqgw-jghv-mxwx",
+      "identifiers": [
+        "CVE-2026-9318",
+        "GHSA-GQGW-JGHV-MXWX"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-gqgw-jghv-mxwx",
+        "https://github.com/jazzband/tablib",
+        "https://github.com/jazzband/tablib/pull/668",
+        "https://github.com/jazzband/tablib/releases/tag/v3.10.0",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-9318",
+        "https://www.vulncheck.com/advisories/tablib-versions-prior-to-stored-xss-via-html-export-dataset-title"
+      ],
+      "repository_advisory_url": "",
+      "source_code_location": "https://github.com/jazzband/tablib",
+      "source_project": "jazzband/tablib",
+      "source_root": "GHSA-GQGW-JGHV-MXWX"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gv83-gqw6-9j2c",
+      "identifiers": [
+        "CVE-2026-53624",
+        "GHSA-GV83-GQW6-9J2C"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-gv83-gqw6-9j2c",
+        "https://github.com/gofiber/fiber/security/advisories/GHSA-gv83-gqw6-9j2c"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/gofiber/fiber/security-advisories/GHSA-gv83-gqw6-9j2c",
+      "source_code_location": "https://github.com/gofiber/fiber",
+      "source_project": "gofiber/fiber",
+      "source_root": "GHSA-GV83-GQW6-9J2C"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-h7p7-w5gc-xj3w",
+      "identifiers": [
+        "CVE-2026-54249",
+        "GHSA-H7P7-W5GC-XJ3W"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-h7p7-w5gc-xj3w",
+        "https://github.com/pydantic/pydantic-ai/releases/tag/v1.106.0",
+        "https://github.com/pydantic/pydantic-ai/releases/tag/v2.0.0b6",
+        "https://github.com/pydantic/pydantic-ai/security/advisories/GHSA-h7p7-w5gc-xj3w",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54249"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pydantic/pydantic-ai/security-advisories/GHSA-h7p7-w5gc-xj3w",
+      "source_code_location": "https://github.com/pydantic/pydantic-ai",
+      "source_project": "pydantic/pydantic-ai",
+      "source_root": "GHSA-H7P7-W5GC-XJ3W"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hc4m-q9jh-xw4j",
+      "identifiers": [
+        "GHSA-HC4M-Q9JH-XW4J"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-hc4m-q9jh-xw4j",
+        "https://github.com/always-further/nono/security/advisories/GHSA-hc4m-q9jh-xw4j",
+        "https://github.com/nolabs-ai/nono/commit/db07375031642f089d549b4f7b9abece87e39f87",
+        "https://github.com/nolabs-ai/nono/releases/tag/v0.62.0"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nolabs-ai/nono/security-advisories/GHSA-hc4m-q9jh-xw4j",
+      "source_code_location": "https://github.com/always-further/nono",
+      "source_project": "always-further/nono",
+      "source_root": "GHSA-HC4M-Q9JH-XW4J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hg3w-7f8c-63hp",
+      "identifiers": [
+        "CVE-2026-48995",
+        "GHSA-HG3W-7F8C-63HP"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-hg3w-7f8c-63hp",
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-hg3w-7f8c-63hp",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-48995"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pnpm/pnpm/security-advisories/GHSA-hg3w-7f8c-63hp",
+      "source_code_location": "https://github.com/pnpm/pnpm",
+      "source_project": "pnpm/pnpm",
+      "source_root": "GHSA-HG3W-7F8C-63HP"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hh9p-6wh2-4mfc",
+      "identifiers": [
+        "GHSA-HH9P-6WH2-4MFC"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-hh9p-6wh2-4mfc",
+        "https://github.com/gitpython-developers/GitPython/commit/f2550b65bf60ca087190981e2c7b6865e201f40c",
+        "https://github.com/gitpython-developers/GitPython/pull/2204",
+        "https://github.com/gitpython-developers/GitPython/releases/tag/3.1.58",
+        "https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-hh9p-6wh2-4mfc"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/gitpython-developers/GitPython/security-advisories/GHSA-hh9p-6wh2-4mfc",
+      "source_code_location": "https://github.com/gitpython-developers/GitPython",
+      "source_project": "gitpython-developers/gitpython",
+      "source_root": "GHSA-HH9P-6WH2-4MFC"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hmqg-cxww-wqhq",
+      "identifiers": [
+        "CVE-2026-67434",
+        "GHSA-HMQG-CXWW-WQHQ"
+      ],
+      "references": [
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/squizlabs/php_codesniffer/CVE-2026-67434.yaml",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/commit/7a3a6bbf153a03fa3a9413afc60bded6b764e76b",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/commit/f0e1ebb0563f0e5d7f190497a787bcaf8474f3fe",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/pull/1473",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/tag/3.13.6",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/tag/4.0.2",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/security/advisories/GHSA-hmqg-cxww-wqhq",
+        "https://github.com/advisories/GHSA-hmqg-cxww-wqhq"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/security-advisories/GHSA-hmqg-cxww-wqhq",
+      "source_code_location": "https://github.com/PHPCSStandards/PHP_CodeSniffer",
+      "source_project": "phpcsstandards/php_codesniffer",
+      "source_root": "GHSA-HMQG-CXWW-WQHQ"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hq66-cqwq-w95j",
+      "identifiers": [
+        "CVE-2026-16633",
+        "GHSA-HQ66-CQWQ-W95J"
+      ],
+      "references": [
+        "https://bugzilla.mozilla.org/show_bug.cgi?id=2055885",
+        "https://github.com/advisories/GHSA-hq66-cqwq-w95j",
+        "https://github.com/mozilla/pdf.js/security/advisories/GHSA-hq66-cqwq-w95j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/mozilla/pdf.js/security-advisories/GHSA-hq66-cqwq-w95j",
+      "source_code_location": "https://github.com/mozilla/pdf.js",
+      "source_project": "mozilla/pdf.js",
+      "source_root": "GHSA-HQ66-CQWQ-W95J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-j5jq-cr68-v2xx",
+      "identifiers": [
+        "CVE-2026-35445",
+        "GHSA-J5JQ-CR68-V2XX"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-j5jq-cr68-v2xx",
+        "https://github.com/wintercms/winter/releases/tag/v1.2.13",
+        "https://github.com/wintercms/winter/security/advisories/GHSA-j5jq-cr68-v2xx"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/wintercms/winter/security-advisories/GHSA-j5jq-cr68-v2xx",
+      "source_code_location": "https://github.com/wintercms/winter",
+      "source_project": "wintercms/winter",
+      "source_root": "GHSA-J5JQ-CR68-V2XX"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jhpw-976m-542j",
+      "identifiers": [
+        "CVE-2026-68945",
+        "GHSA-JHPW-976M-542J"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-jhpw-976m-542j",
+        "https://github.com/angular/angular/commit/6867f77ec779a0a24f6339ad6c775f444202103c",
+        "https://github.com/angular/angular/commit/948a8d6831e8920b54663ec79421da95210e0e35",
+        "https://github.com/angular/angular/commit/a64e2883e9dc4abdac70209129be303de79e5b2b",
+        "https://github.com/angular/angular/commit/a6c7fc5c13e6e494a4c9bd8e773b8d4b2a99b20c",
+        "https://github.com/angular/angular/pull/68571",
+        "https://github.com/angular/angular/security/advisories/GHSA-jhpw-976m-542j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/angular/angular/security-advisories/GHSA-jhpw-976m-542j",
+      "source_code_location": "https://github.com/angular/angular",
+      "source_project": "angular/angular",
+      "source_root": "GHSA-JHPW-976M-542J"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jmqm-f8q4-v7wx",
+      "identifiers": [
+        "CVE-2026-45694",
+        "GHSA-JMQM-F8Q4-V7WX"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-jmqm-f8q4-v7wx",
+        "https://github.com/librenms/librenms/releases/tag/26.5.0",
+        "https://github.com/librenms/librenms/security/advisories/GHSA-jmqm-f8q4-v7wx"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/librenms/librenms/security-advisories/GHSA-jmqm-f8q4-v7wx",
+      "source_code_location": "https://github.com/librenms/librenms",
+      "source_project": "librenms/librenms",
+      "source_root": "GHSA-JMQM-F8Q4-V7WX"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-m42h-3232-vpv3",
+      "identifiers": [
+        "CVE-2026-12243",
+        "GHSA-M42H-3232-VPV3"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-m42h-3232-vpv3",
+        "https://github.com/nltk/nltk/commit/aec4fce1b84ad725b8975f7365b23a4f626572a9",
+        "https://github.com/nltk/nltk/issues/3504",
+        "https://github.com/nltk/nltk/pull/3522",
+        "https://github.com/nltk/nltk/security/advisories/GHSA-m42h-3232-vpv3",
+        "https://github.com/pypa/advisory-database/tree/main/vulns/nltk/PYSEC-2026-597.yaml",
+        "https://huntr.com/bounties/39aa9354-54ca-4e77-96da-580eb1fe6ed1",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-12243",
+        "https://securityinfinity.com/research/path-traversal-in-nltks-nltk-data-load-via-percent-encoded-sequences"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nltk/nltk/security-advisories/GHSA-m42h-3232-vpv3",
+      "source_code_location": "https://github.com/nltk/nltk",
+      "source_project": "nltk/nltk",
+      "source_root": "GHSA-M42H-3232-VPV3"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5",
+      "identifiers": [
+        "CVE-2026-15157",
+        "GHSA-M8RV-5G2X-5CG5"
+      ],
+      "references": [
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5",
+        "https://github.com/nodejs/undici/commit/33928bc24f742ea8422ed90d17f2e0cc83e4d09d",
+        "https://github.com/nodejs/undici/commit/740a0b7c173cb4a83a5b693e96e8f3a116cfc400",
+        "https://github.com/nodejs/undici/commit/7d3cf924c262c486bc77f951348f4e5c847b7b42",
+        "https://github.com/nodejs/undici/releases/tag/v6.28.0",
+        "https://github.com/nodejs/undici/releases/tag/v7.29.0",
+        "https://github.com/nodejs/undici/releases/tag/v8.9.0",
+        "https://github.com/nodejs/undici/security/advisories/GHSA-m8rv-5g2x-5cg5",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-15157"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nodejs/undici/security-advisories/GHSA-m8rv-5g2x-5cg5",
+      "source_code_location": "https://github.com/nodejs/undici",
+      "source_project": "nodejs/undici",
+      "source_root": "GHSA-M8RV-5G2X-5CG5"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-mv8w-475r-vwqw",
+      "identifiers": [
+        "CVE-2026-59940",
+        "GHSA-MV8W-475R-VWQW"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-mv8w-475r-vwqw",
+        "https://github.com/lxsmnsyc/seroval/security/advisories/GHSA-mv8w-475r-vwqw",
+        "https://www.npmjs.com/package/seroval/v/1.5.3"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/lxsmnsyc/seroval/security-advisories/GHSA-mv8w-475r-vwqw",
+      "source_code_location": "https://github.com/lxsmnsyc/seroval",
+      "source_project": "lxsmnsyc/seroval",
+      "source_root": "GHSA-MV8W-475R-VWQW"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-p28v-f755-9qrg",
+      "identifiers": [
+        "CVE-2026-73654",
+        "GHSA-P28V-F755-9QRG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-p28v-f755-9qrg",
+        "https://github.com/triggerdotdev/trigger.dev/commit/6997aeb05e27d2db47f9eda01fdc8a17c81a1ae0",
+        "https://github.com/triggerdotdev/trigger.dev/pull/4316",
+        "https://github.com/triggerdotdev/trigger.dev/releases/tag/v4.5.6",
+        "https://github.com/triggerdotdev/trigger.dev/security/advisories/GHSA-p28v-f755-9qrg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/triggerdotdev/trigger.dev/security-advisories/GHSA-p28v-f755-9qrg",
+      "source_code_location": "https://github.com/triggerdotdev/trigger.dev",
+      "source_project": "triggerdotdev/trigger.dev",
+      "source_root": "GHSA-P28V-F755-9QRG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pmhh-3w7g-xqp8",
+      "identifiers": [
+        "CVE-2026-71497",
+        "GHSA-PMHH-3W7G-XQP8"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-pmhh-3w7g-xqp8",
+        "https://github.com/jhy/jsoup/commit/92f1aca552548b484bc7d4b94c51e48b8e6eca70",
+        "https://github.com/jhy/jsoup/issues/2538",
+        "https://github.com/jhy/jsoup/releases/tag/jsoup-1.23.1",
+        "https://github.com/jhy/jsoup/security/advisories/GHSA-pmhh-3w7g-xqp8"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jhy/jsoup/security-advisories/GHSA-pmhh-3w7g-xqp8",
+      "source_code_location": "https://github.com/jhy/jsoup",
+      "source_project": "jhy/jsoup",
+      "source_root": "GHSA-PMHH-3W7G-XQP8"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pp92-crg2-gfv9",
+      "identifiers": [
+        "CVE-2026-54603",
+        "GHSA-PP92-CRG2-GFV9"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-pp92-crg2-gfv9",
+        "https://github.com/ruby-oauth/oauth2/commit/0f0a474f1b38453e119e660c2daca742d4378ce9",
+        "https://github.com/ruby-oauth/oauth2/releases/tag/v2.0.22",
+        "https://github.com/ruby-oauth/oauth2/security/advisories/GHSA-pp92-crg2-gfv9"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ruby-oauth/oauth2/security-advisories/GHSA-pp92-crg2-gfv9",
+      "source_code_location": "https://github.com/ruby-oauth/oauth2",
+      "source_project": "ruby-oauth/oauth2",
+      "source_root": "GHSA-PP92-CRG2-GFV9"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-q3g2-m552-3r9c",
+      "identifiers": [
+        "CVE-2026-64785",
+        "GHSA-Q3G2-M552-3R9C"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-q3g2-m552-3r9c",
+        "https://github.com/apple/swift-nio-http2/commit/45bdf670248be5f16ec0340e125dca285536f0fb",
+        "https://github.com/apple/swift-nio-http2/commit/48bfd9067d7d1d15c4789440127a0cf36222ea43",
+        "https://github.com/apple/swift-nio-http2/releases/tag/1.45.0",
+        "https://github.com/apple/swift-nio-http2/security/advisories/GHSA-q3g2-m552-3r9c",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-64785"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/apple/swift-nio-http2/security-advisories/GHSA-q3g2-m552-3r9c",
+      "source_code_location": "https://github.com/apple/swift-nio-http2",
+      "source_project": "apple/swift-nio-http2",
+      "source_root": "GHSA-Q3G2-M552-3R9C"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-q78p-hj9h-5466",
+      "identifiers": [
+        "CVE-2026-53656",
+        "GHSA-Q78P-HJ9H-5466"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-q78p-hj9h-5466",
+        "https://github.com/voxel51/fiftyone/commit/7c5b92eec5c7c0210c0c8134351ced77d2800ae0",
+        "https://github.com/voxel51/fiftyone/releases/tag/v1.17.0",
+        "https://github.com/voxel51/fiftyone/security/advisories/GHSA-q78p-hj9h-5466"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/voxel51/fiftyone/security-advisories/GHSA-q78p-hj9h-5466",
+      "source_code_location": "https://github.com/voxel51/fiftyone",
+      "source_project": "voxel51/fiftyone",
+      "source_root": "GHSA-Q78P-HJ9H-5466"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-qf5v-m7p4-95rp",
+      "identifiers": [
+        "CVE-2026-50570",
+        "GHSA-QF5V-M7P4-95RP"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-qf5v-m7p4-95rp",
+        "https://github.com/fission/fission/commit/2569b42bfadbcb7d78b55a00a60f77937e522699",
+        "https://github.com/fission/fission/pull/3465",
+        "https://github.com/fission/fission/releases/tag/v1.25.0",
+        "https://github.com/fission/fission/security/advisories/GHSA-qf5v-m7p4-95rp",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-50570"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/fission/fission/security-advisories/GHSA-qf5v-m7p4-95rp",
+      "source_code_location": "https://github.com/fission/fission",
+      "source_project": "fission/fission",
+      "source_root": "GHSA-QF5V-M7P4-95RP"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-r6mh-95jw-g7qg",
+      "identifiers": [
+        "CVE-2026-62899",
+        "GHSA-R6MH-95JW-G7QG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-r6mh-95jw-g7qg",
+        "https://github.com/dotnet/announcements/issues/427",
+        "https://github.com/dotnet/runtime/security/advisories/GHSA-r6mh-95jw-g7qg",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-62899",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-62899"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/dotnet/runtime/security-advisories/GHSA-r6mh-95jw-g7qg",
+      "source_code_location": "https://github.com/dotnet/runtime",
+      "source_project": "dotnet/runtime",
+      "source_root": "GHSA-R6MH-95JW-G7QG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-rmxw-pq4x-3fvh",
+      "identifiers": [
+        "CVE-2026-54719",
+        "GHSA-RMXW-PQ4X-3FVH"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-rmxw-pq4x-3fvh",
+        "https://github.com/goshs-labs/goshs/commit/7cf911a26ace737e1a55b7dc073e307a25f7fd1d",
+        "https://github.com/goshs-labs/goshs/releases/tag/v2.1.1",
+        "https://github.com/goshs-labs/goshs/security/advisories/GHSA-rmxw-pq4x-3fvh"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/goshs-labs/goshs/security-advisories/GHSA-rmxw-pq4x-3fvh",
+      "source_code_location": "https://github.com/goshs-labs/goshs",
+      "source_project": "goshs-labs/goshs",
+      "source_root": "GHSA-RMXW-PQ4X-3FVH"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-vvfj-2jqx-52jm",
+      "identifiers": [
+        "CVE-2025-59842",
+        "GHSA-VVFJ-2JQX-52JM"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-vvfj-2jqx-52jm",
+        "https://github.com/jupyterlab/jupyterlab/commit/88ef373039a8cc09f27d3814382a512d9033675c",
+        "https://github.com/jupyterlab/jupyterlab/security/advisories/GHSA-vvfj-2jqx-52jm",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-59842"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jupyterlab/jupyterlab/security-advisories/GHSA-vvfj-2jqx-52jm",
+      "source_code_location": "https://github.com/jupyterlab/jupyterlab",
+      "source_project": "jupyterlab/jupyterlab",
+      "source_root": "GHSA-VVFJ-2JQX-52JM"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-w8xc-8g92-v77h",
+      "identifiers": [
+        "CVE-2026-52839",
+        "GHSA-W8XC-8G92-V77H"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-w8xc-8g92-v77h",
+        "https://github.com/alextselegidis/easyappointments/commit/725eafa647308846ce887657db12771a829e42ef",
+        "https://github.com/alextselegidis/easyappointments/releases/tag/1.6.0",
+        "https://github.com/alextselegidis/easyappointments/security/advisories/GHSA-w8xc-8g92-v77h",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-52839"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/alextselegidis/easyappointments/security-advisories/GHSA-w8xc-8g92-v77h",
+      "source_code_location": "https://github.com/alextselegidis/easyappointments",
+      "source_project": "alextselegidis/easyappointments",
+      "source_root": "GHSA-W8XC-8G92-V77H"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-wjv6-jcfj-mf9r",
+      "identifiers": [
+        "CVE-2026-54654",
+        "GHSA-WJV6-JCFJ-MF9R"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-wjv6-jcfj-mf9r",
+        "https://github.com/koxudaxi/datamodel-code-generator/commit/b73abb5cd703a50471b8950bbd3bd0b82ad71de7",
+        "https://github.com/koxudaxi/datamodel-code-generator/releases/tag/0.60.2",
+        "https://github.com/koxudaxi/datamodel-code-generator/security/advisories/GHSA-wjv6-jcfj-mf9r"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/koxudaxi/datamodel-code-generator/security-advisories/GHSA-wjv6-jcfj-mf9r",
+      "source_code_location": "https://github.com/koxudaxi/datamodel-code-generator",
+      "source_project": "koxudaxi/datamodel-code-generator",
+      "source_root": "GHSA-WJV6-JCFJ-MF9R"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-x3x5-7h4h-gwxg",
+      "identifiers": [
+        "CVE-2026-46511",
+        "GHSA-X3X5-7H4H-GWXG"
+      ],
+      "references": [
+        "https://github.com/advisories/GHSA-x3x5-7h4h-gwxg",
+        "https://github.com/haxtheweb/issues/security/advisories/GHSA-x3x5-7h4h-gwxg",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-46511"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/haxtheweb/issues/security-advisories/GHSA-x3x5-7h4h-gwxg",
+      "source_code_location": "https://github.com/haxtheweb/issues",
+      "source_project": "haxtheweb/issues",
+      "source_root": "GHSA-X3X5-7H4H-GWXG"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-xq73-fvmr-jvmm",
+      "identifiers": [
+        "CVE-2026-46619",
+        "GHSA-XQ73-FVMR-JVMM"
+      ],
+      "references": [
+        "https://github.com/OpenIdentityPlatform/OpenAM/security/advisories/GHSA-xq73-fvmr-jvmm",
+        "https://github.com/advisories/GHSA-xq73-fvmr-jvmm"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/OpenIdentityPlatform/OpenAM/security-advisories/GHSA-xq73-fvmr-jvmm",
+      "source_code_location": "https://github.com/OpenIdentityPlatform/OpenAM",
+      "source_project": "openidentityplatform/openam",
+      "source_root": "GHSA-XQ73-FVMR-JVMM"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-xqjm-27pc-rvwm",
+      "identifiers": [
+        "CVE-2026-50179",
+        "GHSA-XQJM-27PC-RVWM"
+      ],
+      "references": [
+        "https://github.com/actualbudget/actual/security/advisories/GHSA-xqjm-27pc-rvwm",
+        "https://github.com/advisories/GHSA-xqjm-27pc-rvwm"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/actualbudget/actual/security-advisories/GHSA-xqjm-27pc-rvwm",
+      "source_code_location": "https://github.com/actualbudget/actual",
+      "source_project": "actualbudget/actual",
+      "source_root": "GHSA-XQJM-27PC-RVWM"
+    }
+  ],
+  "unique_project_count": 100,
+  "unique_root_count": 100,
+  "version": "1.0.0"
+}
