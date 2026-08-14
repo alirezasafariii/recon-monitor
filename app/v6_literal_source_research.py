@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.31.3"
+VERSION = "1.1.1"
+RULE_VERSION = "2026.08.14.6.31.4"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v6_literal_source_research.json"
 GHSA_RE = re.compile(r"^GHSA-[0-9a-z-]+$", re.I)
@@ -23,6 +23,7 @@ EXTERNAL_SOURCE_HOSTS = {
     "binarysecurity.no",
     "www.binarysecurity.no",
     "blog.rubygems.org",
+    "security.paloaltonetworks.com",
 }
 MAX_EXTERNAL_BYTES = 2 * 1024 * 1024
 
