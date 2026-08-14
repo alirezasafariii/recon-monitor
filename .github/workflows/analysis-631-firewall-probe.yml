@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe niche replacements against historical exposure
+      - name: Probe final replacement set against historical exposure
         env:
           PYTHONPATH: app
         run: |
@@ -30,9 +30,13 @@ jobs:
           from raw_recon_v6_source_firewall import canonical_url, exposure_index
           prior = exposure_index()
           candidates = [
-            ('cors_network_ai','cors_misconfiguration','GHSA-j3vx-cx2r-pvg8','Jovancoding/Network-AI',['https://github.com/advisories/GHSA-j3vx-cx2r-pvg8']),
-            ('unsafe_datamodel_codegen','unsafe_api_consumption','GHSA-r5vv-ff45-prp2','koxudaxi/datamodel-code-generator',['https://github.com/koxudaxi/datamodel-code-generator/security/advisories/GHSA-r5vv-ff45-prp2','https://github.com/advisories/GHSA-r5vv-ff45-prp2']),
-            ('websocket_openclaw','websocket_authorization','GHSA-jmmg-jqc7-5qf4','openclaw/openclaw',['https://github.com/openclaw/openclaw/security/advisories/GHSA-jmmg-jqc7-5qf4','https://github.com/advisories/GHSA-jmmg-jqc7-5qf4']),
+            ('cors_lightrag','cors_misconfiguration','GHSA-6x6h-qqr7-855w','HKUDS/LightRAG',['https://github.com/HKUDS/LightRAG/security/advisories/GHSA-6x6h-qqr7-855w','https://github.com/advisories/GHSA-6x6h-qqr7-855w']),
+            ('graphql_strawberry','graphql_data_exposure','GHSA-5xh2-23cc-5jc6','strawberry-graphql/strawberry',['https://github.com/strawberry-graphql/strawberry/security/advisories/GHSA-5xh2-23cc-5jc6','https://github.com/advisories/GHSA-5xh2-23cc-5jc6']),
+            ('nosql_langgraph','nosql_injection','GHSA-98xf-r82g-9mhx','langchain-ai/langgraphjs',['https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx','https://github.com/advisories/GHSA-98xf-r82g-9mhx']),
+            ('websocket_affine','websocket_authorization','GHSL-2026-040','toeverything/AFFiNE',['https://securitylab.github.com/advisories/GHSL-2026-040_AFFiNE/']),
+            ('unsafe_cdxgen','unsafe_api_consumption','GHSA-qhh4-458h-xwh2','cdxgen/cdxgen',['https://github.com/cdxgen/cdxgen/security/advisories/GHSA-qhh4-458h-xwh2','https://github.com/advisories/GHSA-qhh4-458h-xwh2']),
+            ('sourcemap_claude_code','source_map_exposure','CLAUDE-CODE-SOURCEMAP-2026-03-31','anthropics/claude-code',['https://venturebeat.com/technology/claude-codes-source-code-appears-to-have-leaked-heres-what-we-know/']),
+            ('sourcemap_vite','source_map_exposure','GHSA-4w7w-66w2-5vf9','vitejs/vite',['https://github.com/vitejs/vite/security/advisories/GHSA-4w7w-66w2-5vf9','https://github.com/advisories/GHSA-4w7w-66w2-5vf9']),
           ]
           results=[]
           for label,family,root,project,raw_urls in candidates:
