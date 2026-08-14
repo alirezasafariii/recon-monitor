@@ -22,10 +22,12 @@ from family_reasoning import FAMILY_ORDER
 from verified_replay_contract import validate_verified_replay_collection
 
 
-REAL_WORLD_CALIBRATION_VERSION = "1.0.0"
-REAL_WORLD_CALIBRATION_RULE_VERSION = "2026.08.14.1"
+REAL_WORLD_CALIBRATION_VERSION = "1.1.0"
+REAL_WORLD_CALIBRATION_RULE_VERSION = "2026.08.14.2"
 DEFAULT_HOLDOUT_PERCENT = 20
 DEFAULT_MIN_EVIDENCE_QUALITY = 60
+FORCED_TRAIN_EVALUATION_ROLES = frozenset({"consumed_benchmark", "development_only"})
+FRESH_EVALUATION_ROLE = "fresh_candidate"
 
 QUALITY_WEIGHTS = {
     "reliability": 0.25,
@@ -126,6 +128,11 @@ def deterministic_holdout_split(
 
     All snapshots sharing the same case origin are assigned to the same side.
     The split key never includes the human label, score, family, or reviewer.
+
+    Lifecycle is enforced before hashing: any origin containing a
+    ``consumed_benchmark`` or ``development_only`` snapshot is forced wholly to
+    train. Only origins made entirely of ``fresh_candidate`` records are eligible
+    for holdout hashing. ``reserved_blind`` is rejected by the replay contract.
     """
 
     holdout_percent = max(5, min(50, int(holdout_percent)))
@@ -141,29 +148,42 @@ def deterministic_holdout_split(
         if origin:
             by_origin[origin].append(row)
 
-    train_origins: set[str] = set()
+    forced_train_origins: set[str] = set()
+    fresh_origins: set[str] = set()
+    for origin, origin_rows in by_origin.items():
+        roles = {str(row.get("evaluation_role") or FRESH_EVALUATION_ROLE) for row in origin_rows}
+        if roles & FORCED_TRAIN_EVALUATION_ROLES:
+            forced_train_origins.add(origin)
+        else:
+            fresh_origins.add(origin)
+
+    train_origins: set[str] = set(forced_train_origins)
     holdout_origins: set[str] = set()
-    ranked_origins = sorted(by_origin, key=lambda origin: (_stable_bucket(origin), origin))
-    for origin in ranked_origins:
+    ranked_fresh_origins = sorted(fresh_origins, key=lambda origin: (_stable_bucket(origin), origin))
+    for origin in ranked_fresh_origins:
         if _stable_bucket(origin) < holdout_percent:
             holdout_origins.add(origin)
         else:
             train_origins.add(origin)
 
-    # For small but non-trivial corpora, preserve a usable split without looking
-    # at labels. Moving whole origin groups keeps leakage at zero.
-    if len(ranked_origins) >= 2 and not holdout_origins:
-        chosen = ranked_origins[0]
+    # For a small but non-trivial *fresh* corpus, preserve a usable split without
+    # looking at labels. Forced historical origins never participate in fallback
+    # selection and can never be moved to holdout.
+    if len(ranked_fresh_origins) >= 2 and not holdout_origins:
+        chosen = ranked_fresh_origins[0]
         train_origins.discard(chosen)
         holdout_origins.add(chosen)
-    if len(ranked_origins) >= 2 and not train_origins:
-        chosen = ranked_origins[-1]
+    fresh_train_origins = set(train_origins) - forced_train_origins
+    if len(ranked_fresh_origins) >= 2 and not fresh_train_origins:
+        chosen = ranked_fresh_origins[-1]
         holdout_origins.discard(chosen)
         train_origins.add(chosen)
 
     train = [row for origin in sorted(train_origins) for row in by_origin[origin]]
     holdout = [row for origin in sorted(holdout_origins) for row in by_origin[origin]]
     leakage = sorted(train_origins & holdout_origins)
+    role_counts = Counter(str(row.get("evaluation_role") or FRESH_EVALUATION_ROLE) for row in eligible)
+    forced_train = [row for origin in sorted(forced_train_origins) for row in by_origin[origin]]
 
     return {
         "version": REAL_WORLD_CALIBRATION_VERSION,
@@ -175,6 +195,10 @@ def deterministic_holdout_split(
         "duplicate_count": int(validation["duplicate_count"]),
         "quality_excluded_count": len(excluded_quality),
         "evaluation_eligible_count": len(eligible),
+        "evaluation_role_counts": dict(sorted(role_counts.items())),
+        "forced_train_count": len(forced_train),
+        "forced_train_origin_count": len(forced_train_origins),
+        "fresh_origin_count": len(fresh_origins),
         "train_count": len(train),
         "holdout_count": len(holdout),
         "train_origin_count": len(train_origins),
@@ -192,6 +216,10 @@ def deterministic_holdout_split(
             "partition_excludes_reviewer": True,
             "same_case_origin_never_crosses_train_holdout": True,
             "quality_gate_is_evaluation_only": True,
+            "consumed_benchmark_is_train_only": True,
+            "development_only_is_train_only": True,
+            "reserved_blind_is_contract_rejected": True,
+            "mixed_fresh_consumed_origin_is_train_only": True,
         },
     }
 
@@ -535,6 +563,9 @@ def build_real_world_calibration_report(
             "threshold_selection_uses_train_only": True,
             "holdout_never_selects_threshold": True,
             "same_case_origin_never_crosses_train_holdout": True,
+            "consumed_benchmark_origins_are_train_only": True,
+            "development_only_origins_are_train_only": True,
+            "reserved_blind_records_are_contract_rejected": True,
             "synthetic_or_golden_records_cannot_enter_through_contract": True,
             "feedback_is_shadow_only": True,
             "feedback_cannot_change_weights": True,
@@ -552,6 +583,8 @@ __all__ = [
     "REAL_WORLD_CALIBRATION_RULE_VERSION",
     "DEFAULT_HOLDOUT_PERCENT",
     "DEFAULT_MIN_EVIDENCE_QUALITY",
+    "FORCED_TRAIN_EVALUATION_ROLES",
+    "FRESH_EVALUATION_ROLE",
     "deterministic_holdout_split",
     "extended_confusion_metrics",
     "mine_shadow_feedback",
