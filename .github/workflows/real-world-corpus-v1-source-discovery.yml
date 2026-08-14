@@ -44,7 +44,7 @@ jobs:
             --output benchmarks/real_world/v1/targeted_candidates.json \
             --report benchmarks/real_world/v1/targeted_discovery_report.json
 
-      - name: Build pre-adjudication 100-source shortlist
+      - name: Build pre-repair 100-source shortlist
         run: |
           set -euo pipefail
           python app/real_world_corpus_v1_shortlist.py \
@@ -53,7 +53,7 @@ jobs:
             --output benchmarks/real_world/v1/source_shortlist.json \
             --report benchmarks/real_world/v1/shortlist_report.json
 
-      - name: Assess passive source feasibility
+      - name: Assess pre-repair source feasibility
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -63,11 +63,42 @@ jobs:
             --output benchmarks/real_world/v1/source_feasibility.json \
             --report benchmarks/real_world/v1/source_feasibility_report.json
 
+      - name: Replace weak sources with fresh stronger alternatives
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_repair.py \
+            --feasibility benchmarks/real_world/v1/source_feasibility.json \
+            --general benchmarks/real_world/v1/source_candidates.json \
+            --output benchmarks/real_world/v1/source_shortlist_final.json \
+            --report benchmarks/real_world/v1/source_repair_report.json
+
+      - name: Assess final source feasibility
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_feasibility.py \
+            --shortlist benchmarks/real_world/v1/source_shortlist_final.json \
+            --output benchmarks/real_world/v1/source_feasibility_final.json \
+            --report benchmarks/real_world/v1/source_feasibility_final_report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('benchmarks/real_world/v1/source_feasibility_final.json').read_text())
+          weak = {'source_reference_available', 'manual_source_research_required'}
+          remaining = [s['source_root'] for s in p['sources'] if s.get('capture_feasibility') in weak]
+          if remaining:
+              raise SystemExit('weak_sources_remain:' + ','.join(remaining))
+          print(json.dumps({'ok': True, 'final_sources': len(p['sources']), 'weak_sources': 0, 'feasibility': p['capture_feasibility_counts']}, sort_keys=True))
+          PY
+
       - name: Build 400-case controlled capture plan
         run: |
           set -euo pipefail
           python app/real_world_corpus_v1_capture_plan.py \
-            --feasibility benchmarks/real_world/v1/source_feasibility.json \
+            --feasibility benchmarks/real_world/v1/source_feasibility_final.json \
             --output benchmarks/real_world/v1/capture_plan.json \
             --report benchmarks/real_world/v1/capture_plan_report.json
 
@@ -78,6 +109,7 @@ jobs:
           python -m unittest tests/test_real_world_corpus_v1_targeted.py -q
           python -m unittest tests/test_real_world_corpus_v1_shortlist.py -q
           python -m unittest tests/test_real_world_corpus_v1_feasibility.py -q
+          python -m unittest tests/test_real_world_corpus_v1_repair.py -q
           python -m unittest tests/test_real_world_corpus_v1_capture_plan.py -q
           python -m unittest tests/test_real_world_corpus_v1_calibration_roles.py -q
 
@@ -96,6 +128,10 @@ jobs:
                   benchmarks/real_world/v1/shortlist_report.json \
                   benchmarks/real_world/v1/source_feasibility.json \
                   benchmarks/real_world/v1/source_feasibility_report.json \
+                  benchmarks/real_world/v1/source_shortlist_final.json \
+                  benchmarks/real_world/v1/source_repair_report.json \
+                  benchmarks/real_world/v1/source_feasibility_final.json \
+                  benchmarks/real_world/v1/source_feasibility_final_report.json \
                   benchmarks/real_world/v1/capture_plan.json \
                   benchmarks/real_world/v1/capture_plan_report.json
           git ls-files -z \
@@ -117,6 +153,10 @@ jobs:
                   benchmarks/real_world/v1/shortlist_report.json \
                   benchmarks/real_world/v1/source_feasibility.json \
                   benchmarks/real_world/v1/source_feasibility_report.json \
+                  benchmarks/real_world/v1/source_shortlist_final.json \
+                  benchmarks/real_world/v1/source_repair_report.json \
+                  benchmarks/real_world/v1/source_feasibility_final.json \
+                  benchmarks/real_world/v1/source_feasibility_final_report.json \
                   benchmarks/real_world/v1/capture_plan.json \
                   benchmarks/real_world/v1/capture_plan_report.json \
                   MANIFEST.sha256
@@ -124,5 +164,5 @@ jobs:
             echo 'No corpus changes to commit.'
             exit 0
           fi
-          git commit -m 'chore(corpus-v1): refresh capture plan'
+          git commit -m 'chore(corpus-v1): refresh repaired capture plan'
           git push
