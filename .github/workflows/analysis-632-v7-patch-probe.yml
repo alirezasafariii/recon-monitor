@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - 'benchmarks/raw/sources/v7_candidates.json'
+      - '.github/workflows/analysis-632-v7-patch-probe.yml'
   workflow_dispatch:
 
 permissions:
@@ -30,10 +31,12 @@ jobs:
         env:
           PYTHONPATH: app
         run: |
-          python -m py_compile app/v7_pre_score_condition_audit.py app/raw_recon_v7_patch_probe.py
+          python -m py_compile app/v7_source_semantic_audit.py app/v7_pre_score_condition_audit.py app/raw_recon_v7_patch_probe.py
           python - <<'PY'
           from v7_pre_score_condition_audit import validate_registry
-          assert validate_registry() == [], validate_registry()
+          errors=validate_registry()
+          print({'v7_condition_registry_errors': errors})
+          assert errors == [], errors
           PY
       - name: Probe real upstream patches
         env:
