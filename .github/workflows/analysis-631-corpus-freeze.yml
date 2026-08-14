@@ -18,20 +18,47 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Freeze validated unscored corpus
         run: |
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
-          validation=json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text())
+
+          validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text())
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text())
+          protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text())
+
           assert validation['passed'] is True
           assert validation['scoring_executed'] is False
-          paths=[
+          assert validation['label_leakage_count'] == 0
+          assert validation['source_firewall']['passed'] is True
+          assert shortlist['selection_executes_scoring'] is False
+          assert shortlist['supplement_pool_used'] is False
+          assert shortlist['family_count'] == 36
+          assert shortlist['unique_root_count'] == 36
+          assert shortlist['unique_project_count'] == 36
+          assert shortlist['owasp_grounded_family_count'] == 14
+          assert shortlist['legacy_semantic_family_count'] == 22
+          assert selection['scoring_executed'] is False
+          assert selection['family_count'] == 36
+          assert selection['supplement_pool_used'] is False
+          assert selection['grounding_provenance_reuse_count'] == 0
+
+          # Freeze only inputs and outputs that materially participate in the
+          # selected v6 benchmark. Deprecated supplement/keyword discovery
+          # artifacts are deliberately excluded from the protected set.
+          paths = [
             'benchmarks/raw/sources/v6_protocol.json',
             'benchmarks/raw/sources/v6_candidates.json',
-            'benchmarks/raw/sources/v6_supplement_candidates.json',
-            'benchmarks/raw/sources/v6_keyword_candidates.json',
+            'benchmarks/raw/sources/v6_owasp_writeup_grounding.json',
+            'benchmarks/raw/sources/v6_owasp_writeup_candidates.json',
+            'benchmarks/raw/sources/v6_owasp_exact_overrides.json',
+            'benchmarks/raw/sources/v6_owasp_extension_grounding.json',
+            'benchmarks/raw/sources/v6_owasp_extension_candidates.json',
             'benchmarks/raw/sources/v6_shortlist.json',
+            'benchmarks/raw/sources/v6_selection_final_report.json',
             'benchmarks/raw/analysis_raw_v6.jsonl',
             'benchmarks/raw/sources/v6_materialization_report.json',
             'benchmarks/raw/sources/v6_validation_report.json',
@@ -40,32 +67,51 @@ jobs:
             'app/v6_benchmark_dataset.py',
             'app/v6_benchmark_validate.py',
           ]
-          protected={}
+          protected = {}
           for value in paths:
-            path=Path(value); assert path.exists(), value
-            protected[value]=hashlib.sha256(path.read_bytes()).hexdigest()
-          protocol=json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text())
-          shortlist=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
-          report={
-            'version':'1.0.0','rule_version':'2026.08.13.6.31',
-            'evaluation_status':'sealed_unscored_corpus',
-            'scoring_executed':False,
-            'first_blind_consumed':False,
-            'first_blind_evaluator_frozen':False,
-            'case_count':276,'family_count':36,
-            'source_root_count':shortlist['unique_root_count'],
-            'source_project_count':shortlist['unique_project_count'],
-            'pre_registered_gates':{
-              'single':protocol['single_quality_gates'],
-              'pair':protocol['pair_quality_gates'],
-              'triad':protocol['triad_quality_gates'],
+            path = Path(value)
+            assert path.exists(), value
+            protected[value] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+          report = {
+            'version': '1.1.0',
+            'rule_version': '2026.08.14.6.31',
+            'evaluation_status': 'sealed_unscored_corpus',
+            'scoring_executed': False,
+            'first_blind_consumed': False,
+            'first_blind_evaluator_frozen': False,
+            'case_count': 276,
+            'family_count': 36,
+            'source_root_count': shortlist['unique_root_count'],
+            'source_project_count': shortlist['unique_project_count'],
+            'owasp_grounded_family_count': shortlist['owasp_grounded_family_count'],
+            'legacy_semantic_family_count': shortlist['legacy_semantic_family_count'],
+            'supplement_pool_used': False,
+            'grounding_provenance_reuse_count': selection['grounding_provenance_reuse_count'],
+            'pre_registered_gates': {
+              'single': protocol['single_quality_gates'],
+              'pair': protocol['pair_quality_gates'],
+              'triad': protocol['triad_quality_gates'],
             },
-            'protected_sha256':protected,
-            'mutation_policy':'protocol sources shortlist corpus and validation artifacts are immutable after this corpus freeze; evaluator freeze is a separate pre-score step',
+            'protected_sha256': protected,
+            'excluded_deprecated_discovery_artifacts': [
+              'benchmarks/raw/sources/v6_supplement_candidates.json',
+              'benchmarks/raw/sources/v6_keyword_candidates.json',
+            ],
+            'mutation_policy': 'protocol, selected source inputs, shortlist, corpus and validation artifacts are immutable after this corpus freeze; evaluator freeze is a separate pre-score step',
           }
-          Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
-          print({'evaluation_status':report['evaluation_status'],'case_count':276,'family_count':36})
+          Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n'
+          )
+          print({
+              'evaluation_status': report['evaluation_status'],
+              'case_count': 276,
+              'family_count': 36,
+              'owasp_grounded_family_count': report['owasp_grounded_family_count'],
+              'supplement_pool_used': report['supplement_pool_used'],
+          })
           PY
+
       - name: Commit corpus freeze
         shell: bash
         run: |
