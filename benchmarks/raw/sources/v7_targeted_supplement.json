@@ -1,0 +1,194 @@
+{
+  "active_target_validation_performed": false,
+  "candidate_selection_uses_admission_results": false,
+  "candidate_selection_uses_detector_scores": false,
+  "candidate_selection_uses_ranking_results": false,
+  "candidate_selection_uses_v6_first_blind_case_errors": false,
+  "candidate_selection_uses_v6_first_blind_score": false,
+  "candidates_by_family": {
+    "command_injection": [
+      {
+        "active_target_validation_performed": false,
+        "advisory_source_type": "upstream_pr",
+        "canonical_advisory_url": "https://github.com/automateyournetwork/netdiag-vuln-sample/pull/21",
+        "description": "Fix CWE-78: OS Command Injection in diagnostics/network.py\nThe vulnerability was in the `ping_host` function which used `os.popen(command)` to execute a shell command constructed with user input. This is vulnerable to CWE-78 (OS Command Injection) because the host parameter could contain shell metacharacters that get interpreted by the shell.\n\nThe fix replaces `os.popen()` with `subprocess.run()` and passes the command as a list of arguments instead of a single shell string. This prevents shell interpretation of the input, eliminating the command injection risk. The command is now structured as `[\"ping\", \"-c\", \"1\", host]`, where each argument is passed separately to the ping process, making it safe from shell injection attacks.\n\nThe `subprocess.run()` call also uses `capture_output=True` and `text=True` to maintain the same behavior of returning stdout as a string, while properly handling the command execution without shell interpretation.",
+        "family": "command_injection",
+        "freshness_validated": true,
+        "pr_number": 21,
+        "pre_score_condition_source_hits": {
+          "process_execution_reached": [
+            "command execution",
+            "command injection",
+            "os command",
+            "shell command"
+          ]
+        },
+        "pre_score_expected_condition_signals": [
+          "process_execution_reached"
+        ],
+        "published_at": "2026-08-14T16:26:46Z",
+        "references": [
+          "https://github.com/automateyournetwork/netdiag-vuln-sample/pull/21"
+        ],
+        "repository_advisory_url": "",
+        "scoring_executed": false,
+        "selection_uses_v6_case_errors": false,
+        "selection_uses_v6_score": false,
+        "source_code_location": "https://github.com/automateyournetwork/netdiag-vuln-sample/pull/21",
+        "source_family_audit_group_hits": [
+          [
+            "command injection",
+            "os command injection",
+            "shell injection"
+          ],
+          [
+            "command",
+            "exec",
+            "process",
+            "shell"
+          ]
+        ],
+        "source_family_audit_passed": true,
+        "source_family_audit_score": 18,
+        "source_kind": "github_merged_security_pr_targeted_supplement",
+        "source_project": "automateyournetwork/netdiag-vuln-sample",
+        "source_root": "GITHUB-PR-automateyournetwork-netdiag-vuln-sample-21",
+        "summary": "Fix CWE-78: OS Command Injection in diagnostics/network.py",
+        "updated_at": "2026-08-14T16:26:49Z",
+        "upstream_repository_reference": "https://github.com/automateyournetwork/netdiag-vuln-sample/pull/21",
+        "v7_firewall_allowed": true
+      }
+    ],
+    "unsafe_api_consumption": [
+      {
+        "active_target_validation_performed": false,
+        "advisory_source_type": "upstream_pr",
+        "canonical_advisory_url": "https://github.com/groupthinking/EventRelay/pull/770",
+        "description": "\ud83d\udd12 Security: Enforced SSL certificate validation in HTTP clients\nWhat: Removed insecure `ssl_context.check_hostname = False` and `ssl_context.verify_mode = ssl.CERT_NONE` overrides in `multi_llm_video_processor.py` and `markdown_video_processor.py`.\n\nRisk: Disabling SSL verification allows MITM (Man-in-the-Middle) attacks, compromising the confidentiality and integrity of communications with AI providers.\n\nSolution: Restored secure defaults by relying solely on `ssl.create_default_context()`, ensuring robust certificate validation.\n\n---\n*PR created automatically by Jules for task [5669839764848871090](https://jules.google.com/task/5669839764848871090) started by @groupthinking*",
+        "family": "unsafe_api_consumption",
+        "freshness_validated": true,
+        "pr_number": 770,
+        "pre_score_condition_source_hits": {
+          "third_party_auth_weak": [
+            "certificate validation"
+          ]
+        },
+        "pre_score_expected_condition_signals": [
+          "third_party_auth_weak"
+        ],
+        "published_at": "2026-07-14T15:33:00Z",
+        "references": [
+          "https://github.com/groupthinking/EventRelay/pull/770"
+        ],
+        "repository_advisory_url": "",
+        "scoring_executed": false,
+        "selection_uses_v6_case_errors": false,
+        "selection_uses_v6_score": false,
+        "source_code_location": "https://github.com/groupthinking/EventRelay/pull/770",
+        "source_family_audit_group_hits": [
+          [
+            "http client"
+          ],
+          [
+            "certificate validation",
+            "ssl"
+          ],
+          [
+            "man in the middle"
+          ]
+        ],
+        "source_family_audit_passed": true,
+        "source_family_audit_score": 20,
+        "source_kind": "github_merged_security_pr_targeted_supplement",
+        "source_project": "groupthinking/EventRelay",
+        "source_root": "GITHUB-PR-groupthinking-EventRelay-770",
+        "summary": "\ud83d\udd12 Security: Enforced SSL certificate validation in HTTP clients",
+        "updated_at": "2026-07-14T16:33:54Z",
+        "upstream_repository_reference": "https://github.com/groupthinking/EventRelay/pull/770",
+        "v7_firewall_allowed": true
+      }
+    ]
+  },
+  "diagnostics": {
+    "command_injection": {
+      "accepted": true,
+      "condition_hits": {
+        "process_execution_reached": [
+          "command execution",
+          "command injection",
+          "os command",
+          "shell command"
+        ]
+      },
+      "condition_signals": [
+        "process_execution_reached"
+      ],
+      "error": null,
+      "fetch_status": 200,
+      "firewall_allowed": true,
+      "firewall_identifier_overlap": [],
+      "firewall_project_overlap": [],
+      "firewall_root_overlap": [],
+      "firewall_url_overlap": [],
+      "source_family_audit_group_hits": [
+        [
+          "command injection",
+          "os command injection",
+          "shell injection"
+        ],
+        [
+          "command",
+          "exec",
+          "process",
+          "shell"
+        ]
+      ],
+      "source_family_audit_passed": true,
+      "source_family_audit_score": 18
+    },
+    "unsafe_api_consumption": {
+      "accepted": true,
+      "condition_hits": {
+        "third_party_auth_weak": [
+          "certificate validation"
+        ]
+      },
+      "condition_signals": [
+        "third_party_auth_weak"
+      ],
+      "error": null,
+      "fetch_status": 200,
+      "firewall_allowed": true,
+      "firewall_identifier_overlap": [],
+      "firewall_project_overlap": [],
+      "firewall_root_overlap": [],
+      "firewall_url_overlap": [],
+      "source_family_audit_group_hits": [
+        [
+          "http client"
+        ],
+        [
+          "certificate validation",
+          "ssl"
+        ],
+        [
+          "man in the middle"
+        ]
+      ],
+      "source_family_audit_passed": true,
+      "source_family_audit_score": 20
+    }
+  },
+  "evaluation_kind": "fresh_blind_v7_targeted_passive_source_supplement_unscored",
+  "families_without_candidates": [],
+  "family_candidate_counts": {
+    "command_injection": 1,
+    "unsafe_api_consumption": 1
+  },
+  "family_count": 2,
+  "first_blind_consumed": false,
+  "generated_at": "2026-08-14T18:07:42.815559+00:00",
+  "rule_version": "2026.08.14.6.32.v7.11",
+  "scoring_executed": false,
+  "version": "1.0.0"
+}
