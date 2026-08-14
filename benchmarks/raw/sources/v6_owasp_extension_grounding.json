@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_grounding_extension",
   "scoring_executed": false,
@@ -16,27 +16,27 @@
     "graphql_authorization": {
       "wstg_ids": ["WSTG-APIT-01", "WSTG-ATHZ-02"],
       "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL",
-      "owasp_companion": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema",
+      "owasp_companion": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema",
       "writeups": ["https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38"],
       "semantic_boundary": "Require a GraphQL query or mutation to perform an operation beyond the caller's effective permission set; introspection or schema visibility alone is not authorization evidence."
     },
     "source_map_exposure": {
       "wstg_ids": ["WSTG-INFO-05"],
-      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Web_Page_Content_for_Information_Leakage",
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Webpage_Content_for_Information_Leakage",
       "writeups": ["https://github.com/evanw/esbuild/commit/de85afd9c8241a1c7d5951a879f4e84fd6f40c5a"],
       "semantic_boundary": "Require an obtainable source-map or debug artifact that exposes original authored source, internal paths, embedded source content, or comparably sensitive frontend implementation detail; a sourceMappingURL string alone is insufficient."
     },
     "unsafe_api_consumption": {
-      "wstg_ids": ["WSTG-APIT-01"],
-      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL",
+      "wstg_ids": ["WSTG-INFO-10"],
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/10-Map_Application_Architecture",
       "owasp_companion": "https://owasp.org/API-Security/editions/2023/en/0xaa-unsafe-consumption-of-apis/",
       "writeups": ["https://github.com/hapijs/wreck/commit/a5b6fac9c684621c1d5733d10a0257697cfea373"],
-      "semantic_boundary": "Require security-sensitive trust in data or control flow supplied by an external API or remote service, such as cross-host redirects, without re-validating the changed trust boundary; direct user-controlled SSRF alone belongs to the SSRF family."
+      "semantic_boundary": "Require security-sensitive trust in data or control flow supplied by an external API or remote service, such as cross-host redirects, without re-validating the changed trust boundary. WSTG-INFO-10 is used only to map the third-party/API trust boundary; OWASP API10:2023 defines the vulnerability family. Direct user-controlled SSRF alone belongs to the SSRF family."
     },
     "websocket_authorization": {
       "wstg_ids": ["WSTG-CLNT-10", "WSTG-ATHZ-02"],
-      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/10-Testing_WebSockets",
-      "owasp_companion": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema",
+      "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/11-Client-side_Testing/10-Testing_WebSockets",
+      "owasp_companion": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema",
       "writeups": ["https://github.com/outline/outline/security/advisories/GHSA-mx2c-3g2x-5m9m"],
       "semantic_boundary": "Require a WebSocket channel that accepts or continues privileged/sensitive activity despite an authorization state that would block the equivalent HTTP operation; origin-only failures are not enough for this family."
     }
