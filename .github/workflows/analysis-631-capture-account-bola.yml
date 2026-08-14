@@ -1,0 +1,189 @@
+name: Analysis 6.31 Capture Account and Object Authorization
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-account-bola.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  account-enumeration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Capture four PostgreSQL advisory observations
+        run: |
+          set -euo pipefail
+          mkdir -p captures/account-enumeration
+          python - <<'PY'
+          import json, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          api = 'https://api.github.com/advisories/GHSA-hp2m-55fj-8mw5'
+          ref = 'https://github.com/advisories/GHSA-hp2m-55fj-8mw5'
+          req = urllib.request.Request(api, headers={'Accept':'application/vnd.github+json','User-Agent':'analysis-631-source-capture'})
+          with urllib.request.urlopen(req, timeout=30) as response:
+              advisory = json.load(response)
+          description = advisory['description']
+          markers = [
+              'Observable response discrepancy in PostgreSQL SCRAM authentication',
+              'requires the probed user to have a non-default scram_iterations count',
+              'Versions before PostgreSQL 16 are unaffected',
+              'minor versions before PostgreSQL 18.5, 17.11, and 16.15 are affected',
+          ]
+          for marker in markers:
+              assert marker in description
+          captured = datetime.now(timezone.utc).isoformat()
+          out = Path('captures/account-enumeration')
+
+          def emit(kind, excerpt, raw, notes, signals):
+              payload = {'ghsa_id': advisory['ghsa_id'], 'excerpt': excerpt, 'published_at': advisory['published_at']}
+              doc = {
+                  'family': 'account_enumeration', 'case_kind': kind, 'captured_at': captured,
+                  'capture_reference': ref, 'capture_method': 'cli_output',
+                  'collector': {'tool':'github-actions/github-advisory-api-capture','command':f'GET {api}','source_file':'GitHub Advisory API JSON'},
+                  'source_snapshot': {'reference':ref,'retrieved_at':captured,'payload':payload},
+                  'adjudication': {'basis':'source_observation','notes':notes,'expected_condition_signals':signals,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False},
+                  'raw': raw,
+              }
+              (out/f'{kind}.json').write_text(json.dumps(doc, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+
+          emit('positive', markers[0], {
+              'target':'PostgreSQL SCRAM authentication challenge','endpoint':'SCRAM authentication challenge','method':'UNKNOWN','endpoint_schema':{},
+              'details':{'unauthenticated_probe':True,'observable_iteration_count_difference':True,'known_user_state_can_be_inferred':True},
+          }, 'The upstream advisory states that an unauthenticated observer can distinguish account existence from the SCRAM iteration-count response discrepancy.', ['account_existence_differential'])
+          emit('near_miss', markers[1], {
+              'target':'PostgreSQL SCRAM authentication prerequisite','endpoint':'SCRAM iteration-count precondition','method':'UNKNOWN','endpoint_schema':{},
+              'details':{'non_default_iteration_count_required':True,'default_iteration_count_case_insufficient':True},
+          }, 'The same advisory independently states the differential requires the probed account to use a non-default iteration count; this is a confounding prerequisite rather than a positive observation by itself.', [])
+          emit('secure_negative', markers[2], {
+              'target':'PostgreSQL pre-16 release line','endpoint':'version applicability control','method':'UNKNOWN','endpoint_schema':{},
+              'details':{'major_version_before_16':True,'advisory_marks_unaffected':True},
+          }, 'The upstream advisory explicitly marks PostgreSQL versions before major version 16 as unaffected, providing an independent unaffected-version control.', [])
+          emit('sparse_noisy', markers[3], {
+              'target':'PostgreSQL affected-version metadata','endpoint':'advisory version range','method':'UNKNOWN','endpoint_schema':{},
+              'details':{'major_versions':[16,17,18],'fixed_minor_boundaries':['16.15','17.11','18.5'],'behavioral_response_not_present':True},
+          }, 'The affected-version range is source-grounded metadata but contains no observed authentication response, so it is intentionally sparse for the target condition.', [])
+          PY
+      - name: Upload account captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-account-enumeration-captures
+          path: captures/account-enumeration/*.json
+
+  broken-object-authorization:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Capture four Rainbond reproduction observations
+        run: |
+          set -euo pipefail
+          mkdir -p captures/broken-object-authorization
+          python - <<'PY'
+          import json, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          api = 'https://api.github.com/repos/goodrain/rainbond/issues/2665'
+          ref = 'https://github.com/goodrain/rainbond/issues/2665'
+          req = urllib.request.Request(api, headers={'Accept':'application/vnd.github+json','User-Agent':'analysis-631-source-capture'})
+          with urllib.request.urlopen(req, timeout=30) as response:
+              issue = json.load(response)
+          body = issue['body']
+          positive = 'BYPASS CONFIRMED: Enterprise A\'s token was accepted for Enterprise B\'s tenant path, and returned Enterprise B\'s service data.'
+          secure = '=== NEGATIVE CONTROL 1: no Authorization header ===\nHTTP Status: 401 (expect 401)'
+          near = "=== CONTROL 3: Enterprise A's token against its OWN tenant-a (sanity check) ===\nHTTP Status: 200 (expect 200, empty list since tenant-a has no services seeded)"
+          sparse = 'uuid-tenant-b-0002   svc-enterprise-b-secret-0001   enterprise-b-internal-billing'
+          for marker in (positive, secure, near, sparse):
+              assert marker in body
+          captured = datetime.now(timezone.utc).isoformat()
+          out = Path('captures/broken-object-authorization')
+
+          def emit(kind, excerpt, raw, notes, signals, basis='source_log_or_trace'):
+              payload = {'issue':2665,'excerpt':excerpt,'created_at':issue['created_at'],'updated_at':issue['updated_at']}
+              doc = {
+                  'family':'broken_object_authorization','case_kind':kind,'captured_at':captured,
+                  'capture_reference':ref,'capture_method':'cli_output',
+                  'collector':{'tool':'github-actions/github-issue-api-capture','command':f'GET {api}','source_file':'GitHub issue reproduction transcript'},
+                  'source_snapshot':{'reference':ref,'retrieved_at':captured,'payload':payload},
+                  'adjudication':{'basis':basis,'notes':notes,'expected_condition_signals':signals,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False},
+                  'raw':raw,
+              }
+              (out/f'{kind}.json').write_text(json.dumps(doc, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+
+          emit('positive', positive, {
+              'target':'Rainbond region API','endpoint':'/v2/tenants/tenant-b/services','method':'GET','endpoint_schema':{'path_parameters':['tenant_name'],'authentication_hints':['bearer']},
+              'details':{'caller_enterprise':'enterprise-A','requested_tenant_enterprise':'enterprise-B','http_status':200,'other_tenant_service_returned':True},
+          }, 'The upstream reproduction transcript records an Enterprise A token receiving HTTP 200 and Enterprise B service data when the tenant-b path is substituted.', ['cross_tenant_object_access'])
+          emit('secure_negative', secure, {
+              'target':'Rainbond region API negative control','endpoint':'/v2/tenants/tenant-b/services','method':'GET','endpoint_schema':{'path_parameters':['tenant_name']},
+              'details':{'authorization_header_present':False,'http_status':401,'tenant_data_returned':False},
+          }, 'The same upstream reproduction independently records the no-Authorization control as HTTP 401 with no tenant data returned.', [])
+          emit('near_miss', near, {
+              'target':'Rainbond region API own-tenant control','endpoint':'/v2/tenants/tenant-a/services','method':'GET','endpoint_schema':{'path_parameters':['tenant_name'],'authentication_hints':['bearer']},
+              'details':{'caller_enterprise':'enterprise-A','requested_tenant_enterprise':'enterprise-A','http_status':200,'cross_enterprise_boundary_crossed':False},
+          }, 'The upstream sanity control uses the same Enterprise A credential against its own tenant and receives the expected HTTP 200; this is legitimate same-owner access, not the cross-enterprise condition.', [])
+          emit('sparse_noisy', sparse, {
+              'target':'Rainbond reproduction database state','endpoint':'seeded tenant/service snapshot','method':'UNKNOWN','endpoint_schema':{},
+              'details':{'tenant_a_eid':'enterprise-A','tenant_b_eid':'enterprise-B','tenant_b_service_seeded':True,'http_request_outcome_present':False},
+          }, 'The reproduction database dump independently confirms two enterprise identities and a private service seeded under tenant B, but by itself contains no request outcome and is intentionally sparse.', [])
+          PY
+      - name: Upload object authorization captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-broken-object-authorization-captures
+          path: captures/broken-object-authorization/*.json
+
+  publish:
+    needs: [account-enumeration, broken-object-authorization]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download account captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-account-enumeration-captures
+          path: captured/account-enumeration
+      - name: Download object authorization captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-broken-object-authorization-captures
+          path: captured/broken-object-authorization
+      - name: Publish and verify unscored evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+      - name: Commit account and object authorization evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/account-enumeration--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/broken-object-authorization--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 account and BOLA evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
