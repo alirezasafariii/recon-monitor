@@ -20,6 +20,7 @@
   "results": {
     "business_logic": {
       "errors": [
+        "semantic:('password reset', 'ambiguity', 'privilege')",
         "project_overlap"
       ],
       "firewall": {
@@ -31,22 +32,15 @@
       "semantic_group_hits": [
         [
           "business logic",
-          "registration workflow",
           "workflow"
         ],
         [
-          "duplicate email",
-          "invariant",
-          "uniqueness"
+          "invariant"
         ],
-        [
-          "ambiguity",
-          "password reset",
-          "privilege"
-        ]
+        []
       ],
-      "source_project": "thorsten/phpMyFAQ",
-      "source_root": "GHSA-9wj2-4hcm-r74j",
+      "source_project": "go-gitea/gitea",
+      "source_root": "GHSA-777r-4v59-6486",
       "wstg_ids": [
         "WSTG-BUSL-01",
         "WSTG-BUSL-06"
@@ -54,12 +48,11 @@
     },
     "cors_misconfiguration": {
       "errors": [
-        "root_overlap",
         "project_overlap"
       ],
       "firewall": {
         "project_overlap": true,
-        "root_overlap": true,
+        "root_overlap": false,
         "url_overlap": []
       },
       "passed": false,
@@ -77,8 +70,8 @@
           "sensitive"
         ]
       ],
-      "source_project": "musistudio/claude-code-router",
-      "source_root": "GHSA-8hmm-4crw-vm2c",
+      "source_project": "Jovancoding/Network-AI",
+      "source_root": "GHSA-j3vx-cx2r-pvg8",
       "wstg_ids": [
         "WSTG-CLNT-07"
       ]
@@ -114,12 +107,16 @@
     },
     "graphql_data_exposure": {
       "errors": [
-        "project_overlap"
+        "root_overlap",
+        "project_overlap",
+        "url_overlap"
       ],
       "firewall": {
         "project_overlap": true,
-        "root_overlap": false,
-        "url_overlap": []
+        "root_overlap": true,
+        "url_overlap": [
+          "https://github.com/keystonejs/keystone/security/advisories/GHSA-hg9m-67mm-7pg3"
+        ]
       },
       "passed": false,
       "semantic_group_hits": [
@@ -127,18 +124,15 @@
           "graphql"
         ],
         [
-          "concealed",
-          "data exposure",
-          "restricted field"
+          "data exposure"
         ],
         [
-          "aggregate",
           "field",
           "property"
         ]
       ],
-      "source_project": "directus/directus",
-      "source_root": "GHSA-38hg-ww64-rrwc",
+      "source_project": "keystonejs/keystone",
+      "source_root": "GHSA-hg9m-67mm-7pg3",
       "wstg_ids": [
         "WSTG-APIT-03"
       ]
@@ -190,18 +184,16 @@
           "nosql"
         ],
         [
-          "collection",
           "operator",
           "query"
         ],
         [
           "inject",
-          "semantics",
-          "unintended"
+          "semantics"
         ]
       ],
       "source_project": "budibase/budibase",
-      "source_root": "GHSA-v42f-v8xc-j435",
+      "source_root": "GHSA-qw6m-8fw2-2v64",
       "wstg_ids": [
         "WSTG-INPV-05.6"
       ]
