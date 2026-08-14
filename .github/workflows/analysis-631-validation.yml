@@ -65,6 +65,11 @@ jobs:
           PYTHONPATH: app
         run: python app/v6_literal_capture_verify.py --allow-missing
 
+      - name: Partial raw corpus precheck
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_raw_precheck.py
+
       - name: V6 corpus integrity gate
         env:
           PYTHONPATH: app
