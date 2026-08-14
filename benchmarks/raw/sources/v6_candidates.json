@@ -4501,6 +4501,47 @@
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.13.6.31",
         "v6_firewall_version": "1.0.0"
+      },
+      {
+        "advisory_source_type": "unreviewed",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-jjjg-67rc-qf87",
+        "description": "Saurus CMS Community Edition contains an unauthenticated open redirect in logout handling where a caller-controlled url parameter is passed to the Location header without an allowlist, scheme validation, or relative-path enforcement. An attacker can supply an arbitrary external destination and redirect users to an attacker-controlled site.",
+        "family": "open_redirect",
+        "freshness_validated": true,
+        "matched_cwes": [
+          "CWE-601"
+        ],
+        "published_at": "2026-08-13T18:31:38Z",
+        "references": [
+          "https://github.com/sauruscms/Saurus-CMS-Community-Edition"
+        ],
+        "repository_advisory_url": "",
+        "selection_basis": "pre-score targeted source discovery repair for global root/project uniqueness; no detector, admission, ranking, or blind result used",
+        "severity": "medium",
+        "source_code_location": "https://github.com/sauruscms/Saurus-CMS-Community-Edition",
+        "source_family_audit_group_hits": [
+          [
+            "open redirect"
+          ],
+          [
+            "destination",
+            "location",
+            "redirect",
+            "url"
+          ]
+        ],
+        "source_family_audit_rule_version": "2026.08.13.6.29",
+        "source_family_audit_score": 16,
+        "source_family_audit_version": "1.0.0",
+        "source_kind": "github_unreviewed_advisory_with_repository_reference",
+        "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+        "source_root": "GHSA-jjjg-67rc-qf87",
+        "source_selection_track": "legacy_semantic_fresh_pool_pre_score_uniqueness_repair",
+        "summary": "Saurus CMS Community Edition contains an unauthenticated open redirect vulnerability in logout handling.",
+        "updated_at": "2026-08-13T18:31:43Z",
+        "v6_firewall_allowed": true,
+        "v6_firewall_rule_version": "2026.08.13.6.31",
+        "v6_firewall_version": "1.0.0"
       }
     ],
     "path_traversal": [
@@ -11037,7 +11078,7 @@
     "ldap_injection": 5,
     "mass_assignment": 4,
     "nosql_injection": 1,
-    "open_redirect": 1,
+    "open_redirect": 2,
     "path_traversal": 4,
     "postmessage_trust": 6,
     "race_condition": 4,
@@ -11076,7 +11117,7 @@
     "ldap_injection": 3,
     "mass_assignment": 4,
     "nosql_injection": 0,
-    "open_redirect": 1,
+    "open_redirect": 2,
     "path_traversal": 3,
     "postmessage_trust": 0,
     "race_condition": 4,
@@ -11095,6 +11136,17 @@
     "unsafe_api_consumption": 0,
     "websocket_authorization": 0
   },
+  "pre_score_collision_repairs": [
+    {
+      "family": "open_redirect",
+      "historical_firewall_passed": true,
+      "reason": "global uniqueness collision with information_disclosure on ether/etherpad",
+      "scoring_executed": false,
+      "semantic_audit_passed": true,
+      "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+      "source_root": "GHSA-jjjg-67rc-qf87"
+    }
+  ],
   "queried_rows_by_advisory_type": {
     "reviewed": 2606,
     "unreviewed": 4549
