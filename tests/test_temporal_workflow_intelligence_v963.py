@@ -43,15 +43,18 @@ class TemporalWorkflowIntelligenceV963Tests(unittest.TestCase):
         method: str,
         auth_boundary: str,
         when: str,
+        *,
+        alert_id: int,
         confidence: int = 85,
     ) -> None:
         db.execute(
             "INSERT INTO endpoint_contracts(analysis_id,target,source_run_id,alert_id,endpoint,method,input_fields_json,output_fields_json,auth_boundary,object_relations_json,confidence,created_at) "
-            "VALUES(?,?,?,NULL,?,?,?,?,?,?,?,?)",
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 analysis_id,
                 target,
                 run_id,
+                alert_id,
                 endpoint,
                 method,
                 '{"path":[],"query":[],"body":[]}',
@@ -115,9 +118,19 @@ class TemporalWorkflowIntelligenceV963Tests(unittest.TestCase):
                 ("A2", "R2", "2026-08-13T10:00:00Z", "GET", "session_required", []),
                 ("A3", "R3", "2026-08-14T10:00:00Z", "POST", "public", ["email", "balance"]),
             ]
-            for analysis_id, run_id, when, method, boundary, sensitive in snapshots:
+            for alert_id, (analysis_id, run_id, when, method, boundary, sensitive) in enumerate(snapshots, start=1):
                 self._analysis(db, analysis_id, run_id, target, when)
-                self._contract(db, analysis_id, run_id, target, endpoint, method, boundary, when)
+                self._contract(
+                    db,
+                    analysis_id,
+                    run_id,
+                    target,
+                    endpoint,
+                    method,
+                    boundary,
+                    when,
+                    alert_id=alert_id,
+                )
                 self._boundary(db, analysis_id, target, endpoint, boundary, when)
                 self._shape(db, analysis_id, target, endpoint, sensitive, when)
 
@@ -157,12 +170,12 @@ class TemporalWorkflowIntelligenceV963Tests(unittest.TestCase):
         when = "2026-08-14T10:00:00Z"
         try:
             self._analysis(db, analysis_id, run_id, target, when)
-            for endpoint in (
+            for alert_id, endpoint in enumerate((
                 "https://example.test/api/orders/{id}/create",
                 "https://example.test/api/orders/{id}/submit",
                 "https://example.test/api/orders/{id}/approve",
                 "https://example.test/api/orders/{id}/refund",
-            ):
+            ), start=1):
                 self._contract(
                     db,
                     analysis_id,
@@ -172,6 +185,7 @@ class TemporalWorkflowIntelligenceV963Tests(unittest.TestCase):
                     "POST",
                     "session_required",
                     when,
+                    alert_id=alert_id,
                 )
 
             result = generate_workflow_state_intelligence(db, analysis_id, [target])
@@ -204,13 +218,23 @@ class TemporalWorkflowIntelligenceV963Tests(unittest.TestCase):
         approve_endpoint = "https://example.test/api/orders/{id}/approve"
         try:
             self._analysis(db, analysis_id, run_id, target, when)
-            for endpoint in (
+            for alert_id, endpoint in enumerate((
                 "https://example.test/api/orders/{id}/create",
                 "https://example.test/api/orders/{id}/submit",
                 approve_endpoint,
                 "https://example.test/api/orders/{id}/refund",
-            ):
-                self._contract(db, analysis_id, run_id, target, endpoint, "POST", "session_required", when)
+            ), start=1):
+                self._contract(
+                    db,
+                    analysis_id,
+                    run_id,
+                    target,
+                    endpoint,
+                    "POST",
+                    "session_required",
+                    when,
+                    alert_id=alert_id,
+                )
 
             context = FamilyAnalyzerContext(
                 db=db,
