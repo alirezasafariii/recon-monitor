@@ -18,9 +18,10 @@ from behavioral_intelligence import generate_behavioral_candidates, generate_beh
 from family_analyzers.secret_exposure import detect_redacted_secret_material
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
+from raw_analysis_quality import RAW_ANALYSIS_QUALITY_VERSION, raw_quality_snapshot
 
 ENGINE_VERSION = "6.0.0"
-RULE_VERSION = "2026.08.14.6.0"
+RULE_VERSION = "2026.08.14.6.1"
 
 RULES: dict[str, dict[str, Any]] = {
     "evidence-public-200": {"weight": 8, "description": "Public HTTP 200 observation"},
@@ -526,14 +527,38 @@ def _deployment_signatures(db: Database, analysis_id: str, target: str, run_id: 
     return count
 
 
-def _quality_snapshot(db: Database, analysis_id: str, target: str | None = None) -> dict[str, Any]:
+def _quality_snapshot(
+    db: Database,
+    analysis_id: str,
+    target: str | None = None,
+    raw_routing: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Persist backward-compatible Alert feedback plus raw-native diagnostics."""
+
     where=" WHERE target=?" if target else ""; params=(target,) if target else ()
     rows=db.all(f"SELECT category,status,COUNT(*) AS count FROM alerts{where} GROUP BY category,status",params)
     by_category: dict[str,Counter[str]]=defaultdict(Counter)
     for row in rows: by_category[str(row["category"])][str(row["status"])]=int(row["count"])
     total=sum(sum(counter.values()) for counter in by_category.values()); useful=sum(sum(counter[state] for state in USEFUL_STATES) for counter in by_category.values()); noisy=sum(sum(counter[state] for state in NOISY_STATES) for counter in by_category.values())
     unresolved=db.one(f"SELECT COUNT(*) AS count FROM alerts{where + (' AND ' if where else ' WHERE ') }status IN ('new','triaged','acknowledged','investigating')",params)
-    metrics={"alerts":total,"useful":useful,"noisy":noisy,"precision_proxy":round(useful/max(1,useful+noisy),3),"false_positive_proxy":round(noisy/max(1,total),3),"unreviewed_backlog":int(unresolved["count"] if unresolved else 0),"categories":{category:dict(counter) for category,counter in by_category.items()}}
+    raw_quality = raw_quality_snapshot(
+        db,
+        analysis_id,
+        target,
+        raw_routing=raw_routing,
+    )
+    metrics={
+        "quality_engine_version":"2.0.0",
+        "raw_analysis_quality_version":RAW_ANALYSIS_QUALITY_VERSION,
+        "alerts":total,
+        "useful":useful,
+        "noisy":noisy,
+        "precision_proxy":round(useful/max(1,useful+noisy),3),
+        "false_positive_proxy":round(noisy/max(1,total),3),
+        "unreviewed_backlog":int(unresolved["count"] if unresolved else 0),
+        "categories":{category:dict(counter) for category,counter in by_category.items()},
+        "raw_analysis":raw_quality,
+    }
     db.execute("INSERT INTO analysis_quality_snapshots(analysis_id,target,metrics_json,created_at) VALUES(?,?,?,?)",(analysis_id,target or "*",json_dumps(metrics),utc_now()))
     return metrics
 
@@ -669,7 +694,13 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
     candidate_summary["security_reasoning"] = security_reasoning
     candidate_summary["product_platform"] = product_platform
     candidate_summary["workspace_v7"] = workspace_v7
-    quality=_quality_snapshot(db,analysis_id,target)
+    raw_routing = candidate_summary.get("raw_surface_routing", {})
+    quality=_quality_snapshot(
+        db,
+        analysis_id,
+        target,
+        raw_routing if isinstance(raw_routing, Mapping) else {},
+    )
     summary={"alerts":len(alerts),"analysis_inputs":"raw_plus_alerts" if alerts else "raw_only","targets_analyzed":targets,"analysis_profile":profile,"average_original_score":round(sum(parse_int(row["risk_score"],0) for row in alerts)/len(alerts),2) if alerts else 0.0,"average_adjusted_score":round(sum(adjusted_scores)/len(adjusted_scores),2) if adjusted_scores else 0.0,"clusters":len(cluster_members),"duplicate_members":sum(max(0,len(values)-1) for values in cluster_members.values()),"static_intelligence":static,"bug_candidates":candidate_summary,"quality":quality}
     previous=db.one("SELECT id,summary_json FROM analysis_runs WHERE source_run_id=? AND id<>? AND status='success' ORDER BY finished_at DESC LIMIT 1",(run_id,analysis_id))
     if previous:
@@ -721,10 +752,18 @@ def replay_analysis(paths: AppPaths, db: Database, run_id: str, target: str | No
 
 
 def analysis_quality(db: Database, target: str | None = None) -> dict[str, Any]:
-    latest=db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
+    latest=db.one("SELECT id,summary_json FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
     if not latest:
         return {"message":"No completed analysis run"}
-    return _quality_snapshot(db,str(latest["id"]),target)
+    summary = _loads(latest["summary_json"], {})
+    candidate_summary = summary.get("bug_candidates", {}) if isinstance(summary, Mapping) else {}
+    raw_routing = candidate_summary.get("raw_surface_routing", {}) if isinstance(candidate_summary, Mapping) else {}
+    return _quality_snapshot(
+        db,
+        str(latest["id"]),
+        target,
+        raw_routing if isinstance(raw_routing, Mapping) else {},
+    )
 
 
 def calibration_report(db: Database, target: str | None = None) -> dict[str, Any]:
