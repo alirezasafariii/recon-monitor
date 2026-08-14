@@ -38,6 +38,19 @@ jobs:
           test -z "$(find . -type d -name __pycache__ -print -quit)"
           test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
 
+      - name: Probe temporal workflow regressions and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/test_temporal_workflow_intelligence_v963.py -q
+          sha256sum \
+            app/temporal_intelligence.py \
+            app/workflow_state_intelligence.py \
+            app/hypothesis_evidence_planner.py \
+            app/family_analyzers/base.py \
+            app/family_analyzers/router.py \
+            tests/test_temporal_workflow_intelligence_v963.py
+
       - name: Verify manifest
         shell: bash
         run: sha256sum --strict -c MANIFEST.sha256
