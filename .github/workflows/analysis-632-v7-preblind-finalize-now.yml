@@ -1,0 +1,176 @@
+name: Analysis 6.32 v7 Pre-Blind Finalize Now
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-preblind-finalize-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refuse any v7 score or consumption
+        run: |
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+
+      - name: Require complete validated v7 holdout
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          required={
+            'short':'benchmarks/raw/sources/v7_shortlist.json',
+            'plan':'benchmarks/raw/sources/v7_literal_capture_plan.json',
+            'verify':'benchmarks/raw/sources/v7_literal_capture_verification.json',
+            'material':'benchmarks/raw/sources/v7_materialization_report.json',
+            'validation':'benchmarks/raw/sources/v7_validation_report.json',
+          }
+          docs={k:json.loads(Path(v).read_text()) for k,v in required.items()}
+          assert len(docs['short']['selected'])==36
+          assert docs['short']['global_assignment_complete'] is True
+          assert docs['short']['firewall']['passed'] is True
+          assert docs['plan']['evidence_present_count']==144 and docs['plan']['evidence_missing_count']==0
+          assert docs['verify']['passed'] is True and docs['verify']['capture_count']==144 and docs['verify']['unique_evidence_hash_count']==144
+          assert docs['material']['case_count']==276 and docs['material']['literal_single_capture_count']==144
+          assert docs['validation']['passed'] is True and docs['validation']['case_count']==276
+          assert docs['validation']['label_leakage_count']==0
+          assert docs['validation']['source_firewall']['passed'] is True
+          for d in docs.values():
+              assert d.get('scoring_executed') is False
+          PY
+
+      - name: Require evaluator and consumption wrapper before corpus seal
+        run: |
+          if [ ! -f app/v7_benchmark_evaluate.py ] || [ ! -f app/v7_first_blind_consume.py ]; then
+            test ! -e benchmarks/raw/sources/v7_corpus_freeze.json
+            python tools/build_v7_evaluator.py
+          fi
+          python -m py_compile app/v7_benchmark_evaluate.py app/v7_first_blind_consume.py app/v7_freeze_verify.py app/v7_preblind_verify.py
+
+      - name: Seal corpus with complete protected scoring surface
+        env:
+          PYTHONPATH: app
+        run: |
+          test ! -e benchmarks/raw/sources/v7_corpus_freeze.json
+          python app/v7_corpus_freeze.py
+          python app/v7_freeze_verify.py --require-freeze
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=json.loads(Path('benchmarks/raw/sources/v7_corpus_freeze.json').read_text())
+          protected=f['protected_sha256']
+          for rel in ('app/v7_benchmark_evaluate.py','app/v7_first_blind_consume.py','app/v7_preblind_verify.py'):
+              assert rel in protected, rel
+          assert f['evaluation_status']=='sealed_fresh_v7_unscored_holdout'
+          assert f['scoring_executed'] is False
+          assert f['first_blind_consumed'] is False
+          PY
+
+      - name: Freeze evaluator and single-consumption wrapper
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+          protocol=json.loads(Path('benchmarks/raw/sources/v7_protocol.json').read_text())
+          freeze=json.loads(Path('benchmarks/raw/sources/v7_corpus_freeze.json').read_text())
+          assert freeze['scoring_executed'] is False and freeze['first_blind_consumed'] is False
+          report={
+            'version':'1.0.0',
+            'rule_version':'2026.08.14.6.32.v7.22',
+            'evaluation_kind':'fresh_blind_v7_evaluator_freeze',
+            'first_blind_evaluator_frozen':True,
+            'scoring_executed':False,
+            'first_blind_consumed':False,
+            'v6_first_blind_score_used':False,
+            'v6_first_blind_case_errors_used':False,
+            'evaluator_sha256':sha('app/v7_benchmark_evaluate.py'),
+            'consumer_sha256':sha('app/v7_first_blind_consume.py'),
+            'protocol_sha256':sha('benchmarks/raw/sources/v7_protocol.json'),
+            'corpus_freeze_sha256':sha('benchmarks/raw/sources/v7_corpus_freeze.json'),
+            'pre_registered_gates':{
+              'single':protocol['single_quality_gates'],
+              'pair':protocol['pair_quality_gates'],
+              'triad':protocol['triad_quality_gates'],
+            },
+            'mutation_policy':'v7 evaluator, one-time consumption wrapper, frozen corpus, protocol gates and protected Analysis 6.32 calibration surface are immutable before the single v7 First Blind score',
+          }
+          Path('benchmarks/raw/sources/v7_evaluator_freeze.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Verify complete pre-blind integrity
+        env:
+          PYTHONPATH: app
+        run: python app/v7_preblind_verify.py
+
+      - name: Write stop-before-score checkpoint
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          checkpoint={
+            'version':'1.0.0',
+            'rule_version':'2026.08.14.6.32.v7.23',
+            'checkpoint_status':'pre_v7_first_blind_ready_waiting_explicit_approval',
+            'production_calibration_status':'analysis_6_32_green_613_unit_tests_plus_golden_integration',
+            'fresh_source_family_count':36,
+            'evidence_present_count':144,
+            'evidence_missing_count':0,
+            'materialized_case_count':276,
+            'single_case_count':144,
+            'pair_case_count':72,
+            'triad_case_count':60,
+            'label_leakage_count':0,
+            'corpus_freeze_status':'sealed_fresh_v7_unscored_holdout',
+            'evaluator_freeze_status':'frozen_against_exact_v7_corpus_and_consumer',
+            'v6_first_blind_result_immutable':True,
+            'v6_first_blind_score_used_for_v7_source_selection':False,
+            'v6_first_blind_case_errors_used_for_v7_source_selection':False,
+            'scoring_executed':False,
+            'first_blind_consumed':False,
+            'next_required_transition':'STOP. Await explicit approval before the single-consumption v7 First Blind score. Do not merge or finalize before explicit approval.',
+          }
+          Path('benchmarks/raw/sources/v7_pre_score_checkpoint.json').write_text(json.dumps(checkpoint,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Final no-score assertion
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v7_preblind_verify.py
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+
+      - name: Commit sealed pre-blind state
+        shell: bash
+        run: |
+          git add \
+            app/v7_benchmark_evaluate.py \
+            app/v7_first_blind_consume.py \
+            benchmarks/raw/sources/v7_corpus_freeze.json \
+            benchmarks/raw/sources/v7_freeze_manifest.sha256 \
+            benchmarks/raw/sources/v7_evaluator_freeze.json \
+            benchmarks/raw/sources/v7_pre_score_checkpoint.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Seal Analysis 6.32 v7 pre-blind corpus and evaluator'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
