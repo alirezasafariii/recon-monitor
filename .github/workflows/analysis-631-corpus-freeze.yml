@@ -62,7 +62,11 @@ jobs:
           import hashlib, json
           from pathlib import Path
 
+          def sha256(path):
+              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
           capture_verification = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_verification.json').read_text(encoding='utf-8'))
+          ingest = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_ingest_report.json').read_text(encoding='utf-8'))
           validation = json.loads(Path('benchmarks/raw/sources/v6_validation_report.json').read_text(encoding='utf-8'))
           shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text(encoding='utf-8'))
           selection = json.loads(Path('benchmarks/raw/sources/v6_selection_final_report.json').read_text(encoding='utf-8'))
@@ -80,6 +84,14 @@ jobs:
           assert capture_plan['first_blind_consumed'] is False
           assert capture_plan['required_capture_count'] == 144
           assert capture_plan['all_evidence_present'] is True
+          assert ingest['passed'] is True
+          assert ingest['scoring_executed'] is False
+          assert ingest['first_blind_consumed'] is False
+          assert ingest['valid_capture_count'] == 144
+          assert ingest['missing_capture_count'] == 0
+          assert ingest['error_count'] == 0
+          assert ingest['plan_sha256'] == sha256('benchmarks/raw/sources/v6_literal_capture_plan.json')
+          assert ingest['shortlist_sha256'] == sha256('benchmarks/raw/sources/v6_shortlist.json')
           assert validation['passed'] is True
           assert validation['scoring_executed'] is False
           assert validation['literal_single_capture_count'] == 144
@@ -115,6 +127,7 @@ jobs:
             'benchmarks/raw/sources/v6_selection_final_report.json',
             'benchmarks/raw/sources/v6_literal_capture_plan.json',
             'benchmarks/raw/sources/v6_literal_captures.jsonl',
+            'benchmarks/raw/sources/v6_literal_capture_ingest_report.json',
             'benchmarks/raw/sources/v6_literal_capture_verification.json',
             'benchmarks/raw/analysis_raw_v6.jsonl',
             'benchmarks/raw/sources/v6_materialization_report.json',
@@ -123,21 +136,25 @@ jobs:
             'app/raw_recon_v6_source_discovery.py',
             'app/v6_source_finalize.py',
             'app/v6_literal_capture_plan.py',
+            'app/v6_literal_capture_ingest.py',
             'app/v6_literal_capture_verify.py',
             'app/v6_benchmark_dataset.py',
             'app/v6_benchmark_validate.py',
             'app/v6_benchmark_evaluate.py',
             'app/v6_freeze_verify.py',
+            'tests/test_v6_source_independence.py',
+            'tests/test_v6_literal_capture_integrity.py',
             '.github/workflows/analysis-631-validation.yml',
             '.github/workflows/analysis-631-owasp-exact-finalize.yml',
             '.github/workflows/analysis-631-literal-capture-plan.yml',
+            '.github/workflows/analysis-631-literal-capture-ingest.yml',
             '.github/workflows/analysis-631-materialize.yml',
             '.github/workflows/analysis-631-corpus-freeze.yml',
             '.github/workflows/analysis-631-evaluator-freeze.yml',
           ]
           paths.extend(sorted(capture_verification['evidence_manifest']))
           if len(paths) != len(set(paths)):
-            raise RuntimeError('duplicate path in v6 freeze protection set')
+              raise RuntimeError('duplicate path in v6 freeze protection set')
 
           protected = {}
           for value in paths:
@@ -145,12 +162,12 @@ jobs:
             assert path.exists(), value
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             if value in capture_verification['evidence_manifest']:
-              assert digest == capture_verification['evidence_manifest'][value], value
+                assert digest == capture_verification['evidence_manifest'][value], value
             protected[value] = digest
 
           report = {
-            'version': '1.6.0',
-            'rule_version': '2026.08.14.6.31.8',
+            'version': '1.7.0',
+            'rule_version': '2026.08.14.6.31.9',
             'evaluation_status': 'sealed_evidence_backed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
@@ -175,7 +192,7 @@ jobs:
               'triad': protocol['triad_quality_gates'],
             },
             'protected_sha256': protected,
-            'mutation_policy': 'source inputs, capture acquisition plan, all 144 literal evidence artifacts, capture rows, shortlist, corpus, validator, evaluator, gates and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
+            'mutation_policy': 'source inputs, capture acquisition plan, evidence-only ingest, all 144 literal evidence artifacts, evidence-bound labels/adjudication, capture rows, shortlist, corpus, validator, evaluator, gates, tests and workflows are immutable after this freeze; evaluator authorization is frozen separately before the one-time score',
           }
           Path('benchmarks/raw/sources/v6_corpus_freeze.json').write_text(
               json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
