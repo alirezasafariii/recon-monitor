@@ -1,0 +1,119 @@
+name: Analysis 6.33 V7 Boundary Acquisition
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-v7-literal-capture
+    paths:
+      - '.github/workflows/analysis-633-v7-boundary-acquisition.yml'
+      - 'app/v7_boundary_capture.py'
+      - 'tests/test_v7_boundary_capture.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-boundary-acquisition
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-literal-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify frozen engine and capture preparation
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          git cat-file -e b8b15261cc4049a1e5e425a83e57b6378a856113^{commit}
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v7_capture_guard import assert_capture_source_freeze
+          guard=assert_capture_source_freeze()
+          assert guard['source_assignment_commit']=='5c2c81075b870fe43db817c59a65f27423012f08'
+          assert guard['recomputed_engine_seen_count']==0
+          assert guard['scoring_executed'] is False
+          assert guard['first_blind_consumed'] is False
+          research=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
+          plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
+          assert research['successful_snapshot_count']==36 and research['unresolved_snapshot_count']==0
+          assert plan['required_capture_count']==144 and plan['evidence_present_count']==0
+          assert plan['scoring_executed'] is False and plan['first_blind_consumed'] is False
+          print({'source_assignment_commit':guard['source_assignment_commit'],'engine_seen':0,'planned_captures':144,'existing_evidence':0})
+          PY
+
+      - name: Acquire public upstream boundaries
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_boundary_capture.py
+
+      - name: Verify acquisition remains evidence-only and pre-scoring
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('benchmarks/raw/sources/v7_boundary_evidence_report.json').read_text())
+          assert report['source_count']==36
+          assert report['literal_adjudication_required_count']==13
+          assert report['audit_fallback_count']==4
+          assert report['scoring_executed'] is False
+          assert report['first_blind_consumed'] is False
+          assert report['target_contact_performed'] is False
+          print(report)
+          PY
+
+      - name: Focused boundary regressions
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest tests/test_v7_boundary_capture.py -q
+          python -m unittest tests/test_v7_capture_integrity.py -q
+          python -m unittest tests/test_v7_strict_unseen_firewall.py -q
+
+      - name: Full regression suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(git ls-files | grep -E '^(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
+          forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
+          if [ -n "$forbidden" ]; then printf '%s\n' "$forbidden"; exit 1; fi
+
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_boundary_evidence.json \
+                  benchmarks/raw/sources/v7_boundary_evidence_report.json
+          git ls-files -z \
+            | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
+            | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit V7 boundary evidence inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add benchmarks/raw/sources/v7_boundary_evidence.json \
+                  benchmarks/raw/sources/v7_boundary_evidence_report.json \
+                  MANIFEST.sha256
+          if git diff --cached --quiet; then echo 'No boundary outputs changed.'; exit 0; fi
+          git commit -m 'chore(analysis-633): capture V7 public source boundaries'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-literal-capture
