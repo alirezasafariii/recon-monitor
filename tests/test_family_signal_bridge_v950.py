@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import sys
 import unittest
 from pathlib import Path
@@ -7,8 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
+import family_signal_bridge
 from family_analyzers.base import FamilyAnalyzerContext
 from family_analyzers.router import analyzer_for_family
+from owasp_phase2_catalog import PHASE2_FAMILY_SPECS
 from family_signal_bridge import (
     FAMILY_SIGNAL_BRIDGE_VERSION,
     augment_family_details,
@@ -98,6 +101,13 @@ class FamilySignalBridgeV950Tests(unittest.TestCase):
         self.assertTrue(bridge["context_only"])
         self.assertFalse(bridge["network_requests"])
         self.assertFalse(bridge["decisive_signals_synthesized"])
+
+    def test_phase2_context_contracts_have_explicit_bridge_mapping(self):
+        source = inspect.getsource(family_signal_bridge)
+        for family, spec in PHASE2_FAMILY_SPECS.items():
+            with self.subTest(family=family):
+                for signal in spec["context"]:
+                    self.assertIn(signal, source)
 
     def test_bridge_never_manufactures_decisive_family_evidence(self):
         details = augment_family_details(
