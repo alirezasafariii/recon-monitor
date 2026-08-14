@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Affected-release metadata is real but contains no redirect behavior.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+  "captured_at": "2026-08-14T16:44:16.235849+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "Saurus_OpenRedirect.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "open_redirect",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "latest affected release recorded",
+        "no response exchange"
+      ]
+    },
+    "endpoint": "affected release metadata",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Saurus CMS inventory"
+  },
+  "raw_sha256": "e978cf2e18cd751bf45eac113793e6b69fe779cc490394f1e1bd2616e4fa735d",
+  "schema_version": "1.0",
+  "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+  "source_root": "GHSA-jjjg-67rc-qf87",
+  "source_snapshot": {
+    "content_sha256": "e6b52f1e93f2fea5cb879b1ce8611910f835766f49285305e0cfd2f1e25ad060",
+    "payload": {
+      "excerpt": "Saurus CMS Community Edition - Unauthenticated Open Redirect on Logout Affected versions: All versions through 4.7.FINAL (commit d886e5b) CWE: CWE-601 - URL Redirection to Untrusted Site (Open Redirect) CVSS v3.1: 6.1 MEDIUM - AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N Authentication required: None --- Summary Saurus CMS Community Edition through version 4.7.FINAL (latest commit d886e5b) contains an unauthenticated open redirect vulnerability in the logout handling code in classes/port.inc.php. The url parameter supplied via GET or POST is passed directly to the Location header without validation, allowing attackers to redirect users to arbitrary external domains after logout. This can enable phishing, credential theft, OAuth redirect abuse, and redirects to javascript: URIs in legacy clients. --- Vulnerable Code File: classes/port.inc.php lines 322-362 php if ($GET[\"op\"] == 'logout' || $POST[\"op\"] == 'logout') { "
+    },
+    "reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+    "retrieved_at": "2026-08-14T16:44:16.235849+00:00"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "atomicity_failure"
+    ],
+    "notes": "The vendor advisory states a local non-admin can reach SYSTEM privileges when the race is successfully exploited.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+  "captured_at": "2026-08-14T16:44:16.547997+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "https://security.paloaltonetworks.com/CVE-2025-0120",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "race_condition",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "local non-administrative user",
+        "race timing succeeds",
+        "SYSTEM-level privilege is reached"
+      ]
+    },
+    "endpoint": "privileged timing window",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "GlobalProtect Windows client"
+  },
+  "raw_sha256": "cb55d2f4223add92e2831be16a8e61868041b0635db6492e86a9ba89006f3069",
+  "schema_version": "1.0",
+  "source_project": "paloaltonetworks/globalprotect-app-windows",
+  "source_root": "CVE-2025-0120",
+  "source_snapshot": {
+    "content_sha256": "66d3838b1c5104980b0215a3bd73294b1a67ebb1ab105fae8bc52ab129888316",
+    "payload": {
+      "excerpt": "heir privileges to NT AUTHORITY\\SYSTEM. However, execution requires that the local user can also successfully exploit a race condition, which makes this vulnerability difficult to exploit. Product Status Versions Affected Unaffected GlobalProtect App None on macOS None on Linux None on iOS None on Android None on Chrome OS All on macOS All on Linux All on iOS All on Android All on Chrome OS GlobalProtect App 6.3 < 6.3.3 on Windows >= 6.3.3 on Windows GlobalProtect App 6.2 < 6.2.7-1077 on Windows < 6.2.8 on Windows >= 6.2.7-1077 on Windows >= 6.2.8 on Windows GlobalProtect App 6.1 All on Windows None on Windows GlobalProtect App 6.0 < 6.0.12 on Windows >= 6.0.12 on Windows GlobalProtect UWP App None All Required Configuration for Exposure No special configuration is required to be affected by this issue. Severity: MEDIUM, Suggested Urgency: MODERATE A local Windows user (or malware) with non-administrative rights elevates"
+    },
+    "reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+    "retrieved_at": "2026-08-14T16:44:16.547997+00:00"
+  }
+}

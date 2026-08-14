@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The source explicitly excludes server-only advisories because the bot does not run the server component; package presence alone is not reachability.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/zachlagden/rickbot/issues/38",
+  "captured_at": "2026-08-14T16:44:17.644774+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unsafe_api_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "application does not run the affected server component",
+        "server-only defects exist in package",
+        "those paths are not reachable"
+      ]
+    },
+    "endpoint": "server-only subset",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Rickbot dependency advisories"
+  },
+  "raw_sha256": "59c4af8e147ae8e297b033faa3a70f802678286c4714d958554af3b0f614c7ee",
+  "schema_version": "1.0",
+  "source_project": "zachlagden/rickbot",
+  "source_root": "RICKBOT-ISSUE-38",
+  "source_snapshot": {
+    "content_sha256": "3c2506e162172588b73c5309114b83fbdabfce563a8e7e5595c3d7678a3f91b7",
+    "payload": {
+      "excerpt": "ion reuse | | CVE-2026-54279 | LOW | 3.14.1 | Host-only cookies become domain cookies after CookieJar persistence | The remaining 60 are aiohttp.web server-side (static file handler, multipart parsing, clientmaxsize) and genuinely do not apply — this bot runs no HTTP server. Not padding the count. Why the pin is the problem discord.py 2.7.1 declares aiohttp>=3.7.4,<4 — a wide range that happily accepts a current version. The hand-pin in requirements.txt is the only thing holding aiohttp at 3.10.10. Removing the pin and letting the resolver take ≥3.14.3 resolves all of them in one move. aiohttp is not imported anywhere in this codebase (grep confirms) — it's purely transitive, and pinning transitive dependencies by hand is what created the exposure. Also: Black carries a HIGH CVE and is a runtime dependency OSV returns 3 advisories for black==24.10.0: - CVE-2026-32274 — HIGH, arbitrary file writes from unsanitized input in the cache filename. Affe"
+    },
+    "reference": "https://github.com/zachlagden/rickbot/issues/38",
+    "retrieved_at": "2026-08-14T16:44:17.644774+00:00"
+  }
+}

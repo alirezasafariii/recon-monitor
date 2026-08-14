@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The unmodified logout request is adjacent to the vulnerable handler but does not supply an external redirect target.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+  "captured_at": "2026-08-14T16:44:16.235179+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "Saurus_OpenRedirect.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "open_redirect",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "no destination parameter",
+        "logout operation present",
+        "no external destination observed"
+      ]
+    },
+    "endpoint": "ordinary logout request",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Saurus CMS logout"
+  },
+  "raw_sha256": "5ea57a161fce9cec8aa3e39461e86c06a35af9c32faa433e0c610de28fe71375",
+  "schema_version": "1.0",
+  "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+  "source_root": "GHSA-jjjg-67rc-qf87",
+  "source_snapshot": {
+    "content_sha256": "49d795406b0558d1c0ab7e42b077abf6cda8f8ce2afb269f301171c3ef350580",
+    "payload": {
+      "excerpt": "o Reproduce 1. Log in to the Saurus CMS admin panel. 2. Click logout and intercept the logout request in Burp Suite. 3. The original request is: GET /admin/index.php?op=logout HTTP/1.1 Host: localhost:9080 4. Modify the request to include an external url parameter: GET /admin/index.php?op=logout&url=https://phishing-site.com/cms-login HTTP/1.1 Host: localhost:9080 5. Forward the request. Observed result: The application responds with HTTP 302 and redirects the user to https://phishing-site.com/cms-login. Expected result: The application should only redirect to a trusted internal path and should reject external domains or unsafe URI schemes. --- Proof of Concept Environment: - Docker: MariaDB 10.6 + PHP 5.6 Apache - Target: http://localhost:9080 - Authentication: None required GET-based redirect: bash curl -v \"http://localhost:9080/index.php?op=logout&url=https://evil.example.com\" 2>&1 | grep \"Location:\" Response: HTTP/1.1 302 Fou"
+    },
+    "reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+    "retrieved_at": "2026-08-14T16:44:16.235179+00:00"
+  }
+}

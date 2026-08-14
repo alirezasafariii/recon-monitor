@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The write-up explicitly states LDAP is disabled by default; in that deployment state the vulnerable query path is not executed.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+  "captured_at": "2026-08-14T16:44:15.960928+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "CVE-2024-54852/README.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "ldap_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "directory integration disabled",
+        "directory filter not executed",
+        "username cannot reach that query path"
+      ]
+    },
+    "endpoint": "LDAP feature gate",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Teedy default configuration"
+  },
+  "raw_sha256": "a2e2dd44113e23f3eb8f169d9d954bc77faf6d0541c964e7e6c982baa33813df",
+  "schema_version": "1.0",
+  "source_project": "Tanguy-Boisset/CVE",
+  "source_root": "GHSA-pm9m-75p4-7h69",
+  "source_snapshot": {
+    "content_sha256": "554824f3ee743111b0d8fe994a4247ee8e1082da6ca6729215cb7b9d3658cb72",
+    "payload": {
+      "excerpt": "le to perform various malicious actions, such as creating arbitrary accounts and spraying passwords. LDAP connection is not enabled by default. An administrator has to activate and configure it beforehand by defining an LDAP query that the application will run to authenticate users. It has to contain a USERNAME placeholder, e.g. (&(objectclass=inetOrgPerson)(uid=USERNAME)). The root cause of the vulnerability lies in the authenticate method of the docs-core/src/main/java/com/sismics/docs/core/util/authentication/LdapAuthenticationHandler.java file of Teedy : public User authenticate(String username, String password) { ... ConfigUtil.getConfigStringValue(ConfigType.LDAPFILTER).replace(\"USERNAME\", username), SearchScope.SUBTREE); ... } The USERNAME placeholder is directly replaced in the query by the user input username variable. The LDAP query is then executed, which allows an attacker to modify its execution flow and perform var"
+    },
+    "reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+    "retrieved_at": "2026-08-14T16:44:15.960928+00:00"
+  }
+}

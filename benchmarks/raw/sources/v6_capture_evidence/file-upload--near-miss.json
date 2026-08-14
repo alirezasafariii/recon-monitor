@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "A filter mechanism exists but ships with no rules; mechanism presence alone is not a blocked dangerous upload.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/dulldusk/phpfm/blob/master/index.php",
+  "captured_at": "2026-08-14T16:44:15.561181+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "index.php",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "file_upload",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "deny-filter mechanism exists",
+        "configured rule count is zero",
+        "no blocked upload result"
+      ]
+    },
+    "endpoint": "upload configuration",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "phpFileManager"
+  },
+  "raw_sha256": "849435782df0077369e11185144e83da46eab3bec0f1db04e7b1036939e53f60",
+  "schema_version": "1.0",
+  "source_project": "dulldusk/phpfm",
+  "source_root": "GHSA-gxgp-6wm7-xrhr",
+  "source_snapshot": {
+    "content_sha256": "6868310ad5618c794bfe8851607c62c7a8534585c71ee917a06f9d4e4fa728e4",
+    "payload": {
+      "excerpt": "---- $version = '1.8.0'; $charset = 'UTF-8'; $debugmode = false; $maxphprecursion = 200; $resolveids = 0; $quotamb = 0; $uploadextfilter = array(); $downloadextfilter = array(); $cookiecachetime = 60602430; // 30 Days $fmcolor = array(); $fmcolor['Bg'] = \"EEEEEE\"; $fmcolor['Text'] = \"000000\"; $fmcolor['Link'] = \"0A77F7\"; $fmcolor['Entry'] = \"FFFFFF\"; $fmcolor['Over'] = \"C0EBFD\"; $fmcolor['Mark'] = \"A7D2E4\"; // https://pt.wikipedia.org/wiki/ListadeportasdosprotocolosTCPeUDP $services = array(); //$services['13:UDP'] = \"DAYTIME\"; $services['21'] = \"FTP\"; $services['22'] = \"SSH\"; $services['23'] = \"TELNET\"; $services['25'] = \"SMTP\"; //$services['53:UDP'] = \"DNS\"; //$services['67:UDP'] = \"DHCP\"; //$services['68:UDP'] = \"BOOTP\"; //$services['69:UDP'] = \"TFTP\"; $services['80'] = \"HTTPD\"; $services['110'] = \"POP3\"; //$services['123:UDP'] = \"NTP\"; //$services['137:UDP'] = \"NETBIOS-NS\"; //$services['138:UDP'] = \"NETBIOS-DATA\"; $services['139'"
+    },
+    "reference": "https://github.com/dulldusk/phpfm/blob/master/index.php",
+    "retrieved_at": "2026-08-14T16:44:15.561181+00:00"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Affected source already bounds ordinary queue capacity; this backpressure path is adjacent but does not cover the reported event-value edge.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/systerel/S2OPC/blob/S2OPC_Toolkit_1.7.3/src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+  "captured_at": "2026-08-14T16:44:17.526774+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unrestricted_resource_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "queue capacity checked",
+        "old notification discarded when full",
+        "no crash result in this observation"
+      ]
+    },
+    "endpoint": "ordinary capacity control",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "S2OPC notification queue"
+  },
+  "raw_sha256": "bc38758d786e1bd013f8b72985e1756a14ea1edc8a4b503c16016ff49b6b2fe5",
+  "schema_version": "1.0",
+  "source_project": "systerel/S2OPC",
+  "source_root": "GHSA-2cg2-hxr7-q7f4",
+  "source_snapshot": {
+    "content_sha256": "422bf2a646fe73abeadae0e7032cd2319856a328deb224bae6bc02349180f0e0",
+    "payload": {
+      "excerpt": "itemnotificationqueuebspqueue, 0, (uintptrt) notifElt); if (checkAdded != notifElt) { uint32t capacity = SOPCSLinkedListGetCapacity(monitoreditemnotificationqueuebspqueue); / Discard a notification to add the new one / if (capacity > 0 && SOPCSLinkedListGetLength(monitoreditemnotificationqueuebspqueue) == capacity) { SOPCInternalDiscardOneNotification(monitoreditemnotificationqueuebspqueue, notifElt->monitoredItemPointer->discardOldest); checkAdded = (SOPCInternalNotificationElement) SOPCSLinkedListAppend( monitoreditemnotificationqueuebspqueue, 0, (uintptrt) notifElt); if (checkAdded != notifElt) { retStatus = SOPCSTATUSNOK; } else if (SOPCSLinkedListGetCapacity(monitoreditemnotificationqueuebspqueue) != 1) { SOPCInternalSetOverflowBitAfterDiscard(monitoreditemnotificationqueuebspqueue, notifElt->monitoredItemPointer->discardOldest); } / else: no overflow bit to set since it is not considered as a queue if size is 1."
+    },
+    "reference": "https://github.com/systerel/S2OPC/blob/S2OPC_Toolkit_1.7.3/src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+    "retrieved_at": "2026-08-14T16:44:17.526774+00:00"
+  }
+}

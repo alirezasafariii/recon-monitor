@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The local-access prerequisite is relevant context but not proof that a password was written to a trace.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+  "captured_at": "2026-08-14T16:44:16.674470+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "security_logging_alerting_failure",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "attacker is local",
+        "trace access context required",
+        "no password record in this observation"
+      ]
+    },
+    "endpoint": "local-access prerequisite",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "IBM Db2 diagnostic tracing"
+  },
+  "raw_sha256": "9ab04e1081357cee1a981720ee7ff47eb34575b7ba21eba6b61e1ab9195c0141",
+  "schema_version": "1.0",
+  "source_project": "ibm/db2",
+  "source_root": "GHSA-q83p-h7pj-3m3p",
+  "source_snapshot": {
+    "content_sha256": "eb9c19cd6247f6cb65cc73e57e6415ac0063cf21ef4c4e2cdb3076d6d500316e",
+    "payload": {
+      "excerpt": "1.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux, UNIX and Windows (includes DB2 Connect Server) could allow a local attacker to obtain sensitive information due to the logging of plain text passwords in trace files. epss percentage 0.00146 percentile 0.04381 ghsaid GHSA-q83p-h7pj-3m3p githubreviewedat htmlurl https://github.com/advisories/GHSA-q83p-h7pj-3m3p identifiers type GHSA value GHSA-q83p-h7pj-3m3p type CVE value CVE-2026-18097 nvdpublishedat 2026-08-12T21:17:36Z publishedat 2026-08-12T21:31:44Z references https://nvd.nist.gov/vuln/detail/CVE-2026-18097 https://www.ibm.com/support/pages/node/7282952 https://github.com/advisories/GHSA-q83p-h7pj-3m3p repositoryadvisoryurl severity medium sourcecodelocation summary IBM Db2 11.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux, UNIX and Windows (includes DB... type unreviewed updatedat 2026-08-12T21:31:51Z url https://api.github.com/advisories/GHSA-q83p"
+    },
+    "reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+    "retrieved_at": "2026-08-14T16:44:16.674470+00:00"
+  }
+}

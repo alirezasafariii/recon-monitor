@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "server_template_execution"
+    ],
+    "notes": "The audit provides a concrete editable-template expression that evaluates a server-side secret function.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/own-pay/OwnPay/issues/438",
+  "captured_at": "2026-08-14T16:44:16.967605+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "server_side_template_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "non-superadmin controls template source",
+        "server-side function expression present",
+        "secret value rendered"
+      ]
+    },
+    "endpoint": "editable template",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "OwnPay Twig rendering"
+  },
+  "raw_sha256": "662f3e62549aadbfa45c402dde8dc4a6dfd4662385fdd96c9ee35f23cef49b69",
+  "schema_version": "1.0",
+  "source_project": "own-pay/OwnPay",
+  "source_root": "OWNPAY-ISSUE-438",
+  "source_snapshot": {
+    "content_sha256": "c8725c6a788cdb7e1345e415506b95a7265eb10be6f8be9438907d816f051ff1",
+    "payload": {
+      "excerpt": "e — even if not currently present, the platform's plugin system allows plugin authors to ship templates). 2. Insert: {{ env('APPKEY') }} or {{ setting('encryption.key') }}. 3. Trigger the email (e.g., complete a transaction). 4. The rendered email body contains the secret value. Recommended Fix For any template whose source is editable by non-superadmins (email templates, invoice notes rendered as Twig, theme templates uploaded by brand admins), wrap the Twig environment with SandboxExtension configured with a strict SecurityPolicy (allow-list of tags, filters, functions, and methods). For core/plugin-shipped templates from trusted developers, the unsandboxed environment can remain — but the env() and setting() functions should be removed or restricted regardless (per FINDING VW-1). --- --- Discovered during comprehensive codebase audit. See /home/z/my-project/worklog.md for full audit context. closedat 2026-08-12T23:55"
+    },
+    "reference": "https://github.com/own-pay/OwnPay/issues/438",
+    "retrieved_at": "2026-08-14T16:44:16.967605+00:00"
+  }
+}

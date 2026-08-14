@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Environment/extension inventory is source-grounded but has no rendered template result.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/own-pay/OwnPay/blob/main/src/View/TwigFactory.php",
+  "captured_at": "2026-08-14T16:44:16.969047+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "src/View/TwigFactory.php",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "server_side_template_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "custom extension registered",
+        "no sandbox extension observed",
+        "no rendered expression result"
+      ]
+    },
+    "endpoint": "extension inventory",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "OwnPay Twig environment"
+  },
+  "raw_sha256": "2030010378f4ed1fbb7dd02aea4d212c1f8943d9fd7053500d4e347108ee8a3e",
+  "schema_version": "1.0",
+  "source_project": "own-pay/OwnPay",
+  "source_root": "OWNPAY-ISSUE-438",
+  "source_snapshot": {
+    "content_sha256": "4e740fd66cc972ce90a0b4b43ba75d0fcf8c3036a71874909e44fcaa885db1a7",
+    "payload": {
+      "excerpt": "'/twig' : false, 'autoreload' => $debug, 'strictvariables' => true, 'autoescape' => 'html', ]); $twig->addExtension(new TwigExtensions($container)); $appName = isset($config['name']) && isstring($config['name']) ? $config['name'] : 'OwnPay'; $appVersion = isset($config['version']) && isstring($config['version']) ? $config['version'] : Version::CURRENT; $twig->addGlobal('appname', $appName); $twig->addGlobal('appversion', $appVersion); $twig->addGlobal('appdebug', $debug); return $twig; } / Resolve the active theme slug. Executes resolution hierarchy checks: 1. Database-backed settings repository lookup (e.g. customized merchant-scoped visual theme setting) 2. Environment variable fallback configuration (e.g. system-wide overrides) 3. Fallback directory verification on disk @param \\OwnPay\\Container $container The dependency injection container. @return string|null The resolved active theme slug name, or null if no valid d"
+    },
+    "reference": "https://github.com/own-pay/OwnPay/blob/main/src/View/TwigFactory.php",
+    "retrieved_at": "2026-08-14T16:44:16.969047+00:00"
+  }
+}

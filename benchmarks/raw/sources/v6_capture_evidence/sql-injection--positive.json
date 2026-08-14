@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "boolean_response_differential"
+    ],
+    "notes": "The advisory records unauthenticated id-parameter manipulation changing SQL structure and extracting database contents.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+  "captured_at": "2026-08-14T16:44:17.161553+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "unauthenticated GET",
+        "parameter changes query structure",
+        "sensitive database contents extracted"
+      ]
+    },
+    "endpoint": "id input",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "ASP-CMS comment listing"
+  },
+  "raw_sha256": "8d08c60e2f2bdfaea73093edbd868920605afc1f41ccfcdf51a1160310b6a932",
+  "schema_version": "1.0",
+  "source_project": "projectdiscovery/nuclei-templates",
+  "source_root": "GHSA-h325-4hh9-393v",
+  "source_snapshot": {
+    "content_sha256": "c23a13b84547489af181f6a18495dcc31915d50a2667c6e81ca37ac047fa997c",
+    "payload": {
+      "excerpt": " contains a SQL injection vulnerability in the commentList.asp endpoint that allows unauthenticated remote attackers to inject arbitrary SQL by manipulating the id parameter in GET requests to the comment listing script. Attackers can bypass the application's keyword blocklist by interleaving the string 'master' within blocked SQL terms to extract sensitive database contents. Exploitation evidence was first observed by the Shadowserver Foundation on 2023-10-18 (UTC). ghsaid GHSA-h325-4hh9-393v githubreviewedat htmlurl https://github.com/advisories/GHSA-h325-4hh9-393v identifiers type GHSA value GHSA-h325-4hh9-393v type CVE value CVE-2019-25765 nvdpublishedat 2026-08-13T18:17:15Z publishedat 2026-08-13T18:31:41Z references https://nvd.nist.gov/vuln/detail/CVE-2019-25765 https://github.com/projectdiscovery/nuclei-templates/issues/7968 https://web.archive.org/web/20201001011935/https://www.safeinfo.me/2019/07/22/aspcms-lou-dong-j"
+    },
+    "reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+    "retrieved_at": "2026-08-14T16:44:17.161553+00:00"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "25_literal_families_complete_100_of_144_pending_remaining_evidence",
+  "checkpoint_status": "36_literal_families_complete_144_of_144_ready_for_materialization_and_freeze",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -18,6 +18,12 @@
       "capture_run_id": null,
       "positive_observation": "The upstream advisory states that an unauthenticated observer can distinguish account existence from the SCRAM iteration-count response discrepancy.",
       "source": "GHSA-hp2m-55fj-8mw5 / postgres/postgres",
+      "status": "passed_4_of_4"
+    },
+    "authentication_session": {
+      "capture_run_id": null,
+      "positive_observation": "The sealed advisory records a remote client obtaining server-resource access with an authenticated user's privileges because NTLM negotiation is improperly authenticated.",
+      "source": "GHSA-vxcg-gxwh-hqw8 / ibm/ibm-i",
       "status": "passed_4_of_4"
     },
     "broken_function_authorization": {
@@ -68,6 +74,12 @@
       "source": "TIME-SAFE-ISSUE-35 / louisalexander/time-safe",
       "status": "passed_4_of_4"
     },
+    "file_upload": {
+      "capture_run_id": null,
+      "positive_observation": "The advisory records an unauthenticated dangerous upload path created by empty authentication and extension-filter defaults.",
+      "source": "GHSA-gxgp-6wm7-xrhr / dulldusk/phpfm",
+      "status": "passed_4_of_4"
+    },
     "graphql_authorization": {
       "capture_run_id": 31777275736,
       "positive_observation": "exact vulnerable GraphQL resource config allowed admin on locale.site.save while the patch restricts that operation to super",
@@ -92,6 +104,12 @@
       "source": "GHSA-vqfp-p66c-xrp9 / ether/etherpad",
       "status": "passed_4_of_4"
     },
+    "ldap_injection": {
+      "capture_run_id": null,
+      "positive_observation": "The upstream PoC records a crafted username altering the LDAP filter and causing a new internal account to be created.",
+      "source": "GHSA-pm9m-75p4-7h69 / Tanguy-Boisset/CVE",
+      "status": "passed_4_of_4"
+    },
     "mass_assignment": {
       "capture_run_id": null,
       "positive_observation": "The upstream finding records a server-authoritative storage property exposed on the writable request model and persisted from client input.",
@@ -104,6 +122,12 @@
       "source": "ACTOR-TS-ISSUE-738 / pathosDev/actor-ts",
       "status": "passed_4_of_4"
     },
+    "open_redirect": {
+      "capture_run_id": null,
+      "positive_observation": "The reproduced logout exchange returns HTTP 302 with an attacker-controlled external Location.",
+      "source": "GHSA-jjjg-67rc-qf87 / sauruscms/Saurus-CMS-Community-Edition",
+      "status": "passed_4_of_4"
+    },
     "path_traversal": {
       "capture_run_id": 31776353749,
       "positive_observation": "vulnerable Joomla extractor wrote a controlled ../ ZIP entry outside the destination root",
@@ -114,6 +138,24 @@
       "capture_run_id": null,
       "positive_observation": "The upstream issue records silent-authentication messages accepted without origin, source-window, or content validation, including interference from an unrelated iframe.",
       "source": "AUTH0-AUTH0JS-ISSUE-508 / auth0/auth0.js",
+      "status": "passed_4_of_4"
+    },
+    "race_condition": {
+      "capture_run_id": null,
+      "positive_observation": "The vendor advisory states a local non-admin can reach SYSTEM privileges when the race is successfully exploited.",
+      "source": "CVE-2025-0120 / paloaltonetworks/globalprotect-app-windows",
+      "status": "passed_4_of_4"
+    },
+    "secret_exposure": {
+      "capture_run_id": null,
+      "positive_observation": "The advisory records a hard-coded authentication token used for inter-node and REST authentication.",
+      "source": "GHSA-xr96-mx7v-w32h / ibm/storage-scale",
+      "status": "passed_4_of_4"
+    },
+    "security_logging_alerting_failure": {
+      "capture_run_id": null,
+      "positive_observation": "The advisory records plaintext password material written into trace files where a local attacker can obtain it.",
+      "source": "GHSA-q83p-h7pj-3m3p / ibm/db2",
       "status": "passed_4_of_4"
     },
     "security_misconfiguration": {
@@ -134,6 +176,12 @@
       "source": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22 / rubygems/rubygems.org",
       "status": "passed_4_of_4"
     },
+    "server_side_template_injection": {
+      "capture_run_id": null,
+      "positive_observation": "The audit provides a concrete editable-template expression that evaluates a server-side secret function.",
+      "source": "OWNPAY-ISSUE-438 / own-pay/OwnPay",
+      "status": "passed_4_of_4"
+    },
     "software_data_integrity_failure": {
       "capture_run_id": null,
       "positive_observation": "The vulnerable upstream updater launch builds download arguments without any certificate/signature verification arguments for the downloaded installer.",
@@ -152,10 +200,28 @@
       "source": "GOV-BB-ISSUE-2092 / govtech-bb/gov-bb",
       "status": "passed_4_of_4"
     },
+    "sql_injection": {
+      "capture_run_id": null,
+      "positive_observation": "The advisory records unauthenticated id-parameter manipulation changing SQL structure and extracting database contents.",
+      "source": "GHSA-h325-4hh9-393v / projectdiscovery/nuclei-templates",
+      "status": "passed_4_of_4"
+    },
     "ssrf": {
       "capture_run_id": 31776884915,
       "positive_observation": "exact parent _fetch_page forwarded a controlled metadata URL to requests.get without a destination policy",
       "source": "GHSA-wx9v-ffw3-45wg / vulnerability-lookup/vulnerability-lookup",
+      "status": "passed_4_of_4"
+    },
+    "unrestricted_resource_consumption": {
+      "capture_run_id": null,
+      "positive_observation": "The advisory records a remote denial of service through monitored-event queue resize handling.",
+      "source": "GHSA-2cg2-hxr7-q7f4 / systerel/S2OPC",
+      "status": "passed_4_of_4"
+    },
+    "unsafe_api_consumption": {
+      "capture_run_id": null,
+      "positive_observation": "The project issue validates that the pinned dependency is reached through Discord HTTP/WebSocket client paths and lists concrete client-side defects.",
+      "source": "RICKBOT-ISSUE-38 / zachlagden/rickbot",
       "status": "passed_4_of_4"
     },
     "websocket_authorization": {
@@ -188,9 +254,10 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "100_of_144_evidence_present",
+    "capture_plan_status": "144_of_144_evidence_present",
     "complete_families": [
       "account_enumeration",
+      "authentication_session",
       "broken_function_authorization",
       "broken_object_authorization",
       "business_logic",
@@ -199,32 +266,42 @@
       "cryptographic_failure",
       "dom_xss",
       "exceptional_condition_mishandling",
+      "file_upload",
       "graphql_authorization",
       "graphql_data_exposure",
       "improper_inventory_management",
       "information_disclosure",
+      "ldap_injection",
       "mass_assignment",
       "nosql_injection",
+      "open_redirect",
       "path_traversal",
       "postmessage_trust",
+      "race_condition",
+      "secret_exposure",
+      "security_logging_alerting_failure",
       "security_misconfiguration",
       "sensitive_business_flow_abuse",
       "sensitive_caching",
+      "server_side_template_injection",
       "software_data_integrity_failure",
       "software_supply_chain_failure",
       "source_map_exposure",
+      "sql_injection",
       "ssrf",
+      "unrestricted_resource_consumption",
+      "unsafe_api_consumption",
       "websocket_authorization"
     ],
-    "complete_family_count": 25,
+    "complete_family_count": 36,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 44,
-    "evidence_present_count": 100,
-    "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 11,
+    "evidence_missing_count": 0,
+    "evidence_present_count": 144,
+    "materialization_status": "ready_after_complete_evidence_ingest",
+    "remaining_family_count": 0,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -235,7 +312,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 11 families / 44 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Run strict evidence-only ingest and verification, materialize the 276-case corpus, validate it, freeze corpus/evidence, freeze the evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

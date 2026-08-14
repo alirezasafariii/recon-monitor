@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Local access is necessary but is not the privilege-escalation result unless the timing race also succeeds.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+  "captured_at": "2026-08-14T16:44:16.548628+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "https://security.paloaltonetworks.com/CVE-2025-0120",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "race_condition",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "local low-privilege user",
+        "special timing must succeed",
+        "no privilege change in this observation"
+      ]
+    },
+    "endpoint": "race prerequisite",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "GlobalProtect Windows client"
+  },
+  "raw_sha256": "71cc7d06b14367ceeaaae4e1258aa089a45ed747848a6e26f34502523e110334",
+  "schema_version": "1.0",
+  "source_project": "paloaltonetworks/globalprotect-app-windows",
+  "source_root": "CVE-2025-0120",
+  "source_snapshot": {
+    "content_sha256": "7931470fbb6768eedfa071a312626c8fb271bf7c4d08ffac11e8d2cf8e905bc7",
+    "payload": {
+      "excerpt": "ege management mechanism in the Palo Alto Networks GlobalProtect™ app on Windows devices allows a locally authenticated non-administrative Windows user to escalate their privileges to NT AUTHORITY\\SYSTEM. However, execution requires that the local user can also successfully exploit a race condition, which makes this vulnerability difficult to exploit. Product Status Versions Affected Unaffected GlobalProtect App None on macOS None on Linux None on iOS None on Android None on Chrome OS All on macOS All on Linux All on iOS All on Android All on Chrome OS GlobalProtect App 6.3 < 6.3.3 on Windows >= 6.3.3 on Windows GlobalProtect App 6.2 < 6.2.7-1077 on Windows < 6.2.8 on Windows >= 6.2.7-1077 on Windows >= 6.2.8 on Windows GlobalProtect App 6.1 All on Windows None on Windows GlobalProtect App 6.0 < 6.0.12 on Windows >= 6.0.12 on Windows GlobalProtect UWP App None All Required Configuration for Exposure No special configuration "
+    },
+    "reference": "https://security.paloaltonetworks.com/CVE-2025-0120",
+    "retrieved_at": "2026-08-14T16:44:16.548628+00:00"
+  }
+}

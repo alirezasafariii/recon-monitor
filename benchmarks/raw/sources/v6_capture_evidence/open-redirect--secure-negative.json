@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The vulnerable code itself has a safe fallback when no URL is supplied: a local index path is used.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+  "captured_at": "2026-08-14T16:44:16.235515+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "Saurus_OpenRedirect.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "open_redirect",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "destination absent",
+        "fallback path is local index",
+        "absolute external destination not used"
+      ]
+    },
+    "endpoint": "missing-destination fallback",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Saurus CMS logout"
+  },
+  "raw_sha256": "1f2bfee90648a89c0ba5f0dd319c68f807f4ab5ebf5780cfa496a39a0d5c0a33",
+  "schema_version": "1.0",
+  "source_project": "sauruscms/Saurus-CMS-Community-Edition",
+  "source_root": "GHSA-jjjg-67rc-qf87",
+  "source_snapshot": {
+    "content_sha256": "e2c11aa90c7772af04b92481316aa8b0ef3caecefe6c78b512387e0bb057a090",
+    "payload": {
+      "excerpt": "POST[\"op\"] == 'logout') { sessiondestroy(); unset($SESSION[\"userid\"]); $url = $GET[\"url\"] ? $GET[\"url\"] : $POST[\"url\"]; if (!$url) { $url = 'index.php'; } setcookie(\"logged\", \"0\", time()-36600); header(\"Location: \" . $url); // No domain check, no scheme check exit; } The url parameter is taken from GET or POST and placed directly into the Location response header with no domain allowlist, no scheme validation, and no enforcement of relative paths. --- Steps to Reproduce 1. Log in to the Saurus CMS admin panel. 2. Click logout and intercept the logout request in Burp Suite. 3. The original request is: GET /admin/index.php?op=logout HTTP/1.1 Host: localhost:9080 4. Modify the request to include an external url parameter: GET /admin/index.php?op=logout&url=https://phishing-site.com/cms-login HTTP/1.1 Host: localhost:9080 5. Forward the request. Observed result: The application responds with HTTP 302 and redirects the us"
+    },
+    "reference": "https://github.com/DevVaibhav07/VULN-POC/blob/main/Saurus_OpenRedirect.md",
+    "retrieved_at": "2026-08-14T16:44:16.235515+00:00"
+  }
+}

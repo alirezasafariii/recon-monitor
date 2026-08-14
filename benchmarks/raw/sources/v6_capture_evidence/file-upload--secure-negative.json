@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Repository code contains a concrete deny branch for configured extensions, providing a source-level blocked-upload control.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/dulldusk/phpfm/blob/master/index.php",
+  "captured_at": "2026-08-14T16:44:15.597081+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "index.php",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "file_upload",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "filename matches a configured deny rule",
+        "deny branch selected",
+        "write is not permitted on that branch"
+      ]
+    },
+    "endpoint": "configured extension deny branch",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "phpFileManager"
+  },
+  "raw_sha256": "657fe80a3501815d7fd001f84c1644485d805d194a01a1ab285c10b135503d0b",
+  "schema_version": "1.0",
+  "source_project": "dulldusk/phpfm",
+  "source_root": "GHSA-gxgp-6wm7-xrhr",
+  "source_snapshot": {
+    "content_sha256": "f9cc547be11de4483d9dd002c242b919ca49cc743b3e6317e04ceb47a09e99ff",
+    "payload": {
+      "excerpt": "fileexists($file)){ $isdenied = false; foreach($downloadextfilter as $key=>$ext){ if (pregmatch(\"/$ext/i\", $filename)){ $isdenied = true; break; } } if (!$isdenied){ $size = phpfmfilesize($file); header(\"Content-Type: application/save\"); header(\"Content-Length: $size\"); header(\"Content-Disposition: attachment; filename=\\\"\".$filename.\"\\\"\"); header(\"Content-Transfer-Encoding: binary\"); if ($fh = fopen(\"$file\", \"rb\")){ obgetflush(); // Flush the output buffer and turn off output buffering, to allow direct download of big files fpassthru($fh); fclose($fh); } else alert(et('ReadDenied').\": \".$file); } else alert(et('ReadDenied').\": \".$file); } else alert(et('FileNotFound').\": \".$file); } // Returns the full path of the current PHP executable function linuxgetprocname(){ $output = ''; $ok = systemexeccmd(\"readlink -f /proc/\".posixgetpid().\"/exe\",$output); if (!$ok) return false; return $output; } function systemexecfile(){ globa"
+    },
+    "reference": "https://github.com/dulldusk/phpfm/blob/master/index.php",
+    "retrieved_at": "2026-08-14T16:44:15.597081+00:00"
+  }
+}

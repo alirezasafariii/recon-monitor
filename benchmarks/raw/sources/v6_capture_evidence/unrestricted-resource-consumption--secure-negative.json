@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Current source adds an explicit null guard and returns before the unsafe dereference in the affected queue logic.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/systerel/S2OPC/blob/master/src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+  "captured_at": "2026-08-14T16:44:17.528252+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unrestricted_resource_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "notification value checked",
+        "invalid event/data value returns before dereference",
+        "unsafe dereference not taken"
+      ]
+    },
+    "endpoint": "null-value guard",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "S2OPC current queue handling"
+  },
+  "raw_sha256": "3f6966c68274b6cfc7b38a0ae03a7c9f7cd72b5420f39c9bdc9deb2340a516a0",
+  "schema_version": "1.0",
+  "source_project": "systerel/S2OPC",
+  "source_root": "GHSA-2cg2-hxr7-q7f4",
+  "source_snapshot": {
+    "content_sha256": "ed2dcf182b7cbde0cb3e2bb4662e6777289a0db5f2ef7d44a05e2e62666038d4",
+    "payload": {
+      "excerpt": "(NULL != notifElt); / This operation is only valid for DataChange notifications. / SOPCASSERT(NULL != notifElt->value); if (NULL == notifElt->value) { return; } / The next notification of the one discarded should have overflow bit set / notifElt->value->Value.Status |= SOPCDataValueOverflowStatusMask; } static SOPCReturnStatus SOPCInternalAddCommonFinishAddNotifDataElt( const constantstnotificationQueuei monitoreditemnotificationqueuebspqueue, SOPCInternalNotificationElement notifElt, const SOPCString indexRange, const SOPCStatusCode valueStatus, const SOPCValueTimestamp monitoreditemnotificationqueuebspvaltssrc, const SOPCValueTimestamp monitoreditemnotificationqueuebspvaltssrv, const SOPCNodeId monitoreditemnotificationqueuebspnid, const uint32t attributeId) { SOPCASSERT(notifElt != NULL); SOPCInternalNotificationElement checkAdded = NULL; SOPCReturnStatus retStatus = SOPCSTATUSOK; retStatus = SOPCStringCopy(&notifElt->value->IndexR"
+    },
+    "reference": "https://github.com/systerel/S2OPC/blob/master/src/ClientServer/services/b2c/monitored_item_notification_queue_bs.c",
+    "retrieved_at": "2026-08-14T16:44:17.528252+00:00"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "ldap_auth_bypass_observed"
+    ],
+    "notes": "The upstream PoC records a crafted username altering the LDAP filter and causing a new internal account to be created.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+  "captured_at": "2026-08-14T16:44:15.960032+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "CVE-2024-54852/README.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "ldap_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "crafted username changes filter shape",
+        "known directory password used",
+        "new internal account created"
+      ]
+    },
+    "endpoint": "username filter substitution",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Teedy LDAP login"
+  },
+  "raw_sha256": "2498180312bdd3d8628cc9a0cf6f222115f6d0de34e27409483409e18ef8fc0c",
+  "schema_version": "1.0",
+  "source_project": "Tanguy-Boisset/CVE",
+  "source_root": "GHSA-pm9m-75p4-7h69",
+  "source_snapshot": {
+    "content_sha256": "fabc98a6d9f8007167510f021b3223f13aaabfcea2eacf5cfd84fda2b9239501",
+    "payload": {
+      "excerpt": "e LDAP query defined for the LDAP connection to Teedy. However, various malicious actions can be performed, such as : - Unrestricted account creation - Password spraying - ... Next section goes into details of these two examples. Proof of concept For this part, it is assumed the two following : - The LDAP query is : (&(objectclass=inetOrgPerson)(uid=USERNAME)) - The attacker knows one LDAP account jdoe:password Unrestricted account creation An attacker can inject the payload jdoe))((|(uid=1 into the username field of the login form and input the right password for the jdoe account. The LDAP query then becomes (&(objectclass=inetOrgPerson)(uid=jdoe))((|(uid=1)) which yields true as the password is correct.\\ Because the account jdoe))((|(uid=1 does not exist in the Teedy database, it is created. Therefore, an attacker can create as many accounts as he wants as long as he knows at least one valid LDAP account, by inputting crafted usernam"
+    },
+    "reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+    "retrieved_at": "2026-08-14T16:44:15.960032+00:00"
+  }
+}

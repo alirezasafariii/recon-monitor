@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "authentication_boundary_regression"
+    ],
+    "notes": "The sealed advisory records a remote client obtaining server-resource access with an authenticated user's privileges because NTLM negotiation is improperly authenticated.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+  "captured_at": "2026-08-14T16:44:14.842570+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "authentication_session",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "remote client",
+        "authenticated-user privilege context can be reached",
+        "authentication check is improper"
+      ]
+    },
+    "endpoint": "session negotiation",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "IBM i network authentication"
+  },
+  "raw_sha256": "7989831db044fa8b050156164ebf6f919f319fe82f417a8d7d086dd60d49a59a",
+  "schema_version": "1.0",
+  "source_project": "ibm/ibm-i",
+  "source_root": "GHSA-vxcg-gxwh-hqw8",
+  "source_snapshot": {
+    "content_sha256": "39943779dc6610d682318b2187aae48c1488456ee0856b34a33393e6a3d62a5f",
+    "payload": {
+      "excerpt": " attacker to access server resources with the privileges of an authenticated user due to improper authentication during NTLM session negotiation. ghsaid GHSA-vxcg-gxwh-hqw8 githubreviewedat htmlurl https://github.com/advisories/GHSA-vxcg-gxwh-hqw8 identifiers type GHSA value GHSA-vxcg-gxwh-hqw8 type CVE value CVE-2026-16867 nvdpublishedat 2026-08-13T20:17:15Z publishedat 2026-08-13T21:36:06Z references https://nvd.nist.gov/vuln/detail/CVE-2026-16867 https://www.ibm.com/support/pages/node/7283573 https://github.com/advisories/GHSA-vxcg-gxwh-hqw8 repositoryadvisoryurl severity high sourcecodelocation summary IBM i 7.6, 7.5, 7.4, and 7.3 could allow a remote attacker to access server resources with the pr... type unreviewed updatedat 2026-08-13T21:36:14Z url https://api.github.com/advisories/GHSA-vxcg-gxwh-hqw8 vulnerabilities withdrawnat"
+    },
+    "reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+    "retrieved_at": "2026-08-14T16:44:14.842570+00:00"
+  }
+}

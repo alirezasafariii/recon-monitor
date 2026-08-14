@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Affected-version metadata has no literal trace line.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+  "captured_at": "2026-08-14T16:44:16.674669+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "security_logging_alerting_failure",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "affected release ranges recorded",
+        "no literal trace line"
+      ]
+    },
+    "endpoint": "affected versions",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "IBM Db2 inventory"
+  },
+  "raw_sha256": "6db69ee5caa934fb4ddf67a165a0fd1da0395da31cf9a1236e0df20aa304e99c",
+  "schema_version": "1.0",
+  "source_project": "ibm/db2",
+  "source_root": "GHSA-q83p-h7pj-3m3p",
+  "source_snapshot": {
+    "content_sha256": "253b395c5a32bc940df971f91ebc70adae69816bfc476664e0cae8a1f346460a",
+    "payload": {
+      "excerpt": "sv4 score 0.0 vectorstring cwes cweid CWE-532 name Insertion of Sensitive Information into Log File description IBM Db2 11.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux, UNIX and Windows (includes DB2 Connect Server) could allow a local attacker to obtain sensitive information due to the logging of plain text passwords in trace files. epss percentage 0.00146 percentile 0.04381 ghsaid GHSA-q83p-h7pj-3m3p githubreviewedat htmlurl https://github.com/advisories/GHSA-q83p-h7pj-3m3p identifiers type GHSA value GHSA-q83p-h7pj-3m3p type CVE value CVE-2026-18097 nvdpublishedat 2026-08-12T21:17:36Z publishedat 2026-08-12T21:31:44Z references https://nvd.nist.gov/vuln/detail/CVE-2026-18097 https://www.ibm.com/support/pages/node/7282952 https://github.com/advisories/GHSA-q83p-h7pj-3m3p repositoryadvisoryurl severity medium sourcecodelocation summary IBM Db2 11.5.0 through 11.5.9, and 12.1.0 through 12.1.5 for Linux"
+    },
+    "reference": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+    "retrieved_at": "2026-08-14T16:44:16.674669+00:00"
+  }
+}

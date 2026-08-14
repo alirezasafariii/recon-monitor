@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue states that removing the manual transitive pin allows selection of releases at or above the listed fixing levels.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/zachlagden/rickbot/issues/38",
+  "captured_at": "2026-08-14T16:44:17.645199+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unsafe_api_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "manual old pin removed",
+        "supported resolver range can select fixed release",
+        "listed client defects have fixing releases"
+      ]
+    },
+    "endpoint": "fixed client release state",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Rickbot dependency resolution"
+  },
+  "raw_sha256": "13cb6cd7d28a8af75aa8dc3d0412ac640e301e5322cb64c94a8a387cad3d92cf",
+  "schema_version": "1.0",
+  "source_project": "zachlagden/rickbot",
+  "source_root": "RICKBOT-ISSUE-38",
+  "source_snapshot": {
+    "content_sha256": "8ea5b270111a144d222df8292417c736927c40d7260cb2d4cab55a94270b49e0",
+    "payload": {
+      "excerpt": " that happily accepts a current version. The hand-pin in requirements.txt is the only thing holding aiohttp at 3.10.10. Removing the pin and letting the resolver take ≥3.14.3 resolves all of them in one move. aiohttp is not imported anywhere in this codebase (grep confirms) — it's purely transitive, and pinning transitive dependencies by hand is what created the exposure. Also: Black carries a HIGH CVE and is a runtime dependency OSV returns 3 advisories for black==24.10.0: - CVE-2026-32274 — HIGH, arbitrary file writes from unsanitized input in the cache filename. Affects >=24.3.0 - CVE-2026-31900 (PYSEC-2026-2120) Ordinarily a formatter's CVEs are a shrug. These matter because Black is pinned as a runtime dependency, so it ships into the production image. Moving it to a dev group resolves both. Verification Queried https://api.osv.dev/v1/query for each package at its pinned version. Counts and IDs above are from that res"
+    },
+    "reference": "https://github.com/zachlagden/rickbot/issues/38",
+    "retrieved_at": "2026-08-14T16:44:17.645199+00:00"
+  }
+}

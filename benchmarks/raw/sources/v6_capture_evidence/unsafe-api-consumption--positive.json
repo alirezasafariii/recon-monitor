@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "third_party_auth_weak"
+    ],
+    "notes": "The project issue validates that the pinned dependency is reached through Discord HTTP/WebSocket client paths and lists concrete client-side defects.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/zachlagden/rickbot/issues/38",
+  "captured_at": "2026-08-14T16:44:17.644166+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unsafe_api_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "old client release pinned",
+        "reachable HTTP/WebSocket client paths documented",
+        "high-severity client defects affect that release"
+      ]
+    },
+    "endpoint": "pinned client dependency",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Rickbot outbound network stack"
+  },
+  "raw_sha256": "11fc675572afc3e6db49455f3b55a3fb5ff93357eb47bfff7ab87965bc6b8705",
+  "schema_version": "1.0",
+  "source_project": "zachlagden/rickbot",
+  "source_root": "RICKBOT-ISSUE-38",
+  "source_snapshot": {
+    "content_sha256": "a80ce60ebcf1686b1e28774fc1c3fea7ee961f14ee5d6044c0ff0fdf2bd4f82a",
+    "payload": {
+      "excerpt": "th that discord.py uses. Reachable ones discord.py uses aiohttp as an HTTP client and a WebSocket client (the gateway). These advisories are in exactly that code: | CVE | Severity | Fixed in | Why it reaches this bot | |---|---|---|---| | CVE-2026-69244 | HIGH | 3.14.3 | Out-of-bounds heap read in the C HTTP response parser, malformed chunked response | | CVE-2025-69223 | HIGH | 3.13.3 | autodecompress zip bomb — response decompression | | CVE-2026-59881 | MODERATE | 3.14.2 | WebSocket client accepts compressed frames without negotiated permessage-deflate | | CVE-2026-47265 | MODERATE | 3.14.0 | Per-request cookies leak on cross-origin redirect | | CVE-2026-34520 | LOW | — | C parser accepts null bytes/control chars in response header values | | CVE-2026-34518 | LOW | 3.13.4 | Cookie / Proxy-Authorization leak on cross-origin redirect | | CVE-2026-54275 | LOW | 3.14.1 | TLS server-hostname override ignored on HTTPS connection reuse | | CVE-2026-54"
+    },
+    "reference": "https://github.com/zachlagden/rickbot/issues/38",
+    "retrieved_at": "2026-08-14T16:44:17.644166+00:00"
+  }
+}

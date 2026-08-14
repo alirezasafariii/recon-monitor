@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "A keyword blocklist exists but is bypassable; its presence alone does not establish safe binding or extraction.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+  "captured_at": "2026-08-14T16:44:17.161953+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "keyword filter exists",
+        "obfuscated terms cross the filter",
+        "no database result in this observation"
+      ]
+    },
+    "endpoint": "keyword blocking layer",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "ASP-CMS query filter"
+  },
+  "raw_sha256": "5741c809cb4ab75572e4b27b0ddcf7cddb96698a311e32d70b688408dd7d0937",
+  "schema_version": "1.0",
+  "source_project": "projectdiscovery/nuclei-templates",
+  "source_root": "GHSA-h325-4hh9-393v",
+  "source_snapshot": {
+    "content_sha256": "a69231b4538d297e34e34117d3d16143ea2445fced4e61a8d8d77d90eb70400c",
+    "payload": {
+      "excerpt": " by manipulating the id parameter in GET requests to the comment listing script. Attackers can bypass the application's keyword blocklist by interleaving the string 'master' within blocked SQL terms to extract sensitive database contents. Exploitation evidence was first observed by the Shadowserver Foundation on 2023-10-18 (UTC). ghsaid GHSA-h325-4hh9-393v githubreviewedat htmlurl https://github.com/advisories/GHSA-h325-4hh9-393v identifiers type GHSA value GHSA-h325-4hh9-393v type CVE value CVE-2019-25765 nvdpublishedat 2026-08-13T18:17:15Z publishedat 2026-08-13T18:31:41Z references https://nvd.nist.gov/vuln/detail/CVE-2019-25765 https://github.com/projectdiscovery/nuclei-templates/issues/7968 https://web.archive.org/web/20201001011935/https://www.safeinfo.me/2019/07/22/aspcms-lou-dong-ji-he.html https://web.archive.org/web/20220425041152/https://asp-cms.sourceforge.net https://www.ddpoc.com/DVB-2021-821.html https://www."
+    },
+    "reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+    "retrieved_at": "2026-08-14T16:44:17.161953+00:00"
+  }
+}

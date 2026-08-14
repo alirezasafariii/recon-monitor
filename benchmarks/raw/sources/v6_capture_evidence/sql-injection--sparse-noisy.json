@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Classification/observation metadata contains no database response body.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+  "captured_at": "2026-08-14T16:44:17.162377+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "external exploitation date recorded",
+        "classification present",
+        "no literal response body"
+      ]
+    },
+    "endpoint": "observation metadata",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "ASP-CMS inventory"
+  },
+  "raw_sha256": "c468a732b560103530a1570c8e9d4ecbb02df3fcca39518a9e83ed71aa2ace90",
+  "schema_version": "1.0",
+  "source_project": "projectdiscovery/nuclei-templates",
+  "source_root": "GHSA-h325-4hh9-393v",
+  "source_snapshot": {
+    "content_sha256": "515fd787d2fc8f95ce2d86cd836e4652e51c1a0263ade1062ffb819d783ea613",
+    "payload": {
+      "excerpt": "aster' within blocked SQL terms to extract sensitive database contents. Exploitation evidence was first observed by the Shadowserver Foundation on 2023-10-18 (UTC). ghsaid GHSA-h325-4hh9-393v githubreviewedat htmlurl https://github.com/advisories/GHSA-h325-4hh9-393v identifiers type GHSA value GHSA-h325-4hh9-393v type CVE value CVE-2019-25765 nvdpublishedat 2026-08-13T18:17:15Z publishedat 2026-08-13T18:31:41Z references https://nvd.nist.gov/vuln/detail/CVE-2019-25765 https://github.com/projectdiscovery/nuclei-templates/issues/7968 https://web.archive.org/web/20201001011935/https://www.safeinfo.me/2019/07/22/aspcms-lou-dong-ji-he.html https://web.archive.org/web/20220425041152/https://asp-cms.sourceforge.net https://www.ddpoc.com/DVB-2021-821.html https://www.vulncheck.com/advisories/asp-cms-sql-injection-via-commentlist-asp-id-parameter https://github.com/advisories/GHSA-h325-4hh9-393v repositoryadvisoryurl severity high sourcec"
+    },
+    "reference": "https://github.com/advisories/GHSA-h325-4hh9-393v",
+    "retrieved_at": "2026-08-14T16:44:17.162377+00:00"
+  }
+}

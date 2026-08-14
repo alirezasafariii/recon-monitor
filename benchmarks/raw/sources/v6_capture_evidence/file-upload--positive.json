@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "active_content_served"
+    ],
+    "notes": "The advisory records an unauthenticated dangerous upload path created by empty authentication and extension-filter defaults.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+  "captured_at": "2026-08-14T16:44:15.560796+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "file_upload",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "authentication defaults empty",
+        "extension deny list defaults empty",
+        "server-executable upload can be placed and requested"
+      ]
+    },
+    "endpoint": "upload path",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "phpFileManager"
+  },
+  "raw_sha256": "ee0af7897b06a2f39016cfe7ffc6f2c59a12cde1dc5f6b4cdb65eaf6679a8cfc",
+  "schema_version": "1.0",
+  "source_project": "dulldusk/phpfm",
+  "source_root": "GHSA-gxgp-6wm7-xrhr",
+  "source_snapshot": {
+    "content_sha256": "0a262570f301000f9123794c7a8c60af63e3040a3c860cf7e872cb4116b2e3e6",
+    "payload": {
+      "excerpt": ":H cvssv4 score 0.0 vectorstring cwes cweid CWE-434 name Unrestricted Upload of File with Dangerous Type description An unrestricted file upload vulnerability in dulldusk/phpfm through 1.8.0 allows an unauthenticated remote attacker to execute arbitrary PHP code on the server. The application ships with an empty upload extension filter ( = array) and no authentication enabled by default (authpass is empty string), allowing an unauthenticated attacker to upload a PHP webshell and execute it by browsing to the uploaded path. epss percentage 0.00535 percentile 0.42303 ghsaid GHSA-gxgp-6wm7-xrhr githubreviewedat htmlurl https://github.com/advisories/GHSA-gxgp-6wm7-xrhr identifiers type GHSA value GHSA-gxgp-6wm7-xrhr type CVE value CVE-2026-72592 nvdpublishedat 2026-08-10T11:17:32Z publishedat 2026-08-10T12:31:54Z references https://nvd.nist.gov/vuln/detail/CVE-2026-72592 https://github.com/dulldusk/phpfm https://github.com/dulldusk/ph"
+    },
+    "reference": "https://github.com/advisories/GHSA-gxgp-6wm7-xrhr",
+    "retrieved_at": "2026-08-14T16:44:15.560796+00:00"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The finding explicitly distinguishes trusted developer-shipped templates that may remain unsandboxed; without an untrusted author boundary, the reported privilege crossing is absent.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/own-pay/OwnPay/issues/438",
+  "captured_at": "2026-08-14T16:44:16.968600+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "server_side_template_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "template source is trusted developer code",
+        "non-privileged editor does not control source",
+        "reported trust-boundary condition absent"
+      ]
+    },
+    "endpoint": "developer-shipped template",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "OwnPay trusted template path"
+  },
+  "raw_sha256": "eaaf88fe56a3ede3662a656a252a91bfdbaee2e386d307ada6e09f944b8965c5",
+  "schema_version": "1.0",
+  "source_project": "own-pay/OwnPay",
+  "source_root": "OWNPAY-ISSUE-438",
+  "source_snapshot": {
+    "content_sha256": "3d3f89bd2dba5e696a87b60ed289a720551791b9c16faffc978f95a674063864",
+    "payload": {
+      "excerpt": "h a strict SecurityPolicy (allow-list of tags, filters, functions, and methods). For core/plugin-shipped templates from trusted developers, the unsandboxed environment can remain — but the env() and setting() functions should be removed or restricted regardless (per FINDING VW-1). --- --- Discovered during comprehensive codebase audit. See /home/z/my-project/worklog.md for full audit context. closedat 2026-08-12T23:55:50Z closedby avatarurl https://avatars.githubusercontent.com/u/25886142?v=4 eventsurl https://api.github.com/users/fattain-naime/events{/privacy} followersurl https://api.github.com/users/fattain-naime/followers followingurl https://api.github.com/users/fattain-naime/following{/otheruser} gistsurl https://api.github.com/users/fattain-naime/gists{/gistid} gravatarid htmlurl https://github.com/fattain-naime id 25886142 login fattain-naime nodeid MDQ6VXNlcjI1ODg2MTQy organizationsurl https://api.github.com/users/f"
+    },
+    "reference": "https://github.com/own-pay/OwnPay/issues/438",
+    "retrieved_at": "2026-08-14T16:44:16.968600+00:00"
+  }
+}

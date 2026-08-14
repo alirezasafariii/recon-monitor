@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The vendor bulletin publishes remediation/fixed levels, providing a concrete fixed-state control.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://www.ibm.com/support/pages/node/7283573",
+  "captured_at": "2026-08-14T16:44:14.956502+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "https://www.ibm.com/support/pages/node/7283573",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "authentication_session",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "vendor remediation section exists",
+        "fixed product levels are published",
+        "vulnerable negotiation state is not the fixed expectation"
+      ]
+    },
+    "endpoint": "vendor remediation",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "IBM i fixed release state"
+  },
+  "raw_sha256": "d596ef81f89c7e9d7251f25edbaac797ca45c2bfb1899b740d39405ea5196638",
+  "schema_version": "1.0",
+  "source_project": "ibm/ibm-i",
+  "source_root": "GHSA-vxcg-gxwh-hqw8",
+  "source_snapshot": {
+    "content_sha256": "49a38fc9a33ca4a12d6ce1e34603b13c876edd5fc684d82371cdf51b60b04fc2",
+    "payload": {
+      "excerpt": "/S:U/C:L/I:N/A:L) Affected Products and Versions Affected Product(s) Version(s) IBM i 7.6 IBM i 7.5 IBM i 7.4 IBM i 7.3 Remediation/Fixes IBM strongly recommends addressing the vulnerability now. IBM i Release 5770-999 PTF Number(s) PTF Download Link(s) 7.6 MJ10939 https://www.ibm.com/mysupport/s/fix-information?legacy=MJ10939 7.5 MJ10938 https://www.ibm.com/mysupport/s/fix-information?legacy=MJ10938 7.4 MJ10937 https://www.ibm.com/mysupport/s/fix-information?legacy=MJ10937 7.3 MJ10936 https://www.ibm.com/mysupport/s/fix-information?legacy=MJ10936 IBM recommends users running unsupported versions of affected products upgrade to a supported and fixed version of affected products. Workarounds and Mitigations None Get Notified about Future Security Bulletins Subscribe to My Notifications to be notified of important product support alerts like this. References Complete CVSS v3 Guide On-line Calculator v3 Off Related Information"
+    },
+    "reference": "https://www.ibm.com/support/pages/node/7283573",
+    "retrieved_at": "2026-08-14T16:44:14.956502+00:00"
+  }
+}

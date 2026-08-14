@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "batch_limit_absent_observed"
+    ],
+    "notes": "The advisory records a remote denial of service through monitored-event queue resize handling.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+  "captured_at": "2026-08-14T16:44:17.526363+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "unrestricted_resource_consumption",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "remote request",
+        "event queue resize path reached",
+        "service availability lost"
+      ]
+    },
+    "endpoint": "remote resize",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "S2OPC monitored event queue"
+  },
+  "raw_sha256": "e97be7c73c323e4623089c5331622604e4f5289cfec33417bfa42c7616a036f7",
+  "schema_version": "1.0",
+  "source_project": "systerel/S2OPC",
+  "source_root": "GHSA-2cg2-hxr7-q7f4",
+  "source_snapshot": {
+    "content_sha256": "bc2f8115a7d3d7f919a16f60eda3475cd67d147a11ae2bc310ed047d516c5860",
+    "payload": {
+      "excerpt": "ion An issue in Systerel S2OPC 1.7.3 allows a remote attacker to cause a denial of service via the event monitored-item queue resize handling epss percentage 0.00422 percentile 0.3483 ghsaid GHSA-2cg2-hxr7-q7f4 githubreviewedat htmlurl https://github.com/advisories/GHSA-2cg2-hxr7-q7f4 identifiers type GHSA value GHSA-2cg2-hxr7-q7f4 type CVE value CVE-2026-67872 nvdpublishedat 2026-08-06T00:16:54Z publishedat 2026-08-06T00:31:32Z references https://nvd.nist.gov/vuln/detail/CVE-2026-67872 https://github.com/systerel/S2OPC/blob/S2OPCToolkit1.7.3/src/ClientServer/services/b2c/monitoreditemnotificationqueuebs.c https://github.com/systerel/S2OPC/blob/S2OPCToolkit1.7.3/src/ClientServer/services/bgenc/subscriptioncore.c https://github.com/systerel/S2OPC/blob/S2OPCToolkit1.7.3/tests/ClientServer/validationtests/client/toolkittestclientmodifyeventqueue.c https://github.com/systerel/S2OPC/blob/S2OPCToolkit1.7.3/tests/ClientServer/validati"
+    },
+    "reference": "https://github.com/advisories/GHSA-2cg2-hxr7-q7f4",
+    "retrieved_at": "2026-08-14T16:44:17.526363+00:00"
+  }
+}

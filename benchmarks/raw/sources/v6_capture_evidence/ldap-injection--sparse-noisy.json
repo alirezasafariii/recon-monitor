@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Affected-version metadata contains no LDAP request/result.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+  "captured_at": "2026-08-14T16:44:15.961266+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "CVE-2024-54852/README.md",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "ldap_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "affected range 1.9 through 1.12",
+        "no directory exchange"
+      ]
+    },
+    "endpoint": "affected versions",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Teedy release inventory"
+  },
+  "raw_sha256": "59af148319eb951a90c2f3ec58d629c84ec8bf7f896f50b5dba2e5d6581be224",
+  "schema_version": "1.0",
+  "source_project": "Tanguy-Boisset/CVE",
+  "source_root": "GHSA-pm9m-75p4-7h69",
+  "source_snapshot": {
+    "content_sha256": "38efaf8b192037f6f756f17ea3ac2fd4f1a957eac5a2cd6e03520d4ad4000581",
+    "payload": {
+      "excerpt": "-| | Type | LDAP Injection | | Title | LDAP Injection on login form | | Product impacted | Teedy | | Impacted version | Versions between 1.9 and 1.12 included | | CVSS Score | 8.2 | | Author | Sopalinge | Description When LDAP connection is activated on Teedy in versions 1.12 or prior, the username field of the login form is vulnerable to LDAP injection. Due to improper sanitization of user input, an unauthenticated attacker is then able to perform various malicious actions, such as creating arbitrary accounts and spraying passwords. LDAP connection is not enabled by default. An administrator has to activate and configure it beforehand by defining an LDAP query that the application will run to authenticate users. It has to contain a USERNAME placeholder, e.g. (&(objectclass=inetOrgPerson)(uid=USERNAME)). The root cause of the vulnerability lies in the authenticate method of the docs-core/src/main/java/com/sismics/docs/core/util/authent"
+    },
+    "reference": "https://github.com/Tanguy-Boisset/CVE/blob/master/CVE-2024-54852/README.md",
+    "retrieved_at": "2026-08-14T16:44:15.961266+00:00"
+  }
+}

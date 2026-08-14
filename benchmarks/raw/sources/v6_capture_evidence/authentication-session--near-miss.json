@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The advisory independently records high attack complexity; reachability plus a hard timing/negotiation path is not the privilege-bearing session outcome.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+  "captured_at": "2026-08-14T16:44:14.842938+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "benchmarks/raw/sources/v6_literal_source_research.json",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "authentication_session",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "network reachable",
+        "high attack complexity",
+        "no privilege-bearing session result in this observation"
+      ]
+    },
+    "endpoint": "negotiation prerequisite",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "IBM i network authentication"
+  },
+  "raw_sha256": "177b0cb3c0bdc1b9e0fb483b951010b3e788eb2a67641db16bbe81522956766d",
+  "schema_version": "1.0",
+  "source_project": "ibm/ibm-i",
+  "source_root": "GHSA-vxcg-gxwh-hqw8",
+  "source_snapshot": {
+    "content_sha256": "bfb716227325c94d376bced19a77f55fb6bbe7bce0984a9ff9ca20fe73204d52",
+    "payload": {
+      "excerpt": "credits cveid CVE-2026-16867 cvss score 8.1 vectorstring CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H cvssseverities cvssv3 score 8.1 vectorstring CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H cvssv4 score 0.0 vectorstring cwes cweid CWE-287 name Improper Authentication description IBM i 7.6, 7.5, 7.4, and 7.3 could allow a remote attacker to access server resources with the privileges of an authenticated user due to improper authentication during NTLM session negotiation. ghsaid GHSA-vxcg-gxwh-hqw8 githubreviewedat htmlurl https://github.com/advisories/GHSA-vxcg-gxwh-hqw8 identifiers type GHSA value GHSA-vxcg-gxwh-hqw8 type CVE value CVE-2026-16867 nvdpublishedat 2026-08-13T20:17:15Z publishedat 2026-08-13T21:36:06Z references https://nvd.nist.gov/vuln/detail/CVE-2026-16867 https://www.ibm.com/support/pages/node/7283573 https://github.com/advisories/GHSA-vxcg-gxw"
+    },
+    "reference": "https://github.com/advisories/GHSA-vxcg-gxwh-hqw8",
+    "retrieved_at": "2026-08-14T16:44:14.842938+00:00"
+  }
+}

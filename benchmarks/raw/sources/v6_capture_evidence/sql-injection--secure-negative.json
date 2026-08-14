@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The upstream validation template requires application and sensitive database markers in addition to HTTP 200; a response lacking them is not evidence of extraction.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+  "captured_at": "2026-08-14T16:44:17.162178+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "read sealed passive snapshot and/or fetch upstream source control",
+    "source_file": "GitHub issue #7968",
+    "tool": "analysis-631-final21-source-grounded-collector"
+  },
+  "family": "sql_injection",
+  "raw": {
+    "details": {
+      "evidence-points": [
+        "HTTP success alone insufficient",
+        "application marker required",
+        "sensitive database field markers required",
+        "missing markers means no positive match"
+      ]
+    },
+    "endpoint": "multi-condition response matcher",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Nuclei ASP-CMS validation"
+  },
+  "raw_sha256": "5d5a865de4d8ca14fd15765a74802a4f12a5ae431141048e7e7da2873b1e6448",
+  "schema_version": "1.0",
+  "source_project": "projectdiscovery/nuclei-templates",
+  "source_root": "GHSA-h325-4hh9-393v",
+  "source_snapshot": {
+    "content_sha256": "2dc9e6907da95a65d1807b0db003c7c0bee63514fce30aa6a8d291288b75c3f4",
+    "payload": {
+      "excerpt": "irefox/12.0 extractors: - type: regex group: 1 regex: - \"<div class=\\\"line2\\\">(.?)</div>\" matchers: - type: dsl dsl: - \"statuscode1 == 200 && contains(body1,'clistbox') && contains(body1,'UserID,GroupID,LoginName,Password')\" condition: and <!-- Include template results if available or redacted valid response snippet of valid match --> <!-- Example response help us to update the matchers as unique as possible to avoid possible false-positive results. -->"
+    },
+    "reference": "https://github.com/projectdiscovery/nuclei-templates/issues/7968",
+    "retrieved_at": "2026-08-14T16:44:17.162178+00:00"
+  }
+}
