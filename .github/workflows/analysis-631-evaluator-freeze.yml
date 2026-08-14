@@ -2,9 +2,19 @@ name: Analysis 6.31 Evaluator Freeze
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - 'benchmarks/raw/sources/v6_corpus_freeze.json'
+      - 'benchmarks/raw/sources/v6_freeze_manifest.sha256'
 
 permissions:
   contents: write
+
+concurrency:
+  group: analysis-631-evaluator-freeze
+  cancel-in-progress: false
 
 jobs:
   freeze-evaluator:
