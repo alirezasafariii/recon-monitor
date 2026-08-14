@@ -10,8 +10,8 @@ from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from v6_literal_capture_verify import ALLOWED_CAPTURE_METHODS, EVIDENCE_ROOT, SINGLE_VARIANTS
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.31.2"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v6_literal_capture_plan.json"
 
@@ -36,9 +36,10 @@ def build_plan() -> dict[str, Any]:
     shortlist = json.loads(SHORTLIST.read_text(encoding="utf-8"))
     rows = [dict(row) for row in shortlist.get("selected") or [] if isinstance(row, Mapping)]
     by_family = {str(row.get("family") or ""): row for row in rows}
-    if shortlist.get("scoring_executed") is not False or shortlist.get("selection_executes_scoring") is not False:
+    firewall = shortlist.get("firewall") if isinstance(shortlist.get("firewall"), Mapping) else {}
+    if shortlist.get("selection_executes_scoring") is not False or firewall.get("scoring_executed") is not False:
         raise RuntimeError("capture planning requires an unscored sealed shortlist")
-    if shortlist.get("firewall", {}).get("passed") is not True:
+    if firewall.get("passed") is not True:
         raise RuntimeError("capture planning requires a firewall-passed shortlist")
     if len(rows) != 36 or set(by_family) != set(DETECTOR_SPECS):
         raise RuntimeError("capture planning requires exactly 36 selected families")
