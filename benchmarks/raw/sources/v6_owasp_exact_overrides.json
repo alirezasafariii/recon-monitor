@@ -1,5 +1,5 @@
 {
-  "version": "1.4.2",
+  "version": "1.4.3",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,18 +11,18 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSA-777r-4v59-6486",
-        "source_project": "go-gitea/gitea",
+        "source_root": "GHSA-xff3-5c9p-2mr4",
+        "source_project": "QuantumNous/new-api",
         "family": "business_logic",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-777r-4v59-6486",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-xff3-5c9p-2mr4",
         "source_kind": "github_reviewed_advisory",
         "advisory_source_type": "reviewed",
-        "published_at": "2026-07-01",
-        "summary": "Gitea Actions permanently skipped the fork-PR workflow approval gate after one prior approval, allowing later unapproved workflows to run.",
-        "description": "The reviewed advisory documents a business workflow and approval-state invariant failure. A single historical approval was treated as permanent trust for later fork pull requests, so a new workflow run could skip the required approval gate and execute with no approver. The implemented state transition therefore bypassed the intended per-work approval invariant and accepted an unapproved workflow as trusted.",
+        "published_at": "2026-04-22",
+        "summary": "New API could accept forged Stripe payment-completion events under an empty webhook-secret configuration, bypassing the payment workflow trust gate.",
+        "description": "The reviewed advisory documents a payment business-workflow invariant failure. An insecure empty webhook secret permits forged completion events to pass the authenticity gate, while cross-gateway handling can mark an order as paid through a callback source that does not match the intended payment method. The resulting state transition accepts an untrusted payment-completion event and bypasses the workflow invariant that quota or payment state must advance only after an authentic matching payment.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "workflow", "approval gate", "approval", "workflow invariant", "state transition", "bypass", "untrusted accepted"],
-        "selection_basis": "independent GitHub-reviewed advisory selected before scoring using WSTG business-logic workflow, approval-gate and state-transition semantics"
+        "semantic_facts": ["business workflow", "payment workflow", "workflow invariant", "payment gate", "state transition", "bypass", "untrusted accepted", "payment completion"],
+        "selection_basis": "independent GitHub-reviewed advisory selected before scoring using WSTG business-logic workflow, trust-gate and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
