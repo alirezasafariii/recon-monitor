@@ -24,8 +24,8 @@ from vulnerability_knowledge_core import BUG_PROFILES
 
 TARGET_MIN_FAMILIES = 50
 TARGET_BUFFER_FAMILIES = 60
-TARGETED_VERSION = "1.0.0"
-TARGETED_RULE_VERSION = "2026.08.14.2"
+TARGETED_VERSION = "1.0.1"
+TARGETED_RULE_VERSION = "2026.08.14.3"
 
 
 def canonical_family_cwes() -> dict[str, tuple[str, ...]]:
@@ -57,14 +57,21 @@ def configure_hardened_firewall() -> None:
     )
 
 
+def _github_cwe_query_value(cwe: str) -> str:
+    value = str(cwe or "").strip().upper()
+    return value[4:] if value.startswith("CWE-") else value
+
+
 def _query_url(cwe: str) -> str:
+    # GitHub's global-advisory endpoint expects numeric CWE IDs (e.g. 918),
+    # while Recon Monitor's canonical taxonomy intentionally stores CWE-918.
     query = urllib.parse.urlencode(
         {
             "per_page": 100,
             "type": "reviewed",
             "sort": "published",
             "direction": "desc",
-            "cwes": cwe,
+            "cwes": _github_cwe_query_value(cwe),
         }
     )
     return f"https://api.github.com/advisories?{query}"
