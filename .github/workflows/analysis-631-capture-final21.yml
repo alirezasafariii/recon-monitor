@@ -1,0 +1,107 @@
+name: Analysis 6.31 Capture Final 21 Families
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - 'app/v6_remaining_final21_collector.py'
+      - '.github/workflows/analysis-631-capture-final21.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-631-final21-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 read-only capture input
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          persist-credentials: false
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture final 84 source-grounded observations
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          rm -rf captured-final21
+          python app/v6_remaining_final21_collector.py captured-final21 | tee final21-capture-report.json
+          test "$(find captured-final21 -type f -name '*.json' | wc -l)" -eq 84
+      - name: Upload final 21 capture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-final21-captures
+          path: |
+            captured-final21/**/*.json
+            final21-capture-report.json
+          if-no-files-found: error
+
+  publish:
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download captured observations
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-final21-captures
+          path: downloaded-final21
+      - name: Publish and run strict 144-of-144 evidence gates
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py downloaded-final21/captured-final21
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          checkpoint=json.loads(Path('benchmarks/raw/sources/v6_pre_score_checkpoint.json').read_text())
+          assert checkpoint['evidence_present_count'] == 144, checkpoint
+          assert checkpoint['evidence_missing_count'] == 0, checkpoint
+          assert checkpoint['complete_family_count'] == 36, checkpoint
+          assert checkpoint['first_blind_consumed'] is False, checkpoint
+          assert checkpoint['scoring_executed'] is False, checkpoint
+          print('Analysis 6.31 literal evidence complete: 144/144, 36/36; First Blind remains unconsumed.')
+          PY
+      - name: Commit verified final evidence only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_captures.jsonl \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'No evidence changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Complete real Analysis 6.31 literal evidence 144 of 144'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
