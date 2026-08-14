@@ -1,0 +1,391 @@
+name: Analysis 6.31 Capture SSRF
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-capture-ssrf.yml
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout recon repository read-only
+        uses: actions/checkout@v4
+        with:
+          path: recon
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated capture dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5
+
+      - name: Checkout vulnerable upstream parent without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: vulnerability-lookup/vulnerability-lookup
+          ref: c97aa9d5443000d28aa581005f4401c51dbe2d9e
+          path: vl-vuln
+          persist-credentials: false
+          sparse-checkout: |
+            website/scripts/sync.py
+          sparse-checkout-cone-mode: true
+
+      - name: Checkout patched upstream without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: vulnerability-lookup/vulnerability-lookup
+          ref: a3cf621c2583c45227a5b7880123ba0ffef3cc0f
+          path: vl-patched
+          persist-credentials: false
+          sparse-checkout: |
+            website/lib/remote_url.py
+            tests/test_remote_instance_ssrf.py
+          sparse-checkout-cone-mode: true
+
+      - name: Execute exact vulnerable fetch function and patched outbound policy
+        run: |
+          cat > capture_ssrf.py <<'PY'
+          import ast
+          import importlib.util
+          import json
+          import types
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+          import requests
+
+          def now():
+              return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+          def write(kind, payload):
+              Path(f'ssrf-{kind.replace("_", "-")}.json').write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          # POSITIVE: compile and execute the exact upstream parent _fetch_page function body.
+          source_path = Path('vl-vuln/website/scripts/sync.py')
+          tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
+          func = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == '_fetch_page')
+          module = ast.Module(body=[func], type_ignores=[])
+          ast.fix_missing_locations(module)
+
+          class Logger:
+              def error(self, *a, **k): pass
+              def warning(self, *a, **k): pass
+
+          class Time:
+              @staticmethod
+              def sleep(_seconds): pass
+
+          vulnerable_calls = []
+          class VulnerableResp:
+              status_code = 200
+              def raise_for_status(self): return None
+              def json(self): return {'controlled': 'metadata-like-response'}
+
+          original_get = requests.get
+          def vulnerable_get(url, **kwargs):
+              vulnerable_calls.append({'url': url, 'kwargs': kwargs})
+              return VulnerableResp()
+          requests.get = vulnerable_get
+          ns = {
+              'Any': Any,
+              'requests': requests,
+              'HEADERS': {'User-Agent': 'v6-controlled'},
+              'HTTP_TIMEOUT': 1,
+              'MAX_PAGE_ATTEMPTS': 3,
+              'RETRY_BACKOFF_SECONDS': 0,
+              'logger': Logger(),
+              'time': Time(),
+          }
+          exec(compile(module, str(source_path), 'exec'), ns)
+          internal_url = 'http://169.254.169.254/latest/meta-data/iam/info'
+          returned = ns['_fetch_page'](internal_url, {'page': 1})
+          requests.get = original_get
+          assert returned == {'controlled': 'metadata-like-response'}
+          assert len(vulnerable_calls) == 1
+          assert vulnerable_calls[0]['url'] == internal_url
+          assert 'allow_redirects' not in vulnerable_calls[0]['kwargs']
+          write('positive', {
+              'captured_at': now(),
+              'upstream_revision': 'c97aa9d5443000d28aa581005f4401c51dbe2d9e',
+              'upstream_source_file': 'website/scripts/sync.py',
+              'upstream_function': '_fetch_page',
+              'input_url': internal_url,
+              'requests_get_calls': vulnerable_calls,
+              'returned_payload': returned,
+              'observation': 'exact upstream parent function passed an internal metadata URL to requests.get without a destination policy',
+          })
+
+          # Load the exact patched outbound policy module.
+          patched_path = Path('vl-patched/website/lib/remote_url.py')
+          spec = importlib.util.spec_from_file_location('v6_remote_url', patched_path)
+          remote_url = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(remote_url)
+
+          # SECURE NEGATIVE: direct metadata IP is rejected before requests.get.
+          direct_calls = []
+          def must_not_call(url, **kwargs):
+              direct_calls.append({'url': url, 'kwargs': kwargs})
+              raise AssertionError('requests.get must not be called for blocked direct internal URL')
+          remote_url.requests.get = must_not_call
+          direct_error = None
+          try:
+              remote_url.safe_get(internal_url)
+          except remote_url.UnsafeRemoteURLError as exc:
+              direct_error = str(exc)
+          assert direct_error
+          assert direct_calls == []
+          write('secure_negative', {
+              'captured_at': now(),
+              'upstream_revision': 'a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+              'upstream_source_file': 'website/lib/remote_url.py',
+              'input_url': internal_url,
+              'requests_get_calls': direct_calls,
+              'blocked_error': direct_error,
+              'observation': 'patched safe_get rejected the link-local metadata IP before issuing any request',
+          })
+
+          # NEAR MISS: an allowed public first hop redirects to internal metadata; second hop is rejected.
+          redirect_calls = []
+          asserted_hosts = []
+          class RedirectResp:
+              status_code = 302
+              headers = {'Location': internal_url}
+              @property
+              def is_redirect(self): return True
+              @property
+              def is_permanent_redirect(self): return False
+          def fake_assert(host):
+              asserted_hosts.append(host)
+              if host == '169.254.169.254':
+                  raise remote_url.UnsafeRemoteURLError(f'blocked controlled host {host}')
+          def redirect_get(url, **kwargs):
+              redirect_calls.append({'url': url, 'kwargs': kwargs})
+              return RedirectResp()
+          remote_url._assert_public_host = fake_assert
+          remote_url.requests.get = redirect_get
+          start_url = 'http://example.org/api/comment/'
+          redirect_error = None
+          try:
+              remote_url.safe_get(start_url)
+          except remote_url.UnsafeRemoteURLError as exc:
+              redirect_error = str(exc)
+          assert redirect_error
+          assert [call['url'] for call in redirect_calls] == [start_url]
+          assert asserted_hosts == ['example.org', '169.254.169.254']
+          assert redirect_calls[0]['kwargs']['allow_redirects'] is False
+          write('near_miss', {
+              'captured_at': now(),
+              'upstream_revision': 'a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+              'upstream_source_file': 'website/lib/remote_url.py',
+              'input_url': start_url,
+              'controlled_redirect_location': internal_url,
+              'asserted_hosts': asserted_hosts,
+              'requests_get_calls': redirect_calls,
+              'blocked_error': redirect_error,
+              'observation': 'patched safe_get issued only the public first-hop request and rejected the redirect-to-internal target before a second request',
+          })
+
+          # SPARSE/NOISY: legitimate public fetch path remains possible and is explicitly non-redirecting.
+          public_calls = []
+          public_hosts = []
+          class PublicResp:
+              status_code = 204
+              headers = {}
+              @property
+              def is_redirect(self): return False
+              @property
+              def is_permanent_redirect(self): return False
+          remote_url._assert_public_host = lambda host: public_hosts.append(host)
+          def public_get(url, **kwargs):
+              public_calls.append({'url': url, 'kwargs': kwargs})
+              return PublicResp()
+          remote_url.requests.get = public_get
+          response = remote_url.safe_get(start_url)
+          assert response.status_code == 204
+          assert [call['url'] for call in public_calls] == [start_url]
+          assert public_hosts == ['example.org']
+          assert public_calls[0]['kwargs']['allow_redirects'] is False
+          write('sparse_noisy', {
+              'captured_at': now(),
+              'upstream_revision': 'a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+              'upstream_source_file': 'website/lib/remote_url.py',
+              'input_url': start_url,
+              'asserted_hosts': public_hosts,
+              'requests_get_calls': public_calls,
+              'response_status_code': response.status_code,
+              'observation': 'patched safe_get allowed a controlled public non-redirecting destination under the outbound policy',
+          })
+          PY
+          python capture_ssrf.py
+
+      - name: Assert four distinct controlled SSRF outputs
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          paths = sorted(Path('.').glob('ssrf-*.json'))
+          assert len(paths) == 4, paths
+          hashes = {hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
+          assert len(hashes) == 4, hashes
+          for path in paths:
+              value = json.loads(path.read_text())
+              assert value['captured_at'].endswith('Z')
+          positive = json.loads(Path('ssrf-positive.json').read_text())
+          assert positive['requests_get_calls'][0]['url'].startswith('http://169.254.169.254/')
+          secure = json.loads(Path('ssrf-secure-negative.json').read_text())
+          assert secure['requests_get_calls'] == []
+          near = json.loads(Path('ssrf-near-miss.json').read_text())
+          assert len(near['requests_get_calls']) == 1
+          PY
+
+      - name: Upload controlled SSRF outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-ssrf-captures
+          path: ssrf-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout recon repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download read-only capture outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-ssrf-captures
+          path: captured
+      - name: Build hash-bound SSRF evidence artifacts
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_literal_capture_verify import _sha256_json
+
+          family = 'ssrf'
+          source_root = 'GHSA-wx9v-ffw3-45wg'
+          source_project = 'vulnerability-lookup/vulnerability-lookup'
+          out = Path('benchmarks/raw/sources/v6_capture_evidence')
+          out.mkdir(parents=True, exist_ok=True)
+          configs = {
+              'positive': {
+                  'file': 'captured/ssrf-positive.json',
+                  'reference': 'https://github.com/vulnerability-lookup/vulnerability-lookup/commit/c97aa9d5443000d28aa581005f4401c51dbe2d9e',
+                  'basis': 'source_observation',
+                  'signals': ['backend_fetch', 'server_fetch_observed', 'server_request_function'],
+                  'notes': 'Controlled execution of the exact upstream parent _fetch_page function passed a link-local cloud-metadata URL directly into requests.get without destination validation.',
+              },
+              'secure_negative': {
+                  'file': 'captured/ssrf-secure-negative.json',
+                  'reference': 'https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+                  'basis': 'patched_control',
+                  'signals': [],
+                  'notes': 'Controlled execution of the exact patched safe_get rejected the direct metadata IP before requests.get could be called.',
+              },
+              'near_miss': {
+                  'file': 'captured/ssrf-near-miss.json',
+                  'reference': 'https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+                  'basis': 'upstream_regression',
+                  'signals': [],
+                  'notes': 'Controlled execution reproduced the upstream redirect-to-internal policy: the public first hop was requested with redirects disabled and the internal second hop was rejected before a request.',
+              },
+              'sparse_noisy': {
+                  'file': 'captured/ssrf-sparse-noisy.json',
+                  'reference': 'https://github.com/vulnerability-lookup/vulnerability-lookup/commit/a3cf621c2583c45227a5b7880123ba0ffef3cc0f',
+                  'basis': 'upstream_regression',
+                  'signals': [],
+                  'notes': 'Controlled execution of patched safe_get retained the intended public non-redirecting fetch path, producing a server-side request to a public destination without an SSRF boundary violation.',
+              },
+          }
+          for kind, cfg in configs.items():
+              captured = json.loads(Path(cfg['file']).read_text(encoding='utf-8'))
+              raw = {
+                  'target': 'controlled-local-vulnerability-lookup',
+                  'endpoint': 'remote-instance-sync-outbound-fetch',
+                  'method': 'SERVER_GET',
+                  'endpoint_schema': {'path_parameters': [], 'query_parameters': []},
+                  'details': {
+                      'literal_server_fetch_observation': captured,
+                      'capture_environment': 'GitHub Actions isolated controlled upstream source execution with request sink stubs; no internal or external target contacted',
+                  },
+              }
+              evidence = {
+                  'schema_version': '1.0',
+                  'family': family,
+                  'case_kind': kind,
+                  'source_root': source_root,
+                  'source_project': source_project,
+                  'captured_at': captured['captured_at'],
+                  'capture_reference': cfg['reference'],
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'Exact upstream _fetch_page AST execution plus exact patched remote_url.safe_get controlled sink capture',
+                      'command': 'python capture_ssrf.py',
+                      'source_file': captured['upstream_source_file'],
+                  },
+                  'source_snapshot': {
+                      'reference': cfg['reference'],
+                      'retrieved_at': captured['captured_at'],
+                      'payload': captured,
+                      'content_sha256': _sha256_json(captured),
+                  },
+                  'adjudication': {
+                      'basis': cfg['basis'],
+                      'notes': cfg['notes'],
+                      'expected_condition_signals': cfg['signals'],
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+                  'raw_sha256': _sha256_json(raw),
+              }
+              path = out / f'ssrf--{kind.replace("_", "-")}.json'
+              path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+      - name: Refresh plan and strict-check all partial evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_partial_verify.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text())
+          assert plan['evidence_present_count'] == 12, plan['evidence_present_count']
+          assert plan['evidence_missing_count'] == 132, plan['evidence_missing_count']
+          PY
+      - name: Commit third real Analysis 6.31 evidence family
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/ssrf--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 SSRF evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
