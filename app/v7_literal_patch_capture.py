@@ -87,7 +87,7 @@ def _raw(*, target: str, endpoint: str, details: Mapping[str, Any]) -> dict[str,
     return {
         "target": target,
         "endpoint": endpoint,
-        "method": "UNKNOWN",
+        "method": "GET",
         "endpoint_schema": {},
         "details": dict(details),
     }
