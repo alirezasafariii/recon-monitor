@@ -1,0 +1,93 @@
+name: Analysis 6.31 First Blind
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  first-blind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require frozen canonical corpus and evaluator
+        env:
+          PYTHONPATH: app
+        run: python app/v6_freeze_verify.py --require-freeze --require-evaluator-frozen
+
+      - name: Authorize single First Blind consumption
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_first_blind_consume.py authorize \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT"
+
+      - name: Persist authorization before scoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_first_blind_consumption.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Authorize single Analysis 6.31 First Blind consumption'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
+
+      - name: Execute canonical First Blind once
+        id: first_blind
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_first_blind_consume.py execute \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT"
+
+      - name: Persist immutable First Blind result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f benchmarks/raw/sources/v6_first_blind_consumption.json
+          test -f benchmarks/raw/results/analysis_raw_v6_first_blind.json
+          git add \
+            benchmarks/raw/sources/v6_first_blind_consumption.json \
+            benchmarks/raw/results/analysis_raw_v6_first_blind.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then
+            echo 'No First Blind result changes to commit.' >&2
+            exit 1
+          fi
+          git commit -m 'Record immutable Analysis 6.31 First Blind result'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
+
+      - name: Enforce completed benchmark quality gate
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path('benchmarks/raw/sources/v6_first_blind_consumption.json').read_text(encoding='utf-8'))
+          result = json.loads(Path('benchmarks/raw/results/analysis_raw_v6_first_blind.json').read_text(encoding='utf-8'))
+          if receipt.get('state') != 'completed':
+              raise SystemExit(f"First Blind did not complete cleanly: {receipt.get('state')}")
+          if result.get('scoring_executed') is not True or result.get('first_blind_consumed') is not True:
+              raise SystemExit('First Blind result does not prove single scoring consumption')
+          gate = result.get('quality_gate') if isinstance(result.get('quality_gate'), dict) else {}
+          if gate.get('passed') is not True:
+              raise SystemExit('Analysis 6.31 First Blind quality gate failed; result is immutable and must not be rerun')
+          print('Analysis 6.31 First Blind completed once and passed all preregistered gates.')
+          PY
