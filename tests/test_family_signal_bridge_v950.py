@@ -12,11 +12,16 @@ from family_analyzers.router import analyzer_for_family
 from family_signal_bridge import (
     FAMILY_SIGNAL_BRIDGE_VERSION,
     augment_family_details,
+    clear_family_signal_bridge_cache,
 )
 
 
 class _BridgeDb:
+    def __init__(self):
+        self.calls = 0
+
     def all(self, sql, params=()):
+        self.calls += 1
         if "endpoint_contracts" in sql:
             return [{
                 "input_fields_json": '{"query":["filter"]}',
@@ -72,6 +77,9 @@ class _MissingTablesDb:
 
 
 class FamilySignalBridgeV950Tests(unittest.TestCase):
+    def setUp(self):
+        clear_family_signal_bridge_cache()
+
     def test_context_is_enriched_from_existing_analysis_tables(self):
         context = FamilyAnalyzerContext(
             db=_BridgeDb(),
@@ -131,6 +139,30 @@ class FamilySignalBridgeV950Tests(unittest.TestCase):
         self.assertFalse(
             result["family_analyzer"]["promotion_ready_from_stored_target_evidence"]
         )
+
+    def test_repeated_family_contexts_reuse_bounded_db_snapshot(self):
+        db = _BridgeDb()
+        first = FamilyAnalyzerContext(
+            db=db,
+            analysis_id="analysis-cache",
+            target="example.test",
+            endpoint="https://example.test/admin/settings",
+            method="POST",
+            details={"status_code": 200, "content_type": "text/html"},
+        )
+        first_calls = db.calls
+        second = FamilyAnalyzerContext(
+            db=db,
+            analysis_id="analysis-cache",
+            target="example.test",
+            endpoint="https://example.test/admin/settings",
+            method="POST",
+            details={"status_code": 200, "content_type": "text/html"},
+        )
+        self.assertGreater(first_calls, 0)
+        self.assertEqual(db.calls, first_calls)
+        self.assertTrue(first.details["oauth_oidc_flow_surface"])
+        self.assertTrue(second.details["oauth_oidc_flow_surface"])
 
     def test_missing_optional_tables_are_fail_soft(self):
         original = {"status_code": 200}
