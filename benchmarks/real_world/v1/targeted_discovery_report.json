@@ -1,0 +1,128 @@
+{
+  "canonical_family_count": 74,
+  "evaluation_kind": "real_world_corpus_v1_family_targeted_source_discovery",
+  "families_with_cwe_queries": 66,
+  "family_assignment_is_final": false,
+  "historical_exposure": [
+    {
+      "loaded": true,
+      "name": "analysis_golden_v3",
+      "path": "benchmarks/golden/analysis_golden_v3.jsonl",
+      "record_count": 179,
+      "ref": "agent/analysis-engine-6.0-owasp-admission",
+      "role": "consumed_benchmark",
+      "source_project_count": 51,
+      "source_root_count": 87
+    },
+    {
+      "loaded": true,
+      "name": "analysis_golden_v4",
+      "path": "benchmarks/golden/analysis_golden_v4.jsonl",
+      "record_count": 200,
+      "ref": "agent/analysis-engine-6.6-postfreeze-blind",
+      "role": "consumed_benchmark",
+      "source_project_count": 50,
+      "source_root_count": 50
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v1",
+      "path": "benchmarks/raw/analysis_raw_v1.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.11-blind-raw-recon-benchmark",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v2",
+      "path": "benchmarks/raw/analysis_raw_v2.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.13-fresh-raw-holdout-v2",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v3",
+      "path": "benchmarks/raw/analysis_raw_v3.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.15-fresh-raw-holdout-v3",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v6",
+      "path": "benchmarks/raw/sources/v6_shortlist.json",
+      "record_count": 1,
+      "ref": "agent/analysis-engine-6.31-fresh-blind-v6-validation",
+      "role": "reserved_blind",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v4",
+      "path": "benchmarks/raw/analysis_raw_v4.jsonl",
+      "record_count": 144,
+      "ref": "agent/analysis-engine-6.26-fresh-raw-holdout-v4",
+      "role": "consumed_benchmark",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v5",
+      "path": "benchmarks/raw/analysis_raw_v5.jsonl",
+      "record_count": 216,
+      "ref": "agent/analysis-engine-6.29-fresh-blind-v5-multifamily",
+      "role": "consumed_benchmark",
+      "source_project_count": 54,
+      "source_root_count": 54
+    }
+  ],
+  "human_labels_created": false,
+  "represented_family_target_count": 60,
+  "rule_version": "2026.08.14.3",
+  "scoring_executed": false,
+  "target_buffer_families": 60,
+  "target_contact_performed": false,
+  "target_minimum_families": 50,
+  "unique_source_project_count": 60,
+  "unique_source_root_count": 60,
+  "unresolved": [
+    {
+      "cwes": [
+        "CWE-530"
+      ],
+      "family": "backup_unreferenced_file_exposure",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-840"
+      ],
+      "family": "business_logic",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-650"
+      ],
+      "family": "http_verb_tampering",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-97"
+      ],
+      "family": "ssi_injection",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    }
+  ],
+  "version": "1.0.1"
+}

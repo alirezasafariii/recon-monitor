@@ -1,0 +1,3034 @@
+{
+  "canonical_family_count": 74,
+  "evaluation_kind": "real_world_corpus_v1_family_targeted_source_discovery",
+  "families_with_cwe_queries": 66,
+  "family_assignment_is_final": false,
+  "family_diagnostics": {
+    "account_enumeration": {
+      "cwes": [
+        "CWE-204"
+      ],
+      "diagnostics": {
+        "advisories_seen": 47,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "admin_interface_exposure": {
+      "cwes": [
+        "CWE-749"
+      ],
+      "diagnostics": {
+        "advisories_seen": 41,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 1,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "authentication_session": {
+      "cwes": [
+        "CWE-287"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "backup_unreferenced_file_exposure": {
+      "cwes": [
+        "CWE-530"
+      ],
+      "diagnostics": {}
+    },
+    "broken_function_authorization": {
+      "cwes": [
+        "CWE-862"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 3,
+        "historical_source_project_overlap": 14,
+        "historical_source_root_overlap": 3,
+        "pages_fetched": 1
+      }
+    },
+    "broken_object_authorization": {
+      "cwes": [
+        "CWE-639"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "browser_storage_exposure": {
+      "cwes": [
+        "CWE-922"
+      ],
+      "diagnostics": {
+        "advisories_seen": 32,
+        "pages_fetched": 1
+      }
+    },
+    "business_logic": {
+      "cwes": [
+        "CWE-840"
+      ],
+      "diagnostics": {}
+    },
+    "clickjacking": {
+      "cwes": [
+        "CWE-1021"
+      ],
+      "diagnostics": {
+        "advisories_seen": 28,
+        "historical_source_project_overlap": 3,
+        "pages_fetched": 1
+      }
+    },
+    "client_side_template_injection": {
+      "cwes": [
+        "CWE-1336"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 2,
+        "historical_source_project_overlap": 5,
+        "historical_source_root_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "cloud_storage_exposure": {
+      "cwes": [
+        "CWE-732"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "code_injection": {
+      "cwes": [
+        "CWE-94"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "command_injection": {
+      "cwes": [
+        "CWE-78"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 1,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "cors_misconfiguration": {
+      "cwes": [
+        "CWE-942"
+      ],
+      "diagnostics": {
+        "advisories_seen": 36,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "csrf": {
+      "cwes": [
+        "CWE-352"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "css_injection": {
+      "cwes": [
+        "CWE-79"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "csv_injection": {
+      "cwes": [
+        "CWE-1236"
+      ],
+      "diagnostics": {
+        "advisories_seen": 41,
+        "pages_fetched": 1
+      }
+    },
+    "dependency_supply_chain": {
+      "cwes": [
+        "CWE-1104",
+        "CWE-829"
+      ],
+      "diagnostics": {
+        "advisories_seen": 5,
+        "pages_fetched": 1
+      }
+    },
+    "dom_xss": {
+      "cwes": [
+        "CWE-79"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 2,
+        "already_selected_root": 1,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "exceptional_condition_fail_open": {
+      "cwes": [
+        "CWE-636"
+      ],
+      "diagnostics": {
+        "advisories_seen": 28,
+        "pages_fetched": 1
+      }
+    },
+    "file_inclusion": {
+      "cwes": [
+        "CWE-98"
+      ],
+      "diagnostics": {
+        "advisories_seen": 17,
+        "pages_fetched": 1
+      }
+    },
+    "file_upload": {
+      "cwes": [
+        "CWE-434"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "format_string_injection": {
+      "cwes": [
+        "CWE-134"
+      ],
+      "diagnostics": {
+        "advisories_seen": 20,
+        "pages_fetched": 1
+      }
+    },
+    "graphql_authorization": {
+      "cwes": [
+        "CWE-862"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_root": 1,
+        "historical_identifier_overlap": 3,
+        "historical_source_project_overlap": 15,
+        "historical_source_root_overlap": 3,
+        "pages_fetched": 1
+      }
+    },
+    "graphql_data_exposure": {
+      "cwes": [
+        "CWE-200"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 1,
+        "historical_source_root_overlap": 1,
+        "historical_url_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "html_injection": {
+      "cwes": [
+        "CWE-79"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 2,
+        "already_selected_root": 2,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "http_parameter_pollution": {
+      "cwes": [
+        "CWE-235"
+      ],
+      "diagnostics": {
+        "advisories_seen": 1,
+        "pages_fetched": 1
+      }
+    },
+    "http_request_smuggling": {
+      "cwes": [
+        "CWE-444"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "http_response_splitting": {
+      "cwes": [
+        "CWE-113"
+      ],
+      "diagnostics": {
+        "advisories_seen": 48,
+        "pages_fetched": 1
+      }
+    },
+    "http_verb_tampering": {
+      "cwes": [
+        "CWE-650"
+      ],
+      "diagnostics": {}
+    },
+    "imap_smtp_injection": {
+      "cwes": [
+        "CWE-93"
+      ],
+      "diagnostics": {
+        "advisories_seen": 93,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "information_disclosure": {
+      "cwes": [
+        "CWE-200"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_root": 1,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 1,
+        "historical_source_root_overlap": 1,
+        "historical_url_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "jwt_weakness": {
+      "cwes": [
+        "CWE-345",
+        "CWE-347"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "ldap_injection": {
+      "cwes": [
+        "CWE-90"
+      ],
+      "diagnostics": {
+        "advisories_seen": 25,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 1,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "logging_monitoring_weakness": {
+      "cwes": [
+        "CWE-223",
+        "CWE-778"
+      ],
+      "diagnostics": {
+        "advisories_seen": 2,
+        "pages_fetched": 1
+      }
+    },
+    "mass_assignment": {
+      "cwes": [
+        "CWE-915"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 2,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "nosql_injection": {
+      "cwes": [
+        "CWE-943"
+      ],
+      "diagnostics": {
+        "advisories_seen": 30,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 2,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "open_redirect": {
+      "cwes": [
+        "CWE-601"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 1,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "orm_injection": {
+      "cwes": [
+        "CWE-564"
+      ],
+      "diagnostics": {
+        "advisories_seen": 4,
+        "pages_fetched": 1
+      }
+    },
+    "path_traversal": {
+      "cwes": [
+        "CWE-22"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "postmessage_trust": {
+      "cwes": [
+        "CWE-346"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "prototype_pollution": {
+      "cwes": [
+        "CWE-1321"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "race_condition": {
+      "cwes": [
+        "CWE-362"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_identifier_overlap": 1,
+        "historical_source_project_overlap": 2,
+        "historical_source_root_overlap": 1,
+        "pages_fetched": 1
+      }
+    },
+    "reflected_xss": {
+      "cwes": [
+        "CWE-79"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 2,
+        "already_selected_root": 3,
+        "historical_source_project_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "reverse_tabnabbing": {
+      "cwes": [
+        "CWE-1022"
+      ],
+      "diagnostics": {
+        "advisories_seen": 7,
+        "pages_fetched": 1
+      }
+    },
+    "secret_exposure": {
+      "cwes": [
+        "CWE-200"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_root": 2,
+        "historical_identifier_overlap": 2,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 2,
+        "historical_url_overlap": 1,
+        "pages_fetched": 1,
+        "withdrawn": 1
+      }
+    },
+    "security_headers": {
+      "cwes": [
+        "CWE-693"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "sensitive_business_flow_abuse": {
+      "cwes": [
+        "CWE-841"
+      ],
+      "diagnostics": {
+        "advisories_seen": 12,
+        "pages_fetched": 1
+      }
+    },
+    "sensitive_caching": {
+      "cwes": [
+        "CWE-525"
+      ],
+      "diagnostics": {
+        "advisories_seen": 11,
+        "already_selected_project": 1,
+        "pages_fetched": 1
+      }
+    },
+    "software_data_integrity": {
+      "cwes": [
+        "CWE-353",
+        "CWE-494"
+      ],
+      "diagnostics": {
+        "advisories_seen": 6,
+        "pages_fetched": 1
+      }
+    },
+    "source_map_exposure": {
+      "cwes": [
+        "CWE-200"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_root": 3,
+        "historical_identifier_overlap": 2,
+        "historical_source_project_overlap": 3,
+        "historical_source_root_overlap": 2,
+        "historical_url_overlap": 1,
+        "pages_fetched": 1,
+        "withdrawn": 1
+      }
+    },
+    "sql_injection": {
+      "cwes": [
+        "CWE-89"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "ssi_injection": {
+      "cwes": [
+        "CWE-97"
+      ],
+      "diagnostics": {
+        "advisories_seen": 1,
+        "already_selected_project": 1,
+        "pages_fetched": 1
+      }
+    },
+    "ssrf": {
+      "cwes": [
+        "CWE-918"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "ssti": {
+      "cwes": [
+        "CWE-1336"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 2,
+        "already_selected_root": 1,
+        "historical_identifier_overlap": 2,
+        "historical_source_project_overlap": 5,
+        "historical_source_root_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "stored_xss": {
+      "cwes": [
+        "CWE-79"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 2,
+        "already_selected_root": 4,
+        "historical_source_project_overlap": 2,
+        "pages_fetched": 1
+      }
+    },
+    "unrestricted_resource_consumption": {
+      "cwes": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "unsafe_api_consumption": {
+      "cwes": [
+        "CWE-319",
+        "CWE-400"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "historical_source_project_overlap": 3,
+        "pages_fetched": 1
+      }
+    },
+    "unsafe_deserialization": {
+      "cwes": [
+        "CWE-502"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_project": 1,
+        "pages_fetched": 1
+      }
+    },
+    "weak_cryptography": {
+      "cwes": [
+        "CWE-327",
+        "CWE-328"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "websocket_authorization": {
+      "cwes": [
+        "CWE-862"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "already_selected_root": 2,
+        "historical_identifier_overlap": 3,
+        "historical_source_project_overlap": 15,
+        "historical_source_root_overlap": 3,
+        "pages_fetched": 1
+      }
+    },
+    "xml_external_entity": {
+      "cwes": [
+        "CWE-611"
+      ],
+      "diagnostics": {
+        "advisories_seen": 100,
+        "pages_fetched": 1
+      }
+    },
+    "xml_injection": {
+      "cwes": [
+        "CWE-91"
+      ],
+      "diagnostics": {
+        "advisories_seen": 47,
+        "pages_fetched": 1
+      }
+    },
+    "xpath_injection": {
+      "cwes": [
+        "CWE-643"
+      ],
+      "diagnostics": {
+        "advisories_seen": 3,
+        "pages_fetched": 1
+      }
+    }
+  },
+  "historical_exposure": [
+    {
+      "loaded": true,
+      "name": "analysis_golden_v3",
+      "path": "benchmarks/golden/analysis_golden_v3.jsonl",
+      "record_count": 179,
+      "ref": "agent/analysis-engine-6.0-owasp-admission",
+      "role": "consumed_benchmark",
+      "source_project_count": 51,
+      "source_root_count": 87
+    },
+    {
+      "loaded": true,
+      "name": "analysis_golden_v4",
+      "path": "benchmarks/golden/analysis_golden_v4.jsonl",
+      "record_count": 200,
+      "ref": "agent/analysis-engine-6.6-postfreeze-blind",
+      "role": "consumed_benchmark",
+      "source_project_count": 50,
+      "source_root_count": 50
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v1",
+      "path": "benchmarks/raw/analysis_raw_v1.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.11-blind-raw-recon-benchmark",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v2",
+      "path": "benchmarks/raw/analysis_raw_v2.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.13-fresh-raw-holdout-v2",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v3",
+      "path": "benchmarks/raw/analysis_raw_v3.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.15-fresh-raw-holdout-v3",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v6",
+      "path": "benchmarks/raw/sources/v6_shortlist.json",
+      "record_count": 1,
+      "ref": "agent/analysis-engine-6.31-fresh-blind-v6-validation",
+      "role": "reserved_blind",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v4",
+      "path": "benchmarks/raw/analysis_raw_v4.jsonl",
+      "record_count": 144,
+      "ref": "agent/analysis-engine-6.26-fresh-raw-holdout-v4",
+      "role": "consumed_benchmark",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v5",
+      "path": "benchmarks/raw/analysis_raw_v5.jsonl",
+      "record_count": 216,
+      "ref": "agent/analysis-engine-6.29-fresh-blind-v5-multifamily",
+      "role": "consumed_benchmark",
+      "source_project_count": 54,
+      "source_root_count": 54
+    }
+  ],
+  "human_labels_created": false,
+  "represented_family_target_count": 60,
+  "rule_version": "2026.08.14.3",
+  "scoring_executed": false,
+  "selected": [
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jhh7-832h-f8hv",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-204"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "account_enumeration",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-JHH7-832H-F8HV",
+        "CVE-2026-54768"
+      ],
+      "published_at": "2026-07-31T22:24:29Z",
+      "references": [
+        "https://github.com/advisories/GHSA-jhh7-832h-f8hv",
+        "https://github.com/wp-graphql/wp-graphql/releases/tag/wp-graphql/v2.15.1",
+        "https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/wp-graphql/wp-graphql/security-advisories/GHSA-jhh7-832h-f8hv",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/wp-graphql/wp-graphql",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "wp-graphql/wp-graphql",
+      "source_root": "GHSA-JHH7-832H-F8HV",
+      "target_cwe": "CWE-204",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-31T22:24:31Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-f5vj-f2hx-8m93",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-352",
+        "CWE-749"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "admin_interface_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-F5VJ-F2HX-8M93",
+        "CVE-2026-14620"
+      ],
+      "published_at": "2026-07-20T22:01:56Z",
+      "references": [
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/advisories/GHSA-f5vj-f2hx-8m93",
+        "https://github.com/webpack/webpack-dev-server/commit/80cd9eea54975fe632a518d8bd902a260f374e7c",
+        "https://github.com/webpack/webpack-dev-server/pull/5698",
+        "https://github.com/webpack/webpack-dev-server/releases/tag/v5.2.6",
+        "https://github.com/webpack/webpack-dev-server/security/advisories/GHSA-f5vj-f2hx-8m93",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-14620"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/webpack/webpack-dev-server/security-advisories/GHSA-f5vj-f2hx-8m93",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/webpack/webpack-dev-server",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "webpack/webpack-dev-server",
+      "source_root": "GHSA-F5VJ-F2HX-8M93",
+      "target_cwe": "CWE-749",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-20T22:02:59Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-29rf-f4vv-pvq6",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-287"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "authentication_session"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "authentication_session",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-29RF-F4VV-PVQ6",
+        "CVE-2026-35511"
+      ],
+      "published_at": "2026-08-14T15:36:15Z",
+      "references": [
+        "https://github.com/advisories/GHSA-29rf-f4vv-pvq6",
+        "https://github.com/authorizerdev/authorizer/commit/66fe488fd2a4e7acf1e517334344d5e8f3ddd296",
+        "https://github.com/authorizerdev/authorizer/releases/tag/2.4.0-rc.16",
+        "https://github.com/authorizerdev/authorizer/security/advisories/GHSA-29rf-f4vv-pvq6"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/authorizerdev/authorizer/security-advisories/GHSA-29rf-f4vv-pvq6",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/authorizerdev/authorizer",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "authorizerdev/authorizer",
+      "source_root": "GHSA-29RF-F4VV-PVQ6",
+      "target_cwe": "CWE-287",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-14T15:36:17Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-w8xc-8g92-v77h",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-639",
+        "CWE-862"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "broken_function_authorization",
+        "broken_object_authorization"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "broken_function_authorization",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-W8XC-8G92-V77H",
+        "CVE-2026-52839"
+      ],
+      "published_at": "2026-07-29T16:26:25Z",
+      "references": [
+        "https://github.com/advisories/GHSA-w8xc-8g92-v77h",
+        "https://github.com/alextselegidis/easyappointments/commit/725eafa647308846ce887657db12771a829e42ef",
+        "https://github.com/alextselegidis/easyappointments/releases/tag/1.6.0",
+        "https://github.com/alextselegidis/easyappointments/security/advisories/GHSA-w8xc-8g92-v77h",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-52839"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/alextselegidis/easyappointments/security-advisories/GHSA-w8xc-8g92-v77h",
+      "scoring_executed": false,
+      "severity": "low",
+      "source_code_location": "https://github.com/alextselegidis/easyappointments",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "alextselegidis/easyappointments",
+      "source_root": "GHSA-W8XC-8G92-V77H",
+      "target_cwe": "CWE-862",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-29T16:26:27Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-j5jq-cr68-v2xx",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-285",
+        "CWE-639"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "broken_object_authorization"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "broken_object_authorization",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-J5JQ-CR68-V2XX",
+        "CVE-2026-35445"
+      ],
+      "published_at": "2026-08-12T15:15:17Z",
+      "references": [
+        "https://github.com/advisories/GHSA-j5jq-cr68-v2xx",
+        "https://github.com/wintercms/winter/releases/tag/v1.2.13",
+        "https://github.com/wintercms/winter/security/advisories/GHSA-j5jq-cr68-v2xx"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/wintercms/winter/security-advisories/GHSA-j5jq-cr68-v2xx",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/wintercms/winter",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "wintercms/winter",
+      "source_root": "GHSA-J5JQ-CR68-V2XX",
+      "target_cwe": "CWE-639",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T15:15:19Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-x3x5-7h4h-gwxg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-522",
+        "CWE-79",
+        "CWE-922"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "browser_storage_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-X3X5-7H4H-GWXG",
+        "CVE-2026-46511"
+      ],
+      "published_at": "2026-05-19T14:47:03Z",
+      "references": [
+        "https://github.com/advisories/GHSA-x3x5-7h4h-gwxg",
+        "https://github.com/haxtheweb/issues/security/advisories/GHSA-x3x5-7h4h-gwxg",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-46511"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/haxtheweb/issues/security-advisories/GHSA-x3x5-7h4h-gwxg",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/haxtheweb/issues",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "haxtheweb/issues",
+      "source_root": "GHSA-X3X5-7H4H-GWXG",
+      "target_cwe": "CWE-922",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-06-09T11:56:59Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fcw5-x6j4-ccmp",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1021",
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "clickjacking",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-FCW5-X6J4-CCMP",
+        "CVE-2026-44727"
+      ],
+      "published_at": "2026-06-18T15:04:07Z",
+      "references": [
+        "https://access.redhat.com/errata/RHSA-2026:43038",
+        "https://access.redhat.com/security/cve/CVE-2026-44727",
+        "https://bugzilla.redhat.com/show_bug.cgi?id=2491516",
+        "https://github.com/advisories/GHSA-fcw5-x6j4-ccmp",
+        "https://github.com/jupyter-server/jupyter_server",
+        "https://github.com/jupyter-server/jupyter_server/commit/6cbee8d65e71abac851c4492fea987ad080580bd",
+        "https://github.com/jupyter-server/jupyter_server/security/advisories/GHSA-fcw5-x6j4-ccmp",
+        "https://github.com/pypa/advisory-database/tree/main/vulns/jupyter-server/PYSEC-2026-366.yaml",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-44727",
+        "https://pypi.org/project/jupyter-server",
+        "https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-44727.json"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jupyter-server/jupyter_server/security-advisories/GHSA-fcw5-x6j4-ccmp",
+      "scoring_executed": false,
+      "severity": "critical",
+      "source_code_location": "https://github.com/jupyter-server/jupyter_server",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "jupyter-server/jupyter_server",
+      "source_root": "GHSA-FCW5-X6J4-CCMP",
+      "target_cwe": "CWE-1021",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-22T12:32:12Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-wjv6-jcfj-mf9r",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1336",
+        "CWE-94"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "client_side_template_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-WJV6-JCFJ-MF9R",
+        "CVE-2026-54654"
+      ],
+      "published_at": "2026-07-28T21:50:09Z",
+      "references": [
+        "https://github.com/advisories/GHSA-wjv6-jcfj-mf9r",
+        "https://github.com/koxudaxi/datamodel-code-generator/commit/b73abb5cd703a50471b8950bbd3bd0b82ad71de7",
+        "https://github.com/koxudaxi/datamodel-code-generator/releases/tag/0.60.2",
+        "https://github.com/koxudaxi/datamodel-code-generator/security/advisories/GHSA-wjv6-jcfj-mf9r"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/koxudaxi/datamodel-code-generator/security-advisories/GHSA-wjv6-jcfj-mf9r",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/koxudaxi/datamodel-code-generator",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "koxudaxi/datamodel-code-generator",
+      "source_root": "GHSA-WJV6-JCFJ-MF9R",
+      "target_cwe": "CWE-1336",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-28T21:50:09Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-qf5v-m7p4-95rp",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-269",
+        "CWE-732"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "cloud_storage_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-QF5V-M7P4-95RP",
+        "CVE-2026-50570"
+      ],
+      "published_at": "2026-07-28T20:12:45Z",
+      "references": [
+        "https://github.com/advisories/GHSA-qf5v-m7p4-95rp",
+        "https://github.com/fission/fission/commit/2569b42bfadbcb7d78b55a00a60f77937e522699",
+        "https://github.com/fission/fission/pull/3465",
+        "https://github.com/fission/fission/releases/tag/v1.25.0",
+        "https://github.com/fission/fission/security/advisories/GHSA-qf5v-m7p4-95rp",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-50570"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/fission/fission/security-advisories/GHSA-qf5v-m7p4-95rp",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/fission/fission",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "fission/fission",
+      "source_root": "GHSA-QF5V-M7P4-95RP",
+      "target_cwe": "CWE-732",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-28T20:12:47Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-49m4-vp58-wgc9",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-94"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "code_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-49M4-VP58-WGC9",
+        "CVE-2026-55071"
+      ],
+      "published_at": "2026-08-12T19:23:38Z",
+      "references": [
+        "https://github.com/SepineTam/mcp-for-stata/releases/tag/v1.19.0",
+        "https://github.com/SepineTam/mcp-for-stata/security/advisories/GHSA-49m4-vp58-wgc9",
+        "https://github.com/advisories/GHSA-49m4-vp58-wgc9"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/SepineTam/mcp-for-stata/security-advisories/GHSA-49m4-vp58-wgc9",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/SepineTam/mcp-for-stata",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "sepinetam/mcp-for-stata",
+      "source_root": "GHSA-49M4-VP58-WGC9",
+      "target_cwe": "CWE-94",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T19:23:39Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hmqg-cxww-wqhq",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-78"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "command_injection"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "command_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-HMQG-CXWW-WQHQ",
+        "CVE-2026-67434"
+      ],
+      "published_at": "2026-08-06T21:31:34Z",
+      "references": [
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/squizlabs/php_codesniffer/CVE-2026-67434.yaml",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/commit/7a3a6bbf153a03fa3a9413afc60bded6b764e76b",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/commit/f0e1ebb0563f0e5d7f190497a787bcaf8474f3fe",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/pull/1473",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/tag/3.13.6",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/tag/4.0.2",
+        "https://github.com/PHPCSStandards/PHP_CodeSniffer/security/advisories/GHSA-hmqg-cxww-wqhq",
+        "https://github.com/advisories/GHSA-hmqg-cxww-wqhq"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/security-advisories/GHSA-hmqg-cxww-wqhq",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/PHPCSStandards/PHP_CodeSniffer",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "phpcsstandards/php_codesniffer",
+      "source_root": "GHSA-HMQG-CXWW-WQHQ",
+      "target_cwe": "CWE-78",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-06T21:31:35Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-q78p-hj9h-5466",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-346",
+        "CWE-942"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "cors_misconfiguration"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "cors_misconfiguration",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-Q78P-HJ9H-5466",
+        "CVE-2026-53656"
+      ],
+      "published_at": "2026-07-15T21:57:29Z",
+      "references": [
+        "https://github.com/advisories/GHSA-q78p-hj9h-5466",
+        "https://github.com/voxel51/fiftyone/commit/7c5b92eec5c7c0210c0c8134351ced77d2800ae0",
+        "https://github.com/voxel51/fiftyone/releases/tag/v1.17.0",
+        "https://github.com/voxel51/fiftyone/security/advisories/GHSA-q78p-hj9h-5466"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/voxel51/fiftyone/security-advisories/GHSA-q78p-hj9h-5466",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/voxel51/fiftyone",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "voxel51/fiftyone",
+      "source_root": "GHSA-Q78P-HJ9H-5466",
+      "target_cwe": "CWE-942",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-15T21:57:29Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-4j38-rw27-97gx",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-352"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "csrf",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-4J38-RW27-97GX",
+        "CVE-2023-37465"
+      ],
+      "published_at": "2026-07-27T17:04:00Z",
+      "references": [
+        "https://github.com/advisories/GHSA-4j38-rw27-97gx",
+        "https://github.com/xwiki-contrib/application-discussions/security/advisories/GHSA-4j38-rw27-97gx",
+        "https://jira.xwiki.org/browse/DISCUSSION-22"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/xwiki-contrib/application-discussions/security-advisories/GHSA-4j38-rw27-97gx",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/xwiki-contrib/application-discussions",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "xwiki-contrib/application-discussions",
+      "source_root": "GHSA-4J38-RW27-97GX",
+      "target_cwe": "CWE-352",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-27T17:04:02Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jmqm-f8q4-v7wx",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "css_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-JMQM-F8Q4-V7WX",
+        "CVE-2026-45694"
+      ],
+      "published_at": "2026-08-12T15:16:22Z",
+      "references": [
+        "https://github.com/advisories/GHSA-jmqm-f8q4-v7wx",
+        "https://github.com/librenms/librenms/releases/tag/26.5.0",
+        "https://github.com/librenms/librenms/security/advisories/GHSA-jmqm-f8q4-v7wx"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/librenms/librenms/security-advisories/GHSA-jmqm-f8q4-v7wx",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/librenms/librenms",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "librenms/librenms",
+      "source_root": "GHSA-JMQM-F8Q4-V7WX",
+      "target_cwe": "CWE-79",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T15:16:25Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2p5x-4jr6-x5jg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1236"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "csv_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-2P5X-4JR6-X5JG",
+        "CVE-2026-45263"
+      ],
+      "published_at": "2026-07-14T17:18:48Z",
+      "references": [
+        "https://github.com/NeoRazorX/facturascripts/security/advisories/GHSA-2p5x-4jr6-x5jg",
+        "https://github.com/advisories/GHSA-2p5x-4jr6-x5jg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/NeoRazorX/facturascripts/security-advisories/GHSA-2p5x-4jr6-x5jg",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/NeoRazorX/facturascripts",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "neorazorx/facturascripts",
+      "source_root": "GHSA-2P5X-4JR6-X5JG",
+      "target_cwe": "CWE-1236",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-14T17:18:49Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gqgw-jghv-mxwx",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "dom_xss",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-GQGW-JGHV-MXWX",
+        "CVE-2026-9318"
+      ],
+      "published_at": "2026-08-12T03:31:18Z",
+      "references": [
+        "https://github.com/advisories/GHSA-gqgw-jghv-mxwx",
+        "https://github.com/jazzband/tablib",
+        "https://github.com/jazzband/tablib/pull/668",
+        "https://github.com/jazzband/tablib/releases/tag/v3.10.0",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-9318",
+        "https://www.vulncheck.com/advisories/tablib-versions-prior-to-stored-xss-via-html-export-dataset-title"
+      ],
+      "repository_advisory_url": "",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/jazzband/tablib",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "jazzband/tablib",
+      "source_root": "GHSA-GQGW-JGHV-MXWX",
+      "target_cwe": "CWE-79",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T19:32:21Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hc4m-q9jh-xw4j",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-636"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "exceptional_condition_fail_open",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-HC4M-Q9JH-XW4J"
+      ],
+      "published_at": "2026-07-28T15:51:30Z",
+      "references": [
+        "https://github.com/advisories/GHSA-hc4m-q9jh-xw4j",
+        "https://github.com/always-further/nono/security/advisories/GHSA-hc4m-q9jh-xw4j",
+        "https://github.com/nolabs-ai/nono/commit/db07375031642f089d549b4f7b9abece87e39f87",
+        "https://github.com/nolabs-ai/nono/releases/tag/v0.62.0"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nolabs-ai/nono/security-advisories/GHSA-hc4m-q9jh-xw4j",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/always-further/nono",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "always-further/nono",
+      "source_root": "GHSA-HC4M-Q9JH-XW4J",
+      "target_cwe": "CWE-636",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-28T15:51:31Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6r9h-4h75-7q4x",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-22",
+        "CWE-73",
+        "CWE-98"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "path_traversal"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "file_inclusion",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-6R9H-4H75-7Q4X",
+        "CVE-2026-9559"
+      ],
+      "published_at": "2026-07-02T19:48:50Z",
+      "references": [
+        "https://github.com/advisories/GHSA-6r9h-4h75-7q4x",
+        "https://github.com/mautic/mautic/security/advisories/GHSA-6r9h-4h75-7q4x",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-9559"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/mautic/mautic/security-advisories/GHSA-6r9h-4h75-7q4x",
+      "scoring_executed": false,
+      "severity": "critical",
+      "source_code_location": "https://github.com/mautic/mautic",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "mautic/mautic",
+      "source_root": "GHSA-6R9H-4H75-7Q4X",
+      "target_cwe": "CWE-98",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-02T19:48:50Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-98pp-vccm-qm25",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-434"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "file_upload"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "file_upload",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-98PP-VCCM-QM25",
+        "CVE-2026-53599"
+      ],
+      "published_at": "2026-07-31T19:43:51Z",
+      "references": [
+        "https://github.com/advisories/GHSA-98pp-vccm-qm25",
+        "https://github.com/redaxo/core/commit/462e36896bb65d292ba22d711044c23c9cfb0340",
+        "https://github.com/redaxo/core/pull/6538",
+        "https://github.com/redaxo/core/releases/tag/5.21.1",
+        "https://github.com/redaxo/core/security/advisories/GHSA-98pp-vccm-qm25"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/redaxo/core/security-advisories/GHSA-98pp-vccm-qm25",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/redaxo/core",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "redaxo/core",
+      "source_root": "GHSA-98PP-VCCM-QM25",
+      "target_cwe": "CWE-434",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-31T19:43:51Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3m6g-2423-7cp3",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-134"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "format_string_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-3M6G-2423-7CP3",
+        "CVE-2026-33210"
+      ],
+      "published_at": "2026-03-19T12:45:53Z",
+      "references": [
+        "https://github.com/advisories/GHSA-3m6g-2423-7cp3",
+        "https://github.com/ruby/json/security/advisories/GHSA-3m6g-2423-7cp3",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/json/CVE-2026-33210.yml",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-33210"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ruby/json/security-advisories/GHSA-3m6g-2423-7cp3",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/ruby/json",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "ruby/json",
+      "source_root": "GHSA-3M6G-2423-7CP3",
+      "target_cwe": "CWE-134",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-03-25T18:24:35Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-rmxw-pq4x-3fvh",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-862",
+        "CWE-863"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "broken_function_authorization"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "graphql_authorization",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-RMXW-PQ4X-3FVH",
+        "CVE-2026-54719"
+      ],
+      "published_at": "2026-07-28T21:59:48Z",
+      "references": [
+        "https://github.com/advisories/GHSA-rmxw-pq4x-3fvh",
+        "https://github.com/goshs-labs/goshs/commit/7cf911a26ace737e1a55b7dc073e307a25f7fd1d",
+        "https://github.com/goshs-labs/goshs/releases/tag/v2.1.1",
+        "https://github.com/goshs-labs/goshs/security/advisories/GHSA-rmxw-pq4x-3fvh"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/goshs-labs/goshs/security-advisories/GHSA-rmxw-pq4x-3fvh",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/goshs-labs/goshs",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "goshs-labs/goshs",
+      "source_root": "GHSA-RMXW-PQ4X-3FVH",
+      "target_cwe": "CWE-862",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-28T21:59:49Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-88p2-jj8w-j8qg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-200"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "information_disclosure"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "graphql_data_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-88P2-JJ8W-J8QG",
+        "CVE-2026-48786"
+      ],
+      "published_at": "2026-08-12T15:18:13Z",
+      "references": [
+        "https://github.com/advisories/GHSA-88p2-jj8w-j8qg",
+        "https://github.com/fleetdm/fleet/releases/tag/fleet-v4.87.0",
+        "https://github.com/fleetdm/fleet/security/advisories/GHSA-88p2-jj8w-j8qg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/fleetdm/fleet/security-advisories/GHSA-88p2-jj8w-j8qg",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/fleetdm/fleet",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "fleetdm/fleet",
+      "source_root": "GHSA-88P2-JJ8W-J8QG",
+      "target_cwe": "CWE-200",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T15:18:14Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-55q2-fjhq-7xh7",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "html_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-55Q2-FJHQ-7XH7"
+      ],
+      "published_at": "2026-08-07T15:30:47Z",
+      "references": [
+        "https://github.com/advisories/GHSA-55q2-fjhq-7xh7",
+        "https://github.com/cure53/DOMPurify/commit/3067f7746769",
+        "https://github.com/cure53/DOMPurify/pull/1557",
+        "https://github.com/cure53/DOMPurify/releases/tag/3.4.13",
+        "https://github.com/cure53/DOMPurify/security/advisories/GHSA-55q2-fjhq-7xh7"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/cure53/DOMPurify/security-advisories/GHSA-55q2-fjhq-7xh7",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/cure53/DOMPurify",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "cure53/dompurify",
+      "source_root": "GHSA-55Q2-FJHQ-7XH7",
+      "target_cwe": "CWE-79",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-07T15:30:48Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fr54-72wr-cqvq",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-235"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "http_parameter_pollution",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-FR54-72WR-CQVQ",
+        "CVE-2017-20160"
+      ],
+      "published_at": "2022-12-31T21:30:20Z",
+      "references": [
+        "https://github.com/advisories/GHSA-fr54-72wr-cqvq",
+        "https://github.com/flitto/express-param/commit/db94f7391ad0a16dcfcba8b9be1af385b25c42db",
+        "https://github.com/flitto/express-param/pull/19",
+        "https://github.com/flitto/express-param/releases/tag/1.0.0",
+        "https://nvd.nist.gov/vuln/detail/CVE-2017-20160",
+        "https://vuldb.com/?ctiid.217149",
+        "https://vuldb.com/?id.217149"
+      ],
+      "repository_advisory_url": "",
+      "scoring_executed": false,
+      "severity": "critical",
+      "source_code_location": "https://github.com/flitto/express-param",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "flitto/express-param",
+      "source_root": "GHSA-FR54-72WR-CQVQ",
+      "target_cwe": "CWE-235",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2023-10-20T21:39:48Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-r6mh-95jw-g7qg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-444"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "http_request_smuggling",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-R6MH-95JW-G7QG",
+        "CVE-2026-62899"
+      ],
+      "published_at": "2026-08-11T18:40:35Z",
+      "references": [
+        "https://github.com/advisories/GHSA-r6mh-95jw-g7qg",
+        "https://github.com/dotnet/announcements/issues/427",
+        "https://github.com/dotnet/runtime/security/advisories/GHSA-r6mh-95jw-g7qg",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-62899",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-62899"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/dotnet/runtime/security-advisories/GHSA-r6mh-95jw-g7qg",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/dotnet/runtime",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "dotnet/runtime",
+      "source_root": "GHSA-R6MH-95JW-G7QG",
+      "target_cwe": "CWE-444",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-11T18:40:37Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-q3g2-m552-3r9c",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-113",
+        "CWE-444"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "http_response_splitting",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-Q3G2-M552-3R9C",
+        "CVE-2026-64785"
+      ],
+      "published_at": "2026-07-24T21:52:10Z",
+      "references": [
+        "https://github.com/advisories/GHSA-q3g2-m552-3r9c",
+        "https://github.com/apple/swift-nio-http2/commit/45bdf670248be5f16ec0340e125dca285536f0fb",
+        "https://github.com/apple/swift-nio-http2/commit/48bfd9067d7d1d15c4789440127a0cf36222ea43",
+        "https://github.com/apple/swift-nio-http2/releases/tag/1.45.0",
+        "https://github.com/apple/swift-nio-http2/security/advisories/GHSA-q3g2-m552-3r9c",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-64785"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/apple/swift-nio-http2/security-advisories/GHSA-q3g2-m552-3r9c",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/apple/swift-nio-http2",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "apple/swift-nio-http2",
+      "source_root": "GHSA-Q3G2-M552-3R9C",
+      "target_cwe": "CWE-113",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-24T21:52:11Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-93"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "imap_smtp_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-M8RV-5G2X-5CG5",
+        "CVE-2026-15157"
+      ],
+      "published_at": "2026-08-03T19:33:53Z",
+      "references": [
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5",
+        "https://github.com/nodejs/undici/commit/33928bc24f742ea8422ed90d17f2e0cc83e4d09d",
+        "https://github.com/nodejs/undici/commit/740a0b7c173cb4a83a5b693e96e8f3a116cfc400",
+        "https://github.com/nodejs/undici/commit/7d3cf924c262c486bc77f951348f4e5c847b7b42",
+        "https://github.com/nodejs/undici/releases/tag/v6.28.0",
+        "https://github.com/nodejs/undici/releases/tag/v7.29.0",
+        "https://github.com/nodejs/undici/releases/tag/v8.9.0",
+        "https://github.com/nodejs/undici/security/advisories/GHSA-m8rv-5g2x-5cg5",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-15157"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nodejs/undici/security-advisories/GHSA-m8rv-5g2x-5cg5",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/nodejs/undici",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "nodejs/undici",
+      "source_root": "GHSA-M8RV-5G2X-5CG5",
+      "target_cwe": "CWE-93",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-03T19:33:56Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6pvm-2vjj-rx4w",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-20",
+        "CWE-200",
+        "CWE-89"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "information_disclosure",
+        "sql_injection"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "information_disclosure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-6PVM-2VJJ-RX4W",
+        "CVE-2026-47132"
+      ],
+      "published_at": "2026-08-12T15:17:54Z",
+      "references": [
+        "https://github.com/advisories/GHSA-6pvm-2vjj-rx4w",
+        "https://github.com/thorsten/phpMyFAQ/commit/bd4b08b012234ccfcff07bfe6518062475b29e0a",
+        "https://github.com/thorsten/phpMyFAQ/security/advisories/GHSA-6pvm-2vjj-rx4w"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/thorsten/phpMyFAQ/security-advisories/GHSA-6pvm-2vjj-rx4w",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/thorsten/phpMyFAQ",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "thorsten/phpmyfaq",
+      "source_root": "GHSA-6PVM-2VJJ-RX4W",
+      "target_cwe": "CWE-200",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T15:17:55Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-xq73-fvmr-jvmm",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1188",
+        "CWE-90"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "ldap_injection"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "ldap_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-XQ73-FVMR-JVMM",
+        "CVE-2026-46619"
+      ],
+      "published_at": "2026-06-26T17:32:18Z",
+      "references": [
+        "https://github.com/OpenIdentityPlatform/OpenAM/security/advisories/GHSA-xq73-fvmr-jvmm",
+        "https://github.com/advisories/GHSA-xq73-fvmr-jvmm"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/OpenIdentityPlatform/OpenAM/security-advisories/GHSA-xq73-fvmr-jvmm",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/OpenIdentityPlatform/OpenAM",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "openidentityplatform/openam",
+      "source_root": "GHSA-XQ73-FVMR-JVMM",
+      "target_cwe": "CWE-90",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-06-26T17:32:19Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-7jvp-hj45-2f2m",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-284",
+        "CWE-915"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "mass_assignment"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "mass_assignment",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-7JVP-HJ45-2F2M"
+      ],
+      "published_at": "2026-07-06T17:30:17Z",
+      "references": [
+        "https://github.com/advisories/GHSA-7jvp-hj45-2f2m",
+        "https://github.com/scriban/scriban/security/advisories/GHSA-7jvp-hj45-2f2m"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/scriban/scriban/security-advisories/GHSA-7jvp-hj45-2f2m",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/scriban/scriban",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "scriban/scriban",
+      "source_root": "GHSA-7JVP-HJ45-2F2M",
+      "target_cwe": "CWE-915",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-06T17:30:17Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5c7w-4wm3-85vw",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-943"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "nosql_injection"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "nosql_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-5C7W-4WM3-85VW"
+      ],
+      "published_at": "2026-07-02T19:00:12Z",
+      "references": [
+        "https://github.com/advisories/GHSA-5c7w-4wm3-85vw",
+        "https://github.com/asymmetric-effort/specifyjs/commit/25d1fb491d99479efdf501f5f75e0bb80c908f0a",
+        "https://github.com/asymmetric-effort/specifyjs/security/advisories/GHSA-5c7w-4wm3-85vw"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/asymmetric-effort/specifyjs/security-advisories/GHSA-5c7w-4wm3-85vw",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/asymmetric-effort/specifyjs",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "asymmetric-effort/specifyjs",
+      "source_root": "GHSA-5C7W-4WM3-85VW",
+      "target_cwe": "CWE-943",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-02T19:00:13Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pp92-crg2-gfv9",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-200",
+        "CWE-601"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "information_disclosure",
+        "open_redirect"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "open_redirect",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-PP92-CRG2-GFV9",
+        "CVE-2026-54603"
+      ],
+      "published_at": "2026-07-28T16:32:45Z",
+      "references": [
+        "https://github.com/advisories/GHSA-pp92-crg2-gfv9",
+        "https://github.com/ruby-oauth/oauth2/commit/0f0a474f1b38453e119e660c2daca742d4378ce9",
+        "https://github.com/ruby-oauth/oauth2/releases/tag/v2.0.22",
+        "https://github.com/ruby-oauth/oauth2/security/advisories/GHSA-pp92-crg2-gfv9"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ruby-oauth/oauth2/security-advisories/GHSA-pp92-crg2-gfv9",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/ruby-oauth/oauth2",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "ruby-oauth/oauth2",
+      "source_root": "GHSA-PP92-CRG2-GFV9",
+      "target_cwe": "CWE-601",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-28T16:32:45Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fqcv-8859-86x2",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-564"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "orm_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-FQCV-8859-86X2",
+        "CVE-2026-23959"
+      ],
+      "published_at": "2026-01-21T16:13:12Z",
+      "references": [
+        "https://github.com/advisories/GHSA-fqcv-8859-86x2",
+        "https://github.com/coreshop/CoreShop/commit/af80b8f5c7df5f02f44e9c5e0a4a564de274eec2",
+        "https://github.com/coreshop/CoreShop/releases/tag/4.1.9",
+        "https://github.com/coreshop/CoreShop/security/advisories/GHSA-fqcv-8859-86x2",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-23959"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/coreshop/CoreShop/security-advisories/GHSA-fqcv-8859-86x2",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/coreshop/CoreShop",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "coreshop/coreshop",
+      "source_root": "GHSA-FQCV-8859-86X2",
+      "target_cwe": "CWE-564",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-01-22T15:43:11Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-m42h-3232-vpv3",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-22"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "path_traversal"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "path_traversal",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-M42H-3232-VPV3",
+        "CVE-2026-12243"
+      ],
+      "published_at": "2026-08-13T20:45:05Z",
+      "references": [
+        "https://github.com/advisories/GHSA-m42h-3232-vpv3",
+        "https://github.com/nltk/nltk/commit/aec4fce1b84ad725b8975f7365b23a4f626572a9",
+        "https://github.com/nltk/nltk/issues/3504",
+        "https://github.com/nltk/nltk/pull/3522",
+        "https://github.com/nltk/nltk/security/advisories/GHSA-m42h-3232-vpv3",
+        "https://github.com/pypa/advisory-database/tree/main/vulns/nltk/PYSEC-2026-597.yaml",
+        "https://huntr.com/bounties/39aa9354-54ca-4e77-96da-580eb1fe6ed1",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-12243",
+        "https://securityinfinity.com/research/path-traversal-in-nltks-nltk-data-load-via-percent-encoded-sequences"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/nltk/nltk/security-advisories/GHSA-m42h-3232-vpv3",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/nltk/nltk",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "nltk/nltk",
+      "source_root": "GHSA-M42H-3232-VPV3",
+      "target_cwe": "CWE-22",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T20:45:06Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-f7vp-7xgx-4w4r",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-180",
+        "CWE-346",
+        "CWE-384"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "cors_misconfiguration"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "postmessage_trust",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-F7VP-7XGX-4W4R",
+        "CVE-2026-69245"
+      ],
+      "published_at": "2026-08-03T21:05:26Z",
+      "references": [
+        "https://github.com/advisories/GHSA-f7vp-7xgx-4w4r",
+        "https://github.com/guzzle/guzzle/commit/3aeea0406aab88cbbd86531313d7cebf8ae149a4",
+        "https://github.com/guzzle/guzzle/commit/744101956d78b7c1384d0cbf379db13e859167bf",
+        "https://github.com/guzzle/guzzle/pull/3907",
+        "https://github.com/guzzle/guzzle/pull/3908",
+        "https://github.com/guzzle/guzzle/releases/tag/7.15.2",
+        "https://github.com/guzzle/guzzle/releases/tag/8.0.1",
+        "https://github.com/guzzle/guzzle/security/advisories/GHSA-f7vp-7xgx-4w4r"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/guzzle/guzzle/security-advisories/GHSA-f7vp-7xgx-4w4r",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/guzzle/guzzle",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "guzzle/guzzle",
+      "source_root": "GHSA-F7VP-7XGX-4W4R",
+      "target_cwe": "CWE-346",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-03T21:05:27Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-p28v-f755-9qrg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1321"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "prototype_pollution",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-P28V-F755-9QRG",
+        "CVE-2026-73654"
+      ],
+      "published_at": "2026-08-13T20:54:11Z",
+      "references": [
+        "https://github.com/advisories/GHSA-p28v-f755-9qrg",
+        "https://github.com/triggerdotdev/trigger.dev/commit/6997aeb05e27d2db47f9eda01fdc8a17c81a1ae0",
+        "https://github.com/triggerdotdev/trigger.dev/pull/4316",
+        "https://github.com/triggerdotdev/trigger.dev/releases/tag/v4.5.6",
+        "https://github.com/triggerdotdev/trigger.dev/security/advisories/GHSA-p28v-f755-9qrg"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/triggerdotdev/trigger.dev/security-advisories/GHSA-p28v-f755-9qrg",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/triggerdotdev/trigger.dev",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "triggerdotdev/trigger.dev",
+      "source_root": "GHSA-P28V-F755-9QRG",
+      "target_cwe": "CWE-1321",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T20:54:13Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9h85-g7w3-rh49",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-362",
+        "CWE-488",
+        "CWE-668"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "race_condition"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "race_condition",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-9H85-G7W3-RH49",
+        "CVE-2026-54497"
+      ],
+      "published_at": "2026-07-15T22:51:33Z",
+      "references": [
+        "https://github.com/ViewComponent/view_component/commit/7b05073be28037f7d5ff141e9dd42f3cf47956a4",
+        "https://github.com/ViewComponent/view_component/releases/tag/v4.12.0",
+        "https://github.com/ViewComponent/view_component/security/advisories/GHSA-9h85-g7w3-rh49",
+        "https://github.com/advisories/GHSA-9h85-g7w3-rh49",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/view_component/CVE-2026-54497.yml",
+        "https://www.cve.org/CVERecord/SearchResults?query=CVE-2026-54497"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/ViewComponent/view_component/security-advisories/GHSA-9h85-g7w3-rh49",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/ViewComponent/view_component",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "viewcomponent/view_component",
+      "source_root": "GHSA-9H85-G7W3-RH49",
+      "target_cwe": "CWE-362",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-15T22:51:34Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hq66-cqwq-w95j",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "reflected_xss",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-HQ66-CQWQ-W95J",
+        "CVE-2026-16633"
+      ],
+      "published_at": "2026-08-06T21:12:27Z",
+      "references": [
+        "https://bugzilla.mozilla.org/show_bug.cgi?id=2055885",
+        "https://github.com/advisories/GHSA-hq66-cqwq-w95j",
+        "https://github.com/mozilla/pdf.js/security/advisories/GHSA-hq66-cqwq-w95j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/mozilla/pdf.js/security-advisories/GHSA-hq66-cqwq-w95j",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/mozilla/pdf.js",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "mozilla/pdf.js",
+      "source_root": "GHSA-HQ66-CQWQ-W95J",
+      "target_cwe": "CWE-79",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-06T21:12:27Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-vvfj-2jqx-52jm",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1022"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "reverse_tabnabbing",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-VVFJ-2JQX-52JM",
+        "CVE-2025-59842"
+      ],
+      "published_at": "2025-09-26T14:26:40Z",
+      "references": [
+        "https://github.com/advisories/GHSA-vvfj-2jqx-52jm",
+        "https://github.com/jupyterlab/jupyterlab/commit/88ef373039a8cc09f27d3814382a512d9033675c",
+        "https://github.com/jupyterlab/jupyterlab/security/advisories/GHSA-vvfj-2jqx-52jm",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-59842"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jupyterlab/jupyterlab/security-advisories/GHSA-vvfj-2jqx-52jm",
+      "scoring_executed": false,
+      "severity": "low",
+      "source_code_location": "https://github.com/jupyterlab/jupyterlab",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "jupyterlab/jupyterlab",
+      "source_root": "GHSA-VVFJ-2JQX-52JM",
+      "target_cwe": "CWE-1022",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2025-09-26T19:24:08Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hh9p-6wh2-4mfc",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-200",
+        "CWE-73"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "information_disclosure"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "secret_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-HH9P-6WH2-4MFC"
+      ],
+      "published_at": "2026-08-07T15:43:56Z",
+      "references": [
+        "https://github.com/advisories/GHSA-hh9p-6wh2-4mfc",
+        "https://github.com/gitpython-developers/GitPython/commit/f2550b65bf60ca087190981e2c7b6865e201f40c",
+        "https://github.com/gitpython-developers/GitPython/pull/2204",
+        "https://github.com/gitpython-developers/GitPython/releases/tag/3.1.58",
+        "https://github.com/gitpython-developers/GitPython/security/advisories/GHSA-hh9p-6wh2-4mfc"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/gitpython-developers/GitPython/security-advisories/GHSA-hh9p-6wh2-4mfc",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/gitpython-developers/GitPython",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "gitpython-developers/gitpython",
+      "source_root": "GHSA-HH9P-6WH2-4MFC",
+      "target_cwe": "CWE-200",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-07T15:43:57Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9mrh-pw7c-9mqm",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-693",
+        "CWE-829",
+        "CWE-918"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "ssrf"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "security_headers",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-9MRH-PW7C-9MQM",
+        "CVE-2026-62902"
+      ],
+      "published_at": "2026-08-11T19:55:48Z",
+      "references": [
+        "https://github.com/advisories/GHSA-9mrh-pw7c-9mqm",
+        "https://github.com/dotnet/announcements/issues/433",
+        "https://github.com/dotnet/wpf/security/advisories/GHSA-9mrh-pw7c-9mqm",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-62902",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-62902"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/dotnet/wpf/security-advisories/GHSA-9mrh-pw7c-9mqm",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/dotnet/wpf",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "dotnet/wpf",
+      "source_root": "GHSA-9MRH-PW7C-9MQM",
+      "target_cwe": "CWE-693",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-11T19:55:49Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5597-7rmh-97q5",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-672",
+        "CWE-841"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "sensitive_business_flow_abuse",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-5597-7RMH-97Q5",
+        "CVE-2026-53637"
+      ],
+      "published_at": "2026-07-09T21:03:41Z",
+      "references": [
+        "https://github.com/Sylius/Sylius/security/advisories/GHSA-5597-7rmh-97q5",
+        "https://github.com/advisories/GHSA-5597-7rmh-97q5"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/Sylius/Sylius/security-advisories/GHSA-5597-7rmh-97q5",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/Sylius/Sylius",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "sylius/sylius",
+      "source_root": "GHSA-5597-7RMH-97Q5",
+      "target_cwe": "CWE-841",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-09T21:03:42Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6vgg-xhvh-38ff",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-525"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "sensitive_caching",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-6VGG-XHVH-38FF"
+      ],
+      "published_at": "2026-06-12T18:30:09Z",
+      "references": [
+        "https://github.com/advisories/GHSA-6vgg-xhvh-38ff",
+        "https://github.com/forgekeep/nebula-mesh/commit/c13d5b2c013b4b323bc0c87a6ecc6afba6384ee5",
+        "https://github.com/juev/nebula-mesh/security/advisories/GHSA-6vgg-xhvh-38ff"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/forgekeep/nebula-mesh/security-advisories/GHSA-6vgg-xhvh-38ff",
+      "scoring_executed": false,
+      "severity": "low",
+      "source_code_location": "https://github.com/juev/nebula-mesh",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "juev/nebula-mesh",
+      "source_root": "GHSA-6VGG-XHVH-38FF",
+      "target_cwe": "CWE-525",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-06-12T18:30:11Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-3mr9-p497-58f6",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-200"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "information_disclosure"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "source_map_exposure",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-3MR9-P497-58F6",
+        "CVE-2026-55824"
+      ],
+      "published_at": "2026-08-06T19:43:02Z",
+      "references": [
+        "https://contao.org/en/security-advisories/credentials-disclosure-in-the-crawler",
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/contao/contao/CVE-2026-55824.yaml",
+        "https://github.com/FriendsOfPHP/security-advisories/blob/master/contao/core-bundle/CVE-2026-55824.yaml",
+        "https://github.com/advisories/GHSA-3mr9-p497-58f6",
+        "https://github.com/contao/contao/commit/5bc6e3f900c439313df57aa561d0865792aafa05",
+        "https://github.com/contao/contao/commit/80425d28cdf66280a209bd3f5bc31b1a76901a04",
+        "https://github.com/contao/contao/security/advisories/GHSA-3mr9-p497-58f6",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-55824"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/contao/contao/security-advisories/GHSA-3mr9-p497-58f6",
+      "scoring_executed": false,
+      "severity": "low",
+      "source_code_location": "https://github.com/contao/contao",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "contao/contao",
+      "source_root": "GHSA-3MR9-P497-58F6",
+      "target_cwe": "CWE-200",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-06T19:43:02Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-2mhj-fhvg-v428",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-20",
+        "CWE-89"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "sql_injection"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "sql_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-2MHJ-FHVG-V428",
+        "CVE-2026-55072"
+      ],
+      "published_at": "2026-08-13T13:44:24Z",
+      "references": [
+        "https://github.com/advisories/GHSA-2mhj-fhvg-v428",
+        "https://github.com/pimcore/pimcore/commit/33a0e1887e1e31b4283b016ac5440c35ea5697b4",
+        "https://github.com/pimcore/pimcore/security/advisories/GHSA-2mhj-fhvg-v428"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pimcore/pimcore/security-advisories/GHSA-2mhj-fhvg-v428",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/pimcore/pimcore",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "pimcore/pimcore",
+      "source_root": "GHSA-2MHJ-FHVG-V428",
+      "target_cwe": "CWE-89",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T13:44:24Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-h7p7-w5gc-xj3w",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-918"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "ssrf"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "ssrf",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-H7P7-W5GC-XJ3W",
+        "CVE-2026-54249"
+      ],
+      "published_at": "2026-08-13T14:16:26Z",
+      "references": [
+        "https://github.com/advisories/GHSA-h7p7-w5gc-xj3w",
+        "https://github.com/pydantic/pydantic-ai/releases/tag/v1.106.0",
+        "https://github.com/pydantic/pydantic-ai/releases/tag/v2.0.0b6",
+        "https://github.com/pydantic/pydantic-ai/security/advisories/GHSA-h7p7-w5gc-xj3w",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54249"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pydantic/pydantic-ai/security-advisories/GHSA-h7p7-w5gc-xj3w",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/pydantic/pydantic-ai",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "pydantic/pydantic-ai",
+      "source_root": "GHSA-H7P7-W5GC-XJ3W",
+      "target_cwe": "CWE-918",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T14:16:27Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-6xj8-qv9j-xcjq",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1336",
+        "CWE-94"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "ssti",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-6XJ8-QV9J-XCJQ",
+        "CVE-2026-73505"
+      ],
+      "published_at": "2026-07-24T22:36:11Z",
+      "references": [
+        "https://github.com/JanDeDobbeleer/oh-my-posh/commit/88ddbe0b0a4dd13cc345996108c9869493f2c690",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/releases/tag/v29.35.1",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/releases/tag/v29.36.0",
+        "https://github.com/JanDeDobbeleer/oh-my-posh/security/advisories/GHSA-6xj8-qv9j-xcjq",
+        "https://github.com/advisories/GHSA-6xj8-qv9j-xcjq"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/security-advisories/GHSA-6xj8-qv9j-xcjq",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/JanDeDobbeleer/oh-my-posh",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "jandedobbeleer/oh-my-posh",
+      "source_root": "GHSA-6XJ8-QV9J-XCJQ",
+      "target_cwe": "CWE-1336",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T14:22:04Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-pmhh-3w7g-xqp8",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-79"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "dom_xss"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "stored_xss",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-PMHH-3W7G-XQP8",
+        "CVE-2026-71497"
+      ],
+      "published_at": "2026-08-06T21:09:36Z",
+      "references": [
+        "https://github.com/advisories/GHSA-pmhh-3w7g-xqp8",
+        "https://github.com/jhy/jsoup/commit/92f1aca552548b484bc7d4b94c51e48b8e6eca70",
+        "https://github.com/jhy/jsoup/issues/2538",
+        "https://github.com/jhy/jsoup/releases/tag/jsoup-1.23.1",
+        "https://github.com/jhy/jsoup/security/advisories/GHSA-pmhh-3w7g-xqp8"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/jhy/jsoup/security-advisories/GHSA-pmhh-3w7g-xqp8",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/jhy/jsoup",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "jhy/jsoup",
+      "source_root": "GHSA-PMHH-3W7G-XQP8",
+      "target_cwe": "CWE-79",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-06T21:09:37Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-mv8w-475r-vwqw",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-502",
+        "CWE-843"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "unsafe_deserialization",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-MV8W-475R-VWQW",
+        "CVE-2026-59940"
+      ],
+      "published_at": "2026-07-24T16:14:05Z",
+      "references": [
+        "https://github.com/advisories/GHSA-mv8w-475r-vwqw",
+        "https://github.com/lxsmnsyc/seroval/security/advisories/GHSA-mv8w-475r-vwqw",
+        "https://www.npmjs.com/package/seroval/v/1.5.3"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/lxsmnsyc/seroval/security-advisories/GHSA-mv8w-475r-vwqw",
+      "scoring_executed": false,
+      "severity": "critical",
+      "source_code_location": "https://github.com/lxsmnsyc/seroval",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "lxsmnsyc/seroval",
+      "source_root": "GHSA-MV8W-475R-VWQW",
+      "target_cwe": "CWE-502",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-24T16:14:08Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-fp43-vj7g-pg92",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-345",
+        "CWE-770",
+        "CWE-79",
+        "CWE-862"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "broken_function_authorization",
+        "dom_xss",
+        "unrestricted_resource_consumption"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "websocket_authorization",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-FP43-VJ7G-PG92"
+      ],
+      "published_at": "2026-07-24T22:35:27Z",
+      "references": [
+        "https://github.com/advisories/GHSA-fp43-vj7g-pg92",
+        "https://github.com/omnifaces/omnifaces/commit/59d6c5188c39418546fe500d05036645987a77d1",
+        "https://github.com/omnifaces/omnifaces/commit/a52b92461cf39d983f51ce8724fe7e6b944073e4",
+        "https://github.com/omnifaces/omnifaces/commit/aa42da361821ddfbb85b126564e71587347d2786",
+        "https://github.com/omnifaces/omnifaces/commit/c43eef01174a4dc09cec44eff553ff6284150af7",
+        "https://github.com/omnifaces/omnifaces/commit/d5cae243c4692555efaa4ba774e0f8f60e3f4db5",
+        "https://github.com/omnifaces/omnifaces/security/advisories/GHSA-fp43-vj7g-pg92"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/omnifaces/omnifaces/security-advisories/GHSA-fp43-vj7g-pg92",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/omnifaces/omnifaces",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "omnifaces/omnifaces",
+      "source_root": "GHSA-FP43-VJ7G-PG92",
+      "target_cwe": "CWE-862",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T18:21:47Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-cg9x-g3gm-h5h6",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-611"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "xml_external_entity",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-CG9X-G3GM-H5H6",
+        "CVE-2026-54082"
+      ],
+      "published_at": "2026-07-29T15:14:32Z",
+      "references": [
+        "https://github.com/advisories/GHSA-cg9x-g3gm-h5h6",
+        "https://github.com/veraPDF/veraPDF-validation/commit/94caa46c1a594512247fbd46c808edae39469542",
+        "https://github.com/veraPDF/veraPDF-validation/commit/cacd9436d0de40b0e58cc7d2dbb06451619e61ec",
+        "https://github.com/veraPDF/veraPDF-validation/pull/730",
+        "https://github.com/veraPDF/veraPDF-validation/security/advisories/GHSA-cg9x-g3gm-h5h6"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/veraPDF/veraPDF-validation/security-advisories/GHSA-cg9x-g3gm-h5h6",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/veraPDF/veraPDF-validation",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "verapdf/verapdf-validation",
+      "source_root": "GHSA-CG9X-G3GM-H5H6",
+      "target_cwe": "CWE-611",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-29T15:14:32Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-8j5q-mfj2-5q9q",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-91"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "xml_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-8J5Q-MFJ2-5Q9Q",
+        "CVE-2026-59728"
+      ],
+      "published_at": "2026-07-20T23:21:47Z",
+      "references": [
+        "https://github.com/advisories/GHSA-8j5q-mfj2-5q9q",
+        "https://github.com/withastro/astro/commit/fbcfa039dfe3d700b239f595a6c55ee35e45bd06",
+        "https://github.com/withastro/astro/pull/17209",
+        "https://github.com/withastro/astro/releases/tag/@astrojs/rss@4.0.19",
+        "https://github.com/withastro/astro/security/advisories/GHSA-8j5q-mfj2-5q9q",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-59728"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/withastro/astro/security-advisories/GHSA-8j5q-mfj2-5q9q",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/withastro/astro",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "withastro/astro",
+      "source_root": "GHSA-8J5Q-MFJ2-5Q9Q",
+      "target_cwe": "CWE-91",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-12T20:37:28Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-r7vr-wg3f-8hr9",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-643"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "xpath_injection",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-R7VR-WG3F-8HR9",
+        "CVE-2022-50807"
+      ],
+      "published_at": "2026-01-14T00:31:27Z",
+      "references": [
+        "https://github.com/advisories/GHSA-r7vr-wg3f-8hr9",
+        "https://github.com/nu11secur1ty/CVE-nu11secur1ty/tree/main/vendors/concretecms.org/2022/concretecms-9.1.3",
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-50807",
+        "https://www.concretecms.org",
+        "https://www.concretecms.org/download",
+        "https://www.exploit-db.com/exploits/51144",
+        "https://www.vulncheck.com/advisories/concrete-cme-xpath-injection"
+      ],
+      "repository_advisory_url": "",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/concretecms/concretecms",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "concretecms/concretecms",
+      "source_root": "GHSA-R7VR-WG3F-8HR9",
+      "target_cwe": "CWE-643",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-01-14T16:53:52Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-32f8-hmr3-7vxg",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1104"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "dependency_supply_chain",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-32F8-HMR3-7VXG",
+        "CVE-2024-35252"
+      ],
+      "published_at": "2024-06-11T18:30:50Z",
+      "references": [
+        "https://github.com/advisories/GHSA-32f8-hmr3-7vxg",
+        "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-35252",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-35252"
+      ],
+      "repository_advisory_url": "",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/Azure/azure-storage-net-data-movement",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "azure/azure-storage-net-data-movement",
+      "source_root": "GHSA-32F8-HMR3-7VXG",
+      "target_cwe": "CWE-1104",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2024-06-11T19:57:07Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-jhpw-976m-542j",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-345"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "jwt_weakness",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-JHPW-976M-542J",
+        "CVE-2026-68945"
+      ],
+      "published_at": "2026-08-03T15:59:13Z",
+      "references": [
+        "https://github.com/advisories/GHSA-jhpw-976m-542j",
+        "https://github.com/angular/angular/commit/6867f77ec779a0a24f6339ad6c775f444202103c",
+        "https://github.com/angular/angular/commit/948a8d6831e8920b54663ec79421da95210e0e35",
+        "https://github.com/angular/angular/commit/a64e2883e9dc4abdac70209129be303de79e5b2b",
+        "https://github.com/angular/angular/commit/a6c7fc5c13e6e494a4c9bd8e773b8d4b2a99b20c",
+        "https://github.com/angular/angular/pull/68571",
+        "https://github.com/angular/angular/security/advisories/GHSA-jhpw-976m-542j"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/angular/angular/security-advisories/GHSA-jhpw-976m-542j",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/angular/angular",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "angular/angular",
+      "source_root": "GHSA-JHPW-976M-542J",
+      "target_cwe": "CWE-345",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-03T15:59:14Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-5p2p-6g2c-hf7m",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-223"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "logging_monitoring_weakness",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-5P2P-6G2C-HF7M",
+        "CVE-2025-52926"
+      ],
+      "published_at": "2025-06-23T03:30:30Z",
+      "references": [
+        "https://github.com/advisories/GHSA-5p2p-6g2c-hf7m",
+        "https://github.com/spytrap-org/spytrap-adb/commit/277cec542466b75cf5a8c532581243fd4b7b9713",
+        "https://github.com/spytrap-org/spytrap-adb/pull/65",
+        "https://github.com/spytrap-org/spytrap-adb/releases/tag/v0.3.5",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-52926"
+      ],
+      "repository_advisory_url": "",
+      "scoring_executed": false,
+      "severity": "low",
+      "source_code_location": "https://github.com/spytrap-org/spytrap-adb",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "spytrap-org/spytrap-adb",
+      "source_root": "GHSA-5P2P-6G2C-HF7M",
+      "target_cwe": "CWE-223",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2025-06-23T21:24:23Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-hg3w-7f8c-63hp",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-353"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "software_data_integrity",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-HG3W-7F8C-63HP",
+        "CVE-2026-48995"
+      ],
+      "published_at": "2026-06-26T21:49:22Z",
+      "references": [
+        "https://github.com/advisories/GHSA-hg3w-7f8c-63hp",
+        "https://github.com/pnpm/pnpm/security/advisories/GHSA-hg3w-7f8c-63hp",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-48995"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/pnpm/pnpm/security-advisories/GHSA-hg3w-7f8c-63hp",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/pnpm/pnpm",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "pnpm/pnpm",
+      "source_root": "GHSA-HG3W-7F8C-63HP",
+      "target_cwe": "CWE-353",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-06-26T21:49:26Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-87x5-vmc3-756j",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-400"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [
+        "unrestricted_resource_consumption"
+      ],
+      "family_label_adjudicated": false,
+      "family_target": "unrestricted_resource_consumption",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-87X5-VMC3-756J",
+        "CVE-2026-73559"
+      ],
+      "published_at": "2026-08-13T18:40:06Z",
+      "references": [
+        "https://github.com/advisories/GHSA-87x5-vmc3-756j",
+        "https://github.com/vllm-project/vllm/commit/675f4295cdfe0d870471c2b51bfeca3a68a9569e",
+        "https://github.com/vllm-project/vllm/pull/47845",
+        "https://github.com/vllm-project/vllm/releases/tag/v0.26.0",
+        "https://github.com/vllm-project/vllm/security/advisories/GHSA-87x5-vmc3-756j",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-73559"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/vllm-project/vllm/security-advisories/GHSA-87x5-vmc3-756j",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/vllm-project/vllm",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "vllm-project/vllm",
+      "source_root": "GHSA-87X5-VMC3-756J",
+      "target_cwe": "CWE-400",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-08-13T18:40:09Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-gv83-gqw6-9j2c",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-319"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "unsafe_api_consumption",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-GV83-GQW6-9J2C",
+        "CVE-2026-53624"
+      ],
+      "published_at": "2026-07-06T20:43:12Z",
+      "references": [
+        "https://github.com/advisories/GHSA-gv83-gqw6-9j2c",
+        "https://github.com/gofiber/fiber/security/advisories/GHSA-gv83-gqw6-9j2c"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/gofiber/fiber/security-advisories/GHSA-gv83-gqw6-9j2c",
+      "scoring_executed": false,
+      "severity": "medium",
+      "source_code_location": "https://github.com/gofiber/fiber",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "gofiber/fiber",
+      "source_root": "GHSA-GV83-GQW6-9J2C",
+      "target_cwe": "CWE-319",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-06T20:43:17Z"
+    },
+    {
+      "canonical_advisory_url": "https://github.com/advisories/GHSA-9h47-pqcx-hjr4",
+      "capture_status": "not_started",
+      "cwes": [
+        "CWE-1188",
+        "CWE-327",
+        "CWE-757"
+      ],
+      "evaluation_role": "fresh_candidate",
+      "family_hint_basis": "cwe_only_not_final_adjudication",
+      "family_hints": [],
+      "family_label_adjudicated": false,
+      "family_target": "weak_cryptography",
+      "human_verified": false,
+      "identifiers": [
+        "GHSA-9H47-PQCX-HJR4"
+      ],
+      "published_at": "2026-07-07T20:55:41Z",
+      "references": [
+        "https://github.com/advisories/GHSA-9h47-pqcx-hjr4",
+        "https://github.com/better-auth/better-auth/releases/tag/v1.6.11",
+        "https://github.com/better-auth/better-auth/security/advisories/GHSA-9h47-pqcx-hjr4"
+      ],
+      "repository_advisory_url": "https://api.github.com/repos/better-auth/better-auth/security-advisories/GHSA-9h47-pqcx-hjr4",
+      "scoring_executed": false,
+      "severity": "high",
+      "source_code_location": "https://github.com/better-auth/better-auth",
+      "source_feasibility_reviewed": false,
+      "source_kind": "github_reviewed_advisory",
+      "source_project": "better-auth/better-auth",
+      "source_root": "GHSA-9H47-PQCX-HJR4",
+      "target_cwe": "CWE-327",
+      "targeting_basis": "canonical_cwe_query_only_not_final_family_label",
+      "updated_at": "2026-07-07T20:55:42Z"
+    }
+  ],
+  "target_buffer_families": 60,
+  "target_contact_performed": false,
+  "target_minimum_families": 50,
+  "unique_source_project_count": 60,
+  "unique_source_root_count": 60,
+  "unresolved": [
+    {
+      "cwes": [
+        "CWE-530"
+      ],
+      "family": "backup_unreferenced_file_exposure",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-840"
+      ],
+      "family": "business_logic",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-650"
+      ],
+      "family": "http_verb_tampering",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    },
+    {
+      "cwes": [
+        "CWE-97"
+      ],
+      "family": "ssi_injection",
+      "reason": "no_fresh_independent_candidate_from_canonical_cwe"
+    }
+  ],
+  "version": "1.0.1"
+}
