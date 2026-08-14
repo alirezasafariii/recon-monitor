@@ -1,0 +1,58 @@
+name: Analysis 6.32 v7 Merge Fresh Candidate Pools
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - 'benchmarks/raw/sources/v7_pr_supplement.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-v7-merge-candidates
+  cancel-in-progress: false
+
+jobs:
+  merge-v7-candidates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Merge canonical advisory, bounded and merged-PR pools
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_merge_candidates.py
+      - name: Assert clean merged pool
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          assert r['family_count'] == 36
+          assert r['candidate_selection_uses_detector_scores'] is False
+          assert r['candidate_selection_uses_admission_results'] is False
+          assert r['candidate_selection_uses_ranking_results'] is False
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert r['active_target_validation_performed'] is False
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          PY
+      - name: Commit merged canonical v7 pool
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_candidates.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Merge Analysis 6.32 v7 fresh candidate pools'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
