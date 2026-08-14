@@ -39,7 +39,7 @@ from .ssrf import SsrfFamilyAnalyzer
 from .ssti import SstiFamilyAnalyzer
 from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
-FAMILY_ANALYZER_ROUTER_VERSION = "4.1.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "4.1.1"
 RAW_ANALYZER_BUDGET_VERSION = "1.0.0"
 RAW_ANALYZER_INVOCATION_LIMIT = 200_000
 _RAW_BUDGET_CACHE_MAX = 64
@@ -157,6 +157,54 @@ def _consume_raw_budget(context: Any, family: str) -> bool:
     return True
 
 
+def _raw_result_is_promotion_ready(result: Mapping[str, Any]) -> bool:
+    """Require analyzer-owned target evidence before raw Recon can promote.
+
+    Newer analyzers expose an explicit promotion-readiness bit derived from the
+    canonical Family Reasoning contract. Older specialized analyzers expose
+    ``direct`` when they observed a concrete target-side boundary condition.
+    Raw route names, keywords and passive surface structure alone therefore
+    remain hypotheses rather than Potential Findings.
+    """
+
+    meta = result.get("family_analyzer")
+    if isinstance(meta, Mapping) and "promotion_ready_from_stored_target_evidence" in meta:
+        return bool(meta.get("promotion_ready_from_stored_target_evidence"))
+    return bool(result.get("direct"))
+
+
+def _demote_raw_context_support(result: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep raw discovery context auditable while making it non-decisive."""
+
+    normalized = dict(result)
+    original_support = [
+        dict(item)
+        for item in normalized.get("support", [])
+        if isinstance(item, Mapping)
+    ]
+    if not original_support:
+        return normalized
+
+    context_support: list[dict[str, Any]] = []
+    for item in original_support:
+        contextual = dict(item)
+        canonical_type = str(contextual.get("type") or "surface_context")
+        contextual["canonical_type"] = canonical_type
+        contextual["type"] = f"context_only:{canonical_type}"
+        contextual["non_decisive"] = True
+        contextual["raw_context_only"] = True
+        context_support.append(contextual)
+    normalized["support"] = context_support
+
+    meta = dict(normalized.get("family_analyzer") or {})
+    meta["raw_context_support"] = original_support[:100]
+    meta["raw_context_only_promotion_blocked"] = True
+    meta["raw_context_support_preserved"] = True
+    normalized["family_analyzer"] = meta
+    normalized["direct"] = False
+    return normalized
+
+
 def raw_analysis_budget_snapshot(analysis_id: str) -> dict[str, Any]:
     """Return a detached operational snapshot for tests/diagnostics."""
 
@@ -195,9 +243,15 @@ def _install_raw_budget_guard(analyzer_type: type[FamilyAnalyzer]) -> None:
         return
 
     def guarded(self: FamilyAnalyzer, context: Any, **kwargs: Any) -> dict[str, Any] | None:
-        if not _consume_raw_budget(context, self.family):
+        raw_context = _is_raw_surface_context(context)
+        if raw_context and not _consume_raw_budget(context, self.family):
             return None
-        return original(self, context, **kwargs)
+        result = original(self, context, **kwargs)
+        if not raw_context or not isinstance(result, Mapping):
+            return result
+        if _raw_result_is_promotion_ready(result):
+            return dict(result)
+        return _demote_raw_context_support(result)
 
     guarded.__name__ = getattr(original, "__name__", "analyze")
     guarded.__doc__ = getattr(original, "__doc__", None)
