@@ -72,12 +72,12 @@ jobs:
           assert shortlist['unique_project_count'] == 36
           assert shortlist['owasp_grounded_family_count'] == 14
           assert shortlist['complement_family_count'] == 22
-          assert shortlist['complement_override_family_count'] == 11
-          assert shortlist['legacy_semantic_family_count'] == 11
+          assert shortlist['complement_override_family_count'] == 13
+          assert shortlist['legacy_semantic_family_count'] == 9
           assert selection['scoring_executed'] is False
           assert selection['family_count'] == 36
-          assert selection['complement_override_family_count'] == 11
-          assert selection['legacy_semantic_family_count'] == 11
+          assert selection['complement_override_family_count'] == 13
+          assert selection['legacy_semantic_family_count'] == 9
           assert materialization['fresh_raw_claim'] is True
           assert materialization['raw_capture_mode'] == 'literal_source_capture'
           assert materialization['literal_single_capture_count'] == 144
@@ -118,8 +118,8 @@ jobs:
             protected[value] = hashlib.sha256(path.read_bytes()).hexdigest()
 
           report = {
-            'version': '1.3.0',
-            'rule_version': '2026.08.14.6.31.3',
+            'version': '1.4.0',
+            'rule_version': '2026.08.14.6.31.5',
             'evaluation_status': 'sealed_literal_fresh_unscored_corpus',
             'scoring_executed': False,
             'first_blind_consumed': False,
@@ -134,8 +134,8 @@ jobs:
             'source_project_count': shortlist['unique_project_count'],
             'source_model': {
               'owasp_grounded_family_count': 14,
-              'complement_override_family_count': 11,
-              'legacy_semantic_family_count': 11,
+              'complement_override_family_count': 13,
+              'legacy_semantic_family_count': 9,
             },
             'pre_registered_gates': {
               'single': protocol['single_quality_gates'],
