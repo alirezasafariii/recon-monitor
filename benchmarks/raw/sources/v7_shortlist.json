@@ -1,0 +1,446 @@
+{
+  "active_target_validation_performed": false,
+  "candidate_counts_after_audit_or_targeted_fallback": {
+    "account_enumeration": 2,
+    "authentication_session": 3,
+    "broken_function_authorization": 3,
+    "broken_object_authorization": 23,
+    "business_logic": 3,
+    "command_injection": 20,
+    "cors_misconfiguration": 2,
+    "cryptographic_failure": 3,
+    "dom_xss": 45,
+    "exceptional_condition_mishandling": 2,
+    "file_upload": 20,
+    "graphql_authorization": 23,
+    "graphql_data_exposure": 20,
+    "improper_inventory_management": 21,
+    "information_disclosure": 20,
+    "ldap_injection": 3,
+    "mass_assignment": 20,
+    "nosql_injection": 3,
+    "open_redirect": 1,
+    "path_traversal": 15,
+    "postmessage_trust": 3,
+    "race_condition": 2,
+    "secret_exposure": 1,
+    "security_logging_alerting_failure": 2,
+    "security_misconfiguration": 3,
+    "sensitive_business_flow_abuse": 1,
+    "sensitive_caching": 2,
+    "server_side_template_injection": 1,
+    "software_data_integrity_failure": 2,
+    "software_supply_chain_failure": 4,
+    "source_map_exposure": 7,
+    "sql_injection": 20,
+    "ssrf": 9,
+    "unrestricted_resource_consumption": 4,
+    "unsafe_api_consumption": 102,
+    "websocket_authorization": 22
+  },
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_unscored_source_selection",
+  "families_without_candidates": [],
+  "family_count": 36,
+  "firewall": {
+    "candidate_count": 0,
+    "engine_seen_count": 0,
+    "errors": [
+      "global root/project uniqueness assignment incomplete"
+    ],
+    "firewall_rule_version": "2026.08.14.6.33.v7.unseen.3",
+    "firewall_version": "1.2.0",
+    "hard_scope": "materialized_or_scored_golden_v1_v4_raw_v1_v6_and_calibration_plus_real_world_corpus_v1@a6f02912343bc0ab9b2da4e5b9d2724108541f75",
+    "passed": false,
+    "rejected": [],
+    "research_preexposed_count": 0,
+    "research_scope": "historical_unscored_candidate_and_source_research_metadata_v1_v6",
+    "scoring_executed": false,
+    "unique_project_count": 0,
+    "unique_root_count": 0
+  },
+  "first_blind_consumed": false,
+  "global_assignment_complete": false,
+  "global_uniqueness_diagnostics": {
+    "bottleneck_families": [
+      {
+        "family": "broken_function_authorization",
+        "projects": [
+          "getgrav/grav"
+        ],
+        "unique_project_count": 1
+      },
+      {
+        "family": "open_redirect",
+        "projects": [
+          "go-chi/chi"
+        ],
+        "unique_project_count": 1
+      },
+      {
+        "family": "secret_exposure",
+        "projects": [
+          "roskus/prospero-flow-crm"
+        ],
+        "unique_project_count": 1
+      },
+      {
+        "family": "sensitive_business_flow_abuse",
+        "projects": [
+          "openclaw/openclaw"
+        ],
+        "unique_project_count": 1
+      },
+      {
+        "family": "server_side_template_injection",
+        "projects": [
+          "getgrav/grav"
+        ],
+        "unique_project_count": 1
+      },
+      {
+        "family": "account_enumeration",
+        "projects": [
+          "pterodactyl/panel",
+          "wp-graphql/wp-graphql"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "cors_misconfiguration",
+        "projects": [
+          "bishopfox/joro",
+          "googleapis/mcp-toolbox"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "exceptional_condition_mishandling",
+        "projects": [
+          "actix/actix-web",
+          "sipsorcery-org/sipsorcery"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "race_condition",
+        "projects": [
+          "spectolabs/hoverfly",
+          "surrealdb/surrealdb"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "security_logging_alerting_failure",
+        "projects": [
+          "apache/logging-log4j2",
+          "open-telemetry/opentelemetry-ebpf-instrumentation"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "sensitive_caching",
+        "projects": [
+          "directus/directus",
+          "pallets/flask"
+        ],
+        "unique_project_count": 2
+      },
+      {
+        "family": "software_data_integrity_failure",
+        "projects": [
+          "crossplane/crossplane",
+          "opensignlabs/opensign"
+        ],
+        "unique_project_count": 2
+      }
+    ],
+    "family_unique_project_counts": {
+      "account_enumeration": 2,
+      "authentication_session": 3,
+      "broken_function_authorization": 1,
+      "broken_object_authorization": 19,
+      "business_logic": 3,
+      "command_injection": 15,
+      "cors_misconfiguration": 2,
+      "cryptographic_failure": 3,
+      "dom_xss": 35,
+      "exceptional_condition_mishandling": 2,
+      "file_upload": 17,
+      "graphql_authorization": 17,
+      "graphql_data_exposure": 19,
+      "improper_inventory_management": 20,
+      "information_disclosure": 17,
+      "ldap_injection": 3,
+      "mass_assignment": 20,
+      "nosql_injection": 3,
+      "open_redirect": 1,
+      "path_traversal": 9,
+      "postmessage_trust": 3,
+      "race_condition": 2,
+      "secret_exposure": 1,
+      "security_logging_alerting_failure": 2,
+      "security_misconfiguration": 3,
+      "sensitive_business_flow_abuse": 1,
+      "sensitive_caching": 2,
+      "server_side_template_injection": 1,
+      "software_data_integrity_failure": 2,
+      "software_supply_chain_failure": 4,
+      "source_map_exposure": 4,
+      "sql_injection": 14,
+      "ssrf": 8,
+      "unrestricted_resource_consumption": 4,
+      "unsafe_api_consumption": 81,
+      "websocket_authorization": 13
+    },
+    "maximum_unique_project_matching_size": 35,
+    "shared_candidate_projects": {
+      "agenticmail/agenticmail": [
+        "graphql_authorization",
+        "unsafe_api_consumption"
+      ],
+      "auth0/symfony": [
+        "graphql_data_exposure",
+        "information_disclosure"
+      ],
+      "axios/axios": [
+        "information_disclosure",
+        "mass_assignment",
+        "unsafe_api_consumption"
+      ],
+      "berriai/litellm": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "bishopfox/joro": [
+        "cors_misconfiguration",
+        "file_upload"
+      ],
+      "cloudreve/cloudreve": [
+        "graphql_authorization",
+        "graphql_data_exposure",
+        "improper_inventory_management",
+        "information_disclosure",
+        "unsafe_api_consumption",
+        "websocket_authorization"
+      ],
+      "coder/coder": [
+        "broken_object_authorization",
+        "command_injection",
+        "unsafe_api_consumption"
+      ],
+      "czlonkowski/n8n-mcp": [
+        "broken_object_authorization",
+        "information_disclosure"
+      ],
+      "dayuanjiang/next-ai-draw-io": [
+        "dom_xss",
+        "ssrf"
+      ],
+      "decidim/decidim": [
+        "information_disclosure",
+        "sql_injection",
+        "unsafe_api_consumption"
+      ],
+      "directus/directus": [
+        "broken_object_authorization",
+        "mass_assignment",
+        "sensitive_caching"
+      ],
+      "easycorp/easyadminbundle": [
+        "dom_xss",
+        "file_upload"
+      ],
+      "egroupware/egroupware": [
+        "broken_object_authorization",
+        "command_injection"
+      ],
+      "elyin/gemini-bridge": [
+        "graphql_data_exposure",
+        "information_disclosure"
+      ],
+      "enchant97/note-mark": [
+        "file_upload",
+        "graphql_data_exposure",
+        "unsafe_api_consumption"
+      ],
+      "ericcornelissen/shescape": [
+        "command_injection",
+        "information_disclosure"
+      ],
+      "flytohub/flyto-core": [
+        "command_injection",
+        "ssrf"
+      ],
+      "frangoteam/fuxa": [
+        "sql_injection",
+        "unsafe_api_consumption",
+        "websocket_authorization"
+      ],
+      "free5gc/free5gc": [
+        "graphql_authorization",
+        "unsafe_api_consumption",
+        "websocket_authorization"
+      ],
+      "froxlor/froxlor": [
+        "graphql_data_exposure",
+        "unsafe_api_consumption"
+      ],
+      "getgrav/grav": [
+        "broken_function_authorization",
+        "broken_object_authorization",
+        "dom_xss",
+        "file_upload",
+        "server_side_template_injection"
+      ],
+      "getkin/kin-openapi": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "googleapis/mcp-toolbox": [
+        "cors_misconfiguration",
+        "unsafe_api_consumption"
+      ],
+      "kimai/kimai": [
+        "broken_object_authorization",
+        "mass_assignment",
+        "unsafe_api_consumption"
+      ],
+      "kite-org/kite": [
+        "graphql_authorization",
+        "improper_inventory_management"
+      ],
+      "mantisbt/mantisbt": [
+        "broken_object_authorization",
+        "dom_xss",
+        "sql_injection"
+      ],
+      "mattermost/mattermost-plugin-confluence": [
+        "graphql_authorization",
+        "websocket_authorization"
+      ],
+      "n8n-io/n8n": [
+        "broken_object_authorization",
+        "dom_xss",
+        "graphql_authorization",
+        "information_disclosure",
+        "sql_injection",
+        "websocket_authorization"
+      ],
+      "neorazorx/facturascripts": [
+        "dom_xss",
+        "file_upload",
+        "graphql_data_exposure",
+        "sql_injection",
+        "unsafe_api_consumption"
+      ],
+      "nhost/nhost": [
+        "file_upload",
+        "unsafe_api_consumption"
+      ],
+      "nick-pape/grackle": [
+        "broken_object_authorization",
+        "command_injection",
+        "graphql_authorization"
+      ],
+      "nl-portal/nl-portal-backend-libraries": [
+        "broken_object_authorization",
+        "graphql_authorization",
+        "graphql_data_exposure",
+        "improper_inventory_management"
+      ],
+      "nocobase/nocobase": [
+        "graphql_data_exposure",
+        "information_disclosure",
+        "sql_injection"
+      ],
+      "olivetin/olivetin": [
+        "command_injection",
+        "source_map_exposure",
+        "unrestricted_resource_consumption",
+        "unsafe_api_consumption"
+      ],
+      "openclaw/openclaw": [
+        "command_injection",
+        "graphql_authorization",
+        "improper_inventory_management",
+        "sensitive_business_flow_abuse",
+        "unsafe_api_consumption",
+        "websocket_authorization"
+      ],
+      "openlistteam/openlist": [
+        "broken_object_authorization",
+        "graphql_data_exposure",
+        "information_disclosure"
+      ],
+      "openremote/openremote": [
+        "broken_object_authorization",
+        "sql_injection"
+      ],
+      "oras-project/oras-go": [
+        "cryptographic_failure",
+        "graphql_data_exposure"
+      ],
+      "parse-community/parse-server": [
+        "file_upload",
+        "graphql_data_exposure",
+        "nosql_injection"
+      ],
+      "postcss/postcss": [
+        "improper_inventory_management",
+        "information_disclosure",
+        "source_map_exposure"
+      ],
+      "quarkusio/quarkus": [
+        "authentication_session",
+        "unsafe_api_consumption"
+      ],
+      "roskus/prospero-flow-crm": [
+        "broken_object_authorization",
+        "secret_exposure"
+      ],
+      "ruby-oauth/oauth": [
+        "graphql_data_exposure",
+        "information_disclosure"
+      ],
+      "seaweedfs/seaweedfs": [
+        "path_traversal",
+        "ssrf"
+      ],
+      "spectolabs/hoverfly": [
+        "race_condition",
+        "unsafe_api_consumption"
+      ],
+      "strapi/strapi": [
+        "file_upload",
+        "graphql_data_exposure"
+      ],
+      "surrealdb/surrealdb": [
+        "graphql_authorization",
+        "graphql_data_exposure",
+        "race_condition",
+        "websocket_authorization"
+      ]
+    },
+    "unmatched_families": [
+      "server_side_template_injection"
+    ]
+  },
+  "hard_engine_exposure_scope": "materialized_or_scored_golden_v1_v4_raw_v1_v6_and_calibration_plus_real_world_corpus_v1@a6f02912343bc0ab9b2da4e5b9d2724108541f75",
+  "research_preexposure_scope": "historical_unscored_candidate_and_source_research_metadata_v1_v6",
+  "rule_version": "2026.08.14.6.33.v7.unseen.6",
+  "scoring_executed": false,
+  "selected": [],
+  "selected_research_preexposed_count": 0,
+  "selected_targeted_fallback_count": 0,
+  "selection_uses_admission_results": false,
+  "selection_uses_corpus_v1_evidence": false,
+  "selection_uses_corpus_v1_labels": false,
+  "selection_uses_corpus_v1_scores": false,
+  "selection_uses_detector_scores": false,
+  "selection_uses_ranking_results": false,
+  "selection_uses_v6_first_blind_case_errors": false,
+  "selection_uses_v6_first_blind_score": false,
+  "source_family_audit_rule_version": "2026.08.13.6.29",
+  "source_family_audit_version": "1.0.0",
+  "version": "1.5.0"
+}
