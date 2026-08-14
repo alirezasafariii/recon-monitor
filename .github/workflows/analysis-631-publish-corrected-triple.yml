@@ -36,10 +36,11 @@ jobs:
           run-id: 31816328033
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Correct only canonical positive signal metadata
+      - name: Correct canonical signal metadata and raw label hygiene
         run: |
           set -euo pipefail
           python - <<'PY'
+          import copy
           import json
           from pathlib import Path
 
@@ -49,27 +50,41 @@ jobs:
               'source_map_exposure': 'direct_reachability',
           }
           changed = []
+          raw_hygiene = []
           for path in sorted(Path('captured').rglob('*.json')):
               doc = json.loads(path.read_text(encoding='utf-8'))
               family = str(doc.get('family') or '')
               kind = str(doc.get('case_kind') or '')
               if family not in canonical:
                   raise SystemExit(f'unexpected family in source artifacts: {family}')
-              before_raw = json.dumps(doc.get('raw'), sort_keys=True, separators=(',', ':'))
+              before_raw = copy.deepcopy(doc.get('raw'))
               before_snapshot = json.dumps(doc.get('source_snapshot'), sort_keys=True, separators=(',', ':'))
               if kind == 'positive':
                   doc['adjudication']['expected_condition_signals'] = [canonical[family]]
                   changed.append(f'{family}:{kind}')
               elif doc['adjudication'].get('expected_condition_signals'):
                   raise SystemExit(f'non-positive capture unexpectedly carries signals: {family}/{kind}')
-              if before_raw != json.dumps(doc.get('raw'), sort_keys=True, separators=(',', ':')):
-                  raise SystemExit(f'raw observation changed while correcting signal metadata: {family}/{kind}')
+
+              expected_raw = copy.deepcopy(before_raw)
+              if family == 'command_injection' and kind == 'sparse_noisy':
+                  details = doc.get('raw', {}).get('details', {})
+                  expected_details = expected_raw.get('details', {})
+                  removed = details.pop('cwe', None)
+                  expected_removed = expected_details.pop('cwe', None)
+                  if removed != 'CWE-78' or expected_removed != 'CWE-78':
+                      raise SystemExit('expected the source artifact sparse command observation to contain only the known CWE-78 raw classification key')
+                  raw_hygiene.append('command_injection:sparse_noisy:removed_raw_cwe_key')
+
+              if doc.get('raw') != expected_raw:
+                  raise SystemExit(f'unexpected raw observation mutation while applying label hygiene: {family}/{kind}')
               if before_snapshot != json.dumps(doc.get('source_snapshot'), sort_keys=True, separators=(',', ':')):
-                  raise SystemExit(f'source snapshot changed while correcting signal metadata: {family}/{kind}')
+                  raise SystemExit(f'source snapshot changed while correcting metadata: {family}/{kind}')
               path.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
           if sorted(changed) != sorted(f'{family}:positive' for family in canonical):
-              raise SystemExit(f'expected exactly three positive corrections, got {changed}')
-          print(json.dumps({'corrected_positive_signal_metadata': sorted(changed)}, indent=2))
+              raise SystemExit(f'expected exactly three positive signal corrections, got {changed}')
+          if raw_hygiene != ['command_injection:sparse_noisy:removed_raw_cwe_key']:
+              raise SystemExit(f'expected exactly one raw label-hygiene removal, got {raw_hygiene}')
+          print(json.dumps({'corrected_positive_signal_metadata': sorted(changed), 'raw_label_hygiene': raw_hygiene}, indent=2))
           PY
 
       - name: Publish and verify corrected unscored evidence
