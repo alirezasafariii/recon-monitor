@@ -1,0 +1,79 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "upstream_regression",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled local execution of the upstream patched POST without the required author cookie produced only a 400 validation response and no disclosure evidence.",
+    "ranking_output_used": false
+  },
+  "capture_method": "http_exchange",
+  "capture_reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+  "captured_at": "2026-08-14T06:16:07.577Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts",
+    "source_file": "temporary capture spec based on upstream tokenTransfer regression surface",
+    "tool": "Etherpad upstream mocha/supertest controlled reproduction"
+  },
+  "family": "information_disclosure",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream checkout",
+      "literal_http_exchange": {
+        "request": {
+          "author_cookie_present": false,
+          "body": {
+            "prefsHttp": ""
+          },
+          "method": "POST",
+          "path": "/tokenTransfer"
+        },
+        "response": {
+          "body": {
+            "error": "No author cookie to transfer"
+          },
+          "headers": {},
+          "status_code": 400
+        },
+        "setup": null
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "endpoint": "/tokenTransfer",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "POST",
+    "target": "controlled-local-etherpad"
+  },
+  "raw_sha256": "064b55acd93a8cc6f7aa7d4d7e5bccf56695c75aa6e7ba9168d478b52cc25195",
+  "schema_version": "1.0",
+  "source_project": "ether/etherpad",
+  "source_root": "GHSA-vqfp-p66c-xrp9",
+  "source_snapshot": {
+    "content_sha256": "a93a0ecafa5c53bad2963885d37c1ad5d89e2ba1563bb275cbf34cb720d3c105",
+    "payload": {
+      "captured_at": "2026-08-14T06:16:07.577Z",
+      "request": {
+        "author_cookie_present": false,
+        "body": {
+          "prefsHttp": ""
+        },
+        "method": "POST",
+        "path": "/tokenTransfer"
+      },
+      "response": {
+        "body": {
+          "error": "No author cookie to transfer"
+        },
+        "headers": {},
+        "status_code": 400
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+    "retrieved_at": "2026-08-14T06:16:07.577Z"
+  }
+}

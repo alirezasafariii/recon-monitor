@@ -1,0 +1,98 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled local execution of the upstream patched PR head returned a successful transfer response without a token field in the body.",
+    "ranking_output_used": false
+  },
+  "capture_method": "http_exchange",
+  "capture_reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+  "captured_at": "2026-08-14T06:16:07.568Z",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts",
+    "source_file": "temporary capture spec based on upstream tokenTransfer regression surface",
+    "tool": "Etherpad upstream mocha/supertest controlled reproduction"
+  },
+  "family": "information_disclosure",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream checkout",
+      "literal_http_exchange": {
+        "request": {
+          "id": "ced0259c-d706-4e5f-affc-de8f7c054bab",
+          "method": "GET",
+          "path_template": "/tokenTransfer/{id}"
+        },
+        "response": {
+          "body": {
+            "ok": true,
+            "prefsHttp": "theme=dark"
+          },
+          "headers": {
+            "set-cookie": [
+              "token=t.v6-controlled-secure; Max-Age=31536000; Path=/; Expires=Sat, 14 Aug 2027 06:16:07 GMT; HttpOnly; SameSite=Lax",
+              "prefsHttp=theme%3Ddark; Max-Age=31536000; Path=/; Expires=Sat, 14 Aug 2027 06:16:07 GMT"
+            ]
+          },
+          "status_code": 200
+        },
+        "setup": {
+          "post_body": {
+            "id": "ced0259c-d706-4e5f-affc-de8f7c054bab"
+          },
+          "post_status_code": 200
+        }
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "endpoint": "/tokenTransfer/{id}",
+    "endpoint_schema": {
+      "path_parameters": [
+        "id"
+      ],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "controlled-local-etherpad"
+  },
+  "raw_sha256": "62244fd8d47f2e9db540bb642f4fe514bdc49fc57e0e93da67efdc4d16a72185",
+  "schema_version": "1.0",
+  "source_project": "ether/etherpad",
+  "source_root": "GHSA-vqfp-p66c-xrp9",
+  "source_snapshot": {
+    "content_sha256": "0c82a20086a47b475a53f3781eeed72c3efa81af1b3bd9d1e7fc8d305c6d4672",
+    "payload": {
+      "captured_at": "2026-08-14T06:16:07.568Z",
+      "request": {
+        "id": "ced0259c-d706-4e5f-affc-de8f7c054bab",
+        "method": "GET",
+        "path_template": "/tokenTransfer/{id}"
+      },
+      "response": {
+        "body": {
+          "ok": true,
+          "prefsHttp": "theme=dark"
+        },
+        "headers": {
+          "set-cookie": [
+            "token=t.v6-controlled-secure; Max-Age=31536000; Path=/; Expires=Sat, 14 Aug 2027 06:16:07 GMT; HttpOnly; SameSite=Lax",
+            "prefsHttp=theme%3Ddark; Max-Age=31536000; Path=/; Expires=Sat, 14 Aug 2027 06:16:07 GMT"
+          ]
+        },
+        "status_code": 200
+      },
+      "setup": {
+        "post_body": {
+          "id": "ced0259c-d706-4e5f-affc-de8f7c054bab"
+        },
+        "post_status_code": 200
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+    "retrieved_at": "2026-08-14T06:16:07.568Z"
+  }
+}

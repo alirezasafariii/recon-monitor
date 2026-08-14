@@ -1,0 +1,75 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "upstream_regression",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled local execution of the upstream patched endpoint for an unknown transfer id produced a 404 error without sensitive response data.",
+    "ranking_output_used": false
+  },
+  "capture_method": "http_exchange",
+  "capture_reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+  "captured_at": "2026-08-14T06:16:07.573Z",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts",
+    "source_file": "temporary capture spec based on upstream tokenTransfer regression surface",
+    "tool": "Etherpad upstream mocha/supertest controlled reproduction"
+  },
+  "family": "information_disclosure",
+  "raw": {
+    "details": {
+      "capture_environment": "GitHub Actions isolated controlled upstream checkout",
+      "literal_http_exchange": {
+        "request": {
+          "id": "does-not-exist-1786688167570",
+          "method": "GET",
+          "path_template": "/tokenTransfer/{id}"
+        },
+        "response": {
+          "body": {
+            "error": "Token not found"
+          },
+          "headers": {},
+          "status_code": 404
+        },
+        "setup": null
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "endpoint": "/tokenTransfer/{id}",
+    "endpoint_schema": {
+      "path_parameters": [
+        "id"
+      ],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "controlled-local-etherpad"
+  },
+  "raw_sha256": "bf55fc28790418d6fad7365a2451738066f0718b8228f1bc370b1ca5f81da939",
+  "schema_version": "1.0",
+  "source_project": "ether/etherpad",
+  "source_root": "GHSA-vqfp-p66c-xrp9",
+  "source_snapshot": {
+    "content_sha256": "1614a06b6e13154f394b696508173acdf5ba7f491ff073d145c40f40dc32f4a3",
+    "payload": {
+      "captured_at": "2026-08-14T06:16:07.573Z",
+      "request": {
+        "id": "does-not-exist-1786688167570",
+        "method": "GET",
+        "path_template": "/tokenTransfer/{id}"
+      },
+      "response": {
+        "body": {
+          "error": "Token not found"
+        },
+        "headers": {},
+        "status_code": 404
+      },
+      "upstream_revision": "29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b"
+    },
+    "reference": "https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b",
+    "retrieved_at": "2026-08-14T06:16:07.573Z"
+  }
+}
