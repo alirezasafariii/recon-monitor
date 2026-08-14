@@ -1,8 +1,8 @@
 {
-  "version": "2.0.0",
-  "rule_version": "2026.08.14.6.31.5",
+  "version": "2.1.0",
+  "rule_version": "2026.08.14.6.31.7",
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
-  "checkpoint_status": "source_selection_passed_pending_literal_capture_collection",
+  "checkpoint_status": "source_selection_and_capture_integrity_gates_passed_pending_144_evidence_backed_literal_captures",
   "scoring_executed": false,
   "first_blind_consumed": false,
   "first_blind_evaluator_frozen": false,
@@ -51,6 +51,16 @@
     "source_firewall_url_canonicalization": true,
     "source_selector_uses_single_hardened_firewall_implementation": true,
     "source_selector_global_backtracking_uniqueness": true,
+    "literal_capture_evidence_verifier_added": true,
+    "literal_capture_true_flag_alone_is_insufficient": true,
+    "literal_capture_raw_must_exactly_match_evidence_raw": true,
+    "literal_capture_raw_sha256_required": true,
+    "literal_capture_evidence_sha256_required": true,
+    "literal_capture_evidence_path_containment_enforced": true,
+    "literal_capture_source_snapshot_payload_hash_required": true,
+    "literal_capture_collector_metadata_required": true,
+    "literal_capture_duplicate_evidence_rejected": true,
+    "freeze_binds_all_144_literal_evidence_artifacts": true,
     "freeze_hash_verifier_added": true,
     "evaluator_added_without_execution": true,
     "evaluator_freeze_workflow_added": true,
@@ -71,10 +81,14 @@
     "triad_case_count": 60,
     "total_case_count": 276,
     "literal_single_capture_required_count": 144,
+    "literal_evidence_artifact_required_count": 144,
     "literal_capture_input_file": "benchmarks/raw/sources/v6_literal_captures.jsonl",
+    "literal_capture_evidence_root": "benchmarks/raw/sources/v6_capture_evidence",
+    "literal_capture_verification_report": "benchmarks/raw/sources/v6_literal_capture_verification.json",
     "literal_capture_input_status": "not_present",
+    "literal_capture_evidence_status": "not_present",
     "materializer_uses_v4_templates": false,
-    "materialization_status": "blocked_pending_144_literal_fresh_captures",
+    "materialization_status": "blocked_pending_144_evidence_backed_literal_fresh_captures",
     "validation_status": "not_run_on_literal_corpus",
     "freeze_status": "not_run_on_literal_corpus"
   },
@@ -84,7 +98,13 @@
     "latest_successful_full_selector_head_sha": "cd5c7cf51108b9f0382a546c1d2e45ec61689c10",
     "selector_python_started": true,
     "selector_conclusion": "success",
-    "latest_validation_status": "success",
+    "latest_successful_validation_run_id": 31773755478,
+    "latest_successful_validation_head_sha": "63de7aa6ee2b116e71b21c143d1512996bf7cb68",
+    "latest_validation_python_311": "success",
+    "latest_validation_python_313": "success",
+    "literal_capture_integrity_tests": "success",
+    "golden_benchmark": "success",
+    "integration_test": "success",
     "previous_billing_blocker_is_current": false
   },
   "safety_invariants": {
@@ -92,7 +112,8 @@
     "no_first_blind_score_before_literal_corpus_validation_and_freeze": true,
     "no_first_blind_score_before_evaluator_freeze": true,
     "no_result_claim_without_executed_validation": true,
-    "no_template_generated_corpus_may_be_called_fresh_raw": true
+    "no_template_generated_corpus_may_be_called_fresh_raw": true,
+    "no_literal_claim_without_hash_bound_evidence_artifact": true
   },
-  "next_required_transition": "Collect and independently evidence 144 literal fresh single-family captures (four variants for each of the 36 selected source families). Do not materialize or freeze the v6 corpus until all 144 captures pass provenance, source-identity and label-leakage validation. Then materialize 276 cases, revalidate, freeze corpus hashes, freeze the evaluator, and stop before the one-time First Blind score pending explicit approval."
+  "next_required_transition": "Collect and independently evidence 144 literal fresh single-family captures (positive, near_miss, secure_negative, sparse_noisy for each of the 36 selected families). Every capture must have a unique local evidence artifact, exact raw hash match, source snapshot payload hash, collector metadata and shortlist-matching source identity. Then run the strict evidence verifier, materialize 276 cases, revalidate label leakage and source integrity, freeze the corpus plus all 144 evidence artifacts, freeze the evaluator, and stop before the one-time First Blind score pending explicit approval."
 }
