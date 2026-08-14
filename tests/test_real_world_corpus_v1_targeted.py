@@ -32,9 +32,11 @@ class RealWorldCorpusV1TargetedTests(unittest.TestCase):
 
     def test_query_is_cwe_scoped_and_reviewed(self):
         url = targeted._query_url("CWE-918")
-        self.assertIn("cwes=CWE-918", url)
+        self.assertIn("cwes=918", url)
+        self.assertNotIn("cwes=CWE-918", url)
         self.assertIn("type=reviewed", url)
         self.assertNotIn("page=", url)
+        self.assertEqual(targeted._github_cwe_query_value("CWE-89"), "89")
 
     def test_extra_historical_corpora_are_loaded_by_hardened_layer(self):
         names = {item[0] for item in targeted.hardened.EXTRA_CONSUMED_CORPORA}
