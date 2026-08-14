@@ -69,7 +69,9 @@ jobs:
           assert r['unique_root_count']==36
           assert r['unique_project_count']==36
           assert r['recomputed_engine_seen_count']==0
-          assert r['targeted_fallback_count']==4
+          assert r['audit_fallback_count']==4
+          assert r['literal_adjudication_required_count']==13
+          assert set(r['audit_fallback_families']).issubset(set(r['literal_adjudication_required_families']))
           assert r['scoring_executed'] is False
           assert r['first_blind_consumed'] is False
           PY
@@ -113,13 +115,16 @@ jobs:
           plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
           assert research['successful_snapshot_count']==36
           assert research['unresolved_snapshot_count']==0
+          assert research['audit_fallback_count']==4
+          assert research['literal_adjudication_required_count']==13
           assert labels['family_count']==36
           assert plan['family_count']==36
           assert plan['required_capture_count']==144
           assert plan['evidence_present_count']==0
           assert plan['evidence_missing_count']==144
           assert plan['all_evidence_present'] is False
-          assert plan['targeted_fallback_count']==4
+          assert plan['audit_fallback_count']==4
+          assert plan['literal_adjudication_required_count']==13
           assert plan['source_assignment_commit']=='5c2c81075b870fe43db817c59a65f27423012f08'
           assert plan['engine_baseline_commit']=='b8b15261cc4049a1e5e425a83e57b6378a856113'
           for doc in (research,labels,plan):
@@ -129,7 +134,8 @@ jobs:
             'canonical_snapshots':36,
             'required_literal_captures':144,
             'evidence_present':0,
-            'targeted_fallback_families':plan['targeted_fallback_families'],
+            'audit_fallback_families':plan['audit_fallback_families'],
+            'literal_adjudication_required_families':plan['literal_adjudication_required_families'],
             'scoring_executed':False,
           })
           PY
