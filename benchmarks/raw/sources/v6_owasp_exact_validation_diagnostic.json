@@ -1,0 +1,335 @@
+{
+  "evaluation_kind": "fresh_blind_v6_pre_score_hard_source_diagnostic",
+  "failed_family_count": 4,
+  "failing_families": [
+    "business_logic",
+    "cors_misconfiguration",
+    "graphql_data_exposure",
+    "nosql_injection"
+  ],
+  "grounding_counts_as_target_evidence": false,
+  "passed_family_count": 6,
+  "passing_families": [
+    "dom_xss",
+    "improper_inventory_management",
+    "postmessage_trust",
+    "sensitive_business_flow_abuse",
+    "sensitive_caching",
+    "software_supply_chain_failure"
+  ],
+  "results": {
+    "business_logic": {
+      "errors": [
+        "project_overlap"
+      ],
+      "firewall": {
+        "project_overlap": true,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": false,
+      "semantic_group_hits": [
+        [
+          "business logic",
+          "registration workflow",
+          "workflow"
+        ],
+        [
+          "duplicate email",
+          "invariant",
+          "uniqueness"
+        ],
+        [
+          "ambiguity",
+          "password reset",
+          "privilege"
+        ]
+      ],
+      "source_project": "thorsten/phpMyFAQ",
+      "source_root": "GHSA-9wj2-4hcm-r74j",
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-BUSL-06"
+      ]
+    },
+    "cors_misconfiguration": {
+      "errors": [
+        "root_overlap",
+        "project_overlap"
+      ],
+      "firewall": {
+        "project_overlap": true,
+        "root_overlap": true,
+        "url_overlap": []
+      },
+      "passed": false,
+      "semantic_group_hits": [
+        [
+          "cors",
+          "cross-origin"
+        ],
+        [
+          "origin",
+          "untrusted"
+        ],
+        [
+          "credential",
+          "sensitive"
+        ]
+      ],
+      "source_project": "musistudio/claude-code-router",
+      "source_root": "GHSA-8hmm-4crw-vm2c",
+      "wstg_ids": [
+        "WSTG-CLNT-07"
+      ]
+    },
+    "dom_xss": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "client-side",
+          "dom xss"
+        ],
+        [
+          "browser",
+          "render",
+          "svg"
+        ],
+        [
+          "bypass",
+          "sanit"
+        ]
+      ],
+      "source_project": "ThinkInAIXYZ/deepchat",
+      "source_root": "GHSA-7r59-67v3-3mgp",
+      "wstg_ids": [
+        "WSTG-CLNT-01"
+      ]
+    },
+    "graphql_data_exposure": {
+      "errors": [
+        "project_overlap"
+      ],
+      "firewall": {
+        "project_overlap": true,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": false,
+      "semantic_group_hits": [
+        [
+          "graphql"
+        ],
+        [
+          "concealed",
+          "data exposure",
+          "restricted field"
+        ],
+        [
+          "aggregate",
+          "field",
+          "property"
+        ]
+      ],
+      "source_project": "directus/directus",
+      "source_root": "GHSA-38hg-ww64-rrwc",
+      "wstg_ids": [
+        "WSTG-APIT-03"
+      ]
+    },
+    "improper_inventory_management": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "legacy api",
+          "old api",
+          "older arm api"
+        ],
+        [
+          "api",
+          "version"
+        ],
+        [
+          "still exploitable",
+          "version drift",
+          "weaker authorization"
+        ]
+      ],
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-CONF-04"
+      ]
+    },
+    "nosql_injection": {
+      "errors": [
+        "root_overlap"
+      ],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": true,
+        "url_overlap": []
+      },
+      "passed": false,
+      "semantic_group_hits": [
+        [
+          "mongodb",
+          "nosql"
+        ],
+        [
+          "collection",
+          "operator",
+          "query"
+        ],
+        [
+          "inject",
+          "semantics",
+          "unintended"
+        ]
+      ],
+      "source_project": "budibase/budibase",
+      "source_root": "GHSA-v42f-v8xc-j435",
+      "wstg_ids": [
+        "WSTG-INPV-05.6"
+      ]
+    },
+    "postmessage_trust": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "message event",
+          "postmessage"
+        ],
+        [
+          "iframe source",
+          "origin",
+          "sender"
+        ],
+        [
+          "correct iframe",
+          "trust",
+          "validation"
+        ]
+      ],
+      "source_project": "auth0/auth0.js",
+      "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+      "wstg_ids": [
+        "WSTG-CLNT-11"
+      ]
+    },
+    "sensitive_business_flow_abuse": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "business",
+          "invite"
+        ],
+        [
+          "duplicate",
+          "flood",
+          "repeat"
+        ],
+        [
+          "anti-abuse",
+          "frequency",
+          "rate limit"
+        ]
+      ],
+      "source_project": "frappe/press",
+      "source_root": "GHSA-68qm-vp8f-rpr3",
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-06",
+        "WSTG-BUSL-07"
+      ]
+    },
+    "sensitive_caching": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "cache",
+          "cached"
+        ],
+        [
+          "api key",
+          "authenticated",
+          "sensitive"
+        ],
+        [
+          "edge",
+          "shared cache",
+          "unauthenticated cache hit"
+        ]
+      ],
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+      "wstg_ids": [
+        "WSTG-ATHN-06"
+      ]
+    },
+    "software_supply_chain_failure": {
+      "errors": [],
+      "firewall": {
+        "project_overlap": false,
+        "root_overlap": false,
+        "url_overlap": []
+      },
+      "passed": true,
+      "semantic_group_hits": [
+        [
+          "dependency",
+          "supply chain"
+        ],
+        [
+          "compromised",
+          "malicious"
+        ],
+        [
+          "installation",
+          "package",
+          "published"
+        ]
+      ],
+      "source_project": "cap-js/cds-dbs",
+      "source_root": "GHSA-pvw4-cvr4-97p8",
+      "wstg_ids": [
+        "WSTG-CONF-01",
+        "WSTG-CONF-02"
+      ]
+    }
+  },
+  "rule_version": "2026.08.14.6.31",
+  "scoring_executed": false,
+  "version": "1.0.0"
+}
