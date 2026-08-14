@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - 'benchmarks/raw/sources/v7_pr_supplement.json'
+      - '.github/workflows/analysis-632-v7-merge-candidates.yml'
   workflow_dispatch:
 
 permissions:
