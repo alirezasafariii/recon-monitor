@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
+from raw_recon_v4_corpus import V4_VALID_METHODS
 
 PLAN = ROOT / "benchmarks/raw/sources/v6_literal_capture_plan.json"
 EVIDENCE_ROOT = ROOT / "benchmarks/raw/sources/v6_capture_evidence"
@@ -82,6 +83,13 @@ def publish_capture_files(capture_dir: Path, *, plan_path: Path = PLAN, evidence
         snapshot = _required_object(capture, "source_snapshot", source)
         adjudication = _required_object(capture, "adjudication", source)
 
+        raw_method = str(raw.get("method") or "").strip().upper()
+        if raw_method not in V4_VALID_METHODS:
+            raise RuntimeError(f"{source}: raw.method must be one of {sorted(V4_VALID_METHODS)}")
+        if "endpoint_schema" in raw and not isinstance(raw.get("endpoint_schema"), Mapping):
+            raise RuntimeError(f"{source}: raw.endpoint_schema must be an object when supplied")
+        if "details" in raw and not isinstance(raw.get("details"), Mapping):
+            raise RuntimeError(f"{source}: raw.details must be an object")
         if not capture_reference.startswith("https://"):
             raise RuntimeError(f"{source}: capture_reference must be https")
         if str(snapshot.get("reference") or "").strip() != capture_reference:
