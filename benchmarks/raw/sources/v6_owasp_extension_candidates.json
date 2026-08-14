@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.1.0",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_owasp_extension_sources",
   "scoring_executed": false,
@@ -27,18 +27,18 @@
     ],
     "source_map_exposure": [
       {
-        "source_root": "GHSA-67mh-4wv8-2f99",
-        "source_project": "evanw/esbuild",
+        "source_root": "IBM-APAR-IT42976",
+        "source_project": "ibm/datapower-gateways",
         "family": "source_map_exposure",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
-        "source_kind": "github_reviewed_advisory",
-        "advisory_source_type": "github_reviewed",
-        "published_at": "2025-02-10",
-        "summary": "esbuild's development server could expose compiled content cross-origin and, when source maps were enabled, allow retrieval of the corresponding non-compiled source through the source-map artifact.",
-        "description": "The reviewed advisory explicitly notes that a readable source map can expose the non-compiled source content. This provides a concrete source-map disclosure example matching WSTG-INFO-05: the relevant evidence is an obtainable .map/debug artifact that reveals original authored source, not merely the presence of a sourceMappingURL marker.",
+        "canonical_advisory_url": "https://www.ibm.com/support/pages/apar/IT42976",
+        "source_kind": "official_vendor_apar",
+        "advisory_source_type": "vendor_security_fix_record",
+        "published_at": "2023-04-24",
+        "summary": "IBM DataPower removed access to a JavaScript source map because source maps can be used to read and debug JavaScript files and should not be accessible.",
+        "description": "IBM APAR IT42976 documents an exposed JavaScript source-map artifact in DataPower Gateways. IBM states that JavaScript source maps can be used to help read and debug JavaScript files and that source maps should not be accessible. The relevant evidence is an obtainable debug artifact that exposes readable source information rather than a sourceMappingURL marker alone.",
         "wstg_ids": ["WSTG-INFO-05"],
-        "semantic_facts": ["source map", "source-map", "non-compiled source", "source code", "debug artifact", "read", "expose", "disclosure"],
-        "selection_basis": "GitHub-reviewed advisory selected before scoring using WSTG-INFO-05 source-map information-leakage semantics"
+        "semantic_facts": ["source map", "JavaScript source map", "debug artifact", "read", "accessible", "source code exposure"],
+        "selection_basis": "fresh official vendor APAR selected before scoring using WSTG-INFO-05 source-map information-leakage semantics"
       }
     ],
     "unsafe_api_consumption": [
@@ -60,18 +60,20 @@
     ],
     "websocket_authorization": [
       {
-        "source_root": "GHSL-2025-118",
-        "source_project": "outline/outline",
+        "source_root": "CVE-2026-11807",
+        "source_project": "ansible/eda-server",
         "family": "websocket_authorization",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/",
-        "source_kind": "github_security_lab_writeup",
-        "advisory_source_type": "coordinated_disclosure_writeup",
-        "published_at": "2026-03-06",
-        "summary": "Outline allowed suspended users to establish or retain WebSocket access and receive sensitive real-time updates even though the HTTP authentication path blocked suspended accounts.",
-        "description": "GitHub Security Lab documents a WebSocket authentication/authorization state mismatch: the WebSocket path omitted the suspended-user check enforced by the HTTP path, so a suspended account could still receive document-related operational updates. This directly matches WSTG-CLNT-10's requirement to apply normal authentication and authorization testing to WebSocket channels.",
+        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-11807",
+        "source_code_location": "https://github.com/ansible/eda-server",
+        "source_kind": "vendor_product_cve_record",
+        "advisory_source_type": "redhat_ansible_cve_record",
+        "published_at": "2026-01-21",
+        "summary": "Event-Driven Ansible's WebSocket API failed to verify permissions for worker messages, allowing an authenticated user to bypass authorization and receive sensitive credentials for arbitrary activations.",
+        "description": "The vulnerability record describes missing authorization in the Event-Driven Ansible WebSocket endpoint /api/eda/ws/ansible-rulebook. The endpoint does not verify the user's permission for Worker messages, so an authenticated user can forge an arbitrary activation_id and bypass the intended access-control boundary, receiving plaintext OAuth tokens, vault passwords or SSH keys associated with that activation.",
+        "references": ["https://access.redhat.com/security/cve/CVE-2026-11807"],
         "wstg_ids": ["WSTG-CLNT-10", "WSTG-ATHZ-02"],
-        "semantic_facts": ["WebSocket", "authorization", "authentication", "suspended user", "access control", "bypass", "sensitive updates", "HTTP blocked", "real-time"],
-        "selection_basis": "GitHub Security Lab coordinated-disclosure write-up selected before scoring using WSTG WebSocket and authorization-boundary semantics"
+        "semantic_facts": ["WebSocket", "authorization", "access control", "authentication", "authorization bypass", "sensitive credentials"],
+        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG WebSocket and authorization-boundary semantics"
       }
     ]
   }
