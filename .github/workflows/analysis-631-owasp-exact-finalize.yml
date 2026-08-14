@@ -7,6 +7,8 @@ on:
     paths:
       - benchmarks/raw/sources/v6_owasp_exact_overrides.json
       - benchmarks/raw/sources/v6_owasp_writeup_grounding.json
+      - benchmarks/raw/sources/v6_owasp_extension_grounding.json
+      - benchmarks/raw/sources/v6_owasp_extension_candidates.json
       - .github/workflows/analysis-631-owasp-exact-finalize.yml
   workflow_dispatch:
 
@@ -21,105 +23,154 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate OWASP exact sources and assemble full shortlist
+
+      - name: Validate OWASP/WSTG grounded sources and assemble full shortlist
         env:
           PYTHONPATH: app
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+
           from family_detectors.registry import DETECTOR_SPECS
           from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
           from raw_recon_v6_source_firewall import canonical_url, exposure_index
 
           src = Path('benchmarks/raw/sources')
-          grounding = json.loads((src/'v6_owasp_writeup_grounding.json').read_text())
-          manual = json.loads((src/'v6_owasp_writeup_candidates.json').read_text())
-          exact = json.loads((src/'v6_owasp_exact_overrides.json').read_text())
-          assert exact['scoring_executed'] is False
-          assert manual['scoring_executed'] is False
-          assert grounding['grounding_counts_as_target_evidence'] is False
+          grounding = json.loads((src / 'v6_owasp_writeup_grounding.json').read_text())
+          grounding_ext = json.loads((src / 'v6_owasp_extension_grounding.json').read_text())
+          manual = json.loads((src / 'v6_owasp_writeup_candidates.json').read_text())
+          exact = json.loads((src / 'v6_owasp_exact_overrides.json').read_text())
+          extension = json.loads((src / 'v6_owasp_extension_candidates.json').read_text())
 
-          hard = {
-              'business_logic','cors_misconfiguration','dom_xss','graphql_data_exposure',
-              'improper_inventory_management','nosql_injection','postmessage_trust',
-              'sensitive_business_flow_abuse','sensitive_caching','software_supply_chain_failure',
+          for doc in (grounding, grounding_ext, manual, exact, extension):
+              if doc.get('scoring_executed') is not False:
+                  raise SystemExit('all v6 source preparation artifacts must remain unscored')
+          if grounding.get('grounding_counts_as_target_evidence') is not False:
+              raise SystemExit('base grounding must not count as target evidence')
+          if grounding_ext.get('grounding_counts_as_target_evidence') is not False:
+              raise SystemExit('extension grounding must not count as target evidence')
+
+          base_hard = {
+              'business_logic', 'cors_misconfiguration', 'dom_xss', 'graphql_data_exposure',
+              'improper_inventory_management', 'nosql_injection', 'postmessage_trust',
+              'sensitive_business_flow_abuse', 'sensitive_caching', 'software_supply_chain_failure',
           }
-          exact_expected = hard - {'dom_xss','sensitive_business_flow_abuse'}
+          extension_hard = {
+              'graphql_authorization', 'source_map_exposure',
+              'unsafe_api_consumption', 'websocket_authorization',
+          }
+          hard = base_hard | extension_hard
+
+          exact_expected = base_hard - {'dom_xss', 'sensitive_business_flow_abuse'}
           if set(exact.get('candidates_by_family') or {}) != exact_expected:
               raise SystemExit('exact override family coverage mismatch')
+          if set(extension.get('candidates_by_family') or {}) != extension_hard:
+              raise SystemExit('extension family coverage mismatch')
 
-          # These are WSTG/OWASP family boundaries, not advisory-specific strings.
+          # Generic OWASP/WSTG semantic contracts. They are family boundaries,
+          # never candidate-specific scoring rules.
           contracts = {
               'business_logic': (
-                  ('business logic','business workflow','approval workflow','workflow'),
-                  ('invariant','gate','required approver','state transition','approval'),
-                  ('bypass','self-approve','skip','invalid state transition','incorrect transition','untrusted accepted'),
+                  ('business logic', 'business workflow', 'approval workflow', 'workflow'),
+                  ('invariant', 'gate', 'required approver', 'state transition', 'approval'),
+                  ('bypass', 'self-approve', 'skip', 'invalid state transition', 'incorrect transition', 'untrusted accepted'),
               ),
               'cors_misconfiguration': (
-                  ('cors','cross-origin'),
-                  ('origin','untrusted origin','origin restriction','trusted origin'),
-                  ('credential','sensitive','state-changing','data'),
+                  ('cors', 'cross-origin'),
+                  ('origin', 'untrusted origin', 'origin restriction', 'trusted origin'),
+                  ('credential', 'sensitive', 'state-changing', 'data'),
               ),
               'dom_xss': (
-                  ('dom xss','client-side'),
-                  ('svg','render','browser','sink'),
-                  ('sanit','bypass'),
+                  ('dom xss', 'client-side'),
+                  ('svg', 'render', 'browser', 'sink'),
+                  ('sanit', 'bypass'),
+              ),
+              'graphql_authorization': (
+                  ('graphql',),
+                  ('authorization', 'permission', 'access control'),
+                  ('editor', 'service', 'manage', 'operation', 'role'),
               ),
               'graphql_data_exposure': (
-                  ('graphql','shop api'),
-                  ('sensitive','non-public','private','restricted','data exposure'),
-                  ('field','entity','query','scope','filter','property'),
+                  ('graphql', 'shop api'),
+                  ('sensitive', 'non-public', 'private', 'restricted', 'data exposure'),
+                  ('field', 'entity', 'query', 'scope', 'filter', 'property'),
               ),
               'improper_inventory_management': (
-                  ('old api','older arm api','legacy api'),
-                  ('version','api'),
-                  ('still exploitable','weaker authorization','version drift'),
+                  ('old api', 'older arm api', 'legacy api'),
+                  ('version', 'api'),
+                  ('still exploitable', 'weaker authorization', 'version drift'),
               ),
               'nosql_injection': (
-                  ('nosql','mongodb','mongo'),
-                  ('query','operator','filter','selector'),
-                  ('inject','injection','unvalidated','alter','semantics','unintended'),
+                  ('nosql', 'mongodb', 'mongo'),
+                  ('query', 'operator', 'filter', 'selector'),
+                  ('inject', 'injection', 'unvalidated', 'alter', 'semantics', 'unintended'),
               ),
               'postmessage_trust': (
-                  ('postmessage','message event'),
-                  ('origin','iframe source','sender'),
-                  ('validation','trust','correct iframe'),
+                  ('postmessage', 'message event'),
+                  ('origin', 'iframe source', 'sender'),
+                  ('validation', 'trust', 'correct iframe'),
               ),
               'sensitive_business_flow_abuse': (
-                  ('invite','business'),
-                  ('duplicate','flood','repeat'),
-                  ('rate limit','anti-abuse','frequency'),
+                  ('invite', 'business'),
+                  ('duplicate', 'flood', 'repeat'),
+                  ('rate limit', 'anti-abuse', 'frequency'),
               ),
               'sensitive_caching': (
-                  ('cache','cached'),
-                  ('api key','sensitive','authenticated'),
-                  ('shared cache','unauthenticated cache hit','edge'),
+                  ('cache', 'cached'),
+                  ('api key', 'sensitive', 'authenticated'),
+                  ('shared cache', 'unauthenticated cache hit', 'edge'),
               ),
               'software_supply_chain_failure': (
-                  ('supply chain','dependency'),
-                  ('compromised','malicious'),
-                  ('package','installation','published'),
+                  ('supply chain', 'dependency'),
+                  ('compromised', 'malicious'),
+                  ('package', 'installation', 'published'),
+              ),
+              'source_map_exposure': (
+                  ('source map', 'source-map'),
+                  ('source code', 'non-compiled source', 'original source', 'debug artifact'),
+                  ('expose', 'read', 'disclosure', 'obtainable'),
+              ),
+              'unsafe_api_consumption': (
+                  ('external api', 'http client', 'remote service', 'third-party'),
+                  ('redirect', 'cross-host', 'response'),
+                  ('credential', 'proxy-authorization', 'trust boundary', 'forwarded'),
+              ),
+              'websocket_authorization': (
+                  ('websocket', 'real-time'),
+                  ('authorization', 'authentication', 'access control', 'suspended user'),
+                  ('bypass', 'sensitive updates', 'http blocked'),
               ),
           }
 
+          grounding_families = {}
+          grounding_families.update(grounding.get('families') or {})
+          grounding_families.update(grounding_ext.get('families') or {})
+          if set(grounding_families) != hard:
+              raise SystemExit(f'grounding family coverage mismatch: {len(grounding_families)}/14')
+
           prior = exposure_index()
-          grounding_urls=set()
-          for spec in (grounding.get('families') or {}).values():
-              for key in ('owasp_anchor','owasp_companion'):
-                  value=canonical_url(spec.get(key))
-                  if value: grounding_urls.add(value)
-              for value in spec.get('writeups') or []:
-                  value=canonical_url(value)
-                  if value: grounding_urls.add(value)
+          grounding_urls = set()
+          for doc in (grounding, grounding_ext):
+              for spec in (doc.get('families') or {}).values():
+                  for key in ('owasp_anchor', 'owasp_companion'):
+                      value = canonical_url(spec.get(key))
+                      if value:
+                          grounding_urls.add(value)
+                  for value in spec.get('writeups') or []:
+                      value = canonical_url(value)
+                      if value:
+                          grounding_urls.add(value)
           for value in (grounding.get('owasp_testing_project') or {}).values():
-              if isinstance(value,str):
-                  value=canonical_url(value)
-                  if value: grounding_urls.add(value)
+              if isinstance(value, str):
+                  value = canonical_url(value)
+                  if value:
+                      grounding_urls.add(value)
 
           def firewall(row):
               root = str(row.get('source_root') or '').strip()
@@ -132,10 +183,14 @@ jobs:
               }
               urls.update(canonical_url(v) for v in row.get('references') or [])
               urls.discard('')
-              prior_overlap=sorted(urls & prior['urls'])
-              grounding_overlap=sorted(urls & grounding_urls)
+              prior_overlap = sorted(urls & prior['urls'])
+              grounding_overlap = sorted(urls & grounding_urls)
               return {
-                  'allowed': bool(root and project) and root not in prior['roots'] and project not in prior['projects'] and not prior_overlap and not grounding_overlap,
+                  'allowed': bool(root and project)
+                      and root not in prior['roots']
+                      and project not in prior['projects']
+                      and not prior_overlap
+                      and not grounding_overlap,
                   'root_overlap': root in prior['roots'],
                   'project_overlap': project in prior['projects'],
                   'url_overlap': prior_overlap,
@@ -145,130 +200,204 @@ jobs:
           hard_rows = {}
           hard_report = {}
           for family in sorted(hard):
-              pool = manual if family in {'dom_xss','sensitive_business_flow_abuse'} else exact
+              if family in {'dom_xss', 'sensitive_business_flow_abuse'}:
+                  pool = manual
+              elif family in extension_hard:
+                  pool = extension
+              else:
+                  pool = exact
+
               rows = (pool.get('candidates_by_family') or {}).get(family) or []
               if len(rows) != 1:
-                  raise SystemExit(f'{family}: expected one hard candidate')
+                  raise SystemExit(f'{family}: expected exactly one grounded candidate')
               row = dict(rows[0])
               text = ' '.join([
-                  str(row.get('summary') or ''), str(row.get('description') or ''),
+                  str(row.get('summary') or ''),
+                  str(row.get('description') or ''),
                   *[str(v) for v in row.get('semantic_facts') or []],
               ]).lower()
-              group_hits=[]
+
+              group_hits = []
               for group in contracts[family]:
-                  hits=sorted(term for term in group if term in text)
+                  hits = sorted(term for term in group if term in text)
                   group_hits.append(hits)
                   if not hits:
                       raise SystemExit(f'{family}: OWASP semantic group missing: {group}')
-              required=set((grounding.get('families') or {}).get(family,{}).get('wstg_ids') or [])
-              supplied=set(row.get('wstg_ids') or [])
+
+              required = set((grounding_families.get(family) or {}).get('wstg_ids') or [])
+              supplied = set(row.get('wstg_ids') or [])
               if not supplied or not supplied.issubset(required):
-                  raise SystemExit(f'{family}: WSTG mismatch supplied={sorted(supplied)} required={sorted(required)}')
-              fw=firewall(row)
+                  raise SystemExit(
+                      f'{family}: WSTG mismatch supplied={sorted(supplied)} required={sorted(required)}'
+                  )
+
+              fw = firewall(row)
               if not fw['allowed']:
                   raise SystemExit(f'{family}: source firewall rejected candidate: {fw}')
-              row['freshness_validated']=True
-              row['v6_firewall_allowed']=True
-              row['source_selection_track']='owasp_wstg_writeup_grounded_exact'
-              row['owasp_grounding_audit']={
-                  'passed':True,'group_hits':group_hits,'grounding_only':True,
-                  'counts_as_target_evidence':False,
+
+              row['freshness_validated'] = True
+              row['v6_firewall_allowed'] = True
+              row['source_selection_track'] = 'owasp_wstg_writeup_grounded_exact'
+              row['owasp_grounding_audit'] = {
+                  'passed': True,
+                  'group_hits': group_hits,
+                  'grounding_only': True,
+                  'counts_as_target_evidence': False,
               }
-              hard_rows[family]=row
-              hard_report[family]={
-                  'source_root':row['source_root'],'source_project':row['source_project'],
-                  'wstg_ids':sorted(supplied),'semantic_group_hits':group_hits,'firewall':fw,
+              hard_rows[family] = row
+              hard_report[family] = {
+                  'source_root': row['source_root'],
+                  'source_project': row['source_project'],
+                  'wstg_ids': sorted(supplied),
+                  'semantic_group_hits': group_hits,
+                  'firewall': fw,
               }
 
-          used_roots=set(); used_projects=set(); selected={}
+          used_roots = set()
+          used_projects = set()
+          selected = {}
           for family in sorted(hard_rows):
-              row=hard_rows[family]
-              root=str(row['source_root']); project=str(row['source_project'])
+              row = hard_rows[family]
+              root = str(row['source_root'])
+              project = str(row['source_project'])
               if root in used_roots or project in used_projects:
-                  raise SystemExit(f'{family}: hard source uniqueness collision')
-              used_roots.add(root); used_projects.add(project); selected[family]=row
+                  raise SystemExit(f'{family}: grounded source uniqueness collision')
+              used_roots.add(root)
+              used_projects.add(project)
+              selected[family] = row
 
-          def load_pool(path):
-              if not path.exists(): return {}
-              data=json.loads(path.read_text())
-              assert data.get('scoring_executed') is False
-              return data.get('candidates_by_family') or {}
+          # The complement of the 14 hard families was already semantically covered
+          # by the original unscored v6 discovery. Deliberately do not consume the
+          # large NVD supplement in final selection.
+          discovered = json.loads((src / 'v6_candidates.json').read_text())
+          if discovered.get('scoring_executed') is not False:
+              raise SystemExit('v6 discovery must remain unscored')
+          pool = discovered.get('candidates_by_family') or {}
 
-          pools=[load_pool(src/'v6_candidates.json'),load_pool(src/'v6_supplement_candidates.json')]
-          if (src/'v6_keyword_candidates.json').exists():
-              pools.append(load_pool(src/'v6_keyword_candidates.json'))
+          eligible = {}
+          for family in sorted(set(DETECTOR_SPECS) - hard):
+              rows = []
+              seen = set()
+              for raw in pool.get(family) or []:
+                  root = str(raw.get('source_root') or '').strip()
+                  project = str(raw.get('source_project') or '').strip()
+                  if not root or not project or (root, project) in seen:
+                      continue
+                  seen.add((root, project))
+                  if not firewall(raw)['allowed']:
+                      continue
+                  passed, hits, score = audit_row(family, raw)
+                  if not passed:
+                      continue
+                  row = dict(raw)
+                  row['freshness_validated'] = True
+                  row['v6_firewall_allowed'] = True
+                  row['source_family_audit_version'] = AUDIT_VERSION
+                  row['source_family_audit_rule_version'] = AUDIT_RULE_VERSION
+                  row['source_family_audit_score'] = int(score)
+                  row['source_family_audit_group_hits'] = hits
+                  row['source_selection_track'] = 'legacy_semantic_fresh_pool'
+                  rows.append(row)
+              rows.sort(
+                  key=lambda r: (
+                      int(r.get('source_family_audit_score') or 0),
+                      1 if r.get('advisory_source_type') == 'reviewed' else 0,
+                      1 if r.get('repository_advisory_url') else 0,
+                      r.get('published_at') or '',
+                  ),
+                  reverse=True,
+              )
+              eligible[family] = rows
 
-          eligible={}
-          for family in sorted(set(DETECTOR_SPECS)-hard):
-              rows=[]; seen=set()
-              for pool in pools:
-                  for raw in pool.get(family) or []:
-                      root=str(raw.get('source_root') or '').strip(); project=str(raw.get('source_project') or '').strip()
-                      if not root or not project or (root,project) in seen: continue
-                      seen.add((root,project))
-                      if not firewall(raw)['allowed']: continue
-                      passed,hits,score=audit_row(family,raw)
-                      if not passed: continue
-                      row=dict(raw)
-                      row['freshness_validated']=True; row['v6_firewall_allowed']=True
-                      row['source_family_audit_version']=AUDIT_VERSION
-                      row['source_family_audit_rule_version']=AUDIT_RULE_VERSION
-                      row['source_family_audit_score']=int(score)
-                      row['source_family_audit_group_hits']=hits
-                      row['source_selection_track']='legacy_semantic_fresh_pool'
-                      rows.append(row)
-              rows.sort(key=lambda r:(int(r.get('source_family_audit_score') or 0),1 if r.get('repository_advisory_url') else 0,r.get('published_at') or ''),reverse=True)
-              eligible[family]=rows
-
-          missing=sorted(f for f,rows in eligible.items() if not rows)
+          missing = sorted(f for f, rows in eligible.items() if not rows)
           if missing:
-              raise SystemExit('non-hard semantic source gaps: '+', '.join(missing))
-          for family in sorted(eligible,key=lambda f:(len(eligible[f]),f)):
-              chosen=None
+              raise SystemExit('non-hard semantic source gaps: ' + ', '.join(missing))
+
+          for family in sorted(eligible, key=lambda f: (len(eligible[f]), f)):
+              chosen = None
               for row in eligible[family]:
-                  root=str(row['source_root']); project=str(row['source_project'])
-                  if root in used_roots or project in used_projects: continue
-                  chosen=row; break
+                  root = str(row['source_root'])
+                  project = str(row['source_project'])
+                  if root in used_roots or project in used_projects:
+                      continue
+                  chosen = row
+                  break
               if chosen is None:
-                  raise SystemExit('global uniqueness gap: '+family)
-              selected[family]=chosen
-              used_roots.add(str(chosen['source_root'])); used_projects.add(str(chosen['source_project']))
+                  raise SystemExit('global uniqueness gap: ' + family)
+              selected[family] = chosen
+              used_roots.add(str(chosen['source_root']))
+              used_projects.add(str(chosen['source_project']))
 
           if set(selected) != set(DETECTOR_SPECS):
               raise SystemExit(f'family coverage mismatch {len(selected)}/36')
-          rows=[selected[f] for f in sorted(selected)]
-          rejected=[{'family':row.get('family'),'check':firewall(row)} for row in rows if not firewall(row)['allowed']]
-          if len(rows)!=36 or len(used_roots)!=36 or len(used_projects)!=36 or rejected:
-              raise SystemExit(f'final shortlist firewall/uniqueness failed count={len(rows)} roots={len(used_roots)} projects={len(used_projects)} rejected={rejected}')
 
-          final_firewall={
-              'passed':True,'errors':[],'candidate_count':36,
-              'unique_root_count':36,'unique_project_count':36,
-              'rejected':[],'firewall_rule_version':'2026.08.14.6.31',
-              'scoring_executed':False,
+          rows = [selected[f] for f in sorted(selected)]
+          rejected = [
+              {'family': row.get('family'), 'check': firewall(row)}
+              for row in rows
+              if not firewall(row)['allowed']
+          ]
+          if len(rows) != 36 or len(used_roots) != 36 or len(used_projects) != 36 or rejected:
+              raise SystemExit(
+                  'final shortlist firewall/uniqueness failed '
+                  f'count={len(rows)} roots={len(used_roots)} projects={len(used_projects)} '
+                  f'rejected={rejected}'
+              )
+
+          final_firewall = {
+              'passed': True,
+              'errors': [],
+              'candidate_count': 36,
+              'unique_root_count': 36,
+              'unique_project_count': 36,
+              'rejected': [],
+              'firewall_rule_version': '2026.08.14.6.31',
+              'scoring_executed': False,
           }
-          shortlist={
-              'version':'3.1.0','rule_version':'2026.08.14.6.31',
-              'evaluation_kind':'fresh_blind_v6_unscored_source_selection',
-              'selection_executes_scoring':False,'selection_uses_detector_output':False,
-              'selection_uses_admission_results':False,'selection_uses_ranking_results':False,
-              'grounding_counts_as_target_evidence':False,
-              'family_count':36,'unique_root_count':len(used_roots),'unique_project_count':len(used_projects),
-              'owasp_grounded_family_count':10,'legacy_semantic_family_count':26,
-              'firewall':final_firewall,'selected':rows,
+          shortlist = {
+              'version': '3.2.0',
+              'rule_version': '2026.08.14.6.31',
+              'evaluation_kind': 'fresh_blind_v6_unscored_source_selection',
+              'selection_executes_scoring': False,
+              'selection_uses_detector_output': False,
+              'selection_uses_admission_results': False,
+              'selection_uses_ranking_results': False,
+              'grounding_counts_as_target_evidence': False,
+              'family_count': 36,
+              'unique_root_count': len(used_roots),
+              'unique_project_count': len(used_projects),
+              'owasp_grounded_family_count': 14,
+              'legacy_semantic_family_count': 22,
+              'supplement_pool_used': False,
+              'firewall': final_firewall,
+              'selected': rows,
           }
-          report={
-              'version':'1.1.0','rule_version':'2026.08.14.6.31','status':'selected',
-              'scoring_executed':False,'family_count':36,
-              'unique_root_count':len(used_roots),'unique_project_count':len(used_projects),
-              'owasp_grounded_family_count':10,'legacy_semantic_family_count':26,
-              'grounding_provenance_reuse_count':0,
-              'hard_family_validation':hard_report,
+          report = {
+              'version': '1.2.0',
+              'rule_version': '2026.08.14.6.31',
+              'status': 'selected',
+              'scoring_executed': False,
+              'family_count': 36,
+              'unique_root_count': len(used_roots),
+              'unique_project_count': len(used_projects),
+              'owasp_grounded_family_count': 14,
+              'legacy_semantic_family_count': 22,
+              'supplement_pool_used': False,
+              'grounding_provenance_reuse_count': 0,
+              'hard_family_validation': hard_report,
           }
-          (src/'v6_shortlist.json').write_text(json.dumps(shortlist,indent=2,sort_keys=True)+'\n')
-          (src/'v6_selection_final_report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
-          print(json.dumps({k:report[k] for k in ('status','family_count','unique_root_count','unique_project_count','owasp_grounded_family_count','legacy_semantic_family_count','grounding_provenance_reuse_count')},indent=2,sort_keys=True))
+          (src / 'v6_shortlist.json').write_text(json.dumps(shortlist, indent=2, sort_keys=True) + '\n')
+          (src / 'v6_selection_final_report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps({
+              key: report[key]
+              for key in (
+                  'status', 'family_count', 'unique_root_count', 'unique_project_count',
+                  'owasp_grounded_family_count', 'legacy_semantic_family_count',
+                  'supplement_pool_used', 'grounding_provenance_reuse_count',
+              )
+          }, indent=2, sort_keys=True))
           PY
+
       - name: Commit sealed source shortlist
         shell: bash
         run: |
