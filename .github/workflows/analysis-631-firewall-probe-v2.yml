@@ -1,4 +1,4 @@
-name: Analysis 6.31 Final Two Complement Probe
+name: Analysis 6.31 Final SSTI Probe
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe final two complement sources without scoring
+      - name: Probe SSTI source without scoring
         env:
           PYTHONPATH: app
         run: |
@@ -30,52 +30,31 @@ jobs:
           from raw_recon_v5_source_audit import audit_row
           from raw_recon_v6_source_firewall import check_candidate, exposure_index
 
-          rows = [
-            {
-              'family': 'exceptional_condition_mishandling',
-              'source_root': 'TIME-SAFE-ISSUE-35',
-              'source_project': 'louisalexander/time-safe',
-              'canonical_advisory_url': 'https://github.com/louisalexander/time-safe/issues/35',
-              'summary': 'time-safe mishandles an unhandled exception by rendering a locals-bearing fatal traceback, causing a crash path to disclose plaintext secrets.',
-              'description': 'The project owner documents that an unhandled exception reaches Textual fatal-error rendering with frame locals enabled. The application exits/crashes while printing sensitive plaintext from live local variables to the terminal and logs instead of handling the error through the controlled exception-only path.',
-            },
-            {
+          row = {
               'family': 'server_side_template_injection',
-              'source_root': 'GHSA-f49j-v924-fx9w',
-              'source_project': 'jupyter-server/enterprise_gateway',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-f49j-v924-fx9w',
-              'repository_advisory_url': 'https://github.com/jupyter-server/enterprise_gateway/security/advisories/GHSA-f49j-v924-fx9w',
-              'source_code_location': 'https://github.com/jupyter-server/enterprise_gateway',
-              'summary': 'Jupyter Enterprise Gateway has Jinja2 server-side template injection in Kubernetes manifest rendering leading to remote code execution.',
-              'description': 'The reviewed advisory documents attacker-controlled KERNEL_XXX values reaching a Jinja2 template render path. Jinja2 template expressions are evaluated server-side during Kubernetes manifest rendering, enabling Python and OS command execution.',
-            },
-          ]
-
+              'source_root': 'OWNPAY-ISSUE-438',
+              'source_project': 'own-pay/OwnPay',
+              'canonical_advisory_url': 'https://github.com/own-pay/OwnPay/issues/438',
+              'summary': 'OwnPay security audit found full server-side template injection in TwigFactory because editable templates render with the full unsandboxed Twig environment.',
+              'description': 'A project-member audit issue documents non-superadmin-controlled Twig template source reaching the server-side Twig Environment without SandboxExtension. Injected Twig expressions are rendered by the full template engine and can read secrets, invoke registered hooks and potentially reach code execution through plugin functions.',
+          }
           prior = exposure_index()
-          results = []
-          for row in rows:
-              fw = check_candidate(row, index=prior)
-              passed, hits, score = audit_row(row['family'], row)
-              results.append({
-                  'family': row['family'],
-                  'source_root': row['source_root'],
-                  'source_project': row['source_project'],
-                  'audit_passed': bool(passed),
-                  'audit_score': int(score),
-                  'audit_hits': hits,
-                  'firewall_allowed': bool(fw['allowed']),
-                  'firewall': fw,
-                  'eligible': bool(passed and fw['allowed']),
-              })
-
-          print(json.dumps({
+          fw = check_candidate(row, index=prior)
+          passed, hits, score = audit_row(row['family'], row)
+          result = {
+              'family': row['family'],
+              'source_root': row['source_root'],
+              'source_project': row['source_project'],
+              'audit_passed': bool(passed),
+              'audit_score': int(score),
+              'audit_hits': hits,
+              'firewall_allowed': bool(fw['allowed']),
+              'firewall': fw,
+              'eligible': bool(passed and fw['allowed']),
               'scoring_executed': False,
               'detector_output_used': False,
-              'candidate_count': len(rows),
-              'eligible_count': sum(1 for row in results if row['eligible']),
-              'all_eligible': all(row['eligible'] for row in results),
-              'results': results,
-          }, indent=2, sort_keys=True))
-          if not all(row['eligible'] for row in results):
+          }
+          print(json.dumps(result, indent=2, sort_keys=True))
+          if not result['eligible']:
               raise SystemExit(2)
           PY
