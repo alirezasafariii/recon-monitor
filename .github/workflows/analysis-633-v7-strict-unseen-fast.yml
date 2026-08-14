@@ -1,0 +1,122 @@
+name: Analysis 6.33 V7 Strict Unseen Fast
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+    paths:
+      - '.github/workflows/analysis-633-v7-strict-unseen-fast.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-strict-unseen-fast
+  cancel-in-progress: false
+
+jobs:
+  fast-discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce frozen engine baseline
+        run: |
+          set -euo pipefail
+          BASELINE='b8b15261cc4049a1e5e425a83e57b6378a856113'
+          git cat-file -e "${BASELINE}^{commit}"
+          git diff --name-only "$BASELINE"...HEAD > /tmp/v7_fast_changed.txt
+          python - <<'PY'
+          from pathlib import Path
+          allowed=(
+              'app/raw_recon_v7_', 'app/v7_', 'benchmarks/raw/sources/v7_',
+              '.github/workflows/analysis-633-v7-', 'tests/test_v7_'
+          )
+          changed=[x.strip() for x in Path('/tmp/v7_fast_changed.txt').read_text().splitlines() if x.strip()]
+          bad=[x for x in changed if not x.startswith(allowed)]
+          if bad: raise SystemExit('engine freeze violation: '+', '.join(bad))
+          PY
+      - name: Build pinned Corpus V1 identity exclusions
+        env:
+          PYTHONPATH: app
+        run: python app/v7_external_exposure.py
+      - name: Verify V6 and Corpus V1 are excluded
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import check_candidate, exposure_index
+          idx=exposure_index()
+          ext=json.loads(Path('benchmarks/raw/sources/v7_external_exclusions.json').read_text())
+          assert len(ext['sources']) == 100
+          assert sum(not check_candidate(r,index=idx)['allowed'] for r in ext['sources']) == 100
+          v6=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          assert sum(not check_candidate(r,index=idx)['allowed'] for r in v6['selected']) == 36
+          PY
+      - name: Fast passive discovery
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_source_discovery_fast.py
+      - name: Promote fast pool only if fully blind
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path('benchmarks/raw/sources/v7_candidates_fast.json')
+          r=json.loads(src.read_text())
+          assert r['family_count']==36
+          assert r['scoring_executed'] is False
+          for k in (
+            'candidate_selection_uses_detector_scores','candidate_selection_uses_admission_results',
+            'candidate_selection_uses_ranking_results','candidate_selection_uses_v6_first_blind_score',
+            'candidate_selection_uses_v6_first_blind_case_errors','candidate_selection_uses_corpus_v1_labels',
+            'candidate_selection_uses_corpus_v1_evidence','candidate_selection_uses_corpus_v1_scores'):
+              assert r[k] is False, (k,r[k])
+          Path('benchmarks/raw/sources/v7_candidates.json').write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Select 36 unique unseen sources
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_source_selection.py
+      - name: Strict zero-overlap gate
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import validate_shortlist
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert len(r['selected'])==36
+          assert r['global_assignment_complete'] is True
+          assert r['firewall']['passed'] is True
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          check=validate_shortlist(r['selected'])
+          assert check['passed'], check
+          print({'selected':36,'unique_roots':check['unique_root_count'],'unique_projects':check['unique_project_count'],'prior_overlap':0})
+          PY
+      - name: Focused strict unseen tests
+        env:
+          PYTHONPATH: app
+        run: python -m unittest tests/test_v7_strict_unseen_firewall.py -q
+      - name: Commit fallback shortlist
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add benchmarks/raw/sources/v7_external_exclusions.json \
+                  benchmarks/raw/sources/v7_candidates_fast.json \
+                  benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_shortlist.json
+          git commit -m 'chore(analysis-633): freeze fast strict unseen V7 shortlist'
+          git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
