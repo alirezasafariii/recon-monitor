@@ -1,0 +1,56 @@
+name: Analysis 6.31 Literal Label Schema
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - app/v6_literal_label_schema.py
+      - .github/workflows/analysis-631-literal-label-schema.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate canonical pre-score signal vocabulary
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_label_schema.py
+      - name: Assert vocabulary is metadata only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          schema = json.loads(Path('benchmarks/raw/sources/v6_literal_label_schema.json').read_text(encoding='utf-8'))
+          assert schema['family_count'] == 36
+          assert schema['scoring_executed'] is False
+          assert schema['first_blind_consumed'] is False
+          assert schema['detector_output_used'] is False
+          assert schema['admission_output_used'] is False
+          assert schema['ranking_output_used'] is False
+          assert all(row['schema_role'] == 'canonical_vocabulary_only_not_target_adjudication' for row in schema['families'].values())
+          PY
+      - name: Commit label vocabulary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_label_schema.json
+          if git diff --cached --quiet; then
+            echo 'Label schema already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Freeze Analysis 6.31 pre-score label vocabulary'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
