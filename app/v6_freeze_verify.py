@@ -8,8 +8,8 @@ from typing import Any
 
 from raw_recon_corpus import ROOT
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.2.0"
+RULE_VERSION = "2026.08.14.6.31.2"
 DEFAULT_FREEZE = ROOT / "benchmarks/raw/sources/v6_corpus_freeze.json"
 DEFAULT_MANIFEST = ROOT / "benchmarks/raw/sources/v6_freeze_manifest.sha256"
 DEFAULT_EVALUATOR_FREEZE = ROOT / "benchmarks/raw/sources/v6_evaluator_freeze.json"
@@ -21,7 +21,7 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _verify_evaluator(errors: list[str]) -> dict[str, Any]:
+def _verify_evaluator(errors: list[str], corpus_freeze_path: Path) -> dict[str, Any]:
     if not DEFAULT_EVALUATOR_FREEZE.exists():
         errors.append("v6 evaluator freeze artifact is missing")
         return {"present": False, "frozen": False}
@@ -32,17 +32,28 @@ def _verify_evaluator(errors: list[str]) -> dict[str, Any]:
         errors.append("evaluator freeze must remain unscored")
     if frozen.get("first_blind_consumed") is not False:
         errors.append("evaluator freeze cannot mark first blind consumed")
+
     expected_eval = str(frozen.get("evaluator_sha256") or "")
     expected_protocol = str(frozen.get("protocol_sha256") or "")
-    if not DEFAULT_EVALUATOR.exists() or _sha256(DEFAULT_EVALUATOR) != expected_eval:
+    expected_corpus_freeze = str(frozen.get("corpus_freeze_sha256") or "")
+    actual_eval = _sha256(DEFAULT_EVALUATOR) if DEFAULT_EVALUATOR.exists() else ""
+    actual_protocol = _sha256(DEFAULT_PROTOCOL) if DEFAULT_PROTOCOL.exists() else ""
+    actual_corpus_freeze = _sha256(corpus_freeze_path) if corpus_freeze_path.exists() else ""
+
+    if not expected_eval or actual_eval != expected_eval:
         errors.append("v6 evaluator hash does not match evaluator freeze")
-    if not DEFAULT_PROTOCOL.exists() or _sha256(DEFAULT_PROTOCOL) != expected_protocol:
+    if not expected_protocol or actual_protocol != expected_protocol:
         errors.append("v6 protocol hash does not match evaluator freeze")
+    if not expected_corpus_freeze or actual_corpus_freeze != expected_corpus_freeze:
+        errors.append("v6 corpus freeze hash does not match evaluator freeze")
+
     return {
         "present": True,
         "frozen": frozen.get("first_blind_evaluator_frozen") is True,
         "evaluator_sha256": expected_eval,
         "protocol_sha256": expected_protocol,
+        "corpus_freeze_sha256": expected_corpus_freeze,
+        "corpus_freeze_match": bool(expected_corpus_freeze and actual_corpus_freeze == expected_corpus_freeze),
     }
 
 
@@ -52,6 +63,7 @@ def verify_freeze(
     require_freeze: bool = False,
     require_evaluator_frozen: bool = False,
 ) -> dict[str, Any]:
+    freeze_path = Path(freeze_path)
     errors: list[str] = []
     if not freeze_path.exists():
         if require_freeze:
@@ -101,7 +113,7 @@ def verify_freeze(
 
     evaluator = {"present": DEFAULT_EVALUATOR_FREEZE.exists(), "frozen": False}
     if require_evaluator_frozen or DEFAULT_EVALUATOR_FREEZE.exists():
-        evaluator = _verify_evaluator(errors)
+        evaluator = _verify_evaluator(errors, freeze_path)
 
     return {
         "verifier_version": VERSION,
