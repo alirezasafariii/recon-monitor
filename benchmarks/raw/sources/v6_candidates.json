@@ -5148,6 +5148,49 @@
         "v6_firewall_allowed": true,
         "v6_firewall_rule_version": "2026.08.13.6.31",
         "v6_firewall_version": "1.0.0"
+      },
+      {
+        "advisory_source_type": "unreviewed",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-j3fc-fx73-7qv7",
+        "description": "The VPS.org one-click Supabase template has an insecure default configuration that publishes PostgreSQL on all interfaces at 0.0.0.0:5432 with the default database password postgres. The database is therefore publicly exposed by default, and Docker networking rules can bypass a standard host UFW configuration.",
+        "family": "security_misconfiguration",
+        "freshness_validated": true,
+        "matched_cwes": [
+          "CWE-1188"
+        ],
+        "published_at": "2026-07-31T18:32:17Z",
+        "references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2026-16503",
+          "https://kb.cert.org/vuls/id/243636"
+        ],
+        "repository_advisory_url": "",
+        "selection_basis": "pre-score targeted source discovery repair for global root/project uniqueness; no detector, admission, ranking, or blind result used",
+        "severity": "critical",
+        "source_code_location": "",
+        "source_family_audit_group_hits": [
+          [
+            "configuration",
+            "default configuration"
+          ],
+          [
+            "default",
+            "exposed",
+            "insecure",
+            "public"
+          ]
+        ],
+        "source_family_audit_rule_version": "2026.08.13.6.29",
+        "source_family_audit_score": 16,
+        "source_family_audit_version": "1.0.0",
+        "source_kind": "vendor_product_advisory_record",
+        "source_project": "vps.org/supabase-one-click-template",
+        "source_root": "GHSA-j3fc-fx73-7qv7",
+        "source_selection_track": "legacy_semantic_fresh_pool_pre_score_uniqueness_repair",
+        "summary": "VPS.org Supabase template exposes PostgreSQL through an insecure default configuration with a default password.",
+        "updated_at": "2026-08-03T18:31:45Z",
+        "v6_firewall_allowed": true,
+        "v6_firewall_rule_version": "2026.08.13.6.31",
+        "v6_firewall_version": "1.0.0"
       }
     ],
     "sensitive_business_flow_abuse": [],
@@ -11084,7 +11127,7 @@
     "race_condition": 4,
     "secret_exposure": 3,
     "security_logging_alerting_failure": 1,
-    "security_misconfiguration": 2,
+    "security_misconfiguration": 3,
     "sensitive_business_flow_abuse": 0,
     "sensitive_caching": 0,
     "server_side_template_injection": 4,
@@ -11123,7 +11166,7 @@
     "race_condition": 4,
     "secret_exposure": 2,
     "security_logging_alerting_failure": 1,
-    "security_misconfiguration": 1,
+    "security_misconfiguration": 2,
     "sensitive_business_flow_abuse": 0,
     "sensitive_caching": 0,
     "server_side_template_injection": 4,
@@ -11145,6 +11188,15 @@
       "semantic_audit_passed": true,
       "source_project": "sauruscms/Saurus-CMS-Community-Edition",
       "source_root": "GHSA-jjjg-67rc-qf87"
+    },
+    {
+      "family": "security_misconfiguration",
+      "historical_firewall_passed": true,
+      "reason": "global uniqueness collision with security_logging_alerting_failure on kyndryl-open-source/hashi-vault-js",
+      "scoring_executed": false,
+      "semantic_audit_passed": true,
+      "source_project": "vps.org/supabase-one-click-template",
+      "source_root": "GHSA-j3fc-fx73-7qv7"
     }
   ],
   "queried_rows_by_advisory_type": {
