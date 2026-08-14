@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_owasp_extension_sources",
   "scoring_executed": false,
@@ -43,18 +43,19 @@
     ],
     "unsafe_api_consumption": [
       {
-        "source_root": "GHSA-vhjm-w67q-g75c",
-        "source_project": "hapijs/wreck",
+        "source_root": "GHSA-pgc4-5jjm-7rr7",
+        "source_project": "Perl-Toolchain-Gang/HTTP-Tiny",
         "family": "unsafe_api_consumption",
-        "canonical_advisory_url": "https://github.com/hapijs/wreck/security/advisories/GHSA-vhjm-w67q-g75c",
-        "source_kind": "official_project_security_advisory",
-        "advisory_source_type": "maintainer_security_advisory",
-        "published_at": "2026-05-27",
-        "summary": "@hapi/wreck forwarded Proxy-Authorization credentials when following a redirect to a different hostname, crossing the original remote-service trust boundary.",
-        "description": "The advisory documents an HTTP client consuming a remote 3xx response and following it across hostnames while retaining a sensitive credential header. The security condition is trust in externally supplied redirect control flow without re-applying the credential/trust policy at the new host boundary. This is used as an OWASP API10 unsafe-consumption example and is intentionally distinguished from direct user-controlled SSRF.",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-pgc4-5jjm-7rr7",
+        "source_code_location": "https://github.com/Perl-Toolchain-Gang/HTTP-Tiny/pull/36",
+        "source_kind": "github_advisory_with_upstream_fix_reference",
+        "advisory_source_type": "github_advisory",
+        "published_at": "2026-07-07",
+        "summary": "HTTP::Tiny forwarded caller-supplied Authorization, Cookie and Proxy-Authorization credentials when following a redirect to a different origin.",
+        "description": "The advisory documents an HTTP client consuming a remote 3xx response and following its Location across scheme, host or port boundaries while re-sending caller-supplied credential headers. The changed redirect destination is therefore trusted without re-applying the original credential boundary, causing Authorization and Proxy-Authorization data to cross to a different host or even an HTTPS-to-HTTP downgrade.",
         "wstg_ids": ["WSTG-INFO-10"],
-        "semantic_facts": ["external API", "HTTP client", "remote service", "redirect", "cross-host", "response", "Proxy-Authorization", "credential", "trust boundary", "forwarded"],
-        "selection_basis": "official maintainer advisory selected before scoring using OWASP API10 unsafe-consumption semantics with WSTG-INFO-10 third-party/API trust-boundary mapping"
+        "semantic_facts": ["HTTP client", "remote service", "redirect", "cross-host", "response", "Authorization", "Proxy-Authorization", "credential", "trust boundary", "forwarded"],
+        "selection_basis": "fresh upstream-linked advisory selected before scoring using OWASP API10 unsafe-consumption semantics with WSTG-INFO-10 third-party/API trust-boundary mapping"
       }
     ],
     "websocket_authorization": [
