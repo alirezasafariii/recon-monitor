@@ -1,0 +1,23 @@
+{
+  "case_count": 400,
+  "errors": [],
+  "evaluation_kind": "real_world_corpus_v1_collection_ready_plan",
+  "family_assignment_is_final": false,
+  "family_basis_counts": {
+    "exact_target_cwe": 60,
+    "generic_source_control": 21,
+    "multi_family_cwe_proposal": 5,
+    "unique_canonical_cwe_proposal": 14
+  },
+  "human_labels_created": false,
+  "near_miss_control_count": 100,
+  "next_transition": "capture_public_source_and_isolated_controlled_observations_then_human_review",
+  "passed": true,
+  "plan_sha256": "8e80c908162a95d92a1b77a187b8a40f56adb0fa1fdc8343a6176015e87907bc",
+  "ready_to_collect_count": 400,
+  "rule_version": "2026.08.14.8",
+  "scoring_executed": false,
+  "status": "collection_design_ready",
+  "target_contact_performed": false,
+  "version": "1.0.0"
+}
