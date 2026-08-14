@@ -1,0 +1,59 @@
+name: Real-World Corpus V1 Upstream Control Mining
+
+on:
+  push:
+    branches: [agent/real-world-corpus-v1-upstream-controls]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Mine changed upstream tests without executing code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_upstream_controls.py \
+            --revision-evidence benchmarks/real_world/v1/revision_pair_evidence.json \
+            --output benchmarks/real_world/v1/upstream_control_evidence.json \
+            --report benchmarks/real_world/v1/upstream_control_evidence_report.json
+      - name: Focused regressions
+        run: |
+          python -m unittest tests/test_real_world_corpus_v1_upstream_controls.py -q
+          python -m unittest tests/test_real_world_corpus_v1_revision_capture.py -q
+      - name: Full regression suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)|\.jsonl$' || true)"
+          forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
+          test -z "$forbidden" || { printf '%s\n' "$forbidden"; exit 1; }
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/real_world/v1/upstream_control_evidence.json benchmarks/real_world/v1/upstream_control_evidence_report.json
+          git ls-files -z | python -c 'import sys; x=[i for i in sys.stdin.buffer.read().split(b"\0") if i and i!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Commit mined control candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add benchmarks/real_world/v1/upstream_control_evidence.json benchmarks/real_world/v1/upstream_control_evidence_report.json MANIFEST.sha256
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore(corpus-v1): mine upstream control candidates'
+          git push
