@@ -63,6 +63,14 @@ jobs:
             --output benchmarks/real_world/v1/source_feasibility.json \
             --report benchmarks/real_world/v1/source_feasibility_report.json
 
+      - name: Build 400-case controlled capture plan
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_capture_plan.py \
+            --feasibility benchmarks/real_world/v1/source_feasibility.json \
+            --output benchmarks/real_world/v1/capture_plan.json \
+            --report benchmarks/real_world/v1/capture_plan_report.json
+
       - name: Focused corpus regressions
         run: |
           python -m unittest tests/test_real_world_corpus_v1.py -q
@@ -70,6 +78,8 @@ jobs:
           python -m unittest tests/test_real_world_corpus_v1_targeted.py -q
           python -m unittest tests/test_real_world_corpus_v1_shortlist.py -q
           python -m unittest tests/test_real_world_corpus_v1_feasibility.py -q
+          python -m unittest tests/test_real_world_corpus_v1_capture_plan.py -q
+          python -m unittest tests/test_real_world_corpus_v1_calibration_roles.py -q
 
       - name: Full regression suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
@@ -85,13 +95,15 @@ jobs:
                   benchmarks/real_world/v1/source_shortlist.json \
                   benchmarks/real_world/v1/shortlist_report.json \
                   benchmarks/real_world/v1/source_feasibility.json \
-                  benchmarks/real_world/v1/source_feasibility_report.json
+                  benchmarks/real_world/v1/source_feasibility_report.json \
+                  benchmarks/real_world/v1/capture_plan.json \
+                  benchmarks/real_world/v1/capture_plan_report.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
             | xargs -0 sha256sum > MANIFEST.sha256
           sha256sum --strict -c MANIFEST.sha256
 
-      - name: Commit corpus source artifacts and manifest
+      - name: Commit corpus artifacts and manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -105,10 +117,12 @@ jobs:
                   benchmarks/real_world/v1/shortlist_report.json \
                   benchmarks/real_world/v1/source_feasibility.json \
                   benchmarks/real_world/v1/source_feasibility_report.json \
+                  benchmarks/real_world/v1/capture_plan.json \
+                  benchmarks/real_world/v1/capture_plan_report.json \
                   MANIFEST.sha256
           if git diff --cached --quiet; then
-            echo 'No corpus source changes to commit.'
+            echo 'No corpus changes to commit.'
             exit 0
           fi
-          git commit -m 'chore(corpus-v1): refresh source feasibility'
+          git commit -m 'chore(corpus-v1): refresh capture plan'
           git push
