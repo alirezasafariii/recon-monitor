@@ -1,0 +1,106 @@
+name: Analysis 6.31 Capture Remaining Advisories
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-remaining-advisories.yml'
+      - 'app/v6_remaining_advisory_collector.py'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 read-only
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Capture only advisory families satisfying strict four-observation contract
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_remaining_advisory_collector.py captured | tee remaining-advisory-capture-report.json
+
+      - name: Upload independently captured source observations
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-remaining-advisory-captures
+          path: |
+            captured/**/*.json
+            remaining-advisory-capture-report.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download source captures
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-remaining-advisory-captures
+          path: capture-artifact
+
+      - name: Publish through canonical evidence publisher and strict pre-score gates
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          mkdir -p captured
+          cp -R capture-artifact/captured/. captured/
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py --allow-missing
+          python app/v6_literal_raw_precheck.py
+          python app/v6_remaining_capture_manifest.py
+          python app/v6_remaining_capture_index.py
+          python app/v6_pre_score_checkpoint_refresh.py
+
+      - name: Commit only verified pre-score evidence and progress artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_literal_capture_verification.json \
+                  benchmarks/raw/sources/v6_remaining_capture_manifest.json \
+                  benchmarks/raw/sources/v6_remaining_capture_index.tsv \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'No new verified evidence to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture verified Analysis 6.31 remaining advisory evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
