@@ -1,0 +1,57 @@
+name: Analysis 6.32 v7 Missing Five Diagnostics
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-missing5-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+      - name: Extract missing-five diagnostics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          missing=['file_upload','graphql_authorization','graphql_data_exposure','security_logging_alerting_failure','software_supply_chain_failure']
+          patch=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          pr=json.loads(Path('benchmarks/raw/sources/v7_pr_supplement.json').read_text())
+          out={}
+          for family in missing:
+              rows=(pr.get('candidates_by_family') or {}).get(family) or []
+              out[family]={
+                  'patch_probe_diagnostic':(patch.get('diagnostics') or {}).get(family),
+                  'preferred_sources':[
+                      {
+                          'source_root':r.get('source_root'),
+                          'source_project':r.get('source_project'),
+                          'source_code_location':r.get('source_code_location'),
+                          'summary':r.get('summary'),
+                          'source_family_audit_group_hits':r.get('source_family_audit_group_hits'),
+                          'pre_score_expected_condition_signals':r.get('pre_score_expected_condition_signals'),
+                      }
+                      for r in rows[:5]
+                  ],
+              }
+          Path('benchmarks/raw/sources/v7_missing5_diagnostics.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - name: Commit compact diagnostics
+        shell: bash
+        run: |
+          git add benchmarks/raw/sources/v7_missing5_diagnostics.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Summarize final Analysis 6.32 v7 source blockers'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
