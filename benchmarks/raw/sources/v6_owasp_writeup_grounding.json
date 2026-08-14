@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_grounding",
   "scoring_executed": false,
@@ -23,7 +23,7 @@
     "business_logic": {
       "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
       "owasp_anchor": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/",
-      "writeups": ["https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"],
+      "writeups": ["https://securitylab.github.com/advisories/GHSL-2024-294_Azure-cli/"],
       "semantic_boundary": "Require an observed workflow, value, state, or invariant violation; workflow naming alone is surface evidence only."
     },
     "cors_misconfiguration": {
