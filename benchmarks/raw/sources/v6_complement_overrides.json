@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "rule_version": "2026.08.14.6.31.2",
+  "version": "1.1.0",
+  "rule_version": "2026.08.14.6.31.5",
   "evaluation_kind": "fresh_blind_v6_unscored_complement_overrides",
   "scoring_executed": false,
   "detector_output_used": false,
   "admission_output_used": false,
   "ranking_output_used": false,
-  "candidate_count": 11,
+  "candidate_count": 13,
   "candidates_by_family": {
     "account_enumeration": [
       {
@@ -133,6 +133,36 @@
         "description": "The published advisory identifies a time-sensitive race/TOCTOU-style state flaw in a privileged macOS application path. A lower-privilege local actor can win the concurrent state transition and obtain elevated execution, violating the intended atomic privileged operation boundary.",
         "semantic_facts": ["race condition", "TOCTOU", "concurrent", "time-of", "state", "privilege escalation"],
         "selection_basis": "fresh published advisory selected before scoring using the preregistered race-condition semantic audit"
+      }
+    ],
+    "secret_exposure": [
+      {
+        "source_root": "GHSA-xr96-mx7v-w32h",
+        "source_project": "ibm/storage-scale",
+        "family": "secret_exposure",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-xr96-mx7v-w32h",
+        "source_kind": "github_advisory_database_record",
+        "advisory_source_type": "published",
+        "published_at": "2026-08-13",
+        "summary": "IBM Storage Scale GUI contains a hardcoded token in source code used for cluster communication and REST API authentication.",
+        "description": "The published advisory states that a hardcoded authentication token is present in the application source code and reused for inter-node and REST API authentication, exposing a reusable credential/secret through the software source.",
+        "semantic_facts": ["hardcoded token", "credential", "secret", "token", "source code", "exposed secret"],
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered secret-exposure semantic audit"
+      }
+    ],
+    "security_logging_alerting_failure": [
+      {
+        "source_root": "GHSA-q83p-h7pj-3m3p",
+        "source_project": "ibm/db2",
+        "family": "security_logging_alerting_failure",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-q83p-h7pj-3m3p",
+        "source_kind": "github_advisory_database_record",
+        "advisory_source_type": "published",
+        "published_at": "2026-08-12",
+        "summary": "IBM Db2 logging can write sensitive plaintext passwords into trace files.",
+        "description": "The published advisory states that local attackers can obtain sensitive information because plain text passwords are logged in Db2 trace files. The logging path therefore records credential data without redaction.",
+        "semantic_facts": ["logging", "log", "sensitive", "password", "plaintext credential", "trace file"],
+        "selection_basis": "fresh published advisory selected before scoring using the preregistered security-logging semantic audit"
       }
     ],
     "server_side_template_injection": [
