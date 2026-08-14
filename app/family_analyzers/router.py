@@ -2,7 +2,8 @@ from __future__ import annotations
 
 """Explicit router for independently versioned family analyzers."""
 
-from typing import Any
+from collections import OrderedDict
+from typing import Any, Mapping
 from family_reasoning import FAMILY_ORDER
 from .account_enumeration import AccountEnumerationFamilyAnalyzer
 from .authentication_session import AuthenticationSessionFamilyAnalyzer
@@ -38,7 +39,11 @@ from .ssrf import SsrfFamilyAnalyzer
 from .ssti import SstiFamilyAnalyzer
 from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
-FAMILY_ANALYZER_ROUTER_VERSION = "4.0.0"
+FAMILY_ANALYZER_ROUTER_VERSION = "4.1.0"
+RAW_ANALYZER_BUDGET_VERSION = "1.0.0"
+RAW_ANALYZER_INVOCATION_LIMIT = 200_000
+_RAW_BUDGET_CACHE_MAX = 64
+_RAW_BUDGETS: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
 _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
     "broken_object_authorization": BolaFamilyAnalyzer,
@@ -76,6 +81,135 @@ _ANALYZERS: dict[str, type[FamilyAnalyzer]] = {
 _ANALYZERS.update(PHASE2_ANALYZER_TYPES)
 
 
+def _is_raw_surface_context(context: Any) -> bool:
+    details = getattr(context, "details", None)
+    return isinstance(details, Mapping) and bool(
+        details.get("raw_surface_observation")
+        or details.get("raw_finding_observation")
+    )
+
+
+def _budget_state(analysis_id: str) -> dict[str, Any]:
+    state = _RAW_BUDGETS.get(analysis_id)
+    if state is not None:
+        _RAW_BUDGETS.move_to_end(analysis_id)
+        return state
+    state = {
+        "version": RAW_ANALYZER_BUDGET_VERSION,
+        "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
+        "attempted": 0,
+        "executed": 0,
+        "skipped": 0,
+        "exhausted": False,
+        "audit_emitted": False,
+        "families": {},
+    }
+    _RAW_BUDGETS[analysis_id] = state
+    while len(_RAW_BUDGETS) > _RAW_BUDGET_CACHE_MAX:
+        _RAW_BUDGETS.popitem(last=False)
+    return state
+
+
+def _consume_raw_budget(context: Any, family: str) -> bool:
+    """Bound only raw-Recon fan-out; normal Alert/validation analysis is untouched."""
+
+    if not _is_raw_surface_context(context):
+        return True
+    analysis_id = str(getattr(context, "analysis_id", "") or "")
+    if not analysis_id:
+        # A context without an analysis identity cannot participate in the
+        # process-local budget safely, so preserve historical behavior.
+        return True
+    state = _budget_state(analysis_id)
+    state["attempted"] += 1
+    if int(state["executed"]) >= int(RAW_ANALYZER_INVOCATION_LIMIT):
+        state["skipped"] += 1
+        state["exhausted"] = True
+        if not state["audit_emitted"]:
+            db = getattr(context, "db", None)
+            audit = getattr(db, "audit", None)
+            if callable(audit):
+                try:
+                    audit(
+                        "raw_family_budget_exhausted",
+                        target=str(getattr(context, "target", "") or "*"),
+                        entity_type="analysis",
+                        entity_value=analysis_id,
+                        details={
+                            "version": RAW_ANALYZER_BUDGET_VERSION,
+                            "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
+                            "attempted": int(state["attempted"]),
+                            "executed": int(state["executed"]),
+                            "skipped": int(state["skipped"]),
+                            "family": str(family or ""),
+                        },
+                    )
+                except Exception:
+                    # Observability must never make the Analysis path fail.
+                    pass
+            state["audit_emitted"] = True
+        return False
+    state["executed"] += 1
+    family_counts = state["families"]
+    family_counts[str(family or "unknown")] = int(
+        family_counts.get(str(family or "unknown"), 0)
+    ) + 1
+    return True
+
+
+def raw_analysis_budget_snapshot(analysis_id: str) -> dict[str, Any]:
+    """Return a detached operational snapshot for tests/diagnostics."""
+
+    state = _RAW_BUDGETS.get(str(analysis_id or ""))
+    if state is None:
+        return {
+            "version": RAW_ANALYZER_BUDGET_VERSION,
+            "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
+            "attempted": 0,
+            "executed": 0,
+            "skipped": 0,
+            "exhausted": False,
+            "families": {},
+        }
+    return {
+        "version": str(state["version"]),
+        "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
+        "attempted": int(state["attempted"]),
+        "executed": int(state["executed"]),
+        "skipped": int(state["skipped"]),
+        "exhausted": bool(state["exhausted"]),
+        "families": dict(state["families"]),
+    }
+
+
+def clear_raw_analysis_budget(analysis_id: str | None = None) -> None:
+    if analysis_id is None:
+        _RAW_BUDGETS.clear()
+    else:
+        _RAW_BUDGETS.pop(str(analysis_id), None)
+
+
+def _install_raw_budget_guard(analyzer_type: type[FamilyAnalyzer]) -> None:
+    original = analyzer_type.analyze
+    if bool(getattr(original, "_raw_budget_guard", False)):
+        return
+
+    def guarded(self: FamilyAnalyzer, context: Any, **kwargs: Any) -> dict[str, Any] | None:
+        if not _consume_raw_budget(context, self.family):
+            return None
+        return original(self, context, **kwargs)
+
+    guarded.__name__ = getattr(original, "__name__", "analyze")
+    guarded.__doc__ = getattr(original, "__doc__", None)
+    setattr(guarded, "_raw_budget_guard", True)
+    analyzer_type.analyze = guarded  # type: ignore[method-assign]
+
+
+# Install once at router import while preserving every concrete analyzer type.
+for _analyzer_type in set(_ANALYZERS.values()):
+    _install_raw_budget_guard(_analyzer_type)
+
+
 def registered_families() -> tuple[str, ...]:
     return tuple(family for family in FAMILY_ORDER if family in _ANALYZERS)
 
@@ -100,4 +234,10 @@ def router_status() -> dict[str, Any]:
         "pending": list(pending),
         "target_family_count": len(FAMILY_ORDER),
         "generic_family_analyzer_fallback": False,
+        "raw_analyzer_budget": {
+            "version": RAW_ANALYZER_BUDGET_VERSION,
+            "invocation_limit_per_analysis": int(RAW_ANALYZER_INVOCATION_LIMIT),
+            "active_analysis_snapshots": len(_RAW_BUDGETS),
+            "raw_context_only": True,
+        },
     }
