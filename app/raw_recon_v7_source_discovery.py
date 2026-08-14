@@ -5,19 +5,21 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 import raw_recon_v5_source_discovery as v5
+from raw_recon_v7_source_firewall import PRIOR_SCOPE
 from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
 from raw_recon_v7_source_firewall import check_candidate, exposure_index
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.1"
 OUT = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 
 
 def discover(**kwargs: Any) -> dict[str, Any]:
-    # Reuse the preregistered standards/CWE semantic discovery machinery, but
-    # replace its freshness index with the stricter v1-v6 exposure firewall.
-    # No v6 score/case-error artifact is read or used for ranking candidates.
+    # Reuse preregistered standards/CWE semantic discovery, but replace its
+    # freshness index with the strict V1-V6 + pinned Corpus V1 exposure
+    # firewall. No prior score, case error, label, or evidence is used to rank
+    # candidates.
     original_exposure_index = v5.exposure_index
     try:
         v5.exposure_index = exposure_index
@@ -41,6 +43,9 @@ def discover(**kwargs: Any) -> dict[str, Any]:
             row["v7_firewall_rule_version"] = FIREWALL_RULE_VERSION
             row["v7_selection_uses_v6_score"] = False
             row["v7_selection_uses_v6_case_errors"] = False
+            row["v7_selection_uses_corpus_v1_labels"] = False
+            row["v7_selection_uses_corpus_v1_evidence"] = False
+            row["v7_selection_uses_corpus_v1_scores"] = False
             if check["allowed"]:
                 kept.append(row)
             else:
@@ -60,10 +65,10 @@ def discover(**kwargs: Any) -> dict[str, Any]:
     report.update({
         "version": VERSION,
         "rule_version": RULE_VERSION,
-        "evaluation_kind": "fresh_blind_v7_unscored_source_discovery",
+        "evaluation_kind": "fresh_blind_v7_strict_unseen_unscored_source_discovery",
         "source_firewall_version": FIREWALL_VERSION,
         "source_firewall_rule_version": FIREWALL_RULE_VERSION,
-        "prior_exposure_scope": "all exposed source identities and provenance from v1 through consumed v6",
+        "prior_exposure_scope": PRIOR_SCOPE,
         "candidates_by_family": filtered,
         "family_candidate_counts": {family: len(rows) for family, rows in filtered.items()},
         "source_firewall_rejections": rejected,
@@ -74,6 +79,9 @@ def discover(**kwargs: Any) -> dict[str, Any]:
         "candidate_selection_uses_ranking_results": False,
         "candidate_selection_uses_v6_first_blind_score": False,
         "candidate_selection_uses_v6_first_blind_case_errors": False,
+        "candidate_selection_uses_corpus_v1_labels": False,
+        "candidate_selection_uses_corpus_v1_evidence": False,
+        "candidate_selection_uses_corpus_v1_scores": False,
         "active_target_validation_performed": False,
     })
     report["families_without_candidates"] = sorted(family for family, rows in filtered.items() if not rows)
