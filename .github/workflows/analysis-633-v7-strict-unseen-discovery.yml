@@ -1,0 +1,192 @@
+name: Analysis 6.33 V7 Strict Unseen Discovery
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-fresh-blind-v7-unseen
+    paths:
+      - '.github/workflows/analysis-633-v7-strict-unseen-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-strict-unseen-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover-and-select:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout strict unseen V7 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-fresh-blind-v7-unseen
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Freeze production reasoning against Analysis 6.32 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASELINE='b8b15261cc4049a1e5e425a83e57b6378a856113'
+          git cat-file -e "${BASELINE}^{commit}"
+          git diff --name-only "$BASELINE"...HEAD > /tmp/v7_changed.txt
+          python - <<'PY'
+          from pathlib import Path
+          allowed = (
+              'app/raw_recon_v7_',
+              'app/v7_',
+              'benchmarks/raw/sources/v7_',
+              '.github/workflows/analysis-633-v7-',
+              'tests/test_v7_',
+              'docs/ANALYSIS_ENGINE_6_33_',
+          )
+          changed=[line.strip() for line in Path('/tmp/v7_changed.txt').read_text().splitlines() if line.strip()]
+          forbidden=[path for path in changed if not path.startswith(allowed)]
+          if forbidden:
+              raise SystemExit('production-reasoning freeze violation: ' + ', '.join(forbidden))
+          print({'changed_files_since_engine_freeze': len(changed), 'production_reasoning_changes': 0})
+          PY
+
+      - name: Build pinned Corpus V1 identity-only exclusions
+        env:
+          PYTHONPATH: app
+        run: python app/v7_external_exposure.py
+
+      - name: Verify strict unseen firewall rejects V6 and Corpus V1
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import check_candidate, exposure_index
+          protocol=json.loads(Path('benchmarks/raw/sources/v7_protocol.json').read_text())
+          ext=json.loads(Path('benchmarks/raw/sources/v7_external_exclusions.json').read_text())
+          assert ext['source_count'] == 100
+          assert ext['identity_only'] is True
+          assert ext['labels_imported'] is False
+          assert ext['evidence_imported'] is False
+          assert ext['scores_imported'] is False
+          index=exposure_index()
+          corpus_rejected=sum(not check_candidate(row, index=index)['allowed'] for row in ext['sources'])
+          assert corpus_rejected == 100, corpus_rejected
+          v6=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          v6_rows=v6.get('selected') or []
+          assert len(v6_rows) == 36
+          v6_rejected=sum(not check_candidate(row, index=index)['allowed'] for row in v6_rows)
+          assert v6_rejected == 36, v6_rejected
+          assert protocol['engine_baseline']['commit_sha'] == 'b8b15261cc4049a1e5e425a83e57b6378a856113'
+          assert protocol['scoring_executed'] is False
+          assert protocol['first_blind_consumed'] is False
+          print({
+              'corpus_v1_rejected': corpus_rejected,
+              'v6_rejected': v6_rejected,
+              'prior_roots': len(index['roots']),
+              'prior_projects': len(index['projects']),
+              'prior_identifiers': len(index['identifiers']),
+          })
+          PY
+
+      - name: Discover fresh passive V7 candidates
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_source_discovery.py
+
+      - name: Verify discovery is label and score blind
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          assert report['family_count'] == 36
+          assert report['scoring_executed'] is False
+          for key in (
+              'candidate_selection_uses_detector_scores',
+              'candidate_selection_uses_admission_results',
+              'candidate_selection_uses_ranking_results',
+              'candidate_selection_uses_v6_first_blind_score',
+              'candidate_selection_uses_v6_first_blind_case_errors',
+              'candidate_selection_uses_corpus_v1_labels',
+              'candidate_selection_uses_corpus_v1_evidence',
+              'candidate_selection_uses_corpus_v1_scores',
+          ):
+              assert report[key] is False, (key, report[key])
+          assert report['active_target_validation_performed'] is False
+          PY
+
+      - name: Select 36 globally unique unseen source roots
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_source_selection.py
+
+      - name: Verify shortlist is complete and zero-overlap
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v7_source_firewall import check_candidate, exposure_index
+          report=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          rows=report['selected']
+          assert len(rows) == 36
+          assert len({r['source_root'].casefold() for r in rows}) == 36
+          assert len({r['source_project'].casefold() for r in rows}) == 36
+          assert report['global_assignment_complete'] is True
+          assert report['firewall']['passed'] is True
+          assert report['scoring_executed'] is False
+          assert report['first_blind_consumed'] is False
+          index=exposure_index()
+          leaked=[r['source_root'] for r in rows if not check_candidate(r, index=index)['allowed']]
+          assert not leaked, leaked
+          print({'selected': 36, 'unique_roots': 36, 'unique_projects': 36, 'prior_overlap': 0})
+          PY
+
+      - name: Focused strict unseen regressions
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest tests/test_v7_strict_unseen_firewall.py -q
+          python -m unittest tests/test_v6_source_independence.py -q
+
+      - name: Full regression suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_external_exclusions.json \
+                  benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_shortlist.json
+          git ls-files -z \
+            | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
+            | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit frozen V7 unseen source set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add benchmarks/raw/sources/v7_external_exclusions.json \
+                  benchmarks/raw/sources/v7_candidates.json \
+                  benchmarks/raw/sources/v7_shortlist.json \
+                  MANIFEST.sha256
+          if git diff --cached --quiet; then
+            echo 'No V7 discovery outputs changed.'
+            exit 0
+          fi
+          git commit -m 'chore(analysis-633): freeze strict unseen V7 source selection'
+          git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen
