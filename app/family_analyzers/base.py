@@ -7,6 +7,7 @@ observations. They must not turn CWE/WSTG/write-up knowledge into target
 evidence and must not perform active validation.
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Mapping
@@ -14,12 +15,12 @@ from typing import Any, Mapping
 from core import Database
 
 
-FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.2.0"
-FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.2"
+FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.3.0"
+FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.3"
 
 # Temporal/workflow intelligence is generated lazily because the family router
 # runs after Semantic + Behavioral Intelligence have populated the current
-# Analysis snapshot.  A bounded key set prevents repeated regeneration for each
+# Analysis snapshot. A bounded key set prevents repeated regeneration for each
 # endpoint/family context while keeping every Analysis ID isolated.
 _CONTEXT_INTELLIGENCE_BOOTSTRAPPED: set[tuple[int, str, str]] = set()
 _CONTEXT_INTELLIGENCE_CACHE_MAX = 2048
@@ -56,6 +57,129 @@ def _bootstrap_context_intelligence(db: Database, analysis_id: str, target: str)
         return
 
 
+def _loads(value: Any, default: Any) -> Any:
+    if isinstance(value, type(default)):
+        return value
+    try:
+        decoded = json.loads(value or "")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return default
+    return decoded if isinstance(decoded, type(default)) else default
+
+
+def _attach_generated_protocol_context(
+    db: Database,
+    analysis_id: str,
+    target: str,
+    endpoint: str,
+    details: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Translate generated temporal/workflow records into context-only hints.
+
+    These fields intentionally contain no bypass/accepted/violation/confirmed
+    signals. They make cross-endpoint and cross-scan structure visible to family
+    analyzers while leaving decisive evidence requirements untouched.
+    """
+
+    enriched = dict(details)
+    if db is None or not endpoint:
+        return enriched
+    try:
+        rows = [
+            dict(row)
+            for row in db.all(
+                "SELECT protocol,kind,confidence,severity,evidence_json FROM protocol_findings "
+                "WHERE analysis_id=? AND target=? AND entity=? AND protocol IN ('temporal','workflow') "
+                "ORDER BY confidence DESC LIMIT 50",
+                (analysis_id, target, endpoint),
+            )
+        ]
+    except Exception:
+        return enriched
+    if not rows:
+        return enriched
+
+    workflow_markers = {
+        str(value).strip().lower()
+        for value in enriched.get("workflow_markers", [])
+        if str(value).strip()
+    } if isinstance(enriched.get("workflow_markers"), (list, tuple, set)) else set()
+    temporal_kinds: list[str] = []
+    workflow_kinds: list[str] = []
+    context_records: list[dict[str, Any]] = []
+
+    for row in rows:
+        protocol = str(row.get("protocol") or "")
+        kind = str(row.get("kind") or "")
+        evidence = _loads(row.get("evidence_json"), {})
+        if not isinstance(evidence, Mapping):
+            evidence = {}
+        context_records.append({
+            "protocol": protocol,
+            "kind": kind,
+            "confidence": row.get("confidence"),
+            "severity": row.get("severity"),
+            "context_only": True,
+        })
+        if protocol == "workflow":
+            workflow_kinds.append(kind)
+            action = str(evidence.get("action") or "").strip().lower()
+            if action:
+                workflow_markers.add(action)
+            actions = evidence.get("actions")
+            if isinstance(actions, list):
+                workflow_markers.update(str(value).strip().lower() for value in actions if str(value).strip())
+            if kind in {
+                "single_use_or_financial_workflow_surface",
+                "privileged_workflow_surface",
+                "workflow_state_machine_surface",
+            }:
+                enriched.setdefault("stateful_operation", True)
+            if kind == "workflow_state_machine_surface":
+                enriched["workflow_sequence_context"] = True
+        elif protocol == "temporal":
+            temporal_kinds.append(kind)
+            if kind == "temporal_endpoint_recurrence_surface":
+                enriched["historical_recurrence_surface"] = True
+            elif kind in {
+                "temporal_auth_boundary_regression_surface",
+                "temporal_auth_boundary_drift_surface",
+            }:
+                enriched["authentication_history_surface"] = True
+                # Authentication analyzer can inspect this as lifecycle context,
+                # but no violation/bypass flag is synthesized.
+                observations = enriched.get("auth_observations")
+                auth_observations = list(observations) if isinstance(observations, list) else []
+                auth_observations.append({
+                    "context": "temporal_boundary_history",
+                    "boundary_sequence": list(evidence.get("boundary_sequence") or []),
+                    "temporal_context_only": True,
+                })
+                enriched["auth_observations"] = auth_observations[:50]
+            elif kind == "temporal_sensitive_response_growth_surface":
+                enriched["sensitive_expansion_surface"] = True
+                new_keys = evidence.get("new_sensitive_keys")
+                if isinstance(new_keys, list) and new_keys:
+                    enriched["temporal_sensitive_keys"] = [str(value) for value in new_keys[:50]]
+            elif kind == "temporal_contract_expansion_surface":
+                enriched["historical_contract_expansion_surface"] = True
+                if evidence.get("new_state_changing_methods"):
+                    enriched.setdefault("stateful_operation", True)
+
+    if workflow_markers:
+        enriched["workflow_markers"] = sorted(workflow_markers)[:50]
+    enriched["_generated_context_intelligence"] = {
+        "framework_version": FAMILY_ANALYZER_FRAMEWORK_VERSION,
+        "context_only": True,
+        "non_decisive": True,
+        "network_requests": False,
+        "temporal_kinds": sorted(set(temporal_kinds)),
+        "workflow_kinds": sorted(set(workflow_kinds)),
+        "records": context_records[:50],
+    }
+    return enriched
+
+
 @dataclass(frozen=True)
 class FamilyAnalyzerContext:
     db: Database
@@ -83,6 +207,13 @@ class FamilyAnalyzerContext:
                 endpoint=self.endpoint,
                 method=self.method,
                 details=self.details,
+            )
+            enriched = _attach_generated_protocol_context(
+                self.db,
+                self.analysis_id,
+                self.target,
+                self.endpoint,
+                enriched,
             )
         except Exception:
             return
