@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Any, Mapping
 from family_reasoning import FAMILY_ORDER
+from hypothesis_evidence_planner import plan_result_evidence
 from .account_enumeration import AccountEnumerationFamilyAnalyzer
 from .authentication_session import AuthenticationSessionFamilyAnalyzer
 from .api_expansion import (
@@ -39,7 +40,7 @@ from .ssrf import SsrfFamilyAnalyzer
 from .ssti import SstiFamilyAnalyzer
 from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
-FAMILY_ANALYZER_ROUTER_VERSION = "4.1.1"
+FAMILY_ANALYZER_ROUTER_VERSION = "4.2.0"
 RAW_ANALYZER_BUDGET_VERSION = "1.0.0"
 RAW_ANALYZER_INVOCATION_LIMIT = 200_000
 _RAW_BUDGET_CACHE_MAX = 64
@@ -205,6 +206,30 @@ def _demote_raw_context_support(result: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _attach_evidence_plan(result: Mapping[str, Any], family: str) -> dict[str, Any]:
+    """Attach diagnostic next-evidence guidance without changing evidence."""
+
+    normalized = dict(result)
+    try:
+        raw_missing = normalized.get("missing", [])
+        missing = raw_missing if isinstance(raw_missing, (list, tuple, set)) else []
+        plan = plan_result_evidence(family, missing)
+    except Exception as exc:
+        plan = {
+            "version": "",
+            "status": "degraded",
+            "error_type": type(exc).__name__,
+            "diagnostic_only": True,
+            "network_requests": False,
+            "creates_target_evidence": False,
+            "changes_admission": False,
+        }
+    meta = dict(normalized.get("family_analyzer") or {})
+    meta["evidence_acquisition_plan"] = plan
+    normalized["family_analyzer"] = meta
+    return normalized
+
+
 def raw_analysis_budget_snapshot(analysis_id: str) -> dict[str, Any]:
     """Return a detached operational snapshot for tests/diagnostics."""
 
@@ -247,11 +272,14 @@ def _install_raw_budget_guard(analyzer_type: type[FamilyAnalyzer]) -> None:
         if raw_context and not _consume_raw_budget(context, self.family):
             return None
         result = original(self, context, **kwargs)
-        if not raw_context or not isinstance(result, Mapping):
+        if not isinstance(result, Mapping):
             return result
-        if _raw_result_is_promotion_ready(result):
-            return dict(result)
-        return _demote_raw_context_support(result)
+        planned = _attach_evidence_plan(result, self.family)
+        if not raw_context:
+            return planned
+        if _raw_result_is_promotion_ready(planned):
+            return planned
+        return _demote_raw_context_support(planned)
 
     guarded.__name__ = getattr(original, "__name__", "analyze")
     guarded.__doc__ = getattr(original, "__doc__", None)
@@ -293,5 +321,11 @@ def router_status() -> dict[str, Any]:
             "invocation_limit_per_analysis": int(RAW_ANALYZER_INVOCATION_LIMIT),
             "active_analysis_snapshots": len(_RAW_BUDGETS),
             "raw_context_only": True,
+        },
+        "evidence_planner": {
+            "attached_to_family_results": True,
+            "diagnostic_only": True,
+            "network_requests": False,
+            "changes_admission": False,
         },
     }
