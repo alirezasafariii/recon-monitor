@@ -58,6 +58,7 @@ jobs:
           assert r['active_target_validation_performed'] is False
           assert r['scoring_executed'] is False
           assert r['first_blind_consumed'] is False
+          print({'family_candidate_counts': r['family_candidate_counts'], 'families_without_candidates': r['families_without_candidates']})
           PY
       - name: Commit patch-feasible pool
         shell: bash
