@@ -1,0 +1,60 @@
+name: Analysis 6.32 v7 Final Strict Source Selection Now
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-source-selection-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run strict global selector
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_source_selection.py
+      - name: Require 36 unique condition-grounded patchable sources
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert r['family_count']==36
+          assert len(r['selected'])==36
+          assert r['global_assignment_complete'] is True
+          assert r['families_without_semantic_candidates']==[]
+          assert r['firewall']['passed'] is True
+          assert r['firewall']['unique_root_count']==36
+          assert r['firewall']['unique_project_count']==36
+          assert all(row.get('patch_probe_passed') is True for row in r['selected'])
+          assert all(int(row.get('patch_added_line_count') or 0)>0 for row in r['selected'])
+          assert all(row.get('pre_score_expected_condition_signals') for row in r['selected'])
+          assert r['selection_uses_v6_first_blind_score'] is False
+          assert r['selection_uses_v6_first_blind_case_errors'] is False
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          print({'selected_count':len(r['selected']),'roots':r['firewall']['unique_root_count'],'projects':r['firewall']['unique_project_count']})
+          PY
+      - name: Commit strict v7 shortlist
+        shell: bash
+        run: |
+          git add benchmarks/raw/sources/v7_shortlist.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Select complete Analysis 6.32 v7 fresh source set'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
