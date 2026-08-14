@@ -1,5 +1,5 @@
 {
-  "version": "1.1.1",
+  "version": "1.2.0",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,51 +11,50 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSA-777r-4v59-6486",
-        "source_project": "go-gitea/gitea",
+        "source_root": "GHSA-q4c5-2j6f-r476",
+        "source_project": "nautobot/nautobot",
         "family": "business_logic",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-777r-4v59-6486",
-        "source_kind": "github_reviewed_advisory",
-        "advisory_source_type": "github_reviewed",
-        "published_at": "2026-07-21",
-        "summary": "Gitea's fork pull-request workflow approval gate treated a contributor's prior workflow approval as permanent trust across future pull requests.",
-        "description": "The reviewed advisory documents a workflow-state business-logic failure: a security-sensitive CI approval gate was bound to a coarse historical approved flag rather than the current pull request or commit. After one approval, later workflow runs from the same contributor could bypass the intended per-workflow trust decision and execute with the runner's ambient privilege. This is a concrete workflow invariant, privilege-boundary, and state-transition failure.",
+        "canonical_advisory_url": "https://github.com/nautobot/nautobot/releases/tag/v3.1.8",
+        "source_kind": "official_project_security_release_note",
+        "advisory_source_type": "official_release",
+        "published_at": "2026-07-17",
+        "summary": "Nautobot fixed an approval-workflow bypass that allowed a user with only response-creation permission to self-approve a workflow.",
+        "description": "Nautobot's v3.1.8 security notes document a workflow-state failure in which a user lacking the intended approver role could create an approved stage response and self-approve a workflow. The official approval-workflow documentation defines the intended multi-stage review, approver-group membership, and approval gate before execution. This is used as an independent business-logic workflow-gate example rather than as detector evidence.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business logic", "workflow approval gate", "workflow invariant", "state transition", "approval bypass", "trust decision", "privilege boundary"],
-        "selection_basis": "independent reviewed advisory selected before scoring using WSTG business-logic workflow and state-transition semantics"
+        "semantic_facts": ["business workflow", "approval workflow", "approval gate", "self-approve", "bypass", "invalid state transition", "required approver"],
+        "selection_basis": "official project security release selected before scoring using WSTG business-logic workflow and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
       {
-        "source_root": "GHSA-j3vx-cx2r-pvg8",
-        "source_project": "Jovancoding/Network-AI",
+        "source_root": "CVE-2026-34373",
+        "source_project": "parse-community/parse-server",
         "family": "cors_misconfiguration",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-j3vx-cx2r-pvg8",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-q3p6-vwwh-57cc",
         "source_kind": "github_reviewed_advisory",
         "advisory_source_type": "github_reviewed",
-        "published_at": "2026-05-21",
-        "summary": "Network-AI exposed a local MCP HTTP service to arbitrary and untrusted web origins through permissive CORS while the default secret could be empty.",
-        "description": "The reviewed advisory describes cross-origin invocation of sensitive local MCP tools from an arbitrary untrusted web page. Its remediation explicitly restricts Access-Control-Allow-Origin to trusted localhost origins and moves CORS handling behind authentication. This provides a direct WSTG CORS boundary with untrusted-origin access to sensitive operations and data.",
+        "published_at": "2026-03-30",
+        "summary": "Parse Server's GraphQL API endpoint ignored configured CORS origin restrictions and allowed cross-origin access more broadly than intended.",
+        "description": "The reviewed advisory for CVE-2026-34373 identifies a GraphQL API endpoint that does not honor the application's configured CORS origin restriction. An untrusted origin can reach the GraphQL endpoint cross-origin despite the configured policy, creating security impact for data access or state-changing GraphQL requests. This satisfies WSTG-CLNT-07 because the effective origin policy diverges from the intended trusted-origin policy.",
         "wstg_ids": ["WSTG-CLNT-07"],
-        "semantic_facts": ["CORS", "cross-origin", "arbitrary origin", "untrusted origin", "sensitive tools", "credentials", "sensitive data"],
-        "selection_basis": "independent reviewed advisory selected before scoring using WSTG-CLNT-07 and GitHub Security Lab CORS semantics"
+        "semantic_facts": ["CORS", "cross-origin", "GraphQL API", "origin restriction", "untrusted origin", "sensitive data", "state-changing request"],
+        "selection_basis": "independent reviewed advisory selected before scoring using WSTG-CLNT-07 origin-policy semantics"
       }
     ],
     "graphql_data_exposure": [
       {
-        "source_root": "GHSA-hg9m-67mm-7pg3",
-        "source_project": "keystonejs/keystone",
+        "source_root": "GHSA-xf65-r35x-wmmv",
+        "source_project": "vendurehq/vendure",
         "family": "graphql_data_exposure",
-        "canonical_advisory_url": "https://github.com/keystonejs/keystone/security/advisories/GHSA-hg9m-67mm-7pg3",
-        "repository_advisory_url": "https://github.com/keystonejs/keystone/security/advisories/GHSA-hg9m-67mm-7pg3",
-        "source_kind": "github_repository_security_advisory",
-        "advisory_source_type": "repository",
-        "published_at": "2025-05-05",
-        "summary": "Keystone GraphQL field-level filtering controls could be bypassed to probe the existence or value of otherwise unreadable sensitive fields.",
-        "description": "The maintainer advisory explains that GraphQL update and delete mutations with multiple unique filters could use fields that access policy intended to make non-filterable. The result acts as an oracle for hidden field values. This is a field/property-level GraphQL data exposure condition because data policy is crossed even though the sensitive value may be inferred rather than directly returned.",
+        "canonical_advisory_url": "https://github.com/vendurehq/vendure/blob/master/CHANGELOG.md",
+        "source_kind": "official_project_security_release_note",
+        "advisory_source_type": "official_release",
+        "published_at": "2026-07-01",
+        "summary": "Vendure fixed a data-exposure issue where Shop API list queries could return entities that should not be publicly visible.",
+        "description": "Vendure's official 3.6.5 security changelog identifies GHSA-xf65-r35x-wmmv as a Shop API list-query data-exposure issue. Vendure's Shop API is GraphQL. Certain filter combinations could return non-public entities outside the intended public query scope, making this a GraphQL entity/property exposure boundary rather than mere schema visibility.",
         "wstg_ids": ["WSTG-APIT-03"],
-        "semantic_facts": ["GraphQL", "sensitive fields", "hidden field", "field-level access control", "property-level policy", "data exposure", "filter oracle"],
-        "selection_basis": "independent primary advisory selected before scoring using WSTG API excessive-data-exposure and field/property-authorization semantics"
+        "semantic_facts": ["GraphQL", "Shop API", "list query", "non-public entities", "query scope", "data exposure", "filter"],
+        "selection_basis": "official project security release selected before scoring using WSTG API excessive-data-exposure and GraphQL scope semantics"
       }
     ],
     "improper_inventory_management": [
@@ -76,18 +75,18 @@
     ],
     "nosql_injection": [
       {
-        "source_root": "GHSA-qw6m-8fw2-2v64",
-        "source_project": "budibase/budibase",
+        "source_root": "CVE-2026-30833",
+        "source_project": "RocketChat/Rocket.Chat",
         "family": "nosql_injection",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-qw6m-8fw2-2v64",
-        "source_kind": "github_reviewed_advisory",
-        "advisory_source_type": "github_reviewed",
-        "published_at": "2026-07-24",
-        "summary": "Budibase disclosed a second NoSQL injection path through JSON parameter interpolation in MongoDB query execution.",
-        "description": "The reviewed advisory describes attacker-controlled JSON interpolation reaching MongoDB query execution and changing the structure or operators of the document query. This is a direct structured-input-to-NoSQL-query semantic alteration and is separate from the previously exposed Budibase MongoDB advisory root.",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat/",
+        "source_kind": "github_security_lab_writeup",
+        "advisory_source_type": "coordinated_disclosure_writeup",
+        "published_at": "2026-03-12",
+        "summary": "GitHub Security Lab disclosed NoSQL injection in Rocket.Chat's username login flow where user input was embedded into a MongoDB query selector without validation.",
+        "description": "GitHub Security Lab documents CVE-2026-30833 in Rocket.Chat's account service: user-controlled username input reaches a MongoDB findOne query selector without type or content validation, allowing MongoDB operator expressions to alter matching behavior and select unintended user records. This is a direct WSTG NoSQL query-semantics example.",
         "wstg_ids": ["WSTG-INPV-05.6"],
-        "semantic_facts": ["NoSQL injection", "MongoDB", "JSON parameter", "query operator", "query execution", "query semantics"],
-        "selection_basis": "independent reviewed advisory selected before scoring using WSTG NoSQL-injection semantics"
+        "semantic_facts": ["NoSQL injection", "MongoDB", "query selector", "operator expression", "user-controlled input", "query semantics", "unintended records"],
+        "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG NoSQL-injection semantics"
       }
     ],
     "postmessage_trust": [
