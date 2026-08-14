@@ -27,14 +27,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          python app/real_world_corpus_v1.py discover \
-            --max-pages 50 \
-            --selection-limit 200 \
+          python app/real_world_corpus_v1_discovery.py discover \
+            --max-pages 20 \
+            --selection-limit 180 \
             --output benchmarks/real_world/v1/source_candidates.json \
             --report benchmarks/real_world/v1/source_discovery_report.json
 
       - name: Focused corpus regressions
-        run: python -m unittest tests/test_real_world_corpus_v1.py -q
+        run: |
+          python -m unittest tests/test_real_world_corpus_v1.py -q
+          python -m unittest tests/test_real_world_corpus_v1_discovery.py -q
 
       - name: Full regression suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
