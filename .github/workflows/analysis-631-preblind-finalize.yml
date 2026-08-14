@@ -1,0 +1,214 @@
+name: Analysis 6.31 Pre-Blind Finalize
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-preblind-finalize.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-631-preblind-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize-preblind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refuse any consumed or previously frozen state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e benchmarks/raw/sources/v6_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v6_first_blind.json
+          test ! -e benchmarks/raw/sources/v6_corpus_freeze.json
+          test ! -e benchmarks/raw/sources/v6_evaluator_freeze.json
+
+      - name: Rebuild feasibility from complete evidence plan
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_capture_feasibility.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('benchmarks/raw/sources/v6_literal_capture_feasibility.json').read_text())
+          assert report['family_count'] == 36, report
+          assert report['required_capture_count'] == 144, report
+          assert report['evidence_present_count'] == 144, report
+          assert report['evidence_missing_count'] == 0, report
+          assert report['scoring_executed'] is False, report
+          assert report['first_blind_consumed'] is False, report
+          PY
+
+      - name: Reverify 144 evidence and 276 materialized cases
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_capture_verify.py --write-report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_benchmark_validate import validate_v6_corpus
+
+          corpus=Path('benchmarks/raw/analysis_raw_v6.jsonl')
+          shortlist=json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          cases=[json.loads(line) for line in corpus.read_text().splitlines() if line.strip()]
+          assert len(cases) == 276, len(cases)
+          report=json.loads(Path('benchmarks/raw/sources/v6_materialization_report.json').read_text())
+          assert report['single_case_count'] == 144, report
+          assert report['pair_case_count'] == 72, report
+          assert report['triad_case_count'] == 60, report
+          assert report['case_count'] == 276, report
+          assert report['literal_single_capture_count'] == 144, report
+          assert report['raw_capture_mode'] == 'literal_source_capture', report
+          assert report['fresh_raw_claim'] is True, report
+          assert report['scoring_executed'] is False, report
+
+          validation=validate_v6_corpus(cases, shortlist, require_literal_single_capture=True)
+          Path('benchmarks/raw/sources/v6_validation_report.json').write_text(
+              json.dumps(validation, indent=2, sort_keys=True)+'\n', encoding='utf-8'
+          )
+          assert validation['passed'], validation['errors']
+          assert validation['literal_single_capture_count'] == 144, validation
+          assert validation['label_leakage_count'] == 0, validation
+          assert validation['source_firewall']['passed'] is True, validation
+          assert validation['scoring_executed'] is False, validation
+          PY
+
+      - name: Freeze corpus and all protected evidence/code
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_corpus_freeze.py
+          python app/v6_freeze_verify.py --require-freeze
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          freeze=json.loads(Path('benchmarks/raw/sources/v6_corpus_freeze.json').read_text())
+          assert freeze['evaluation_status'] == 'sealed_evidence_backed_literal_fresh_unscored_corpus', freeze
+          assert freeze['case_count'] == 276, freeze
+          assert freeze['single_case_count'] == 144, freeze
+          assert freeze['pair_case_count'] == 72, freeze
+          assert freeze['triad_case_count'] == 60, freeze
+          assert freeze['literal_evidence_artifact_count'] == 144, freeze
+          assert freeze['family_count'] == 36, freeze
+          assert freeze['scoring_executed'] is False, freeze
+          assert freeze['first_blind_consumed'] is False, freeze
+          PY
+
+      - name: Freeze evaluator against exact corpus freeze
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          def sha(path):
+              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+          protocol=json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text())
+          corpus_freeze=json.loads(Path('benchmarks/raw/sources/v6_corpus_freeze.json').read_text())
+          assert corpus_freeze['scoring_executed'] is False
+          assert corpus_freeze['first_blind_consumed'] is False
+          assert corpus_freeze['evaluation_status'] == 'sealed_evidence_backed_literal_fresh_unscored_corpus'
+
+          report={
+              'version':'1.1.0',
+              'rule_version':'2026.08.14.6.31.15',
+              'first_blind_evaluator_frozen':True,
+              'scoring_executed':False,
+              'first_blind_consumed':False,
+              'evaluator_sha256':sha('app/v6_benchmark_evaluate.py'),
+              'protocol_sha256':sha('benchmarks/raw/sources/v6_protocol.json'),
+              'corpus_freeze_sha256':sha('benchmarks/raw/sources/v6_corpus_freeze.json'),
+              'pre_registered_gates':{
+                  'single':protocol['single_quality_gates'],
+                  'pair':protocol['pair_quality_gates'],
+                  'triad':protocol['triad_quality_gates'],
+              },
+              'mutation_policy':'evaluator code, canonical frozen corpus inputs, protocol gates, and the protected First Blind consumption wrapper are immutable before the single score',
+          }
+          Path('benchmarks/raw/sources/v6_evaluator_freeze.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True)+'\n', encoding='utf-8'
+          )
+          PY
+          python app/v6_freeze_verify.py --require-freeze --require-evaluator-frozen
+
+      - name: Mark checkpoint ready and stopped before First Blind
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('benchmarks/raw/sources/v6_pre_score_checkpoint.json')
+          checkpoint=json.loads(path.read_text())
+          progress=checkpoint['literal_capture_progress']
+          assert progress['evidence_present_count'] == 144
+          assert progress['complete_family_count'] == 36
+          progress['materialization_status']='materialized_276_literal_fresh_cases'
+          progress['corpus_validation_status']='passed_276_of_276_zero_label_leakage'
+          progress['corpus_freeze_status']='sealed_evidence_backed_literal_fresh_unscored_corpus'
+          progress['evaluator_freeze_status']='frozen_against_exact_corpus_freeze'
+          checkpoint['checkpoint_status']='pre_first_blind_ready_waiting_explicit_approval'
+          checkpoint['first_blind_evaluator_frozen']=True
+          checkpoint['scoring_executed']=False
+          checkpoint['first_blind_consumed']=False
+          checkpoint['next_required_transition']='STOP. Await explicit approval before the single-consumption First Blind score. Do not merge or finalize before explicit approval.'
+          path.write_text(json.dumps(checkpoint, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          PY
+
+      - name: Final pre-blind integrity assertion
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_freeze_verify.py --require-freeze --require-evaluator-frozen
+          test ! -e benchmarks/raw/sources/v6_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v6_first_blind.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          checkpoint=json.loads(Path('benchmarks/raw/sources/v6_pre_score_checkpoint.json').read_text())
+          assert checkpoint['checkpoint_status'] == 'pre_first_blind_ready_waiting_explicit_approval'
+          assert checkpoint['scoring_executed'] is False
+          assert checkpoint['first_blind_consumed'] is False
+          assert checkpoint['first_blind_evaluator_frozen'] is True
+          print('PRE-BLIND READY: 144/144 evidence; 276/276 corpus; corpus frozen; evaluator frozen; scoring not executed; First Blind not consumed.')
+          PY
+
+      - name: Commit sealed pre-blind state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_capture_feasibility.json \
+                  benchmarks/raw/sources/v6_literal_capture_verification.json \
+                  benchmarks/raw/sources/v6_validation_report.json \
+                  benchmarks/raw/sources/v6_corpus_freeze.json \
+                  benchmarks/raw/sources/v6_freeze_manifest.sha256 \
+                  benchmarks/raw/sources/v6_evaluator_freeze.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Seal Analysis 6.31 pre-blind corpus and evaluator'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
