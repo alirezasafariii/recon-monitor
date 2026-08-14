@@ -1,0 +1,142 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.31",
+  "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
+  "scoring_executed": false,
+  "detector_output_used": false,
+  "admission_output_used": false,
+  "ranking_output_used": false,
+  "grounding_counts_as_target_evidence": false,
+  "candidate_count": 8,
+  "candidates_by_family": {
+    "business_logic": [
+      {
+        "source_root": "GHSA-9wj2-4hcm-r74j",
+        "source_project": "thorsten/phpMyFAQ",
+        "family": "business_logic",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-9wj2-4hcm-r74j",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2025-10-03",
+        "summary": "phpMyFAQ allowed multiple accounts to be registered with the same email address, violating the account identity invariant used by password-reset and administrative flows.",
+        "description": "The reviewed advisory describes an account-management business-logic flaw where email uniqueness is not enforced. Multiple distinct accounts can share one email, creating password-reset ambiguity, auditability loss and possible privilege confusion. This is a concrete application invariant failure rather than a surface-only workflow hint.",
+        "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
+        "semantic_facts": ["business logic", "registration workflow", "duplicate email", "identity invariant", "password reset ambiguity"],
+        "selection_basis": "independent reviewed advisory selected before scoring using WSTG business-logic invariant semantics"
+      }
+    ],
+    "cors_misconfiguration": [
+      {
+        "source_root": "GHSA-8hmm-4crw-vm2c",
+        "source_project": "musistudio/claude-code-router",
+        "family": "cors_misconfiguration",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-8hmm-4crw-vm2c",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2025-08-21",
+        "summary": "Claude Code Router had an improper CORS configuration that could expose API keys or equivalent credentials to untrusted origins.",
+        "description": "The reviewed advisory explicitly identifies improper Cross-Origin Resource Sharing configuration with a risk of credential and sensitive-data exposure to untrusted domains. This satisfies the WSTG CORS boundary because an unsafe cross-origin policy has credential or sensitive-data impact.",
+        "wstg_ids": ["WSTG-CLNT-07"],
+        "semantic_facts": ["CORS", "cross-origin", "untrusted origin", "credentials", "sensitive data"],
+        "selection_basis": "independent reviewed advisory selected before scoring using WSTG-CLNT-07 semantics"
+      }
+    ],
+    "graphql_data_exposure": [
+      {
+        "source_root": "GHSA-38hg-ww64-rrwc",
+        "source_project": "directus/directus",
+        "family": "graphql_data_exposure",
+        "canonical_advisory_url": "https://github.com/directus/directus/security/advisories/GHSA-38hg-ww64-rrwc",
+        "repository_advisory_url": "https://github.com/directus/directus/security/advisories/GHSA-38hg-ww64-rrwc",
+        "source_kind": "github_repository_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-04-02",
+        "summary": "Directus disclosed that authenticated users could extract fields intended to be concealed through aggregate query behavior.",
+        "description": "The Directus security advisory describes concealed or restricted fields becoming retrievable through aggregate-query behavior. For v6 this is grounded as a field/property-level data exposure boundary: the caller can obtain data that the configured field policy intended to hide.",
+        "wstg_ids": ["WSTG-APIT-03"],
+        "semantic_facts": ["GraphQL", "concealed fields", "aggregate queries", "restricted field", "data exposure"],
+        "selection_basis": "independent primary advisory selected before scoring using WSTG API excessive-data-exposure and property-authorization semantics"
+      }
+    ],
+    "improper_inventory_management": [
+      {
+        "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+        "source_project": "microsoft/azure-api-management",
+        "family": "improper_inventory_management",
+        "canonical_advisory_url": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+        "source_kind": "independent_security_research_writeup",
+        "advisory_source_type": "writeup",
+        "published_at": "2024-11-05",
+        "summary": "Azure API Management security controls could be bypassed by using older ARM API versions, with some fixes remaining behind a setting that disables old API versions.",
+        "description": "The independent write-up documents security behavior that remains reachable through older API versions even after newer API behavior is fixed. The core inventory-management condition is explicit: old versions remain available and preserve weaker authorization behavior, expanding attack surface through version drift.",
+        "wstg_ids": ["WSTG-APIT-01", "WSTG-CONF-04"],
+        "semantic_facts": ["old API versions", "older ARM API", "legacy API surface", "still exploitable", "weaker authorization", "version drift"],
+        "selection_basis": "independent write-up selected before scoring using WSTG API reconnaissance/configuration and OWASP API9 inventory semantics"
+      }
+    ],
+    "nosql_injection": [
+      {
+        "source_root": "GHSA-v42f-v8xc-j435",
+        "source_project": "budibase/budibase",
+        "family": "nosql_injection",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-v42f-v8xc-j435",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2026-07-24",
+        "summary": "Budibase disclosed NoSQL injection in its MongoDB integration with collection dump, cross-collection access and arbitrary update/delete impact.",
+        "description": "The reviewed advisory identifies a MongoDB NoSQL-injection condition in which attacker-controlled query structure can change database query semantics and reach unintended collections or records. It is an explicit WSTG NoSQL injection example, not a generic database error.",
+        "wstg_ids": ["WSTG-INPV-05.6"],
+        "semantic_facts": ["NoSQL injection", "MongoDB", "query operator", "collection", "query semantics"],
+        "selection_basis": "independent reviewed advisory selected before scoring using WSTG NoSQL-injection semantics"
+      }
+    ],
+    "postmessage_trust": [
+      {
+        "source_root": "AUTH0-AUTH0JS-ISSUE-508",
+        "source_project": "auth0/auth0.js",
+        "family": "postmessage_trust",
+        "canonical_advisory_url": "https://github.com/auth0/auth0.js/issues/508",
+        "source_kind": "maintainer_issue_security_discussion",
+        "advisory_source_type": "maintainer_issue",
+        "published_at": "2017-09-19",
+        "summary": "Auth0.js silent authentication accepted postMessage events without sufficiently binding them to the expected origin and iframe source.",
+        "description": "The maintainer issue documents missing verification that received messages came from the correct origin and the correct iframe, plus insufficient validation of message content. This directly matches WSTG Web Messaging sender-origin/source trust semantics and is used as an independent source, not as detector evidence.",
+        "wstg_ids": ["WSTG-CLNT-11"],
+        "semantic_facts": ["postMessage", "message event", "origin validation", "iframe source", "sender trust"],
+        "selection_basis": "independent maintainer issue selected before scoring using WSTG-CLNT-11 and OWASP Web Messaging semantics"
+      }
+    ],
+    "sensitive_caching": [
+      {
+        "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+        "source_project": "rubygems/rubygems.org",
+        "family": "sensitive_caching",
+        "canonical_advisory_url": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "official_project_blog",
+        "published_at": "2026-07-22",
+        "summary": "RubyGems.org disclosed that an authenticated legacy API-key response could be cached at the CDN edge and later served to an unauthenticated caller.",
+        "description": "The official RubyGems security advisory describes sensitive authenticated content being stored in a shared Fastly cache because response cache controls were insufficient for the compressed response path. Another caller could receive the cached API key without re-authentication. The fix adds private/no-store and Authorization-aware variation.",
+        "wstg_ids": ["WSTG-ATHN-06"],
+        "semantic_facts": ["cache", "shared cache", "authenticated response", "API key", "sensitive information", "unauthenticated cache hit"],
+        "selection_basis": "official project advisory selected before scoring using WSTG sensitive-cache semantics"
+      }
+    ],
+    "software_supply_chain_failure": [
+      {
+        "source_root": "GHSA-pvw4-cvr4-97p8",
+        "source_project": "cap-js/cds-dbs",
+        "family": "software_supply_chain_failure",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2026-05-14",
+        "summary": "Compromised @cap-js database package versions contained malicious code that harvested credentials and attempted self-propagation.",
+        "description": "The reviewed advisory documents a direct package supply-chain compromise: malicious versions of multiple @cap-js packages were published, credential harvesting occurred, and installed compromised packages affected the dependency/install path. This is an explicit compromised dependency provenance condition.",
+        "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-02"],
+        "semantic_facts": ["supply chain", "compromised package", "malicious package", "dependency", "installation", "credential harvesting"],
+        "selection_basis": "independent reviewed advisory selected before scoring using OWASP software-supply-chain and WSTG deployment semantics"
+      }
+    ]
+  }
+}
