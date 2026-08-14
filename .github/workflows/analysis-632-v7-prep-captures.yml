@@ -37,10 +37,12 @@ jobs:
           r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
           assert len(r['selected']) == 36
           assert r['global_assignment_complete'] is True
+          assert r['capture_feasibility_requires_upstream_repository_reference'] is True
           assert r['scoring_executed'] is False
           assert r['first_blind_consumed'] is False
           assert r['selection_uses_v6_first_blind_score'] is False
           assert r['selection_uses_v6_first_blind_case_errors'] is False
+          assert all(str(row.get('upstream_repository_reference') or '').startswith('https://github.com/') for row in r['selected'])
           check=validate_shortlist(r['selected'])
           assert check['passed'], check
           PY
@@ -49,6 +51,11 @@ jobs:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python app/v7_literal_source_research.py --require-all
+      - name: Collect 36 passive linked upstream snapshots
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_literal_linked_research.py --require-all
       - name: Freeze canonical condition/control vocabulary
         env:
           PYTHONPATH: app
@@ -63,10 +70,13 @@ jobs:
           import json
           from pathlib import Path
           research=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
+          linked=json.loads(Path('benchmarks/raw/sources/v7_literal_linked_research.json').read_text())
           labels=json.loads(Path('benchmarks/raw/sources/v7_literal_label_schema.json').read_text())
           plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
           assert research['successful_snapshot_count']==36 and research['unresolved_snapshot_count']==0
+          assert linked['successful_link_snapshot_count']==36 and linked['unresolved_link_snapshot_count']==0
           assert research['v6_first_blind_score_used'] is False and research['v6_first_blind_case_errors_used'] is False
+          assert linked['v6_first_blind_score_used'] is False and linked['v6_first_blind_case_errors_used'] is False
           assert labels['family_count']==36 and labels['scoring_executed'] is False
           assert plan['family_count']==36 and plan['required_capture_count']==144
           assert plan['evidence_present_count']==0 and plan['evidence_missing_count']==144
@@ -79,6 +89,7 @@ jobs:
           set -euo pipefail
           git add \
             benchmarks/raw/sources/v7_literal_source_research.json \
+            benchmarks/raw/sources/v7_literal_linked_research.json \
             benchmarks/raw/sources/v7_literal_label_schema.json \
             benchmarks/raw/sources/v7_literal_capture_plan.json
           git config user.name 'github-actions[bot]'
