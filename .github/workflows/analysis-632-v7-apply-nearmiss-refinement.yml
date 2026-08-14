@@ -1,0 +1,47 @@
+name: Analysis 6.32 v7 Apply Near-Miss Refinement
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-apply-nearmiss-refinement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refuse post-freeze mutation
+        run: |
+          test ! -e benchmarks/raw/sources/v7_corpus_freeze.json
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+      - name: Apply only source-grounded near-miss fallback
+        run: |
+          python tools/refine_v7_near_miss_capture.py
+          python -m py_compile app/v7_literal_patch_capture.py
+      - name: Commit collector refinement
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add app/v7_literal_patch_capture.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then
+            echo 'Near-miss refinement already applied.'
+          else
+            git commit -m 'Refine Analysis 6.32 v7 source-grounded near-miss capture'
+            git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+            git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
+          fi
