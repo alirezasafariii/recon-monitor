@@ -1,0 +1,242 @@
+name: Analysis 6.31 Capture GraphQL Authorization
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-capture-graphql-authorization.yml
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout recon repository read-only
+        uses: actions/checkout@v4
+        with:
+          path: recon
+          persist-credentials: false
+
+      - name: Checkout vulnerable Aimeos config without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: aimeos/ai-admin-graphql
+          ref: 992727260f9f73d2af3cf8079230e02325182f73
+          path: aimeos-vuln
+          persist-credentials: false
+          sparse-checkout: |
+            config/admin/graphql/resource.php
+          sparse-checkout-cone-mode: true
+
+      - name: Checkout patched Aimeos config without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: aimeos/ai-admin-graphql
+          ref: 4eabc2b973509ffa5924e7f88c8f87ee96e93b38
+          path: aimeos-patched
+          persist-credentials: false
+          sparse-checkout: |
+            config/admin/graphql/resource.php
+          sparse-checkout-cone-mode: true
+
+      - name: Execute exact GraphQL authorization config matrices
+        run: |
+          cat > capture_graphql_auth.php <<'PHP'
+          <?php
+          function capture($source, $revision, $kind, $path) {
+              $cfg = include $source;
+              $value = $cfg;
+              foreach ($path as $key) {
+                  if (!is_array($value) || !array_key_exists($key, $value)) {
+                      fwrite(STDERR, "missing config path: " . implode('.', $path) . PHP_EOL);
+                      exit(2);
+                  }
+                  $value = $value[$key];
+              }
+              if (!is_array($value)) {
+                  fwrite(STDERR, "expected role array" . PHP_EOL);
+                  exit(3);
+              }
+              $result = [
+                  'captured_at' => gmdate('Y-m-d\\TH:i:s\\Z'),
+                  'case_kind' => $kind,
+                  'upstream_revision' => $revision,
+                  'upstream_source_file' => 'config/admin/graphql/resource.php',
+                  'graphql_resource_path' => $path,
+                  'allowed_roles' => array_values($value),
+                  'role_checks' => [
+                      'admin_authorized' => in_array('admin', $value, true),
+                      'editor_authorized' => in_array('editor', $value, true),
+                      'super_authorized' => in_array('super', $value, true),
+                  ],
+              ];
+              file_put_contents('graphql-authorization-' . str_replace('_', '-', $kind) . '.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+          }
+
+          capture('aimeos-vuln/config/admin/graphql/resource.php', '992727260f9f73d2af3cf8079230e02325182f73', 'positive', ['locale', 'site', 'save']);
+          capture('aimeos-patched/config/admin/graphql/resource.php', '4eabc2b973509ffa5924e7f88c8f87ee96e93b38', 'secure_negative', ['locale', 'site', 'save']);
+          capture('aimeos-patched/config/admin/graphql/resource.php', '4eabc2b973509ffa5924e7f88c8f87ee96e93b38', 'near_miss', ['locale', 'language', 'get']);
+          capture('aimeos-patched/config/admin/graphql/resource.php', '4eabc2b973509ffa5924e7f88c8f87ee96e93b38', 'sparse_noisy', ['attribute', 'get']);
+          PHP
+          php capture_graphql_auth.php
+          php -r '$p=json_decode(file_get_contents("graphql-authorization-positive.json"),true); if(!$p["role_checks"]["admin_authorized"]){exit(1);} $s=json_decode(file_get_contents("graphql-authorization-secure-negative.json"),true); if($s["role_checks"]["admin_authorized"] || $s["allowed_roles"]!==["super"]){exit(2);} $n=json_decode(file_get_contents("graphql-authorization-near-miss.json"),true); if(!$n["role_checks"]["admin_authorized"] || !$n["role_checks"]["editor_authorized"]){exit(3);} $q=json_decode(file_get_contents("graphql-authorization-sparse-noisy.json"),true); if(!$q["role_checks"]["admin_authorized"]){exit(4);}'
+
+      - name: Assert four distinct authorization observations
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          paths = sorted(Path('.').glob('graphql-authorization-*.json'))
+          assert len(paths) == 4, paths
+          assert len({hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}) == 4
+          for p in paths:
+              value = json.loads(p.read_text())
+              assert value['captured_at'].endswith('Z')
+              assert value['role_checks']['super_authorized'] is True
+          PY
+
+      - name: Upload controlled authorization outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-graphql-authorization-captures
+          path: graphql-authorization-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout recon repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download read-only capture outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-graphql-authorization-captures
+          path: captured
+      - name: Build hash-bound GraphQL authorization evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_literal_capture_verify import _sha256_json
+
+          family = 'graphql_authorization'
+          source_root = 'GHSA-jj68-cp4v-98qf'
+          source_project = 'aimeos/ai-admin-graphql'
+          out = Path('benchmarks/raw/sources/v6_capture_evidence')
+          out.mkdir(parents=True, exist_ok=True)
+          configs = {
+              'positive': {
+                  'file': 'captured/graphql-authorization-positive.json',
+                  'reference': 'https://github.com/aimeos/ai-admin-graphql/commit/992727260f9f73d2af3cf8079230e02325182f73',
+                  'basis': 'source_observation',
+                  'signals': ['resolver_authorization_failure'],
+                  'notes': 'Execution of the exact vulnerable GraphQL resource config showed the admin role authorized for locale.site.save, a site-management operation later restricted by the security fix.',
+              },
+              'secure_negative': {
+                  'file': 'captured/graphql-authorization-secure-negative.json',
+                  'reference': 'https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38',
+                  'basis': 'patched_control',
+                  'signals': [],
+                  'notes': 'Execution of the exact patched GraphQL resource config showed locale.site.save restricted to the super role only.',
+              },
+              'near_miss': {
+                  'file': 'captured/graphql-authorization-near-miss.json',
+                  'reference': 'https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38',
+                  'basis': 'source_observation',
+                  'signals': [],
+                  'notes': 'The patched config intentionally retains admin/editor access for locale.language.get, a read operation that is similar GraphQL authorization context but not the restricted site-management operation.',
+              },
+              'sparse_noisy': {
+                  'file': 'captured/graphql-authorization-sparse-noisy.json',
+                  'reference': 'https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38',
+                  'basis': 'source_observation',
+                  'signals': [],
+                  'notes': 'The patched config snapshot for attribute.get records only a generic permitted GraphQL read role matrix and contains no cross-context or site-management authorization failure evidence.',
+              },
+          }
+          for kind, cfg in configs.items():
+              captured = json.loads(Path(cfg['file']).read_text(encoding='utf-8'))
+              raw = {
+                  'target': 'controlled-local-aimeos-graphql-config',
+                  'endpoint': 'admin/graphql/resource/' + '/'.join(captured['graphql_resource_path']),
+                  'method': 'GRAPHQL_AUTHORIZATION_CONFIG',
+                  'endpoint_schema': {'path_parameters': [], 'query_parameters': []},
+                  'business_context': 'graphql_admin_resource_authorization',
+                  'details': {
+                      'graphql_authorization_config': captured,
+                      'capture_environment': 'GitHub Actions isolated execution of exact upstream PHP configuration',
+                  },
+              }
+              evidence = {
+                  'schema_version': '1.0',
+                  'family': family,
+                  'case_kind': kind,
+                  'source_root': source_root,
+                  'source_project': source_project,
+                  'captured_at': captured['captured_at'],
+                  'capture_reference': cfg['reference'],
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'PHP execution of exact upstream GraphQL resource authorization config',
+                      'command': 'php capture_graphql_auth.php',
+                      'source_file': captured['upstream_source_file'],
+                  },
+                  'source_snapshot': {
+                      'reference': cfg['reference'],
+                      'retrieved_at': captured['captured_at'],
+                      'payload': captured,
+                      'content_sha256': _sha256_json(captured),
+                  },
+                  'adjudication': {
+                      'basis': cfg['basis'],
+                      'notes': cfg['notes'],
+                      'expected_condition_signals': cfg['signals'],
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+                  'raw_sha256': _sha256_json(raw),
+              }
+              path = out / f'graphql-authorization--{kind.replace("_", "-")}.json'
+              path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+      - name: Refresh plan and strict-check all partial evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_partial_verify.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text())
+          assert plan['evidence_present_count'] == 20, plan['evidence_present_count']
+          assert plan['evidence_missing_count'] == 124, plan['evidence_missing_count']
+          PY
+      - name: Commit fifth real Analysis 6.31 evidence family
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/graphql-authorization--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 GraphQL authorization evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
