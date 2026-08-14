@@ -1,0 +1,56 @@
+name: Analysis 6.32 v7 Targeted Final Source Supplement
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-targeted-supplement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate-targeted-v7-sources:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate targeted sources through firewall and pre-score audits
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/raw_recon_v7_targeted_supplement.py
+      - name: Assert both final families are cleanly covered
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_targeted_supplement.json').read_text())
+          assert r['family_candidate_counts'] == {'command_injection':1,'unsafe_api_consumption':1}, r
+          assert r['families_without_candidates'] == []
+          assert all(d['accepted'] is True for d in r['diagnostics'].values())
+          assert r['candidate_selection_uses_detector_scores'] is False
+          assert r['candidate_selection_uses_admission_results'] is False
+          assert r['candidate_selection_uses_ranking_results'] is False
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert r['active_target_validation_performed'] is False
+          assert r['scoring_executed'] is False
+          PY
+      - name: Commit targeted supplement
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_targeted_supplement.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record final Analysis 6.32 v7 source supplement'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
