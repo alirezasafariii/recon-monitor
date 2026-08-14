@@ -6,6 +6,11 @@ on:
       - agent/analysis-engine-6.33-v7-capture-prep
     paths:
       - '.github/workflows/analysis-633-v7-capture-prep.yml'
+      - 'app/v7_capture_guard.py'
+      - 'app/v7_literal_source_research.py'
+      - 'app/v7_literal_capture_plan.py'
+      - 'app/v7_literal_evidence_publish.py'
+      - 'tests/test_v7_capture_integrity.py'
   workflow_dispatch:
 
 permissions:
