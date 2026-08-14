@@ -1,7 +1,7 @@
 {
   "active_target_validation_performed": false,
   "admission_output_used": false,
-  "collected_at": "2026-08-14T05:54:45.477094+00:00",
+  "collected_at": "2026-08-14T05:56:45.999641+00:00",
   "detector_output_used": false,
   "entries": [
     {
@@ -3669,9 +3669,73 @@
   "first_blind_consumed": false,
   "network_scope": "public GitHub advisory/issue/PR/commit metadata only",
   "ranking_output_used": false,
-  "rule_version": "2026.08.14.6.31.1",
+  "rule_version": "2026.08.14.6.31.2",
   "scoring_executed": false,
+  "successful_families": [
+    "account_enumeration",
+    "authentication_session",
+    "broken_function_authorization",
+    "broken_object_authorization",
+    "business_logic",
+    "command_injection",
+    "cors_misconfiguration",
+    "cryptographic_failure",
+    "dom_xss",
+    "exceptional_condition_mishandling",
+    "file_upload",
+    "graphql_authorization",
+    "graphql_data_exposure",
+    "information_disclosure",
+    "ldap_injection",
+    "mass_assignment",
+    "nosql_injection",
+    "open_redirect",
+    "path_traversal",
+    "postmessage_trust",
+    "secret_exposure",
+    "security_logging_alerting_failure",
+    "security_misconfiguration",
+    "sensitive_business_flow_abuse",
+    "server_side_template_injection",
+    "software_data_integrity_failure",
+    "software_supply_chain_failure",
+    "source_map_exposure",
+    "sql_injection",
+    "ssrf",
+    "unrestricted_resource_consumption",
+    "unsafe_api_consumption",
+    "websocket_authorization"
+  ],
   "successful_snapshot_count": 33,
   "unresolved_snapshot_count": 3,
-  "version": "1.0.0"
+  "unresolved_sources": [
+    {
+      "canonical_reference": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
+      "family": "improper_inventory_management",
+      "fetch_error": "canonical source reference is not a supported GitHub advisory/issue/PR/commit URL",
+      "fetch_status": 0,
+      "github_api_reference": null,
+      "source_project": "microsoft/azure-api-management",
+      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05"
+    },
+    {
+      "canonical_reference": "https://github.com/advisories/GHSA-44cc-pg2q-9x56",
+      "family": "race_condition",
+      "fetch_error": "HTTP 403: {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/security-advisories/global-advisories#get-a-global-security-advisory\",\"status\":\"403\"}",
+      "fetch_status": 403,
+      "github_api_reference": "https://api.github.com/advisories/GHSA-44cc-pg2q-9x56",
+      "source_project": "paloaltonetworks/globalprotect-macos",
+      "source_root": "GHSA-44cc-pg2q-9x56"
+    },
+    {
+      "canonical_reference": "https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html",
+      "family": "sensitive_caching",
+      "fetch_error": "canonical source reference is not a supported GitHub advisory/issue/PR/commit URL",
+      "fetch_status": 0,
+      "github_api_reference": null,
+      "source_project": "rubygems/rubygems.org",
+      "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22"
+    }
+  ],
+  "version": "1.0.1"
 }
