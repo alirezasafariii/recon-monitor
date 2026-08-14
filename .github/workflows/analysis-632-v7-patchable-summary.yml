@@ -1,0 +1,60 @@
+name: Analysis 6.32 v7 Patchable Coverage Summary
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-patchable-summary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - name: Write compact patchable summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path('benchmarks/raw/sources/v7_candidates_patchable.json')
+          r=json.loads(src.read_text())
+          counts={str(k):int(v) for k,v in (r.get('family_candidate_counts') or {}).items()}
+          missing=sorted(str(x) for x in (r.get('families_without_candidates') or []))
+          out={
+            'family_count':r.get('family_count'),
+            'covered_family_count':sum(1 for v in counts.values() if v>0),
+            'missing_family_count':len(missing),
+            'families_without_candidates':missing,
+            'family_candidate_counts':counts,
+            'patch_api_call_count':r.get('patch_api_call_count'),
+            'candidate_selection_uses_v6_first_blind_score':r.get('candidate_selection_uses_v6_first_blind_score'),
+            'candidate_selection_uses_v6_first_blind_case_errors':r.get('candidate_selection_uses_v6_first_blind_case_errors'),
+            'scoring_executed':r.get('scoring_executed'),
+            'first_blind_consumed':r.get('first_blind_consumed'),
+          }
+          assert out['family_count']==36
+          assert out['candidate_selection_uses_v6_first_blind_score'] is False
+          assert out['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert out['scoring_executed'] is False
+          assert out['first_blind_consumed'] is False
+          Path('benchmarks/raw/sources/v7_patchable_summary.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - name: Commit compact summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_patchable_summary.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Summarize Analysis 6.32 v7 patchable coverage'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
