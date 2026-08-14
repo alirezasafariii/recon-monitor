@@ -4,7 +4,7 @@ from __future__ import annotations
 
 The engine derives a conservative workflow graph from stored endpoint contracts.
 It identifies multi-step resources, privileged approval paths and single-use or
-financial operations.  All output is context-only and non-decisive: route names
+financial operations. All output is context-only and non-decisive: route names
 and inferred ordering can guide investigation but cannot prove a workflow flaw.
 """
 
@@ -16,8 +16,8 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, utc_now
 
-WORKFLOW_STATE_ENGINE_VERSION = "1.0.0"
-WORKFLOW_STATE_RULE_VERSION = "2026.08.14.1"
+WORKFLOW_STATE_ENGINE_VERSION = "1.0.1"
+WORKFLOW_STATE_RULE_VERSION = "2026.08.14.2"
 
 STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 ACTION_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -79,11 +79,16 @@ def _tokens(endpoint: str) -> list[str]:
 
 
 def _looks_identifier(token: str) -> bool:
+    token = str(token or "").lower()
+    if token in {"id", "uuid", "pk"}:
+        return True
     if token.isdigit():
         return True
     if re.fullmatch(r"[0-9a-f]{8,}", token, re.I):
         return True
-    if token.startswith(("id", "uuid")) and len(token) > 4:
+    if token.startswith("uuid") and len(token) > 4:
+        return True
+    if token.endswith("id") and len(token) > 4:
         return True
     return False
 
