@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.31",
+  "evaluation_kind": "fresh_blind_v6_unscored_owasp_extension_sources",
+  "scoring_executed": false,
+  "detector_output_used": false,
+  "admission_output_used": false,
+  "ranking_output_used": false,
+  "grounding_counts_as_target_evidence": false,
+  "candidate_count": 4,
+  "candidates_by_family": {
+    "graphql_authorization": [
+      {
+        "source_root": "GHSA-jj68-cp4v-98qf",
+        "source_project": "aimeos/ai-admin-graphql",
+        "family": "graphql_authorization",
+        "canonical_advisory_url": "https://github.com/aimeos/ai-admin-graphql/security/advisories/GHSA-jj68-cp4v-98qf",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "maintainer_security_advisory",
+        "published_at": "2024-07-02",
+        "summary": "Aimeos disclosed improper GraphQL access control that allowed an editor to manage services through the GraphQL admin API beyond what the corresponding administrative UI permitted.",
+        "description": "The maintainer advisory documents an authorization mismatch in the Aimeos GraphQL administration interface: an editor role can perform service-management operations through GraphQL that are not allowed through the intended JQAdm permission model. The relevant condition is an authenticated GraphQL operation crossing the caller's effective authorization boundary, not schema discovery.",
+        "wstg_ids": ["WSTG-APIT-01", "WSTG-ATHZ-02"],
+        "semantic_facts": ["GraphQL", "authorization", "access control", "editor", "permission", "service management", "operation", "beyond allowed role"],
+        "selection_basis": "official maintainer advisory selected before scoring using WSTG GraphQL and authorization-enforcement semantics"
+      }
+    ],
+    "source_map_exposure": [
+      {
+        "source_root": "GHSA-67mh-4wv8-2f99",
+        "source_project": "evanw/esbuild",
+        "family": "source_map_exposure",
+        "canonical_advisory_url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+        "source_kind": "github_reviewed_advisory",
+        "advisory_source_type": "github_reviewed",
+        "published_at": "2025-02-10",
+        "summary": "esbuild's development server could expose compiled content cross-origin and, when source maps were enabled, allow retrieval of the corresponding non-compiled source through the source-map artifact.",
+        "description": "The reviewed advisory explicitly notes that a readable source map can expose the non-compiled source content. This provides a concrete source-map disclosure example matching WSTG-INFO-05: the relevant evidence is an obtainable .map/debug artifact that reveals original authored source, not merely the presence of a sourceMappingURL marker.",
+        "wstg_ids": ["WSTG-INFO-05"],
+        "semantic_facts": ["source map", "source-map", "non-compiled source", "source code", "debug artifact", "read", "expose", "disclosure"],
+        "selection_basis": "GitHub-reviewed advisory selected before scoring using WSTG-INFO-05 source-map information-leakage semantics"
+      }
+    ],
+    "unsafe_api_consumption": [
+      {
+        "source_root": "GHSA-vhjm-w67q-g75c",
+        "source_project": "hapijs/wreck",
+        "family": "unsafe_api_consumption",
+        "canonical_advisory_url": "https://github.com/hapijs/wreck/security/advisories/GHSA-vhjm-w67q-g75c",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "maintainer_security_advisory",
+        "published_at": "2026-05-27",
+        "summary": "@hapi/wreck forwarded Proxy-Authorization credentials when following a redirect to a different hostname, crossing the original remote-service trust boundary.",
+        "description": "The advisory documents an HTTP client consuming a remote 3xx response and following it across hostnames while retaining a sensitive credential header. The security condition is trust in externally supplied redirect control flow without re-applying the credential/trust policy at the new host boundary. This is used as an OWASP API10 unsafe-consumption example and is intentionally distinguished from direct user-controlled SSRF.",
+        "wstg_ids": ["WSTG-APIT-01"],
+        "semantic_facts": ["external API", "HTTP client", "remote service", "redirect", "cross-host", "response", "Proxy-Authorization", "credential", "trust boundary", "forwarded"],
+        "selection_basis": "official maintainer advisory selected before scoring using OWASP API10 external-service trust and re-validation semantics"
+      }
+    ],
+    "websocket_authorization": [
+      {
+        "source_root": "GHSL-2025-118",
+        "source_project": "outline/outline",
+        "family": "websocket_authorization",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/",
+        "source_kind": "github_security_lab_writeup",
+        "advisory_source_type": "coordinated_disclosure_writeup",
+        "published_at": "2026-03-06",
+        "summary": "Outline allowed suspended users to establish or retain WebSocket access and receive sensitive real-time updates even though the HTTP authentication path blocked suspended accounts.",
+        "description": "GitHub Security Lab documents a WebSocket authentication/authorization state mismatch: the WebSocket path omitted the suspended-user check enforced by the HTTP path, so a suspended account could still receive document-related operational updates. This directly matches WSTG-CLNT-10's requirement to apply normal authentication and authorization testing to WebSocket channels.",
+        "wstg_ids": ["WSTG-CLNT-10", "WSTG-ATHZ-02"],
+        "semantic_facts": ["WebSocket", "authorization", "authentication", "suspended user", "access control", "bypass", "sensitive updates", "HTTP blocked", "real-time"],
+        "selection_basis": "GitHub Security Lab coordinated-disclosure write-up selected before scoring using WSTG WebSocket and authorization-boundary semantics"
+      }
+    ]
+  }
+}
