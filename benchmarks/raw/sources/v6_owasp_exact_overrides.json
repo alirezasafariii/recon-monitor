@@ -1,5 +1,5 @@
 {
-  "version": "1.4.4",
+  "version": "1.5.0",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -28,34 +28,42 @@
     ],
     "cors_misconfiguration": [
       {
-        "source_root": "GHSA-88fw-hqm2-52qc",
-        "source_project": "honojs/hono",
+        "source_root": "CVE-2025-55462",
+        "source_project": "eramba/eramba",
         "family": "cors_misconfiguration",
-        "canonical_advisory_url": "https://github.com/honojs/hono/security/advisories/GHSA-88fw-hqm2-52qc",
-        "source_kind": "official_project_security_advisory",
-        "advisory_source_type": "maintainer_security_advisory",
-        "published_at": "2026-06-16",
-        "summary": "Hono CORS middleware reflected arbitrary origins while credentials were enabled, exposing cookie-authenticated endpoints to credentialed cross-origin requests.",
-        "description": "The reviewed maintainer advisory documents CORS middleware behavior where credentials are enabled and an unrestricted origin is reflected. Any third-party origin can make credentialed cross-origin requests, read authenticated responses, and perform state-changing requests. This directly satisfies WSTG-CLNT-07 origin-policy and credentialed CORS semantics.",
+        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-55462",
+        "source_kind": "vendor_product_cve_record",
+        "advisory_source_type": "cve_vendor_record",
+        "published_at": "2025-09-12",
+        "summary": "Eramba reflected attacker-controlled Origin values while credentialed CORS was enabled, allowing untrusted origins to make authenticated cross-origin requests.",
+        "description": "The vulnerability record describes an improper CORS policy in Eramba where the request Origin is reflected in Access-Control-Allow-Origin while Access-Control-Allow-Credentials is true. A malicious origin can therefore make credentialed cross-origin API requests and read sensitive authenticated data, including user-session information.",
+        "references": [
+          "https://discussions.eramba.org/t/release-3-28-0/7860",
+          "http://eramba.com"
+        ],
         "wstg_ids": ["WSTG-CLNT-07"],
-        "semantic_facts": ["CORS", "cross-origin", "origin", "untrusted origin", "credential", "authenticated data", "state-changing"],
-        "selection_basis": "independent reviewed maintainer advisory selected before scoring using WSTG-CLNT-07 origin-policy semantics"
+        "semantic_facts": ["CORS", "cross-origin", "Origin", "untrusted origin", "credential", "authenticated", "sensitive data"],
+        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG-CLNT-07 unsafe-origin and credentialed cross-origin semantics"
       }
     ],
     "graphql_data_exposure": [
       {
-        "source_root": "GHSA-qpm9-h556-mwxm",
-        "source_project": "nl-portal/nl-portal-backend-libraries",
+        "source_root": "CVE-2025-9572",
+        "source_project": "theforeman/foreman",
         "family": "graphql_data_exposure",
-        "canonical_advisory_url": "https://github.com/nl-portal/nl-portal-backend-libraries/security/advisories/GHSA-qpm9-h556-mwxm",
-        "source_kind": "official_project_security_advisory",
-        "advisory_source_type": "maintainer_security_advisory",
-        "published_at": "2026-07-08",
-        "summary": "NL Portal GraphQL document and decision queries returned data without per-user authorization, allowing authenticated users to access records belonging to other users.",
-        "description": "The reviewed advisory documents GraphQL resolvers that fail to bind and enforce the authenticated user. Callers can query decision records across users and retrieve raw document content by identifier without ownership checks. The security boundary is GraphQL query data exposure across user scope, not schema visibility alone.",
+        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-9572",
+        "source_kind": "vendor_product_cve_record",
+        "advisory_source_type": "redhat_foreman_cve_record",
+        "published_at": "2025-08-27",
+        "summary": "Foreman's GraphQL API exposed restricted metadata beyond the caller's assigned permissions because GraphQL authorization filtering was not applied correctly.",
+        "description": "The vulnerability record describes a Foreman GraphQL authorization flaw where low-privilege users can access metadata beyond their assigned permissions. The equivalent REST path enforces access controls, while the GraphQL endpoint fails to apply the proper filtering, causing restricted data exposure across the caller's authorization scope.",
+        "references": [
+          "https://access.redhat.com/security/cve/CVE-2025-9572",
+          "https://theforeman.org/security.html#2025-9572"
+        ],
         "wstg_ids": ["WSTG-APIT-03"],
-        "semantic_facts": ["GraphQL", "query", "data exposure", "sensitive data", "user scope", "restricted data", "filter", "field"],
-        "selection_basis": "independent reviewed maintainer advisory selected before scoring using WSTG API data-exposure and GraphQL scope semantics"
+        "semantic_facts": ["GraphQL", "restricted metadata", "data exposure", "scope", "filter", "query"],
+        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG GraphQL restricted-data and authorization-scope exposure semantics"
       }
     ],
     "improper_inventory_management": [
@@ -76,18 +84,22 @@
     ],
     "nosql_injection": [
       {
-        "source_root": "GHSA-pmpg-2mxq-6xwr",
-        "source_project": "Budibase/budibase",
+        "source_root": "CVE-2025-60357",
+        "source_project": "ahnlab/epp-management",
         "family": "nosql_injection",
-        "canonical_advisory_url": "https://github.com/Budibase/budibase/security/advisories/GHSA-pmpg-2mxq-6xwr",
-        "source_kind": "official_project_security_advisory",
-        "advisory_source_type": "maintainer_security_advisory",
-        "published_at": "2026-07-22",
-        "summary": "Budibase disclosed NoSQL injection in its MongoDB datasource where user-controlled bindings can inject MongoDB operators and override intended query filters.",
-        "description": "The reviewed advisory shows unescaped user-controlled values being interpolated into MongoDB query JSON before JSON parsing. Operator-shaped input reaches collection.find unchanged, allowing a BASIC app user to alter MongoDB filter semantics, dump collections, pivot across collections, or expand update/delete scope. This is a direct WSTG NoSQL query-semantics example.",
+        "canonical_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-60357",
+        "source_kind": "vendor_product_cve_record",
+        "advisory_source_type": "cve_vendor_record",
+        "published_at": "2025-10-10",
+        "summary": "AhnLab EPP Management contained NoSQL injection in the eventlog agent-event list interface, allowing crafted input to alter backend database query behavior.",
+        "description": "The vulnerability record and supporting disclosure describe insufficient validation and sanitization in the eventlog/agentEvent/list path that permits NoSQL injection. Crafted input can reach the backend MongoDB query interface and alter intended query semantics.",
+        "references": [
+          "https://ahnlab.com",
+          "https://vuldb.com/cve/CVE-2025-60357"
+        ],
         "wstg_ids": ["WSTG-INPV-05.6"],
-        "semantic_facts": ["NoSQL injection", "MongoDB", "query", "filter", "operator", "inject", "injection", "alter query semantics", "unintended documents"],
-        "selection_basis": "independent reviewed maintainer advisory selected before scoring using WSTG NoSQL-injection semantics"
+        "semantic_facts": ["NoSQL injection", "MongoDB", "query", "unvalidated", "injection", "alter query semantics"],
+        "selection_basis": "fresh vendor/CVE source selected before scoring using WSTG NoSQL injection and document-query semantics"
       }
     ],
     "postmessage_trust": [
