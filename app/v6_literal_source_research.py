@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.31.2"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v6_literal_source_research.json"
 GHSA_RE = re.compile(r"^GHSA-[0-9a-z-]+$", re.I)
@@ -127,7 +127,8 @@ def build_research(*, token: str | None = None) -> dict[str, Any]:
             "scoring_executed": False,
         })
 
-    fetched = sum(1 for row in entries if row["fetch_status"] == 200 and row["snapshot_payload"] is not None)
+    successful = [row for row in entries if row["fetch_status"] == 200 and row["snapshot_payload"] is not None]
+    unresolved = [row for row in entries if row not in successful]
     report = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
@@ -141,8 +142,21 @@ def build_research(*, token: str | None = None) -> dict[str, Any]:
         "active_target_validation_performed": False,
         "network_scope": "public GitHub advisory/issue/PR/commit metadata only",
         "family_count": 36,
-        "successful_snapshot_count": fetched,
-        "unresolved_snapshot_count": 36 - fetched,
+        "successful_snapshot_count": len(successful),
+        "successful_families": sorted(str(row["family"]) for row in successful),
+        "unresolved_snapshot_count": len(unresolved),
+        "unresolved_sources": [
+            {
+                "family": row["family"],
+                "source_root": row["source_root"],
+                "source_project": row["source_project"],
+                "canonical_reference": row["canonical_reference"],
+                "github_api_reference": row["github_api_reference"],
+                "fetch_status": row["fetch_status"],
+                "fetch_error": row["fetch_error"],
+            }
+            for row in unresolved
+        ],
         "entries": entries,
     }
     return report
@@ -158,6 +172,7 @@ def main() -> int:
         "family_count": report["family_count"],
         "successful_snapshot_count": report["successful_snapshot_count"],
         "unresolved_snapshot_count": report["unresolved_snapshot_count"],
+        "unresolved_sources": report["unresolved_sources"],
         "scoring_executed": report["scoring_executed"],
     }, sort_keys=True))
     if args.require_all and report["successful_snapshot_count"] != 36:
