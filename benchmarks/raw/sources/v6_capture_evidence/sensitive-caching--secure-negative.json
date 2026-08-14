@@ -1,0 +1,48 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The patched upstream code applies deny_shared_cache to the API-key controller and sets private/no-store, zero surrogate caching, and Vary: Authorization.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/app/controllers/api/base_controller.rb",
+  "captured_at": "2026-08-14T15:15:22.544292+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "checkout exact upstream revision and inspect app/controllers/api/base_controller.rb + app/controllers/api/v1/api_keys_controller.rb",
+    "source_file": "app/controllers/api/base_controller.rb + app/controllers/api/v1/api_keys_controller.rb",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "sensitive_caching",
+  "raw": {
+    "details": {
+      "cache_control": "private, no-store",
+      "surrogate_control": "max-age=0",
+      "vary_authorization": true
+    },
+    "endpoint": "/api/v1/api_key",
+    "method": "GET",
+    "schema": {
+      "authenticated_secret_response": true,
+      "shared_cache_denial_hook_present": true
+    },
+    "target": "rubygems.org patched legacy API key response"
+  },
+  "raw_sha256": "6c775d3fdfa4e051f64705ce225c995d585a396e9f48db541814e9af207a989b",
+  "schema_version": "1.0",
+  "source_project": "rubygems/rubygems.org",
+  "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+  "source_snapshot": {
+    "content_sha256": "814636d0659850d426fe3a0dddb76c0ab918b545e3ee66edb79743a33696f163",
+    "payload": {
+      "api_keys_controller": "# frozen_string_literal: true\n\nclass Api::V1::ApiKeysController < Api::BaseController\n  include ApiKeyable\n\n  before_action :deny_shared_cache\n\n  def show\n    authenticate_or_request_with_http_basic do |username, password|\n      # strip username mainly to remove null bytes\n      user = User.authenticate(username.strip, password)\n      check_mfa(user) do\n        if request.head?\n          head :ok\n        else\n          key = generate_unique_rubygems_key\n          api_key = user.api_keys.build(legacy_key_defaults.merge(hashed_key: hashed_key(key)))\n\n          save_and_respond(api_key, key)\n        end\n      end\n    end\n  end\n\n  def create\n    authenticate_or_request_with_http_basic do |username, password|\n      user = User.authenticate(username, password)\n\n      check_mfa(user) do\n        key = generate_unique_rubygems_key\n        build_params = { owner: user, hashed_key: hashed_key(key), **api_key_create_params }\n        api_key = ApiKey.new(build_params)\n\n        save_and_respond(api_key, key)\n      end\n    end\n  end\n\n  def update\n    authenticate_or_request_with_http_basic do |username, password|\n      user = User.authenticate(username, password)\n\n      check_mfa(user) do\n        api_key = user.api_keys.find_by!(hashed_key: hashed_key(key_param))\n\n        if api_key.update(api_key_update_params(api_key))\n          respond_with \"Scopes for the API key #{api_key.name} updated\"\n        else\n          errors = api_key.errors.full_messages\n          respond_with \"Failed to update scopes for the API key #{api_key.name}: #{errors}\", status: :unprocessable_content\n        end\n      end\n    end\n  end\n\n  private\n\n  def check_mfa(user)\n    return false unless user\n    if user.unconfirmed?\n      render_forbidden t(:email_not_confirmed)\n    elsif user.mfa_gem_signin_authorized?(otp)\n      if user.mfa_required_not_yet_enabled?\n        render_forbidden t(\"multifactor_auths.api.mfa_required_not_yet_enabled\").chomp\n      elsif user.mfa_required_weak_level_enabled?\n        render_forbidden t(\"multifactor_auths.api.mfa_required_weak_level_enabled\").chomp\n      else\n        yield\n      end\n    elsif user.mfa_enabled?\n      prompt_text = otp.present? ? t(:otp_incorrect) : t(:otp_missing)\n      render plain: prompt_text, status: :unauthorized\n    else\n      false\n    end\n  end\n\n  def save_and_respond(api_key, key)\n    if api_key.errors.blank? && api_key.save\n      Mailer.api_key_created(api_key.id).deliver_later\n      respond_with key\n    else\n      respond_with api_key.errors.full_messages.to_sentence, status: :unprocessable_content\n    end\n  end\n\n  def respond_with(msg, status: :ok)\n    respond_to do |format|\n      format.any(:all) { render plain: msg, status: status }\n      format.json { render json: { rubygems_api_key: msg, status: status } }\n      format.yaml { render plain: { rubygems_api_key: msg, status: status }.to_yaml }\n    end\n  end\n\n  def otp\n    request.headers[\"HTTP_OTP\"]\n  end\n\n  def key_param\n    params.expect(:api_key)\n  end\n\n  def api_key_create_params\n    ApiKeysHelper.api_key_params(params.permit(:name, *ApiKey::API_SCOPES, :mfa, :rubygem_name, :expires_at, scopes: [ApiKey::API_SCOPES]))\n  end\n\n  def api_key_update_params(key)\n    ApiKeysHelper.api_key_params(params.permit(*ApiKey::API_SCOPES, :mfa, scopes: [ApiKey::API_SCOPES]), key)\n  end\nend\n",
+      "base_controller": "# frozen_string_literal: true\n\nclass Api::BaseController < ApplicationController\n  content_security_policy false\n\n  skip_before_action :verify_authenticity_token\n  after_action :skip_session # TODO: verify if this is still needed now that CSP is disabled for API controllers\n\n  rescue_from(Pundit::NotAuthorizedError) do |e|\n    render_forbidden(e.policy.error)\n  end\n\n  private\n\n  def name_params\n    params.permit(:gem_name, :rubygem_name)\n  end\n\n  def gem_name\n    name_params[:gem_name] || name_params[:rubygem_name]\n  end\n\n  def find_rubygem_by_name\n    @rubygem = Rubygem.find_by name: gem_name\n    return if @rubygem\n    render plain: t(:api_gem_not_found), status: :not_found\n  end\n\n  def verify_api_key_gem_scope\n    return unless @api_key.rubygem && @api_key.rubygem != @rubygem\n\n    render_forbidden t(:api_key_insufficient_scope)\n  end\n\n  def verify_with_otp\n    otp = request.headers[\"HTTP_OTP\"]\n    return if @api_key.mfa_authorized?(otp)\n    prompt_text = otp.present? ? t(:otp_incorrect) : t(:otp_missing)\n    render plain: prompt_text, status: :unauthorized\n  end\n\n  def response_with_mfa_warning(message)\n    if @api_key&.mfa_recommended_not_yet_enabled?\n      +message << \"\\n\\n\" << t(\"multifactor_auths.api.mfa_recommended_not_yet_enabled\").chomp\n    elsif @api_key&.mfa_recommended_weak_level_enabled?\n      +message << \"\\n\\n\" << t(\"multifactor_auths.api.mfa_recommended_weak_level_enabled\").chomp\n    else\n      message\n    end\n  end\n\n  def authenticate_with_api_key\n    params_key = request.headers[\"Authorization\"] || \"\"\n    hashed_key = Digest::SHA256.hexdigest(params_key)\n    @api_key   = ApiKey.unexpired.find_by_hashed_key(hashed_key)\n    return render_unauthorized unless @api_key\n    set_tags \"gemcutter.api_key.owner\" => @api_key.owner.to_gid, \"gemcutter.user.api_key_id\" => @api_key.id\n    return render_forbidden(t(:email_not_confirmed)) if @api_key.user&.unconfirmed?\n    Current.user = @api_key.user\n    render_forbidden(t(:api_key_soft_deleted)) if @api_key.soft_deleted?\n  end\n\n  def pundit_user\n    @api_key\n  end\n\n  def policy_scope(scope)\n    super(Array.wrap(scope).prepend(:api))\n  end\n\n  def authorize(record, query = nil)\n    return if record.nil? # not found is handled by the action\n    super(Array.wrap(record).prepend(:api), query)\n  end\n\n  def verify_user_api_key\n    render_forbidden(t(:api_key_forbidden)) if @api_key.user.blank?\n  end\n\n  def render_unauthorized\n    render plain: t(:please_sign_up), status: :unauthorized\n  end\n\n  def render_forbidden(error = nil)\n    error = error.message if error.respond_to?(:message)\n    error ||= t(:api_key_forbidden)\n    respond_to do |format|\n      format.any(:all) { render plain: error, status: :forbidden }\n      format.json { render json: { error: }, status: :forbidden }\n      format.yaml { render yaml: { error: }, status: :forbidden }\n    end\n  end\n\n  def skip_session\n    request.session_options[:skip] = true\n  end\n\n  def deny_shared_cache\n    response.headers[\"Cache-Control\"]     = \"private, no-store\"\n    response.headers[\"Surrogate-Control\"] = \"max-age=0\"\n    response.headers[\"Vary\"] = [response.headers[\"Vary\"], \"Authorization\"].compact_blank.join(\", \")\n  end\n\n  def render_bad_request(error = \"bad request\")\n    error = error.message if error.is_a?(Exception)\n    render json: { error: error.to_s }, status: :bad_request\n  end\nend\n",
+      "revision": "d3d11c0ecfb3827778e1e1499372e351edaa83cc"
+    },
+    "reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/app/controllers/api/base_controller.rb",
+    "retrieved_at": "2026-08-14T15:15:22.544292+00:00"
+  }
+}

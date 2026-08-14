@@ -1,121 +1,117 @@
 {
-  "version": "2.3.0",
-  "rule_version": "2026.08.14.6.31.14",
+  "checkpoint_status": "7_literal_families_complete_28_of_144_pending_remaining_evidence",
+  "ci": {
+    "full_unit_suite": "success",
+    "github_actions_status": "working",
+    "golden_benchmark": "success",
+    "integration_test": "success",
+    "latest_known_full_push_validation_run_id": 31777279389,
+    "previous_billing_blocker_is_current": false,
+    "production_boundary": "success",
+    "python_311": "success",
+    "python_313": "success",
+    "source_independence": "success",
+    "strict_partial_literal_evidence_gate": "success"
+  },
+  "completed_real_collectors": {
+    "graphql_authorization": {
+      "capture_run_id": 31777275736,
+      "positive_observation": "exact vulnerable GraphQL resource config allowed admin on locale.site.save while the patch restricts that operation to super",
+      "source": "GHSA-jj68-cp4v-98qf / aimeos/ai-admin-graphql",
+      "status": "passed_4_of_4"
+    },
+    "information_disclosure": {
+      "capture_run_id": 31775666846,
+      "positive_observation": "vulnerable Etherpad v3.0.0 returned the controlled author token in the tokenTransfer response body",
+      "source": "GHSA-vqfp-p66c-xrp9 / ether/etherpad",
+      "status": "passed_4_of_4"
+    },
+    "path_traversal": {
+      "capture_run_id": 31776353749,
+      "positive_observation": "vulnerable Joomla extractor wrote a controlled ../ ZIP entry outside the destination root",
+      "source": "GHSA-f3gp-9xr4-qmvc / joomla/joomla-cms",
+      "status": "passed_4_of_4"
+    },
+    "sensitive_business_flow_abuse": {
+      "capture_run_id": 31777070650,
+      "positive_observation": "exact parent invite_team_member accepted the same invitation twice and created two Account Requests",
+      "source": "GHSA-68qm-vp8f-rpr3 / frappe/press",
+      "status": "passed_4_of_4"
+    },
+    "sensitive_caching": {
+      "capture_run_id": null,
+      "positive_observation": "The vulnerable upstream API-key controller generates a legacy API key for an authenticated response but does not invoke the later deny_shared_cache control.",
+      "source": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22 / rubygems/rubygems.org",
+      "status": "passed_4_of_4"
+    },
+    "software_data_integrity_failure": {
+      "capture_run_id": null,
+      "positive_observation": "The vulnerable upstream updater launch builds download arguments without any certificate/signature verification arguments for the downloaded installer.",
+      "source": "GHSA-cqx4-h5ph-3xj9 / notepad-plus-plus/notepad-plus-plus",
+      "status": "passed_4_of_4"
+    },
+    "ssrf": {
+      "capture_run_id": 31776884915,
+      "positive_observation": "exact parent _fetch_page forwarded a controlled metadata URL to requests.get without a destination policy",
+      "source": "GHSA-wx9v-ffw3-45wg / vulnerability-lookup/vulnerability-lookup",
+      "status": "passed_4_of_4"
+    }
+  },
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
-  "checkpoint_status": "five_literal_families_complete_20_of_144_pending_remaining_evidence",
-  "scoring_executed": false,
   "first_blind_consumed": false,
   "first_blind_evaluator_frozen": false,
-  "production_rules_changed_before_first_score": false,
-  "source_selection": {
-    "status": "passed",
-    "family_count": 36,
-    "unique_root_count": 36,
-    "unique_project_count": 36,
-    "firewall_rejection_count": 0,
-    "grounding_provenance_reuse_count": 0,
-    "owasp_wstg_grounded_family_count": 14,
-    "fresh_exact_complement_override_family_count": 13,
-    "legacy_semantic_discovery_family_count": 9,
-    "legacy_assignment_method": "global_backtracking_unique_root_project",
-    "scoring_executed": false
-  },
-  "source_research": {
-    "canonical_passive_snapshot_status": "passed_36_of_36",
-    "canonical_unresolved_count": 0,
-    "linked_passive_snapshot_count": 23,
-    "active_target_validation_performed": false,
-    "race_source_corrected_to": "CVE-2025-0120 / paloaltonetworks/globalprotect-app-windows",
-    "race_source_correction_firewall_status": "passed",
-    "scoring_executed": false
-  },
   "hardening": {
-    "validator_raw_value_leakage_scan": true,
-    "validator_source_identity_binding": true,
-    "source_firewall_case_and_alias_normalization": true,
-    "single_canonical_firewall_implementation": true,
+    "centralized_dynamic_freeze_surface": true,
+    "detector_admission_ranking_output_forbidden_during_adjudication": true,
+    "evaluator_bound_to_exact_future_corpus_freeze": true,
+    "evaluator_implemented_but_not_executed": true,
+    "evidence_content_uniqueness": true,
+    "evidence_only_ingest": true,
+    "evidence_path_containment": true,
+    "expected_signals_bound_to_evidence_adjudication": true,
     "global_source_uniqueness_backtracking": true,
     "literal_capture_true_flag_is_not_trusted_without_evidence": true,
-    "raw_and_evidence_sha256_binding": true,
-    "source_snapshot_sha256_binding": true,
-    "evidence_path_containment": true,
-    "evidence_content_uniqueness": true,
-    "expected_signals_bound_to_evidence_adjudication": true,
-    "detector_admission_ranking_output_forbidden_during_adjudication": true,
     "partial_evidence_strict_ci_verification": true,
-    "evidence_only_ingest": true,
-    "centralized_dynamic_freeze_surface": true,
-    "evaluator_implemented_but_not_executed": true,
-    "evaluator_bound_to_exact_future_corpus_freeze": true
+    "raw_and_evidence_sha256_binding": true,
+    "single_canonical_firewall_implementation": true,
+    "source_firewall_case_and_alias_normalization": true,
+    "source_snapshot_sha256_binding": true,
+    "validator_raw_value_leakage_scan": true,
+    "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "required_capture_count": 144,
-    "evidence_present_count": 20,
-    "evidence_missing_count": 124,
-    "complete_family_count": 5,
-    "remaining_family_count": 31,
-    "variants_per_complete_family": 4,
+    "capture_plan_status": "28_of_144_evidence_present",
     "complete_families": [
       "graphql_authorization",
       "information_disclosure",
       "path_traversal",
       "sensitive_business_flow_abuse",
+      "sensitive_caching",
+      "software_data_integrity_failure",
       "ssrf"
     ],
-    "variant_contract": ["positive", "near_miss", "secure_negative", "sparse_noisy"],
-    "capture_plan_status": "20_of_144_evidence_present",
-    "synthetic_fixture_generation_forbidden": true,
-    "cross_variant_mutation_forbidden": true,
-    "materialization_status": "blocked_until_144_of_144",
-    "corpus_validation_status": "not_run_on_complete_literal_corpus",
+    "complete_family_count": 7,
     "corpus_freeze_status": "not_run",
-    "evaluator_freeze_status": "not_run"
+    "corpus_validation_status": "not_run_on_complete_literal_corpus",
+    "cross_variant_mutation_forbidden": true,
+    "evaluator_freeze_status": "not_run",
+    "evidence_missing_count": 116,
+    "evidence_present_count": 28,
+    "materialization_status": "blocked_until_144_of_144",
+    "remaining_family_count": 29,
+    "required_capture_count": 144,
+    "synthetic_fixture_generation_forbidden": true,
+    "variant_contract": [
+      "positive",
+      "near_miss",
+      "secure_negative",
+      "sparse_noisy"
+    ],
+    "variants_per_complete_family": 4
   },
-  "completed_real_collectors": {
-    "information_disclosure": {
-      "source": "GHSA-vqfp-p66c-xrp9 / ether/etherpad",
-      "capture_run_id": 31775666846,
-      "status": "passed_4_of_4",
-      "positive_observation": "vulnerable Etherpad v3.0.0 returned the controlled author token in the tokenTransfer response body"
-    },
-    "path_traversal": {
-      "source": "GHSA-f3gp-9xr4-qmvc / joomla/joomla-cms",
-      "capture_run_id": 31776353749,
-      "status": "passed_4_of_4",
-      "positive_observation": "vulnerable Joomla extractor wrote a controlled ../ ZIP entry outside the destination root"
-    },
-    "ssrf": {
-      "source": "GHSA-wx9v-ffw3-45wg / vulnerability-lookup/vulnerability-lookup",
-      "capture_run_id": 31776884915,
-      "status": "passed_4_of_4",
-      "positive_observation": "exact parent _fetch_page forwarded a controlled metadata URL to requests.get without a destination policy"
-    },
-    "sensitive_business_flow_abuse": {
-      "source": "GHSA-68qm-vp8f-rpr3 / frappe/press",
-      "capture_run_id": 31777070650,
-      "status": "passed_4_of_4",
-      "positive_observation": "exact parent invite_team_member accepted the same invitation twice and created two Account Requests"
-    },
-    "graphql_authorization": {
-      "source": "GHSA-jj68-cp4v-98qf / aimeos/ai-admin-graphql",
-      "capture_run_id": 31777275736,
-      "status": "passed_4_of_4",
-      "positive_observation": "exact vulnerable GraphQL resource config allowed admin on locale.site.save while the patch restricts that operation to super"
-    }
-  },
-  "ci": {
-    "github_actions_status": "working",
-    "latest_known_full_push_validation_run_id": 31777279389,
-    "python_311": "success",
-    "python_313": "success",
-    "production_boundary": "success",
-    "source_independence": "success",
-    "full_unit_suite": "success",
-    "strict_partial_literal_evidence_gate": "success",
-    "golden_benchmark": "success",
-    "integration_test": "success",
-    "previous_billing_blocker_is_current": false
-  },
+  "next_required_transition": "Continue controlled evidence collection for the remaining 29 families / 116 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "production_rules_changed_before_first_score": false,
+  "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {
     "no_first_blind_score_before_144_literal_captures_and_corpus_freeze": true,
     "no_first_blind_score_before_evaluator_freeze": true,
@@ -123,5 +119,28 @@
     "no_result_claim_without_executed_validation": true,
     "no_template_generated_corpus_may_be_called_fresh_raw": true
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 31 families. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval."
+  "scoring_executed": false,
+  "source_research": {
+    "active_target_validation_performed": false,
+    "canonical_passive_snapshot_status": "passed_36_of_36",
+    "canonical_unresolved_count": 0,
+    "linked_passive_snapshot_count": 23,
+    "race_source_corrected_to": "CVE-2025-0120 / paloaltonetworks/globalprotect-app-windows",
+    "race_source_correction_firewall_status": "passed",
+    "scoring_executed": false
+  },
+  "source_selection": {
+    "family_count": 36,
+    "firewall_rejection_count": 0,
+    "fresh_exact_complement_override_family_count": 13,
+    "grounding_provenance_reuse_count": 0,
+    "legacy_assignment_method": "global_backtracking_unique_root_project",
+    "legacy_semantic_discovery_family_count": 9,
+    "owasp_wstg_grounded_family_count": 14,
+    "scoring_executed": false,
+    "status": "passed",
+    "unique_project_count": 36,
+    "unique_root_count": 36
+  },
+  "version": "2.3.0"
 }

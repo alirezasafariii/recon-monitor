@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Signer metadata exists in the patched header, but this isolated declaration does not by itself establish whether an update artifact is accepted or rejected; it is intentionally sparse/noisy.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/notepad-plus-plus/notepad-plus-plus/blob/bcf2aa68ef414338d717e20e059459570ed6c5ab/PowerEditor/src/MISC/Common/verifySignedfile.h",
+  "captured_at": "2026-08-14T15:15:25.467146+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "checkout exact upstream revision and inspect PowerEditor/src/MISC/Common/verifySignedfile.h",
+    "source_file": "PowerEditor/src/MISC/Common/verifySignedfile.h",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "software_data_integrity_failure",
+  "raw": {
+    "details": {
+      "authority_key_id_declared": true,
+      "installer_execution_observed": false,
+      "signer_display_name_accessor_present": true
+    },
+    "endpoint": "SecurityGuard certificate metadata",
+    "method": "SOURCE_READ",
+    "schema": {
+      "execution_path_observed": false,
+      "signer_identity_metadata_present": true
+    },
+    "target": "Notepad++ signer metadata declarations"
+  },
+  "raw_sha256": "0b24cab988f36ab55d4ca38a924365b71d2985debe6af4b82f13aa58f4e61aef",
+  "schema_version": "1.0",
+  "source_project": "notepad-plus-plus/notepad-plus-plus",
+  "source_root": "GHSA-cqx4-h5ph-3xj9",
+  "source_snapshot": {
+    "content_sha256": "98a2c239bb73b4be8582442593fa30abf20424f175b816c132af6cdd3e3fe2cf",
+    "payload": {
+      "content": "// This file is part of Notepad++ project\n// Copyright (C)2021 Don HO <don.h@free.fr>\n\n// This program is free software: you can redistribute it and/or modify\n// it under the terms of the GNU General Public License as published by\n// the Free Software Foundation, either version 3 of the License, or\n// at your option any later version.\n//\n// This program is distributed in the hope that it will be useful,\n// but WITHOUT ANY WARRANTY; without even the implied warranty of\n// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n// GNU General Public License for more details.\n//\n// You should have received a copy of the GNU General Public License\n// along with this program.  If not, see <https://www.gnu.org/licenses/>.\n\n\n//#define VerifySignedLibrary_DISABLE_REVOCATION_CHECK \"Don't check certificat revocation\"\n\n/*\n* Verifies an Authenticde DLL signature and ownership\n*\n* Parameters:\n*  @param filepath        path to the DLL file to examine\n*  @param cert_display_name if specified, the signing certificate display name to compare to. Ignored if set to \"\", (weak comparison)\n*  @param cert_subject    if specified, the full signing certificate subject name. Ignored if set to \"\" (strong comparison)\n*  @param cert_key_id_hex if specified, the signing certificate key id (fingerprint), Ignored if set to \"\" (very strong comparison)\n*\n* @return true if the verification was positive, false if it was negative of encountered some error\n*\n* Dependencies:\n*  This function uses 3 APIs: WinTrust, CryptoAPI, SENS API\n*  It requires to link on : wintrust.lib, crypt32.lib (or crypt64.lib depending on the compilation target) and sensapi.lib\n*  Those functions are available on Windows starting with Windows-XP\n*\n* Limitations:\n*  Certificate revocation checking requires an access to Internet.\n*  The functions checks for connectivity and will disable revocation checking if the machine is offline or if Microsoft\n*  connectivity checking site is not reachable (supposely implying we are on an airgapped network).\n*  Depending on Windows version, this test will be instantaneous (Windows 8 and up) or may take a few seconds.\n*  This behaviour can be disabled by setting a define at compilation time.\n*  If macro VerifySignedLibrary_DISABLE_REVOCATION_CHECK is defined, the revocation\n*  state of the certificates will *not* be checked.\n*\n*/\n#pragma once\n\n#include <string>\n#include <vector>\n\nenum SecurityMode { sm_certif = 0, sm_sha256 = 1 };\nenum NppModule { nm_gup = 1, nm_pluginList = 2 };\n\nclass SecurityGuard final\n{\npublic:\n\tSecurityGuard();\n\n\tbool checkModule(const std::wstring& filePath, NppModule module2check);\n\n\tstd::wstring signer_display_name() { return _signer_display_name; }\n\tstd::wstring signer_subject() { return _signer_subject; }\n\tstd::wstring signer_key_id() { return _signer_key_id; }\n\tstd::wstring authority_key_id() { return _authority_key_id; }\n\n\nprivate:\n\t// SHA256\n\tstatic SecurityMode _securityMode;\n\tstd::vector<std::wstring> _gupSha256;\n\tstd::vector<std::wstring> _pluginListSha256;\n\n\tbool checkSha256(const std::wstring& filePath, NppModule module2check);\n\n\t// Code signing certificate\n\tstd::wstring _signer_display_name = L\"Notepad++\";\n\tstd::wstring _signer_subject = L\"C=FR, S=Ile-de-France, L=Saint Cloud, O=\\\"Notepad++\\\", CN=\\\"Notepad++\\\", E=don.h@free.fr\";\n\tstd::wstring _signer_key_id = L\"7B4D26B77F8269B987AC3E8EBC3899E1A4176DFA\"; //=> Should be UPPERCASE\n\tstd::wstring _authority_key_id = L\"8BDE0FA542DB39D347AF06A83AC9D09D421D1366\"; //=> Should be UPPERCASE\n\n\tbool _doCheckRevocation = false;\n\tbool _doCheckChainOfTrust = false;\n\n\tbool verifySignedBinary(const std::wstring& filepath);\n};\n\n",
+      "revision": "bcf2aa68ef414338d717e20e059459570ed6c5ab"
+    },
+    "reference": "https://github.com/notepad-plus-plus/notepad-plus-plus/blob/bcf2aa68ef414338d717e20e059459570ed6c5ab/PowerEditor/src/MISC/Common/verifySignedfile.h",
+    "retrieved_at": "2026-08-14T15:15:25.467146+00:00"
+  }
+}

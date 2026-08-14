@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "A separate upstream HEAD-without-credentials fixture reaches the same route but only establishes unauthorized control behavior; it is insufficient evidence of sensitive shared caching.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/test/integration/api/v1/api_keys_test.rb",
+  "captured_at": "2026-08-14T15:15:22.544292+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "checkout exact upstream revision and inspect test/integration/api/v1/api_keys_test.rb",
+    "source_file": "test/integration/api/v1/api_keys_test.rb",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "sensitive_caching",
+  "raw": {
+    "details": {
+      "observation_is_partial_control": true,
+      "upstream_fixture_expected_status": "unauthorized"
+    },
+    "endpoint": "/api/v1/api_key",
+    "method": "HEAD",
+    "schema": {
+      "credentials_present": false,
+      "response_body_secret_observed": false
+    },
+    "target": "rubygems.org API key HEAD control"
+  },
+  "raw_sha256": "7830be08bcff3d45fe5c589a5e7c53acfe4280959bb76c2b4ae65117433413b0",
+  "schema_version": "1.0",
+  "source_project": "rubygems/rubygems.org",
+  "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+  "source_snapshot": {
+    "content_sha256": "0c6dbf44e1706609479cef5d6f65317a4a499731d3ece4e26773a28bbbe922c6",
+    "payload": {
+      "content": "# frozen_string_literal: true\n\nrequire \"test_helper\"\n\n# Must be an integration test: the cache headers come from the Rack middleware\n# stack, which ActionController::TestCase does not run.\nclass Api::V1::ApiKeysTest < ActionDispatch::IntegrationTest\n  setup do\n    @user = create(:user)\n    @auth = ActionController::HttpAuthentication::Basic.encode_credentials(@user.email, @user.password)\n  end\n\n  should \"not allow shared caching of a minted key when the client accepts gzip\" do\n    get \"/api/v1/api_key\",\n      headers: { \"HTTP_AUTHORIZATION\" => @auth, \"HTTP_ACCEPT_ENCODING\" => \"gzip\" }\n\n    assert_response :success\n    assert_equal \"gzip\", @response.headers[\"Content-Encoding\"]\n\n    cache_control = @response.headers[\"Cache-Control\"].to_s\n\n    assert_includes cache_control, \"private\", \"got #{cache_control.inspect}\"\n    assert_includes cache_control, \"no-store\", \"got #{cache_control.inspect}\"\n    assert_equal \"max-age=0\", @response.headers[\"Surrogate-Control\"]\n    assert_includes @response.headers[\"Vary\"].to_s, \"Authorization\", \"got #{@response.headers['Vary'].inspect}\"\n  end\n\n  should \"not allow shared caching of a minted key without gzip\" do\n    get \"/api/v1/api_key\", headers: { \"HTTP_AUTHORIZATION\" => @auth }\n\n    assert_response :success\n\n    cache_control = @response.headers[\"Cache-Control\"].to_s\n\n    assert_includes cache_control, \"private\", \"got #{cache_control.inspect}\"\n    assert_includes cache_control, \"no-store\", \"got #{cache_control.inspect}\"\n    assert_equal \"max-age=0\", @response.headers[\"Surrogate-Control\"]\n    assert_includes @response.headers[\"Vary\"].to_s, \"Authorization\", \"got #{@response.headers['Vary'].inspect}\"\n  end\n\n  should \"not mint a key on an authenticated HEAD\" do\n    assert_no_difference -> { @user.api_keys.count } do\n      head \"/api/v1/api_key\", headers: { \"HTTP_AUTHORIZATION\" => @auth }\n    end\n\n    assert_response :success\n  end\n\n  should \"still mint a key on GET\" do\n    assert_difference -> { @user.api_keys.count }, 1 do\n      get \"/api/v1/api_key\", headers: { \"HTTP_AUTHORIZATION\" => @auth }\n    end\n\n    assert_response :success\n  end\n\n  should \"challenge an unauthenticated HEAD like GET\" do\n    assert_no_difference -> { @user.api_keys.count } do\n      head \"/api/v1/api_key\"\n    end\n\n    assert_response :unauthorized\n  end\nend\n",
+      "revision": "d3d11c0ecfb3827778e1e1499372e351edaa83cc"
+    },
+    "reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/test/integration/api/v1/api_keys_test.rb",
+    "retrieved_at": "2026-08-14T15:15:22.544292+00:00"
+  }
+}

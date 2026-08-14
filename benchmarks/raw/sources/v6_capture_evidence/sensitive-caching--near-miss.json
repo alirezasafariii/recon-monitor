@@ -1,0 +1,46 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_fixture",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "An independent upstream regression fixture intentionally verifies that a public profile response does not receive no-store; cacheability alone is therefore not the sensitive caching condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/test/integration/api/v1/profiles_test.rb",
+  "captured_at": "2026-08-14T15:15:22.544292+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "checkout exact upstream revision and inspect test/integration/api/v1/profiles_test.rb",
+    "source_file": "test/integration/api/v1/profiles_test.rb",
+    "tool": "github-actions/source-grounded-repository-capture"
+  },
+  "family": "sensitive_caching",
+  "raw": {
+    "details": {
+      "no_store_required": false,
+      "upstream_test_explicitly_allows_cacheability": true
+    },
+    "endpoint": "/api/v1/profiles/{handle}",
+    "method": "GET",
+    "schema": {
+      "public_response": true,
+      "sensitive_authenticated_secret": false
+    },
+    "target": "rubygems.org public profile cache behavior"
+  },
+  "raw_sha256": "c84d8384f2dccb32e458d4b17fa404ea97ebf989e9795f90d2893846e0aa0ff3",
+  "schema_version": "1.0",
+  "source_project": "rubygems/rubygems.org",
+  "source_root": "RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22",
+  "source_snapshot": {
+    "content_sha256": "fed5c7a84e14252c0d5111f8af580c060cb68a999d20f57630c562e6da1fc6fa",
+    "payload": {
+      "content": "# frozen_string_literal: true\n\nrequire \"test_helper\"\n\n# Must be an integration test: the cache headers come from the Rack middleware\n# stack, which ActionController::TestCase does not run.\nclass Api::V1::ProfilesTest < ActionDispatch::IntegrationTest\n  setup do\n    @user = create(:user)\n    @auth = ActionController::HttpAuthentication::Basic.encode_credentials(@user.email, @user.password)\n  end\n\n  should \"not allow shared caching of a private profile when the client accepts gzip\" do\n    get \"/api/v1/profile/me.yaml\",\n      headers: { \"HTTP_AUTHORIZATION\" => @auth, \"HTTP_ACCEPT_ENCODING\" => \"gzip\" }\n\n    assert_response :success\n    assert_equal \"gzip\", @response.headers[\"Content-Encoding\"]\n\n    cache_control = @response.headers[\"Cache-Control\"].to_s\n\n    assert_includes cache_control, \"private\", \"got #{cache_control.inspect}\"\n    assert_includes cache_control, \"no-store\", \"got #{cache_control.inspect}\"\n    assert_equal \"max-age=0\", @response.headers[\"Surrogate-Control\"]\n    assert_includes @response.headers[\"Vary\"].to_s, \"Authorization\", \"got #{@response.headers['Vary'].inspect}\"\n  end\n\n  should \"not allow shared caching of a private profile without gzip\" do\n    get \"/api/v1/profile/me.yaml\", headers: { \"HTTP_AUTHORIZATION\" => @auth }\n\n    assert_response :success\n\n    cache_control = @response.headers[\"Cache-Control\"].to_s\n\n    assert_includes cache_control, \"private\", \"got #{cache_control.inspect}\"\n    assert_includes cache_control, \"no-store\", \"got #{cache_control.inspect}\"\n    assert_equal \"max-age=0\", @response.headers[\"Surrogate-Control\"]\n    assert_includes @response.headers[\"Vary\"].to_s, \"Authorization\", \"got #{@response.headers['Vary'].inspect}\"\n  end\n\n  should \"keep the public profile cacheable\" do\n    get \"/api/v1/profiles/#{@user.handle}.json\"\n\n    assert_response :success\n    cache_control = @response.headers[\"Cache-Control\"].to_s\n\n    refute_includes cache_control, \"no-store\", \"got #{cache_control.inspect}\"\n  end\nend\n",
+      "revision": "d3d11c0ecfb3827778e1e1499372e351edaa83cc"
+    },
+    "reference": "https://github.com/rubygems/rubygems.org/blob/d3d11c0ecfb3827778e1e1499372e351edaa83cc/test/integration/api/v1/profiles_test.rb",
+    "retrieved_at": "2026-08-14T15:15:22.544292+00:00"
+  }
+}
