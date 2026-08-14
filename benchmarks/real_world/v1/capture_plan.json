@@ -2949,274 +2949,6 @@
       "vulnerability_target_network_access_allowed": false
     },
     {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-2p5x-4jr6-x5jg-positive",
-      "case_origin_id": "rwv1:GHSA-2P5X-4JR6-X5JG",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "csv_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/NeoRazorX/facturascripts/security-advisories/GHSA-2p5x-4jr6-x5jg",
-          "https://github.com/NeoRazorX/facturascripts/security/advisories/GHSA-2p5x-4jr6-x5jg"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "neorazorx/facturascripts",
-      "source_root": "GHSA-2P5X-4JR6-X5JG",
-      "source_taxonomy_match": {
-        "family_target": "csv_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-1236",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-1236",
-      "variant": "positive",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "facturascripts/facturascripts",
-          "vulnerable_version_range": "<= 2026.1"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "control_design_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "manual_control_design_then_controlled_observation",
-      "case_id": "rwv1-ghsa-2p5x-4jr6-x5jg-near_miss",
-      "case_origin_id": "rwv1:GHSA-2P5X-4JR6-X5JG",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "csv_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/NeoRazorX/facturascripts/security-advisories/GHSA-2p5x-4jr6-x5jg",
-          "https://github.com/NeoRazorX/facturascripts/security/advisories/GHSA-2p5x-4jr6-x5jg"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "neorazorx/facturascripts",
-      "source_root": "GHSA-2P5X-4JR6-X5JG",
-      "source_taxonomy_match": {
-        "family_target": "csv_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-1236",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-1236",
-      "variant": "near_miss",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "facturascripts/facturascripts",
-          "vulnerable_version_range": "<= 2026.1"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-2p5x-4jr6-x5jg-secure_negative",
-      "case_origin_id": "rwv1:GHSA-2P5X-4JR6-X5JG",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "csv_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/NeoRazorX/facturascripts/security-advisories/GHSA-2p5x-4jr6-x5jg",
-          "https://github.com/NeoRazorX/facturascripts/security/advisories/GHSA-2p5x-4jr6-x5jg"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "neorazorx/facturascripts",
-      "source_root": "GHSA-2P5X-4JR6-X5JG",
-      "source_taxonomy_match": {
-        "family_target": "csv_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-1236",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-1236",
-      "variant": "secure_negative",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "facturascripts/facturascripts",
-          "vulnerable_version_range": "<= 2026.1"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "ready_to_collect",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "minimal_source_metadata_observation",
-      "case_id": "rwv1-ghsa-2p5x-4jr6-x5jg-sparse_noisy",
-      "case_origin_id": "rwv1:GHSA-2P5X-4JR6-X5JG",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "csv_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/NeoRazorX/facturascripts/security-advisories/GHSA-2p5x-4jr6-x5jg",
-          "https://github.com/NeoRazorX/facturascripts/security/advisories/GHSA-2p5x-4jr6-x5jg"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "neorazorx/facturascripts",
-      "source_root": "GHSA-2P5X-4JR6-X5JG",
-      "source_taxonomy_match": {
-        "family_target": "csv_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-1236",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-1236",
-      "variant": "sparse_noisy",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "facturascripts/facturascripts",
-          "vulnerable_version_range": "<= 2026.1"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
       "capture_design_status": "ready_to_collect",
       "capture_execution_status": "not_started",
       "capture_feasibility": "strong_revision_boundary",
@@ -7888,274 +7620,6 @@
           "first_patched_version": "3.1.1",
           "package": "langgraph-checkpoint-sqlite",
           "vulnerable_version_range": "< 3.1.1"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-47w6-gwp4-w6vc-positive",
-      "case_origin_id": "rwv1:GHSA-47W6-GWP4-W6VC",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": null,
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/vantage6/vantage6/security-advisories/GHSA-47w6-gwp4-w6vc",
-          "https://github.com/vantage6/vantage6/security/advisories/GHSA-47w6-gwp4-w6vc"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "vantage6/vantage6",
-      "source_root": "GHSA-47W6-GWP4-W6VC",
-      "source_taxonomy_match": {
-        "family_target": null,
-        "final_family_assigned": false,
-        "status": "not_applicable_general_source",
-        "target_cwe": null,
-        "target_cwe_present": false
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": null,
-      "variant": "positive",
-      "version_boundaries": [
-        {
-          "ecosystem": "pip",
-          "first_patched_version": "",
-          "package": "vantage6",
-          "vulnerable_version_range": "<= 5.0.2"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "control_design_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "manual_control_design_then_controlled_observation",
-      "case_id": "rwv1-ghsa-47w6-gwp4-w6vc-near_miss",
-      "case_origin_id": "rwv1:GHSA-47W6-GWP4-W6VC",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": null,
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/vantage6/vantage6/security-advisories/GHSA-47w6-gwp4-w6vc",
-          "https://github.com/vantage6/vantage6/security/advisories/GHSA-47w6-gwp4-w6vc"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "vantage6/vantage6",
-      "source_root": "GHSA-47W6-GWP4-W6VC",
-      "source_taxonomy_match": {
-        "family_target": null,
-        "final_family_assigned": false,
-        "status": "not_applicable_general_source",
-        "target_cwe": null,
-        "target_cwe_present": false
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": null,
-      "variant": "near_miss",
-      "version_boundaries": [
-        {
-          "ecosystem": "pip",
-          "first_patched_version": "",
-          "package": "vantage6",
-          "vulnerable_version_range": "<= 5.0.2"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-47w6-gwp4-w6vc-secure_negative",
-      "case_origin_id": "rwv1:GHSA-47W6-GWP4-W6VC",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": null,
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/vantage6/vantage6/security-advisories/GHSA-47w6-gwp4-w6vc",
-          "https://github.com/vantage6/vantage6/security/advisories/GHSA-47w6-gwp4-w6vc"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "vantage6/vantage6",
-      "source_root": "GHSA-47W6-GWP4-W6VC",
-      "source_taxonomy_match": {
-        "family_target": null,
-        "final_family_assigned": false,
-        "status": "not_applicable_general_source",
-        "target_cwe": null,
-        "target_cwe_present": false
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": null,
-      "variant": "secure_negative",
-      "version_boundaries": [
-        {
-          "ecosystem": "pip",
-          "first_patched_version": "",
-          "package": "vantage6",
-          "vulnerable_version_range": "<= 5.0.2"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "ready_to_collect",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "minimal_source_metadata_observation",
-      "case_id": "rwv1-ghsa-47w6-gwp4-w6vc-sparse_noisy",
-      "case_origin_id": "rwv1:GHSA-47W6-GWP4-W6VC",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": null,
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": [
-          "https://api.github.com/repos/vantage6/vantage6/security-advisories/GHSA-47w6-gwp4-w6vc",
-          "https://github.com/vantage6/vantage6/security/advisories/GHSA-47w6-gwp4-w6vc"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "vantage6/vantage6",
-      "source_root": "GHSA-47W6-GWP4-W6VC",
-      "source_taxonomy_match": {
-        "family_target": null,
-        "final_family_assigned": false,
-        "status": "not_applicable_general_source",
-        "target_cwe": null,
-        "target_cwe_present": false
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": null,
-      "variant": "sparse_noisy",
-      "version_boundaries": [
-        {
-          "ecosystem": "pip",
-          "first_patched_version": "",
-          "package": "vantage6",
-          "vulnerable_version_range": "<= 5.0.2"
         }
       ],
       "vulnerability_target_network_access_allowed": false
@@ -16735,6 +16199,318 @@
     {
       "capture_design_status": "ready_to_collect",
       "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "controlled_vulnerable_revision_observation",
+      "case_id": "rwv1-ghsa-7c26-995w-6f47-positive",
+      "case_origin_id": "rwv1:GHSA-7C26-995W-6F47",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": null,
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/veraPDF/veraPDF-parser/commit/73d6ec002b98ce1f3f68640442f8e5d5613c80ce",
+          "https://github.com/veraPDF/veraPDF-parser/commit/cb3538607a549d63504299be1088c85ae48605f4"
+        ],
+        "compares": [],
+        "pulls": [
+          "https://github.com/veraPDF/veraPDF-parser/pull/703"
+        ],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/veraPDF/veraPDF-parser/security-advisories/GHSA-7c26-995w-6f47",
+          "https://github.com/veraPDF/veraPDF-parser/security/advisories/GHSA-7c26-995w-6f47"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "verapdf/verapdf-parser",
+      "source_root": "GHSA-7C26-995W-6F47",
+      "source_taxonomy_match": {
+        "family_target": null,
+        "final_family_assigned": false,
+        "status": "not_applicable_general_source",
+        "target_cwe": null,
+        "target_cwe_present": false
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": null,
+      "variant": "positive",
+      "version_boundaries": [
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.30.2",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": "<= 1.30.1"
+        },
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.31.23",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": ">= 1.31.1, <= 1.31.22"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "control_design_required",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "manual_control_design_then_controlled_observation",
+      "case_id": "rwv1-ghsa-7c26-995w-6f47-near_miss",
+      "case_origin_id": "rwv1:GHSA-7C26-995W-6F47",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": null,
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/veraPDF/veraPDF-parser/commit/73d6ec002b98ce1f3f68640442f8e5d5613c80ce",
+          "https://github.com/veraPDF/veraPDF-parser/commit/cb3538607a549d63504299be1088c85ae48605f4"
+        ],
+        "compares": [],
+        "pulls": [
+          "https://github.com/veraPDF/veraPDF-parser/pull/703"
+        ],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/veraPDF/veraPDF-parser/security-advisories/GHSA-7c26-995w-6f47",
+          "https://github.com/veraPDF/veraPDF-parser/security/advisories/GHSA-7c26-995w-6f47"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "verapdf/verapdf-parser",
+      "source_root": "GHSA-7C26-995W-6F47",
+      "source_taxonomy_match": {
+        "family_target": null,
+        "final_family_assigned": false,
+        "status": "not_applicable_general_source",
+        "target_cwe": null,
+        "target_cwe_present": false
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": null,
+      "variant": "near_miss",
+      "version_boundaries": [
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.30.2",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": "<= 1.30.1"
+        },
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.31.23",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": ">= 1.31.1, <= 1.31.22"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "controlled_patched_revision_observation",
+      "case_id": "rwv1-ghsa-7c26-995w-6f47-secure_negative",
+      "case_origin_id": "rwv1:GHSA-7C26-995W-6F47",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": null,
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/veraPDF/veraPDF-parser/commit/73d6ec002b98ce1f3f68640442f8e5d5613c80ce",
+          "https://github.com/veraPDF/veraPDF-parser/commit/cb3538607a549d63504299be1088c85ae48605f4"
+        ],
+        "compares": [],
+        "pulls": [
+          "https://github.com/veraPDF/veraPDF-parser/pull/703"
+        ],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/veraPDF/veraPDF-parser/security-advisories/GHSA-7c26-995w-6f47",
+          "https://github.com/veraPDF/veraPDF-parser/security/advisories/GHSA-7c26-995w-6f47"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "verapdf/verapdf-parser",
+      "source_root": "GHSA-7C26-995W-6F47",
+      "source_taxonomy_match": {
+        "family_target": null,
+        "final_family_assigned": false,
+        "status": "not_applicable_general_source",
+        "target_cwe": null,
+        "target_cwe_present": false
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": null,
+      "variant": "secure_negative",
+      "version_boundaries": [
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.30.2",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": "<= 1.30.1"
+        },
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.31.23",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": ">= 1.31.1, <= 1.31.22"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "minimal_source_metadata_observation",
+      "case_id": "rwv1-ghsa-7c26-995w-6f47-sparse_noisy",
+      "case_origin_id": "rwv1:GHSA-7C26-995W-6F47",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": null,
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/veraPDF/veraPDF-parser/commit/73d6ec002b98ce1f3f68640442f8e5d5613c80ce",
+          "https://github.com/veraPDF/veraPDF-parser/commit/cb3538607a549d63504299be1088c85ae48605f4"
+        ],
+        "compares": [],
+        "pulls": [
+          "https://github.com/veraPDF/veraPDF-parser/pull/703"
+        ],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/veraPDF/veraPDF-parser/security-advisories/GHSA-7c26-995w-6f47",
+          "https://github.com/veraPDF/veraPDF-parser/security/advisories/GHSA-7c26-995w-6f47"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "verapdf/verapdf-parser",
+      "source_root": "GHSA-7C26-995W-6F47",
+      "source_taxonomy_match": {
+        "family_target": null,
+        "final_family_assigned": false,
+        "status": "not_applicable_general_source",
+        "target_cwe": null,
+        "target_cwe_present": false
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": null,
+      "variant": "sparse_noisy",
+      "version_boundaries": [
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.30.2",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": "<= 1.30.1"
+        },
+        {
+          "ecosystem": "maven",
+          "first_patched_version": "1.31.23",
+          "package": "org.verapdf:parser",
+          "vulnerable_version_range": ">= 1.31.1, <= 1.31.22"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
       "capture_feasibility": "version_boundary_available",
       "capture_method": "controlled_vulnerable_version_observation",
       "case_id": "rwv1-ghsa-7jvp-hj45-2f2m-positive",
@@ -17856,6 +17632,270 @@
           "first_patched_version": "4.0.19",
           "package": "@astrojs/rss",
           "vulnerable_version_range": ">= 1.0.0, < 4.0.19"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "controlled_vulnerable_revision_observation",
+      "case_id": "rwv1-ghsa-8mf9-rmgw-33qc-positive",
+      "case_origin_id": "rwv1:GHSA-8MF9-RMGW-33QC",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "xpath_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/huggingface/smolagents/commit/f570ed5e17999d4cf7d5e79c2830fbaefab8a794"
+        ],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": []
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "huggingface/smolagents",
+      "source_root": "GHSA-8MF9-RMGW-33QC",
+      "source_taxonomy_match": {
+        "family_target": "xpath_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-643",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-643",
+      "variant": "positive",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "first_patched_version": "1.22.0",
+          "package": "smolagents",
+          "vulnerable_version_range": "< 1.22.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "control_design_required",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "manual_control_design_then_controlled_observation",
+      "case_id": "rwv1-ghsa-8mf9-rmgw-33qc-near_miss",
+      "case_origin_id": "rwv1:GHSA-8MF9-RMGW-33QC",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "xpath_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/huggingface/smolagents/commit/f570ed5e17999d4cf7d5e79c2830fbaefab8a794"
+        ],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": []
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "huggingface/smolagents",
+      "source_root": "GHSA-8MF9-RMGW-33QC",
+      "source_taxonomy_match": {
+        "family_target": "xpath_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-643",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-643",
+      "variant": "near_miss",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "first_patched_version": "1.22.0",
+          "package": "smolagents",
+          "vulnerable_version_range": "< 1.22.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "controlled_patched_revision_observation",
+      "case_id": "rwv1-ghsa-8mf9-rmgw-33qc-secure_negative",
+      "case_origin_id": "rwv1:GHSA-8MF9-RMGW-33QC",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "xpath_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/huggingface/smolagents/commit/f570ed5e17999d4cf7d5e79c2830fbaefab8a794"
+        ],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": []
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "huggingface/smolagents",
+      "source_root": "GHSA-8MF9-RMGW-33QC",
+      "source_taxonomy_match": {
+        "family_target": "xpath_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-643",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-643",
+      "variant": "secure_negative",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "first_patched_version": "1.22.0",
+          "package": "smolagents",
+          "vulnerable_version_range": "< 1.22.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "strong_revision_boundary",
+      "capture_method": "minimal_source_metadata_observation",
+      "case_id": "rwv1-ghsa-8mf9-rmgw-33qc-sparse_noisy",
+      "case_origin_id": "rwv1:GHSA-8MF9-RMGW-33QC",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "xpath_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [
+          "https://github.com/huggingface/smolagents/commit/f570ed5e17999d4cf7d5e79c2830fbaefab8a794"
+        ],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": []
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "huggingface/smolagents",
+      "source_root": "GHSA-8MF9-RMGW-33QC",
+      "source_taxonomy_match": {
+        "family_target": "xpath_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-643",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-643",
+      "variant": "sparse_noisy",
+      "version_boundaries": [
+        {
+          "ecosystem": "pip",
+          "first_patched_version": "1.22.0",
+          "package": "smolagents",
+          "vulnerable_version_range": "< 1.22.0"
         }
       ],
       "vulnerability_target_network_access_allowed": false
@@ -21383,6 +21423,274 @@
     {
       "capture_design_status": "ready_to_collect",
       "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "controlled_vulnerable_version_observation",
+      "case_id": "rwv1-ghsa-gq4g-fpc9-vjfq-positive",
+      "case_origin_id": "rwv1:GHSA-GQ4G-FPC9-VJFQ",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "account_enumeration",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/web-auth/webauthn-framework/security-advisories/GHSA-gq4g-fpc9-vjfq",
+          "https://github.com/web-auth/webauthn-framework/security/advisories/GHSA-gq4g-fpc9-vjfq"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "web-auth/webauthn-framework",
+      "source_root": "GHSA-GQ4G-FPC9-VJFQ",
+      "source_taxonomy_match": {
+        "family_target": "account_enumeration",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-204",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-204",
+      "variant": "positive",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "first_patched_version": "5.3.5",
+          "package": "web-auth/webauthn-lib",
+          "vulnerable_version_range": ">= 4.9.0, < 5.3.5"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "control_design_required",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "manual_control_design_then_controlled_observation",
+      "case_id": "rwv1-ghsa-gq4g-fpc9-vjfq-near_miss",
+      "case_origin_id": "rwv1:GHSA-GQ4G-FPC9-VJFQ",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "account_enumeration",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/web-auth/webauthn-framework/security-advisories/GHSA-gq4g-fpc9-vjfq",
+          "https://github.com/web-auth/webauthn-framework/security/advisories/GHSA-gq4g-fpc9-vjfq"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "web-auth/webauthn-framework",
+      "source_root": "GHSA-GQ4G-FPC9-VJFQ",
+      "source_taxonomy_match": {
+        "family_target": "account_enumeration",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-204",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-204",
+      "variant": "near_miss",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "first_patched_version": "5.3.5",
+          "package": "web-auth/webauthn-lib",
+          "vulnerable_version_range": ">= 4.9.0, < 5.3.5"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "controlled_patched_version_observation",
+      "case_id": "rwv1-ghsa-gq4g-fpc9-vjfq-secure_negative",
+      "case_origin_id": "rwv1:GHSA-GQ4G-FPC9-VJFQ",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "account_enumeration",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/web-auth/webauthn-framework/security-advisories/GHSA-gq4g-fpc9-vjfq",
+          "https://github.com/web-auth/webauthn-framework/security/advisories/GHSA-gq4g-fpc9-vjfq"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "web-auth/webauthn-framework",
+      "source_root": "GHSA-GQ4G-FPC9-VJFQ",
+      "source_taxonomy_match": {
+        "family_target": "account_enumeration",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-204",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-204",
+      "variant": "secure_negative",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "first_patched_version": "5.3.5",
+          "package": "web-auth/webauthn-lib",
+          "vulnerable_version_range": ">= 4.9.0, < 5.3.5"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "minimal_source_metadata_observation",
+      "case_id": "rwv1-ghsa-gq4g-fpc9-vjfq-sparse_noisy",
+      "case_origin_id": "rwv1:GHSA-GQ4G-FPC9-VJFQ",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "account_enumeration",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/web-auth/webauthn-framework/security-advisories/GHSA-gq4g-fpc9-vjfq",
+          "https://github.com/web-auth/webauthn-framework/security/advisories/GHSA-gq4g-fpc9-vjfq"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "web-auth/webauthn-framework",
+      "source_root": "GHSA-GQ4G-FPC9-VJFQ",
+      "source_taxonomy_match": {
+        "family_target": "account_enumeration",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-204",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-204",
+      "variant": "sparse_noisy",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "first_patched_version": "5.3.5",
+          "package": "web-auth/webauthn-lib",
+          "vulnerable_version_range": ">= 4.9.0, < 5.3.5"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
       "capture_feasibility": "strong_revision_boundary",
       "capture_method": "controlled_vulnerable_revision_observation",
       "case_id": "rwv1-ghsa-gqgw-jghv-mxwx-positive",
@@ -23988,282 +24296,6 @@
           "first_patched_version": "1.2.13",
           "package": "winter/wn-backend-module",
           "vulnerable_version_range": "<= 1.2.12"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-jhh7-832h-f8hv-positive",
-      "case_origin_id": "rwv1:GHSA-JHH7-832H-F8HV",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "account_enumeration",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [
-          "https://github.com/wp-graphql/wp-graphql/releases/tag/wp-graphql/v2.15.1"
-        ],
-        "repository_advisories": [
-          "https://api.github.com/repos/wp-graphql/wp-graphql/security-advisories/GHSA-jhh7-832h-f8hv",
-          "https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "wp-graphql/wp-graphql",
-      "source_root": "GHSA-JHH7-832H-F8HV",
-      "source_taxonomy_match": {
-        "family_target": "account_enumeration",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-204",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-204",
-      "variant": "positive",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "wp-graphql/wp-graphql",
-          "vulnerable_version_range": "<= 2.6.0"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "control_design_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "manual_control_design_then_controlled_observation",
-      "case_id": "rwv1-ghsa-jhh7-832h-f8hv-near_miss",
-      "case_origin_id": "rwv1:GHSA-JHH7-832H-F8HV",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "account_enumeration",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [
-          "https://github.com/wp-graphql/wp-graphql/releases/tag/wp-graphql/v2.15.1"
-        ],
-        "repository_advisories": [
-          "https://api.github.com/repos/wp-graphql/wp-graphql/security-advisories/GHSA-jhh7-832h-f8hv",
-          "https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "wp-graphql/wp-graphql",
-      "source_root": "GHSA-JHH7-832H-F8HV",
-      "source_taxonomy_match": {
-        "family_target": "account_enumeration",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-204",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-204",
-      "variant": "near_miss",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "wp-graphql/wp-graphql",
-          "vulnerable_version_range": "<= 2.6.0"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "source_research_required",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "source_reference_research_then_controlled_observation",
-      "case_id": "rwv1-ghsa-jhh7-832h-f8hv-secure_negative",
-      "case_origin_id": "rwv1:GHSA-JHH7-832H-F8HV",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "account_enumeration",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [
-          "https://github.com/wp-graphql/wp-graphql/releases/tag/wp-graphql/v2.15.1"
-        ],
-        "repository_advisories": [
-          "https://api.github.com/repos/wp-graphql/wp-graphql/security-advisories/GHSA-jhh7-832h-f8hv",
-          "https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "wp-graphql/wp-graphql",
-      "source_root": "GHSA-JHH7-832H-F8HV",
-      "source_taxonomy_match": {
-        "family_target": "account_enumeration",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-204",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-204",
-      "variant": "secure_negative",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "wp-graphql/wp-graphql",
-          "vulnerable_version_range": "<= 2.6.0"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "ready_to_collect",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "source_reference_available",
-      "capture_method": "minimal_source_metadata_observation",
-      "case_id": "rwv1-ghsa-jhh7-832h-f8hv-sparse_noisy",
-      "case_origin_id": "rwv1:GHSA-JHH7-832H-F8HV",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "account_enumeration",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [
-          "https://github.com/wp-graphql/wp-graphql/releases/tag/wp-graphql/v2.15.1"
-        ],
-        "repository_advisories": [
-          "https://api.github.com/repos/wp-graphql/wp-graphql/security-advisories/GHSA-jhh7-832h-f8hv",
-          "https://github.com/wp-graphql/wp-graphql/security/advisories/GHSA-jhh7-832h-f8hv"
-        ]
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "wp-graphql/wp-graphql",
-      "source_root": "GHSA-JHH7-832H-F8HV",
-      "source_taxonomy_match": {
-        "family_target": "account_enumeration",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-204",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-204",
-      "variant": "sparse_noisy",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "wp-graphql/wp-graphql",
-          "vulnerable_version_range": "<= 2.6.0"
         }
       ],
       "vulnerability_target_network_access_allowed": false
@@ -28357,262 +28389,6 @@
       "vulnerability_target_network_access_allowed": false
     },
     {
-      "capture_design_status": "blocked",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "manual_source_research_required",
-      "capture_method": "blocked_manual_source_research",
-      "case_id": "rwv1-ghsa-r7vr-wg3f-8hr9-positive",
-      "case_origin_id": "rwv1:GHSA-R7VR-WG3F-8HR9",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "xpath_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": []
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "concretecms/concretecms",
-      "source_root": "GHSA-R7VR-WG3F-8HR9",
-      "source_taxonomy_match": {
-        "family_target": "xpath_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-643",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-643",
-      "variant": "positive",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "concrete5/concrete5",
-          "vulnerable_version_range": "= 9.1.3"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "blocked",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "manual_source_research_required",
-      "capture_method": "blocked_manual_source_research",
-      "case_id": "rwv1-ghsa-r7vr-wg3f-8hr9-near_miss",
-      "case_origin_id": "rwv1:GHSA-R7VR-WG3F-8HR9",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "xpath_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": []
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "concretecms/concretecms",
-      "source_root": "GHSA-R7VR-WG3F-8HR9",
-      "source_taxonomy_match": {
-        "family_target": "xpath_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-643",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-643",
-      "variant": "near_miss",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "concrete5/concrete5",
-          "vulnerable_version_range": "= 9.1.3"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "blocked",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "manual_source_research_required",
-      "capture_method": "blocked_manual_source_research",
-      "case_id": "rwv1-ghsa-r7vr-wg3f-8hr9-secure_negative",
-      "case_origin_id": "rwv1:GHSA-R7VR-WG3F-8HR9",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "xpath_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": []
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "concretecms/concretecms",
-      "source_root": "GHSA-R7VR-WG3F-8HR9",
-      "source_taxonomy_match": {
-        "family_target": "xpath_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-643",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-643",
-      "variant": "secure_negative",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "concrete5/concrete5",
-          "vulnerable_version_range": "= 9.1.3"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
-      "capture_design_status": "blocked",
-      "capture_execution_status": "not_started",
-      "capture_feasibility": "manual_source_research_required",
-      "capture_method": "blocked_manual_source_research",
-      "case_id": "rwv1-ghsa-r7vr-wg3f-8hr9-sparse_noisy",
-      "case_origin_id": "rwv1:GHSA-R7VR-WG3F-8HR9",
-      "credential_use_allowed": false,
-      "evaluation_role": "fresh_candidate",
-      "family_assignment_is_final": false,
-      "family_target": "xpath_injection",
-      "payload_generation_allowed": false,
-      "proposed_provenance": "curated_real_world_replay",
-      "public_source_only": true,
-      "reference_inventory": {
-        "commits": [],
-        "compares": [],
-        "pulls": [],
-        "releases": [],
-        "repository_advisories": []
-      },
-      "review": {
-        "evidence_quality": {
-          "directness": null,
-          "freshness": null,
-          "independence": null,
-          "reliability": null,
-          "reproducibility": null,
-          "specificity": null,
-          "uncertainty": null
-        },
-        "evidence_snapshot_id": null,
-        "final_family": null,
-        "human_verified": false,
-        "label": null,
-        "label_source": null,
-        "reviewed_at": null,
-        "reviewer_id": null
-      },
-      "scoring_executed": false,
-      "source_acquisition_network_only": true,
-      "source_project": "concretecms/concretecms",
-      "source_root": "GHSA-R7VR-WG3F-8HR9",
-      "source_taxonomy_match": {
-        "family_target": "xpath_injection",
-        "final_family_assigned": false,
-        "status": "exact_target_cwe_match",
-        "target_cwe": "CWE-643",
-        "target_cwe_present": true
-      },
-      "state_mutation_allowed": false,
-      "target_contact_performed": false,
-      "target_cwe": "CWE-643",
-      "variant": "sparse_noisy",
-      "version_boundaries": [
-        {
-          "ecosystem": "composer",
-          "first_patched_version": "",
-          "package": "concrete5/concrete5",
-          "vulnerable_version_range": "= 9.1.3"
-        }
-      ],
-      "vulnerability_target_network_access_allowed": false
-    },
-    {
       "capture_design_status": "ready_to_collect",
       "capture_execution_status": "not_started",
       "capture_feasibility": "strong_revision_boundary",
@@ -30347,33 +30123,299 @@
         }
       ],
       "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "controlled_vulnerable_version_observation",
+      "case_id": "rwv1-ghsa-xqjm-27pc-rvwm-positive",
+      "case_origin_id": "rwv1:GHSA-XQJM-27PC-RVWM",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "csv_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/actualbudget/actual/security-advisories/GHSA-xqjm-27pc-rvwm",
+          "https://github.com/actualbudget/actual/security/advisories/GHSA-xqjm-27pc-rvwm"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "actualbudget/actual",
+      "source_root": "GHSA-XQJM-27PC-RVWM",
+      "source_taxonomy_match": {
+        "family_target": "csv_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-1236",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-1236",
+      "variant": "positive",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "first_patched_version": "26.6.0",
+          "package": "@actual-app/web",
+          "vulnerable_version_range": "< 26.6.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "control_design_required",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "manual_control_design_then_controlled_observation",
+      "case_id": "rwv1-ghsa-xqjm-27pc-rvwm-near_miss",
+      "case_origin_id": "rwv1:GHSA-XQJM-27PC-RVWM",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "csv_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/actualbudget/actual/security-advisories/GHSA-xqjm-27pc-rvwm",
+          "https://github.com/actualbudget/actual/security/advisories/GHSA-xqjm-27pc-rvwm"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "actualbudget/actual",
+      "source_root": "GHSA-XQJM-27PC-RVWM",
+      "source_taxonomy_match": {
+        "family_target": "csv_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-1236",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-1236",
+      "variant": "near_miss",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "first_patched_version": "26.6.0",
+          "package": "@actual-app/web",
+          "vulnerable_version_range": "< 26.6.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "controlled_patched_version_observation",
+      "case_id": "rwv1-ghsa-xqjm-27pc-rvwm-secure_negative",
+      "case_origin_id": "rwv1:GHSA-XQJM-27PC-RVWM",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "csv_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/actualbudget/actual/security-advisories/GHSA-xqjm-27pc-rvwm",
+          "https://github.com/actualbudget/actual/security/advisories/GHSA-xqjm-27pc-rvwm"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "actualbudget/actual",
+      "source_root": "GHSA-XQJM-27PC-RVWM",
+      "source_taxonomy_match": {
+        "family_target": "csv_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-1236",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-1236",
+      "variant": "secure_negative",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "first_patched_version": "26.6.0",
+          "package": "@actual-app/web",
+          "vulnerable_version_range": "< 26.6.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
+    },
+    {
+      "capture_design_status": "ready_to_collect",
+      "capture_execution_status": "not_started",
+      "capture_feasibility": "version_boundary_available",
+      "capture_method": "minimal_source_metadata_observation",
+      "case_id": "rwv1-ghsa-xqjm-27pc-rvwm-sparse_noisy",
+      "case_origin_id": "rwv1:GHSA-XQJM-27PC-RVWM",
+      "credential_use_allowed": false,
+      "evaluation_role": "fresh_candidate",
+      "family_assignment_is_final": false,
+      "family_target": "csv_injection",
+      "payload_generation_allowed": false,
+      "proposed_provenance": "curated_real_world_replay",
+      "public_source_only": true,
+      "reference_inventory": {
+        "commits": [],
+        "compares": [],
+        "pulls": [],
+        "releases": [],
+        "repository_advisories": [
+          "https://api.github.com/repos/actualbudget/actual/security-advisories/GHSA-xqjm-27pc-rvwm",
+          "https://github.com/actualbudget/actual/security/advisories/GHSA-xqjm-27pc-rvwm"
+        ]
+      },
+      "review": {
+        "evidence_quality": {
+          "directness": null,
+          "freshness": null,
+          "independence": null,
+          "reliability": null,
+          "reproducibility": null,
+          "specificity": null,
+          "uncertainty": null
+        },
+        "evidence_snapshot_id": null,
+        "final_family": null,
+        "human_verified": false,
+        "label": null,
+        "label_source": null,
+        "reviewed_at": null,
+        "reviewer_id": null
+      },
+      "scoring_executed": false,
+      "source_acquisition_network_only": true,
+      "source_project": "actualbudget/actual",
+      "source_root": "GHSA-XQJM-27PC-RVWM",
+      "source_taxonomy_match": {
+        "family_target": "csv_injection",
+        "final_family_assigned": false,
+        "status": "exact_target_cwe_match",
+        "target_cwe": "CWE-1236",
+        "target_cwe_present": true
+      },
+      "state_mutation_allowed": false,
+      "target_contact_performed": false,
+      "target_cwe": "CWE-1236",
+      "variant": "sparse_noisy",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "first_patched_version": "26.6.0",
+          "package": "@actual-app/web",
+          "vulnerable_version_range": "< 26.6.0"
+        }
+      ],
+      "vulnerability_target_network_access_allowed": false
     }
   ],
   "evaluation_kind": "real_world_corpus_v1_controlled_capture_plan",
   "family_assignment_is_final": false,
   "human_labels_created": false,
   "next_transition": "resolve_source_research_and_near_miss_control_design_before_capture_execution",
-  "plan_sha256": "0d8245d194651546febeac369acd4e95f3d9dd11764c70b4281c21c12a0cb3bf",
+  "plan_sha256": "ebff8b4ef135d97b870ea44b7fd5fb5219d28aaabbe3f84860efaebbc65790a5",
   "rule_version": "2026.08.14.6",
   "scoring_executed": false,
-  "status": "capture_plan_complete_with_research_blockers",
+  "status": "capture_plan_complete",
   "target_contact_performed": false,
   "validation": {
-    "blocked_case_count": 4,
+    "blocked_case_count": 0,
     "case_count": 400,
-    "control_design_required_count": 99,
+    "control_design_required_count": 100,
     "design_status_counts": {
-      "blocked": 4,
-      "control_design_required": 99,
-      "ready_to_collect": 291,
-      "source_research_required": 6
+      "control_design_required": 100,
+      "ready_to_collect": 300
     },
     "errors": [],
     "family_target_count": 60,
     "passed": true,
-    "ready_to_collect_count": 291,
+    "ready_to_collect_count": 300,
     "source_origin_count": 100,
-    "source_research_required_count": 6,
+    "source_research_required_count": 0,
     "unique_source_project_count": 100,
     "unique_source_root_count": 100
   },
