@@ -31,7 +31,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          from raw_recon_v6_source_firewall import check_candidate
+          from raw_recon_v6_source_firewall import canonical_url, exposure_index
 
           src = Path('benchmarks/raw/sources')
           targets = {
@@ -97,6 +97,25 @@ jobs:
           if keyword.exists():
               pools.append(load_pool(keyword))
 
+          grounding = json.loads((src/'v6_owasp_writeup_grounding.json').read_text())
+          prior = exposure_index()
+          def firewall_allowed(row):
+              source_root = str(row.get('source_root') or '').strip()
+              source_project = str(row.get('source_project') or '').strip()
+              if not source_root or not source_project:
+                  return False
+              if source_root in prior['roots'] or source_project in prior['projects']:
+                  return False
+              urls = {
+                  canonical_url(row.get('canonical_advisory_url')),
+                  canonical_url(row.get('repository_advisory_url')),
+                  canonical_url(row.get('source_code_location')),
+                  canonical_url(row.get('source_url')),
+              }
+              urls.update(canonical_url(value) for value in row.get('references') or [])
+              urls.discard('')
+              return not bool(urls & prior['urls'])
+
           selected = {}
           diagnostics = {}
           used_roots = set()
@@ -106,13 +125,12 @@ jobs:
               seen = set()
               for pool in pools:
                   for raw in pool.get(family) or []:
-                      root = str(raw.get('source_root') or '').strip()
+                      source_root = str(raw.get('source_root') or '').strip()
                       project = str(raw.get('source_project') or '').strip()
-                      if not root or not project or (root, project) in seen:
+                      if not source_root or not project or (source_root, project) in seen:
                           continue
-                      seen.add((root, project))
-                      firewall = check_candidate(raw)
-                      if not firewall['allowed']:
+                      seen.add((source_root, project))
+                      if not firewall_allowed(raw):
                           continue
                       text = (' '.join([
                           str(raw.get('summary') or ''),
@@ -125,7 +143,7 @@ jobs:
                       if not all(group_hits):
                           continue
                       row = dict(raw)
-                      row['wstg_ids'] = json.loads((src/'v6_owasp_writeup_grounding.json').read_text())['families'][family]['wstg_ids']
+                      row['wstg_ids'] = grounding['families'][family]['wstg_ids']
                       row['semantic_facts'] = sorted({hit for group in group_hits for hit in group})
                       row['owasp_grounding_audit'] = {
                           'passed': True,
@@ -138,11 +156,11 @@ jobs:
               eligible.sort(key=lambda item: item[:3], reverse=True)
               chosen = None
               for _, _, _, row in eligible:
-                  root = str(row['source_root']); project = str(row['source_project'])
-                  if root in used_roots or project in used_projects:
+                  source_root = str(row['source_root']); project = str(row['source_project'])
+                  if source_root in used_roots or project in used_projects:
                       continue
                   chosen = row
-                  used_roots.add(root); used_projects.add(project)
+                  used_roots.add(source_root); used_projects.add(project)
                   break
               if chosen is not None:
                   selected[family] = chosen
@@ -154,7 +172,7 @@ jobs:
 
           missing = sorted(targets - set(selected))
           report = {
-              'version': '1.0.0',
+              'version': '1.0.1',
               'rule_version': '2026.08.14.6.31',
               'evaluation_kind': 'fresh_blind_v6_unscored_owasp_pool_selection',
               'scoring_executed': False,
