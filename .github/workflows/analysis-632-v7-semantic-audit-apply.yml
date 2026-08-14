@@ -31,7 +31,9 @@ jobs:
           python -m py_compile app/v7_source_semantic_audit.py app/v7_pre_score_condition_audit.py app/raw_recon_v7_patch_probe.py app/raw_recon_v7_source_selection.py
           python - <<'PY'
           from v7_pre_score_condition_audit import validate_registry
-          assert validate_registry() == [], validate_registry()
+          errors=validate_registry()
+          print({'v7_condition_registry_errors': errors})
+          assert errors == [], errors
           PY
       - name: Commit v7 semantic audit wiring
         shell: bash
