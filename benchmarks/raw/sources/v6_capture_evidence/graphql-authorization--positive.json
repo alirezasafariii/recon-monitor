@@ -1,0 +1,84 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "resolver_authorization_failure"
+    ],
+    "notes": "Execution of the exact vulnerable GraphQL resource config showed the admin role authorized for locale.site.save, a site-management operation later restricted by the security fix.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/aimeos/ai-admin-graphql/commit/992727260f9f73d2af3cf8079230e02325182f73",
+  "captured_at": "2026-08-14T06:43:28Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "php capture_graphql_auth.php",
+    "source_file": "config/admin/graphql/resource.php",
+    "tool": "PHP execution of exact upstream GraphQL resource authorization config"
+  },
+  "family": "graphql_authorization",
+  "raw": {
+    "business_context": "graphql_admin_resource_authorization",
+    "details": {
+      "capture_environment": "GitHub Actions isolated execution of exact upstream PHP configuration",
+      "graphql_authorization_config": {
+        "allowed_roles": [
+          "admin",
+          "super"
+        ],
+        "captured_at": "2026-08-14T06:43:28Z",
+        "case_kind": "positive",
+        "graphql_resource_path": [
+          "locale",
+          "site",
+          "save"
+        ],
+        "role_checks": {
+          "admin_authorized": true,
+          "editor_authorized": false,
+          "super_authorized": true
+        },
+        "upstream_revision": "992727260f9f73d2af3cf8079230e02325182f73",
+        "upstream_source_file": "config/admin/graphql/resource.php"
+      }
+    },
+    "endpoint": "admin/graphql/resource/locale/site/save",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GRAPHQL_AUTHORIZATION_CONFIG",
+    "target": "controlled-local-aimeos-graphql-config"
+  },
+  "raw_sha256": "51ea6a11c63ef15a7d27b138512497fe0762c3a8a8b76d818a285f4b47130277",
+  "schema_version": "1.0",
+  "source_project": "aimeos/ai-admin-graphql",
+  "source_root": "GHSA-jj68-cp4v-98qf",
+  "source_snapshot": {
+    "content_sha256": "ea9c22e6adaa8d01ca6322c97df0fb79cdf86c03b3a8274d09fc1a0174543613",
+    "payload": {
+      "allowed_roles": [
+        "admin",
+        "super"
+      ],
+      "captured_at": "2026-08-14T06:43:28Z",
+      "case_kind": "positive",
+      "graphql_resource_path": [
+        "locale",
+        "site",
+        "save"
+      ],
+      "role_checks": {
+        "admin_authorized": true,
+        "editor_authorized": false,
+        "super_authorized": true
+      },
+      "upstream_revision": "992727260f9f73d2af3cf8079230e02325182f73",
+      "upstream_source_file": "config/admin/graphql/resource.php"
+    },
+    "reference": "https://github.com/aimeos/ai-admin-graphql/commit/992727260f9f73d2af3cf8079230e02325182f73",
+    "retrieved_at": "2026-08-14T06:43:28Z"
+  }
+}
