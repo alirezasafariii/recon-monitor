@@ -5,13 +5,18 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
-from raw_recon_v7_source_firewall import PRIOR_SCOPE
+from raw_recon_v7_source_firewall import HARD_SCOPE, RESEARCH_SCOPE
 from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
-from raw_recon_v7_source_firewall import check_candidate, validate_shortlist
+from raw_recon_v7_source_firewall import (
+    check_candidate,
+    engine_exposure_index,
+    research_exposure_index,
+    validate_shortlist,
+)
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.33.v7.unseen.1"
+VERSION = "1.2.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.3"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 OUT = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 
@@ -24,21 +29,32 @@ def _quality_key(row: Mapping[str, Any], family: str) -> tuple[Any, ...]:
     repository_location = int(bool(str(row.get("source_code_location") or row.get("repository_advisory_url") or "").strip()))
     description_length = min(len(str(row.get("description") or "")), 5000)
     published = str(row.get("published_at") or "")
+    # Prefer sources that are new even to historical research metadata, while
+    # allowing research-preexposed sources only when needed for complete family
+    # coverage. Engine-seen sources never reach this sorter.
+    research_fresh = int(not bool(row.get("v7_research_preexposed")))
     return (
-        int(passed), score, reviewed, repository_location, description_length, published,
-        str(row.get("source_root") or ""), str(row.get("source_project") or ""),
+        int(passed), research_fresh, score, reviewed, repository_location,
+        description_length, published, str(row.get("source_root") or ""),
+        str(row.get("source_project") or ""),
     )
 
 
-def _prepare_pool(family: str, rows: list[Any]) -> list[dict[str, Any]]:
+def _prepare_pool(
+    family: str,
+    rows: list[Any],
+    *,
+    hard_index: Mapping[str, set[str]],
+    research_index: Mapping[str, set[str]],
+) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     seen_roots: set[str] = set()
     for raw in rows:
         if not isinstance(raw, Mapping):
             continue
         row = dict(raw)
-        firewall = check_candidate(row)
-        if not firewall["allowed"]:
+        firewall = check_candidate(row, index=hard_index, research_index=research_index)
+        if not firewall["allowed"] or firewall["engine_seen"]:
             continue
         passed, hits, score = audit_row(family, row)
         if not passed:
@@ -51,15 +67,18 @@ def _prepare_pool(family: str, rows: list[Any]) -> list[dict[str, Any]]:
         row.update({
             "family": family,
             "v7_firewall_allowed": True,
+            "v7_engine_seen": False,
+            "v7_research_preexposed": bool(firewall["research_preexposed"]),
             "v7_firewall_version": FIREWALL_VERSION,
             "v7_firewall_rule_version": FIREWALL_RULE_VERSION,
             "source_family_audit_version": AUDIT_VERSION,
             "source_family_audit_rule_version": AUDIT_RULE_VERSION,
             "source_family_audit_group_hits": hits,
             "source_family_audit_score": score,
-            "source_selection_track": "fresh_v7_strict_unseen_global_semantic_pool",
-            "selection_basis": "fresh passive source selected before scoring by preregistered semantic audit, strict V1-V6 plus pinned Corpus V1 firewall, and global root/project uniqueness",
-            "prior_exposure_scope": PRIOR_SCOPE,
+            "source_selection_track": "fresh_v7_engine_unseen_global_semantic_pool",
+            "selection_basis": "passive source selected before scoring by preregistered semantic audit; hard-blocked against all materialized/scored Analysis corpora and pinned Corpus V1; research-only preexposure recorded and deprioritized; global root/project uniqueness enforced",
+            "hard_engine_exposure_scope": HARD_SCOPE,
+            "research_preexposure_scope": RESEARCH_SCOPE,
             "selection_uses_v6_score": False,
             "selection_uses_v6_case_errors": False,
             "selection_uses_corpus_v1_labels": False,
@@ -113,28 +132,42 @@ def select() -> dict[str, Any]:
     families = sorted(str(family) for family in raw_pools)
     if len(families) != 36:
         raise RuntimeError(f"v7 discovery family coverage must be 36, got {len(families)}")
-    pools = {family: _prepare_pool(family, list(raw_pools.get(family) or [])) for family in families}
+
+    hard_index = engine_exposure_index()
+    research_index = research_exposure_index()
+    pools = {
+        family: _prepare_pool(
+            family,
+            list(raw_pools.get(family) or []),
+            hard_index=hard_index,
+            research_index=research_index,
+        )
+        for family in families
+    }
     missing = sorted(family for family, rows in pools.items() if not rows)
     selected = None if missing else _solve(families, pools)
     if not missing and selected is None:
         raise RuntimeError("v7 global uniqueness solver found no complete 36-family assignment")
     firewall = validate_shortlist(selected or [], required_count=36) if selected is not None else {
         "passed": False, "errors": ["semantic candidate coverage incomplete"], "candidate_count": 0,
-        "unique_root_count": 0, "unique_project_count": 0, "rejected": [],
-        "firewall_version": FIREWALL_VERSION, "firewall_rule_version": FIREWALL_RULE_VERSION,
-        "prior_scope": PRIOR_SCOPE, "scoring_executed": False,
+        "unique_root_count": 0, "unique_project_count": 0, "engine_seen_count": 0,
+        "research_preexposed_count": 0, "rejected": [], "firewall_version": FIREWALL_VERSION,
+        "firewall_rule_version": FIREWALL_RULE_VERSION, "hard_scope": HARD_SCOPE,
+        "research_scope": RESEARCH_SCOPE, "scoring_executed": False,
     }
     report = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
-        "evaluation_kind": "fresh_blind_v7_strict_unseen_unscored_source_selection",
+        "evaluation_kind": "fresh_blind_v7_engine_unseen_unscored_source_selection",
         "family_count": 36,
         "selected": selected or [],
         "semantic_candidate_counts": {family: len(rows) for family, rows in pools.items()},
         "families_without_semantic_candidates": missing,
         "global_assignment_complete": selected is not None,
         "firewall": firewall,
-        "prior_exposure_scope": PRIOR_SCOPE,
+        "hard_engine_exposure_scope": HARD_SCOPE,
+        "research_preexposure_scope": RESEARCH_SCOPE,
+        "selected_research_preexposed_count": sum(bool(row.get("v7_research_preexposed")) for row in (selected or [])),
         "source_family_audit_version": AUDIT_VERSION,
         "source_family_audit_rule_version": AUDIT_RULE_VERSION,
         "selection_uses_detector_scores": False,
@@ -161,6 +194,8 @@ def main() -> int:
         "families_without_semantic_candidates": report["families_without_semantic_candidates"],
         "global_assignment_complete": report["global_assignment_complete"],
         "firewall_passed": report["firewall"]["passed"],
+        "engine_seen_count": report["firewall"].get("engine_seen_count"),
+        "selected_research_preexposed_count": report["selected_research_preexposed_count"],
         "scoring_executed": report["scoring_executed"],
     }, sort_keys=True))
     return 0 if report["global_assignment_complete"] and report["firewall"]["passed"] else 2
