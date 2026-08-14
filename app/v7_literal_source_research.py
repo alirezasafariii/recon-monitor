@@ -15,12 +15,13 @@ from urllib.parse import urlparse
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = '1.2.0'
-RULE_VERSION = '2026.08.14.6.33.v7.capture.research.2'
+VERSION = '1.2.1'
+RULE_VERSION = '2026.08.14.6.33.v7.capture.research.3'
 SHORTLIST = ROOT / 'benchmarks/raw/sources/v7_shortlist.json'
 OUTPUT = ROOT / 'benchmarks/raw/sources/v7_literal_source_research.json'
 GHSA_RE = re.compile(r'^GHSA-[0-9a-z-]+$', re.I)
 MAX_BYTES = 2 * 1024 * 1024
+URL_RE = re.compile(r"https://[^\s)\]>'\"]+")
 
 
 def _sha(value: Any) -> str:
@@ -67,7 +68,7 @@ def _links(payload: Mapping[str, Any]) -> list[str]:
     for v in payload.get('references') or []:
         if isinstance(v,str) and v.startswith('https://'): out.add(v)
     body=str(payload.get('body') or payload.get('description') or '')
-    for m in re.findall(r'https://[^\s)\]>'\"]+',body): out.add(m.rstrip('.,;:'))
+    for m in URL_RE.findall(body): out.add(m.rstrip('.,;:'))
     return sorted(out)
 
 
