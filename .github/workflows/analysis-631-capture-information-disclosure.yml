@@ -1,0 +1,328 @@
+name: Analysis 6.31 Capture Information Disclosure
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-capture-information-disclosure.yml
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout recon repository read-only
+        uses: actions/checkout@v4
+        with:
+          path: recon
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.1.2 --activate
+          pnpm --version
+
+      - name: Checkout vulnerable Etherpad v3.0.0 without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: ether/etherpad
+          ref: v3.0.0
+          path: ether-vuln
+          persist-credentials: false
+
+      - name: Install vulnerable Etherpad dependencies
+        working-directory: ether-vuln
+        run: pnpm install --frozen-lockfile
+
+      - name: Add local vulnerable exchange capture spec
+        run: |
+          cat > ether-vuln/src/tests/backend/specs/v6_information_disclosure_capture.ts <<'TS'
+          'use strict';
+          const common = require('../common');
+          import settings from '../../../node/utils/Settings';
+          import fs from 'node:fs';
+
+          let agent: any;
+          describe('Analysis 6.31 controlled vulnerable tokenTransfer capture', function () {
+            before(async function () { agent = await common.init(); });
+            it('captures cleartext author token response from v3.0.0', async function () {
+              const prefix = settings.cookie.prefix || '';
+              const token = 't.v6-controlled-positive';
+              const post = await agent.post('/tokenTransfer')
+                  .set('Cookie', `${prefix}token=${token}`)
+                  .send({prefsHttp: 'theme=dark'})
+                  .expect(200);
+              if (typeof post.body.id !== 'string' || !post.body.id) throw new Error('missing transfer id');
+              const get = await agent.get(`/tokenTransfer/${post.body.id}`).expect(200);
+              if (get.body.token !== token) throw new Error(`expected vulnerable cleartext token; got ${JSON.stringify(get.body)}`);
+              const output = {
+                captured_at: new Date().toISOString(),
+                upstream_revision: 'v3.0.0',
+                request: {method: 'GET', path_template: '/tokenTransfer/{id}', id: post.body.id},
+                response: {status_code: get.status, headers: {'set-cookie': get.headers['set-cookie'] || []}, body: get.body},
+                setup: {post_status_code: post.status, post_body: post.body, author_cookie_value: token},
+              };
+              fs.writeFileSync(process.env.V6_CAPTURE_OUT!, JSON.stringify(output, null, 2) + '\n');
+            });
+          });
+          TS
+
+      - name: Run vulnerable controlled capture
+        working-directory: ether-vuln/src
+        env:
+          V6_CAPTURE_OUT: ${{ github.workspace }}/information-disclosure-positive.json
+        run: pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts
+
+      - name: Remove vulnerable checkout before patched execution
+        run: rm -rf ether-vuln
+
+      - name: Checkout patched Etherpad PR head without credentials
+        uses: actions/checkout@v4
+        with:
+          repository: ether/etherpad
+          ref: 29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b
+          path: ether-patched
+          persist-credentials: false
+
+      - name: Install patched Etherpad dependencies
+        working-directory: ether-patched
+        run: pnpm install --frozen-lockfile
+
+      - name: Add local patched exchange capture spec
+        run: |
+          cat > ether-patched/src/tests/backend/specs/v6_information_disclosure_capture.ts <<'TS'
+          'use strict';
+          const common = require('../common');
+          import settings from '../../../node/utils/Settings';
+          import fs from 'node:fs';
+
+          const db = require('../../../node/db/DB');
+          let agent: any;
+          const write = (name: string, value: any) => fs.writeFileSync(`${process.env.V6_CAPTURE_DIR}/${name}.json`, JSON.stringify(value, null, 2) + '\n');
+
+          describe('Analysis 6.31 controlled patched tokenTransfer captures', function () {
+            before(async function () { agent = await common.init(); });
+            const prefix = () => settings.cookie.prefix || '';
+            const postTransfer = async (token: string, body: object = {}) => {
+              const res = await agent.post('/tokenTransfer').set('Cookie', `${prefix()}token=${token}`).send(body).expect(200);
+              if (typeof res.body.id !== 'string' || !res.body.id) throw new Error('missing transfer id');
+              return {id: res.body.id, res};
+            };
+
+            it('captures patched happy path without token in body', async function () {
+              const token = 't.v6-controlled-secure';
+              const {id, res: post} = await postTransfer(token, {prefsHttp: 'theme=dark'});
+              const get = await agent.get(`/tokenTransfer/${id}`).expect(200);
+              if ('token' in get.body) throw new Error(`patched response leaked token: ${JSON.stringify(get.body)}`);
+              write('information-disclosure-secure-negative', {
+                captured_at: new Date().toISOString(), upstream_revision: '29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                request: {method: 'GET', path_template: '/tokenTransfer/{id}', id},
+                response: {status_code: get.status, headers: {'set-cookie': get.headers['set-cookie'] || []}, body: get.body},
+                setup: {post_status_code: post.status, post_body: post.body},
+              });
+            });
+
+            it('captures unknown-id near miss', async function () {
+              const id = `does-not-exist-${Date.now()}`;
+              const get = await agent.get(`/tokenTransfer/${id}`).expect(404);
+              write('information-disclosure-near-miss', {
+                captured_at: new Date().toISOString(), upstream_revision: '29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                request: {method: 'GET', path_template: '/tokenTransfer/{id}', id},
+                response: {status_code: get.status, headers: {}, body: get.body},
+              });
+            });
+
+            it('captures missing-cookie sparse control', async function () {
+              const post = await agent.post('/tokenTransfer').send({prefsHttp: ''}).expect(400);
+              write('information-disclosure-sparse-noisy', {
+                captured_at: new Date().toISOString(), upstream_revision: '29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                request: {method: 'POST', path: '/tokenTransfer', body: {prefsHttp: ''}, author_cookie_present: false},
+                response: {status_code: post.status, headers: {}, body: post.body},
+              });
+            });
+          });
+          TS
+
+      - name: Run patched controlled captures
+        working-directory: ether-patched/src
+        env:
+          V6_CAPTURE_DIR: ${{ github.workspace }}
+        run: pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts
+
+      - name: Assert four independent capture outputs
+        run: |
+          test -s information-disclosure-positive.json
+          test -s information-disclosure-near-miss.json
+          test -s information-disclosure-secure-negative.json
+          test -s information-disclosure-sparse-noisy.json
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          paths = sorted(Path('.').glob('information-disclosure-*.json'))
+          assert len(paths) == 4, paths
+          hashes = {hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
+          assert len(hashes) == 4, hashes
+          for path in paths:
+              value = json.loads(path.read_text())
+              assert value['captured_at'].endswith('Z')
+              assert value['response']['status_code'] in {200, 400, 404}
+          PY
+
+      - name: Upload controlled capture outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-631-information-disclosure-captures
+          path: information-disclosure-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout recon repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download read-only capture job outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: analysis-631-information-disclosure-captures
+          path: captured
+      - name: Build hash-bound evidence artifacts from actual exchanges
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from v6_literal_capture_verify import _sha256_json
+
+          family = 'information_disclosure'
+          source_root = 'GHSA-vqfp-p66c-xrp9'
+          source_project = 'ether/etherpad'
+          out = Path('benchmarks/raw/sources/v6_capture_evidence')
+          out.mkdir(parents=True, exist_ok=True)
+          configs = {
+              'positive': {
+                  'file': 'captured/information-disclosure-positive.json',
+                  'reference': 'https://github.com/ether/etherpad/tree/v3.0.0',
+                  'basis': 'source_observation',
+                  'signals': ['unauthorized_data_response'],
+                  'notes': 'Controlled local execution of the selected upstream vulnerable release returned the author token in the unauthenticated tokenTransfer GET response body.',
+              },
+              'secure_negative': {
+                  'file': 'captured/information-disclosure-secure-negative.json',
+                  'reference': 'https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                  'basis': 'patched_control',
+                  'signals': [],
+                  'notes': 'Controlled local execution of the upstream patched PR head returned a successful transfer response without a token field in the body.',
+              },
+              'near_miss': {
+                  'file': 'captured/information-disclosure-near-miss.json',
+                  'reference': 'https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                  'basis': 'upstream_regression',
+                  'signals': [],
+                  'notes': 'Controlled local execution of the upstream patched endpoint for an unknown transfer id produced a 404 error without sensitive response data.',
+              },
+              'sparse_noisy': {
+                  'file': 'captured/information-disclosure-sparse-noisy.json',
+                  'reference': 'https://github.com/ether/etherpad/commit/29fd3b3638f60342da34bcf4a3bd2c8c269e7e1b',
+                  'basis': 'upstream_regression',
+                  'signals': [],
+                  'notes': 'Controlled local execution of the upstream patched POST without the required author cookie produced only a 400 validation response and no disclosure evidence.',
+              },
+          }
+          for kind, cfg in configs.items():
+              captured = json.loads(Path(cfg['file']).read_text(encoding='utf-8'))
+              exchange = {
+                  'target': 'controlled-local-etherpad',
+                  'endpoint': captured['request'].get('path_template') or captured['request'].get('path'),
+                  'method': captured['request']['method'],
+                  'endpoint_schema': {'path_parameters': ['id'] if '{id}' in str(captured['request'].get('path_template') or '') else [], 'query_parameters': []},
+                  'details': {
+                      'literal_http_exchange': {
+                          'request': captured['request'],
+                          'response': captured['response'],
+                          'setup': captured.get('setup'),
+                      },
+                      'upstream_revision': captured['upstream_revision'],
+                      'capture_environment': 'GitHub Actions isolated controlled upstream checkout',
+                  },
+              }
+              evidence = {
+                  'schema_version': '1.0',
+                  'family': family,
+                  'case_kind': kind,
+                  'source_root': source_root,
+                  'source_project': source_project,
+                  'captured_at': captured['captured_at'],
+                  'capture_reference': cfg['reference'],
+                  'capture_method': 'http_exchange',
+                  'collector': {
+                      'tool': 'Etherpad upstream mocha/supertest controlled reproduction',
+                      'command': 'pnpm exec mocha --import=tsx --require ./tests/backend/diagnostics.ts --timeout 120000 tests/backend/specs/v6_information_disclosure_capture.ts',
+                      'source_file': 'temporary capture spec based on upstream tokenTransfer regression surface',
+                  },
+                  'source_snapshot': {
+                      'reference': cfg['reference'],
+                      'retrieved_at': captured['captured_at'],
+                      'payload': captured,
+                      'content_sha256': _sha256_json(captured),
+                  },
+                  'adjudication': {
+                      'basis': cfg['basis'],
+                      'notes': cfg['notes'],
+                      'expected_condition_signals': cfg['signals'],
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': exchange,
+                  'raw_sha256': _sha256_json(exchange),
+              }
+              path = out / f'information-disclosure--{kind.replace("_", "-")}.json'
+              path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+      - name: Refresh plan and verify partial evidence set without scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text())
+          ingest = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_ingest_report.json').read_text())
+          assert plan['evidence_present_count'] == 4, plan['evidence_present_count']
+          assert plan['evidence_missing_count'] == 140, plan['evidence_missing_count']
+          assert ingest['scoring_executed'] is False
+          assert ingest['first_blind_consumed'] is False
+          assert ingest['valid_capture_count'] == 4, ingest
+          assert ingest['missing_capture_count'] == 140, ingest
+          # Partial collection is expected; do not materialize or score.
+          PY
+      - name: Commit first four real Analysis 6.31 evidence artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/information-disclosure--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 information disclosure evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
