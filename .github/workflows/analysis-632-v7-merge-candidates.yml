@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - 'benchmarks/raw/sources/v7_pr_supplement.json'
+      - 'benchmarks/raw/sources/v7_targeted_supplement.json'
       - '.github/workflows/analysis-632-v7-merge-candidates.yml'
   workflow_dispatch:
 
@@ -27,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Merge canonical advisory, bounded and merged-PR pools
+      - name: Merge canonical advisory, bounded, PR and targeted pools
         env:
           PYTHONPATH: app
         run: python app/raw_recon_v7_merge_candidates.py
