@@ -48,6 +48,41 @@ class RealWorldCorpusV1DiscoveryTests(unittest.TestCase):
         self.assertFalse(normalized["scoring_executed"])
         self.assertEqual(normalized["evaluation_role"], "fresh_candidate")
 
+    def test_prose_mentions_do_not_create_historical_source_exposure(self):
+        identities = discovery.strict_identities_from_records([
+            {
+                "source_root": "GHSA-1111-2222-3333",
+                "source_project": "used/project",
+                "description": "Related reading mentions GHSA-aaaa-bbbb-cccc and CVE-2026-99999 but neither was the benchmark source.",
+                "notes": "Do not promote text citations into source identity.",
+            }
+        ])
+        self.assertIn("GHSA-1111-2222-3333", identities["roots"])
+        self.assertNotIn("GHSA-AAAA-BBBB-CCCC", identities["roots"])
+        self.assertNotIn("CVE-2026-99999", identities["identifiers"])
+
+    def test_explicit_identifiers_remain_blocking(self):
+        identities = discovery.strict_identities_from_records([
+            {
+                "source_root": "GHSA-1111-2222-3333",
+                "source_project": "used/project",
+                "identifiers": [{"type": "CVE", "value": "CVE-2026-12345"}],
+                "canonical_advisory_url": "https://github.com/used/project/security/advisories/GHSA-1111-2222-3333",
+            }
+        ])
+        self.assertIn("CVE-2026-12345", identities["identifiers"])
+        self.assertIn("used/project", identities["projects"])
+        self.assertIn(
+            "https://github.com/used/project/security/advisories/ghsa-1111-2222-3333",
+            identities["urls"],
+        )
+
+    def test_raw_v4_and_v5_are_registered_as_consumed(self):
+        names = {item[0] for item in discovery.EXTRA_CONSUMED_CORPORA}
+        self.assertEqual(names, {"analysis_raw_v4", "analysis_raw_v5"})
+        for item in discovery.EXTRA_CONSUMED_CORPORA:
+            self.assertEqual(item[3], "consumed_benchmark")
+
 
 if __name__ == "__main__":
     unittest.main()
