@@ -9,7 +9,7 @@
   },
   "capture_method": "repository_test_fixture",
   "capture_reference": "https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38",
-  "captured_at": "2026-08-14T06:43:28Z",
+  "captured_at": "2026-08-14T06:46:45Z",
   "case_kind": "secure_negative",
   "collector": {
     "command": "php capture_graphql_auth.php",
@@ -25,7 +25,7 @@
         "allowed_roles": [
           "super"
         ],
-        "captured_at": "2026-08-14T06:43:28Z",
+        "captured_at": "2026-08-14T06:46:45Z",
         "case_kind": "secure_negative",
         "graphql_resource_path": [
           "locale",
@@ -49,17 +49,17 @@
     "method": "GRAPHQL_AUTHORIZATION_CONFIG",
     "target": "controlled-local-aimeos-graphql-config"
   },
-  "raw_sha256": "7ee3bc8e433f31ea4429a2b0f6ea8d85fcce659f949463e494a2474885422c84",
+  "raw_sha256": "b9cc47ac2c44dd2935687228e9f836b4a10393ce6501293773eea0d29445e3ae",
   "schema_version": "1.0",
   "source_project": "aimeos/ai-admin-graphql",
   "source_root": "GHSA-jj68-cp4v-98qf",
   "source_snapshot": {
-    "content_sha256": "5680e9b5ba5c25f1222cfa93a229d668d198a5b70046d9100fabc7ba44ef9101",
+    "content_sha256": "9137ac71821ec8ba4503fee0d6505d572a893447e47eecc3d23730ba62c60a00",
     "payload": {
       "allowed_roles": [
         "super"
       ],
-      "captured_at": "2026-08-14T06:43:28Z",
+      "captured_at": "2026-08-14T06:46:45Z",
       "case_kind": "secure_negative",
       "graphql_resource_path": [
         "locale",
@@ -75,6 +75,6 @@
       "upstream_source_file": "config/admin/graphql/resource.php"
     },
     "reference": "https://github.com/aimeos/ai-admin-graphql/commit/4eabc2b973509ffa5924e7f88c8f87ee96e93b38",
-    "retrieved_at": "2026-08-14T06:43:28Z"
+    "retrieved_at": "2026-08-14T06:46:45Z"
   }
 }
