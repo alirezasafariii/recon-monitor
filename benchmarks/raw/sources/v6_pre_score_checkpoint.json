@@ -1,17 +1,18 @@
 {
-  "version": "1.1.0",
-  "rule_version": "2026.08.14.6.31",
+  "version": "2.0.0",
+  "rule_version": "2026.08.14.6.31.5",
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
-  "checkpoint_status": "hard_sources_prevalidated_pending_full_36_execution_validation",
+  "checkpoint_status": "source_selection_passed_pending_literal_capture_collection",
   "scoring_executed": false,
   "first_blind_consumed": false,
+  "first_blind_evaluator_frozen": false,
   "production_rules_changed_before_first_score": false,
   "source_selection": {
     "target_family_count": 36,
     "owasp_wstg_grounded_family_count": 14,
-    "owasp_wstg_hard_source_semantic_prevalidation_status": "passed_14_of_14",
-    "legacy_semantic_discovery_family_count": 22,
-    "legacy_semantic_discovery_coverage_status": "passed_22_of_22_by_existing_unscored_audit",
+    "fresh_exact_complement_override_family_count": 13,
+    "legacy_semantic_discovery_family_count": 9,
+    "complement_family_count": 22,
     "supplement_pool_used_by_final_selector": false,
     "keyword_pool_used_by_final_selector": false,
     "deprecated_supplement_snapshot_present_in_final_branch": false,
@@ -19,9 +20,15 @@
     "detector_output_used": false,
     "admission_output_used": false,
     "ranking_output_used": false,
-    "full_36_family_firewall_execution_status": "pending",
-    "full_36_family_global_uniqueness_execution_status": "pending",
-    "canonical_shortlist_status": "not_emitted_until_full_firewall_and_uniqueness_execute"
+    "full_36_family_firewall_execution_status": "passed",
+    "full_36_family_global_uniqueness_execution_status": "passed",
+    "canonical_shortlist_status": "emitted",
+    "canonical_shortlist_family_count": 36,
+    "canonical_shortlist_unique_root_count": 36,
+    "canonical_shortlist_unique_project_count": 36,
+    "canonical_shortlist_firewall_rejection_count": 0,
+    "grounding_provenance_reuse_count": 0,
+    "legacy_assignment_method": "global_backtracking_unique_root_project"
   },
   "grounding": {
     "owasp_testing_project": true,
@@ -29,57 +36,63 @@
     "independent_writeups_or_primary_advisories": true,
     "unsafe_api_consumption_primary_taxonomy": "OWASP API10:2023 Unsafe Consumption of APIs",
     "unsafe_api_consumption_wstg_boundary": "WSTG-INFO-10 Map Application Architecture for third-party/API trust-boundary identification",
-    "grounded_families": [
-      "business_logic",
-      "cors_misconfiguration",
-      "dom_xss",
-      "graphql_authorization",
-      "graphql_data_exposure",
-      "improper_inventory_management",
-      "nosql_injection",
-      "postmessage_trust",
-      "sensitive_business_flow_abuse",
-      "sensitive_caching",
-      "software_supply_chain_failure",
-      "source_map_exposure",
-      "unsafe_api_consumption",
-      "websocket_authorization"
-    ]
+    "grounded_family_count": 14
   },
-  "hard_source_replacements": {
-    "cors_misconfiguration": "GHSA-88fw-hqm2-52qc / honojs/hono",
-    "graphql_data_exposure": "GHSA-qpm9-h556-mwxm / nl-portal/nl-portal-backend-libraries",
-    "nosql_injection": "GHSA-pmpg-2mxq-6xwr / Budibase/budibase"
+  "hardening_completed": {
+    "validator_scans_raw_values_for_label_leakage": true,
+    "validator_rejects_family_derived_raw_ids": true,
+    "validator_checks_source_root_against_shortlist": true,
+    "validator_checks_source_project_against_shortlist": true,
+    "validator_checks_expected_family_contract_consistency": true,
+    "validator_requires_literal_capture_for_all_144_single_cases": true,
+    "source_firewall_case_normalization": true,
+    "source_firewall_cve_ghsa_identifier_alias_check": true,
+    "source_firewall_project_alias_check": true,
+    "source_firewall_url_canonicalization": true,
+    "source_selector_uses_single_hardened_firewall_implementation": true,
+    "source_selector_global_backtracking_uniqueness": true,
+    "freeze_hash_verifier_added": true,
+    "evaluator_added_without_execution": true,
+    "evaluator_freeze_workflow_added": true,
+    "evaluator_bound_to_exact_corpus_freeze_hash": true
+  },
+  "stale_artifacts_invalidated": {
+    "synthetic_v6_corpus_removed": true,
+    "legacy_validation_report_removed": true,
+    "legacy_materialization_report_removed": true,
+    "legacy_corpus_freeze_removed": true,
+    "legacy_firewall_shortlist_replaced": true,
+    "legacy_firewall_selection_report_replaced": true,
+    "temporary_source_probe_workflow_removed": true
   },
   "corpus_contract": {
     "single_case_count": 144,
     "pair_case_count": 72,
     "triad_case_count": 60,
     "total_case_count": 276,
-    "materialization_status": "blocked_until_validated_shortlist_exists",
-    "validation_status": "not_run",
-    "freeze_status": "not_run"
+    "literal_single_capture_required_count": 144,
+    "literal_capture_input_file": "benchmarks/raw/sources/v6_literal_captures.jsonl",
+    "literal_capture_input_status": "not_present",
+    "materializer_uses_v4_templates": false,
+    "materialization_status": "blocked_pending_144_literal_fresh_captures",
+    "validation_status": "not_run_on_literal_corpus",
+    "freeze_status": "not_run_on_literal_corpus"
   },
-  "external_execution_blocker": {
-    "service": "GitHub Actions",
-    "status": "blocked_before_job_execution",
-    "reason": "repository account billing or spending-limit restriction reported by GitHub Actions",
-    "latest_selector_run_id": 31765115959,
-    "latest_selector_head_sha": "bcdf32177e03a28c7a5bc003eabc83027a45c736",
-    "selector_python_started": false,
-    "workflow_steps_reported": null
-  },
-  "branch_cleanup": {
-    "deprecated_large_supplement_snapshot_removed": true,
-    "superseded_source_selection_workflows_removed": true,
-    "superseded_owasp_workflows_removed": true,
-    "stale_owasp_diagnostic_removed": true,
-    "superseded_owasp_pool_removed": true
+  "execution": {
+    "github_actions_current_status": "working",
+    "latest_successful_full_selector_run_id": 31773056083,
+    "latest_successful_full_selector_head_sha": "cd5c7cf51108b9f0382a546c1d2e45ec61689c10",
+    "selector_python_started": true,
+    "selector_conclusion": "success",
+    "latest_validation_status": "success",
+    "previous_billing_blocker_is_current": false
   },
   "safety_invariants": {
     "no_active_network_validation_by_analysis_engine": true,
-    "no_first_blind_score_before_corpus_and_evaluator_freeze": true,
-    "no_result_claim_without_executed_validation": true
+    "no_first_blind_score_before_literal_corpus_validation_and_freeze": true,
+    "no_first_blind_score_before_evaluator_freeze": true,
+    "no_result_claim_without_executed_validation": true,
+    "no_template_generated_corpus_may_be_called_fresh_raw": true
   },
-  "next_required_transition": "Execute the final 36-family selector with exposure_index() and global uniqueness. Only after both pass may v6_shortlist.json be emitted and the 276-case corpus be materialized, validated, and frozen."
+  "next_required_transition": "Collect and independently evidence 144 literal fresh single-family captures (four variants for each of the 36 selected source families). Do not materialize or freeze the v6 corpus until all 144 captures pass provenance, source-identity and label-leakage validation. Then materialize 276 cases, revalidate, freeze corpus hashes, freeze the evaluator, and stop before the one-time First Blind score pending explicit approval."
 }
