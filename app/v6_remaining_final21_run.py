@@ -28,16 +28,33 @@ def normalized_require(source: collector.Source, *needles: str) -> None:
 
 def normalized_excerpt(source: collector.Source, needle: str, width: int = 800) -> str:
     normalized = _display_norm(source.text)
-    pos = normalized.casefold().find(_norm(needle))
+    folded = normalized.casefold()
+    pos = folded.find(_norm(needle))
+    matched_len = len(_display_norm(needle))
+    if pos < 0:
+        # Excerpt lookup may tolerate wording inflection only after the source has
+        # already passed the strict require() markers for that family. Anchor on
+        # the longest real token from the requested phrase; never synthesize text.
+        tokens = sorted(
+            {token for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9-]{3,}", _display_norm(needle))},
+            key=len,
+            reverse=True,
+        )
+        for token in tokens:
+            candidate = folded.find(token.casefold())
+            if candidate >= 0:
+                pos = candidate
+                matched_len = len(token)
+                break
     if pos < 0:
         raise RuntimeError(f"normalized marker not found in {source.reference}: {needle!r}")
     start = max(0, pos - 120)
-    end = min(len(normalized), pos + len(_display_norm(needle)) + width)
+    end = min(len(normalized), pos + matched_len + width)
     return normalized[start:end]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the final Analysis 6.31 collector with whitespace/Markdown-normalized source markers")
+    parser = argparse.ArgumentParser(description="Run the final Analysis 6.31 collector with normalized source-marker excerpts")
     parser.add_argument("output", nargs="?", type=Path, default=Path("captured-final21"))
     args = parser.parse_args()
     collector.require = normalized_require
