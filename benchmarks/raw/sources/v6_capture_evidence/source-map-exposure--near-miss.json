@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The source-map auto-loading mechanism is present as context, but without the attacker-controlled traversal and disclosure outcome it is only a near-miss.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+  "captured_at": "2026-08-14T15:48:56.799853+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "attacker_controlled_traversal_observed": false,
+      "map_disclosure_observed": false,
+      "source_map_auto_loading": true
+    },
+    "endpoint": "sourceMappingURL processing",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "PostCSS source-map auto-loading mechanism"
+  },
+  "raw_sha256": "bccac12cef26a6aec3a630a903dc62b9c9bfa216c7e26ace4aaddd60867e1eac",
+  "schema_version": "1.0",
+  "source_project": "govtech-bb/gov-bb",
+  "source_root": "GOV-BB-ISSUE-2092",
+  "source_snapshot": {
+    "content_sha256": "1706409aec8956b0368a8c5690cdb7c4559e6a9521a98ea8c879b345076e5112",
+    "payload": {
+      "excerpt": "PostCSS auto-loads previous source maps referenced by sourceMappingURL comments",
+      "issue": 2092
+    },
+    "reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "retrieved_at": "2026-08-14T15:48:56.799853+00:00"
+  }
+}

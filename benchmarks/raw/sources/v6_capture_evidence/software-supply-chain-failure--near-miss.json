@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The advisory separately describes the post-install credential-rotation consequence; this is related incident state but is not an independent observation of malicious package execution.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+  "captured_at": "2026-08-14T15:48:55.810226+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "software_supply_chain_failure",
+  "raw": {
+    "details": {
+      "compromised_version_install_history": true,
+      "credential_rotation_required": true,
+      "malicious_runtime_observation_present": false
+    },
+    "endpoint": "credential rotation guidance",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "cap-js post-install incident state"
+  },
+  "raw_sha256": "70c4ff36f9e7b2bd5609a9a0efe539067668d6e03beb32961cfedd7a8ead29c0",
+  "schema_version": "1.0",
+  "source_project": "cap-js/cds-dbs",
+  "source_root": "GHSA-pvw4-cvr4-97p8",
+  "source_snapshot": {
+    "content_sha256": "fe7f1915cb87e385f8163d071c8e87a4c56db124966be42fd964355713b4aadc",
+    "payload": {
+      "excerpt": "if a compromised version was installed credentials should be considered compromised",
+      "ghsa_id": "GHSA-pvw4-cvr4-97p8"
+    },
+    "reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "retrieved_at": "2026-08-14T15:48:55.810226+00:00"
+  }
+}

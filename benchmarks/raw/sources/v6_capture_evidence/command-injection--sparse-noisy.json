@@ -1,0 +1,53 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The advisory classification identifies the network/unauthenticated command-injection class but contains no execution trace itself.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+  "captured_at": "2026-08-14T15:48:55.892489+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "attack_vector": "network",
+      "privileges_required": "none",
+      "runtime_execution_trace_present": false
+    },
+    "endpoint": "advisory classification",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Zimbra advisory metadata"
+  },
+  "raw_sha256": "7296a5d08ae316627b7e250b3de38e0b69663e61bd766e16e4b6eca3ccbdf57c",
+  "schema_version": "1.0",
+  "source_project": "zimbra/zimbra-collaboration",
+  "source_root": "GHSA-jqh7-pchh-v74j",
+  "source_snapshot": {
+    "content_sha256": "06912485db3038ba60ff271505ed8c188bc9f805c063a85441d744f22f84b0d6",
+    "payload": {
+      "cvss": {
+        "score": 8.9,
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:L"
+      },
+      "cwes": [
+        {
+          "cwe_id": "CWE-78",
+          "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+        }
+      ],
+      "ghsa_id": "GHSA-jqh7-pchh-v74j"
+    },
+    "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "retrieved_at": "2026-08-14T15:48:55.892489+00:00"
+  }
+}

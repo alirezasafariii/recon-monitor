@@ -1,0 +1,47 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "direct_reachability"
+    ],
+    "notes": "The upstream security-audit issue records attacker-controlled sourceMappingURL traversal causing arbitrary source-map file disclosure in the analytics build chain.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+  "captured_at": "2026-08-14T15:48:56.799853+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "arbitrary_map_disclosure": true,
+      "attacker_controlled_css": true,
+      "original_source_or_build_output_exposure": true,
+      "postcss_version": "8.5.15"
+    },
+    "endpoint": "sourceMappingURL previous-map auto-loading",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "gov-bb analytics PostCSS build chain"
+  },
+  "raw_sha256": "6fcd4aede5057086b90b026b3134644074b0ffa346ac49ae29da5750d46c7a65",
+  "schema_version": "1.0",
+  "source_project": "govtech-bb/gov-bb",
+  "source_root": "GOV-BB-ISSUE-2092",
+  "source_snapshot": {
+    "content_sha256": "a26364ccd40134e1bfe831a3e2018b11ebd834e1a9e3df3cdeb098e0ffbfb5e8",
+    "payload": {
+      "excerpt": "attacker-controlled CSS sourceMappingURL path traversal causes arbitrary .map file disclosure",
+      "issue": 2092
+    },
+    "reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "retrieved_at": "2026-08-14T15:48:56.799853+00:00"
+  }
+}

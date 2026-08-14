@@ -1,0 +1,49 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "process_execution_reached"
+    ],
+    "notes": "The advisory records crafted unauthenticated SMTP input reaching arbitrary operating-system command execution through SNMP notification processing.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+  "captured_at": "2026-08-14T15:48:55.892489+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "arbitrary_os_command_execution": true,
+      "crafted_smtp_input": true,
+      "execution_user": "zimbra",
+      "snmp_notifications_enabled": true,
+      "zcs_before_10_1_20": true,
+      "zimbra_snmp_installed": true
+    },
+    "endpoint": "crafted SMTP to SNMP notification path",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Zimbra SNMP notification processing"
+  },
+  "raw_sha256": "872cda3ee5485ec6e1b65df950e4b6156e2acb10a852b9651df6d0a5823bd2bd",
+  "schema_version": "1.0",
+  "source_project": "zimbra/zimbra-collaboration",
+  "source_root": "GHSA-jqh7-pchh-v74j",
+  "source_snapshot": {
+    "content_sha256": "5da06907740adeaa4ef981b847e6e363344a8eb21deab5836c4ddd6681581340",
+    "payload": {
+      "description": "A remote code execution vulnerability exists in Zimbra Collaboration (ZCS) before 10.1.20 when the optional zimbra-snmp package is installed and SNMP notifications are enabled. Due to improper sanitization of untrusted input during SNMP notification processing, an unauthenticated attacker can send specially crafted SMTP requests that may result in execution of arbitrary operating system commands as the Zimbra user.",
+      "ghsa_id": "GHSA-jqh7-pchh-v74j"
+    },
+    "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "retrieved_at": "2026-08-14T15:48:55.892489+00:00"
+  }
+}

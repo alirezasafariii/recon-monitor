@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The issue explicitly marks PostCSS 8.5.18 and later as patched, providing an unaffected dependency-version control.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+  "captured_at": "2026-08-14T15:48:56.799853+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "postcss_min_patched": "8.5.18",
+      "vulnerable_version_present": false
+    },
+    "endpoint": "postcss dependency version",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "gov-bb patched PostCSS dependency state"
+  },
+  "raw_sha256": "8409c4dac504e3d5e3f7083aad78dce0987ebdda010ad8d8e61ef984aec02fad",
+  "schema_version": "1.0",
+  "source_project": "govtech-bb/gov-bb",
+  "source_root": "GOV-BB-ISSUE-2092",
+  "source_snapshot": {
+    "content_sha256": "027ea84b0a32f8a409623dcc5892f9b77248dfad9361279c57daa1db5a8b1787",
+    "payload": {
+      "excerpt": "Patched versions: >=8.5.18",
+      "issue": 2092
+    },
+    "reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "retrieved_at": "2026-08-14T15:48:56.799853+00:00"
+  }
+}

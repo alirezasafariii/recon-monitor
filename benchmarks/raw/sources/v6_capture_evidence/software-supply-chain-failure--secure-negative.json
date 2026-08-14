@@ -1,0 +1,74 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The reviewed advisory explicitly directs users to patched package versions outside the compromised release set.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+  "captured_at": "2026-08-14T15:48:55.810226+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "software_supply_chain_failure",
+  "raw": {
+    "details": {
+      "compromised_exact_versions_present": false,
+      "db_service_min_safe": "2.11.0",
+      "postgres_min_safe": "2.3.0",
+      "sqlite_min_safe": "2.4.0"
+    },
+    "endpoint": "npm patched version boundaries",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "cap-js patched npm release set"
+  },
+  "raw_sha256": "68767030a3074fbeb6e4bdff164317208811710865371bbd14e5d32bcfb2581b",
+  "schema_version": "1.0",
+  "source_project": "cap-js/cds-dbs",
+  "source_root": "GHSA-pvw4-cvr4-97p8",
+  "source_snapshot": {
+    "content_sha256": "6a58fc51267ab54be131679ced1cb71974ab8f122696914743adde80a1b10689",
+    "payload": {
+      "excerpt": "patched versions and upgrade guidance",
+      "ghsa_id": "GHSA-pvw4-cvr4-97p8",
+      "vulnerabilities": [
+        {
+          "first_patched_version": "2.3.0",
+          "package": {
+            "ecosystem": "npm",
+            "name": "@cap-js/sqlite"
+          },
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "= 2.2.2"
+        },
+        {
+          "first_patched_version": "2.3.0",
+          "package": {
+            "ecosystem": "npm",
+            "name": "@cap-js/postgres"
+          },
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "= 2.2.2"
+        },
+        {
+          "first_patched_version": "2.11.0",
+          "package": {
+            "ecosystem": "npm",
+            "name": "@cap-js/db-service"
+          },
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "= 2.10.1"
+        }
+      ]
+    },
+    "reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "retrieved_at": "2026-08-14T15:48:55.810226+00:00"
+  }
+}

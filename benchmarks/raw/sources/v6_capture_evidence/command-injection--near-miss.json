@@ -1,0 +1,45 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The optional package and notification settings establish the vulnerable feature precondition but contain no crafted input or execution outcome on their own.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+  "captured_at": "2026-08-14T15:48:55.892489+00:00",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "command_execution_observed": false,
+      "crafted_smtp_input_observed": false,
+      "snmp_notifications_enabled": true,
+      "zimbra_snmp_installed": true
+    },
+    "endpoint": "SNMP notification configuration",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Zimbra SNMP feature prerequisite"
+  },
+  "raw_sha256": "567af9689af7421c6c80fb8cc677e34a4e94ce0ed84b9028f680c403f7e1c594",
+  "schema_version": "1.0",
+  "source_project": "zimbra/zimbra-collaboration",
+  "source_root": "GHSA-jqh7-pchh-v74j",
+  "source_snapshot": {
+    "content_sha256": "b805a0e497179887115384f7cf4d6fabdcc0a0fe34b96ab8bfaebaf60aceec54",
+    "payload": {
+      "excerpt": "optional zimbra-snmp package installed and SNMP notifications enabled",
+      "ghsa_id": "GHSA-jqh7-pchh-v74j"
+    },
+    "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "retrieved_at": "2026-08-14T15:48:55.892489+00:00"
+  }
+}

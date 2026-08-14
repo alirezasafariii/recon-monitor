@@ -1,0 +1,44 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The exact vulnerable transitive dependency path is recorded independently, but it contains no disclosure outcome by itself.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+  "captured_at": "2026-08-14T15:48:56.799853+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "source_map_exposure",
+  "raw": {
+    "details": {
+      "disclosure_request_observed": false,
+      "postcss_version": "8.5.15",
+      "transitive_dependency_recorded": true
+    },
+    "endpoint": "transitive dependency path",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "gov-bb analytics dependency inventory"
+  },
+  "raw_sha256": "dc38b8038766fe4fa5e816ae6ef76024330f205f88399ff5bfa2705baf112b89",
+  "schema_version": "1.0",
+  "source_project": "govtech-bb/gov-bb",
+  "source_root": "GOV-BB-ISSUE-2092",
+  "source_snapshot": {
+    "content_sha256": "f1b68b5c43eb0a428d6df381752f0c56108dd3292d27b5a45d4acb17330cd8ff",
+    "payload": {
+      "excerpt": "dependency path apps__analytics > ... > vite > postcss@8.5.15",
+      "issue": 2092
+    },
+    "reference": "https://github.com/govtech-bb/gov-bb/issues/2092",
+    "retrieved_at": "2026-08-14T15:48:56.799853+00:00"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The advisory limits the vulnerable range to releases before 10.1.20; a release at or beyond that boundary is outside the stated vulnerable condition.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+  "captured_at": "2026-08-14T15:48:55.892489+00:00",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "command_injection",
+  "raw": {
+    "details": {
+      "advisory_vulnerable_range_match": false,
+      "zcs_version_at_or_after_10_1_20": true
+    },
+    "endpoint": "ZCS version applicability",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "Zimbra fixed-version boundary"
+  },
+  "raw_sha256": "79b7f460fd1d22765f7849b6e8bad561763f562ed1dc3372555e3719364ceb36",
+  "schema_version": "1.0",
+  "source_project": "zimbra/zimbra-collaboration",
+  "source_root": "GHSA-jqh7-pchh-v74j",
+  "source_snapshot": {
+    "content_sha256": "209a63ce6245d61af5c3cf75320b00129fbe07058ad0cb0f3cf3fa8a45e4365b",
+    "payload": {
+      "excerpt": "vulnerability exists before 10.1.20",
+      "ghsa_id": "GHSA-jqh7-pchh-v74j"
+    },
+    "reference": "https://github.com/advisories/GHSA-jqh7-pchh-v74j",
+    "retrieved_at": "2026-08-14T15:48:55.892489+00:00"
+  }
+}

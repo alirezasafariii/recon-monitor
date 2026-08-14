@@ -1,0 +1,50 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "known_vulnerable_component_observed"
+    ],
+    "notes": "The reviewed upstream advisory records malicious published dependency versions that harvested credentials and attempted self-propagation.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+  "captured_at": "2026-08-14T15:48:55.810226+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "software_supply_chain_failure",
+  "raw": {
+    "details": {
+      "compromised_versions": [
+        "@cap-js/sqlite@2.2.2",
+        "@cap-js/postgres@2.2.2",
+        "@cap-js/db-service@2.10.1"
+      ],
+      "credential_harvesting": true,
+      "self_propagation_attempted": true
+    },
+    "endpoint": "npm published package versions",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "cap-js npm package release set"
+  },
+  "raw_sha256": "879201acf2df78d175eae03e52a8b7872dc6fb9adda4db088bd9e4bd6e523f25",
+  "schema_version": "1.0",
+  "source_project": "cap-js/cds-dbs",
+  "source_root": "GHSA-pvw4-cvr4-97p8",
+  "source_snapshot": {
+    "content_sha256": "41bb67cca248ea0a1ba570c2b0625a62ccc64aff81a74d28fb2285da247e4327",
+    "payload": {
+      "excerpt": "compromised package versions harvested credentials and attempted self-propagation",
+      "ghsa_id": "GHSA-pvw4-cvr4-97p8"
+    },
+    "reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "retrieved_at": "2026-08-14T15:48:55.810226+00:00"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "The advisory states there is no workaround; this is source-grounded mitigation metadata without a runtime dependency observation.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+  "captured_at": "2026-08-14T15:48:55.810226+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "GET public GitHub source JSON",
+    "source_file": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "tool": "github-actions/public-source-api-capture"
+  },
+  "family": "software_supply_chain_failure",
+  "raw": {
+    "details": {
+      "package_runtime_observation_present": false,
+      "workaround_available": false
+    },
+    "endpoint": "workaround inventory",
+    "endpoint_schema": {},
+    "method": "UNKNOWN",
+    "target": "cap-js advisory mitigation metadata"
+  },
+  "raw_sha256": "14a81d37c02cbd98ce8a428180f61a4d9a1b59875bf6693476addaf46eda4d58",
+  "schema_version": "1.0",
+  "source_project": "cap-js/cds-dbs",
+  "source_root": "GHSA-pvw4-cvr4-97p8",
+  "source_snapshot": {
+    "content_sha256": "157028a1499ed4cc955790be9eef5a7c85415e5ccb7b04f01afc8d6c4471de88",
+    "payload": {
+      "excerpt": "No workarounds.",
+      "ghsa_id": "GHSA-pvw4-cvr4-97p8"
+    },
+    "reference": "https://github.com/advisories/GHSA-pvw4-cvr4-97p8",
+    "retrieved_at": "2026-08-14T15:48:55.810226+00:00"
+  }
+}
