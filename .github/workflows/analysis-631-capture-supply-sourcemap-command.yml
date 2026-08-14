@@ -1,0 +1,116 @@
+name: Analysis 6.31 Capture Supply SourceMap Command
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-supply-sourcemap-command.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [software_supply_chain_failure, source_map_exposure, command_injection]
+    steps:
+      - name: Capture four source-grounded observations
+        run: |
+          set -euo pipefail
+          mkdir -p "captures/${{ matrix.family }}"
+          FAMILY='${{ matrix.family }}' python - <<'PY'
+          import json, os, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          family=os.environ['FAMILY']
+          captured=datetime.now(timezone.utc).isoformat()
+          out=Path('captures')/family
+
+          def get_json(url):
+              req=urllib.request.Request(url,headers={'Accept':'application/vnd.github+json','User-Agent':'analysis-631-source-capture'})
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          def emit(kind, ref, payload, raw, notes, signals, basis='source_observation'):
+              doc={'family':family,'case_kind':kind,'captured_at':captured,'capture_reference':ref,'capture_method':'cli_output','collector':{'tool':'github-actions/public-source-api-capture','command':'GET public GitHub source JSON','source_file':ref},'source_snapshot':{'reference':ref,'retrieved_at':captured,'payload':payload},'adjudication':{'basis':basis,'notes':notes,'expected_condition_signals':signals,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False},'raw':raw}
+              (out/f'{kind}.json').write_text(json.dumps(doc,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+
+          if family=='software_supply_chain_failure':
+              api='https://api.github.com/advisories/GHSA-pvw4-cvr4-97p8'; ref='https://github.com/advisories/GHSA-pvw4-cvr4-97p8'; a=get_json(api); d=a['description']
+              assert 'compromised versions' in d and 'harvested credentials and attempted self-propagation' in d
+              assert 'Upgrade to `@cap-js/sqlite`' in d and 'No workarounds' in d
+              emit('positive',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'compromised package versions harvested credentials and attempted self-propagation'}, {'target':'cap-js npm package release set','endpoint':'npm published package versions','method':'UNKNOWN','endpoint_schema':{},'details':{'compromised_versions':['@cap-js/sqlite@2.2.2','@cap-js/postgres@2.2.2','@cap-js/db-service@2.10.1'],'credential_harvesting':True,'self_propagation_attempted':True}}, 'The reviewed upstream advisory records malicious published dependency versions that harvested credentials and attempted self-propagation.',['known_bad_dependency_present'])
+              emit('secure_negative',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'patched versions and upgrade guidance','vulnerabilities':a.get('vulnerabilities')}, {'target':'cap-js patched npm release set','endpoint':'npm patched version boundaries','method':'UNKNOWN','endpoint_schema':{},'details':{'sqlite_min_safe':'2.4.0','postgres_min_safe':'2.3.0','db_service_min_safe':'2.11.0','compromised_exact_versions_present':False}}, 'The reviewed advisory explicitly directs users to patched package versions outside the compromised release set.',[],'patched_control')
+              emit('near_miss',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'if a compromised version was installed credentials should be considered compromised'}, {'target':'cap-js post-install incident state','endpoint':'credential rotation guidance','method':'UNKNOWN','endpoint_schema':{},'details':{'compromised_version_install_history':True,'credential_rotation_required':True,'malicious_runtime_observation_present':False}}, 'The advisory separately describes the post-install credential-rotation consequence; this is related incident state but is not an independent observation of malicious package execution.',[])
+              emit('sparse_noisy',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'No workarounds.'}, {'target':'cap-js advisory mitigation metadata','endpoint':'workaround inventory','method':'UNKNOWN','endpoint_schema':{},'details':{'workaround_available':False,'package_runtime_observation_present':False}}, 'The advisory states there is no workaround; this is source-grounded mitigation metadata without a runtime dependency observation.',[])
+          elif family=='source_map_exposure':
+              api='https://api.github.com/repos/govtech-bb/gov-bb/issues/2092'; ref='https://github.com/govtech-bb/gov-bb/issues/2092'; a=get_json(api); d=a['body']
+              assert 'arbitrary `.map` file disclosure' in d and 'Vulnerable versions' in d and 'Patched versions' in d and 'pnpm audit --prod' in d
+              emit('positive',ref,{'issue':2092,'excerpt':'attacker-controlled CSS sourceMappingURL path traversal causes arbitrary .map file disclosure'}, {'target':'gov-bb analytics PostCSS build chain','endpoint':'sourceMappingURL previous-map auto-loading','method':'UNKNOWN','endpoint_schema':{},'details':{'postcss_version':'8.5.15','attacker_controlled_css':True,'arbitrary_map_disclosure':True,'original_source_or_build_output_exposure':True}}, 'The upstream security-audit issue records attacker-controlled sourceMappingURL traversal causing arbitrary source-map file disclosure in the analytics build chain.',['source_map_artifact_public'])
+              emit('secure_negative',ref,{'issue':2092,'excerpt':'Patched versions: >=8.5.18'}, {'target':'gov-bb patched PostCSS dependency state','endpoint':'postcss dependency version','method':'UNKNOWN','endpoint_schema':{},'details':{'postcss_min_patched':'8.5.18','vulnerable_version_present':False}}, 'The issue explicitly marks PostCSS 8.5.18 and later as patched, providing an unaffected dependency-version control.',[],'patched_control')
+              emit('near_miss',ref,{'issue':2092,'excerpt':'PostCSS auto-loads previous source maps referenced by sourceMappingURL comments'}, {'target':'PostCSS source-map auto-loading mechanism','endpoint':'sourceMappingURL processing','method':'UNKNOWN','endpoint_schema':{},'details':{'source_map_auto_loading':True,'attacker_controlled_traversal_observed':False,'map_disclosure_observed':False}}, 'The source-map auto-loading mechanism is present as context, but without the attacker-controlled traversal and disclosure outcome it is only a near-miss.',[])
+              emit('sparse_noisy',ref,{'issue':2092,'excerpt':'dependency path apps__analytics > ... > vite > postcss@8.5.15'}, {'target':'gov-bb analytics dependency inventory','endpoint':'transitive dependency path','method':'UNKNOWN','endpoint_schema':{},'details':{'postcss_version':'8.5.15','transitive_dependency_recorded':True,'disclosure_request_observed':False}}, 'The exact vulnerable transitive dependency path is recorded independently, but it contains no disclosure outcome by itself.',[])
+          else:
+              api='https://api.github.com/advisories/GHSA-jqh7-pchh-v74j'; ref='https://github.com/advisories/GHSA-jqh7-pchh-v74j'; a=get_json(api); d=a['description']
+              assert 'before 10.1.20' in d and 'zimbra-snmp package is installed' in d and 'SNMP notifications are enabled' in d and 'execution of arbitrary operating system commands' in d
+              emit('positive',ref,{'ghsa_id':a['ghsa_id'],'description':d}, {'target':'Zimbra SNMP notification processing','endpoint':'crafted SMTP to SNMP notification path','method':'UNKNOWN','endpoint_schema':{},'details':{'zcs_before_10_1_20':True,'zimbra_snmp_installed':True,'snmp_notifications_enabled':True,'crafted_smtp_input':True,'arbitrary_os_command_execution':True,'execution_user':'zimbra'}}, 'The advisory records crafted unauthenticated SMTP input reaching arbitrary operating-system command execution through SNMP notification processing.',['command_execution_reached'])
+              emit('secure_negative',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'vulnerability exists before 10.1.20'}, {'target':'Zimbra fixed-version boundary','endpoint':'ZCS version applicability','method':'UNKNOWN','endpoint_schema':{},'details':{'zcs_version_at_or_after_10_1_20':True,'advisory_vulnerable_range_match':False}}, 'The advisory limits the vulnerable range to releases before 10.1.20; a release at or beyond that boundary is outside the stated vulnerable condition.',[],'patched_control')
+              emit('near_miss',ref,{'ghsa_id':a['ghsa_id'],'excerpt':'optional zimbra-snmp package installed and SNMP notifications enabled'}, {'target':'Zimbra SNMP feature prerequisite','endpoint':'SNMP notification configuration','method':'UNKNOWN','endpoint_schema':{},'details':{'zimbra_snmp_installed':True,'snmp_notifications_enabled':True,'crafted_smtp_input_observed':False,'command_execution_observed':False}}, 'The optional package and notification settings establish the vulnerable feature precondition but contain no crafted input or execution outcome on their own.',[])
+              emit('sparse_noisy',ref,{'ghsa_id':a['ghsa_id'],'cvss':a.get('cvss'),'cwes':a.get('cwes')}, {'target':'Zimbra advisory metadata','endpoint':'advisory classification','method':'UNKNOWN','endpoint_schema':{},'details':{'attack_vector':'network','privileges_required':'none','cwe':'CWE-78','runtime_execution_trace_present':False}}, 'The advisory classification identifies the network/unauthenticated command-injection class but contains no execution trace itself.',[])
+          PY
+      - name: Upload captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-${{ matrix.family }}-captures
+          path: captures/${{ matrix.family }}/*.json
+
+  publish:
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: v6-*-captures
+          path: captured
+          merge-multiple: false
+      - name: Flatten capture artifacts
+        run: |
+          mkdir -p captured-flat
+          find captured -type f -name '*.json' -exec cp {} captured-flat/ \;
+      - name: Publish and verify
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured-flat
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+      - name: Commit evidence
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/software-supply-chain-failure--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/source-map-exposure--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/command-injection--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 supply source-map command evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
