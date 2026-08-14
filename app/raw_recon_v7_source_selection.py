@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
@@ -16,8 +17,8 @@ from raw_recon_v7_source_firewall import (
     validate_shortlist,
 )
 
-VERSION = "1.4.0"
-RULE_VERSION = "2026.08.14.6.33.v7.unseen.5"
+VERSION = "1.5.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.6"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 OUT = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 
@@ -33,10 +34,6 @@ def _targeted_pending_adjudication(row: Mapping[str, Any], family: str) -> tuple
     )
     if explicit:
         return True, [str(v) for v in row.get("v7_targeted_context_tokens") or []]
-
-    # A targeted candidate can already exist in the base discovery pool. The
-    # merge intentionally deduplicates by source root, so recompute the same
-    # exact-CWE + context proof here instead of depending on copied metadata.
     if family not in GAP_FAMILIES:
         return False, []
     matched_cwes = {str(value).strip() for value in row.get("matched_cwes") or [] if str(value).strip()}
@@ -45,9 +42,6 @@ def _targeted_pending_adjudication(row: Mapping[str, Any], family: str) -> tuple
     context_ok, tokens = _context_match(family, row)
     if not context_ok:
         return False, []
-    # Source selection is still pre-scoring even when older base rows do not
-    # carry an explicit scoring_executed field of their own. The containing
-    # candidate registry is separately required to be unscored in select().
     if row.get("scoring_executed") not in (None, False):
         return False, []
     return True, tokens
@@ -153,6 +147,54 @@ def _solve(families: list[str], pools: Mapping[str, list[dict[str, Any]]]) -> li
     return [chosen[family] for family in sorted(families)]
 
 
+def _project_matching_diagnostics(families: list[str], pools: Mapping[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    """Maximum family->project matching diagnostic; never changes selection."""
+    family_projects = {
+        family: sorted({str(row.get("source_project") or "").strip().casefold() for row in pools[family] if str(row.get("source_project") or "").strip()})
+        for family in families
+    }
+    project_owner: dict[str, str] = {}
+
+    def augment(family: str, seen: set[str]) -> bool:
+        for project in family_projects[family]:
+            if project in seen:
+                continue
+            seen.add(project)
+            owner = project_owner.get(project)
+            if owner is None or augment(owner, seen):
+                project_owner[project] = family
+                return True
+        return False
+
+    matched: set[str] = set()
+    for family in sorted(families, key=lambda f: (len(family_projects[f]), f)):
+        if augment(family, set()):
+            matched.add(family)
+    matched = set(project_owner.values())
+    unmatched = sorted(set(families) - matched)
+    project_families: dict[str, list[str]] = {}
+    for family, projects in family_projects.items():
+        for project in projects:
+            project_families.setdefault(project, []).append(family)
+    shared = {
+        project: sorted(fs)
+        for project, fs in project_families.items()
+        if len(fs) > 1
+    }
+    counts = {family: len(projects) for family, projects in family_projects.items()}
+    bottlenecks = sorted(counts, key=lambda family: (counts[family], family))[:12]
+    return {
+        "maximum_unique_project_matching_size": len(matched),
+        "unmatched_families": unmatched,
+        "family_unique_project_counts": counts,
+        "bottleneck_families": [
+            {"family": family, "unique_project_count": counts[family], "projects": family_projects[family][:25]}
+            for family in bottlenecks
+        ],
+        "shared_candidate_projects": shared,
+    }
+
+
 def select() -> dict[str, Any]:
     raw = json.loads(CANDIDATES.read_text(encoding="utf-8"))
     if raw.get("scoring_executed") is not False:
@@ -183,15 +225,22 @@ def select() -> dict[str, Any]:
         for family in families
     }
     missing = sorted(family for family, rows in pools.items() if not rows)
+    diagnostics = _project_matching_diagnostics(families, pools)
     selected = None if missing else _solve(families, pools)
-    if not missing and selected is None:
-        raise RuntimeError("v7 global uniqueness solver found no complete 36-family assignment")
     firewall = validate_shortlist(selected or [], required_count=36) if selected is not None else {
-        "passed": False, "errors": ["candidate coverage incomplete"], "candidate_count": 0,
-        "unique_root_count": 0, "unique_project_count": 0, "engine_seen_count": 0,
-        "research_preexposed_count": 0, "rejected": [], "firewall_version": FIREWALL_VERSION,
-        "firewall_rule_version": FIREWALL_RULE_VERSION, "hard_scope": HARD_SCOPE,
-        "research_scope": RESEARCH_SCOPE, "scoring_executed": False,
+        "passed": False,
+        "errors": ["candidate coverage incomplete" if missing else "global root/project uniqueness assignment incomplete"],
+        "candidate_count": 0,
+        "unique_root_count": 0,
+        "unique_project_count": 0,
+        "engine_seen_count": 0,
+        "research_preexposed_count": 0,
+        "rejected": [],
+        "firewall_version": FIREWALL_VERSION,
+        "firewall_rule_version": FIREWALL_RULE_VERSION,
+        "hard_scope": HARD_SCOPE,
+        "research_scope": RESEARCH_SCOPE,
+        "scoring_executed": False,
     }
     report = {
         "version": VERSION,
@@ -202,6 +251,7 @@ def select() -> dict[str, Any]:
         "candidate_counts_after_audit_or_targeted_fallback": {family: len(rows) for family, rows in pools.items()},
         "families_without_candidates": missing,
         "global_assignment_complete": selected is not None,
+        "global_uniqueness_diagnostics": diagnostics,
         "firewall": firewall,
         "hard_engine_exposure_scope": HARD_SCOPE,
         "research_preexposure_scope": RESEARCH_SCOPE,
@@ -232,6 +282,8 @@ def main() -> int:
         "selected_count": len(report["selected"]),
         "families_without_candidates": report["families_without_candidates"],
         "global_assignment_complete": report["global_assignment_complete"],
+        "maximum_unique_project_matching_size": report["global_uniqueness_diagnostics"]["maximum_unique_project_matching_size"],
+        "unmatched_families": report["global_uniqueness_diagnostics"]["unmatched_families"],
         "firewall_passed": report["firewall"]["passed"],
         "engine_seen_count": report["firewall"].get("engine_seen_count"),
         "selected_research_preexposed_count": report["selected_research_preexposed_count"],
