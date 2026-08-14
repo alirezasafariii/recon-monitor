@@ -1,5 +1,5 @@
 {
-  "version": "1.4.3",
+  "version": "1.4.4",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,18 +11,19 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSA-xff3-5c9p-2mr4",
-        "source_project": "QuantumNous/new-api",
+        "source_root": "GHSA-mjx5-98jq-q736",
+        "source_project": "meshtastic/firmware",
         "family": "business_logic",
-        "canonical_advisory_url": "https://github.com/advisories/GHSA-xff3-5c9p-2mr4",
-        "source_kind": "github_reviewed_advisory",
-        "advisory_source_type": "reviewed",
-        "published_at": "2026-04-22",
-        "summary": "New API could accept forged Stripe payment-completion events under an empty webhook-secret configuration, bypassing the payment workflow trust gate.",
-        "description": "The reviewed advisory documents a payment business-workflow invariant failure. An insecure empty webhook secret permits forged completion events to pass the authenticity gate, while cross-gateway handling can mark an order as paid through a callback source that does not match the intended payment method. The resulting state transition accepts an untrusted payment-completion event and bypasses the workflow invariant that quota or payment state must advance only after an authentic matching payment.",
+        "canonical_advisory_url": "https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736",
+        "repository_advisory_url": "https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736",
+        "source_kind": "official_project_security_advisory",
+        "advisory_source_type": "repository",
+        "published_at": "2026-04-20",
+        "summary": "Meshtastic CI workflow accepted external fork code into privileged execution without the required approval gate, allowing the intended trust workflow to be bypassed.",
+        "description": "The published repository advisory documents a workflow invariant failure in a pull_request_target CI flow. Pull requests from external users with no trusted association triggered automatically because no approval gate existed, after which attacker-controlled fork files were checked out and executed with repository secrets and elevated token permissions. The vulnerable state transition therefore accepted untrusted fork content into privileged execution without an approver, bypassing the intended approval/trust boundary.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "payment workflow", "workflow invariant", "payment gate", "state transition", "bypass", "untrusted accepted", "payment completion"],
-        "selection_basis": "independent GitHub-reviewed advisory selected before scoring using WSTG business-logic workflow, trust-gate and state-transition semantics"
+        "semantic_facts": ["business workflow", "workflow", "approval gate", "approval", "workflow invariant", "state transition", "bypass", "untrusted accepted", "no approval required"],
+        "selection_basis": "independent primary repository advisory selected before scoring using WSTG business-logic approval-workflow, trust-gate and state-transition semantics"
       }
     ],
     "cors_misconfiguration": [
