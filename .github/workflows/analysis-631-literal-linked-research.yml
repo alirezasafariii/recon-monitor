@@ -1,12 +1,6 @@
 name: Analysis 6.31 Passive Linked Evidence Research
 
 on:
-  push:
-    branches:
-      - agent/analysis-engine-6.31-fresh-blind-v6-validation
-    paths:
-      - app/v6_literal_linked_research.py
-      - .github/workflows/analysis-631-literal-linked-research.yml
   workflow_dispatch:
 
 permissions:
@@ -59,6 +53,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Collect passive Analysis 6.31 linked evidence research'
+          git commit -m 'Refresh passive Analysis 6.31 linked evidence research'
           git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
           git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
