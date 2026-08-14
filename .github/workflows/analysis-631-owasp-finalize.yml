@@ -1,0 +1,186 @@
+name: Analysis 6.31 OWASP Finalize
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - benchmarks/raw/sources/v6_owasp_pool_candidates.json
+      - .github/workflows/analysis-631-owasp-finalize.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Assemble 36-source sealed-unscored shortlist
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from family_detectors.registry import DETECTOR_SPECS
+          from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
+          from raw_recon_v6_source_firewall import check_candidate, validate_shortlist
+
+          src = Path('benchmarks/raw/sources')
+          hard = {
+              'business_logic','cors_misconfiguration','dom_xss','graphql_data_exposure',
+              'improper_inventory_management','nosql_injection','postmessage_trust',
+              'sensitive_business_flow_abuse','sensitive_caching','software_supply_chain_failure',
+          }
+          manual = json.loads((src/'v6_owasp_writeup_candidates.json').read_text())
+          auto = json.loads((src/'v6_owasp_pool_candidates.json').read_text())
+          grounding = json.loads((src/'v6_owasp_writeup_grounding.json').read_text())
+          assert manual.get('scoring_executed') is False
+          assert auto.get('scoring_executed') is False
+          assert grounding.get('grounding_counts_as_target_evidence') is False
+
+          hard_rows = {}
+          # The two manual candidates were independently firewall-valid in the first validation run.
+          for family in ('dom_xss','sensitive_business_flow_abuse'):
+              rows = (manual.get('candidates_by_family') or {}).get(family) or []
+              if len(rows) != 1:
+                  raise SystemExit(f'{family}: missing pinned OWASP-grounded candidate')
+              hard_rows[family] = dict(rows[0])
+          # The remaining hard families must come from the fresh v6 discovery pools after OWASP audit.
+          for family in sorted(hard - set(hard_rows)):
+              rows = (auto.get('candidates_by_family') or {}).get(family) or []
+              if len(rows) != 1:
+                  raise SystemExit(f'{family}: no OWASP-grounded fresh-pool candidate')
+              row = dict(rows[0])
+              audit = row.get('owasp_grounding_audit') or {}
+              if audit.get('passed') is not True or audit.get('counts_as_target_evidence') is not False:
+                  raise SystemExit(f'{family}: OWASP grounding audit not sealed')
+              hard_rows[family] = row
+
+          used_roots = set()
+          used_projects = set()
+          selected = {}
+          for family in sorted(hard):
+              row = hard_rows[family]
+              fw = check_candidate(row)
+              if not fw['allowed']:
+                  raise SystemExit(f'{family}: hard-source firewall failure: {fw}')
+              root = str(row.get('source_root') or '')
+              project = str(row.get('source_project') or '')
+              if root in used_roots or project in used_projects:
+                  raise SystemExit(f'{family}: hard-source uniqueness collision')
+              required = set((grounding.get('families') or {}).get(family, {}).get('wstg_ids') or [])
+              supplied = set(row.get('wstg_ids') or [])
+              if not supplied or not supplied.issubset(required):
+                  raise SystemExit(f'{family}: hard-source WSTG mismatch')
+              row['freshness_validated'] = True
+              row['v6_firewall_allowed'] = True
+              row['source_selection_track'] = 'owasp_wstg_writeup_grounded'
+              selected[family] = row
+              used_roots.add(root); used_projects.add(project)
+
+          def load(path):
+              if not path.exists(): return {}
+              data = json.loads(path.read_text())
+              assert data.get('scoring_executed') is False
+              return data.get('candidates_by_family') or {}
+          pools = [load(src/'v6_candidates.json'), load(src/'v6_supplement_candidates.json')]
+          if (src/'v6_keyword_candidates.json').exists():
+              pools.append(load(src/'v6_keyword_candidates.json'))
+
+          eligible = {}
+          for family in sorted(set(DETECTOR_SPECS) - hard):
+              rows=[]; seen=set()
+              for pool in pools:
+                  for raw in pool.get(family) or []:
+                      root=str(raw.get('source_root') or '').strip(); project=str(raw.get('source_project') or '').strip()
+                      if not root or not project or (root,project) in seen: continue
+                      seen.add((root,project))
+                      if not check_candidate(raw)['allowed']: continue
+                      passed,hits,score=audit_row(family,raw)
+                      if not passed: continue
+                      row=dict(raw)
+                      row['freshness_validated']=True; row['v6_firewall_allowed']=True
+                      row['source_family_audit_version']=AUDIT_VERSION
+                      row['source_family_audit_rule_version']=AUDIT_RULE_VERSION
+                      row['source_family_audit_score']=int(score)
+                      row['source_family_audit_group_hits']=hits
+                      row['source_selection_track']='legacy_semantic_fresh_pool'
+                      rows.append(row)
+              rows.sort(key=lambda r:(int(r.get('source_family_audit_score') or 0),1 if r.get('repository_advisory_url') else 0,r.get('published_at') or ''),reverse=True)
+              eligible[family]=rows
+
+          missing=sorted(f for f,rows in eligible.items() if not rows)
+          if missing:
+              raise SystemExit('non-hard semantic source gaps: '+', '.join(missing))
+
+          # Scarce families choose first while respecting projects already reserved for the 10 hard families.
+          for family in sorted(eligible,key=lambda f:(len(eligible[f]),f)):
+              chosen=None
+              for row in eligible[family]:
+                  root=str(row['source_root']); project=str(row['source_project'])
+                  if root in used_roots or project in used_projects: continue
+                  chosen=row; break
+              if chosen is None:
+                  raise SystemExit('global source uniqueness gap: '+family)
+              selected[family]=chosen
+              used_roots.add(str(chosen['source_root'])); used_projects.add(str(chosen['source_project']))
+
+          if set(selected) != set(DETECTOR_SPECS):
+              raise SystemExit(f'family coverage mismatch {len(selected)}/36')
+          rows=[selected[f] for f in sorted(selected)]
+          firewall=validate_shortlist(rows,required_count=36)
+          if not firewall['passed']:
+              raise SystemExit('final v6 firewall failed: '+ '; '.join(firewall['errors']))
+
+          result={
+              'version':'2.0.0',
+              'rule_version':'2026.08.14.6.31',
+              'evaluation_kind':'fresh_blind_v6_unscored_source_selection',
+              'selection_executes_scoring':False,
+              'selection_uses_detector_output':False,
+              'selection_uses_admission_results':False,
+              'selection_uses_ranking_results':False,
+              'grounding_counts_as_target_evidence':False,
+              'family_count':36,
+              'unique_root_count':len(used_roots),
+              'unique_project_count':len(used_projects),
+              'owasp_grounded_family_count':len(hard),
+              'legacy_semantic_family_count':36-len(hard),
+              'firewall':firewall,
+              'selected':rows,
+          }
+          (src/'v6_shortlist.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          report={
+              'rule_version':result['rule_version'],
+              'scoring_executed':False,
+              'status':'selected',
+              'family_count':36,
+              'unique_root_count':len(used_roots),
+              'unique_project_count':len(used_projects),
+              'owasp_grounded_family_count':len(hard),
+              'legacy_semantic_family_count':36-len(hard),
+              'owasp_families':sorted(hard),
+          }
+          (src/'v6_selection_final_report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(report,indent=2,sort_keys=True))
+          PY
+      - name: Commit complete source shortlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_shortlist.json benchmarks/raw/sources/v6_selection_final_report.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Select complete OWASP-grounded Analysis 6.31 v6 source set'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
