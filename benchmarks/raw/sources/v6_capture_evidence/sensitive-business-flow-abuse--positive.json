@@ -1,0 +1,171 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "per_user_limit_absent",
+      "workflow_frequency_unrestricted"
+    ],
+    "notes": "Controlled execution of the exact upstream parent invite_team_member method accepted two identical invitations and inserted two Account Requests without any recent-invite check.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/frappe/press/commit/46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad",
+  "captured_at": "2026-08-14T06:39:57.017646Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "python capture_business_flow.py",
+    "source_file": "press/press/doctype/team/team.py",
+    "tool": "Exact upstream Team.invite_team_member AST execution with controlled Frappe fixture"
+  },
+  "family": "sensitive_business_flow_abuse",
+  "raw": {
+    "business_context": "team_member_invitation",
+    "details": {
+      "capture_environment": "GitHub Actions isolated exact upstream method execution with controlled Frappe query/DB side-effect fixtures",
+      "literal_workflow_observation": {
+        "account_request_count": 2,
+        "account_requests": [
+          {
+            "doctype": "Account Request",
+            "email": "repeat@example.test",
+            "invited_by": "owner@example.test",
+            "press_roles": [
+              {
+                "press_role": "member"
+              }
+            ],
+            "role": "Press Member",
+            "send_email": true,
+            "team": "TEAM-V6"
+          },
+          {
+            "doctype": "Account Request",
+            "email": "repeat@example.test",
+            "invited_by": "owner@example.test",
+            "press_roles": [
+              {
+                "press_role": "member"
+              }
+            ],
+            "role": "Press Member",
+            "send_email": true,
+            "team": "TEAM-V6"
+          }
+        ],
+        "calls": [
+          {
+            "accepted": true,
+            "email": "repeat@example.test",
+            "error": null
+          },
+          {
+            "accepted": true,
+            "email": "repeat@example.test",
+            "error": null
+          }
+        ],
+        "captured_at": "2026-08-14T06:39:57.017646Z",
+        "case_kind": "positive",
+        "db_exists_calls": [
+          {
+            "doctype": "Team Member",
+            "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+          },
+          {
+            "doctype": "Team Member",
+            "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+          }
+        ],
+        "rate_limit_decorators": [],
+        "throws": [],
+        "upstream_revision": "46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad",
+        "upstream_source_file": "press/press/doctype/team/team.py",
+        "validated_emails": [
+          "repeat@example.test",
+          "repeat@example.test"
+        ]
+      }
+    },
+    "endpoint": "Team.invite_team_member",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "BUSINESS_WORKFLOW",
+    "target": "controlled-local-frappe-press"
+  },
+  "raw_sha256": "2585e97ed317364caa7e403dd83a4d77866f9647aaaa635cf195204a3cbceb51",
+  "schema_version": "1.0",
+  "source_project": "frappe/press",
+  "source_root": "GHSA-68qm-vp8f-rpr3",
+  "source_snapshot": {
+    "content_sha256": "18e155412c6514e35bdd8d568ec43953d7bf127d767e016430f5c45d0536cf2e",
+    "payload": {
+      "account_request_count": 2,
+      "account_requests": [
+        {
+          "doctype": "Account Request",
+          "email": "repeat@example.test",
+          "invited_by": "owner@example.test",
+          "press_roles": [
+            {
+              "press_role": "member"
+            }
+          ],
+          "role": "Press Member",
+          "send_email": true,
+          "team": "TEAM-V6"
+        },
+        {
+          "doctype": "Account Request",
+          "email": "repeat@example.test",
+          "invited_by": "owner@example.test",
+          "press_roles": [
+            {
+              "press_role": "member"
+            }
+          ],
+          "role": "Press Member",
+          "send_email": true,
+          "team": "TEAM-V6"
+        }
+      ],
+      "calls": [
+        {
+          "accepted": true,
+          "email": "repeat@example.test",
+          "error": null
+        },
+        {
+          "accepted": true,
+          "email": "repeat@example.test",
+          "error": null
+        }
+      ],
+      "captured_at": "2026-08-14T06:39:57.017646Z",
+      "case_kind": "positive",
+      "db_exists_calls": [
+        {
+          "doctype": "Team Member",
+          "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+        },
+        {
+          "doctype": "Team Member",
+          "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+        }
+      ],
+      "rate_limit_decorators": [],
+      "throws": [],
+      "upstream_revision": "46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad",
+      "upstream_source_file": "press/press/doctype/team/team.py",
+      "validated_emails": [
+        "repeat@example.test",
+        "repeat@example.test"
+      ]
+    },
+    "reference": "https://github.com/frappe/press/commit/46975d121d81a3e3b7a97f2611f2f1f46cb8f6ad",
+    "retrieved_at": "2026-08-14T06:39:57.017646Z"
+  }
+}

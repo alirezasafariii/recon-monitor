@@ -1,0 +1,114 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled execution for an already-existing team member stopped before Account Request creation and produced only the pre-existing-member guard behavior.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+  "captured_at": "2026-08-14T06:39:57.056755Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "python capture_business_flow.py",
+    "source_file": "press/press/doctype/team/team.py",
+    "tool": "Exact upstream Team.invite_team_member AST execution with controlled Frappe fixture"
+  },
+  "family": "sensitive_business_flow_abuse",
+  "raw": {
+    "business_context": "team_member_invitation",
+    "details": {
+      "capture_environment": "GitHub Actions isolated exact upstream method execution with controlled Frappe query/DB side-effect fixtures",
+      "literal_workflow_observation": {
+        "account_request_count": 0,
+        "account_requests": [],
+        "calls": [
+          {
+            "accepted": false,
+            "email": "member@example.test",
+            "error": "Team member already exists"
+          }
+        ],
+        "captured_at": "2026-08-14T06:39:57.056755Z",
+        "case_kind": "sparse_noisy",
+        "db_exists_calls": [
+          {
+            "doctype": "Team Member",
+            "filters": "{'user': 'member@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+          }
+        ],
+        "rate_limit_decorators": [
+          {
+            "args": [],
+            "kwargs": {
+              "limit": 10,
+              "seconds": 3600
+            }
+          }
+        ],
+        "throws": [
+          "Team member already exists"
+        ],
+        "upstream_revision": "83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+        "upstream_source_file": "press/press/doctype/team/team.py",
+        "validated_emails": [
+          "member@example.test"
+        ]
+      }
+    },
+    "endpoint": "Team.invite_team_member",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "BUSINESS_WORKFLOW",
+    "target": "controlled-local-frappe-press"
+  },
+  "raw_sha256": "e8a4ba82dd3293d6e72ea3ce6e59d795f944b59758e98342b3b343bba5f96d14",
+  "schema_version": "1.0",
+  "source_project": "frappe/press",
+  "source_root": "GHSA-68qm-vp8f-rpr3",
+  "source_snapshot": {
+    "content_sha256": "008b8a414f196fb04ff4b0f9e0e094c32610d06975f5b9454ec412edf5a838ac",
+    "payload": {
+      "account_request_count": 0,
+      "account_requests": [],
+      "calls": [
+        {
+          "accepted": false,
+          "email": "member@example.test",
+          "error": "Team member already exists"
+        }
+      ],
+      "captured_at": "2026-08-14T06:39:57.056755Z",
+      "case_kind": "sparse_noisy",
+      "db_exists_calls": [
+        {
+          "doctype": "Team Member",
+          "filters": "{'user': 'member@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+        }
+      ],
+      "rate_limit_decorators": [
+        {
+          "args": [],
+          "kwargs": {
+            "limit": 10,
+            "seconds": 3600
+          }
+        }
+      ],
+      "throws": [
+        "Team member already exists"
+      ],
+      "upstream_revision": "83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+      "upstream_source_file": "press/press/doctype/team/team.py",
+      "validated_emails": [
+        "member@example.test"
+      ]
+    },
+    "reference": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+    "retrieved_at": "2026-08-14T06:39:57.056755Z"
+  }
+}

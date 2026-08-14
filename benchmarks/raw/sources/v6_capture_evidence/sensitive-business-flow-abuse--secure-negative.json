@@ -1,0 +1,178 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Controlled execution of the exact patched method accepted the first invitation but rejected the repeated email as recently invited; the source also carried the 10/hour rate-limit decorator.",
+    "ranking_output_used": false
+  },
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+  "captured_at": "2026-08-14T06:39:57.030753Z",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "python capture_business_flow.py",
+    "source_file": "press/press/doctype/team/team.py",
+    "tool": "Exact upstream Team.invite_team_member AST execution with controlled Frappe fixture"
+  },
+  "family": "sensitive_business_flow_abuse",
+  "raw": {
+    "business_context": "team_member_invitation",
+    "details": {
+      "capture_environment": "GitHub Actions isolated exact upstream method execution with controlled Frappe query/DB side-effect fixtures",
+      "literal_workflow_observation": {
+        "account_request_count": 1,
+        "account_requests": [
+          {
+            "doctype": "Account Request",
+            "email": "repeat@example.test",
+            "invited_by": "owner@example.test",
+            "press_roles": [
+              {
+                "press_role": "member"
+              }
+            ],
+            "role": "Press Member",
+            "send_email": true,
+            "team": "TEAM-V6"
+          }
+        ],
+        "calls": [
+          {
+            "accepted": true,
+            "email": "repeat@example.test",
+            "error": null
+          },
+          {
+            "accepted": false,
+            "email": "repeat@example.test",
+            "error": "User has already been invited recently. Please try again later."
+          }
+        ],
+        "captured_at": "2026-08-14T06:39:57.030753Z",
+        "case_kind": "secure_negative",
+        "db_exists_calls": [
+          {
+            "doctype": "Team Member",
+            "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+          },
+          {
+            "doctype": "Account Request",
+            "filters": "{'email': 'repeat@example.test', 'team': 'TEAM-V6', 'invited_by': ('is', 'set'), 'creation': ('>', 'controlled-day-offset:-1')}"
+          },
+          {
+            "doctype": "Team Member",
+            "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+          },
+          {
+            "doctype": "Account Request",
+            "filters": "{'email': 'repeat@example.test', 'team': 'TEAM-V6', 'invited_by': ('is', 'set'), 'creation': ('>', 'controlled-day-offset:-1')}"
+          }
+        ],
+        "rate_limit_decorators": [
+          {
+            "args": [],
+            "kwargs": {
+              "limit": 10,
+              "seconds": 3600
+            }
+          }
+        ],
+        "throws": [
+          "User has already been invited recently. Please try again later."
+        ],
+        "upstream_revision": "83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+        "upstream_source_file": "press/press/doctype/team/team.py",
+        "validated_emails": [
+          "repeat@example.test",
+          "repeat@example.test"
+        ]
+      }
+    },
+    "endpoint": "Team.invite_team_member",
+    "endpoint_schema": {
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "BUSINESS_WORKFLOW",
+    "target": "controlled-local-frappe-press"
+  },
+  "raw_sha256": "024800e9a100cfec13e9a645181a9738afc712ba52d24349d91725fabaa6be6d",
+  "schema_version": "1.0",
+  "source_project": "frappe/press",
+  "source_root": "GHSA-68qm-vp8f-rpr3",
+  "source_snapshot": {
+    "content_sha256": "3e498c2769aa13b33f372e2f743a9b261b691bf46e1311d45a120e0450c491eb",
+    "payload": {
+      "account_request_count": 1,
+      "account_requests": [
+        {
+          "doctype": "Account Request",
+          "email": "repeat@example.test",
+          "invited_by": "owner@example.test",
+          "press_roles": [
+            {
+              "press_role": "member"
+            }
+          ],
+          "role": "Press Member",
+          "send_email": true,
+          "team": "TEAM-V6"
+        }
+      ],
+      "calls": [
+        {
+          "accepted": true,
+          "email": "repeat@example.test",
+          "error": null
+        },
+        {
+          "accepted": false,
+          "email": "repeat@example.test",
+          "error": "User has already been invited recently. Please try again later."
+        }
+      ],
+      "captured_at": "2026-08-14T06:39:57.030753Z",
+      "case_kind": "secure_negative",
+      "db_exists_calls": [
+        {
+          "doctype": "Team Member",
+          "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+        },
+        {
+          "doctype": "Account Request",
+          "filters": "{'email': 'repeat@example.test', 'team': 'TEAM-V6', 'invited_by': ('is', 'set'), 'creation': ('>', 'controlled-day-offset:-1')}"
+        },
+        {
+          "doctype": "Team Member",
+          "filters": "{'user': 'repeat@example.test', 'parent': 'TEAM-V6', 'parenttype': 'Team'}"
+        },
+        {
+          "doctype": "Account Request",
+          "filters": "{'email': 'repeat@example.test', 'team': 'TEAM-V6', 'invited_by': ('is', 'set'), 'creation': ('>', 'controlled-day-offset:-1')}"
+        }
+      ],
+      "rate_limit_decorators": [
+        {
+          "args": [],
+          "kwargs": {
+            "limit": 10,
+            "seconds": 3600
+          }
+        }
+      ],
+      "throws": [
+        "User has already been invited recently. Please try again later."
+      ],
+      "upstream_revision": "83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+      "upstream_source_file": "press/press/doctype/team/team.py",
+      "validated_emails": [
+        "repeat@example.test",
+        "repeat@example.test"
+      ]
+    },
+    "reference": "https://github.com/frappe/press/commit/83c3fc7676c5dbbe1fd5092d21d95a10c7b48615",
+    "retrieved_at": "2026-08-14T06:39:57.030753Z"
+  }
+}
