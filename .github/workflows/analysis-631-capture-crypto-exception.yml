@@ -1,0 +1,161 @@
+name: Analysis 6.31 Capture Crypto and Exception Evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-crypto-exception.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cryptographic-failure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current Hedron source
+        uses: actions/checkout@v4
+        with:
+          repository: eddiethedean/hedron
+          path: hedron
+          fetch-depth: 1
+      - name: Capture four Hedron weak-secret observations
+        run: |
+          set -euo pipefail
+          mkdir -p captures/cryptographic-failure
+          python - <<'PY'
+          import json, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          api='https://api.github.com/repos/eddiethedean/hedron/issues/196'
+          ref='https://github.com/eddiethedean/hedron/issues/196'
+          req=urllib.request.Request(api,headers={'Accept':'application/vnd.github+json','User-Agent':'analysis-631-source-capture'})
+          with urllib.request.urlopen(req,timeout=30) as r: issue=json.load(r)
+          body=issue['body']
+          current_path=Path('hedron/packages/hedron-core/src/hedron_core/production_gate.py')
+          current=current_path.read_text(encoding='utf-8')
+          assert 'session_secret="x"' in body
+          assert '# incorrectly succeeds' in body
+          assert 'lowered in DEFAULT_SESSION_SECRET_MARKERS' in body
+          assert 'Tests cover known placeholders but not short arbitrary secrets.' in body
+          assert 'MIN_SESSION_SECRET_LENGTH = 32' in current
+          assert 'if len(lowered) < MIN_SESSION_SECRET_LENGTH:' in current
+          captured=datetime.now(timezone.utc).isoformat()
+          out=Path('captures/cryptographic-failure')
+
+          def emit(kind, reference, payload, raw, basis, notes, signals, source_file):
+              doc={'family':'cryptographic_failure','case_kind':kind,'captured_at':captured,'capture_reference':reference,'capture_method':'repository_test_fixture','collector':{'tool':'github-actions/source-grounded-capture','command':'fetch issue and/or inspect checked-out upstream source','source_file':source_file},'source_snapshot':{'reference':reference,'retrieved_at':captured,'payload':payload},'adjudication':{'basis':basis,'notes':notes,'expected_condition_signals':signals,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False},'raw':raw}
+              (out/f'{kind}.json').write_text(json.dumps(doc,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+
+          emit('positive',ref,{'issue':196,'excerpt':'session_secret="x" ... incorrectly succeeds','actual_behavior':'x/password/dev accepted in production'}, {'target':'Hedron production security gate','endpoint':'assert_production_security_config','method':'UNKNOWN','endpoint_schema':{},'details':{'production':True,'session_secret_length':1,'short_secret_accepted':True,'production_gate_rejected':False}}, 'source_observation','The upstream reproduction records a one-character production session secret passing the security gate even though the documented contract says short secrets must be rejected.',['predictable_randomness_observed'],'GitHub issue #196 reproduction')
+          emit('secure_negative','https://github.com/eddiethedean/hedron/blob/main/packages/hedron-core/src/hedron_core/production_gate.py',{'content':current,'path':'packages/hedron-core/src/hedron_core/production_gate.py'}, {'target':'Hedron current production security gate','endpoint':'_is_weak_secret','method':'UNKNOWN','endpoint_schema':{},'details':{'minimum_secret_length':32,'short_secret_rejected':True,'known_marker_rejected':True}}, 'patched_control','The current upstream implementation has an explicit minimum secret length of 32 and returns weak for any shorter value, providing an implemented secure control.`,'.replace('`',''),[],'current production_gate.py')
+          emit('near_miss',ref,{'issue':196,'excerpt':'old logic checked DEFAULT_SESSION_SECRET_MARKERS and change-me/replace-in-production'}, {'target':'Hedron historical known-placeholder check','endpoint':'_is_weak_secret marker branch','method':'UNKNOWN','endpoint_schema':{},'details':{'known_placeholder_check_present':True,'arbitrary_short_length_check_present':False}}, 'source_observation','The historical gate did reject a small set of known placeholder strings. That control is adjacent but does not establish rejection of arbitrary short secrets.`,'.replace('`',''),[],'GitHub issue #196 root cause')
+          emit('sparse_noisy',ref,{'issue':196,'excerpt':'Tests cover known placeholders but not short arbitrary secrets.'}, {'target':'Hedron historical test coverage','endpoint':'production gate test inventory','method':'UNKNOWN','endpoint_schema':{},'details':{'known_placeholder_tests_present':True,'short_arbitrary_secret_test_missing':True,'runtime_gate_outcome_observed':False}}, 'repository_test_fixture','The issue independently records a test-coverage gap for arbitrary short secrets. It is source-grounded but contains no runtime outcome itself, so it is intentionally sparse.',[],'GitHub issue #196 test coverage')
+          PY
+      - name: Upload crypto captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-cryptographic-failure-captures
+          path: captures/cryptographic-failure/*.json
+
+  exceptional-condition:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current time-safe source
+        uses: actions/checkout@v4
+        with:
+          repository: louisalexander/time-safe
+          path: timesafe
+          fetch-depth: 1
+      - name: Capture four exception-handling observations
+        run: |
+          set -euo pipefail
+          mkdir -p captures/exceptional-condition-mishandling
+          python - <<'PY'
+          import json, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          api='https://api.github.com/repos/louisalexander/time-safe/issues/35'
+          ref='https://github.com/louisalexander/time-safe/issues/35'
+          req=urllib.request.Request(api,headers={'Accept':'application/vnd.github+json','User-Agent':'analysis-631-source-capture'})
+          with urllib.request.urlopen(req,timeout=30) as r: issue=json.load(r)
+          body=issue['body']
+          cli_path=Path('timesafe/timesafe/cli.py')
+          cli=cli_path.read_text(encoding='utf-8')
+          assert 'show_locals=True' in body
+          assert 'Any exception that escapes those workers' in body
+          assert 'existing broad `except Exception` blocks in the screens reduce the exposure but do not close it' in body
+          assert 'panic() is used when the exception defines `__rich__`' in body
+          assert 'traceback.format_exception_only(type(exc), exc)' in cli
+          assert 'Never let a traceback out' in cli
+          captured=datetime.now(timezone.utc).isoformat()
+          out=Path('captures/exceptional-condition-mishandling')
+
+          def emit(kind, reference, payload, raw, basis, notes, signals, source_file):
+              doc={'family':'exceptional_condition_mishandling','case_kind':kind,'captured_at':captured,'capture_reference':reference,'capture_method':'repository_test_fixture','collector':{'tool':'github-actions/source-grounded-capture','command':'fetch issue and/or inspect checked-out upstream source','source_file':source_file},'source_snapshot':{'reference':reference,'retrieved_at':captured,'payload':payload},'adjudication':{'basis':basis,'notes':notes,'expected_condition_signals':signals,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False},'raw':raw}
+              (out/f'{kind}.json').write_text(json.dumps(doc,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+
+          emit('positive',ref,{'issue':35,'excerpt':'Textual fatal error uses Traceback(show_locals=True); live plaintext exists in add/renew/reveal frames'}, {'target':'time-safe TUI fatal exception path','endpoint':'Textual App._fatal_error','method':'UNKNOWN','endpoint_schema':{},'details':{'unhandled_exception_path':True,'frame_locals_rendered':True,'plaintext_live_in_frames':True,'terminal_disclosure_on_crash':True}}, 'source_log_or_trace','The upstream issue documents an unhandled TUI exception path that renders frame locals while plaintext is live in multiple stack frames, producing an unsafe crash outcome.',['unhandled_exception_observed'],'GitHub issue #35 crash analysis')
+          emit('secure_negative','https://github.com/louisalexander/time-safe/blob/master/timesafe/cli.py',{'path':'timesafe/cli.py','content':cli}, {'target':'time-safe CLI generic exception path','endpoint':'cli.main generic exception handler','method':'UNKNOWN','endpoint_schema':{},'details':{'generic_exception_caught':True,'format_exception_only_used':True,'frame_traceback_emitted':False,'locals_emitted':False,'error_code':4}}, 'patched_control','The current CLI independently catches generic exceptions and deliberately emits only exception text, never traceback frames or locals, providing a fail-closed error-handling control.',[],'current timesafe/cli.py')
+          emit('near_miss',ref,{'issue':35,'excerpt':'broad except Exception blocks cover the awaited call but not surrounding frames or synchronous _save path'}, {'target':'time-safe screen-level exception handlers','endpoint':'screen worker exception blocks','method':'UNKNOWN','endpoint_schema':{},'details':{'broad_exception_handlers_present':True,'surrounding_frames_still_exposed':True,'synchronous_save_path_not_covered':True}}, 'source_observation','The issue notes existing broad exception handlers that reduce exposure but do not cover the surrounding/synchronous fatal-error path; this is a partial control rather than the target unsafe outcome itself.',[],'GitHub issue #35 partial-control analysis')
+          emit('sparse_noisy',ref,{'issue':35,'excerpt':'panic path may be used if a future exception defines __rich__'}, {'target':'time-safe alternate future rich-error path','endpoint':'Textual panic branch','method':'UNKNOWN','endpoint_schema':{},'details':{'future_typed_rich_error_path_not_currently_observed':True,'runtime_plaintext_disclosure_not_observed':True}}, 'source_observation','The upstream issue flags a second potential rich-error path for future typed errors but states current project errors do not take it. This is intentionally sparse/noisy context.',[],'GitHub issue #35 alternate-path note')
+          PY
+      - name: Upload exception captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-exceptional-condition-captures
+          path: captures/exceptional-condition-mishandling/*.json
+
+  publish:
+    needs: [cryptographic-failure, exceptional-condition]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download crypto captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-cryptographic-failure-captures
+          path: captured/cryptographic-failure
+      - name: Download exception captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-exceptional-condition-captures
+          path: captured/exceptional-condition-mishandling
+      - name: Publish and verify unscored evidence
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_raw_precheck.py
+          python app/v6_pre_score_checkpoint_refresh.py
+      - name: Commit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/cryptographic-failure--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/exceptional-condition-mishandling--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture real Analysis 6.31 crypto and exception evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
