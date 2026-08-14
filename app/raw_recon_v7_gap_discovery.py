@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Targeted, pre-scoring source discovery for V7 semantic gap families.
+"""Targeted, pre-scoring source discovery for V7 semantic/audit gap families.
 
 This module is deliberately a source-candidate finder, not a labeler. It queries
 GitHub advisory metadata by the existing external CWE taxonomy and requires
@@ -27,19 +27,29 @@ from raw_recon_v7_source_firewall import (
     research_exposure_index,
 )
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.33.v7.gap.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.33.v7.gap.2"
 DEFAULT_BASE = ROOT / "benchmarks/raw/sources/v7_candidates_fast.json"
 DEFAULT_OUT = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 DEFAULT_REPORT = ROOT / "benchmarks/raw/sources/v7_gap_discovery_report.json"
 
+# Union of the semantic gaps observed during discovery and the families that can
+# become empty only after the stricter source-family audit. All are candidate-
+# only until literal source adjudication.
 GAP_FAMILIES = (
+    "broken_object_authorization",
+    "business_logic",
+    "command_injection",
     "dom_xss",
+    "file_upload",
     "graphql_authorization",
     "graphql_data_exposure",
     "improper_inventory_management",
+    "information_disclosure",
+    "mass_assignment",
     "sensitive_business_flow_abuse",
     "source_map_exposure",
+    "sql_injection",
     "unsafe_api_consumption",
     "websocket_authorization",
 )
@@ -47,9 +57,25 @@ GAP_FAMILIES = (
 # Every inner tuple is an OR group; every outer item must match at least one token.
 # These are discovery context hints only. Literal capture later decides the family.
 CONTEXT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "broken_object_authorization": (
+        ("object", "resource", "record", "identifier", "id", "account", "document"),
+        ("authorization", "authorisation", "access control", "ownership", "other user", "unauthorized", "idor"),
+    ),
+    "business_logic": (
+        ("workflow", "business", "transaction", "order", "payment", "purchase", "coupon", "redeem", "invite", "credit", "state"),
+        ("bypass", "logic", "sequence", "limit", "repeat", "replay", "duplicate", "multiple", "state", "validation"),
+    ),
+    "command_injection": (
+        ("command", "shell", "exec", "process", "subprocess", "os command", "system("),
+        ("injection", "untrusted", "user input", "argument", "parameter", "escape", "sanitize"),
+    ),
     "dom_xss": (
         ("dom", "document object model", "innerhtml", "outerhtml", "document.write", "client-side", "javascript"),
         ("xss", "cross-site scripting", "cross site scripting"),
+    ),
+    "file_upload": (
+        ("upload", "uploaded file", "attachment", "archive", "filename", "multipart", "file"),
+        ("validation", "content type", "mime", "extension", "path", "executable", "overwrite", "untrusted"),
     ),
     "graphql_authorization": (
         ("graphql", "resolver", "mutation", "subscription"),
@@ -63,13 +89,25 @@ CONTEXT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
         ("api", "endpoint", "route", "version"),
         ("deprecated", "legacy", "old version", "undocumented", "inventory", "shadow api", "obsolete"),
     ),
+    "information_disclosure": (
+        ("information", "sensitive", "secret", "credential", "token", "path", "debug", "stack trace", "private", "internal"),
+        ("disclosure", "exposure", "leak", "reveals", "exposes", "accessible", "returned"),
+    ),
+    "mass_assignment": (
+        ("mass assignment", "bind", "binding", "model", "object", "update", "fields", "property", "properties", "payload"),
+        ("unauthorized", "over-post", "overpost", "privilege", "admin", "protected", "allowlist", "whitelist", "attribute"),
+    ),
     "sensitive_business_flow_abuse": (
-        ("workflow", "business", "transaction", "order", "payment", "purchase", "coupon", "redeem", "invite", "credit"),
-        ("bypass", "repeat", "replay", "limit", "state", "sequence", "abuse", "multiple", "duplicate"),
+        ("workflow", "business", "transaction", "order", "payment", "purchase", "coupon", "redeem", "invite", "credit", "registration", "reset", "verification"),
+        ("bypass", "repeat", "replay", "limit", "state", "sequence", "abuse", "multiple", "duplicate", "reuse", "one-time", "rate", "unlimited", "logic"),
     ),
     "source_map_exposure": (
         ("source map", "sourcemap", "sourcemappingurl", ".map file", ".map"),
         ("source", "javascript", "bundle", "client"),
+    ),
+    "sql_injection": (
+        ("sql", "database", "query", "select", "where clause", "orm"),
+        ("injection", "untrusted", "user input", "parameter", "prepared statement", "parameterized", "escape"),
     ),
     "unsafe_api_consumption": (
         ("api", "upstream", "third-party", "third party", "external service", "webhook", "remote service"),
@@ -198,7 +236,7 @@ def _discover_family(
     return result
 
 
-def discover_and_merge(base: Mapping[str, Any], *, max_pages: int = 12, target: int = 80) -> dict[str, Any]:
+def discover_and_merge(base: Mapping[str, Any], *, max_pages: int = 12, target: int = 20) -> dict[str, Any]:
     if base.get("scoring_executed") is not False:
         raise RuntimeError("v7 base candidate pool must be unscored")
     hard_index = engine_exposure_index()
@@ -231,7 +269,7 @@ def discover_and_merge(base: Mapping[str, Any], *, max_pages: int = 12, target: 
         pools[str(family)] = rows
     counts = {family: len(rows) for family, rows in pools.items()}
     merged.update({
-        "version": "1.3.0",
+        "version": "1.4.0",
         "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v7_engine_unseen_with_targeted_gap_candidates",
         "candidates_by_family": pools,
@@ -263,7 +301,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUT))
     parser.add_argument("--report", default=str(DEFAULT_REPORT))
     parser.add_argument("--max-pages", type=int, default=12)
-    parser.add_argument("--target", type=int, default=80)
+    parser.add_argument("--target", type=int, default=20)
     args = parser.parse_args()
     base = json.loads(Path(args.base).read_text(encoding="utf-8"))
     result = discover_and_merge(base, max_pages=max(1, args.max_pages), target=max(1, args.target))
