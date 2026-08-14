@@ -1,0 +1,46 @@
+name: Analysis 6.32 v7 Normalize Passive Raw Method
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-raw-method-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - name: Refuse mutation after v7 freeze
+        run: test ! -e benchmarks/raw/sources/v7_corpus_freeze.json
+      - name: Use real passive HTTP GET method
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/v7_literal_patch_capture.py')
+          text=p.read_text()
+          old='"method": "UNKNOWN",'
+          new='"method": "GET",'
+          if new not in text:
+              assert old in text
+              text=text.replace(old,new,1)
+              p.write_text(text)
+          PY
+          python -m py_compile app/v7_literal_patch_capture.py
+      - name: Commit normalization
+        shell: bash
+        run: |
+          git add app/v7_literal_patch_capture.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Use HTTP GET for Analysis 6.32 v7 passive captures'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
