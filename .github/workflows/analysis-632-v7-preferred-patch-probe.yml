@@ -6,6 +6,7 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - '.github/workflows/analysis-632-v7-preferred-patch-probe.yml'
+      - 'tools/refine_v7_patch_feasibility.py'
   workflow_dispatch:
 
 permissions:
@@ -22,6 +23,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Support real additive merged security fixes
+        run: python tools/refine_v7_patch_feasibility.py
+      - name: Compile refined source pipeline
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/raw_recon_v7_patch_probe.py app/raw_recon_v7_preferred_patch_probe.py app/raw_recon_v7_source_selection.py app/v7_literal_patch_capture.py
       - name: Probe preferred fresh source patch set
         env:
           PYTHONPATH: app
@@ -39,13 +47,18 @@ jobs:
           assert r['scoring_executed'] is False
           print({'family_candidate_counts':r['family_candidate_counts'],'families_without_candidates':r['families_without_candidates']})
           PY
-      - name: Commit preferred patch-feasible pool
+      - name: Commit refined pipeline and preferred patch-feasible pool
         shell: bash
         run: |
           set -euo pipefail
-          git add benchmarks/raw/sources/v7_candidates_patchable.json
+          git add \
+            app/raw_recon_v7_patch_probe.py \
+            app/raw_recon_v7_preferred_patch_probe.py \
+            app/raw_recon_v7_source_selection.py \
+            app/v7_literal_patch_capture.py \
+            benchmarks/raw/sources/v7_candidates_patchable.json
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Record preferred Analysis 6.32 v7 patch-feasible pool'
+          git commit -m 'Allow additive Analysis 6.32 v7 security fixes'
           git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
           git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
