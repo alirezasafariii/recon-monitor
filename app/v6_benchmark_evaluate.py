@@ -13,8 +13,8 @@ from raw_recon_corpus import ROOT
 from v6_benchmark_validate import validate_v6_corpus
 from v6_freeze_verify import verify_freeze
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.31.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.31.2"
 DEFAULT_CORPUS = ROOT / "benchmarks/raw/analysis_raw_v6.jsonl"
 DEFAULT_SHORTLIST = ROOT / "benchmarks/raw/sources/v6_shortlist.json"
 DEFAULT_PROTOCOL = ROOT / "benchmarks/raw/sources/v6_protocol.json"
@@ -224,7 +224,11 @@ def _evaluate_triad(cases: Iterable[Mapping[str, Any]], gates: Mapping[str, tupl
     }
 
 
-def _verify_evaluator_freeze(path: Path = DEFAULT_EVALUATOR_FREEZE) -> dict[str, Any]:
+def _verify_evaluator_freeze(
+    path: Path = DEFAULT_EVALUATOR_FREEZE,
+    *,
+    corpus_freeze_path: Path = DEFAULT_FREEZE,
+) -> dict[str, Any]:
     if not path.exists():
         raise RuntimeError("v6 evaluator freeze artifact is missing")
     frozen = json.loads(path.read_text(encoding="utf-8"))
@@ -232,13 +236,16 @@ def _verify_evaluator_freeze(path: Path = DEFAULT_EVALUATOR_FREEZE) -> dict[str,
         raise RuntimeError("v6 evaluator is not frozen")
     if frozen.get("scoring_executed") is not False or frozen.get("first_blind_consumed") is not False:
         raise RuntimeError("v6 evaluator freeze must be unscored and unconsumed")
-    expected = str(frozen.get("evaluator_sha256") or "")
-    actual = _sha256(Path(__file__))
-    if expected != actual:
+
+    expected_eval = str(frozen.get("evaluator_sha256") or "")
+    expected_protocol = str(frozen.get("protocol_sha256") or "")
+    expected_corpus_freeze = str(frozen.get("corpus_freeze_sha256") or "")
+    if not expected_eval or expected_eval != _sha256(Path(__file__)):
         raise RuntimeError("v6 evaluator code changed after evaluator freeze")
-    protocol_expected = str(frozen.get("protocol_sha256") or "")
-    if protocol_expected != _sha256(DEFAULT_PROTOCOL):
+    if not expected_protocol or expected_protocol != _sha256(DEFAULT_PROTOCOL):
         raise RuntimeError("v6 protocol changed after evaluator freeze")
+    if not expected_corpus_freeze or expected_corpus_freeze != _sha256(corpus_freeze_path):
+        raise RuntimeError("v6 corpus freeze changed after evaluator freeze")
     return frozen
 
 
@@ -249,10 +256,11 @@ def run_v6_benchmark(
     protocol_path: Path = DEFAULT_PROTOCOL,
     freeze_path: Path = DEFAULT_FREEZE,
 ) -> dict[str, Any]:
-    freeze_check = verify_freeze(freeze_path, require_freeze=True, require_evaluator_frozen=False)
+    freeze_path = Path(freeze_path)
+    freeze_check = verify_freeze(freeze_path, require_freeze=True, require_evaluator_frozen=True)
     if not freeze_check["passed"]:
-        raise RuntimeError("v6 corpus freeze verification failed: " + "; ".join(freeze_check["errors"]))
-    evaluator_freeze = _verify_evaluator_freeze()
+        raise RuntimeError("v6 corpus/evaluator freeze verification failed: " + "; ".join(freeze_check["errors"]))
+    evaluator_freeze = _verify_evaluator_freeze(corpus_freeze_path=freeze_path)
 
     protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
     shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
@@ -300,6 +308,7 @@ def run_v6_benchmark(
             "first_blind_evaluator_frozen": evaluator_freeze.get("first_blind_evaluator_frozen"),
             "evaluator_sha256": evaluator_freeze.get("evaluator_sha256"),
             "protocol_sha256": evaluator_freeze.get("protocol_sha256"),
+            "corpus_freeze_sha256": evaluator_freeze.get("corpus_freeze_sha256"),
         },
         "single_family": single_report,
         "pair_family": pair_report,
