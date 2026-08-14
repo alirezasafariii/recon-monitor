@@ -1,0 +1,57 @@
+name: Real-World Corpus V1 Review Packages
+
+on:
+  push:
+    branches: [agent/real-world-corpus-v1-review-package]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build three balanced review packets
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_review_package.py \
+            --queue benchmarks/real_world/v1/human_review_queue.json \
+            --output-dir benchmarks/real_world/v1/review_packets \
+            --report benchmarks/real_world/v1/review_packet_report.json
+      - name: Focused regressions
+        run: |
+          python -m unittest tests/test_real_world_corpus_v1_review_package.py -q
+          python -m unittest tests/test_real_world_corpus_v1_review_queue.py -q
+      - name: Full regression suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)|\.jsonl$' || true)"
+          forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
+          test -z "$forbidden" || { printf '%s\n' "$forbidden"; exit 1; }
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/real_world/v1/review_packets benchmarks/real_world/v1/review_packet_report.json
+          git ls-files -z | python -c 'import sys; x=[i for i in sys.stdin.buffer.read().split(b"\0") if i and i!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Commit review packets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add benchmarks/real_world/v1/review_packets benchmarks/real_world/v1/review_packet_report.json MANIFEST.sha256
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore(corpus-v1): build balanced review packets'
+          git push
