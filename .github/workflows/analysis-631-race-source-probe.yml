@@ -1,0 +1,58 @@
+name: Analysis 6.31 Race Source Probe
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - .github/workflows/analysis-631-race-source-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe official Palo Alto race-condition source without scoring
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from raw_recon_v5_source_audit import audit_row
+          from raw_recon_v6_source_firewall import check_candidate, exposure_index
+
+          row = {
+              'family': 'race_condition',
+              'source_root': 'CVE-2025-0120',
+              'source_project': 'paloaltonetworks/globalprotect-app-windows',
+              'canonical_advisory_url': 'https://security.paloaltonetworks.com/CVE-2025-0120',
+              'summary': 'Palo Alto Networks GlobalProtect App on Windows allows local privilege escalation where exploitation requires successfully winning a race condition.',
+              'description': 'The vendor advisory states that a locally authenticated non-administrative Windows user can escalate privileges to NT AUTHORITY\\SYSTEM, but execution requires the user to successfully exploit a race condition. The affected and fixed Windows versions are explicitly identified by the vendor.',
+          }
+          fw = check_candidate(row, index=exposure_index())
+          passed, hits, score = audit_row(row['family'], row)
+          result = {
+              'family': row['family'],
+              'source_root': row['source_root'],
+              'source_project': row['source_project'],
+              'audit_passed': bool(passed),
+              'audit_score': int(score),
+              'audit_hits': hits,
+              'firewall_allowed': bool(fw['allowed']),
+              'firewall': fw,
+              'eligible': bool(passed and fw['allowed']),
+              'scoring_executed': False,
+              'detector_output_used': False,
+          }
+          print(json.dumps(result, indent=2, sort_keys=True))
+          if not result['eligible']:
+              raise SystemExit(2)
+          PY
