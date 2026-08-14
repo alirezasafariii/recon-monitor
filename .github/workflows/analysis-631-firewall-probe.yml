@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Probe replacement candidates against historical exposure
+      - name: Probe niche replacements against historical exposure
         env:
           PYTHONPATH: app
         run: |
@@ -30,16 +30,9 @@ jobs:
           from raw_recon_v6_source_firewall import canonical_url, exposure_index
           prior = exposure_index()
           candidates = [
-            ('cors_opencode','cors_misconfiguration','GHSA-vxw4-wv6m-9hhh','anomalyco/opencode',['https://github.com/anomalyco/opencode/security/advisories/GHSA-vxw4-wv6m-9hhh','https://github.com/advisories/GHSA-vxw4-wv6m-9hhh']),
-            ('cors_anythingllm','cors_misconfiguration','GHSA-24qj-pw4h-3jmm','Mintplex-Labs/anything-llm',['https://github.com/Mintplex-Labs/anything-llm/security/advisories/GHSA-24qj-pw4h-3jmm']),
-            ('graphql_craft','graphql_data_exposure','GHSA-gj2p-p9m4-c8gw','craftcms/cms',['https://github.com/craftcms/cms/security/advisories/GHSA-gj2p-p9m4-c8gw']),
-            ('nosql_cockpit','nosql_injection','GHSA-fm6c-rhcf-7439','Cockpit-HQ/Cockpit',['https://github.com/advisories/GHSA-fm6c-rhcf-7439']),
-            ('sourcemap_postcss','source_map_exposure','GHSA-r28c-9q8g-f849','postcss/postcss',['https://github.com/advisories/GHSA-r28c-9q8g-f849']),
-            ('sourcemap_babel','source_map_exposure','GHSA-4x5r-pxfx-6jf8','babel/babel',['https://github.com/advisories/GHSA-4x5r-pxfx-6jf8']),
-            ('unsafe_guzzle','unsafe_api_consumption','GHSA-94pj-82f3-465w','guzzle/guzzle',['https://github.com/guzzle/guzzle/security/advisories/GHSA-94pj-82f3-465w']),
-            ('unsafe_axios','unsafe_api_consumption','GHSA-j5f8-grm9-p9fc','axios/axios',['https://github.com/advisories/GHSA-j5f8-grm9-p9fc']),
-            ('unsafe_angular_sw','unsafe_api_consumption','GHSA-qxh6-94w6-9r5p','angular/angular',['https://github.com/advisories/GHSA-qxh6-94w6-9r5p']),
-            ('websocket_marimo','websocket_authorization','GHSA-2679-6mx9-h9xc','marimo-team/marimo',['https://github.com/advisories/GHSA-2679-6mx9-h9xc']),
+            ('cors_network_ai','cors_misconfiguration','GHSA-j3vx-cx2r-pvg8','Jovancoding/Network-AI',['https://github.com/advisories/GHSA-j3vx-cx2r-pvg8']),
+            ('unsafe_datamodel_codegen','unsafe_api_consumption','GHSA-r5vv-ff45-prp2','koxudaxi/datamodel-code-generator',['https://github.com/koxudaxi/datamodel-code-generator/security/advisories/GHSA-r5vv-ff45-prp2','https://github.com/advisories/GHSA-r5vv-ff45-prp2']),
+            ('websocket_openclaw','websocket_authorization','GHSA-jmmg-jqc7-5qf4','openclaw/openclaw',['https://github.com/openclaw/openclaw/security/advisories/GHSA-jmmg-jqc7-5qf4','https://github.com/advisories/GHSA-jmmg-jqc7-5qf4']),
           ]
           results=[]
           for label,family,root,project,raw_urls in candidates:
