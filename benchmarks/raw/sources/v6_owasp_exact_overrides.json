@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_unscored_exact_owasp_sources",
   "scoring_executed": false,
@@ -11,17 +11,17 @@
   "candidates_by_family": {
     "business_logic": [
       {
-        "source_root": "GHSL-2024-294",
-        "source_project": "Azure/azure-cli",
+        "source_root": "GHSL-2025-038",
+        "source_project": "github/branch-deploy",
         "family": "business_logic",
-        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2024-294_Azure-cli/",
+        "canonical_advisory_url": "https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/",
         "source_kind": "github_security_lab_writeup",
         "advisory_source_type": "coordinated_disclosure_writeup",
-        "published_at": "2024-12-11",
-        "summary": "Azure CLI had a privileged workflow whose intended approval gate could be bypassed by an external trigger, allowing an invalid workflow state to reach privileged execution.",
-        "description": "GitHub Security Lab documents a privileged AddPRComment workflow where an external user can trigger a path that bypasses required approvals. The security-relevant condition is a workflow approval gate and state-transition invariant being bypassed before privileged processing. This is used as an independent WSTG business-logic workflow-gate example and not as detector evidence.",
+        "published_at": "2025-04-22",
+        "summary": "GitHub IssueOps Branch Deploy Action had a .deploy approval bypass caused by a time-of-check/time-of-use workflow-state failure.",
+        "description": "GitHub Security Lab documents a .deploy workflow whose approval safety check can be satisfied for one commit and then raced by replacing the commit before privileged deployment. The security-relevant condition is an approval gate and state-transition invariant being bypassed before privileged execution. This is an independent WSTG business-logic workflow-gate example and not detector evidence.",
         "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-06"],
-        "semantic_facts": ["business workflow", "workflow", "approval gate", "required approver", "approval", "bypass", "invalid state transition"],
+        "semantic_facts": ["business workflow", "workflow", "approval gate", "approval", "state transition", "bypass", "invalid state transition"],
         "selection_basis": "independent coordinated-disclosure write-up selected before scoring using WSTG business-logic workflow and state-transition semantics"
       }
     ],
