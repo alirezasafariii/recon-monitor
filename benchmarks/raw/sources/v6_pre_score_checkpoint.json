@@ -1,0 +1,64 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.08.14.6.31",
+  "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
+  "checkpoint_status": "prepared_pending_execution_validation",
+  "scoring_executed": false,
+  "first_blind_consumed": false,
+  "production_rules_changed_before_first_score": false,
+  "source_selection": {
+    "target_family_count": 36,
+    "owasp_wstg_grounded_family_count": 14,
+    "legacy_semantic_discovery_family_count": 22,
+    "supplement_pool_used_by_final_selector": false,
+    "keyword_pool_used_by_final_selector": false,
+    "grounding_counts_as_target_evidence": false,
+    "detector_output_used": false,
+    "admission_output_used": false,
+    "ranking_output_used": false,
+    "full_36_family_firewall_execution_status": "pending",
+    "full_36_family_global_uniqueness_execution_status": "pending"
+  },
+  "grounding": {
+    "owasp_testing_project": true,
+    "wstg": true,
+    "independent_writeups_or_primary_advisories": true,
+    "grounded_families": [
+      "business_logic",
+      "cors_misconfiguration",
+      "dom_xss",
+      "graphql_authorization",
+      "graphql_data_exposure",
+      "improper_inventory_management",
+      "nosql_injection",
+      "postmessage_trust",
+      "sensitive_business_flow_abuse",
+      "sensitive_caching",
+      "software_supply_chain_failure",
+      "source_map_exposure",
+      "unsafe_api_consumption",
+      "websocket_authorization"
+    ]
+  },
+  "corpus_contract": {
+    "single_case_count": 144,
+    "pair_case_count": 72,
+    "triad_case_count": 60,
+    "total_case_count": 276,
+    "materialization_status": "blocked_until_validated_shortlist_exists",
+    "validation_status": "not_run",
+    "freeze_status": "not_run"
+  },
+  "external_execution_blocker": {
+    "service": "GitHub Actions",
+    "status": "blocked_before_job_execution",
+    "reason": "repository account billing or spending-limit restriction reported by GitHub Actions",
+    "selector_python_started": false
+  },
+  "safety_invariants": {
+    "no_active_network_validation_by_analysis_engine": true,
+    "no_first_blind_score_before_corpus_and_evaluator_freeze": true,
+    "no_result_claim_without_executed_validation": true
+  },
+  "next_required_transition": "Execute the sealed 36-family source selector; only after firewall and global uniqueness pass may v6_shortlist.json be committed and the 276-case corpus be materialized and frozen."
+}
