@@ -1,0 +1,45 @@
+name: Analysis 6.32 v7 Apply Semantic Audit Normalization
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-semantic-audit-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-v7-semantic-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply syntax-only source normalization
+        run: python tools/apply_v7_semantic_audit.py
+      - name: Validate v7 audit modules
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile app/v7_source_semantic_audit.py app/v7_pre_score_condition_audit.py app/raw_recon_v7_patch_probe.py app/raw_recon_v7_source_selection.py
+          python - <<'PY'
+          from v7_pre_score_condition_audit import validate_registry
+          assert validate_registry() == [], validate_registry()
+          PY
+      - name: Commit v7 semantic audit wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add app/raw_recon_v7_patch_probe.py app/raw_recon_v7_source_selection.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Use normalized Analysis 6.32 v7 source audit'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
