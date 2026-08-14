@@ -1,0 +1,30 @@
+{
+  "canonical_snapshot_count": 0,
+  "canonical_unresolved_count": 0,
+  "corpus_freeze_status": "missing",
+  "evaluator_frozen": false,
+  "evidence_missing_count": 0,
+  "evidence_present_count": 0,
+  "evidence_verify_passed": false,
+  "first_blind_consumed": false,
+  "label_leakage_count": null,
+  "linked_snapshot_count": 0,
+  "linked_unresolved_count": 0,
+  "materialized_case_count": 0,
+  "patchable_family_count": 31,
+  "patchable_missing_families": [
+    "file_upload",
+    "graphql_authorization",
+    "graphql_data_exposure",
+    "security_logging_alerting_failure",
+    "software_supply_chain_failure"
+  ],
+  "required_capture_count": 0,
+  "scoring_executed": false,
+  "shortlist_complete": false,
+  "shortlist_firewall_passed": false,
+  "shortlist_selected_count": 0,
+  "unique_evidence_hash_count": 0,
+  "validation_passed": false,
+  "verified_capture_count": 0
+}
