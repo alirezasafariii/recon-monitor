@@ -1,0 +1,180 @@
+name: Analysis 6.33 V7 Capture Preparation
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-v7-capture-prep
+    paths:
+      - '.github/workflows/analysis-633-v7-capture-prep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-capture-prep
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frozen V7 capture branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-capture-prep
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Enforce production engine freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASELINE='b8b15261cc4049a1e5e425a83e57b6378a856113'
+          git cat-file -e "${BASELINE}^{commit}"
+          git diff --name-only "$BASELINE"...HEAD > /tmp/v7_capture_changed.txt
+          python - <<'PY'
+          from pathlib import Path
+          allowed=(
+              'app/raw_recon_v7_',
+              'app/v7_',
+              'benchmarks/raw/sources/v7_',
+              '.github/workflows/analysis-633-v7-',
+              'tests/test_v7_',
+          )
+          changed=[x.strip() for x in Path('/tmp/v7_capture_changed.txt').read_text().splitlines() if x.strip()]
+          bad=[x for x in changed if not x.startswith(allowed)]
+          if bad:
+              raise SystemExit('production-engine freeze violation: '+', '.join(bad))
+          print({'changed_files_since_engine_baseline':len(changed),'production_reasoning_changes':0})
+          PY
+
+      - name: Revalidate frozen engine-unseen source assignment
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from v7_capture_guard import assert_capture_source_freeze
+          r=assert_capture_source_freeze()
+          assert r['source_assignment_commit']=='5c2c81075b870fe43db817c59a65f27423012f08'
+          assert r['engine_baseline_commit']=='b8b15261cc4049a1e5e425a83e57b6378a856113'
+          assert r['family_count']==36
+          assert r['unique_root_count']==36
+          assert r['unique_project_count']==36
+          assert r['recomputed_engine_seen_count']==0
+          assert r['targeted_fallback_count']==4
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          print(json.dumps(r,sort_keys=True))
+          PY
+
+      - name: Assert no V7 literal evidence exists before acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d benchmarks/raw/sources/v7_capture_evidence ]; then
+            count="$(find benchmarks/raw/sources/v7_capture_evidence -type f -name '*.json' | wc -l | tr -d ' ')"
+          else
+            count=0
+          fi
+          test "$count" = '0'
+          echo "preexisting_v7_literal_evidence=$count"
+
+      - name: Collect passive canonical snapshots for all 36 frozen sources
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_literal_source_research.py --require-all
+
+      - name: Freeze V7 label vocabulary without target adjudication
+        env:
+          PYTHONPATH: app
+        run: python app/v7_literal_label_schema.py
+
+      - name: Build 144-capture acquisition plan
+        env:
+          PYTHONPATH: app
+        run: python app/v7_literal_capture_plan.py
+
+      - name: Verify capture preparation remains unscored and empty
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          research=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
+          labels=json.loads(Path('benchmarks/raw/sources/v7_literal_label_schema.json').read_text())
+          plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
+          assert research['successful_snapshot_count']==36
+          assert research['unresolved_snapshot_count']==0
+          assert labels['family_count']==36
+          assert plan['family_count']==36
+          assert plan['required_capture_count']==144
+          assert plan['evidence_present_count']==0
+          assert plan['evidence_missing_count']==144
+          assert plan['all_evidence_present'] is False
+          assert plan['targeted_fallback_count']==4
+          assert plan['source_assignment_commit']=='5c2c81075b870fe43db817c59a65f27423012f08'
+          assert plan['engine_baseline_commit']=='b8b15261cc4049a1e5e425a83e57b6378a856113'
+          for doc in (research,labels,plan):
+              assert doc['scoring_executed'] is False
+              assert doc['first_blind_consumed'] is False
+          print({
+            'canonical_snapshots':36,
+            'required_literal_captures':144,
+            'evidence_present':0,
+            'targeted_fallback_families':plan['targeted_fallback_families'],
+            'scoring_executed':False,
+          })
+          PY
+
+      - name: Focused V7 capture-integrity regressions
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m unittest tests/test_v7_capture_integrity.py -q
+          python -m unittest tests/test_v7_strict_unseen_firewall.py -q
+
+      - name: Full regression suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
+          forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
+          if [ -n "$forbidden" ]; then printf '%s\n' "$forbidden"; exit 1; fi
+
+      - name: Regenerate strict manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_literal_source_research.json \
+                  benchmarks/raw/sources/v7_literal_label_schema.json \
+                  benchmarks/raw/sources/v7_literal_capture_plan.json
+          git ls-files -z \
+            | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
+            | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit V7 capture-preparation freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add benchmarks/raw/sources/v7_literal_source_research.json \
+                  benchmarks/raw/sources/v7_literal_label_schema.json \
+                  benchmarks/raw/sources/v7_literal_capture_plan.json \
+                  MANIFEST.sha256
+          if git diff --cached --quiet; then echo 'No capture-prep outputs changed.'; exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 capture preparation'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-capture-prep
