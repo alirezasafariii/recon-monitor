@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_grounding_extension",
   "scoring_executed": false,
