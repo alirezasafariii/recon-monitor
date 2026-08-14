@@ -1,0 +1,381 @@
+name: Analysis 6.31 Capture Remaining Tier A
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/analysis-engine-6.31-fresh-blind-v6-validation
+    paths:
+      - '.github/workflows/analysis-631-capture-tier-a-remaining.yml'
+      - 'app/v6_literal_evidence_publish.py'
+      - 'app/v6_pre_score_checkpoint_refresh.py'
+
+permissions:
+  contents: write
+
+jobs:
+  sensitive-caching:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout vulnerable RubyGems.org revision
+        uses: actions/checkout@v4
+        with:
+          repository: rubygems/rubygems.org
+          ref: 3de22dc2008d8dec0a42610aec67f92c25b2d6dc
+          path: vulnerable
+          fetch-depth: 1
+
+      - name: Checkout patched RubyGems.org revision
+        uses: actions/checkout@v4
+        with:
+          repository: rubygems/rubygems.org
+          ref: d3d11c0ecfb3827778e1e1499372e351edaa83cc
+          path: patched
+          fetch-depth: 1
+
+      - name: Capture four independent RubyGems.org source observations
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          OUT = Path('captures/sensitive-caching')
+          OUT.mkdir(parents=True, exist_ok=True)
+          captured = datetime.now(timezone.utc).isoformat()
+          vuln_rev = '3de22dc2008d8dec0a42610aec67f92c25b2d6dc'
+          patch_rev = 'd3d11c0ecfb3827778e1e1499372e351edaa83cc'
+
+          vuln_api_path = Path('vulnerable/app/controllers/api/v1/api_keys_controller.rb')
+          vuln_api = vuln_api_path.read_text(encoding='utf-8')
+          assert 'generate_unique_rubygems_key' in vuln_api
+          assert 'before_action :deny_shared_cache' not in vuln_api
+
+          patched_base_path = Path('patched/app/controllers/api/base_controller.rb')
+          patched_api_path = Path('patched/app/controllers/api/v1/api_keys_controller.rb')
+          patched_base = patched_base_path.read_text(encoding='utf-8')
+          patched_api = patched_api_path.read_text(encoding='utf-8')
+          assert 'response.headers["Cache-Control"]' in patched_base
+          assert 'private, no-store' in patched_base
+          assert 'Surrogate-Control' in patched_base
+          assert 'Authorization' in patched_base
+          assert 'before_action :deny_shared_cache' in patched_api
+
+          profiles_path = Path('patched/test/integration/api/v1/profiles_test.rb')
+          profiles = profiles_path.read_text(encoding='utf-8')
+          assert 'refute_includes cache_control, "no-store"' in profiles
+
+          api_test_path = Path('patched/test/integration/api/v1/api_keys_test.rb')
+          api_test = api_test_path.read_text(encoding='utf-8')
+          assert 'head "/api/v1/api_key"' in api_test
+          assert 'assert_response :unauthorized' in api_test
+
+          def emit(kind, ref, source_file, payload, raw, basis, notes, signals):
+              doc = {
+                  'family': 'sensitive_caching',
+                  'case_kind': kind,
+                  'captured_at': captured,
+                  'capture_reference': ref,
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'github-actions/source-grounded-repository-capture',
+                      'command': f'checkout exact upstream revision and inspect {source_file}',
+                      'source_file': source_file,
+                  },
+                  'source_snapshot': {
+                      'reference': ref,
+                      'retrieved_at': captured,
+                      'payload': payload,
+                  },
+                  'adjudication': {
+                      'basis': basis,
+                      'notes': notes,
+                      'expected_condition_signals': signals,
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+              }
+              (OUT / f'{kind}.json').write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          emit(
+              'positive',
+              f'https://github.com/rubygems/rubygems.org/blob/{vuln_rev}/app/controllers/api/v1/api_keys_controller.rb',
+              'app/controllers/api/v1/api_keys_controller.rb',
+              {'revision': vuln_rev, 'content': vuln_api},
+              {
+                  'target': 'rubygems.org legacy API key response',
+                  'endpoint': '/api/v1/api_key',
+                  'method': 'GET',
+                  'schema': {'authenticated_secret_response': True, 'shared_cache_denial_hook_present': False},
+                  'details': {'revision': vuln_rev, 'api_key_generation_present': True, 'deny_shared_cache_hook_present': False},
+              },
+              'source_observation',
+              'The vulnerable upstream API-key controller generates a legacy API key for an authenticated response but does not invoke the later deny_shared_cache control.',
+              ['browser_cache_no_store_missing'],
+          )
+          emit(
+              'secure_negative',
+              f'https://github.com/rubygems/rubygems.org/blob/{patch_rev}/app/controllers/api/base_controller.rb',
+              'app/controllers/api/base_controller.rb + app/controllers/api/v1/api_keys_controller.rb',
+              {'revision': patch_rev, 'base_controller': patched_base, 'api_keys_controller': patched_api},
+              {
+                  'target': 'rubygems.org patched legacy API key response',
+                  'endpoint': '/api/v1/api_key',
+                  'method': 'GET',
+                  'schema': {'authenticated_secret_response': True, 'shared_cache_denial_hook_present': True},
+                  'details': {'cache_control': 'private, no-store', 'surrogate_control': 'max-age=0', 'vary_authorization': True},
+              },
+              'patched_control',
+              'The patched upstream code applies deny_shared_cache to the API-key controller and sets private/no-store, zero surrogate caching, and Vary: Authorization.',
+              [],
+          )
+          emit(
+              'near_miss',
+              f'https://github.com/rubygems/rubygems.org/blob/{patch_rev}/test/integration/api/v1/profiles_test.rb',
+              'test/integration/api/v1/profiles_test.rb',
+              {'revision': patch_rev, 'content': profiles},
+              {
+                  'target': 'rubygems.org public profile cache behavior',
+                  'endpoint': '/api/v1/profiles/{handle}',
+                  'method': 'GET',
+                  'schema': {'public_response': True, 'sensitive_authenticated_secret': False},
+                  'details': {'upstream_test_explicitly_allows_cacheability': True, 'no_store_required': False},
+              },
+              'repository_test_fixture',
+              'An independent upstream regression fixture intentionally verifies that a public profile response does not receive no-store; cacheability alone is therefore not the sensitive caching condition.',
+              [],
+          )
+          emit(
+              'sparse_noisy',
+              f'https://github.com/rubygems/rubygems.org/blob/{patch_rev}/test/integration/api/v1/api_keys_test.rb',
+              'test/integration/api/v1/api_keys_test.rb',
+              {'revision': patch_rev, 'content': api_test},
+              {
+                  'target': 'rubygems.org API key HEAD control',
+                  'endpoint': '/api/v1/api_key',
+                  'method': 'HEAD',
+                  'schema': {'credentials_present': False, 'response_body_secret_observed': False},
+                  'details': {'upstream_fixture_expected_status': 'unauthorized', 'observation_is_partial_control': True},
+              },
+              'repository_test_fixture',
+              'A separate upstream HEAD-without-credentials fixture reaches the same route but only establishes unauthorized control behavior; it is insufficient evidence of sensitive shared caching.',
+              [],
+          )
+          PY
+
+      - name: Upload sensitive caching captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-sensitive-caching-captures
+          path: captures/sensitive-caching/*.json
+
+  software-data-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout vulnerable Notepad++ revision
+        uses: actions/checkout@v4
+        with:
+          repository: notepad-plus-plus/notepad-plus-plus
+          ref: db3ff05efbe13ef69437b5fcd3675f4a158db485
+          path: vulnerable
+          fetch-depth: 1
+
+      - name: Checkout patched Notepad++ revision
+        uses: actions/checkout@v4
+        with:
+          repository: notepad-plus-plus/notepad-plus-plus
+          ref: bcf2aa68ef414338d717e20e059459570ed6c5ab
+          path: patched
+          fetch-depth: 1
+
+      - name: Capture four independent Notepad++ source observations
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          OUT = Path('captures/software-data-integrity-failure')
+          OUT.mkdir(parents=True, exist_ok=True)
+          captured = datetime.now(timezone.utc).isoformat()
+          vuln_rev = 'db3ff05efbe13ef69437b5fcd3675f4a158db485'
+          patch_rev = 'bcf2aa68ef414338d717e20e059459570ed6c5ab'
+
+          vuln_cmd_path = Path('vulnerable/PowerEditor/src/NppCommands.cpp')
+          vuln_cmd = vuln_cmd_path.read_text(encoding='utf-8', errors='replace')
+          assert 'param += L" -i"' in vuln_cmd
+          assert 'param += L" -d"' in vuln_cmd
+          assert '-chkCertSig=yes' not in vuln_cmd
+
+          patched_cmd_path = Path('patched/PowerEditor/src/NppCommands.cpp')
+          patched_cmd = patched_cmd_path.read_text(encoding='utf-8', errors='replace')
+          assert '-chkCertSig=yes' in patched_cmd
+          assert '-chkCertRevoc' in patched_cmd
+          assert '-chkCertTrustChain' in patched_cmd
+          assert '-chkCertAuthorityKeyId=' in patched_cmd
+
+          vuln_verify_path = Path('vulnerable/PowerEditor/src/MISC/Common/verifySignedfile.cpp')
+          vuln_verify = vuln_verify_path.read_text(encoding='utf-8', errors='replace')
+          assert 'verifySignedLibrary(filePath)' in vuln_verify
+
+          patched_header_path = Path('patched/PowerEditor/src/MISC/Common/verifySignedfile.h')
+          patched_header = patched_header_path.read_text(encoding='utf-8', errors='replace')
+          assert '_authority_key_id' in patched_header
+          assert 'signer_display_name()' in patched_header
+
+          def emit(kind, ref, source_file, payload, raw, basis, notes, signals):
+              doc = {
+                  'family': 'software_data_integrity_failure',
+                  'case_kind': kind,
+                  'captured_at': captured,
+                  'capture_reference': ref,
+                  'capture_method': 'repository_test_fixture',
+                  'collector': {
+                      'tool': 'github-actions/source-grounded-repository-capture',
+                      'command': f'checkout exact upstream revision and inspect {source_file}',
+                      'source_file': source_file,
+                  },
+                  'source_snapshot': {'reference': ref, 'retrieved_at': captured, 'payload': payload},
+                  'adjudication': {
+                      'basis': basis,
+                      'notes': notes,
+                      'expected_condition_signals': signals,
+                      'detector_output_used': False,
+                      'admission_output_used': False,
+                      'ranking_output_used': False,
+                  },
+                  'raw': raw,
+              }
+              (OUT / f'{kind}.json').write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          emit(
+              'positive',
+              f'https://github.com/notepad-plus-plus/notepad-plus-plus/blob/{vuln_rev}/PowerEditor/src/NppCommands.cpp',
+              'PowerEditor/src/NppCommands.cpp',
+              {'revision': vuln_rev, 'content': vuln_cmd},
+              {
+                  'target': 'Notepad++ WinGUp update installer launch',
+                  'endpoint': 'local updater process arguments',
+                  'method': 'LOCAL_EXEC',
+                  'schema': {'remote_update_path': True, 'signature_verification_arguments_present': False},
+                  'details': {'revision': vuln_rev, 'legacy_info_flag_present': True, 'legacy_download_flag_present': True, 'certificate_signature_check_present': False},
+              },
+              'source_observation',
+              'The vulnerable upstream updater launch builds download arguments without any certificate/signature verification arguments for the downloaded installer.',
+              ['integrity_check_missing'],
+          )
+          emit(
+              'secure_negative',
+              f'https://github.com/notepad-plus-plus/notepad-plus-plus/blob/{patch_rev}/PowerEditor/src/NppCommands.cpp',
+              'PowerEditor/src/NppCommands.cpp',
+              {'revision': patch_rev, 'content': patched_cmd},
+              {
+                  'target': 'Notepad++ patched WinGUp update installer launch',
+                  'endpoint': 'local updater process arguments',
+                  'method': 'LOCAL_EXEC',
+                  'schema': {'remote_update_path': True, 'signature_verification_arguments_present': True},
+                  'details': {'certificate_signature_check': True, 'revocation_check': True, 'trust_chain_check': True, 'authority_key_id_check': True},
+              },
+              'patched_control',
+              'The patched upstream updater launch explicitly requires code-signature, revocation, trust-chain, signer identity and authority-key verification before installer execution.',
+              [],
+          )
+          emit(
+              'near_miss',
+              f'https://github.com/notepad-plus-plus/notepad-plus-plus/blob/{vuln_rev}/PowerEditor/src/MISC/Common/verifySignedfile.cpp',
+              'PowerEditor/src/MISC/Common/verifySignedfile.cpp',
+              {'revision': vuln_rev, 'content': vuln_verify},
+              {
+                  'target': 'Notepad++ module signature guard',
+                  'endpoint': 'SecurityGuard::checkModule',
+                  'method': 'LOCAL_VERIFY',
+                  'schema': {'signature_verification_exists_elsewhere': True, 'update_installer_launch_path_observed': False},
+                  'details': {'verify_signed_library_present': True, 'scope': 'module/library verification'},
+              },
+              'repository_test_fixture',
+              'The vulnerable tree already contains signature checking for a different module/library trust boundary; this is a confounding near-miss and does not prove the downloaded update installer is verified.',
+              [],
+          )
+          emit(
+              'sparse_noisy',
+              f'https://github.com/notepad-plus-plus/notepad-plus-plus/blob/{patch_rev}/PowerEditor/src/MISC/Common/verifySignedfile.h',
+              'PowerEditor/src/MISC/Common/verifySignedfile.h',
+              {'revision': patch_rev, 'content': patched_header},
+              {
+                  'target': 'Notepad++ signer metadata declarations',
+                  'endpoint': 'SecurityGuard certificate metadata',
+                  'method': 'SOURCE_READ',
+                  'schema': {'signer_identity_metadata_present': True, 'execution_path_observed': False},
+                  'details': {'authority_key_id_declared': True, 'signer_display_name_accessor_present': True, 'installer_execution_observed': False},
+              },
+              'repository_test_fixture',
+              'Signer metadata exists in the patched header, but this isolated declaration does not by itself establish whether an update artifact is accepted or rejected; it is intentionally sparse/noisy.',
+              [],
+          )
+          PY
+
+      - name: Upload software data integrity captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-software-data-integrity-captures
+          path: captures/software-data-integrity-failure/*.json
+
+  publish-evidence:
+    needs: [sensitive-caching, software-data-integrity]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.31 branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.31-fresh-blind-v6-validation
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download sensitive caching captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-sensitive-caching-captures
+          path: captured/sensitive-caching
+
+      - name: Download software data integrity captures
+        uses: actions/download-artifact@v4
+        with:
+          name: v6-software-data-integrity-captures
+          path: captured/software-data-integrity-failure
+
+      - name: Publish source-grounded evidence and refresh unscored state
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v6_literal_evidence_publish.py captured
+          python app/v6_literal_capture_plan.py
+          python app/v6_literal_capture_ingest.py --allow-incomplete
+          python app/v6_literal_partial_verify.py
+          python app/v6_literal_capture_verify.py --allow-missing
+          python app/v6_pre_score_checkpoint_refresh.py
+
+      - name: Commit remaining Tier A evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_capture_evidence/sensitive-caching--*.json \
+                  benchmarks/raw/sources/v6_capture_evidence/software-data-integrity-failure--*.json \
+                  benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_pre_score_checkpoint.json
+          if git diff --cached --quiet; then
+            echo 'Tier A evidence already present; nothing to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Capture remaining real Analysis 6.31 Tier A evidence'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
