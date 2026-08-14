@@ -27,6 +27,40 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Verify sealed source-selection boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          shortlist = json.loads(Path('benchmarks/raw/sources/v6_shortlist.json').read_text())
+          assert shortlist['evaluation_kind'] == 'fresh_blind_v6_unscored_source_selection'
+          assert shortlist['selection_executes_scoring'] is False
+          assert shortlist['selection_uses_detector_output'] is False
+          assert shortlist['selection_uses_admission_results'] is False
+          assert shortlist['selection_uses_ranking_results'] is False
+          assert shortlist['grounding_counts_as_target_evidence'] is False
+          assert shortlist['family_count'] == 36
+          assert shortlist['unique_root_count'] == 36
+          assert shortlist['unique_project_count'] == 36
+          assert shortlist['owasp_grounded_family_count'] == 14
+          assert shortlist['legacy_semantic_family_count'] == 22
+          assert shortlist['supplement_pool_used'] is False
+          assert shortlist['firewall']['passed'] is True
+          assert shortlist['firewall']['scoring_executed'] is False
+          assert shortlist['firewall']['candidate_count'] == 36
+          assert shortlist['firewall']['unique_root_count'] == 36
+          assert shortlist['firewall']['unique_project_count'] == 36
+          assert shortlist['firewall']['rejected'] == []
+          print({
+              'family_count': shortlist['family_count'],
+              'owasp_grounded_family_count': shortlist['owasp_grounded_family_count'],
+              'legacy_semantic_family_count': shortlist['legacy_semantic_family_count'],
+              'supplement_pool_used': shortlist['supplement_pool_used'],
+              'scoring_executed': False,
+          })
+          PY
+
       - name: Build sealed-unscored v6 corpus
         env:
           PYTHONPATH: app
@@ -59,12 +93,17 @@ jobs:
           assert validation['passed'], validation['errors']
           assert validation['label_leakage_count'] == 0
           assert validation['scoring_executed'] is False
+          assert validation['source_firewall']['passed'] is True
+          assert validation['source_firewall']['candidate_count'] == 36
+          assert validation['source_firewall']['unique_root_count'] == 36
+          assert validation['source_firewall']['unique_project_count'] == 36
           print({
               'case_count': validation['case_count'],
               'single_case_count': validation['single_case_count'],
               'pair_case_count': validation['pair_case_count'],
               'triad_case_count': validation['triad_case_count'],
               'label_leakage_count': validation['label_leakage_count'],
+              'source_firewall_passed': validation['source_firewall']['passed'],
           })
           PY
 
