@@ -1,0 +1,58 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "deprecated_version_still_reachable"
+    ],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://www.binarysecurity.no/feed.xml",
+  "captured_at": "2026-08-14T16:30:10.374450Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "improper_inventory_management",
+  "raw": {
+    "business_context": "legacy api version",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "positive",
+      "response_text": "I used it to deploy an API to my test APIM service and called it a wrap: PUT /subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-test-apim/apis/new-api/?api-version=2024-06-01-preview HTTP / 1.1 Host : tmp-test-apim.management.azure-api.net Authorization : SharedAccessSignature 1&202408011143&YN0CQuPN7rqrwwpwKEvIU01peaDdTdnMY0EGuVl8kpumlPaJVZTe+MnTouAlq51GnE+FsWt4PCYi9smIuZ0yIA== Content-Type : application/json Content-Length : 73 { \"name\" : \"new-api\" , \"path\" : \"test123\" , \"protocols\" :[ \"https\" ], \"properties\" :{}} HTTP/ 1.1 201 Created Content-Length: 735 Content-Type: application/json; charset=utf -8 ETag: \"AAAAAAAAD6w=\" Strict-Transport-Security: max-age= 31536000 ; includeSubDomains X-Content-Type-Options: nosniff Date: Thu, 01 Aug 2024 11 : 38 : 40 GMT Connection: close { \"id\" : \"/subscriptions/8e3ce52f-d45b-4347-8705-65892507465e/resourceGroups/tmp-appservice/providers/Microsoft.ApiManagement/service/tmp-test-apim/apis/new-api\" , \"type\" : \"Microsoft.ApiManagement/service/apis\" , \"name\" : \"new-api\" , \"properties\" : { \"displayName\" : \"new-api\" , \"apiRevision\" : \"1\" , \"description\" : null , \"subscriptionRequired\" : true , \"serviceUrl\" : null , \"backendId\" : null , \"path\" : \"test123\" , \"protocols\" : [ \"https\" ], \"authenticationSettings\" : { \"oAuth2\" : null , \"openid\" : null }, \"subscriptionKeyParameterNames\" : { \"header\" : \"Ocp-Apim-Subscription-Key\" , \"query\" : \"subscription-key\" }, \"isCurrent\" : true } } Even though Microsoft does not pay bounties for this type of bug (using legacy ARM APIs), I reported this particular bug to them prior to holding a public talk on the topic.",
+      "source_path": "body_text",
+      "source_resource_type": "external_source"
+    },
+    "endpoint": "/observation/a065721f5b50a99c",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "9c57334e5dc37b77e2405ebc79bfdb98271479aecdea04229abc714ce3f1a685",
+  "schema_version": "1.0",
+  "source_project": "microsoft/azure-api-management",
+  "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+  "source_snapshot": {
+    "content_sha256": "1c2a3ed87ee2647bca5d4ef41f5f3004c19134a77ad69413472eebff204b1d24",
+    "payload": {
+      "literal_excerpt": "I used it to deploy an API to my test APIM service and called it a wrap: PUT /subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-test-apim/apis/new-api/?api-version=2024-06-01-preview HTTP / 1.1 Host : tmp-test-apim.management.azure-api.net Authorization : SharedAccessSignature 1&202408011143&YN0CQuPN7rqrwwpwKEvIU01peaDdTdnMY0EGuVl8kpumlPaJVZTe+MnTouAlq51GnE+FsWt4PCYi9smIuZ0yIA== Content-Type : application/json Content-Length : 73 { \"name\" : \"new-api\" , \"path\" : \"test123\" , \"protocols\" :[ \"https\" ], \"properties\" :{}} HTTP/ 1.1 201 Created Content-Length: 735 Content-Type: application/json; charset=utf -8 ETag: \"AAAAAAAAD6w=\" Strict-Transport-Security: max-age= 31536000 ; includeSubDomains X-Content-Type-Options: nosniff Date: Thu, 01 Aug 2024 11 : 38 : 40 GMT Connection: close { \"id\" : \"/subscriptions/8e3ce52f-d45b-4347-8705-65892507465e/resourceGroups/tmp-appservice/providers/Microsoft.ApiManagement/service/tmp-test-apim/apis/new-api\" , \"type\" : \"Microsoft.ApiManagement/service/apis\" , \"name\" : \"new-api\" , \"properties\" : { \"displayName\" : \"new-api\" , \"apiRevision\" : \"1\" , \"description\" : null , \"subscriptionRequired\" : true , \"serviceUrl\" : null , \"backendId\" : null , \"path\" : \"test123\" , \"protocols\" : [ \"https\" ], \"authenticationSettings\" : { \"oAuth2\" : null , \"openid\" : null }, \"subscriptionKeyParameterNames\" : { \"header\" : \"Ocp-Apim-Subscription-Key\" , \"query\" : \"subscription-key\" }, \"isCurrent\" : true } } Even though Microsoft does not pay bounties for this type of bug (using legacy ARM APIs), I reported this particular bug to them prior to holding a public talk on the topic.",
+      "resource_type": "external_source",
+      "source_path": "body_text",
+      "upstream_snapshot_sha256": "0e8adf05b435b1c62fb65c2a5be62e735f0843e86d331911578672d7e7e10afb"
+    },
+    "reference": "https://www.binarysecurity.no/feed.xml",
+    "retrieved_at": "2026-08-14T16:30:10.374450Z"
+  }
+}

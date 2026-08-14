@@ -1,0 +1,58 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "javascript_runtime"
+    ],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+  "captured_at": "2026-08-14T16:30:10.279290Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "dom_xss",
+  "raw": {
+    "business_context": "browser rendering",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "positive",
+      "response_text": "### Advisory Details **Title**: Persistent DOM XSS via HTML Entity Encoding in ` ` SVG Rendering (Bypass of `svgSanitizer.ts`) **Description**: ### Summary A Stored/Reflected Cross-Site Scripting (XSS) vulnerability exists due to a discrepancy between the backend validation layer and the frontend browser rendering engine.",
+      "source_path": "description",
+      "source_resource_type": "canonical"
+    },
+    "endpoint": "/observation/c88eb8a3fe064ce7",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "445cd41b315bdb4e3d89c8031d6bd3da22164b122b183fd27998f997a0dbc33e",
+  "schema_version": "1.0",
+  "source_project": "ThinkInAIXYZ/deepchat",
+  "source_root": "GHSA-7r59-67v3-3mgp",
+  "source_snapshot": {
+    "content_sha256": "7bd8b2f7b15864246d6916200a91a0866bf1ffd5d27b6de5728c11e7d183e6d4",
+    "payload": {
+      "literal_excerpt": "### Advisory Details **Title**: Persistent DOM XSS via HTML Entity Encoding in ` ` SVG Rendering (Bypass of `svgSanitizer.ts`) **Description**: ### Summary A Stored/Reflected Cross-Site Scripting (XSS) vulnerability exists due to a discrepancy between the backend validation layer and the frontend browser rendering engine.",
+      "resource_type": "canonical",
+      "source_path": "description",
+      "upstream_snapshot_sha256": "e6fe08e0508c56dc0a1c13770112cc782af8d93dec0676cf7eb8b1b8a8c8fce2"
+    },
+    "reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+    "retrieved_at": "2026-08-14T16:30:10.279290Z"
+  }
+}

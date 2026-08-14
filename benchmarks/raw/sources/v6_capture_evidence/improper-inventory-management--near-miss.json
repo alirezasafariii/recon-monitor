@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://www.binarysecurity.no/feed.xml",
+  "captured_at": "2026-08-14T16:30:10.374883Z",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "improper_inventory_management",
+  "raw": {
+    "business_context": "legacy api version",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "near_miss",
+      "response_text": "I recognized the format of the special APIM SAS token from earlier adventures, and tried it on the Management API, which is exposed on the internet by default: GET /subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/subscriptions?api-version=2023-09-01-preview HTTP / 1.1 Host : tmp-apim-sf.management.azure-api.net Authorization : SharedAccessSignature 1&202408231249&75LO+VJqRWrYqgulbD7bnkOehb+dOTmZEvkWGSxatQNoNH5VDAv3op9bOpHScju2nUdozOa+uyfdiP7vahqWtA== HTTP/1.1 200 OK Content-Length: 2405 Content-Type: application/json; charset=utf-8 Strict-Transport-Security: max-age=31536000; includeSubDomains X-Content-Type-Options: nosniff Date: Fri, 23 Aug 2024 12:50:10 { \"value\": [ { \"id\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/subscriptions/66c87239355c960062070001\", \"type\": \"Microsoft.ApiManagement/service/subscriptions\", \"name\": \"66c87239355c960062070001\", \"properties\": { \"ownerId\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/users/1\", \"scope\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/products/starter\", \"displayName\": null, \"state\": \"active\", \"createdDate\": \"2024-08-23T11:27:53.743Z\", \"startDate\": null, \"expirationDate\": null, \"endDate\": null, \"notificationDate\": null, \"stateComment\": null, \"allowTracing\": false } }, ...",
+      "source_path": "body_text",
+      "source_resource_type": "external_source"
+    },
+    "endpoint": "/observation/a7476dd29cfc778a",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "c30eecf6d19d0390f072fa33cb3ce83996aea03a1756620f86520afbbc4e4258",
+  "schema_version": "1.0",
+  "source_project": "microsoft/azure-api-management",
+  "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
+  "source_snapshot": {
+    "content_sha256": "0ac8b0a1c219f5ced0ec3837fb7c13c65262d5962c2e4353d83440a9cc3dc6b4",
+    "payload": {
+      "literal_excerpt": "I recognized the format of the special APIM SAS token from earlier adventures, and tried it on the Management API, which is exposed on the internet by default: GET /subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/subscriptions?api-version=2023-09-01-preview HTTP / 1.1 Host : tmp-apim-sf.management.azure-api.net Authorization : SharedAccessSignature 1&202408231249&75LO+VJqRWrYqgulbD7bnkOehb+dOTmZEvkWGSxatQNoNH5VDAv3op9bOpHScju2nUdozOa+uyfdiP7vahqWtA== HTTP/1.1 200 OK Content-Length: 2405 Content-Type: application/json; charset=utf-8 Strict-Transport-Security: max-age=31536000; includeSubDomains X-Content-Type-Options: nosniff Date: Fri, 23 Aug 2024 12:50:10 { \"value\": [ { \"id\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/subscriptions/66c87239355c960062070001\", \"type\": \"Microsoft.ApiManagement/service/subscriptions\", \"name\": \"66c87239355c960062070001\", \"properties\": { \"ownerId\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/users/1\", \"scope\": \"/subscriptions/0/resourceGroups/0/providers/Microsoft.ApiManagement/service/tmp-apim-sf/products/starter\", \"displayName\": null, \"state\": \"active\", \"createdDate\": \"2024-08-23T11:27:53.743Z\", \"startDate\": null, \"expirationDate\": null, \"endDate\": null, \"notificationDate\": null, \"stateComment\": null, \"allowTracing\": false } }, ...",
+      "resource_type": "external_source",
+      "source_path": "body_text",
+      "upstream_snapshot_sha256": "0e8adf05b435b1c62fb65c2a5be62e735f0843e86d331911578672d7e7e10afb"
+    },
+    "reference": "https://www.binarysecurity.no/feed.xml",
+    "retrieved_at": "2026-08-14T16:30:10.374883Z"
+  }
+}

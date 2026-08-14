@@ -38,37 +38,6 @@
     },
     {
       "blocking_controls": [
-        "constant_value",
-        "non_reachable",
-        "recognized_sanitizer",
-        "text_only_sink"
-      ],
-      "canonical_reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
-      "condition_signals": [
-        "javascript_runtime",
-        "no_sanitizer",
-        "reachable_route",
-        "runtime_reachable_flow"
-      ],
-      "evidence_missing_count": 4,
-      "evidence_present_count": 0,
-      "family": "dom_xss",
-      "feasibility_tier": "C_canonical_source_only",
-      "has_change_artifact": false,
-      "linked_resources": [],
-      "missing_variants": [
-        "near_miss",
-        "positive",
-        "secure_negative",
-        "sparse_noisy"
-      ],
-      "scoring_executed": false,
-      "source_project": "ThinkInAIXYZ/deepchat",
-      "source_root": "GHSA-7r59-67v3-3mgp",
-      "successful_link_snapshot_count": 0
-    },
-    {
-      "blocking_controls": [
         "inert_storage",
         "server_generated_filename",
         "strict_type_allowlist",
@@ -100,80 +69,6 @@
       "source_project": "dulldusk/phpfm",
       "source_root": "GHSA-gxgp-6wm7-xrhr",
       "successful_link_snapshot_count": 0
-    },
-    {
-      "blocking_controls": [
-        "inventory_documented",
-        "legacy_controls_equivalent",
-        "nonproduction_isolated",
-        "retired_endpoint_unreachable"
-      ],
-      "canonical_reference": "https://www.binarysecurity.no/posts/2024/11/apim-privesc",
-      "condition_signals": [
-        "deprecated_version_still_reachable",
-        "inventory_drift_observed",
-        "nonproduction_with_production_data",
-        "older_version_weaker_controls",
-        "retired_endpoint_active",
-        "undocumented_host_observed",
-        "unprotected_legacy_endpoint"
-      ],
-      "evidence_missing_count": 4,
-      "evidence_present_count": 0,
-      "family": "improper_inventory_management",
-      "feasibility_tier": "B_linked_context_without_change_artifact",
-      "has_change_artifact": false,
-      "linked_resources": [
-        {
-          "fetch_reference": "https://binarysecurity.no/posts/2023/06/function-apps-rce",
-          "payload_identity": {
-            "html_url": null,
-            "message": null,
-            "number": null,
-            "sha": null,
-            "title": null
-          },
-          "reference": "https://binarysecurity.no/posts/2023/06/function-apps-rce",
-          "resource_type": "external_source",
-          "snapshot_sha256": "a275d7e287dd26511cd08888d8145b72a0d177f99ecd841d9000c1d3618c414e"
-        },
-        {
-          "fetch_reference": "https://www.binarysecurity.no/assets/images/dark_png.png",
-          "payload_identity": {
-            "html_url": null,
-            "message": null,
-            "number": null,
-            "sha": null,
-            "title": null
-          },
-          "reference": "https://www.binarysecurity.no/assets/images/dark_png.png",
-          "resource_type": "external_source",
-          "snapshot_sha256": "5cc914f0ef4169819025108b66aa749eec8d97d43d3847e1d1dbd110bf935866"
-        },
-        {
-          "fetch_reference": "https://www.binarysecurity.no/feed.xml",
-          "payload_identity": {
-            "html_url": null,
-            "message": null,
-            "number": null,
-            "sha": null,
-            "title": null
-          },
-          "reference": "https://www.binarysecurity.no/feed.xml",
-          "resource_type": "external_source",
-          "snapshot_sha256": "0e8adf05b435b1c62fb65c2a5be62e735f0843e86d331911578672d7e7e10afb"
-        }
-      ],
-      "missing_variants": [
-        "near_miss",
-        "positive",
-        "secure_negative",
-        "sparse_noisy"
-      ],
-      "scoring_executed": false,
-      "source_project": "microsoft/azure-api-management",
-      "source_root": "BINARYSECURITY-APIM-OLD-API-2024-11-05",
-      "successful_link_snapshot_count": 3
     },
     {
       "blocking_controls": [
@@ -345,42 +240,6 @@
     },
     {
       "blocking_controls": [
-        "debug_disabled",
-        "hardening_observed",
-        "method_rejected",
-        "security_headers_present",
-        "tls_enforced"
-      ],
-      "canonical_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
-      "condition_signals": [
-        "debug_mode_exposed",
-        "desync_processing_difference",
-        "directory_listing_observed",
-        "insecure_http_enabled",
-        "security_header_missing_on_sensitive_response",
-        "stack_trace_exposed",
-        "unnecessary_method_enabled",
-        "unsafe_default_configuration"
-      ],
-      "evidence_missing_count": 4,
-      "evidence_present_count": 0,
-      "family": "security_misconfiguration",
-      "feasibility_tier": "C_canonical_source_only",
-      "has_change_artifact": false,
-      "linked_resources": [],
-      "missing_variants": [
-        "near_miss",
-        "positive",
-        "secure_negative",
-        "sparse_noisy"
-      ],
-      "scoring_executed": false,
-      "source_project": "kyndryl-open-source/hashi-vault-js",
-      "source_root": "GHSA-5pq8-3ffp-7w5m",
-      "successful_link_snapshot_count": 0
-    },
-    {
-      "blocking_controls": [
         "client_side_only",
         "literal_template_rendering",
         "template_input_escaped",
@@ -532,11 +391,11 @@
   ],
   "first_blind_consumed": false,
   "ranking_output_used": false,
-  "remaining_evidence_count": 56,
-  "remaining_family_count": 14,
+  "remaining_evidence_count": 44,
+  "remaining_family_count": 11,
   "scoring_executed": false,
   "tier_counts": {
-    "B_linked_context_without_change_artifact": 3,
-    "C_canonical_source_only": 11
+    "B_linked_context_without_change_artifact": 2,
+    "C_canonical_source_only": 9
   }
 }

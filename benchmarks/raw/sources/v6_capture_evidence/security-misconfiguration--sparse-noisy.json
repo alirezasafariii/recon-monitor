@@ -1,0 +1,64 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+  "captured_at": "2026-08-14T16:30:10.383953Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "business_context": "deployed configuration",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "sparse_noisy",
+      "source_metadata": {
+        "cve_id": "CVE-2026-55102",
+        "ghsa_id": "GHSA-5pq8-3ffp-7w5m",
+        "published_at": "2026-06-10T13:15:17Z",
+        "severity": "medium",
+        "updated_at": "2026-06-16T15:19:24Z"
+      }
+    },
+    "endpoint": "/observation/ef57f366ea0496cf",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "c52e322362787faeac6d2ac27371b4240f60d7f2f8427427bee229a906d43a18",
+  "schema_version": "1.0",
+  "source_project": "kyndryl-open-source/hashi-vault-js",
+  "source_root": "GHSA-5pq8-3ffp-7w5m",
+  "source_snapshot": {
+    "content_sha256": "05cb1c4245c2ac6454a69c6d7998d0bf191a7d1e68ff9b80aed0bc1b49efe445",
+    "payload": {
+      "literal_metadata": {
+        "cve_id": "CVE-2026-55102",
+        "ghsa_id": "GHSA-5pq8-3ffp-7w5m",
+        "published_at": "2026-06-10T13:15:17Z",
+        "severity": "medium",
+        "updated_at": "2026-06-16T15:19:24Z"
+      },
+      "upstream_snapshot_sha256": "056b90d48965b4ff191b5e6809cb5b57f5c7943caa987a17cfa12a60b06df2b5"
+    },
+    "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+    "retrieved_at": "2026-08-14T16:30:10.383953Z"
+  }
+}

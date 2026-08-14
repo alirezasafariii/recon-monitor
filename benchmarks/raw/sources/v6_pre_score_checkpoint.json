@@ -1,5 +1,5 @@
 {
-  "checkpoint_status": "22_literal_families_complete_88_of_144_pending_remaining_evidence",
+  "checkpoint_status": "25_literal_families_complete_100_of_144_pending_remaining_evidence",
   "ci": {
     "full_unit_suite": "success",
     "github_actions_status": "working",
@@ -56,6 +56,12 @@
       "source": "HEDRON-ISSUE-196 / eddiethedean/hedron",
       "status": "passed_4_of_4"
     },
+    "dom_xss": {
+      "capture_run_id": null,
+      "positive_observation": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+      "source": "GHSA-7r59-67v3-3mgp / ThinkInAIXYZ/deepchat",
+      "status": "passed_4_of_4"
+    },
     "exceptional_condition_mishandling": {
       "capture_run_id": null,
       "positive_observation": "The upstream issue documents an unhandled TUI exception path that renders frame locals while plaintext is live in multiple stack frames, producing an unsafe crash outcome.",
@@ -72,6 +78,12 @@
       "capture_run_id": null,
       "positive_observation": "The upstream issue records multiple query paths returning full Thing authority state to broadly authenticated callers rather than a field-minimized projection.",
       "source": "EYESPIE-ISSUE-122 / ryjen/eyespie",
+      "status": "passed_4_of_4"
+    },
+    "improper_inventory_management": {
+      "capture_run_id": null,
+      "positive_observation": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+      "source": "BINARYSECURITY-APIM-OLD-API-2024-11-05 / microsoft/azure-api-management",
       "status": "passed_4_of_4"
     },
     "information_disclosure": {
@@ -102,6 +114,12 @@
       "capture_run_id": null,
       "positive_observation": "The upstream issue records silent-authentication messages accepted without origin, source-window, or content validation, including interference from an unrelated iframe.",
       "source": "AUTH0-AUTH0JS-ISSUE-508 / auth0/auth0.js",
+      "status": "passed_4_of_4"
+    },
+    "security_misconfiguration": {
+      "capture_run_id": null,
+      "positive_observation": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+      "source": "GHSA-5pq8-3ffp-7w5m / kyndryl-open-source/hashi-vault-js",
       "status": "passed_4_of_4"
     },
     "sensitive_business_flow_abuse": {
@@ -170,7 +188,7 @@
     "validator_source_identity_binding": true
   },
   "literal_capture_progress": {
-    "capture_plan_status": "88_of_144_evidence_present",
+    "capture_plan_status": "100_of_144_evidence_present",
     "complete_families": [
       "account_enumeration",
       "broken_function_authorization",
@@ -179,14 +197,17 @@
       "command_injection",
       "cors_misconfiguration",
       "cryptographic_failure",
+      "dom_xss",
       "exceptional_condition_mishandling",
       "graphql_authorization",
       "graphql_data_exposure",
+      "improper_inventory_management",
       "information_disclosure",
       "mass_assignment",
       "nosql_injection",
       "path_traversal",
       "postmessage_trust",
+      "security_misconfiguration",
       "sensitive_business_flow_abuse",
       "sensitive_caching",
       "software_data_integrity_failure",
@@ -195,15 +216,15 @@
       "ssrf",
       "websocket_authorization"
     ],
-    "complete_family_count": 22,
+    "complete_family_count": 25,
     "corpus_freeze_status": "not_run",
     "corpus_validation_status": "not_run_on_complete_literal_corpus",
     "cross_variant_mutation_forbidden": true,
     "evaluator_freeze_status": "not_run",
-    "evidence_missing_count": 56,
-    "evidence_present_count": 88,
+    "evidence_missing_count": 44,
+    "evidence_present_count": 100,
     "materialization_status": "blocked_until_144_of_144",
-    "remaining_family_count": 14,
+    "remaining_family_count": 11,
     "required_capture_count": 144,
     "synthetic_fixture_generation_forbidden": true,
     "variant_contract": [
@@ -214,7 +235,7 @@
     ],
     "variants_per_complete_family": 4
   },
-  "next_required_transition": "Continue controlled evidence collection for the remaining 14 families / 56 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
+  "next_required_transition": "Continue controlled evidence collection for the remaining 11 families / 44 artifacts. Each family requires four independent source-grounded observations. After 144/144, run evidence-only ingest, strict verifier, materialize 276 cases, validate, freeze corpus and all evidence, freeze evaluator, then stop before the one-time First Blind score pending explicit approval.",
   "production_rules_changed_before_first_score": false,
   "rule_version": "2026.08.14.6.31.14",
   "safety_invariants": {

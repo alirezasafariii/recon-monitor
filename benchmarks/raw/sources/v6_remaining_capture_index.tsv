@@ -1,14 +1,11 @@
 family	tier	source_root	source_project	canonical_reference	linked_success	has_change_artifact
 authentication_session	C_canonical_source_only	GHSA-vxcg-gxwh-hqw8	ibm/ibm-i	https://github.com/advisories/GHSA-vxcg-gxwh-hqw8	0	false
-dom_xss	C_canonical_source_only	GHSA-7r59-67v3-3mgp	ThinkInAIXYZ/deepchat	https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp	0	false
 file_upload	C_canonical_source_only	GHSA-gxgp-6wm7-xrhr	dulldusk/phpfm	https://github.com/advisories/GHSA-gxgp-6wm7-xrhr	0	false
-improper_inventory_management	B_linked_context_without_change_artifact	BINARYSECURITY-APIM-OLD-API-2024-11-05	microsoft/azure-api-management	https://www.binarysecurity.no/posts/2024/11/apim-privesc	3	false
 ldap_injection	C_canonical_source_only	GHSA-pm9m-75p4-7h69	Tanguy-Boisset/CVE	https://github.com/advisories/GHSA-pm9m-75p4-7h69	0	false
 open_redirect	C_canonical_source_only	GHSA-jjjg-67rc-qf87	sauruscms/Saurus-CMS-Community-Edition	https://github.com/advisories/GHSA-jjjg-67rc-qf87	0	false
 race_condition	B_linked_context_without_change_artifact	CVE-2025-0120	paloaltonetworks/globalprotect-app-windows	https://security.paloaltonetworks.com/CVE-2025-0120	1	false
 secret_exposure	C_canonical_source_only	GHSA-xr96-mx7v-w32h	ibm/storage-scale	https://github.com/advisories/GHSA-xr96-mx7v-w32h	0	false
 security_logging_alerting_failure	C_canonical_source_only	GHSA-q83p-h7pj-3m3p	ibm/db2	https://github.com/advisories/GHSA-q83p-h7pj-3m3p	0	false
-security_misconfiguration	C_canonical_source_only	GHSA-5pq8-3ffp-7w5m	kyndryl-open-source/hashi-vault-js	https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m	0	false
 server_side_template_injection	C_canonical_source_only	OWNPAY-ISSUE-438	own-pay/OwnPay	https://github.com/own-pay/OwnPay/issues/438	0	false
 sql_injection	B_linked_context_without_change_artifact	GHSA-h325-4hh9-393v	projectdiscovery/nuclei-templates	https://github.com/advisories/GHSA-h325-4hh9-393v	1	false
 unrestricted_resource_consumption	C_canonical_source_only	GHSA-2cg2-hxr7-q7f4	systerel/S2OPC	https://github.com/advisories/GHSA-2cg2-hxr7-q7f4	0	false

@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+  "captured_at": "2026-08-14T16:30:10.383815Z",
+  "case_kind": "secure_negative",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "business_context": "deployed configuration",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "secure_negative",
+      "response_text": "0.5.2",
+      "source_path": "vulnerabilities.0.patched_versions",
+      "source_resource_type": "canonical"
+    },
+    "endpoint": "/observation/8bcbb31ccc97bb10",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "711355ddf83137578e843c642187526cc0cf53f333e1db8ce6cea97932565322",
+  "schema_version": "1.0",
+  "source_project": "kyndryl-open-source/hashi-vault-js",
+  "source_root": "GHSA-5pq8-3ffp-7w5m",
+  "source_snapshot": {
+    "content_sha256": "f9b33bc35f0dae1c35ee1dc49eb50edbb448a22a1f01866e8086e88b599d616d",
+    "payload": {
+      "literal_excerpt": "0.5.2",
+      "resource_type": "canonical",
+      "source_path": "vulnerabilities.0.patched_versions",
+      "upstream_snapshot_sha256": "056b90d48965b4ff191b5e6809cb5b57f5c7943caa987a17cfa12a60b06df2b5"
+    },
+    "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+    "retrieved_at": "2026-08-14T16:30:10.383815Z"
+  }
+}

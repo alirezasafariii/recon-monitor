@@ -1,0 +1,64 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+  "captured_at": "2026-08-14T16:30:10.280013Z",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "dom_xss",
+  "raw": {
+    "business_context": "browser rendering",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "sparse_noisy",
+      "source_metadata": {
+        "cve_id": "CVE-2026-43900",
+        "ghsa_id": "GHSA-7r59-67v3-3mgp",
+        "published_at": "2026-04-25T13:12:19Z",
+        "severity": "critical",
+        "updated_at": "2026-05-04T17:17:04Z"
+      }
+    },
+    "endpoint": "/observation/14b472bf0338cece",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "495dfc1f59d6cf5bdf09c96c4cdeabcf2d53dff3f6ff41e77c976155ed1fd46b",
+  "schema_version": "1.0",
+  "source_project": "ThinkInAIXYZ/deepchat",
+  "source_root": "GHSA-7r59-67v3-3mgp",
+  "source_snapshot": {
+    "content_sha256": "b7e39f04b73a5818bfc7d68e840aa131ac784b4452613ce61ebeb76e2d1bf526",
+    "payload": {
+      "literal_metadata": {
+        "cve_id": "CVE-2026-43900",
+        "ghsa_id": "GHSA-7r59-67v3-3mgp",
+        "published_at": "2026-04-25T13:12:19Z",
+        "severity": "critical",
+        "updated_at": "2026-05-04T17:17:04Z"
+      },
+      "upstream_snapshot_sha256": "e6fe08e0508c56dc0a1c13770112cc782af8d93dec0676cf7eb8b1b8a8c8fce2"
+    },
+    "reference": "https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp",
+    "retrieved_at": "2026-08-14T16:30:10.280013Z"
+  }
+}

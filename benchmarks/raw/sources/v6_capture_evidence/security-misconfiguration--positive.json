@@ -1,0 +1,58 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "debug_mode_exposed"
+    ],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+  "captured_at": "2026-08-14T16:30:10.383390Z",
+  "case_kind": "positive",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "business_context": "deployed configuration",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "positive",
+      "response_text": "That error carries the full Axios configuration, including the `X-Vault-Token` header and the request body.",
+      "source_path": "description",
+      "source_resource_type": "canonical"
+    },
+    "endpoint": "/observation/cb940fa0a2d2bf28",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "f41c295130556ee9896b5737133685a0b55daf61db48fee6dc7254c251bce712",
+  "schema_version": "1.0",
+  "source_project": "kyndryl-open-source/hashi-vault-js",
+  "source_root": "GHSA-5pq8-3ffp-7w5m",
+  "source_snapshot": {
+    "content_sha256": "81afd480623097f7e3f480da54c677eddbda6a704057ea350ec1e1c3acca37de",
+    "payload": {
+      "literal_excerpt": "That error carries the full Axios configuration, including the `X-Vault-Token` header and the request body.",
+      "resource_type": "canonical",
+      "source_path": "description",
+      "upstream_snapshot_sha256": "056b90d48965b4ff191b5e6809cb5b57f5c7943caa987a17cfa12a60b06df2b5"
+    },
+    "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+    "retrieved_at": "2026-08-14T16:30:10.383390Z"
+  }
+}

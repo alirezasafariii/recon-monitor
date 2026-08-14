@@ -1,0 +1,56 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Source-grounded sealed observation selected without detector, admission, ranking, or scoring output. Secure-negative selection requires explicit fixed/unaffected/implemented-control evidence, not recommendation text.",
+    "ranking_output_used": false
+  },
+  "capture_method": "cli_output",
+  "capture_reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+  "captured_at": "2026-08-14T16:30:10.383646Z",
+  "case_kind": "near_miss",
+  "collector": {
+    "command": "PYTHONPATH=app python app/v6_remaining_strict_snapshot_collector.py captured",
+    "source_file": "v6_literal_source_research.json + v6_literal_linked_research.json",
+    "tool": "Analysis 6.31 strict sealed-snapshot collector"
+  },
+  "family": "security_misconfiguration",
+  "raw": {
+    "business_context": "deployed configuration",
+    "category": "public source security observation",
+    "details": {
+      "capture_environment": "sealed passive public-source snapshot; no target contacted",
+      "observation_variant": "near_miss",
+      "response_text": "## Patches This vulnerability should be addressed by redacting `err.config.headers['X-Vault-Token']` and `err.config.data` before re-throwing, or by throwing a purpose-built error containing only safe properties like status and message.",
+      "source_path": "description",
+      "source_resource_type": "canonical"
+    },
+    "endpoint": "/observation/3551564bd1cad754",
+    "endpoint_schema": {
+      "authentication_hints": [],
+      "body_fields": [],
+      "object_identifiers": [],
+      "path_parameters": [],
+      "query_parameters": []
+    },
+    "method": "GET",
+    "target": "public-source-snapshot.invalid"
+  },
+  "raw_sha256": "05fb6369c64408ef5bdbf13fe1c2552991f22dee412516a21fb561524f97513a",
+  "schema_version": "1.0",
+  "source_project": "kyndryl-open-source/hashi-vault-js",
+  "source_root": "GHSA-5pq8-3ffp-7w5m",
+  "source_snapshot": {
+    "content_sha256": "a4032d01b062b30ed59b1a6c362772ecc91f2504a6e51b1ece497ff68920a495",
+    "payload": {
+      "literal_excerpt": "## Patches This vulnerability should be addressed by redacting `err.config.headers['X-Vault-Token']` and `err.config.data` before re-throwing, or by throwing a purpose-built error containing only safe properties like status and message.",
+      "resource_type": "canonical",
+      "source_path": "description",
+      "upstream_snapshot_sha256": "056b90d48965b4ff191b5e6809cb5b57f5c7943caa987a17cfa12a60b06df2b5"
+    },
+    "reference": "https://github.com/kyndryl-open-source/hashi-vault-js/security/advisories/GHSA-5pq8-3ffp-7w5m",
+    "retrieved_at": "2026-08-14T16:30:10.383646Z"
+  }
+}
