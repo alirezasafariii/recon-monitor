@@ -38,23 +38,26 @@ jobs:
               raise SystemExit('v6 discovery must remain unscored')
 
           candidate = {
-              'advisory_source_type': 'reviewed',
-              'canonical_advisory_url': 'https://github.com/advisories/GHSA-32cc-x95p-fxcg',
-              'repository_advisory_url': 'https://github.com/frangoteam/FUXA/security/advisories/GHSA-32cc-x95p-fxcg',
-              'description': 'An insecure default configuration in FUXA allows unauthenticated remote administrative access and arbitrary code execution when authentication is enabled but the administrator JWT secret is not configured. The application can appear to operate in secureEnabled mode while accepting tokens signed with a publicly known default key, creating a fail-open security posture.',
+              'advisory_source_type': 'unreviewed',
+              'canonical_advisory_url': 'https://github.com/advisories/GHSA-j3fc-fx73-7qv7',
+              'repository_advisory_url': '',
+              'description': 'The VPS.org one-click Supabase template has an insecure default configuration that publishes PostgreSQL on all interfaces at 0.0.0.0:5432 with the default database password postgres. The database is therefore publicly exposed by default, and Docker networking rules can bypass a standard host UFW configuration.',
               'family': family,
               'freshness_validated': True,
-              'matched_cwes': ['CWE-321', 'CWE-1188'],
-              'published_at': '2026-02-05T00:36:30Z',
-              'references': [],
+              'matched_cwes': ['CWE-1188'],
+              'published_at': '2026-07-31T18:32:17Z',
+              'references': [
+                  'https://nvd.nist.gov/vuln/detail/CVE-2026-16503',
+                  'https://kb.cert.org/vuls/id/243636'
+              ],
               'selection_basis': 'pre-score targeted source discovery repair for global root/project uniqueness; no detector, admission, ranking, or blind result used',
               'severity': 'critical',
-              'source_code_location': 'https://github.com/frangoteam/FUXA',
-              'source_kind': 'github_reviewed_repository_advisory',
-              'source_project': 'frangoteam/FUXA',
-              'source_root': 'GHSA-32cc-x95p-fxcg',
-              'summary': 'FUXA unauthenticated remote code execution via hardcoded JWT secret in insecure default configuration.',
-              'updated_at': '2026-02-10T02:56:49Z',
+              'source_code_location': '',
+              'source_kind': 'vendor_product_advisory_record',
+              'source_project': 'vps.org/supabase-one-click-template',
+              'source_root': 'GHSA-j3fc-fx73-7qv7',
+              'summary': 'VPS.org Supabase template exposes PostgreSQL through an insecure default configuration with a default password.',
+              'updated_at': '2026-08-03T18:31:45Z',
           }
 
           fw = check_candidate(candidate)
