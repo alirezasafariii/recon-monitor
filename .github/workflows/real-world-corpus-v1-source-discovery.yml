@@ -44,11 +44,21 @@ jobs:
             --output benchmarks/real_world/v1/targeted_candidates.json \
             --report benchmarks/real_world/v1/targeted_discovery_report.json
 
+      - name: Build pre-adjudication 100-source shortlist
+        run: |
+          set -euo pipefail
+          python app/real_world_corpus_v1_shortlist.py \
+            --targeted benchmarks/real_world/v1/targeted_candidates.json \
+            --general benchmarks/real_world/v1/source_candidates.json \
+            --output benchmarks/real_world/v1/source_shortlist.json \
+            --report benchmarks/real_world/v1/shortlist_report.json
+
       - name: Focused corpus regressions
         run: |
           python -m unittest tests/test_real_world_corpus_v1.py -q
           python -m unittest tests/test_real_world_corpus_v1_discovery.py -q
           python -m unittest tests/test_real_world_corpus_v1_targeted.py -q
+          python -m unittest tests/test_real_world_corpus_v1_shortlist.py -q
 
       - name: Full regression suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
@@ -60,13 +70,15 @@ jobs:
           git add benchmarks/real_world/v1/source_candidates.json \
                   benchmarks/real_world/v1/source_discovery_report.json \
                   benchmarks/real_world/v1/targeted_candidates.json \
-                  benchmarks/real_world/v1/targeted_discovery_report.json
+                  benchmarks/real_world/v1/targeted_discovery_report.json \
+                  benchmarks/real_world/v1/source_shortlist.json \
+                  benchmarks/real_world/v1/shortlist_report.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
             | xargs -0 sha256sum > MANIFEST.sha256
           sha256sum --strict -c MANIFEST.sha256
 
-      - name: Commit discovery registry and manifest
+      - name: Commit corpus source artifacts and manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -76,10 +88,12 @@ jobs:
                   benchmarks/real_world/v1/source_discovery_report.json \
                   benchmarks/real_world/v1/targeted_candidates.json \
                   benchmarks/real_world/v1/targeted_discovery_report.json \
+                  benchmarks/real_world/v1/source_shortlist.json \
+                  benchmarks/real_world/v1/shortlist_report.json \
                   MANIFEST.sha256
           if git diff --cached --quiet; then
-            echo 'No discovery changes to commit.'
+            echo 'No corpus source changes to commit.'
             exit 0
           fi
-          git commit -m 'chore(corpus-v1): refresh fresh source candidates'
+          git commit -m 'chore(corpus-v1): refresh source shortlist'
           git push
