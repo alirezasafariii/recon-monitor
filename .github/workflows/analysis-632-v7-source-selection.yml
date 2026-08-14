@@ -1,0 +1,87 @@
+name: Analysis 6.32 v7 Fresh Source Selection
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - 'benchmarks/raw/sources/v7_candidates.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-v7-source-selection
+  cancel-in-progress: false
+
+jobs:
+  select-v7-sources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.32
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require unscored uncontaminated candidate pool
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('benchmarks/raw/sources/v7_candidates.json')
+          assert p.exists(), 'v7 candidate pool missing'
+          r=json.loads(p.read_text())
+          assert r['family_count'] == 36, r.get('family_count')
+          assert r['scoring_executed'] is False
+          assert r['candidate_selection_uses_detector_scores'] is False
+          assert r['candidate_selection_uses_admission_results'] is False
+          assert r['candidate_selection_uses_ranking_results'] is False
+          assert r['candidate_selection_uses_v6_first_blind_score'] is False
+          assert r['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert r['active_target_validation_performed'] is False
+          PY
+
+      - name: Select 36 globally unique fresh sources
+        env:
+          PYTHONPATH: app
+        run: python app/raw_recon_v7_source_selection.py
+
+      - name: Assert strict 36-family shortlist
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert r['family_count'] == 36
+          assert len(r['selected']) == 36
+          assert r['global_assignment_complete'] is True
+          assert r['families_without_semantic_candidates'] == []
+          assert r['firewall']['passed'] is True, r['firewall']
+          assert r['firewall']['unique_root_count'] == 36
+          assert r['firewall']['unique_project_count'] == 36
+          assert r['selection_uses_detector_scores'] is False
+          assert r['selection_uses_admission_results'] is False
+          assert r['selection_uses_ranking_results'] is False
+          assert r['selection_uses_v6_first_blind_score'] is False
+          assert r['selection_uses_v6_first_blind_case_errors'] is False
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          PY
+
+      - name: Commit v7 shortlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_shortlist.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Select Analysis 6.32 v7 fresh sources'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
