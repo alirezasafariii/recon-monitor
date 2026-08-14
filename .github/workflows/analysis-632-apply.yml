@@ -1,0 +1,108 @@
+name: Apply Analysis 6.32 Post-Blind Calibration
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-632-apply
+  cancel-in-progress: false
+
+jobs:
+  apply-calibration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Analysis 6.32
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Prove consumed 6.31 result remains inherited and immutable
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt=json.loads(Path('benchmarks/raw/sources/v6_first_blind_consumption.json').read_text())
+          result=json.loads(Path('benchmarks/raw/results/analysis_raw_v6_first_blind.json').read_text())
+          assert receipt['state'] == 'completed', receipt
+          assert receipt['first_blind_consumed'] is True, receipt
+          assert receipt['rerun_allowed'] is False, receipt
+          assert result['scoring_executed'] is True, result
+          assert result['first_blind_consumed'] is True, result
+          PY
+
+      - name: Apply 6.32 production calibration patch
+        run: python tools/apply_analysis_632.py
+
+      - name: Compile changed reasoning stack
+        env:
+          PYTHONPATH: app
+        run: |
+          python -m py_compile \
+            app/analysis_632_evidence.py \
+            app/researcher_logic.py \
+            app/hypothesis_admission.py \
+            app/family_detectors/execution.py \
+            app/analysis_ranking.py \
+            app/security_reasoning.py
+
+      - name: Analysis 6.32 architecture contracts
+        env:
+          PYTHONPATH: app
+        run: python -m unittest tests.test_analysis_632_calibration -v
+
+      - name: Full unit suite
+        env:
+          PYTHONPATH: app
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: Golden benchmark regression gate
+        env:
+          PYTHONPATH: app
+        run: python app/analysis_benchmark.py --strict
+
+      - name: Integration test
+        env:
+          PYTHONPATH: app
+        run: python tests/integration_runner.py
+
+      - name: Ensure consumed v6 benchmark was not rescored
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD -- \
+            benchmarks/raw/sources/v6_first_blind_consumption.json \
+            benchmarks/raw/results/analysis_raw_v6_first_blind.json \
+            benchmarks/raw/analysis_raw_v6.jsonl \
+            benchmarks/raw/sources/v6_corpus_freeze.json \
+            benchmarks/raw/sources/v6_evaluator_freeze.json
+
+      - name: Commit validated Analysis 6.32 production changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            app/hypothesis_admission.py \
+            app/family_detectors/execution.py \
+            app/analysis_ranking.py \
+            app/security_reasoning.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Apply Analysis 6.32 post-blind calibration'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
