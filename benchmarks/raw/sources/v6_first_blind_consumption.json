@@ -1,0 +1,20 @@
+{
+  "authorization_committed_before_scoring": true,
+  "canonical_artifact_sha256": {
+    "corpus": "b1e35c443aac57cd6207993ccd2acea7ba9fca6b1b3fd1a27457b5d72ebf48b2",
+    "corpus_freeze": "3193934edfef046e8dfb867ced2f8bde3ceed77fe8fbea073e7f17f8cc4567ca",
+    "evaluator": "7db75b63d135f59ee2db524f61d0e8856929016198e13ba11f19373b30995489",
+    "evaluator_freeze": "9d7e220561bb60335e42700470360bf0829c27d3d98e2058e594c32cdc83c86d",
+    "protocol": "fed800eba46f4fadc2556d93c1dfc650a230260c5a628bf6ce1289262235df35",
+    "shortlist": "b4c11f5e8454f6428f8631fbe2d9e128fc6440dbf8de001c4160714a05c7bd65"
+  },
+  "evaluation_kind": "fresh_blind_v6_single_consumption",
+  "first_blind_consumed": false,
+  "github_run_attempt": "1",
+  "github_run_id": "31822248631",
+  "rerun_allowed": false,
+  "rule_version": "2026.08.14.6.31.15",
+  "scoring_executed": false,
+  "state": "authorized_unscored",
+  "version": "1.0.0"
+}
