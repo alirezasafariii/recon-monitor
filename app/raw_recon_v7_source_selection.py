@@ -5,7 +5,8 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
-from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
+from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION
+from v7_source_semantic_audit import audit_row
 from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
 from raw_recon_v7_source_firewall import check_candidate, exposure_index, validate_shortlist

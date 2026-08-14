@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
-from raw_recon_v5_source_audit import audit_row
+from v7_source_semantic_audit import audit_row
 from raw_recon_v7_source_firewall import check_candidate, exposure_index
 from v7_pre_score_condition_audit import audit_conditions
 
