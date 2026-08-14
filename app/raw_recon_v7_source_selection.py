@@ -5,12 +5,13 @@ from typing import Any, Mapping
 
 from raw_recon_corpus import ROOT
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
+from raw_recon_v7_source_firewall import PRIOR_SCOPE
 from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
 from raw_recon_v7_source_firewall import check_candidate, validate_shortlist
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.14.6.33.v7.unseen.1"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 OUT = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 
@@ -56,10 +57,14 @@ def _prepare_pool(family: str, rows: list[Any]) -> list[dict[str, Any]]:
             "source_family_audit_rule_version": AUDIT_RULE_VERSION,
             "source_family_audit_group_hits": hits,
             "source_family_audit_score": score,
-            "source_selection_track": "fresh_v7_global_semantic_pool",
-            "selection_basis": "fresh passive source selected before scoring by preregistered semantic audit, v1-v6 firewall, and global root/project uniqueness",
+            "source_selection_track": "fresh_v7_strict_unseen_global_semantic_pool",
+            "selection_basis": "fresh passive source selected before scoring by preregistered semantic audit, strict V1-V6 plus pinned Corpus V1 firewall, and global root/project uniqueness",
+            "prior_exposure_scope": PRIOR_SCOPE,
             "selection_uses_v6_score": False,
             "selection_uses_v6_case_errors": False,
+            "selection_uses_corpus_v1_labels": False,
+            "selection_uses_corpus_v1_evidence": False,
+            "selection_uses_corpus_v1_scores": False,
         })
         result.append(row)
     return sorted(result, key=lambda row: _quality_key(row, family), reverse=True)
@@ -95,8 +100,15 @@ def select() -> dict[str, Any]:
     raw = json.loads(CANDIDATES.read_text(encoding="utf-8"))
     if raw.get("scoring_executed") is not False:
         raise RuntimeError("v7 source candidates must remain unscored")
-    if raw.get("candidate_selection_uses_v6_first_blind_score") is not False or raw.get("candidate_selection_uses_v6_first_blind_case_errors") is not False:
-        raise RuntimeError("v7 source discovery was contaminated by v6 First Blind results")
+    forbidden_flags = (
+        "candidate_selection_uses_v6_first_blind_score",
+        "candidate_selection_uses_v6_first_blind_case_errors",
+        "candidate_selection_uses_corpus_v1_labels",
+        "candidate_selection_uses_corpus_v1_evidence",
+        "candidate_selection_uses_corpus_v1_scores",
+    )
+    if any(raw.get(flag) is not False for flag in forbidden_flags):
+        raise RuntimeError("v7 source discovery was contaminated by prior blind/calibration data")
     raw_pools = raw.get("candidates_by_family") if isinstance(raw.get("candidates_by_family"), Mapping) else {}
     families = sorted(str(family) for family in raw_pools)
     if len(families) != 36:
@@ -110,18 +122,19 @@ def select() -> dict[str, Any]:
         "passed": False, "errors": ["semantic candidate coverage incomplete"], "candidate_count": 0,
         "unique_root_count": 0, "unique_project_count": 0, "rejected": [],
         "firewall_version": FIREWALL_VERSION, "firewall_rule_version": FIREWALL_RULE_VERSION,
-        "scoring_executed": False,
+        "prior_scope": PRIOR_SCOPE, "scoring_executed": False,
     }
     report = {
         "version": VERSION,
         "rule_version": RULE_VERSION,
-        "evaluation_kind": "fresh_blind_v7_unscored_source_selection",
+        "evaluation_kind": "fresh_blind_v7_strict_unseen_unscored_source_selection",
         "family_count": 36,
         "selected": selected or [],
         "semantic_candidate_counts": {family: len(rows) for family, rows in pools.items()},
         "families_without_semantic_candidates": missing,
         "global_assignment_complete": selected is not None,
         "firewall": firewall,
+        "prior_exposure_scope": PRIOR_SCOPE,
         "source_family_audit_version": AUDIT_VERSION,
         "source_family_audit_rule_version": AUDIT_RULE_VERSION,
         "selection_uses_detector_scores": False,
@@ -129,6 +142,9 @@ def select() -> dict[str, Any]:
         "selection_uses_ranking_results": False,
         "selection_uses_v6_first_blind_score": False,
         "selection_uses_v6_first_blind_case_errors": False,
+        "selection_uses_corpus_v1_labels": False,
+        "selection_uses_corpus_v1_evidence": False,
+        "selection_uses_corpus_v1_scores": False,
         "active_target_validation_performed": False,
         "scoring_executed": False,
         "first_blind_consumed": False,
