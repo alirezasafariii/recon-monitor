@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Mapping
+from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row
@@ -9,10 +10,32 @@ from raw_recon_v7_source_firewall import RULE_VERSION as FIREWALL_RULE_VERSION
 from raw_recon_v7_source_firewall import VERSION as FIREWALL_VERSION
 from raw_recon_v7_source_firewall import check_candidate, validate_shortlist
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.14.6.32.v7.2"
 CANDIDATES = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 OUT = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
+
+
+def _repository_reference(row: Mapping[str, Any]) -> str:
+    candidates = [
+        str(row.get("source_code_location") or "").strip(),
+        str(row.get("repository_advisory_url") or "").strip(),
+    ]
+    candidates.extend(str(value).strip() for value in row.get("references") or [] if str(value).strip())
+    project = str(row.get("source_project") or "").strip().casefold()
+    for value in candidates:
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or parsed.netloc.casefold() != "github.com":
+            continue
+        parts = [part for part in parsed.path.split("/") if part]
+        if len(parts) < 4:
+            continue
+        repo = f"{parts[0]}/{parts[1]}".casefold()
+        if project and repo != project:
+            continue
+        if parts[2] in {"commit", "pull", "issues", "security"}:
+            return value
+    return ""
 
 
 def _quality_key(row: Mapping[str, Any], family: str) -> tuple[Any, ...]:
@@ -20,11 +43,11 @@ def _quality_key(row: Mapping[str, Any], family: str) -> tuple[Any, ...]:
     source_type = str(row.get("advisory_source_type") or "").lower()
     kind = str(row.get("source_kind") or "").lower()
     reviewed = int(source_type == "reviewed" or "reviewed" in kind or "repository_advisory" in kind)
-    repository_location = int(bool(str(row.get("source_code_location") or row.get("repository_advisory_url") or "").strip()))
+    repository_location = int(bool(_repository_reference(row)))
     description_length = min(len(str(row.get("description") or "")), 5000)
     published = str(row.get("published_at") or "")
     return (
-        int(passed), score, reviewed, repository_location, description_length, published,
+        int(passed), score, repository_location, reviewed, description_length, published,
         str(row.get("source_root") or ""), str(row.get("source_project") or ""),
     )
 
@@ -42,6 +65,9 @@ def _prepare_pool(family: str, rows: list[Any]) -> list[dict[str, Any]]:
         passed, hits, score = audit_row(family, row)
         if not passed:
             continue
+        upstream = _repository_reference(row)
+        if not upstream:
+            continue
         root = str(row.get("source_root") or "").strip().casefold()
         project = str(row.get("source_project") or "").strip().casefold()
         if not root or not project or root in seen_roots:
@@ -56,8 +82,10 @@ def _prepare_pool(family: str, rows: list[Any]) -> list[dict[str, Any]]:
             "source_family_audit_rule_version": AUDIT_RULE_VERSION,
             "source_family_audit_group_hits": hits,
             "source_family_audit_score": score,
-            "source_selection_track": "fresh_v7_global_semantic_pool",
-            "selection_basis": "fresh passive source selected before scoring by preregistered semantic audit, v1-v6 firewall, and global root/project uniqueness",
+            "source_selection_track": "fresh_v7_global_semantic_pool_with_upstream_reference",
+            "upstream_repository_reference": upstream,
+            "capture_feasibility_requires_upstream_reference": True,
+            "selection_basis": "fresh passive source selected before scoring by preregistered semantic audit, v1-v6 firewall, upstream repository reference, and global root/project uniqueness",
             "selection_uses_v6_score": False,
             "selection_uses_v6_case_errors": False,
         })
@@ -80,10 +108,14 @@ def _solve(families: list[str], pools: Mapping[str, list[dict[str, Any]]]) -> li
             project = str(row.get("source_project") or "").strip().casefold()
             if root in used_roots or project in used_projects:
                 continue
-            used_roots.add(root); used_projects.add(project); chosen[family] = row
+            used_roots.add(root)
+            used_projects.add(project)
+            chosen[family] = row
             if visit(index + 1):
                 return True
-            chosen.pop(family, None); used_roots.remove(root); used_projects.remove(project)
+            chosen.pop(family, None)
+            used_roots.remove(root)
+            used_projects.remove(project)
         return False
 
     if not visit(0):
@@ -107,9 +139,14 @@ def select() -> dict[str, Any]:
     if not missing and selected is None:
         raise RuntimeError("v7 global uniqueness solver found no complete 36-family assignment")
     firewall = validate_shortlist(selected or [], required_count=36) if selected is not None else {
-        "passed": False, "errors": ["semantic candidate coverage incomplete"], "candidate_count": 0,
-        "unique_root_count": 0, "unique_project_count": 0, "rejected": [],
-        "firewall_version": FIREWALL_VERSION, "firewall_rule_version": FIREWALL_RULE_VERSION,
+        "passed": False,
+        "errors": ["semantic/capture-feasible candidate coverage incomplete"],
+        "candidate_count": 0,
+        "unique_root_count": 0,
+        "unique_project_count": 0,
+        "rejected": [],
+        "firewall_version": FIREWALL_VERSION,
+        "firewall_rule_version": FIREWALL_RULE_VERSION,
         "scoring_executed": False,
     }
     report = {
@@ -122,6 +159,7 @@ def select() -> dict[str, Any]:
         "families_without_semantic_candidates": missing,
         "global_assignment_complete": selected is not None,
         "firewall": firewall,
+        "capture_feasibility_requires_upstream_repository_reference": True,
         "source_family_audit_version": AUDIT_VERSION,
         "source_family_audit_rule_version": AUDIT_RULE_VERSION,
         "selection_uses_detector_scores": False,
