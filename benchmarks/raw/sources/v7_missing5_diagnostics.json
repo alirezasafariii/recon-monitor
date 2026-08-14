@@ -1,0 +1,513 @@
+{
+  "file_upload": {
+    "patch_probe_diagnostic": {
+      "input_count": 11,
+      "patchable_count": 0,
+      "reasons": [
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic"
+      ]
+    },
+    "preferred_sources": [
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/fjpimienta/n8n-enterprise-automation-suite/pull/617",
+        "source_family_audit_group_hits": [
+          [
+            "upload file"
+          ],
+          [
+            "extension",
+            "file",
+            "filename",
+            "mime",
+            "upload"
+          ]
+        ],
+        "source_project": "fjpimienta/n8n-enterprise-automation-suite",
+        "source_root": "GITHUB-PR-fjpimienta-n8n-enterprise-automation-suite-617",
+        "summary": "Security: enforce strict boundary check on file read operations (#616)"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/tomkabel/sport-hackathon/pull/14",
+        "source_family_audit_group_hits": [
+          [
+            "uploaded file"
+          ],
+          [
+            "extension",
+            "file",
+            "filename",
+            "mime",
+            "upload"
+          ]
+        ],
+        "source_project": "tomkabel/sport-hackathon",
+        "source_root": "GITHUB-PR-tomkabel-sport-hackathon-14",
+        "summary": "Feat/UI"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/kalviumcommunity/SW2627-DataProduct-Recruit_Flow/pull/6",
+        "source_family_audit_group_hits": [
+          [
+            "uploaded file"
+          ],
+          [
+            "extension",
+            "file",
+            "filename",
+            "upload"
+          ]
+        ],
+        "source_project": "kalviumcommunity/SW2627-DataProduct-Recruit_Flow",
+        "source_root": "GITHUB-PR-kalviumcommunity-SW2627-DataProduct-Recruit_Flow-6",
+        "summary": "Develop"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/kalviumcommunity/SW2627-DataProduct-Recruit_Flow/pull/4",
+        "source_family_audit_group_hits": [
+          [
+            "file upload"
+          ],
+          [
+            "file",
+            "upload"
+          ]
+        ],
+        "source_project": "kalviumcommunity/SW2627-DataProduct-Recruit_Flow",
+        "source_root": "GITHUB-PR-kalviumcommunity-SW2627-DataProduct-Recruit_Flow-4",
+        "summary": "feat(ingestion): implement file upload pipeline and raw data storage"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/Dhruvil-38/DV_FINANCE_TERMINAL/pull/3",
+        "source_family_audit_group_hits": [
+          [
+            "file upload"
+          ],
+          [
+            "extension",
+            "file",
+            "filename",
+            "upload"
+          ]
+        ],
+        "source_project": "Dhruvil-38/DV_FINANCE_TERMINAL",
+        "source_root": "GITHUB-PR-Dhruvil-38-DV_FINANCE_TERMINAL-3",
+        "summary": "Security audit fixes: JWT secret fallback, wildcard CORS, upload traversal, input validation, stored XSS"
+      }
+    ]
+  },
+  "graphql_authorization": {
+    "patch_probe_diagnostic": {
+      "input_count": 12,
+      "patchable_count": 0,
+      "reasons": [
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic"
+      ]
+    },
+    "preferred_sources": [
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/real-life-org/real-life-stack/pull/263",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "authorization",
+            "permission",
+            "scope",
+            "unauthorized"
+          ],
+          [
+            "field",
+            "mutation",
+            "query",
+            "resolver",
+            "schema"
+          ]
+        ],
+        "source_project": "real-life-org/real-life-stack",
+        "source_root": "GITHUB-PR-real-life-org-real-life-stack-263",
+        "summary": "feat: Space-Mitglieder d\u00fcrfen Inhalte bearbeiten, Bearbeitung wird sichtbar"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/gopherium/AlphOne/pull/62",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "authorization"
+          ],
+          [
+            "field",
+            "query",
+            "resolver"
+          ]
+        ],
+        "source_project": "gopherium/AlphOne",
+        "source_root": "GITHUB-PR-gopherium-AlphOne-62",
+        "summary": "feat: Every caller stands in a tenant"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/alkem-io/server/pull/6358",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "authorization",
+            "permission",
+            "scope"
+          ],
+          [
+            "field",
+            "mutation",
+            "query",
+            "resolver",
+            "schema"
+          ]
+        ],
+        "source_project": "alkem-io/server",
+        "source_root": "GITHUB-PR-alkem-io-server-6358",
+        "summary": "feat(038): MCP API key lifecycle \u2014 mint/revoke, admin surface, audit; closes key-chaining escalation"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/github/github-mcp-server/pull/3069",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "authorization"
+          ],
+          [
+            "resolver"
+          ]
+        ],
+        "source_project": "github/github-mcp-server",
+        "source_root": "GITHUB-PR-github-github-mcp-server-3069",
+        "summary": "fix(security): enforce HTTPS for gh-host/GITHUB_HOST to prevent cleartext credentials"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/krushit1307/CampusConnect/pull/3218",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "permission"
+          ],
+          [
+            "field",
+            "schema"
+          ]
+        ],
+        "source_project": "krushit1307/CampusConnect",
+        "source_root": "GITHUB-PR-krushit1307-CampusConnect-3218",
+        "summary": "feat(events): build live event support chat widget #3016"
+      }
+    ]
+  },
+  "graphql_data_exposure": {
+    "patch_probe_diagnostic": {
+      "input_count": 5,
+      "patchable_count": 0,
+      "reasons": [
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic"
+      ]
+    },
+    "preferred_sources": [
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/equaltoai/lesser-body/pull/573",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "sensitive"
+          ],
+          [
+            "data",
+            "field",
+            "query",
+            "response",
+            "schema"
+          ]
+        ],
+        "source_project": "equaltoai/lesser-body",
+        "source_root": "GITHUB-PR-equaltoai-lesser-body-573",
+        "summary": "fix(mcp): normalize article_get missing article"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/Jamf-Concepts/jamf-cli/pull/317",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "read-only"
+          ],
+          [
+            "data",
+            "field",
+            "schema"
+          ]
+        ],
+        "source_project": "Jamf-Concepts/jamf-cli",
+        "source_root": "GITHUB-PR-Jamf-Concepts-jamf-cli-317",
+        "summary": "feat(protect): add unified logging filter sets (jamfprotect-go-sdk v0.8.0)"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/Corgtexdotcom/corgtex/pull/954",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "read-only"
+          ],
+          [
+            "data",
+            "query",
+            "schema"
+          ]
+        ],
+        "source_project": "Corgtexdotcom/corgtex",
+        "source_root": "GITHUB-PR-Corgtexdotcom-corgtex-954",
+        "summary": "fix(ci): bind RSI queue membership to synthetic commits"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/PostHog/posthog/pull/72074",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "read-only"
+          ],
+          [
+            "data",
+            "field",
+            "response",
+            "schema"
+          ]
+        ],
+        "source_project": "PostHog/posthog",
+        "source_root": "GITHUB-PR-PostHog-posthog-72074",
+        "summary": "feat(review_hog): resolution stage \u2014 triage and implement a PR's unresolved review threads"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/redhat-developer/rhdh-plugins/pull/4250",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "sensitive"
+          ],
+          [
+            "data",
+            "field",
+            "query",
+            "response",
+            "schema"
+          ]
+        ],
+        "source_project": "redhat-developer/rhdh-plugins",
+        "source_root": "GITHUB-PR-redhat-developer-rhdh-plugins-4250",
+        "summary": "feat(#4043): add ingestion health backend API, data model, and error classification"
+      }
+    ]
+  },
+  "security_logging_alerting_failure": {
+    "patch_probe_diagnostic": {
+      "input_count": 12,
+      "patchable_count": 0,
+      "reasons": [
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic",
+        "condition_semantic"
+      ]
+    },
+    "preferred_sources": [
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/tdespenza/lifeos/pull/245",
+        "source_family_audit_group_hits": [
+          [
+            "alert",
+            "log",
+            "logging",
+            "telemetry"
+          ],
+          [
+            "password",
+            "sensitive",
+            "token"
+          ]
+        ],
+        "source_project": "tdespenza/lifeos",
+        "source_root": "GITHUB-PR-tdespenza-lifeos-245",
+        "summary": "Implement REST gateway routing and correlation IDs"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/deftai/directive/pull/3366",
+        "source_family_audit_group_hits": [
+          [
+            "log"
+          ],
+          [
+            "token"
+          ]
+        ],
+        "source_project": "deftai/directive",
+        "source_root": "GITHUB-PR-deftai-directive-3366",
+        "summary": "fix(intake,scope): run clause derivation on activate/promote (#3360)"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/sugar-org/swarm-external-secrets/pull/174",
+        "source_family_audit_group_hits": [
+          [
+            "log"
+          ],
+          [
+            "secret",
+            "token"
+          ]
+        ],
+        "source_project": "sugar-org/swarm-external-secrets",
+        "source_root": "GITHUB-PR-sugar-org-swarm-external-secrets-174",
+        "summary": "feat: replace old localstack to aws-kumo emulator for smoke tests"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/jongan69/ClipCaptionAI/pull/14",
+        "source_family_audit_group_hits": [
+          [
+            "log"
+          ],
+          [
+            "api key",
+            "sensitive"
+          ]
+        ],
+        "source_project": "jongan69/ClipCaptionAI",
+        "source_root": "GITHUB-PR-jongan69-ClipCaptionAI-14",
+        "summary": "Resolve code-scanning findings"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/sgajbi/lotus-core/pull/948",
+        "source_family_audit_group_hits": [
+          [
+            "audit",
+            "log"
+          ],
+          [
+            "sensitive"
+          ]
+        ],
+        "source_project": "sgajbi/lotus-core",
+        "source_root": "GITHUB-PR-sgajbi-lotus-core-948",
+        "summary": "Govern ingestion evidence and source observation lineage"
+      }
+    ]
+  },
+  "software_supply_chain_failure": {
+    "patch_probe_diagnostic": {
+      "input_count": 2,
+      "patchable_count": 0,
+      "reasons": [
+        "condition_semantic",
+        "condition_semantic"
+      ]
+    },
+    "preferred_sources": [
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/dedalus-labs/hollywood/pull/61",
+        "source_family_audit_group_hits": [
+          [
+            "artifact",
+            "package",
+            "registry"
+          ],
+          [
+            "untrusted"
+          ]
+        ],
+        "source_project": "dedalus-labs/hollywood",
+        "source_root": "GITHUB-PR-dedalus-labs-hollywood-61",
+        "summary": "feat(runner): execute GitHub jobs with JIT runners"
+      },
+      {
+        "pre_score_expected_condition_signals": null,
+        "source_code_location": "https://github.com/openabdev/openab/pull/1469",
+        "source_family_audit_group_hits": [
+          [
+            "dependency",
+            "module",
+            "package",
+            "registry"
+          ],
+          [
+            "compromis"
+          ]
+        ],
+        "source_project": "openabdev/openab",
+        "source_root": "GITHUB-PR-openabdev-openab-1469",
+        "summary": "feat(cp): openab-cp control plane \u2014 registry, router, policy (PR 1/4)"
+      }
+    ]
+  }
+}
