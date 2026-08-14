@@ -47,11 +47,13 @@ jobs:
           assert result['first_blind_consumed'] is True, result
           PY
 
-      - name: Fix 6.32 dependency direction
-        run: python tools/fix_analysis_632_import.py
+      - name: Fix and refine 6.32 evidence bridge
+        run: |
+          python tools/fix_analysis_632_import.py
+          python tools/refine_analysis_632_evidence.py
 
-      - name: Apply 6.32 production calibration patch
-        run: python tools/apply_analysis_632.py
+      - name: Apply precision-preserving 6.32 production patch
+        run: python tools/apply_analysis_632_safe.py
 
       - name: Compile changed reasoning stack
         env:
@@ -62,7 +64,6 @@ jobs:
             app/researcher_logic.py \
             app/hypothesis_admission.py \
             app/family_detectors/execution.py \
-            app/analysis_ranking.py \
             app/security_reasoning.py
 
       - name: Analysis 6.32 architecture contracts
@@ -103,7 +104,6 @@ jobs:
             app/analysis_632_evidence.py \
             app/hypothesis_admission.py \
             app/family_detectors/execution.py \
-            app/analysis_ranking.py \
             app/security_reasoning.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
