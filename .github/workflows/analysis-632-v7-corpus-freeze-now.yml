@@ -1,0 +1,62 @@
+name: Analysis 6.32 v7 Strict Corpus Freeze Now
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-corpus-freeze-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refuse consumed or preexisting v7 First Blind
+        run: |
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+      - name: Build strict v7 corpus freeze
+        env:
+          PYTHONPATH: app
+        run: python app/v7_corpus_freeze.py
+      - name: Verify v7 corpus freeze hashes
+        env:
+          PYTHONPATH: app
+        run: python app/v7_freeze_verify.py --require-freeze
+      - name: Assert sealed unscored holdout
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_corpus_freeze.json').read_text())
+          assert r['evaluation_status']=='sealed_fresh_v7_unscored_holdout'
+          assert r['case_count']==276
+          assert r['single_case_count']==144 and r['pair_case_count']==72 and r['triad_case_count']==60
+          assert r['literal_evidence_artifact_count']==144
+          assert r['family_count']==36
+          assert r['source_root_count']==36 and r['source_project_count']==36
+          assert r['v6_first_blind_score_used'] is False
+          assert r['v6_first_blind_case_errors_used'] is False
+          assert r['scoring_executed'] is False
+          assert r['first_blind_consumed'] is False
+          PY
+      - name: Commit sealed v7 corpus
+        shell: bash
+        run: |
+          git add benchmarks/raw/sources/v7_corpus_freeze.json benchmarks/raw/sources/v7_freeze_manifest.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Seal Analysis 6.32 fresh v7 holdout corpus'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
