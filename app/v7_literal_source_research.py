@@ -15,8 +15,8 @@ from urllib.parse import urlparse
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = '1.1.0'
-RULE_VERSION = '2026.08.14.6.33.v7.capture.research.1'
+VERSION = '1.2.0'
+RULE_VERSION = '2026.08.14.6.33.v7.capture.research.2'
 SHORTLIST = ROOT / 'benchmarks/raw/sources/v7_shortlist.json'
 OUTPUT = ROOT / 'benchmarks/raw/sources/v7_literal_source_research.json'
 GHSA_RE = re.compile(r'^GHSA-[0-9a-z-]+$', re.I)
@@ -76,10 +76,13 @@ def build(token: str | None=None) -> dict[str, Any]:
     shortlist=json.loads(SHORTLIST.read_text())
     rows=[dict(x) for x in shortlist.get('selected') or [] if isinstance(x,Mapping)]
     if len(rows)!=36: raise RuntimeError(f'expected 36 frozen v7 sources, got {len(rows)}')
+    literal_required=set(freeze['literal_adjudication_required_families'])
+    audit_fallback=set(freeze['audit_fallback_families'])
     entries=[]
     for row in sorted(rows,key=lambda x:str(x.get('family') or '')):
         if row.get('v7_engine_seen') is not False:
             raise RuntimeError(f"{row.get('family')}: selected row is not explicitly engine-unseen")
+        family=str(row.get('family') or '')
         ref=str(row.get('canonical_advisory_url') or row.get('repository_advisory_url') or row.get('source_code_location') or '').strip()
         api=_api_url(ref)
         if not api:
@@ -89,28 +92,30 @@ def build(token: str | None=None) -> dict[str, Any]:
             if status==403 and token:
                 status,payload,error=_request(api,None)
         pm=payload if isinstance(payload,Mapping) else {}
-        targeted=bool(
-            row.get('source_family_targeted_fallback_pending_literal_adjudication') is True
-            or row.get('source_family_target_is_not_final_until_literal_adjudication') is True
-            or row.get('v7_target_family_requires_literal_adjudication') is True
-        )
+        targeted=family in literal_required
         entries.append({
-            'family':row.get('family'),'source_root':row.get('source_root'),'source_project':row.get('source_project'),
+            'family':family,'source_root':row.get('source_root'),'source_project':row.get('source_project'),
             'canonical_reference':ref,'github_api_reference':api,'fetch_status':status,'fetch_error':error,
             'snapshot_payload':payload,'snapshot_sha256':_sha(payload) if payload is not None else None,
             'discovered_upstream_links':_links(pm),'has_body_or_description':bool(pm.get('body') or pm.get('description')),
+            'audit_fallback_source':family in audit_fallback,
             'family_literal_adjudication_required':targeted,'family_literal_adjudication_complete':False if targeted else True,
             'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False,'scoring_executed':False,
         })
     good=[x for x in entries if x['fetch_status']==200 and x['snapshot_payload'] is not None]
     bad=[x for x in entries if x not in good]
+    derived_literal=sorted(str(x['family']) for x in entries if x['family_literal_adjudication_required'])
+    if derived_literal!=sorted(literal_required): raise RuntimeError('v7 literal-adjudication source set drift')
     return {
         'version':VERSION,'rule_version':RULE_VERSION,'evaluation_kind':'fresh_blind_v7_passive_public_source_research_unscored',
         'collected_at':datetime.now(timezone.utc).isoformat(),'family_count':36,'successful_snapshot_count':len(good),
         'successful_families':sorted(str(x['family']) for x in good),'unresolved_snapshot_count':len(bad),
         'unresolved_sources':[{k:x.get(k) for k in ('family','source_root','source_project','canonical_reference','fetch_status','fetch_error')} for x in bad],
         'entries':entries,'engine_baseline_commit':freeze['engine_baseline_commit'],'source_assignment_commit':freeze['source_assignment_commit'],
-        'source_shortlist_sha256':freeze['source_shortlist_sha256'],'targeted_fallback_families':freeze['targeted_fallback_families'],
+        'source_shortlist_sha256':freeze['source_shortlist_sha256'],
+        'audit_fallback_families':freeze['audit_fallback_families'],'audit_fallback_count':freeze['audit_fallback_count'],
+        'literal_adjudication_required_families':freeze['literal_adjudication_required_families'],
+        'literal_adjudication_required_count':freeze['literal_adjudication_required_count'],
         'active_target_validation_performed':False,'detector_output_used':False,'admission_output_used':False,
         'ranking_output_used':False,'v6_first_blind_score_used':False,'v6_first_blind_case_errors_used':False,
         'corpus_v1_labels_used':False,'corpus_v1_evidence_used':False,'corpus_v1_scores_used':False,
@@ -121,7 +126,7 @@ def build(token: str | None=None) -> dict[str, Any]:
 def main() -> int:
     p=argparse.ArgumentParser(); p.add_argument('--require-all',action='store_true'); a=p.parse_args()
     r=build(os.environ.get('GITHUB_TOKEN')); OUTPUT.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
-    print(json.dumps({k:r[k] for k in ('family_count','successful_snapshot_count','unresolved_snapshot_count','scoring_executed')},sort_keys=True))
+    print(json.dumps({k:r[k] for k in ('family_count','successful_snapshot_count','unresolved_snapshot_count','audit_fallback_count','literal_adjudication_required_count','scoring_executed')},sort_keys=True))
     return 1 if a.require_all and r['successful_snapshot_count']!=36 else 0
 
 
