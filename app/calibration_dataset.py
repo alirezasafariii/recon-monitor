@@ -4,18 +4,21 @@ from __future__ import annotations
 
 Golden fixtures and generated challenge cases are useful for deterministic
 regression and ranking diagnostics, but they are not independent real-world
-validation. This module makes that boundary machine-readable so a large synthetic
-corpus cannot accidentally make a learned threshold production-ready.
+validation. Production activation therefore requires not only trusted provenance
+and a human label, but also a canonical vulnerability family and an auditable
+evidence-snapshot binding.
 """
 
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from calibration_engine import build_calibration_profile
+from family_reasoning import FAMILY_ORDER
 
-CALIBRATION_DATASET_VERSION = "1.0.0"
-CALIBRATION_DATASET_RULE_VERSION = "2026.08.13.1"
+CALIBRATION_DATASET_VERSION = "1.1.0"
+CALIBRATION_DATASET_RULE_VERSION = "2026.08.14.1"
 
+CANONICAL_ACTIVATION_FAMILIES = frozenset(str(family) for family in FAMILY_ORDER)
 TRUSTED_ACTIVATION_PROVENANCE = frozenset({
     "human_verified_replay",
     "curated_real_world_replay",
@@ -28,6 +31,13 @@ NON_ACTIVATING_PROVENANCE = frozenset({
     "generated_hard_negative",
     "generated_partial_evidence",
 })
+
+REQUIRED_ACTIVATION_AUDIT_FIELDS = (
+    "reviewer_id",
+    "reviewed_at",
+    "case_origin_id",
+    "evidence_snapshot_id",
+)
 
 
 def _label(value: Any) -> bool:
@@ -44,15 +54,40 @@ def _provenance(record: Mapping[str, Any]) -> str:
     return str(record.get("provenance") or "unclassified").strip().lower()
 
 
-def is_activation_eligible(record: Mapping[str, Any]) -> bool:
-    """Return True only for explicitly human/real-world labeled records."""
+def activation_eligibility_reasons(record: Mapping[str, Any]) -> list[str]:
+    """Explain why a record cannot contribute to production activation."""
 
     provenance = _provenance(record)
-    return (
-        provenance in TRUSTED_ACTIVATION_PROVENANCE
-        and bool(record.get("human_verified"))
-        and bool(record.get("label_source"))
-    )
+    if provenance not in TRUSTED_ACTIVATION_PROVENANCE:
+        return ["untrusted_provenance"]
+
+    reasons: list[str] = []
+    family = str(record.get("family") or "").strip()
+    if not family:
+        reasons.append("missing_family")
+    elif family not in CANONICAL_ACTIVATION_FAMILIES:
+        reasons.append("unknown_family")
+
+    if record.get("human_verified") is not True:
+        reasons.append("human_verified_true_required")
+    if not str(record.get("label_source") or "").strip():
+        reasons.append("missing_label_source")
+
+    for field in REQUIRED_ACTIVATION_AUDIT_FIELDS:
+        if not str(record.get(field) or "").strip():
+            reasons.append(f"missing_{field}")
+
+    quality = record.get("evidence_quality_profile")
+    if not isinstance(quality, Mapping) or quality.get("complete") is not True:
+        reasons.append("incomplete_evidence_quality")
+
+    return reasons
+
+
+def is_activation_eligible(record: Mapping[str, Any]) -> bool:
+    """Return True only for canonical, audit-ready human/real-world labels."""
+
+    return not activation_eligibility_reasons(record)
 
 
 def annotate_record(
@@ -83,8 +118,9 @@ def activation_readiness(
 ) -> dict[str, Any]:
     """Evaluate whether labeled evidence is sufficient for threshold activation.
 
-    Readiness intentionally ignores golden and synthetic rows even if there are
-    millions of them. Family readiness is independent from global readiness.
+    Readiness intentionally ignores golden/synthetic rows and trusted rows that
+    are non-canonical or lack auditable evidence bindings. Family readiness is
+    independent from global readiness.
     """
 
     rows = [dict(record) for record in records]
@@ -122,8 +158,11 @@ def activation_readiness(
         }
 
     provenance_counts: dict[str, int] = defaultdict(int)
+    ineligible_reason_counts: dict[str, int] = defaultdict(int)
     for row in rows:
         provenance_counts[_provenance(row)] += 1
+        for reason in activation_eligibility_reasons(row):
+            ineligible_reason_counts[reason] += 1
 
     return {
         "global_ready": bool(global_ready),
@@ -131,8 +170,10 @@ def activation_readiness(
         "eligible_positive": positive,
         "eligible_negative": negative,
         "eligible_families": represented,
+        "canonical_family_count": len(CANONICAL_ACTIVATION_FAMILIES),
         "family_status": family_status,
         "provenance_counts": dict(sorted(provenance_counts.items())),
+        "ineligible_reason_counts": dict(sorted(ineligible_reason_counts.items())),
         "minimums": {
             "global_verified": int(min_global_verified),
             "verified_families": int(min_verified_families),
@@ -189,12 +230,17 @@ def build_guarded_calibration_profile(
     diagnostic["dataset_policy"] = {
         "version": CALIBRATION_DATASET_VERSION,
         "rule_version": CALIBRATION_DATASET_RULE_VERSION,
+        "canonical_family_count": len(CANONICAL_ACTIVATION_FAMILIES),
+        "required_activation_audit_fields": list(REQUIRED_ACTIVATION_AUDIT_FIELDS),
         "trusted_activation_provenance": sorted(TRUSTED_ACTIVATION_PROVENANCE),
         "non_activating_provenance": sorted(NON_ACTIVATING_PROVENANCE),
     }
     diagnostic.setdefault("safety", {}).update({
         "golden_or_synthetic_cannot_activate_production": True,
         "human_verified_real_world_labels_required_for_activation": True,
+        "canonical_family_required_for_activation": True,
+        "auditable_evidence_snapshot_required_for_activation": True,
+        "complete_evidence_quality_required_for_activation": True,
         "requested_production_activation_was_blocked": bool(production_requested and not readiness["global_ready"]),
     })
     return diagnostic
