@@ -9,8 +9,8 @@ from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION='1.1.0'
-RULE_VERSION='2026.08.14.6.33.v7.capture.plan.1'
+VERSION='1.2.0'
+RULE_VERSION='2026.08.14.6.33.v7.capture.plan.2'
 SHORTLIST=ROOT/'benchmarks/raw/sources/v7_shortlist.json'
 LABEL_SCHEMA=ROOT/'benchmarks/raw/sources/v7_literal_label_schema.json'
 SOURCE_RESEARCH=ROOT/'benchmarks/raw/sources/v7_literal_source_research.json'
@@ -42,15 +42,20 @@ def build()->dict[str,Any]:
     if research.get('source_assignment_commit')!=freeze['source_assignment_commit']: raise RuntimeError('v7 source research assignment drift')
     if research.get('engine_baseline_commit')!=freeze['engine_baseline_commit']: raise RuntimeError('v7 source research engine baseline drift')
     if research.get('source_shortlist_sha256')!=freeze['source_shortlist_sha256']: raise RuntimeError('v7 source research shortlist hash drift')
+    if research.get('audit_fallback_count')!=freeze['audit_fallback_count']: raise RuntimeError('v7 audit-fallback count drift')
+    if research.get('literal_adjudication_required_count')!=freeze['literal_adjudication_required_count']: raise RuntimeError('v7 literal-adjudication count drift')
     research_by_family={str(x.get('family') or ''):x for x in research.get('entries') or [] if isinstance(x,Mapping)}
     requirements=[]; present=0
-    targeted_families=[]
+    literal_required_families=[]
+    audit_fallback_families=[]
     for family in sorted(by_family):
         source=by_family[family]; snap=research_by_family.get(family) or {}
         if str(snap.get('source_root') or '').casefold()!=str(source.get('source_root') or '').casefold(): raise RuntimeError(f'{family}: source research root drift')
         if str(snap.get('source_project') or '').casefold()!=str(source.get('source_project') or '').casefold(): raise RuntimeError(f'{family}: source research project drift')
         targeted=bool(snap.get('family_literal_adjudication_required') is True)
-        if targeted: targeted_families.append(family)
+        audit_fallback=bool(snap.get('audit_fallback_source') is True)
+        if targeted: literal_required_families.append(family)
+        if audit_fallback: audit_fallback_families.append(family)
         for kind in VARIANTS:
             path=EVIDENCE_ROOT/f'{_slug(family)}--{_slug(kind)}.json'; exists=path.exists(); present+=int(exists)
             requirements.append({
@@ -64,19 +69,23 @@ def build()->dict[str,Any]:
                 'cross_variant_mutation_forbidden':True,'detector_output_may_not_be_used':True,'admission_output_may_not_be_used':True,
                 'ranking_output_may_not_be_used':True,'v6_first_blind_score_may_not_be_used':True,'v6_first_blind_case_errors_may_not_be_used':True,
                 'corpus_v1_label_evidence_score_may_not_be_used':True,'engine_seen_source_forbidden':True,
+                'audit_fallback_source':audit_fallback,
                 'family_literal_adjudication_required':targeted,
                 'positive_family_confirmation_required_before_nonpositive_publish':targeted,
                 'family_target_is_final_before_literal_evidence':False if targeted else True,
             })
     if len(requirements)!=144: raise RuntimeError(f'v7 plan cardinality mismatch: {len(requirements)}')
-    if sorted(targeted_families)!=sorted(freeze['targeted_fallback_families']): raise RuntimeError('v7 targeted fallback family set drift')
+    if sorted(literal_required_families)!=sorted(freeze['literal_adjudication_required_families']): raise RuntimeError('v7 literal-adjudication family set drift')
+    if sorted(audit_fallback_families)!=sorted(freeze['audit_fallback_families']): raise RuntimeError('v7 audit-fallback family set drift')
     return {
         'version':VERSION,'rule_version':RULE_VERSION,'evaluation_kind':'fresh_blind_v7_literal_capture_acquisition_plan_unscored',
         'engine_baseline_commit':freeze['engine_baseline_commit'],'source_assignment_commit':freeze['source_assignment_commit'],
         'source_shortlist_sha256':_sha(SHORTLIST),'label_schema_sha256':_sha(LABEL_SCHEMA),'source_research_sha256':_sha(SOURCE_RESEARCH),
         'family_count':36,'variant_count_per_family':4,'required_capture_count':144,'evidence_present_count':present,
         'evidence_missing_count':144-present,'all_evidence_present':present==144,'capture_methods_allowed':list(ALLOWED_CAPTURE_METHODS),
-        'targeted_fallback_families':sorted(targeted_families),'targeted_fallback_count':len(targeted_families),
+        'audit_fallback_families':sorted(audit_fallback_families),'audit_fallback_count':len(audit_fallback_families),
+        'literal_adjudication_required_families':sorted(literal_required_families),
+        'literal_adjudication_required_count':len(literal_required_families),
         'requirements':requirements,'detector_output_used':False,'admission_output_used':False,'ranking_output_used':False,
         'v6_first_blind_score_used':False,'v6_first_blind_case_errors_used':False,
         'corpus_v1_labels_used':False,'corpus_v1_evidence_used':False,'corpus_v1_scores_used':False,
@@ -86,6 +95,6 @@ def build()->dict[str,Any]:
 
 def main()->int:
     r=build(); OUTPUT.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
-    print(json.dumps({k:r[k] for k in ('family_count','required_capture_count','evidence_present_count','evidence_missing_count','targeted_fallback_count','scoring_executed')},sort_keys=True)); return 0
+    print(json.dumps({k:r[k] for k in ('family_count','required_capture_count','evidence_present_count','evidence_missing_count','audit_fallback_count','literal_adjudication_required_count','scoring_executed')},sort_keys=True)); return 0
 
 if __name__=='__main__': raise SystemExit(main())
