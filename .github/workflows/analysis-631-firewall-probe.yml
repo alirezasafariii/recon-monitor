@@ -31,41 +31,30 @@ jobs:
 
           prior = exposure_index()
           candidates = [
-              {
-                  'name': 'dynatrace_mcp_approval_gate',
-                  'root': 'GHSA-pc2w-4mq8-32qw',
-                  'project': 'dynatrace-oss/dynatrace-mcp',
-                  'urls': [
-                      'https://github.com/advisories/GHSA-pc2w-4mq8-32qw',
-                      'https://github.com/dynatrace-oss/dynatrace-mcp/security/advisories/GHSA-pc2w-4mq8-32qw',
-                  ],
-              },
-              {
-                  'name': 'clerk_combined_authorization_predicate',
-                  'root': 'GHSA-w24r-5266-9c3c',
-                  'project': 'clerk/javascript',
-                  'urls': ['https://github.com/advisories/GHSA-w24r-5266-9c3c'],
-              },
-              {
-                  'name': 'xmldom_workflow_flag_injection',
-                  'root': 'GHSA-wh4c-j3r5-mjhp',
-                  'project': 'xmldom/xmldom',
-                  'urls': ['https://github.com/advisories/GHSA-wh4c-j3r5-mjhp'],
-              },
-              {
-                  'name': 'meshtastic_ci_approval_gate',
-                  'root': 'GHSA-mjx5-98jq-q736',
-                  'project': 'meshtastic/firmware',
-                  'urls': ['https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736'],
-              },
+              ('business_logic', 'GHSA-mjx5-98jq-q736', 'meshtastic/firmware', ['https://github.com/meshtastic/firmware/security/advisories/GHSA-mjx5-98jq-q736']),
+              ('cors_misconfiguration', 'GHSA-88fw-hqm2-52qc', 'honojs/hono', ['https://github.com/honojs/hono/security/advisories/GHSA-88fw-hqm2-52qc']),
+              ('dom_xss', 'GHSA-7r59-67v3-3mgp', 'ThinkInAIXYZ/deepchat', ['https://github.com/ThinkInAIXYZ/deepchat/security/advisories/GHSA-7r59-67v3-3mgp']),
+              ('graphql_authorization', 'GHSA-jj68-cp4v-98qf', 'aimeos/ai-admin-graphql', ['https://github.com/aimeos/ai-admin-graphql/security/advisories/GHSA-jj68-cp4v-98qf']),
+              ('graphql_data_exposure', 'GHSA-qpm9-h556-mwxm', 'nl-portal/nl-portal-backend-libraries', ['https://github.com/nl-portal/nl-portal-backend-libraries/security/advisories/GHSA-qpm9-h556-mwxm']),
+              ('improper_inventory_management', 'BINARYSECURITY-APIM-OLD-API-2024-11-05', 'microsoft/azure-api-management', ['https://www.binarysecurity.no/posts/2024/11/apim-privesc']),
+              ('nosql_injection', 'GHSA-pmpg-2mxq-6xwr', 'Budibase/budibase', ['https://github.com/Budibase/budibase/security/advisories/GHSA-pmpg-2mxq-6xwr']),
+              ('postmessage_trust', 'AUTH0-AUTH0JS-ISSUE-508', 'auth0/auth0.js', ['https://github.com/auth0/auth0.js/issues/508']),
+              ('sensitive_business_flow_abuse', 'GHSA-68qm-vp8f-rpr3', 'frappe/press', ['https://github.com/frappe/press/security/advisories/GHSA-68qm-vp8f-rpr3']),
+              ('sensitive_caching', 'RUBYGEMS-LEGACY-API-KEY-CACHE-2026-07-22', 'rubygems/rubygems.org', ['https://blog.rubygems.org/2026/07/22/security-advisory-legacy-api-key-leak.html']),
+              ('software_supply_chain_failure', 'GHSA-pvw4-cvr4-97p8', 'cap-js/cds-dbs', ['https://github.com/advisories/GHSA-pvw4-cvr4-97p8']),
+              ('source_map_exposure', 'GHSA-67mh-4wv8-2f99', 'evanw/esbuild', ['https://github.com/advisories/GHSA-67mh-4wv8-2f99']),
+              ('unsafe_api_consumption', 'GHSA-vhjm-w67q-g75c', 'hapijs/wreck', ['https://github.com/hapijs/wreck/security/advisories/GHSA-vhjm-w67q-g75c']),
+              ('websocket_authorization', 'GHSL-2025-118', 'outline/outline', ['https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/']),
           ]
           results = []
-          for c in candidates:
-              urls = {canonical_url(u) for u in c['urls'] if canonical_url(u)}
+          for name, root, project, raw_urls in candidates:
+              urls = {canonical_url(u) for u in raw_urls if canonical_url(u)}
               row = {
-                  'name': c['name'],
-                  'root_overlap': c['root'] in prior['roots'],
-                  'project_overlap': c['project'] in prior['projects'],
+                  'family': name,
+                  'source_root': root,
+                  'source_project': project,
+                  'root_overlap': root in prior['roots'],
+                  'project_overlap': project in prior['projects'],
                   'url_overlap': sorted(urls & prior['urls']),
               }
               row['fresh_against_historical_exposure'] = not (
@@ -76,6 +65,8 @@ jobs:
               'scoring_executed': False,
               'detector_output_used': False,
               'prior_counts': {k: len(v) for k, v in prior.items()},
+              'fresh_count': sum(1 for r in results if r['fresh_against_historical_exposure']),
+              'overlap_count': sum(1 for r in results if not r['fresh_against_historical_exposure']),
               'results': results,
           }, indent=2, sort_keys=True))
           PY
