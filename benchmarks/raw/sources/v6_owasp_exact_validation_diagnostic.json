@@ -30,24 +30,23 @@
       "passed": false,
       "semantic_group_hits": [
         [
-          "approval workflow",
           "business workflow",
           "workflow"
         ],
         [
           "approval",
           "gate",
+          "invariant",
           "required approver",
           "state transition"
         ],
         [
           "bypass",
-          "invalid state transition",
-          "self-approve"
+          "invalid state transition"
         ]
       ],
-      "source_project": "nautobot/nautobot",
-      "source_root": "GHSA-q4c5-2j6f-r476",
+      "source_project": "Azure/azure-cli",
+      "source_root": "GHSL-2024-294",
       "wstg_ids": [
         "WSTG-BUSL-01",
         "WSTG-BUSL-06"
@@ -55,12 +54,15 @@
     },
     "cors_misconfiguration": {
       "errors": [
-        "project_overlap"
+        "project_overlap",
+        "url_overlap"
       ],
       "firewall": {
         "project_overlap": true,
         "root_overlap": false,
-        "url_overlap": []
+        "url_overlap": [
+          "https://securitylab.github.com/advisories/GHSL-2024-034_memos"
+        ]
       },
       "passed": false,
       "semantic_group_hits": [
@@ -70,18 +72,18 @@
         ],
         [
           "origin",
-          "origin restriction",
           "trusted origin",
           "untrusted origin"
         ],
         [
+          "credential",
           "data",
           "sensitive",
           "state-changing"
         ]
       ],
-      "source_project": "parse-community/parse-server",
-      "source_root": "CVE-2026-34373",
+      "source_project": "usememos/memos",
+      "source_root": "CVE-2024-41659",
       "wstg_ids": [
         "WSTG-CLNT-07"
       ]
@@ -128,23 +130,22 @@
       "passed": false,
       "semantic_group_hits": [
         [
-          "graphql",
-          "shop api"
+          "graphql"
         ],
         [
           "data exposure",
-          "non-public"
+          "restricted",
+          "sensitive"
         ],
         [
-          "entity",
-          "filter",
+          "field",
           "property",
           "query",
           "scope"
         ]
       ],
-      "source_project": "vendurehq/vendure",
-      "source_root": "GHSA-xf65-r35x-wmmv",
+      "source_project": "craftcms/cms",
+      "source_root": "GHSA-gj2p-p9m4-c8gw",
       "wstg_ids": [
         "WSTG-APIT-03"
       ]
@@ -182,14 +183,15 @@
     },
     "nosql_injection": {
       "errors": [
+        "root_overlap",
         "project_overlap",
         "url_overlap"
       ],
       "firewall": {
         "project_overlap": true,
-        "root_overlap": false,
+        "root_overlap": true,
         "url_overlap": [
-          "https://securitylab.github.com/advisories/GHSL-2026-004_GHSL-2026-005_Rocket_Chat"
+          "https://github.com/n8n-io/n8n/security/advisories/GHSA-jpq7-226w-6cxx"
         ]
       },
       "passed": false,
@@ -200,20 +202,21 @@
           "nosql"
         ],
         [
+          "filter",
           "operator",
-          "query",
-          "selector"
+          "query"
         ],
         [
           "alter",
           "inject",
           "injection",
           "semantics",
-          "unintended"
+          "unintended",
+          "unvalidated"
         ]
       ],
-      "source_project": "RocketChat/Rocket.Chat",
-      "source_root": "CVE-2026-30833",
+      "source_project": "n8n-io/n8n",
+      "source_root": "GHSA-jpq7-226w-6cxx",
       "wstg_ids": [
         "WSTG-INPV-05.6"
       ]
