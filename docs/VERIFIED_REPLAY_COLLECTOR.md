@@ -21,19 +21,23 @@ A positive label can exist only for an already-promoted Potential Finding becaus
 
 ## Evidence snapshot
 
-For each reviewed Potential Finding the collector hashes the stored evidence state:
+For each reviewed Potential Finding the collector hashes the logical stored evidence state:
 
-- candidate fingerprint
-- analysis/run identity
+- stable candidate fingerprint
 - canonical family
 - variant and endpoint
-- likelihood/evidence coverage metadata
 - supporting evidence
 - contradicting evidence
 - missing evidence
 - rule IDs
 
-The analyst decision and analyst note are deliberately **excluded** from the evidence snapshot hash. A verdict change therefore cannot manufacture a distinct evidence sample from identical evidence.
+The analyst decision and analyst note are deliberately **excluded** from the evidence snapshot hash.
+
+Run-local identity (`analysis_id`, `source_run_id`) and derived ranking/coverage scores are also excluded. This makes the evidence snapshot stable across scans when the underlying logical evidence has not changed.
+
+A verdict change, a new run ID, or a recalculated score therefore cannot manufacture a distinct evidence sample from identical evidence.
+
+`case_origin_id` is based on the stable candidate fingerprint instead of a run-local candidate/case identifier. Together with the snapshot hash, this prevents repeated reviews of the same unchanged logical finding from inflating corpus support across runs.
 
 ## Reconstructed decision scores
 
@@ -49,7 +53,7 @@ This replay is offline and non-evidentiary.
 
 Collection produces a **review draft**, not an activation-ready calibration record.
 
-The label, reviewer, timestamp, case origin and immutable evidence snapshot are populated from the existing review trail. The seven Evidence Quality dimensions remain intentionally empty:
+The label, reviewer, timestamp, stable case origin and immutable evidence snapshot are populated from the existing review trail. The seven Evidence Quality dimensions remain intentionally empty:
 
 - reliability
 - specificity
@@ -90,3 +94,5 @@ The collector is infrastructure for harvesting real reviewed decisions from an o
 - no automatic Evidence Quality assignment
 - non-human decision actors are excluded
 - evidence snapshot hash excludes the analyst verdict
+- evidence snapshot hash excludes run-local identity and derived scores
+- stable candidate origin prevents unchanged cross-run duplicates from inflating support
