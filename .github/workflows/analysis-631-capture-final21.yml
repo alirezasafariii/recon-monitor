@@ -65,6 +65,36 @@ jobs:
         with:
           name: v6-final21-captures
           path: downloaded-final21
+      - name: Keep only evidence still missing on the current branch
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          capture_root = Path('downloaded-final21/captured-final21')
+          plan = json.loads((root / 'benchmarks/raw/sources/v6_literal_capture_plan.json').read_text())
+          destinations = {
+              (str(row['family']), str(row['case_kind'])): root / str(row['required_evidence_path'])
+              for row in plan['requirements']
+          }
+          removed = []
+          retained = []
+          for path in sorted(capture_root.rglob('*.json')):
+              doc = json.loads(path.read_text())
+              key = (str(doc['family']), str(doc['case_kind']))
+              destination = destinations[key]
+              if destination.exists():
+                  path.unlink()
+                  removed.append('/'.join(key))
+              else:
+                  retained.append('/'.join(key))
+          print(f'preserved_existing={len(removed)} publish_missing={len(retained)}')
+          print('publish_missing_ids=' + ','.join(retained))
+          if not retained:
+              raise SystemExit('No missing final21 captures remain to publish')
+          PY
       - name: Publish and run strict 144-of-144 evidence gates
         env:
           PYTHONPATH: app
@@ -81,9 +111,10 @@ jobs:
           import json
           from pathlib import Path
           checkpoint=json.loads(Path('benchmarks/raw/sources/v6_pre_score_checkpoint.json').read_text())
-          assert checkpoint['evidence_present_count'] == 144, checkpoint
-          assert checkpoint['evidence_missing_count'] == 0, checkpoint
-          assert checkpoint['complete_family_count'] == 36, checkpoint
+          progress=checkpoint['literal_capture_progress']
+          assert progress['evidence_present_count'] == 144, checkpoint
+          assert progress['evidence_missing_count'] == 0, checkpoint
+          assert progress['complete_family_count'] == 36, checkpoint
           assert checkpoint['first_blind_consumed'] is False, checkpoint
           assert checkpoint['scoring_executed'] is False, checkpoint
           print('Analysis 6.31 literal evidence complete: 144/144, 36/36; First Blind remains unconsumed.')
