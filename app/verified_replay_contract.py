@@ -9,13 +9,14 @@ consistent before they are offered to the calibration pipeline.
 """
 
 import hashlib
+from collections import Counter
 from typing import Any, Iterable, Mapping
 
 from calibration_dataset import TRUSTED_ACTIVATION_PROVENANCE
 from family_reasoning import FAMILY_ORDER
 
-VERIFIED_REPLAY_CONTRACT_VERSION = "1.0.0"
-VERIFIED_REPLAY_CONTRACT_RULE_VERSION = "2026.08.14.1"
+VERIFIED_REPLAY_CONTRACT_VERSION = "1.1.0"
+VERIFIED_REPLAY_CONTRACT_RULE_VERSION = "2026.08.14.2"
 
 CANONICAL_FAMILIES = frozenset(str(family) for family in FAMILY_ORDER)
 EVIDENCE_QUALITY_DIMENSIONS = (
@@ -34,6 +35,12 @@ REQUIRED_AUDIT_FIELDS = (
     "case_origin_id",
     "evidence_snapshot_id",
 )
+EVALUATION_ROLES = frozenset({
+    "fresh_candidate",
+    "development_only",
+    "consumed_benchmark",
+})
+RESERVED_BLIND_ROLE = "reserved_blind"
 _POSITIVE_LABELS = frozenset({"1", "true", "yes", "positive", "confirmed", "vulnerable"})
 _NEGATIVE_LABELS = frozenset({"0", "false", "no", "negative", "rejected", "not_vulnerable", "not-vulnerable"})
 
@@ -109,6 +116,12 @@ def validate_verified_replay_record(record: Mapping[str, Any]) -> dict[str, Any]
     if raw.get("human_verified") is not True:
         errors.append("human_verified_true_required")
 
+    evaluation_role = str(raw.get("evaluation_role") or "fresh_candidate").strip().lower()
+    if evaluation_role == RESERVED_BLIND_ROLE:
+        errors.append("reserved_blind_not_eligible_for_verified_replay")
+    elif evaluation_role not in EVALUATION_ROLES:
+        errors.append("invalid_evaluation_role")
+
     for field in REQUIRED_AUDIT_FIELDS:
         if not str(raw.get(field) or "").strip():
             errors.append(f"missing_{field}")
@@ -162,6 +175,8 @@ def validate_verified_replay_record(record: Mapping[str, Any]) -> dict[str, Any]
         "case_origin_id": str(raw.get("case_origin_id") or "").strip(),
         "evidence_snapshot_id": str(raw.get("evidence_snapshot_id") or "").strip(),
         "evidence_quality": normalized_quality,
+        "evaluation_role": evaluation_role,
+        "source_corpus_id": str(raw.get("source_corpus_id") or "").strip(),
         "contract_version": VERIFIED_REPLAY_CONTRACT_VERSION,
     }
     normalized["record_fingerprint"] = _fingerprint(normalized)
@@ -188,6 +203,7 @@ def validate_verified_replay_collection(records: Iterable[Mapping[str, Any]]) ->
                 "index": index,
                 "id": str(row.get("id") or ""),
                 "family": str(row.get("family") or ""),
+                "evaluation_role": str(row.get("evaluation_role") or ""),
                 "errors": list(validation["errors"]),
             })
             continue
@@ -199,6 +215,7 @@ def validate_verified_replay_collection(records: Iterable[Mapping[str, Any]]) ->
                 "index": index,
                 "id": str(row.get("id") or ""),
                 "family": str(row.get("family") or ""),
+                "evaluation_role": str(row.get("evaluation_role") or ""),
                 "errors": ["duplicate_verified_replay"],
             })
             continue
@@ -207,6 +224,7 @@ def validate_verified_replay_collection(records: Iterable[Mapping[str, Any]]) ->
 
     positives = sum(1 for row in accepted if bool(row.get("label")))
     families = sorted({str(row.get("family") or "") for row in accepted if str(row.get("family") or "").strip()})
+    role_counts = Counter(str(row.get("evaluation_role") or "fresh_candidate") for row in accepted)
     return {
         "contract_version": VERIFIED_REPLAY_CONTRACT_VERSION,
         "rule_version": VERIFIED_REPLAY_CONTRACT_RULE_VERSION,
@@ -216,6 +234,7 @@ def validate_verified_replay_collection(records: Iterable[Mapping[str, Any]]) ->
         "accepted_negative": len(accepted) - positives,
         "accepted_family_count": len(families),
         "accepted_families": families,
+        "accepted_role_counts": dict(sorted(role_counts.items())),
         "rejected_count": len(rejected),
         "duplicate_count": duplicate_count,
         "records": accepted,
@@ -229,5 +248,7 @@ def validate_verified_replay_collection(records: Iterable[Mapping[str, Any]]) ->
             "human_review_required": True,
             "evidence_snapshot_binding_required": True,
             "complete_evidence_quality_required": True,
+            "evaluation_role_preserved": True,
+            "reserved_blind_rejected": True,
         },
     }
