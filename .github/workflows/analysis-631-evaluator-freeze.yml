@@ -1,0 +1,85 @@
+name: Analysis 6.31 Evaluator Freeze
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  freeze-evaluator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require valid frozen unconsumed corpus
+        env:
+          PYTHONPATH: app
+        run: python app/v6_freeze_verify.py --require-freeze
+
+      - name: Refuse second evaluator freeze
+        run: |
+          if [[ -f benchmarks/raw/sources/v6_evaluator_freeze.json ]]; then
+            echo 'Analysis 6.31 evaluator is already frozen.' >&2
+            exit 1
+          fi
+
+      - name: Freeze evaluator code and preregistered gates
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          def sha(path):
+              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+          protocol = json.loads(Path('benchmarks/raw/sources/v6_protocol.json').read_text(encoding='utf-8'))
+          corpus_freeze = json.loads(Path('benchmarks/raw/sources/v6_corpus_freeze.json').read_text(encoding='utf-8'))
+          assert corpus_freeze['scoring_executed'] is False
+          assert corpus_freeze['first_blind_consumed'] is False
+          assert corpus_freeze['evaluation_status'] == 'sealed_literal_fresh_unscored_corpus'
+
+          report = {
+              'version': '1.0.0',
+              'rule_version': '2026.08.14.6.31.1',
+              'first_blind_evaluator_frozen': True,
+              'scoring_executed': False,
+              'first_blind_consumed': False,
+              'evaluator_sha256': sha('app/v6_benchmark_evaluate.py'),
+              'protocol_sha256': sha('benchmarks/raw/sources/v6_protocol.json'),
+              'corpus_freeze_sha256': sha('benchmarks/raw/sources/v6_corpus_freeze.json'),
+              'pre_registered_gates': {
+                  'single': protocol['single_quality_gates'],
+                  'pair': protocol['pair_quality_gates'],
+                  'triad': protocol['triad_quality_gates'],
+              },
+              'mutation_policy': 'evaluator code and protocol gates are immutable before the single first-blind score',
+          }
+          Path('benchmarks/raw/sources/v6_evaluator_freeze.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Commit evaluator freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_evaluator_freeze.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Freeze Analysis 6.31 evaluator before first blind score'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
+
+      - name: Verify evaluator freeze
+        env:
+          PYTHONPATH: app
+        run: python app/v6_freeze_verify.py --require-freeze --require-evaluator-frozen
