@@ -1,0 +1,81 @@
+name: Analysis 6.31 Literal Capture Ingest
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refuse ingest after corpus freeze
+        run: |
+          if [[ -f benchmarks/raw/sources/v6_corpus_freeze.json ]]; then
+            echo 'Analysis 6.31 corpus is frozen; literal capture ingest is immutable.' >&2
+            exit 1
+          fi
+
+      - name: Refresh capture plan from evidence inventory
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_plan.py
+
+      - name: Build capture rows only from evidence artifacts
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_ingest.py
+
+      - name: Strictly verify generated literal capture set
+        env:
+          PYTHONPATH: app
+        run: python app/v6_literal_capture_verify.py --write-report
+
+      - name: Assert complete unscored ingest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          ingest = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_ingest_report.json').read_text(encoding='utf-8'))
+          verify = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_verification.json').read_text(encoding='utf-8'))
+          plan = json.loads(Path('benchmarks/raw/sources/v6_literal_capture_plan.json').read_text(encoding='utf-8'))
+          assert ingest['passed'] is True
+          assert ingest['scoring_executed'] is False
+          assert ingest['first_blind_consumed'] is False
+          assert ingest['valid_capture_count'] == 144
+          assert ingest['missing_capture_count'] == 0
+          assert verify['passed'] is True
+          assert verify['capture_count'] == 144
+          assert verify['evidence_count'] == 144
+          assert verify['unique_evidence_hash_count'] == 144
+          assert plan['all_evidence_present'] is True
+          assert plan['evidence_present_count'] == 144
+          assert plan['evidence_missing_count'] == 0
+          PY
+
+      - name: Commit sealed literal capture inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v6_literal_capture_plan.json \
+                  benchmarks/raw/sources/v6_literal_captures.jsonl \
+                  benchmarks/raw/sources/v6_literal_capture_ingest_report.json \
+                  benchmarks/raw/sources/v6_literal_capture_verification.json
+          if git diff --cached --quiet; then
+            echo 'Literal capture inputs already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Ingest evidence-backed Analysis 6.31 literal captures'
+          git pull --rebase origin agent/analysis-engine-6.31-fresh-blind-v6-validation
+          git push origin HEAD:agent/analysis-engine-6.31-fresh-blind-v6-validation
