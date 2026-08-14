@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from analysis_ranking import rank_families
 from analysis_632_evidence import reconstruct_asserted_evidence
 from family_detectors.registry import DETECTOR_SPECS
 from hypothesis_admission import FAMILY_ADMISSION_POLICIES, assess_admission
 from researcher_logic import researcher_logic_for_family, validate_researcher_logic
+from security_family_ranker import production_family_rankings
 
 
 def _complete_single_observation(family: str):
@@ -85,6 +85,7 @@ class Analysis632CalibrationTests(unittest.TestCase):
         condition = next(item for item in packet["support"] if item["type"] == "account_existence_differential")
         self.assertTrue(condition["direct"])
         self.assertEqual(condition["source_group"], "stored_observation")
+        self.assertTrue(condition["execution_passive_only"])
 
     def test_secure_fixed_statement_is_not_reconstructed_as_cross_tenant_success(self):
         reconstructed = reconstruct_asserted_evidence(
@@ -98,8 +99,8 @@ class Analysis632CalibrationTests(unittest.TestCase):
         support_types = {item["type"] for item in packet.get("support") or []}
         self.assertNotIn("cross_tenant_object_access", support_types)
 
-    def test_zero_score_family_ties_are_not_returned_as_rankings(self):
-        self.assertEqual(rank_families([], []), [])
+    def test_production_ranking_omits_zero_score_family_ties(self):
+        self.assertEqual(production_family_rankings([], []), [])
 
     def test_researcher_logic_covers_all_families_without_provenance_keys(self):
         self.assertEqual(validate_researcher_logic(), [])
