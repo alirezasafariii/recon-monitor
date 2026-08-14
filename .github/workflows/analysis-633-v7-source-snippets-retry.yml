@@ -1,0 +1,69 @@
+name: Analysis 6.33 V7 Source Snippets Retry
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-v7-literal-capture
+    paths:
+      - '.github/workflows/analysis-633-v7-source-snippets-retry.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: analysis-633-v7-source-snippets
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-literal-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify frozen pre-scoring state
+        env: {PYTHONPATH: app}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v7_capture_guard import assert_capture_source_freeze
+          g=assert_capture_source_freeze(); assert g['recomputed_engine_seen_count']==0
+          b=json.loads(Path('benchmarks/raw/sources/v7_boundary_evidence_report.json').read_text())
+          assert b['source_count']==36 and b['scoring_executed'] is False and b['first_blind_consumed'] is False
+          PY
+      - name: Capture exact parent/fix source neighborhoods and test controls
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_source_snippet_capture.py
+      - name: Verify source capture invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_source_snippet_candidates_report.json').read_text())
+          assert r['source_count']==36
+          assert r['exact_pair_source_count']==22
+          assert r['literal_adjudication_required_count']==13
+          assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          assert r['third_party_code_executed'] is False and r['target_contact_performed'] is False
+          print(r)
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Regenerate manifest and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_source_snippet_candidates.json benchmarks/raw/sources/v7_source_snippet_candidates_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git config user.name 'github-actions[bot]'; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add MANIFEST.sha256
+          if git diff --cached --quiet; then echo 'No source snippet changes.'; exit 0; fi
+          git commit -m 'chore(analysis-633): capture V7 exact source snippets'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-literal-capture
