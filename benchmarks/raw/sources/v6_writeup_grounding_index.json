@@ -1,0 +1,2364 @@
+{
+  "admission_output_used": false,
+  "completed_families": [
+    "account_enumeration",
+    "broken_object_authorization",
+    "business_logic",
+    "command_injection",
+    "cryptographic_failure",
+    "exceptional_condition_mishandling",
+    "graphql_authorization",
+    "information_disclosure",
+    "path_traversal",
+    "sensitive_business_flow_abuse",
+    "sensitive_caching",
+    "software_data_integrity_failure",
+    "software_supply_chain_failure",
+    "source_map_exposure",
+    "ssrf"
+  ],
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v6_writeup_grounding_unscored",
+  "families": {
+    "account_enumeration": {
+      "blocking_controls": [
+        "generic_error",
+        "uniform_response"
+      ],
+      "condition_signals": [
+        "account_existence_differential",
+        "distinct_error",
+        "error_schema",
+        "response_difference",
+        "timing_difference"
+      ],
+      "confounders": [
+        "authentication_session",
+        "information_disclosure"
+      ],
+      "cwe_ids": [
+        "CWE-204"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "account_enumeration",
+      "override_signals": [],
+      "owasp_ids": [
+        "A07:2025",
+        "API2:2023"
+      ],
+      "principle": "Identity lookup becomes enumeration only when controlled existing/non-existing identities produce an observable discrepancy.",
+      "strategy": "identity_differential",
+      "surface_fields": [
+        "username",
+        "email",
+        "login",
+        "user"
+      ],
+      "surface_terms": [
+        "username",
+        "email",
+        "forgot password",
+        "reset password",
+        "account exists",
+        "user not found"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Identity input is only a lookup surface; promotion requires a controlled existing/non-existing account discrepancy, and timing is decisive only when repeatable and materially separated.",
+          "ref": "CVE-2022-40482 / Laravel user-enumeration timing differential",
+          "relation": "exact",
+          "source": "GitHub Advisory Database",
+          "url": "https://github.com/advisories/GHSA-5qxg-5vwh-7j5j"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-IDNT-04"
+      ]
+    },
+    "authentication_session": {
+      "blocking_controls": [
+        "pkce_present",
+        "stable_boundary",
+        "state_present"
+      ],
+      "condition_signals": [
+        "authentication_boundary_regression",
+        "boundary_regression",
+        "missing_state",
+        "protected_to_public",
+        "session_validation_failure",
+        "token_exposure",
+        "token_rotation_failure"
+      ],
+      "confounders": [
+        "account_enumeration",
+        "broken_function_authorization",
+        "secret_exposure"
+      ],
+      "cwe_ids": [
+        "CWE-287"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "authentication_session",
+      "override_signals": [],
+      "owasp_ids": [
+        "A07:2025",
+        "API2:2023"
+      ],
+      "principle": "Authentication/session artifacts are surfaces; promotion requires a demonstrated authentication or session lifecycle control failure.",
+      "strategy": "authentication_lifecycle",
+      "surface_fields": [
+        "token",
+        "access_token",
+        "refresh_token",
+        "state",
+        "code",
+        "session",
+        "password"
+      ],
+      "surface_terms": [
+        "login",
+        "logout",
+        "session",
+        "token",
+        "oauth",
+        "saml",
+        "refresh token",
+        "password reset"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Authentication requires a demonstrated trust/lifecycle validation failure; parser or validation differentials that change authenticated identity are decisive.",
+          "ref": "GHSL-2024-329/330 / ruby-saml authentication bypass",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-329_GHSL-2024-330_ruby-saml/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-ATHN-04",
+        "WSTG-SESS-01"
+      ]
+    },
+    "broken_function_authorization": {
+      "blocking_controls": [
+        "confirmed_role_enforcement",
+        "lower_privilege_denied",
+        "role_boundary_enforced"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "function_access_without_role",
+        "lower_privilege_success",
+        "role_boundary_failure",
+        "role_boundary_regression",
+        "unauthorized_function_response"
+      ],
+      "confounders": [
+        "broken_object_authorization",
+        "business_logic",
+        "authentication_session"
+      ],
+      "cwe_ids": [
+        "CWE-862",
+        "CWE-863"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "broken_function_authorization",
+      "override_signals": [],
+      "owasp_ids": [
+        "API5:2023",
+        "A01:2025"
+      ],
+      "principle": "Privileged-looking functionality is only a surface; promotion requires an observed role/function authorization failure.",
+      "strategy": "role_function_boundary",
+      "surface_fields": [
+        "role",
+        "permission",
+        "permissions",
+        "is_admin",
+        "scope"
+      ],
+      "surface_terms": [
+        "admin",
+        "staff",
+        "permission",
+        "privilege",
+        "management",
+        "backoffice"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "A lower-privilege scope executing a function reserved for a stronger privilege is decisive function-level authorization evidence.",
+          "ref": "GHSL-2025-120 / Sentry privilege escalation",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-APIT-04",
+        "WSTG-ATHZ-02",
+        "WSTG-ATHZ-03"
+      ]
+    },
+    "broken_object_authorization": {
+      "blocking_controls": [
+        "cross_context_denied",
+        "ownership_enforcement_observed",
+        "scope_binding_observed",
+        "secondary_guard_enforced"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "identity_object_relation_conflict",
+        "object_access_without_secondary_guard",
+        "ownership_mismatch",
+        "parent_child_scope_mismatch",
+        "unauthorized_object_response"
+      ],
+      "confounders": [
+        "broken_function_authorization",
+        "graphql_authorization",
+        "information_disclosure"
+      ],
+      "cwe_ids": [
+        "CWE-639",
+        "CWE-863"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "broken_object_authorization",
+      "override_signals": [
+        "authorization_response_differential",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "identity_object_relation_conflict",
+        "object_access_without_secondary_guard",
+        "ownership_mismatch",
+        "parent_child_scope_mismatch",
+        "unauthorized_object_response"
+      ],
+      "owasp_ids": [
+        "API1:2023",
+        "A01:2025"
+      ],
+      "principle": "Object identifiers are only surfaces; promotion requires an observed object-level authorization boundary failure.",
+      "strategy": "object_identity_boundary",
+      "surface_fields": [
+        "id",
+        "user_id",
+        "account_id",
+        "tenant_id",
+        "order_id",
+        "object_id"
+      ],
+      "surface_terms": [
+        "object id",
+        "order id",
+        "user id",
+        "tenant id",
+        "resource id"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "A valid object key is decisive only when access succeeds without the ownership/token guard that should bind the caller to the object.",
+          "ref": "GHSL-2026-029 / Spree IDOR",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-029_Spree/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-APIT-02",
+        "WSTG-ATHZ-04"
+      ]
+    },
+    "business_logic": {
+      "blocking_controls": [
+        "read_only_contract",
+        "server_side_calculation_enforced",
+        "state_machine_enforced"
+      ],
+      "condition_signals": [
+        "business_rule_bypass",
+        "invalid_transition_accepted",
+        "server_calculation_mismatch",
+        "value_constraint_bypass",
+        "workflow_invariant_violation"
+      ],
+      "confounders": [
+        "race_condition",
+        "sensitive_business_flow_abuse",
+        "broken_function_authorization"
+      ],
+      "cwe_ids": [
+        "CWE-841"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "business_logic",
+      "override_signals": [],
+      "owasp_ids": [
+        "A06:2025"
+      ],
+      "principle": "Business-operation names are only hypotheses; promotion requires an observed violation of a business workflow/value/state invariant.",
+      "strategy": "business_invariant",
+      "surface_fields": [
+        "state",
+        "status",
+        "amount",
+        "price",
+        "discount",
+        "quantity"
+      ],
+      "surface_terms": [
+        "workflow",
+        "state",
+        "approval",
+        "discount",
+        "price",
+        "balance",
+        "checkout",
+        "transition"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Business-logic promotion requires an observed workflow/value/state invariant violation; workflow naming by itself remains a hypothesis surface.",
+          "ref": "GHSL-2025-038 / Branch Deploy approval TOCTOU",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-BUSL-06"
+      ]
+    },
+    "command_injection": {
+      "blocking_controls": [
+        "command_allowlist",
+        "exec_file_argument_array",
+        "input_not_used_in_command",
+        "shell_disabled"
+      ],
+      "condition_signals": [
+        "command_output_observed",
+        "command_time_delay_observed",
+        "process_execution_reached",
+        "shell_metacharacter_effect",
+        "unsafe_command_construction"
+      ],
+      "confounders": [
+        "server_side_template_injection",
+        "sql_injection",
+        "unsafe_api_consumption"
+      ],
+      "cwe_ids": [
+        "CWE-78"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "command_injection",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "Command-like inputs are only surfaces; promotion requires observed OS/process command execution influence.",
+      "strategy": "process_execution_semantics",
+      "surface_fields": [
+        "command",
+        "cmd",
+        "args",
+        "host",
+        "target",
+        "filename"
+      ],
+      "surface_terms": [
+        "exec",
+        "spawn",
+        "shell",
+        "command",
+        "system(",
+        "popen",
+        "subprocess",
+        "bash",
+        "cmd.exe"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Command injection requires untrusted data to reach shell/process interpretation and create a command-specific output, timing, or execution effect.",
+          "ref": "GHSL-2020-111 / standard-version command injection",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2020-111-standard-version/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-12"
+      ]
+    },
+    "cors_misconfiguration": {
+      "blocking_controls": [
+        "credentials_disabled",
+        "public_intended",
+        "strict_origin_allowlist"
+      ],
+      "condition_signals": [
+        "authenticated_context",
+        "credentials_allowed",
+        "sensitive_cross_origin_response"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "postmessage_trust",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-942"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "cors_misconfiguration",
+      "override_signals": [],
+      "owasp_ids": [
+        "A02:2025"
+      ],
+      "principle": "CORS headers alone are not a vulnerability; promotion requires an unsafe origin policy combined with credentialed or sensitive cross-origin exposure.",
+      "strategy": "cross_origin_credential_boundary",
+      "surface_fields": [
+        "origin"
+      ],
+      "surface_terms": [
+        "access-control-allow-origin",
+        "access-control-allow-credentials",
+        "origin",
+        "cors",
+        "null origin"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "CORS requires an unsafe origin policy combined with credentials or sensitive cross-origin responses; permissive-looking headers alone are not enough.",
+          "ref": "GHSL-2024-161/162 / rembg CORS",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CLNT-07"
+      ]
+    },
+    "cryptographic_failure": {
+      "blocking_controls": [
+        "approved_crypto_observed",
+        "secure_randomness_observed",
+        "strong_tls_enforced",
+        "unique_nonce_observed"
+      ],
+      "condition_signals": [
+        "crypto_downgrade_observed",
+        "cryptographic_key_reuse",
+        "plaintext_sensitive_transport",
+        "predictable_randomness_observed",
+        "weak_crypto_algorithm_observed",
+        "weak_tls_observed"
+      ],
+      "confounders": [
+        "security_misconfiguration",
+        "authentication_session",
+        "secret_exposure",
+        "sensitive_caching"
+      ],
+      "cwe_ids": [
+        "CWE-319",
+        "CWE-327",
+        "CWE-338",
+        "CWE-757"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "cryptographic_failure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A04:2025"
+      ],
+      "principle": "Crypto/TLS/key-generation markers are only surfaces; promotion requires observed weak, downgraded, predictable, reused, or plaintext handling of security-sensitive data.",
+      "strategy": "cryptographic_control_failure",
+      "surface_fields": [
+        "cipher",
+        "algorithm",
+        "key",
+        "nonce",
+        "iv",
+        "tls_version",
+        "signature",
+        "hash"
+      ],
+      "surface_terms": [
+        "tls",
+        "ssl",
+        "cipher",
+        "crypto",
+        "encrypt",
+        "decrypt",
+        "hash",
+        "md5",
+        "sha1",
+        "random",
+        "nonce",
+        "iv",
+        "key"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Crypto API names are not findings; decisive evidence is an actually weak algorithm, predictable randomness, key reuse, downgrade, or plaintext handling of sensitive data.",
+          "ref": "GHSL-2021-1012 / keypair weak randomness duplicate RSA keys",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2021-1012-keypair/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CRYP-01"
+      ]
+    },
+    "dom_xss": {
+      "blocking_controls": [
+        "constant_value",
+        "non_reachable",
+        "recognized_sanitizer",
+        "text_only_sink"
+      ],
+      "condition_signals": [
+        "javascript_runtime",
+        "no_sanitizer",
+        "reachable_route",
+        "runtime_reachable_flow"
+      ],
+      "confounders": [
+        "postmessage_trust",
+        "information_disclosure",
+        "open_redirect"
+      ],
+      "cwe_ids": [
+        "CWE-79"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "dom_xss",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "DOM sources and sinks are only clues; promotion requires a reachable user-controlled flow into a dangerous sink without effective sanitization.",
+      "strategy": "browser_taint_to_executable_sink",
+      "surface_fields": [
+        "q",
+        "search",
+        "html",
+        "content",
+        "message",
+        "src"
+      ],
+      "surface_terms": [
+        "innerhtml",
+        "outerhtml",
+        "document.write",
+        "insertadjacenthtml",
+        "location.hash",
+        "urlsearchparams"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "DOM XSS requires a traceable attacker-controlled browser source reaching an executable/HTML sink without effective sanitization.",
+          "ref": "GHSL-2023-205 / go2rtc DOM XSS",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CLNT-01"
+      ]
+    },
+    "exceptional_condition_mishandling": {
+      "blocking_controls": [
+        "centralized_error_handling",
+        "fail_closed_observed",
+        "generic_error_response",
+        "transaction_rollback_observed"
+      ],
+      "condition_signals": [
+        "crash_on_exception",
+        "exception_control_bypass",
+        "fail_open_observed",
+        "partial_commit_after_error",
+        "state_corruption_after_error",
+        "unhandled_exception_observed"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "security_misconfiguration",
+        "business_logic",
+        "race_condition",
+        "security_logging_alerting_failure"
+      ],
+      "cwe_ids": [
+        "CWE-248",
+        "CWE-636",
+        "CWE-703",
+        "CWE-755"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "exceptional_condition_mishandling",
+      "override_signals": [],
+      "owasp_ids": [
+        "A10:2025"
+      ],
+      "principle": "Error/exception markers are only surfaces; promotion requires an observed fail-open, crash, partial commit, corrupted state, or other unsafe exceptional-condition outcome.",
+      "strategy": "exception_fail_closed_behavior",
+      "surface_fields": [
+        "error",
+        "exception",
+        "status",
+        "rollback",
+        "transaction",
+        "panic",
+        "crash"
+      ],
+      "surface_terms": [
+        "exception",
+        "error",
+        "panic",
+        "crash",
+        "rollback",
+        "fail open",
+        "timeout",
+        "null pointer",
+        "segmentation fault"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Exception text alone is disclosure context; promotion requires an unsafe exceptional-condition outcome such as a crash, fail-open control path, corrupted state, or partial transaction effect.",
+          "ref": "GHSL-2023-116 / MySQL unsafe exceptional state transition",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2023-116_MySQL/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-ERRH-01",
+        "WSTG-ERRH-02"
+      ]
+    },
+    "file_upload": {
+      "blocking_controls": [
+        "inert_storage",
+        "server_generated_filename",
+        "strict_type_allowlist",
+        "upload_rejected"
+      ],
+      "condition_signals": [
+        "active_content_served",
+        "content_type_mismatch_accepted",
+        "dangerous_type_accepted",
+        "executable_upload",
+        "filename_control_reaches_storage",
+        "unsafe_storage",
+        "upload_validation_bypass"
+      ],
+      "confounders": [
+        "path_traversal",
+        "dom_xss",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-434"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "file_upload",
+      "override_signals": [],
+      "owasp_ids": [
+        "A06:2025"
+      ],
+      "principle": "Upload capability alone is not a weakness; promotion requires observed unsafe acceptance, storage, serving, or processing of attacker-controlled files.",
+      "strategy": "upload_storage_processing",
+      "surface_fields": [
+        "file",
+        "files",
+        "attachment",
+        "upload",
+        "filename",
+        "mime_type",
+        "content_type"
+      ],
+      "surface_terms": [
+        "upload",
+        "multipart",
+        "attachment",
+        "import file",
+        "file input",
+        "content type",
+        "filename"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Upload capability alone is a surface; dangerous-type acceptance, unsafe storage/serving, or unsafe processing is required for promotion.",
+          "ref": "GHSL-2024-072–074 / Reposilite file upload",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-08",
+        "WSTG-BUSL-09"
+      ]
+    },
+    "graphql_authorization": {
+      "blocking_controls": [
+        "cross_context_denied",
+        "resolver_authorization",
+        "schema_only"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "cross_context",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "resolver_authorization_failure",
+        "unauthorized_object_response"
+      ],
+      "confounders": [
+        "broken_object_authorization",
+        "broken_function_authorization",
+        "graphql_data_exposure"
+      ],
+      "cwe_ids": [
+        "CWE-862",
+        "CWE-863"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "graphql_authorization",
+      "override_signals": [],
+      "owasp_ids": [
+        "API1:2023",
+        "A01:2025"
+      ],
+      "principle": "GraphQL operations and IDs are surfaces; promotion requires resolver/object authorization boundary failure.",
+      "strategy": "graphql_resolver_authorization",
+      "surface_fields": [
+        "id",
+        "nodeId",
+        "userId",
+        "tenantId",
+        "operationName"
+      ],
+      "surface_terms": [
+        "graphql",
+        "query",
+        "mutation",
+        "resolver",
+        "node id",
+        "relay"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "GraphQL transport does not change the authorization condition: an object identifier is only a surface until the resolver/object lookup is shown to escape the caller's organization, tenant, or ownership boundary.",
+          "ref": "GHSL-2025-130 / Sentry cross-organization object authorization failure",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2025-130_Sentry/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-APIT-02",
+        "WSTG-ATHZ-02"
+      ]
+    },
+    "graphql_data_exposure": {
+      "blocking_controls": [
+        "field_authorization",
+        "minimal_projection",
+        "schema_only"
+      ],
+      "condition_signals": [
+        "cross_context",
+        "field_expansion",
+        "response_data",
+        "sensitive_expansion",
+        "unauthorized_data_response"
+      ],
+      "confounders": [
+        "graphql_authorization",
+        "information_disclosure",
+        "secret_exposure"
+      ],
+      "cwe_ids": [
+        "CWE-200"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "graphql_data_exposure",
+      "override_signals": [],
+      "owasp_ids": [
+        "API3:2023",
+        "A01:2025"
+      ],
+      "principle": "Sensitive GraphQL fields are only schema clues; promotion requires actual exposure beyond the caller's field policy.",
+      "strategy": "graphql_field_policy",
+      "surface_fields": [
+        "fields",
+        "include",
+        "expand",
+        "selection",
+        "fragment"
+      ],
+      "surface_terms": [
+        "graphql",
+        "nested field",
+        "fragment",
+        "selection set",
+        "introspection",
+        "expand"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Sensitive field names or schema are not enough; data exposure requires the sensitive fields to cross the caller's actual field policy.",
+          "ref": "GHSL-2026-035 / Wekan unfiltered publication fields",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-035_Wekan/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-APIT-03"
+      ]
+    },
+    "improper_inventory_management": {
+      "blocking_controls": [
+        "inventory_documented",
+        "legacy_controls_equivalent",
+        "nonproduction_isolated",
+        "retired_endpoint_unreachable"
+      ],
+      "condition_signals": [
+        "deprecated_version_still_reachable",
+        "inventory_drift_observed",
+        "nonproduction_with_production_data",
+        "older_version_weaker_controls",
+        "retired_endpoint_active",
+        "undocumented_host_observed",
+        "unprotected_legacy_endpoint"
+      ],
+      "confounders": [
+        "security_misconfiguration",
+        "information_disclosure",
+        "broken_function_authorization"
+      ],
+      "cwe_ids": [
+        "CWE-200",
+        "CWE-862",
+        "CWE-1104"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "improper_inventory_management",
+      "override_signals": [],
+      "owasp_ids": [
+        "API9:2023"
+      ],
+      "principle": "Version/non-production naming is only inventory surface. CWE mapping is intentionally contextual and is assigned only when the observed legacy/non-production condition exposes a concrete weakness.",
+      "strategy": "api_inventory_drift",
+      "surface_fields": [
+        "version",
+        "api_version",
+        "environment"
+      ],
+      "surface_terms": [
+        "legacy",
+        "deprecated",
+        "old api",
+        "v1",
+        "v2",
+        "beta",
+        "alpha",
+        "staging",
+        "dev",
+        "test",
+        "undocumented"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Legacy/version naming is only inventory surface; security relevance requires the stale or undocumented deployment to remain reachable with weaker controls, real data, or drift.",
+          "ref": "GHSL-2023-192–194 / Bazarr legacy API behavior",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2023-192_GHSL-2023-194_bazarr/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-APIT-01",
+        "WSTG-CONF-04"
+      ]
+    },
+    "information_disclosure": {
+      "blocking_controls": [
+        "authentication_required",
+        "intended_public",
+        "placeholder",
+        "redacted_only"
+      ],
+      "condition_signals": [
+        "error_to_data",
+        "protected_to_data",
+        "public_observation",
+        "response_data",
+        "unauthorized_data_response"
+      ],
+      "confounders": [
+        "secret_exposure",
+        "graphql_data_exposure",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-200"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "information_disclosure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A01:2025"
+      ],
+      "principle": "Sensitive-looking fields are only clues; promotion requires actual exposure to an unauthorized or unintended context.",
+      "strategy": "sensitive_response_exposure",
+      "surface_fields": [
+        "token",
+        "secret",
+        "password",
+        "email",
+        "address",
+        "internal",
+        "debug"
+      ],
+      "surface_terms": [
+        "stack trace",
+        "debug",
+        "internal",
+        "secret",
+        "token",
+        "password hash",
+        "pii",
+        "private"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Sensitive material is a finding only when an unauthorized or unintended response/subscription context actually exposes it.",
+          "ref": "GHSL-2026-037 / Wekan token leak",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-037_Wekan/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-ERRH-01",
+        "WSTG-ERRH-02"
+      ]
+    },
+    "ldap_injection": {
+      "blocking_controls": [
+        "ldap_filter_escaped",
+        "ldap_input_rejected",
+        "ldap_parameter_binding"
+      ],
+      "condition_signals": [
+        "ldap_auth_bypass_observed",
+        "ldap_error_observed",
+        "ldap_filter_influence",
+        "ldap_response_differential"
+      ],
+      "confounders": [
+        "nosql_injection",
+        "account_enumeration",
+        "authentication_session"
+      ],
+      "cwe_ids": [
+        "CWE-90"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "ldap_injection",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "Directory search input is only a surface; promotion requires observed LDAP filter/query influence.",
+      "strategy": "ldap_filter_semantics",
+      "surface_fields": [
+        "username",
+        "email",
+        "filter",
+        "dn",
+        "search",
+        "user"
+      ],
+      "surface_terms": [
+        "ldap",
+        "directory",
+        "dn=",
+        "ou=",
+        "memberof",
+        "ldap filter",
+        "distinguished name"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "LDAP injection requires attacker-controlled text to alter LDAP filter syntax or authentication/search semantics because filter metacharacters are not safely escaped or bound.",
+          "ref": "GHSL-2024-009 / Redash LDAP injection",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-06"
+      ]
+    },
+    "mass_assignment": {
+      "blocking_controls": [
+        "field_allowlist",
+        "privileged_fields_removed",
+        "privileged_property_rejected",
+        "read_only_contract"
+      ],
+      "condition_signals": [
+        "privileged_property_accepted",
+        "property_authorization_differential",
+        "response_reflects_privileged_change",
+        "unauthorized_property_change"
+      ],
+      "confounders": [
+        "broken_object_authorization",
+        "broken_function_authorization",
+        "business_logic"
+      ],
+      "cwe_ids": [
+        "CWE-915"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "mass_assignment",
+      "override_signals": [],
+      "owasp_ids": [
+        "API3:2023",
+        "A01:2025"
+      ],
+      "principle": "Writable object properties are only a surface; promotion requires unauthorized modification of a property outside the caller's policy.",
+      "strategy": "property_write_boundary",
+      "surface_fields": [
+        "role",
+        "roles",
+        "status",
+        "verified",
+        "is_admin",
+        "permissions",
+        "owner_id",
+        "tenant_id"
+      ],
+      "surface_terms": [
+        "update profile",
+        "patch object",
+        "custom field",
+        "role",
+        "status",
+        "permissions"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Writable privileged properties are only a surface; promotion requires the server to accept/apply a property outside the caller's property policy.",
+          "ref": "GHSL-2026-044 / Wekan custom-field manipulation",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-044_Wekan/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-20"
+      ]
+    },
+    "nosql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "nosql_operator_rejected",
+        "operator_allowlist",
+        "typed_query_schema"
+      ],
+      "condition_signals": [
+        "nosql_auth_bypass_observed",
+        "nosql_error_observed",
+        "nosql_operator_accepted",
+        "nosql_response_differential",
+        "query_operator_influence"
+      ],
+      "confounders": [
+        "sql_injection",
+        "ldap_injection",
+        "business_logic"
+      ],
+      "cwe_ids": [
+        "CWE-943"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "nosql_injection",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "Structured query input is only a surface; promotion requires observed operator or query-logic influence.",
+      "strategy": "nosql_operator_semantics",
+      "surface_fields": [
+        "filter",
+        "selector",
+        "query",
+        "username",
+        "where"
+      ],
+      "surface_terms": [
+        "mongodb",
+        "mongo",
+        "nosql",
+        "selector",
+        "$ne",
+        "$gt",
+        "$where",
+        "document query"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "NoSQL injection requires structured attacker input to become query operators or otherwise change document-query logic.",
+          "ref": "GHSL-2026-005 / Rocket.Chat NoSQL injection",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-05.6"
+      ]
+    },
+    "open_redirect": {
+      "blocking_controls": [
+        "constant_value",
+        "host_allowlist",
+        "relative_path_only",
+        "same_origin_only"
+      ],
+      "condition_signals": [
+        "allowlist_bypass",
+        "external_destination",
+        "external_url",
+        "same_origin_bypass",
+        "unrestricted_destination"
+      ],
+      "confounders": [
+        "ssrf",
+        "unsafe_api_consumption",
+        "dom_xss"
+      ],
+      "cwe_ids": [
+        "CWE-601"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "open_redirect",
+      "override_signals": [],
+      "owasp_ids": [
+        "A01:2025"
+      ],
+      "principle": "Redirect parameters are only surfaces; promotion requires user-controlled navigation to an unintended destination.",
+      "strategy": "navigation_destination_boundary",
+      "surface_fields": [
+        "url",
+        "next",
+        "redirect",
+        "redirect_uri",
+        "return_url",
+        "return_to",
+        "continue"
+      ],
+      "surface_terms": [
+        "redirect",
+        "return url",
+        "return_to",
+        "next",
+        "continue",
+        "callback url",
+        "successurl"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "A redirect parameter is decisive only when destination validation can be bypassed so navigation reaches an attacker-controlled external location.",
+          "ref": "GHSL-2020-085 / Sourcegraph open redirect",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2020-085-sourcegraph/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CLNT-04"
+      ]
+    },
+    "path_traversal": {
+      "blocking_controls": [
+        "canonicalization",
+        "fixed_directory",
+        "opaque_file_id",
+        "path_rejected"
+      ],
+      "condition_signals": [
+        "archive_entry_escape",
+        "base_directory_escape",
+        "canonicalization_bypass",
+        "filesystem_path_reachability",
+        "path_escape_observed",
+        "path_join_user_controlled"
+      ],
+      "confounders": [
+        "file_upload",
+        "information_disclosure",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-22"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "path_traversal",
+      "override_signals": [],
+      "owasp_ids": [
+        "A01:2025"
+      ],
+      "principle": "Path/filename input is only a surface; promotion requires attacker-controlled path data to escape the intended filesystem boundary.",
+      "strategy": "path_confinement",
+      "surface_fields": [
+        "path",
+        "file",
+        "filename",
+        "filepath",
+        "directory",
+        "entry",
+        "itemPath"
+      ],
+      "surface_terms": [
+        "path",
+        "filename",
+        "archive",
+        "extract",
+        "download",
+        "directory",
+        "../",
+        "zip entry"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Traversal requires attacker-controlled path or archive-entry data to escape the intended filesystem boundary in a concrete read/write operation.",
+          "ref": "GHSL-2024-072–074 / Reposilite path traversal",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-ATHZ-01"
+      ]
+    },
+    "postmessage_trust": {
+      "blocking_controls": [
+        "schema_validation",
+        "source_window_check",
+        "strict_origin_check"
+      ],
+      "condition_signals": [
+        "message_schema_unvalidated",
+        "missing_origin_check",
+        "missing_source_window_check",
+        "wildcard_origin"
+      ],
+      "confounders": [
+        "dom_xss",
+        "cors_misconfiguration",
+        "authentication_session"
+      ],
+      "cwe_ids": [
+        "CWE-940",
+        "CWE-346"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "postmessage_trust",
+      "override_signals": [],
+      "owasp_ids": [
+        "A07:2025"
+      ],
+      "principle": "A message handler is only a surface; promotion requires attacker-controlled messaging to sensitive behavior without adequate origin/source validation.",
+      "strategy": "cross_window_message_trust",
+      "surface_fields": [
+        "origin",
+        "message",
+        "data"
+      ],
+      "surface_terms": [
+        "postmessage",
+        "message event",
+        "onmessage",
+        "event.origin",
+        "event.source"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "A real web-messaging issue requires an attacker-controlled postMessage to reach a sensitive action when sender origin/source validation is insufficient.",
+          "ref": "CVE-2019-10779 / GCHQ Stroom postMessage origin validation",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/research/gchq-stroom-xss/"
+        },
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "External-message handlers must bind sensitive behavior to a validated sender instead of trusting arbitrary external callers.",
+          "ref": "GHSL-2024-027/028 / codeium-chrome external-message trust",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-027_GHSL-2024-028_codeium-chrome/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CLNT-11"
+      ]
+    },
+    "race_condition": {
+      "blocking_controls": [
+        "duplicate_rejected",
+        "idempotency_control",
+        "transaction_lock"
+      ],
+      "condition_signals": [
+        "atomicity_failure",
+        "concurrency_invariant_violation",
+        "double_spend_observed",
+        "duplicate_effect_observed"
+      ],
+      "confounders": [
+        "business_logic",
+        "unrestricted_resource_consumption"
+      ],
+      "cwe_ids": [
+        "CWE-362"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "race_condition",
+      "override_signals": [],
+      "owasp_ids": [
+        "A06:2025"
+      ],
+      "principle": "State-changing operations are only surfaces; promotion requires an observed concurrency/atomicity failure.",
+      "strategy": "atomicity_invariant",
+      "surface_fields": [
+        "idempotency_key",
+        "nonce",
+        "balance",
+        "status",
+        "version"
+      ],
+      "surface_terms": [
+        "concurrent",
+        "race",
+        "double spend",
+        "duplicate",
+        "single use",
+        "idempotency",
+        "toctou"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Race evidence requires a check/use or concurrency window to create a duplicate or otherwise impossible state that sequential execution would not permit.",
+          "ref": "GHSL-2025-038 / Branch Deploy TOCTOU",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-04"
+      ]
+    },
+    "secret_exposure": {
+      "blocking_controls": [
+        "example_value",
+        "placeholder",
+        "redacted_only"
+      ],
+      "condition_signals": [
+        "credential_context",
+        "high_entropy_value",
+        "non_placeholder_secret",
+        "token_exposure"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "source_map_exposure",
+        "authentication_session"
+      ],
+      "cwe_ids": [
+        "CWE-798",
+        "CWE-200"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "secret_exposure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A07:2025"
+      ],
+      "principle": "Secret-like strings are only clues; promotion requires non-placeholder credential material in a production-reachable client context.",
+      "strategy": "non_placeholder_client_secret",
+      "surface_fields": [
+        "api_key",
+        "apikey",
+        "secret",
+        "token",
+        "client_secret",
+        "access_token",
+        "private_key"
+      ],
+      "surface_terms": [
+        "api key",
+        "apikey",
+        "secret",
+        "token",
+        "bearer",
+        "private key",
+        "client secret",
+        "access key"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Secret-like text is a clue until non-placeholder credential material is shown in a reachable unintended context; values remain redacted and are not actively validated by default.",
+          "ref": "GHSL-2026-037 / Wekan authentication token leak",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-037_Wekan/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-04"
+      ]
+    },
+    "security_logging_alerting_failure": {
+      "blocking_controls": [
+        "alert_triggered",
+        "log_encoding_present",
+        "log_integrity_protected",
+        "security_event_logged"
+      ],
+      "condition_signals": [
+        "alerting_absent_observed",
+        "log_injection_observed",
+        "log_integrity_missing",
+        "security_event_not_logged",
+        "sensitive_data_logged"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "security_misconfiguration",
+        "exceptional_condition_mishandling"
+      ],
+      "cwe_ids": [
+        "CWE-117",
+        "CWE-532",
+        "CWE-778"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "security_logging_alerting_failure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A09:2025"
+      ],
+      "principle": "Security-event and logging metadata are only surfaces; lack of visible logs is never inferred from an HTTP response. Promotion requires stored evidence of missing, unsafe, or ineffective security logging/alerting.",
+      "strategy": "security_event_logging_and_alerting",
+      "surface_fields": [
+        "log",
+        "audit_log",
+        "logger",
+        "alert",
+        "event",
+        "telemetry",
+        "monitoring"
+      ],
+      "surface_terms": [
+        "log",
+        "logging",
+        "audit",
+        "alert",
+        "monitor",
+        "telemetry",
+        "security event",
+        "failed login"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Do not infer missing monitoring from a public response; promotion requires stored logging/telemetry/config evidence such as a missed security event, absent alert, unsafe log content, or log-integrity failure.",
+          "ref": "GHSA-vqf5-2xx6-9wfm / GitHub token written to debug artifacts",
+          "relation": "exact",
+          "source": "GitHub Advisory Database",
+          "url": "https://github.com/advisories/GHSA-vqf5-2xx6-9wfm"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-02",
+        "WSTG-ERRH-01"
+      ]
+    },
+    "security_misconfiguration": {
+      "blocking_controls": [
+        "debug_disabled",
+        "hardening_observed",
+        "method_rejected",
+        "security_headers_present",
+        "tls_enforced"
+      ],
+      "condition_signals": [
+        "debug_mode_exposed",
+        "desync_processing_difference",
+        "directory_listing_observed",
+        "insecure_http_enabled",
+        "security_header_missing_on_sensitive_response",
+        "stack_trace_exposed",
+        "unnecessary_method_enabled",
+        "unsafe_default_configuration"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "cors_misconfiguration",
+        "improper_inventory_management"
+      ],
+      "cwe_ids": [
+        "CWE-209",
+        "CWE-489",
+        "CWE-319",
+        "CWE-749",
+        "CWE-548",
+        "CWE-444",
+        "CWE-1188"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "security_misconfiguration",
+      "override_signals": [],
+      "owasp_ids": [
+        "API8:2023",
+        "A02:2025"
+      ],
+      "principle": "Configuration markers are only surfaces; promotion requires a directly observed insecure configuration and CWE is selected from the decisive configuration condition.",
+      "strategy": "insecure_configuration_observation",
+      "surface_fields": [
+        "server",
+        "x-powered-by",
+        "access-control",
+        "strict-transport-security"
+      ],
+      "surface_terms": [
+        "debug",
+        "stack trace",
+        "traceback",
+        "directory listing",
+        "actuator",
+        "phpinfo",
+        "server-status",
+        "http://",
+        "options"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Configuration markers become findings only when deployed behavior is directly insecure; weak defaults must be observed rather than inferred.",
+          "ref": "GHSL-2024-161/162 / rembg weak default CORS",
+          "relation": "exact_pattern",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-02",
+        "WSTG-CONF-06",
+        "WSTG-CONF-07",
+        "WSTG-CONF-14",
+        "WSTG-ERRH-02"
+      ]
+    },
+    "sensitive_business_flow_abuse": {
+      "blocking_controls": [
+        "anti_bot_control_enforced",
+        "inventory_limit_enforced",
+        "per_user_limit_enforced",
+        "reservation_limit_enforced",
+        "workflow_frequency_limited"
+      ],
+      "condition_signals": [
+        "anti_bot_control_absent",
+        "automation_limit_absent",
+        "bulk_abuse_observed",
+        "business_flow_limit_bypass",
+        "per_user_limit_absent",
+        "reservation_abuse_observed",
+        "scalping_control_absent",
+        "workflow_frequency_unrestricted"
+      ],
+      "confounders": [
+        "business_logic",
+        "unrestricted_resource_consumption",
+        "race_condition"
+      ],
+      "cwe_ids": [
+        "CWE-799"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "sensitive_business_flow_abuse",
+      "override_signals": [],
+      "owasp_ids": [
+        "API6:2023",
+        "A06:2025"
+      ],
+      "principle": "Sensitive business flows are surfaces; promotion requires observed missing or bypassable interaction-frequency/anti-automation controls.",
+      "strategy": "business_flow_frequency_limit",
+      "surface_fields": [
+        "quantity",
+        "count",
+        "coupon",
+        "promo",
+        "slot",
+        "reservation",
+        "invite"
+      ],
+      "surface_terms": [
+        "purchase",
+        "checkout",
+        "reserve",
+        "booking",
+        "signup",
+        "invite",
+        "redeem",
+        "claim",
+        "coupon",
+        "ticket"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Sensitive-flow abuse requires showing a business-frequency or anti-automation control is absent or bypassable; repeated-action capability alone is not a weakness.",
+          "ref": "GHSL-2025-038 / approval-workflow bypass",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2025-038_github_branch-deploy_action/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-06",
+        "WSTG-BUSL-07"
+      ]
+    },
+    "sensitive_caching": {
+      "blocking_controls": [
+        "no_store",
+        "private_cache",
+        "vary_authorization"
+      ],
+      "condition_signals": [
+        "browser_cache_no_store_missing",
+        "cache_key_missing_auth_context",
+        "cdn_cache",
+        "missing_vary",
+        "shared_cache_risk"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-524",
+        "CWE-525"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "sensitive_caching",
+      "override_signals": [],
+      "owasp_ids": [
+        "A06:2025"
+      ],
+      "principle": "Cache headers alone are not a weakness; promotion requires sensitive/authenticated data plus a cache-isolation failure.",
+      "strategy": "shared_cache_isolation",
+      "surface_fields": [
+        "cache-control",
+        "vary",
+        "age",
+        "x-cache"
+      ],
+      "surface_terms": [
+        "cache-control",
+        "public",
+        "s-maxage",
+        "cdn",
+        "vary",
+        "authorization",
+        "etag",
+        "no-store"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Sensitive/authenticated content is vulnerable only when caching policy permits retention or cross-context reuse; a cache header or route name alone is not sufficient.",
+          "ref": "CVE-2024-45314 / Flask-AppBuilder browser cache of sensitive login fields",
+          "relation": "exact",
+          "source": "GitHub Repository Security Advisory",
+          "url": "https://github.com/dpgaspar/Flask-AppBuilder/security/advisories/GHSA-fw5r-6m3x-rh7p"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-ATHN-06"
+      ]
+    },
+    "server_side_template_injection": {
+      "blocking_controls": [
+        "client_side_only",
+        "literal_template_rendering",
+        "template_input_escaped",
+        "template_sandbox_enforced"
+      ],
+      "condition_signals": [
+        "server_template_execution",
+        "template_engine_error_observed",
+        "template_expression_evaluated",
+        "template_output_differential"
+      ],
+      "confounders": [
+        "command_injection",
+        "dom_xss",
+        "business_logic"
+      ],
+      "cwe_ids": [
+        "CWE-1336"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "server_side_template_injection",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "Template/preview functionality is only a surface; promotion requires observed server-side template expression evaluation.",
+      "strategy": "server_template_evaluation",
+      "surface_fields": [
+        "template",
+        "content",
+        "body",
+        "message",
+        "preview"
+      ],
+      "surface_terms": [
+        "template",
+        "render",
+        "preview",
+        "jinja",
+        "twig",
+        "velocity",
+        "freemarker",
+        "expression"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "SSTI requires attacker-controlled syntax to be evaluated by a server-side template/expression engine; reflection alone is not evaluation.",
+          "ref": "GHSL-2020-204 / Corona Warn App Server SSTI",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2020-204-cwa-ssti/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-18"
+      ]
+    },
+    "software_data_integrity_failure": {
+      "blocking_controls": [
+        "integrity_check_present",
+        "safe_deserializer",
+        "signature_verified",
+        "trusted_repository_only"
+      ],
+      "condition_signals": [
+        "integrity_check_missing",
+        "unsafe_deserialization_observed",
+        "unsigned_serialized_data_trusted",
+        "unsigned_update_accepted",
+        "untrusted_code_executed"
+      ],
+      "confounders": [
+        "software_supply_chain_failure",
+        "mass_assignment",
+        "command_injection",
+        "unsafe_api_consumption"
+      ],
+      "cwe_ids": [
+        "CWE-345",
+        "CWE-494",
+        "CWE-502",
+        "CWE-829"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "software_data_integrity_failure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A08:2025"
+      ],
+      "principle": "Update, serialization, plugin, and external-code boundaries are only surfaces; promotion requires observed missing integrity verification or unsafe trust of code/data.",
+      "strategy": "software_data_integrity_boundary",
+      "surface_fields": [
+        "artifact",
+        "signature",
+        "checksum",
+        "payload",
+        "serialized",
+        "plugin",
+        "module",
+        "update_url"
+      ],
+      "surface_terms": [
+        "update",
+        "firmware",
+        "artifact",
+        "signature",
+        "integrity",
+        "deserialize",
+        "serialized",
+        "plugin",
+        "module",
+        "cdn"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Serialization or update functionality is only a trust surface; promotion requires evidence that untrusted code/data crosses the integrity boundary without effective authenticity/integrity verification.",
+          "ref": "GHSL-2024-301 / springboot-openai-chatgpt unsafe deserialization",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-301_274056675_springboot-openai-chatgpt/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-02"
+      ]
+    },
+    "software_supply_chain_failure": {
+      "blocking_controls": [
+        "component_current_and_supported",
+        "component_not_deployed",
+        "pipeline_untrusted_code_isolated",
+        "trusted_component_source"
+      ],
+      "condition_signals": [
+        "component_update_path_compromised",
+        "known_vulnerable_component_observed",
+        "privileged_pipeline_executes_untrusted_code",
+        "unmaintained_component_confirmed",
+        "untrusted_component_source"
+      ],
+      "confounders": [
+        "unsafe_api_consumption",
+        "improper_inventory_management",
+        "software_data_integrity_failure",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-1104",
+        "CWE-1357",
+        "CWE-1395"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "software_supply_chain_failure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A03:2025"
+      ],
+      "principle": "Dependency, build, registry, and artifact metadata are supply-chain surfaces; promotion requires observed untrusted, vulnerable, unmaintained, or compromised component/pipeline behavior.",
+      "strategy": "supply_chain_provenance_and_component_lifecycle",
+      "surface_fields": [
+        "package",
+        "version",
+        "dependency",
+        "artifact",
+        "repository",
+        "image",
+        "workflow",
+        "sbom"
+      ],
+      "surface_terms": [
+        "dependency",
+        "package",
+        "sbom",
+        "lockfile",
+        "workflow",
+        "ci/cd",
+        "artifact",
+        "registry",
+        "container",
+        "component version"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Build/dependency metadata is only a surface; promotion requires evidence that untrusted or compromised supply-chain input can affect a privileged build, component, or update path.",
+          "ref": "GHSL-2024-171 / QGIS Poisoned Pipeline Execution",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-171_QGIS/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-01",
+        "WSTG-CONF-02"
+      ]
+    },
+    "source_map_exposure": {
+      "blocking_controls": [
+        "empty_map",
+        "intended_public",
+        "non_reachable"
+      ],
+      "condition_signals": [
+        "direct_reachability",
+        "public_observation"
+      ],
+      "confounders": [
+        "information_disclosure",
+        "secret_exposure"
+      ],
+      "cwe_ids": [
+        "CWE-200"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "source_map_exposure",
+      "override_signals": [],
+      "owasp_ids": [
+        "A01:2025"
+      ],
+      "principle": "A source-map reference is only a surface; promotion requires meaningful source content plus verified public reachability.",
+      "strategy": "public_internal_source_map",
+      "surface_fields": [
+        "sourceMappingURL",
+        "sources",
+        "sourcesContent"
+      ],
+      "surface_terms": [
+        "sourcemappingurl",
+        ".map",
+        "sourcescontent",
+        "webpack://",
+        "source map"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Source-map presence is not sufficient; promotion requires source-map content that discloses meaningful client source information to an unauthorized or unintended audience.",
+          "ref": "CVE-2024-27257 / IBM OpenPages JavaScript source-map information exposure",
+          "relation": "exact",
+          "source": "NVD / IBM vulnerability record",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-27257"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CONF-04"
+      ]
+    },
+    "sql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "parameterized_query",
+        "query_builder_binding",
+        "uniform_database_behavior"
+      ],
+      "condition_signals": [
+        "boolean_response_differential",
+        "database_error_observed",
+        "database_time_delay_observed",
+        "query_structure_influence",
+        "sql_error_differential",
+        "unsafe_query_construction"
+      ],
+      "confounders": [
+        "nosql_injection",
+        "command_injection",
+        "server_side_template_injection"
+      ],
+      "cwe_ids": [
+        "CWE-89"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "sql_injection",
+      "override_signals": [],
+      "owasp_ids": [
+        "A05:2025"
+      ],
+      "principle": "Query parameters are only surfaces; promotion requires observed SQL semantic, error, boolean, timing, or unsafe-construction influence.",
+      "strategy": "sql_query_semantics",
+      "surface_fields": [
+        "q",
+        "query",
+        "filter",
+        "sort",
+        "order",
+        "search",
+        "where"
+      ],
+      "surface_terms": [
+        "sql",
+        "select",
+        "where",
+        "order by",
+        "database",
+        "query builder",
+        "postgres",
+        "mysql"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "SQL injection requires user input to alter SQL syntax/semantics or produce database-specific error, boolean, timing, or unsafe-construction effects.",
+          "ref": "GHSL-2026-059 / Chatwoot SQL injection",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-05"
+      ]
+    },
+    "ssrf": {
+      "blocking_controls": [
+        "browser_side_only",
+        "host_allowlist",
+        "predefined_destination",
+        "relative_path_only"
+      ],
+      "condition_signals": [
+        "backend_fetch",
+        "remote_import_fetch",
+        "server_fetch_observed",
+        "server_fetch_semantic",
+        "server_request_function",
+        "webhook_delivery_observed"
+      ],
+      "confounders": [
+        "open_redirect",
+        "unsafe_api_consumption",
+        "path_traversal"
+      ],
+      "cwe_ids": [
+        "CWE-918"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "ssrf",
+      "override_signals": [],
+      "owasp_ids": [
+        "API7:2023",
+        "A01:2025"
+      ],
+      "principle": "URL-like input is only a surface; promotion requires a user-controlled destination plus observed server-side request behavior.",
+      "strategy": "server_outbound_request_boundary",
+      "surface_fields": [
+        "url",
+        "uri",
+        "webhook",
+        "callback",
+        "remote_url",
+        "image_url",
+        "attachment_url"
+      ],
+      "surface_terms": [
+        "fetch url",
+        "remote url",
+        "webhook",
+        "import url",
+        "callback",
+        "proxy",
+        "attachment url"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "SSRF requires a user-controlled remote destination to reach a server-side fetch primitive without effective destination restrictions.",
+          "ref": "GHSL-2026-045 / Wekan SSRF",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2026-045_Wekan/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-INPV-19"
+      ]
+    },
+    "unrestricted_resource_consumption": {
+      "blocking_controls": [
+        "batch_limit_enforced",
+        "page_size_capped",
+        "payload_size_rejected",
+        "rate_limit_enforced",
+        "spending_limit_enforced",
+        "timeout_enforced"
+      ],
+      "condition_signals": [
+        "batch_limit_absent_observed",
+        "cost_amplification_observed",
+        "oversized_payload_accepted",
+        "rate_limit_absent_observed",
+        "resource_exhaustion_differential",
+        "timeout_limit_absent",
+        "unbounded_page_size_observed"
+      ],
+      "confounders": [
+        "sensitive_business_flow_abuse",
+        "race_condition",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-770"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "unrestricted_resource_consumption",
+      "override_signals": [],
+      "owasp_ids": [
+        "API4:2023"
+      ],
+      "principle": "Expensive or high-volume API controls are surfaces; promotion requires observed missing/ineffective size, frequency, timeout, or cost limits.",
+      "strategy": "resource_amplification_limit",
+      "surface_fields": [
+        "limit",
+        "page_size",
+        "size",
+        "count",
+        "batch",
+        "first",
+        "take",
+        "per_page",
+        "max_results"
+      ],
+      "surface_terms": [
+        "limit",
+        "page size",
+        "batch",
+        "bulk",
+        "upload size",
+        "timeout",
+        "export",
+        "report",
+        "thumbnail",
+        "otp"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Resource-consumption evidence requires an expensive attacker-controlled operation plus an absent/ineffective size, rate, timeout, or response bound that causes amplification.",
+          "ref": "GHSL-2023-225–228 / Mealie resource exhaustion",
+          "relation": "exact_pattern",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2023-225_GHSL-2023-226_Mealie/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-05",
+        "WSTG-BUSL-07"
+      ]
+    },
+    "unsafe_api_consumption": {
+      "blocking_controls": [
+        "third_party_schema_validation",
+        "upstream_redirect_restricted",
+        "upstream_response_capped",
+        "upstream_timeout_enforced",
+        "upstream_tls_enforced"
+      ],
+      "condition_signals": [
+        "third_party_auth_weak",
+        "third_party_data_unsanitized",
+        "unsafe_upstream_data_reaches_sink",
+        "upstream_certificate_validation_failure",
+        "upstream_redirect_followed_unrestricted",
+        "upstream_response_unbounded",
+        "upstream_timeout_absent",
+        "upstream_tls_missing"
+      ],
+      "confounders": [
+        "ssrf",
+        "unrestricted_resource_consumption",
+        "security_misconfiguration"
+      ],
+      "cwe_ids": [
+        "CWE-20",
+        "CWE-319",
+        "CWE-295",
+        "CWE-770",
+        "CWE-287"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "unsafe_api_consumption",
+      "override_signals": [],
+      "owasp_ids": [
+        "API10:2023"
+      ],
+      "principle": "Third-party integration is only a trust-boundary surface. CWE is selected only from the concrete unsafe upstream handling that is observed.",
+      "strategy": "upstream_trust_boundary",
+      "surface_fields": [
+        "url",
+        "provider",
+        "webhook",
+        "callback",
+        "api_url",
+        "endpoint"
+      ],
+      "surface_terms": [
+        "third party",
+        "provider",
+        "integration",
+        "upstream",
+        "partner api",
+        "vendor api",
+        "webhook",
+        "external api"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Third-party integration is only a trust boundary; concrete unsafe transport, redirect, timeout, response-size, authentication, or downstream-validation behavior is required.",
+          "ref": "GHSL-2024-161 / rembg upstream fetch",
+          "relation": "adjacent_primary_case",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2024-161_GHSL-2024-162_rembg/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-BUSL-01",
+        "WSTG-CRYP-01",
+        "WSTG-INPV-19"
+      ]
+    },
+    "websocket_authorization": {
+      "blocking_controls": [
+        "authenticated_handshake",
+        "channel_authorization",
+        "cross_context_denied"
+      ],
+      "condition_signals": [
+        "channel_authorization_failure",
+        "cross_context",
+        "message_received_outside_scope",
+        "unauthorized_subscription"
+      ],
+      "confounders": [
+        "graphql_authorization",
+        "broken_object_authorization",
+        "authentication_session"
+      ],
+      "cwe_ids": [
+        "CWE-862",
+        "CWE-863"
+      ],
+      "external_knowledge_counts_as_target_evidence": false,
+      "family": "websocket_authorization",
+      "override_signals": [],
+      "owasp_ids": [
+        "A01:2025"
+      ],
+      "principle": "WebSocket channels are only surfaces; promotion requires an observed subscription/message authorization failure.",
+      "strategy": "channel_identity_boundary",
+      "surface_fields": [
+        "channel",
+        "room",
+        "topic",
+        "user_id",
+        "tenant_id",
+        "boardId"
+      ],
+      "surface_terms": [
+        "websocket",
+        "ws://",
+        "wss://",
+        "subscribe",
+        "channel",
+        "room",
+        "ddp",
+        "socket"
+      ],
+      "writeups": [
+        {
+          "counts_as_target_evidence": false,
+          "lesson": "Realtime authorization must hold when the connection/subscription is used; WebSocket construction or an authenticated handshake alone does not prove authorization to every channel, message, or identity scope.",
+          "ref": "GHSL-2025-118 / Outline suspended-user WebSocket authentication bypass",
+          "relation": "exact",
+          "source": "GitHub Security Lab",
+          "url": "https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/"
+        }
+      ],
+      "wstg_ids": [
+        "WSTG-CLNT-10",
+        "WSTG-ATHZ-02"
+      ]
+    }
+  },
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "policy": {
+    "external_knowledge_counts_as_target_evidence": false,
+    "production_rules_changed_before_first_score": false,
+    "purpose": "ground capture planning, confounder analysis, blocking-control selection, and post-blind calibration rationale",
+    "writeup_grounding_may_not_satisfy_literal_capture_requirements": true,
+    "writeup_text_must_not_be_copied_into_raw_observation": true
+  },
+  "ranking_output_used": false,
+  "remaining_families": [
+    "authentication_session",
+    "broken_function_authorization",
+    "cors_misconfiguration",
+    "dom_xss",
+    "file_upload",
+    "graphql_data_exposure",
+    "improper_inventory_management",
+    "ldap_injection",
+    "mass_assignment",
+    "nosql_injection",
+    "open_redirect",
+    "postmessage_trust",
+    "race_condition",
+    "secret_exposure",
+    "security_logging_alerting_failure",
+    "security_misconfiguration",
+    "server_side_template_injection",
+    "sql_injection",
+    "unrestricted_resource_consumption",
+    "unsafe_api_consumption",
+    "websocket_authorization"
+  ],
+  "remaining_family_count": 21,
+  "scoring_executed": false,
+  "writeup_reference_count": 37
+}
