@@ -96,6 +96,7 @@ class VerifiedReplayCollectorV942Tests(unittest.TestCase):
             self.assertEqual(draft["reviewer_id"], "reviewer-1")
             self.assertEqual(draft["family"], "broken_object_authorization")
             self.assertTrue(draft["evidence_snapshot_id"].startswith("sha256:"))
+            self.assertEqual(draft["case_origin_id"], "candidate:fp-1")
             self.assertEqual(len(draft["missing_for_contract"]), 7)
             self.assertGreaterEqual(draft["decision_readiness_score"], 0)
             self.assertLessEqual(draft["decision_readiness_score"], 100)
@@ -164,6 +165,22 @@ class VerifiedReplayCollectorV942Tests(unittest.TestCase):
             first = _evidence_snapshot_id(row)
             row["analyst_decision"] = "rejected"
             row["analyst_note"] = "changed label"
+            second = _evidence_snapshot_id(row)
+            self.assertEqual(first, second)
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_snapshot_hash_is_stable_across_run_identity_and_derived_scores(self):
+        temp, db = self.project(decision="confirmed_by_analyst")
+        try:
+            row = dict(db.one("SELECT * FROM bug_candidates WHERE candidate_id='C-1'"))
+            first = _evidence_snapshot_id(row)
+            row["analysis_id"] = "AN-OTHER"
+            row["source_run_id"] = "RUN-OTHER"
+            row["likelihood_score"] = 1
+            row["evidence_strength"] = 2
+            row["evidence_coverage"] = 3
             second = _evidence_snapshot_id(row)
             self.assertEqual(first, second)
         finally:
