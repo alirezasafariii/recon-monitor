@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/analysis-engine-6.31-fresh-blind-v6-validation
+  pull_request:
+    branches:
+      - agent/analysis-engine-6.30-open-redirect-calibration
   workflow_dispatch:
 
 permissions:
@@ -37,7 +40,7 @@ jobs:
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
             case "$path" in
-              app/raw_recon_v6_*.py|app/v6_benchmark_*.py|app/v6_source_*.py|tests/test_v6_*.py|benchmarks/raw/sources/v6_*.json|benchmarks/raw/analysis_raw_v6.jsonl|docs/ANALYSIS_ENGINE_6_31_*.md|.github/workflows/analysis-631-*.yml)
+              app/raw_recon_v6_*.py|app/v6_benchmark_*.py|app/v6_source_*.py|app/v6_freeze_verify.py|tests/test_v6_*.py|benchmarks/raw/sources/v6_*.json|benchmarks/raw/sources/v6_*.sha256|benchmarks/raw/analysis_raw_v6.jsonl|docs/ANALYSIS_ENGINE_6_31_*.md|.github/workflows/analysis-631-*.yml)
                 ;;
               *)
                 echo "Analysis 6.31 pre-score production boundary violation: $path" >&2
@@ -51,6 +54,34 @@ jobs:
 
       - name: Full unit suite
         run: python -m unittest discover -s tests -p 'test_*.py' -q
+
+      - name: V6 corpus integrity gate
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v6_benchmark_validate import validate_v6_corpus
+
+          corpus = Path('benchmarks/raw/analysis_raw_v6.jsonl')
+          shortlist_path = Path('benchmarks/raw/sources/v6_shortlist.json')
+          if not corpus.exists() or not shortlist_path.exists():
+              print('V6 corpus/shortlist not materialized yet; integrity gate pending.')
+              raise SystemExit(0)
+
+          cases = [json.loads(line) for line in corpus.read_text(encoding='utf-8').splitlines() if line.strip()]
+          shortlist = json.loads(shortlist_path.read_text(encoding='utf-8'))
+          result = validate_v6_corpus(cases, shortlist, require_literal_single_capture=True)
+          print(json.dumps(result, indent=2, sort_keys=True))
+          if not result['passed']:
+              raise SystemExit(1)
+          PY
+
+      - name: Verify freeze hashes when present
+        env:
+          PYTHONPATH: app
+        run: python app/v6_freeze_verify.py
 
       - name: Golden analysis benchmark
         env:
