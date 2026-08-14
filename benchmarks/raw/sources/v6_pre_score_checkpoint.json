@@ -1,28 +1,34 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "rule_version": "2026.08.14.6.31",
   "evaluation_kind": "fresh_blind_v6_pre_score_checkpoint",
-  "checkpoint_status": "prepared_pending_execution_validation",
+  "checkpoint_status": "hard_sources_prevalidated_pending_full_36_execution_validation",
   "scoring_executed": false,
   "first_blind_consumed": false,
   "production_rules_changed_before_first_score": false,
   "source_selection": {
     "target_family_count": 36,
     "owasp_wstg_grounded_family_count": 14,
+    "owasp_wstg_hard_source_semantic_prevalidation_status": "passed_14_of_14",
     "legacy_semantic_discovery_family_count": 22,
+    "legacy_semantic_discovery_coverage_status": "passed_22_of_22_by_existing_unscored_audit",
     "supplement_pool_used_by_final_selector": false,
     "keyword_pool_used_by_final_selector": false,
+    "deprecated_supplement_snapshot_present_in_final_branch": false,
     "grounding_counts_as_target_evidence": false,
     "detector_output_used": false,
     "admission_output_used": false,
     "ranking_output_used": false,
     "full_36_family_firewall_execution_status": "pending",
-    "full_36_family_global_uniqueness_execution_status": "pending"
+    "full_36_family_global_uniqueness_execution_status": "pending",
+    "canonical_shortlist_status": "not_emitted_until_full_firewall_and_uniqueness_execute"
   },
   "grounding": {
     "owasp_testing_project": true,
     "wstg": true,
     "independent_writeups_or_primary_advisories": true,
+    "unsafe_api_consumption_primary_taxonomy": "OWASP API10:2023 Unsafe Consumption of APIs",
+    "unsafe_api_consumption_wstg_boundary": "WSTG-INFO-10 Map Application Architecture for third-party/API trust-boundary identification",
     "grounded_families": [
       "business_logic",
       "cors_misconfiguration",
@@ -40,6 +46,11 @@
       "websocket_authorization"
     ]
   },
+  "hard_source_replacements": {
+    "cors_misconfiguration": "GHSA-88fw-hqm2-52qc / honojs/hono",
+    "graphql_data_exposure": "GHSA-qpm9-h556-mwxm / nl-portal/nl-portal-backend-libraries",
+    "nosql_injection": "GHSA-pmpg-2mxq-6xwr / Budibase/budibase"
+  },
   "corpus_contract": {
     "single_case_count": 144,
     "pair_case_count": 72,
@@ -53,12 +64,22 @@
     "service": "GitHub Actions",
     "status": "blocked_before_job_execution",
     "reason": "repository account billing or spending-limit restriction reported by GitHub Actions",
-    "selector_python_started": false
+    "latest_selector_run_id": 31765115959,
+    "latest_selector_head_sha": "bcdf32177e03a28c7a5bc003eabc83027a45c736",
+    "selector_python_started": false,
+    "workflow_steps_reported": null
+  },
+  "branch_cleanup": {
+    "deprecated_large_supplement_snapshot_removed": true,
+    "superseded_source_selection_workflows_removed": true,
+    "superseded_owasp_workflows_removed": true,
+    "stale_owasp_diagnostic_removed": true,
+    "superseded_owasp_pool_removed": true
   },
   "safety_invariants": {
     "no_active_network_validation_by_analysis_engine": true,
     "no_first_blind_score_before_corpus_and_evaluator_freeze": true,
     "no_result_claim_without_executed_validation": true
   },
-  "next_required_transition": "Execute the sealed 36-family source selector; only after firewall and global uniqueness pass may v6_shortlist.json be committed and the 276-case corpus be materialized and frozen."
+  "next_required_transition": "Execute the final 36-family selector with exposure_index() and global uniqueness. Only after both pass may v6_shortlist.json be emitted and the 276-case corpus be materialized, validated, and frozen."
 }
