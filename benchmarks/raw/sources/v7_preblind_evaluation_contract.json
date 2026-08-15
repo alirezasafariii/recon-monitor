@@ -1,0 +1,216 @@
+{
+  "admission_confusion_contract": {
+    "counts": [
+      "admission_tp",
+      "admission_fp",
+      "admission_tn",
+      "admission_fn"
+    ],
+    "negative_classes": [
+      "accepted source-grounded near_miss",
+      "accepted source-grounded secure_negative",
+      "accepted source-grounded sparse_noisy"
+    ],
+    "positive_class": "accepted source-grounded positive variant",
+    "predicted_negative": "family is not admitted",
+    "predicted_positive": "family is admitted under the frozen evaluator/admission policy"
+  },
+  "bound_artifacts": {
+    "candidate_coverage_ledger": {
+      "ledger_sha256": "bba0c1b4b13b06c11baf2517b4aa33b219c9113ef54db814c4da441d50f0a886",
+      "path": "benchmarks/raw/sources/v7_candidate_coverage_ledger.json"
+    },
+    "semantic_review_packet_v2": {
+      "packet_set_sha256": "1326946ceea3b980eea1c631522316d2c8cdba361c4deeaf6ac924eb1b3bfbb2",
+      "path": "benchmarks/raw/sources/v7_semantic_review_packet_v2.json"
+    },
+    "standards_adjudication": {
+      "adjudication_sha256": "866d3966a8cac5c50c031c3c46fb95edd7cb7607fd2c4ea247cedbd239d0c9f7",
+      "path": "benchmarks/raw/sources/v7_standards_adjudication.json"
+    },
+    "v6_evaluator_freeze": {
+      "path": "benchmarks/raw/sources/v6_evaluator_freeze.json",
+      "sha256": "9d7e220561bb60335e42700470360bf0829c27d3d98e2058e594c32cdc83c86d"
+    }
+  },
+  "contract_sha256": "14b43872856cdfe0b14d00f28942c8de02dbb3f6915e075e7d3b7c1257193c9e",
+  "descriptive_only": true,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_preblind_evaluation_contract",
+  "first_blind_consumed": false,
+  "first_blind_lifecycle": {
+    "first_blind_consumed_before_run": false,
+    "fresh_blind_required_after_tuning": "V8_or_later",
+    "mark_consumed_on_scoring_start": true,
+    "one_shot": true,
+    "production_accuracy_claim_allowed_from_unscored_or_incomplete_v7": false,
+    "v7_reblind_after_tuning_allowed": false,
+    "v7_tuning_after_first_blind_allowed": true
+  },
+  "frozen_at": "2026-08-15T03:51:25.241933+00:00",
+  "ground_truth_contract": {
+    "engine_output_allowed_as_ground_truth": false,
+    "expected_admission_by_case_kind": {
+      "near_miss": false,
+      "positive": true,
+      "secure_negative": false,
+      "sparse_noisy": false
+    },
+    "expected_top_hits_and_conditions": "materialize only from accepted literal upstream source evidence plus frozen family/condition schema; never infer from engine predictions or standards text alone",
+    "human_review_required": false,
+    "minimum_distinct_human_reviewers": 0,
+    "required_family_count": 36,
+    "required_human_verified_variant_count": 0,
+    "required_machine_adjudicated_variant_count": 144,
+    "required_source_grounded_accepted_variant_count": 144,
+    "required_unresolved_variant_count": 0,
+    "source": "completed_source_grounded_v7_standards_adjudication_only",
+    "standards_count_as_target_evidence": false,
+    "standards_used_as_interpretation_rubric": true,
+    "writeups_count_as_target_evidence": false,
+    "writeups_used_as_interpretation_rubric": true
+  },
+  "integrity_gates": {
+    "candidate_material_coverage_required": 66,
+    "engine_baseline_commit_exact": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+    "engine_output_ground_truth_leakage_allowed": false,
+    "evaluator_contract_mutation_after_results_allowed": false,
+    "family_adjudication_required_count": 11,
+    "family_mapping_confirmation_required_before_scoring": true,
+    "human_review_required_before_scoring": false,
+    "human_verified_variant_count_required_before_scoring": 0,
+    "machine_adjudicated_variant_count_required_before_scoring": 144,
+    "machine_semantic_adjudication_complete_required_before_scoring": true,
+    "review_material_coverage_required": 144,
+    "source_assignment_commit_exact": "5656a8add583f61e712a837794ce7302857fce7a",
+    "source_grounded_accepted_variant_count_required_before_scoring": 144,
+    "source_replacement_allowed": false,
+    "standards_or_writeups_as_target_evidence_allowed": false,
+    "synthetic_fixture_allowed": false,
+    "unresolved_variant_count_required_before_scoring": 0
+  },
+  "performance_thresholds": {
+    "abstention_rate": null,
+    "admission_false_negative_rate": null,
+    "admission_false_positive_rate": null,
+    "admission_precision": null,
+    "admission_recall": null,
+    "condition_precision": null,
+    "condition_recall": null,
+    "per_family_abstention_rate": null,
+    "per_family_admission_false_positive_rate": null,
+    "per_family_admission_precision": null,
+    "per_family_admission_recall": null,
+    "top1_family_accuracy": null,
+    "top_hit_precision": null,
+    "top_hit_recall": null
+  },
+  "pre_scoring_readiness": {
+    "accepted_variant_count": 26,
+    "blocking_reason": "complete source-grounded standards adjudication before First Blind scoring",
+    "family_adjudication_required_count": 11,
+    "family_mapping_confirmed_count": 0,
+    "machine_semantic_adjudication_complete": false,
+    "ready": false,
+    "unresolved_variant_count": 118
+  },
+  "rule_version": "2026.08.15.6.33.v7.unseen.preblind-evaluator.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "threshold_policy": "No V7 performance threshold may be introduced or changed after First Blind results are observed. Results are descriptive; future tuning requires V8 or later.",
+  "v6_evaluator_lineage": {
+    "corpus_freeze_sha256": "3193934edfef046e8dfb867ced2f8bde3ceed77fe8fbea073e7f17f8cc4567ca",
+    "engine_output_allowed_as_ground_truth": false,
+    "evaluator_sha256": "7db75b63d135f59ee2db524f61d0e8856929016198e13ba11f19373b30995489",
+    "first_blind_evaluator_frozen": true,
+    "freeze_artifact": "benchmarks/raw/sources/v6_evaluator_freeze.json",
+    "protocol_sha256": "fed800eba46f4fadc2556d93c1dfc650a230260c5a628bf6ce1289262235df35",
+    "result_artifact": "benchmarks/raw/results/analysis_raw_v6_first_blind.json",
+    "rule_version": "2026.08.14.6.31.15",
+    "version": "1.1.0"
+  },
+  "v7_metric_contract": {
+    "evaluated_metrics": [
+      "top_hit_recall",
+      "condition_recall",
+      "admission_precision",
+      "admission_recall",
+      "admission_false_positive_rate",
+      "admission_false_negative_rate",
+      "abstention_rate",
+      "top1_family_accuracy"
+    ],
+    "metric_definitions": {
+      "abstention_rate": {
+        "abstained_case_predicate": "analysis_status == 'abstained' OR vulnerability_analysis_status == 'abstained'",
+        "formula": "abstained_case_count / scored_case_count",
+        "zero_denominator": null
+      },
+      "admission_false_negative_rate": {
+        "formula": "admission_fn / (admission_fn + admission_tp)",
+        "zero_denominator": null
+      },
+      "admission_false_positive_rate": {
+        "formula": "admission_fp / (admission_fp + admission_tn)",
+        "zero_denominator": null
+      },
+      "admission_precision": {
+        "formula": "admission_tp / (admission_tp + admission_fp)",
+        "zero_denominator": null
+      },
+      "admission_recall": {
+        "formula": "admission_tp / (admission_tp + admission_fn)",
+        "zero_denominator": null
+      },
+      "condition_precision": {
+        "formula": "condition_tp / (condition_tp + condition_fp)",
+        "zero_denominator": null
+      },
+      "condition_recall": {
+        "formula": "condition_tp / (condition_tp + condition_fn)",
+        "zero_denominator": null
+      },
+      "per_family_abstention_rate": {
+        "formula": "family_abstained_case_count / family_case_count",
+        "zero_denominator": null
+      },
+      "per_family_admission_false_positive_rate": {
+        "formula": "family_admission_fp / (family_admission_fp + family_admission_tn)",
+        "zero_denominator": null
+      },
+      "per_family_admission_precision": {
+        "formula": "family_admission_tp / (family_admission_tp + family_admission_fp)",
+        "zero_denominator": null
+      },
+      "per_family_admission_recall": {
+        "formula": "family_admission_tp / (family_admission_tp + family_admission_fn)",
+        "zero_denominator": null
+      },
+      "top1_family_accuracy": {
+        "correct_predicate": "predicted_top1 is a member of standards-adjudicated expected_top_hits",
+        "evaluable_predicate": "standards-adjudicated expected_top_hits is non-empty and predicted_top1 is present",
+        "formula": "top1_correct_case_count / top1_evaluable_case_count",
+        "zero_denominator": null
+      },
+      "top_hit_precision": {
+        "formula": "top_hit_tp / (top_hit_tp + top_hit_fp)",
+        "zero_denominator": null
+      },
+      "top_hit_recall": {
+        "formula": "top_hit_tp / (top_hit_tp + top_hit_fn)",
+        "zero_denominator": null
+      }
+    },
+    "no_top3_metric": true,
+    "reason_top3_omitted": "No stable V7 pre-existing ranked top-3 output contract is invented for this blind.",
+    "report_only_metrics": [
+      "top_hit_precision",
+      "condition_precision",
+      "per_family_admission_precision",
+      "per_family_admission_recall",
+      "per_family_admission_false_positive_rate",
+      "per_family_abstention_rate"
+    ]
+  },
+  "version": "1.1.0"
+}

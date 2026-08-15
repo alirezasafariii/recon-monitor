@@ -1,0 +1,39 @@
+{
+  "contract_sha256": "14b43872856cdfe0b14d00f28942c8de02dbb3f6915e075e7d3b7c1257193c9e",
+  "current_accepted_variant_count": 26,
+  "current_unresolved_variant_count": 118,
+  "descriptive_only": true,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluated_metrics": [
+    "top_hit_recall",
+    "condition_recall",
+    "admission_precision",
+    "admission_recall",
+    "admission_false_positive_rate",
+    "admission_false_negative_rate",
+    "abstention_rate",
+    "top1_family_accuracy"
+  ],
+  "first_blind_consumed": false,
+  "fresh_blind_required_after_tuning": "V8_or_later",
+  "human_review_required_before_scoring": false,
+  "human_verified_variant_count_required_before_scoring": 0,
+  "machine_semantic_adjudication_complete_required_before_scoring": true,
+  "one_shot_first_blind": true,
+  "performance_threshold_count": 0,
+  "pre_scoring_ready": false,
+  "report_only_metrics": [
+    "top_hit_precision",
+    "condition_precision",
+    "per_family_admission_precision",
+    "per_family_admission_recall",
+    "per_family_admission_false_positive_rate",
+    "per_family_abstention_rate"
+  ],
+  "rule_version": "2026.08.15.6.33.v7.unseen.preblind-evaluator.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_grounded_accepted_variant_count_required_before_scoring": 144,
+  "v7_reblind_after_tuning_allowed": false,
+  "version": "1.1.0"
+}
