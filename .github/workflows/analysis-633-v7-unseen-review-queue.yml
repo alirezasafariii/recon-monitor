@@ -1,0 +1,59 @@
+name: Analysis 6.33 V7 Unseen Review Queue
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-review-queue.yml'
+      - 'app/v7_unseen_review_queue.py'
+      - 'benchmarks/raw/sources/v7_capture_drafts_report.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build review queue
+        env: {PYTHONPATH: app}
+        run: python app/v7_unseen_review_queue.py
+      - name: Verify review queue remains pre-scoring
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('benchmarks/raw/sources/v7_semantic_review_queue.json').read_text())
+          assert q['family_count']==36 and q['variant_count']==144
+          assert q['draft_count']==78
+          assert q['ready_for_human_semantic_review_count']==52
+          assert q['targeted_family_blocked_count']==26
+          assert q['missing_literal_source_count']==66
+          assert q['human_adjudication_performed'] is False
+          assert q['publication_authorized'] is False and q['evidence_published'] is False
+          assert q['scoring_executed'] is False and q['first_blind_consumed'] is False
+          assert len({x['family'] for x in q['families']})==36
+          print(q['family_action_counts'])
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze review queue
+        run: |
+          git add benchmarks/raw/sources/v7_semantic_review_queue.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 unseen semantic review queue'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
