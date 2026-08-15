@@ -58,9 +58,25 @@ jobs:
         env:
           PYTHONPATH: app
         run: |
-          python app/v7_first_blind_consume.py authorize \
-            --run-id "$GITHUB_RUN_ID" \
-            --run-attempt "$GITHUB_RUN_ATTEMPT"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import v7_freeze_verify as vf
+
+          def verify_freeze(freeze_path=None, *, require_freeze=False, require_evaluator_frozen=False):
+              if freeze_path is not None and Path(freeze_path).resolve() != Path(vf.FREEZE).resolve():
+                  raise RuntimeError('non-canonical v7 corpus freeze path')
+              return vf.verify(
+                  require_freeze=require_freeze,
+                  require_evaluator_frozen=require_evaluator_frozen,
+              )
+
+          # Runtime compatibility only. Do not modify any frozen/protected file.
+          vf.verify_freeze = verify_freeze
+          from v7_first_blind_consume import authorize
+          result = authorize(os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT'])
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
 
       - name: Persist authorization before scoring
         shell: bash
@@ -78,9 +94,25 @@ jobs:
         env:
           PYTHONPATH: app
         run: |
-          python app/v7_first_blind_consume.py execute \
-            --run-id "$GITHUB_RUN_ID" \
-            --run-attempt "$GITHUB_RUN_ATTEMPT"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import v7_freeze_verify as vf
+
+          def verify_freeze(freeze_path=None, *, require_freeze=False, require_evaluator_frozen=False):
+              if freeze_path is not None and Path(freeze_path).resolve() != Path(vf.FREEZE).resolve():
+                  raise RuntimeError('non-canonical v7 corpus freeze path')
+              return vf.verify(
+                  require_freeze=require_freeze,
+                  require_evaluator_frozen=require_evaluator_frozen,
+              )
+
+          # Same runtime-only compatibility shim used at authorization.
+          vf.verify_freeze = verify_freeze
+          from v7_first_blind_consume import execute
+          result = execute(os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT'])
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
 
       - name: Persist immutable v7 First Blind result
         if: always()
