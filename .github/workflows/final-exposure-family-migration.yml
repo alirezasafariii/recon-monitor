@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
 
+# Triggered only for the controlled migration commit below; removed after verification.
 jobs:
   migrate:
     if: github.event.head_commit.message == 'Run exposure family migration'
