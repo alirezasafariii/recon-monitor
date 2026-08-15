@@ -18,8 +18,8 @@ from typing import Any, Mapping
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.human-review-contract.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.human-review-contract.2"
 PACKET = ROOT / "benchmarks/raw/sources/v7_semantic_review_packet_v2.json"
 TEMPLATE = ROOT / "benchmarks/raw/sources/v7_human_review_template.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_human_review_template_report.json"
@@ -59,6 +59,19 @@ def load(path: Path) -> dict[str, Any]:
 def sha_json(value: Any) -> str:
     raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     return hashlib.sha256(raw).hexdigest()
+
+
+def parse_aware_iso(value: Any, label: str) -> datetime:
+    raw = text(value)
+    if not raw:
+        raise RuntimeError(f"{label}: timestamp missing")
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception as exc:
+        raise RuntimeError(f"{label}: invalid ISO timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RuntimeError(f"{label}: timestamp must be timezone-aware")
+    return parsed
 
 
 def blank_vote(slot: str) -> dict[str, Any]:
@@ -143,13 +156,11 @@ def build_template() -> dict[str, Any]:
             "variants": variants,
         })
 
-    if {slot: load["family_count"] for slot, load in reviewer_load.items()} != {
-        "reviewer_a": 24,
-        "reviewer_b": 24,
-        "reviewer_c": 24,
-    }:
+    expected_family_load = {"reviewer_a": 24, "reviewer_b": 24, "reviewer_c": 24}
+    actual_family_load = {slot: reviewer_load[slot]["family_count"] for slot in REVIEWER_SLOTS}
+    if actual_family_load != expected_family_load:
         raise RuntimeError(f"V7 reviewer family load imbalance: {reviewer_load}")
-    if any(load["variant_count"] != 96 for load in reviewer_load.values()):
+    if any(slot_load["variant_count"] != 96 for slot_load in reviewer_load.values()):
         raise RuntimeError(f"V7 reviewer variant load imbalance: {reviewer_load}")
 
     result = {
@@ -213,7 +224,7 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
     reviewers = doc.get("reviewers") if isinstance(doc.get("reviewers"), Mapping) else {}
     if set(reviewers) != set(REVIEWER_SLOTS):
         raise RuntimeError("V7 review submission reviewer slots drift")
-    reviewer_ids = []
+    reviewer_id_by_slot: dict[str, str] = {}
     if require_complete:
         for slot in REVIEWER_SLOTS:
             meta = reviewers.get(slot) if isinstance(reviewers.get(slot), Mapping) else {}
@@ -222,11 +233,12 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
                 raise RuntimeError(f"{slot}: actual human reviewer ID missing")
             if meta.get("reviewer_attestation") != ATTESTATION_TEXT:
                 raise RuntimeError(f"{slot}: reviewer attestation missing or changed")
-            if not text(meta.get("attested_at")):
-                raise RuntimeError(f"{slot}: reviewer attested_at missing")
-            reviewer_ids.append(reviewer_id.casefold())
-        if len(set(reviewer_ids)) != 3:
+            parse_aware_iso(meta.get("attested_at"), f"{slot}/attested_at")
+            reviewer_id_by_slot[slot] = reviewer_id
+        if len({value.casefold() for value in reviewer_id_by_slot.values()}) != 3:
             raise RuntimeError("V7 review requires three distinct human reviewer IDs")
+        if doc.get("human_review_started") is not True:
+            raise RuntimeError("V7 completed review submission must mark human_review_started=true")
 
     assignments = [x for x in doc.get("assignments") or [] if isinstance(x, Mapping)]
     if len(assignments) != 36:
@@ -235,6 +247,8 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
     accepted_variant_count = 0
     rejected_or_more_source_count = 0
     disagreements = 0
+    family_consensus_failures = 0
+    required_family_reviews = 0
 
     for family in assignments:
         family_name = text(family.get("family"))
@@ -242,12 +256,25 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
         tie_slot = text(family.get("tie_breaker_slot"))
         if len(primary_slots) != 2 or len(set(primary_slots)) != 2 or tie_slot in primary_slots:
             raise RuntimeError(f"{family_name}: reviewer assignment malformed")
+        if set(primary_slots + [tie_slot]) != set(REVIEWER_SLOTS):
+            raise RuntimeError(f"{family_name}: reviewer assignment does not use the three fixed slots")
         family_review = family.get("family_review")
         if family.get("literal_family_adjudication_required") is True:
+            required_family_reviews += 1
             if not isinstance(family_review, Mapping):
                 raise RuntimeError(f"{family_name}: required family review missing")
             if require_complete:
-                _validate_vote_set(family_name + "/family", family_review, primary_slots, tie_slot, FAMILY_DECISIONS)
+                family_consensus, disagreed = _validate_vote_set(
+                    family_name + "/family",
+                    family_review,
+                    primary_slots,
+                    tie_slot,
+                    FAMILY_DECISIONS,
+                    reviewer_id_by_slot,
+                )
+                disagreements += int(disagreed)
+                if family_consensus != "confirm_family_mapping":
+                    family_consensus_failures += 1
         elif family_review is not None:
             raise RuntimeError(f"{family_name}: unexpected family review object")
 
@@ -266,6 +293,7 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
                     primary_slots,
                     tie_slot,
                     VARIANT_DECISIONS,
+                    reviewer_id_by_slot,
                 )
                 disagreements += int(disagreed)
                 if consensus == "accept_candidate_as_variant":
@@ -275,15 +303,32 @@ def validate_structure(doc: Mapping[str, Any], require_complete: bool = False) -
 
     if len(capture_ids) != 144 or len(set(capture_ids)) != 144:
         raise RuntimeError("V7 review submission capture IDs are not exactly 144 unique values")
+    if required_family_reviews != 11:
+        raise RuntimeError(f"V7 required family review count drift: {required_family_reviews} != 11")
+
+    all_reviews_completed = bool(require_complete)
+    all_variants_accepted = bool(require_complete and accepted_variant_count == 144)
+    all_family_mappings_confirmed = bool(require_complete and family_consensus_failures == 0)
+    ready = bool(all_variants_accepted and all_family_mappings_confirmed)
+    if require_complete:
+        if doc.get("human_review_complete") is not True:
+            raise RuntimeError("V7 completed review submission must mark human_review_complete=true")
+        if doc.get("semantic_adjudication_complete") is not True:
+            raise RuntimeError("V7 completed review submission must mark semantic_adjudication_complete=true")
+
     return {
         "family_count": 36,
         "variant_count": 144,
+        "required_family_review_count": required_family_reviews,
         "complete_validation": require_complete,
         "accepted_variant_count": accepted_variant_count,
         "rejected_or_more_source_count": rejected_or_more_source_count,
+        "family_consensus_failure_count": family_consensus_failures,
         "disagreement_count": disagreements,
-        "human_review_complete": bool(require_complete and accepted_variant_count == 144),
-        "ready_for_evidence_materialization": bool(require_complete and accepted_variant_count == 144),
+        "human_review_complete": all_reviews_completed,
+        "all_variants_accepted": all_variants_accepted,
+        "all_family_mappings_confirmed": all_family_mappings_confirmed,
+        "ready_for_evidence_materialization": ready,
         "scoring_executed": False,
         "first_blind_consumed": False,
     }
@@ -295,13 +340,14 @@ def _validate_vote_set(
     primary_slots: list[str],
     tie_slot: str,
     allowed_decisions: tuple[str, ...],
+    reviewer_id_by_slot: Mapping[str, str],
 ) -> tuple[str, bool]:
     votes = [x for x in review.get("primary_votes") or [] if isinstance(x, Mapping)]
     if [text(v.get("reviewer_slot")) for v in votes] != primary_slots:
         raise RuntimeError(f"{label}: primary reviewer slots drift")
     decisions = []
     reviewer_ids = []
-    for vote in votes:
+    for vote, slot in zip(votes, primary_slots):
         decision = text(vote.get("decision"))
         if decision not in allowed_decisions:
             raise RuntimeError(f"{label}: invalid/missing primary decision {decision!r}")
@@ -310,22 +356,28 @@ def _validate_vote_set(
         if vote.get("engine_output_used") is not False:
             raise RuntimeError(f"{label}: engine output was used in review")
         reviewer_id = text(vote.get("reviewer_id"))
-        if not reviewer_id or not text(vote.get("reviewed_at")):
-            raise RuntimeError(f"{label}: reviewer identity/time missing")
+        expected_id = text(reviewer_id_by_slot.get(slot))
+        if not reviewer_id or reviewer_id.casefold() != expected_id.casefold():
+            raise RuntimeError(f"{label}: reviewer identity does not match assigned slot {slot}")
+        parse_aware_iso(vote.get("reviewed_at"), f"{label}/{slot}/reviewed_at")
+        if decision in {"reject_candidate", "reject_family_mapping", "needs_additional_source_material"} and not text(vote.get("notes")):
+            raise RuntimeError(f"{label}: rejection/needs-more-source decision requires notes")
         decisions.append(decision)
         reviewer_ids.append(reviewer_id.casefold())
     if len(set(reviewer_ids)) != 2:
         raise RuntimeError(f"{label}: two primary votes are not independent reviewers")
 
     disagreed = decisions[0] != decisions[1]
+    tie = review.get("tie_break_vote") if isinstance(review.get("tie_break_vote"), Mapping) else {}
     if not disagreed:
         consensus = decisions[0]
-        if review.get("tie_break_required") not in (False, None):
-            raise RuntimeError(f"{label}: tie break marked required despite agreement")
+        if review.get("tie_break_required") is not False:
+            raise RuntimeError(f"{label}: agreement must set tie_break_required=false")
+        if text(tie.get("decision")) or text(tie.get("reviewer_id")) or text(tie.get("reviewed_at")):
+            raise RuntimeError(f"{label}: tie-break vote must remain empty when primaries agree")
     else:
         if review.get("tie_break_required") is not True:
             raise RuntimeError(f"{label}: disagreement requires tie break")
-        tie = review.get("tie_break_vote") if isinstance(review.get("tie_break_vote"), Mapping) else {}
         if text(tie.get("reviewer_slot")) != tie_slot:
             raise RuntimeError(f"{label}: tie-break reviewer slot drift")
         decision = text(tie.get("decision"))
@@ -334,14 +386,20 @@ def _validate_vote_set(
         if tie.get("source_material_checked") is not True or tie.get("engine_output_used") is not False:
             raise RuntimeError(f"{label}: invalid tie-break evidence attestation")
         tie_reviewer_id = text(tie.get("reviewer_id"))
-        if not tie_reviewer_id or not text(tie.get("reviewed_at")):
-            raise RuntimeError(f"{label}: tie-break reviewer identity/time missing")
+        expected_tie_id = text(reviewer_id_by_slot.get(tie_slot))
+        if not tie_reviewer_id or tie_reviewer_id.casefold() != expected_tie_id.casefold():
+            raise RuntimeError(f"{label}: tie-break reviewer identity does not match assigned slot")
+        parse_aware_iso(tie.get("reviewed_at"), f"{label}/{tie_slot}/reviewed_at")
+        if decision in {"reject_candidate", "reject_family_mapping", "needs_additional_source_material"} and not text(tie.get("notes")):
+            raise RuntimeError(f"{label}: tie-break rejection/needs-more-source requires notes")
         if tie_reviewer_id.casefold() in set(reviewer_ids):
             raise RuntimeError(f"{label}: tie-break reviewer is not independent")
         consensus = decision
 
     if review.get("consensus_decision") != consensus:
         raise RuntimeError(f"{label}: recorded consensus decision does not match votes")
+    if consensus in {"reject_candidate", "reject_family_mapping", "needs_additional_source_material"} and not text(review.get("consensus_notes")):
+        raise RuntimeError(f"{label}: non-accept consensus requires consensus_notes")
     if review.get("human_verified") is not True:
         raise RuntimeError(f"{label}: completed review is not marked human_verified")
     return consensus, disagreed
