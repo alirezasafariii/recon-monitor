@@ -23,7 +23,13 @@ class FinalAnalyzersBflaSsrfSpecTests(unittest.TestCase):
     def test_registry_covers_migrated_reference_families_without_drift(self) -> None:
         self.assertEqual(
             MIGRATED_FAMILIES,
-            ("broken_object_authorization", "broken_function_authorization", "ssrf", "sql_injection"),
+            (
+                "broken_object_authorization",
+                "broken_function_authorization",
+                "ssrf",
+                "sql_injection",
+                "dom_xss",
+            ),
         )
         self.assertEqual(validate_family_spec_registry(), [])
         self.assertFalse(SPEC_KNOWLEDGE_ERRORS)
