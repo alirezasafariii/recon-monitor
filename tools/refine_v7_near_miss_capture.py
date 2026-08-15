@@ -4,6 +4,20 @@ ROOT = Path(__file__).resolve().parents[1]
 p = ROOT / "app/v7_literal_patch_capture.py"
 text = p.read_text(encoding="utf-8")
 
+# The current collector already contains the stronger source-grounded near-miss
+# helpers and may also contain later pre-freeze hardening (for example the v7.14
+# label-blind raw boundary). In that state this compatibility refinement must be
+# a no-op rather than trying to match and rewrite an obsolete source anchor.
+modern_markers = (
+    "def _non_decisive_narrative(family: str, text: str) -> list[str]:",
+    "def _non_decisive_filenames(family: str, filenames: list[str]) -> list[str]:",
+    '"adjacent_non_decisive_source_context": near,',
+    '"near_miss_source_basis": near_basis,',
+)
+if all(marker in text for marker in modern_markers):
+    print("v7 near-miss capture already contains source-grounded non-synthetic fallbacks")
+    raise SystemExit(0)
+
 anchor = '''def _non_decisive_context(family: str, lines: list[str]) -> list[str]:
     selected: list[str] = []
     for line in lines:
