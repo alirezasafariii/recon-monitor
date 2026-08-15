@@ -47,7 +47,7 @@ class BugCandidateV41Tests(unittest.TestCase):
                 families = {str(row['bug_family']) for row in rows}
                 self.assertIn('broken_object_authorization', families)
                 self.assertNotIn('broken_function_authorization', families)
-                self.assertIn('mass_assignment', families)
+                self.assertNotIn('mass_assignment', families)
 
                 # An administrative route plus state-changing method is only a
                 # BFLA surface. Without stored role/permission-boundary evidence
@@ -60,6 +60,18 @@ class BugCandidateV41Tests(unittest.TestCase):
                 bfla_admission = json.loads(bfla_hypothesis['admission_json'])
                 self.assertFalse(bfla_admission['admitted'])
                 self.assertTrue(bfla_admission['required_missing'])
+
+                # Sensitive property names plus a write method are likewise only
+                # Mass Assignment attack-surface context until stored property
+                # acceptance/mutation/differential evidence exists.
+                mass_hypothesis = db.one(
+                    "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='mass_assignment'",
+                    (result['analysis_id'],),
+                )
+                self.assertIsNotNone(mass_hypothesis)
+                mass_admission = json.loads(mass_hypothesis['admission_json'])
+                self.assertFalse(mass_admission['admitted'])
+                self.assertTrue(mass_admission['required_missing'])
 
                 bola = next(row for row in rows if row['bug_family'] == 'broken_object_authorization')
                 self.assertLessEqual(int(bola['likelihood_score']), 100)
