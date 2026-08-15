@@ -1,0 +1,31 @@
+{
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "family_adjudication_required_count": 11,
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "human_review_complete": false,
+  "human_review_started": false,
+  "human_verified_record_count": 0,
+  "primary_reviews_per_variant": 2,
+  "required_unique_human_reviewers": 3,
+  "reviewer_load": {
+    "reviewer_a": {
+      "family_count": 24,
+      "variant_count": 96
+    },
+    "reviewer_b": {
+      "family_count": 24,
+      "variant_count": 96
+    },
+    "reviewer_c": {
+      "family_count": 24,
+      "variant_count": 96
+    }
+  },
+  "rule_version": "2026.08.15.6.33.v7.unseen.human-review-contract.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "tie_breaker_required_on_disagreement": true,
+  "variant_count": 144,
+  "version": "1.1.0"
+}
