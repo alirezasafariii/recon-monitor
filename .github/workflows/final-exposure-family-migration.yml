@@ -20,7 +20,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Apply exposure family migration
-        run: python .github/scripts/final_exposure_family_migration.py
+        run: |
+          python .github/scripts/final_exposure_family_migration.py
+          python .github/scripts/fix_exposure_projection.py
       - name: Verify manifest
         run: sha256sum --strict -c MANIFEST.sha256
       - name: Unit tests
