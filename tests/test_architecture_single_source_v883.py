@@ -57,7 +57,7 @@ class ArchitectureSingleSourceV883Tests(unittest.TestCase):
         self.assertEqual(result["recommended_level"], "manual_only")
 
     def test_safe_validation_matches_all_canonical_levels(self):
-        self.assertEqual(safe_validation.VALIDATION_VERSION, "6.1.0")
+        self.assertEqual(safe_validation.VALIDATION_VERSION, "6.2.0")
         for family in FAMILY_ORDER:
             result = safe_validation.validation_eligibility(_FakeCaseDB(family), "CASE-SINGLE-SOURCE")
             self.assertEqual(result["canonical_family"], family)
