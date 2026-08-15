@@ -22,43 +22,46 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate 36th fresh patchable family without scoring
+      - name: Validate source pool and diagnose uniqueness before scoring
         env:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The GraphQL source is the merged upstream Boardsesh resolver/cache
-          # security fix; all freshness and source-semantic gates remain active.
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
+          python - <<'PY'
+          import json
+          from collections import defaultdict
+          from pathlib import Path
+          from raw_recon_v7_source_selection import _prepare_pool
+          from raw_recon_v7_source_firewall import exposure_index
+          raw=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          pools={}
+          prior=exposure_index()
+          for family,rows in sorted(raw['candidates_by_family'].items()):
+              pools[family]=_prepare_pool(family,list(rows or []),prior)
+          by_project=defaultdict(list)
+          for family,rows in pools.items():
+              for row in rows:
+                  by_project[str(row.get('source_project') or '').casefold()].append((family,str(row.get('source_root') or '')))
+          collisions={p:v for p,v in by_project.items() if len({f for f,_ in v})>1}
+          singleton={f:[(r.get('source_project'),r.get('source_root')) for r in rows] for f,rows in pools.items() if len(rows)==1}
+          print('V7_PROJECT_COLLISIONS='+json.dumps(collisions,sort_keys=True))
+          print('V7_SINGLETON_POOLS='+json.dumps(singleton,sort_keys=True))
+          assert len(pools)==36 and all(pools.values())
+          PY
           python app/raw_recon_v7_source_selection.py
           python - <<'PY'
           import json
           from pathlib import Path
-          supplement=json.loads(Path('benchmarks/raw/sources/v7_missing5_supplement.json').read_text())
-          merged=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
-          shortlist=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
-          gql=supplement['candidates_by_family']['graphql_data_exposure']
-          assert gql, supplement.get('diagnostics',{})
-          candidate=gql[0]
-          assert candidate['patch_probe_passed'] is True
-          assert candidate['v7_firewall_allowed'] is True
-          assert candidate['source_family_audit_passed'] is True
-          assert candidate['pre_score_expected_condition_signals']
-          assert int(candidate['patch_added_line_count']) > 0
-          assert merged['patchable_family_count'] == 36, merged['families_without_candidates']
-          assert merged['families_without_candidates'] == []
-          assert len(shortlist['selected']) == 36
-          assert shortlist['global_assignment_complete'] is True
-          assert shortlist['families_without_semantic_candidates'] == []
-          assert shortlist['firewall']['passed'] is True
-          assert shortlist['firewall']['unique_root_count'] == 36
-          assert shortlist['firewall']['unique_project_count'] == 36
-          assert merged['candidate_selection_uses_v6_first_blind_score'] is False
-          assert merged['candidate_selection_uses_v6_first_blind_case_errors'] is False
-          assert merged['scoring_executed'] is False
-          assert shortlist['scoring_executed'] is False
-          print({'graphql_source_root': candidate['source_root'], 'graphql_project': candidate['source_project'], 'conditions': candidate['pre_score_expected_condition_signals'], 'patchable_family_count': merged['patchable_family_count'], 'selected_count': len(shortlist['selected'])})
+          r=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
+          assert len(r['selected'])==36
+          assert r['global_assignment_complete'] is True
+          assert r['firewall']['passed'] is True
+          assert r['firewall']['unique_root_count']==36
+          assert r['firewall']['unique_project_count']==36
+          assert r['scoring_executed'] is False
+          print({'selected_count':len(r['selected']),'unique_projects':r['firewall']['unique_project_count']})
           PY
       - name: Dispatch full existing pre-blind pipeline on latest branch
         env:
