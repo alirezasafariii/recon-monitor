@@ -7,6 +7,12 @@ from .base import (
     compose_detection_spec,
 )
 from .broken_object_authorization import BOLA_STANDARD_SPEC
+from .knowledge_projection import (
+    KNOWLEDGE_PROJECTION_VERSION,
+    taxonomy_projection,
+    validate_knowledge_projection,
+    writeup_knowledge_projection,
+)
 from .registry import (
     FAMILY_DETECTION_SPECS,
     FAMILY_SPEC_REGISTRY_VERSION,
