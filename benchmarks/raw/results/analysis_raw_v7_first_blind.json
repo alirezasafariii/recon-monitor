@@ -1,0 +1,10 @@
+{
+  "completed": false,
+  "error": "v7 evaluator cardinality mismatch",
+  "error_type": "RuntimeError",
+  "evaluation_kind": "fresh_blind_v7_single_consumption",
+  "first_blind_consumed": true,
+  "rule_version": "2026.08.14.6.32.v7.20",
+  "scoring_executed": null,
+  "version": "1.0.0"
+}

@@ -9,12 +9,16 @@
     "shortlist": "98d182953a6482a4892b1404bbb7e7539699c067ba5c3a8b7595e3e9fbab57eb"
   },
   "evaluation_kind": "fresh_blind_v7_single_consumption",
-  "first_blind_consumed": false,
+  "execution_error": "v7 evaluator cardinality mismatch",
+  "execution_error_type": "RuntimeError",
+  "first_blind_consumed": true,
   "github_run_attempt": "1",
   "github_run_id": "31856590797",
   "rerun_allowed": false,
+  "result_sha256": "ba42d0410ea8895799a7362f5e7a3b04f7220b1f5321a2fe105baadfab0bf617",
   "rule_version": "2026.08.14.6.32.v7.20",
-  "scoring_executed": false,
-  "state": "authorized_unscored",
+  "scoring_executed": null,
+  "scoring_started": true,
+  "state": "consumed_execution_error",
   "version": "1.0.0"
 }
