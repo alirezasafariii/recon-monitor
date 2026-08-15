@@ -31,11 +31,13 @@ jobs:
           # security fix; all freshness and source-semantic gates remain active.
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
+          python app/raw_recon_v7_source_selection.py
           python - <<'PY'
           import json
           from pathlib import Path
           supplement=json.loads(Path('benchmarks/raw/sources/v7_missing5_supplement.json').read_text())
           merged=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          shortlist=json.loads(Path('benchmarks/raw/sources/v7_shortlist.json').read_text())
           gql=supplement['candidates_by_family']['graphql_data_exposure']
           assert gql, supplement.get('diagnostics',{})
           candidate=gql[0]
@@ -46,10 +48,17 @@ jobs:
           assert int(candidate['patch_added_line_count']) > 0
           assert merged['patchable_family_count'] == 36, merged['families_without_candidates']
           assert merged['families_without_candidates'] == []
+          assert len(shortlist['selected']) == 36
+          assert shortlist['global_assignment_complete'] is True
+          assert shortlist['families_without_semantic_candidates'] == []
+          assert shortlist['firewall']['passed'] is True
+          assert shortlist['firewall']['unique_root_count'] == 36
+          assert shortlist['firewall']['unique_project_count'] == 36
           assert merged['candidate_selection_uses_v6_first_blind_score'] is False
           assert merged['candidate_selection_uses_v6_first_blind_case_errors'] is False
           assert merged['scoring_executed'] is False
-          print({'graphql_source_root': candidate['source_root'], 'graphql_project': candidate['source_project'], 'conditions': candidate['pre_score_expected_condition_signals'], 'patchable_family_count': merged['patchable_family_count']})
+          assert shortlist['scoring_executed'] is False
+          print({'graphql_source_root': candidate['source_root'], 'graphql_project': candidate['source_project'], 'conditions': candidate['pre_score_expected_condition_signals'], 'patchable_family_count': merged['patchable_family_count'], 'selected_count': len(shortlist['selected'])})
           PY
       - name: Dispatch full existing pre-blind pipeline on latest branch
         env:
