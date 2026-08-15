@@ -26,9 +26,13 @@ class FinalAnalyzersBflaSsrfSpecTests(unittest.TestCase):
             (
                 "broken_object_authorization",
                 "broken_function_authorization",
+                "mass_assignment",
                 "ssrf",
+                "file_upload",
+                "path_traversal",
                 "sql_injection",
                 "dom_xss",
+                "cors_misconfiguration",
             ),
         )
         self.assertEqual(validate_family_spec_registry(), [])

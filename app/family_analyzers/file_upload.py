@@ -17,6 +17,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -35,78 +36,25 @@ UPLOAD_ROUTE_MARKERS = {
 }
 IMPORT_ROUTE_MARKERS = {"import", "ingest", "restore", "bulk_import", "bulkimport"}
 
-FILE_UPLOAD_TAXONOMY = {
-    "owasp": ["Unrestricted File Upload"],
-    "wstg": ["WSTG-BUSL-08", "WSTG-BUSL-09", "WSTG-CONF-03"],
-    "cwe": ["CWE-434"],
-}
+FILE_UPLOAD_SPEC = get_detection_spec("file_upload")
 
-FILE_UPLOAD_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+FILE_UPLOAD_TAXONOMY = FILE_UPLOAD_SPEC.taxonomy()
+FILE_UPLOAD_METHOD = tuple(step.as_dict() for step in FILE_UPLOAD_SPEC.standard.methodology)
+FILE_UPLOAD_FALSE_POSITIVE_CHECKS = tuple(FILE_UPLOAD_SPEC.standard.false_positive_checks)
+FILE_UPLOAD_WRITEUP_PATTERNS = tuple(
     {
-        "id": "FILE-01-upload-surface",
-        "basis": ["WSTG-BUSL-08", "CWE-434"],
-        "principle": "Identify the concrete file input and upload/import operation; multipart or a filename alone remains structural evidence only.",
-    },
-    {
-        "id": "FILE-02-expected-file-policy",
-        "basis": ["WSTG-BUSL-08", "WSTG-BUSL-09"],
-        "principle": "Model the intended extension, MIME/signature, size, filename, archive/content and authorization policy before classifying acceptance as unsafe.",
-    },
-    {
-        "id": "FILE-03-safe-stored-observation",
-        "basis": ["WSTG-BUSL-08", "CWE-434"],
-        "principle": "Potential-Finding evidence requires stored behavior from an explicitly controlled inert test file that the documented policy says should be rejected but the application accepted.",
-    },
-    {
-        "id": "FILE-04-processing-storage-boundary",
-        "basis": ["WSTG-BUSL-09", "WSTG-CONF-03", "CWE-434"],
-        "principle": "Distinguish simple acceptance from a file-validation bypass or unsafe storage/serving/execution-capable context; safe isolated storage is evidence against the higher-impact condition.",
-    },
-    {
-        "id": "FILE-05-confirmation-boundary",
-        "basis": ["WSTG-BUSL-08", "WSTG-BUSL-09", "CWE-434"],
-        "principle": "Confirmation is stricter than promotion and requires stored evidence of a file-type/content validation bypass or execution-capable unsafe serving/storage, never inferred from the filename or HTTP success alone.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in FILE_UPLOAD_SPEC.standard.writeups
 )
-
-FILE_UPLOAD_FALSE_POSITIVE_CHECKS = (
-    "multipart/form-data, a field named file, or an /upload route proves only an upload surface.",
-    "HTTP 2xx or a returned file identifier does not prove that a policy-disallowed file was accepted or persisted.",
-    "A policy-allowed inert file being accepted is expected behavior and is not vulnerability evidence.",
-    "Direct evidence is accepted only from explicitly controlled inert test files; arbitrary third-party, executable, weaponized, or malware samples are outside this analyzer contract.",
-    "Extension allow-listing, MIME/signature checks, archive/content inspection, size limits, filename rewriting and authorization controls are evidence against unsafe acceptance when enforcement is actually observed.",
-    "Storage outside the web root, generated filenames, disabled execution handlers, attachment disposition and isolated serving origins reduce execution/serving risk and must not be ignored.",
-    "Content-Type supplied by the client is not authoritative by itself; a bypass requires stored differential evidence, not just a mutable request header.",
-    "File-path or filename traversal concerns remain a neighboring Path Traversal family unless a file-upload control failure is independently established.",
-)
-
-FILE_UPLOAD_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-busl-08-unexpected-types",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-BUSL-08 / Test Upload of Unexpected File Types",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/08-Test_Upload_of_Unexpected_File_Types",
-        "principle": "An upload weakness is behavioral: a file outside the intended approved type policy is accepted instead of rejected.",
-        "signals": ["file_input", "upload_operation", "unsafe_file_accepted", "file_policy_differential"],
-    },
-    {
-        "id": "owasp-wstg-busl-09-malicious-files",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-BUSL-09 / Test Upload of Malicious Files",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/09-Test_Upload_of_Malicious_Files",
-        "principle": "Accepted file type is not sufficient assurance when processing, content inspection or downstream serving can make the stored file dangerous.",
-        "signals": ["unsafe_file_accepted", "content_type_bypass_observed", "executable_upload_observed"],
-    },
-    {
-        "id": "cwe-434-dangerous-file-type",
-        "source": "MITRE CWE",
-        "ref": "CWE-434 / Unrestricted Upload of File with Dangerous Type",
-        "url": "https://cwe.mitre.org/data/definitions/434.html",
-        "principle": "Risk depends on allowing dangerous file content/type and how the receiving environment stores, processes or executes it.",
-        "signals": ["unsafe_file_accepted", "content_type_bypass_observed", "executable_upload_observed"],
-    },
-)
-
 
 def _normalize(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")

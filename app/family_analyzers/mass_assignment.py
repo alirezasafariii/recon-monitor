@@ -14,6 +14,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -33,70 +34,25 @@ PRIVILEGED_FIELDS = {
     "balance", "approval", "approved", "moderator", "superuser",
 }
 
-MASS_ASSIGNMENT_TAXONOMY = {
-    "owasp": [
-        "API3:2023 Broken Object Property Level Authorization",
-        "API6:2019 Mass Assignment",
-    ],
-    "wstg": ["WSTG-INPV-20"],
-    "cwe": ["CWE-915"],
-    "related_cwe": ["CWE-862", "CWE-863"],
-}
+MASS_ASSIGNMENT_SPEC = get_detection_spec("mass_assignment")
 
-MASS_ASSIGNMENT_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+MASS_ASSIGNMENT_TAXONOMY = MASS_ASSIGNMENT_SPEC.taxonomy()
+MASS_ASSIGNMENT_METHOD = tuple(step.as_dict() for step in MASS_ASSIGNMENT_SPEC.standard.methodology)
+MASS_ASSIGNMENT_FALSE_POSITIVE_CHECKS = tuple(MASS_ASSIGNMENT_SPEC.standard.false_positive_checks)
+MASS_ASSIGNMENT_WRITEUP_PATTERNS = tuple(
     {
-        "id": "MA-01-property-surface",
-        "basis": ["CWE-915", "OWASP API3:2023", "WSTG-INPV-20"],
-        "principle": "Identify client-controlled write operations that expose security-sensitive or policy-controlled object properties; the property name alone is only an attack-surface signal.",
-    },
-    {
-        "id": "MA-02-writable-contract",
-        "basis": ["CWE-915", "WSTG-INPV-20"],
-        "principle": "Model the intended writable-field contract for the exact operation, including server allow-lists, serializers, DTOs or schema restrictions where stored evidence exposes them.",
-    },
-    {
-        "id": "MA-03-property-authorization",
-        "basis": ["OWASP API3:2023", "CWE-915"],
-        "principle": "Distinguish object ownership and function permission from property-level authorization: the question is whether this caller may modify this specific property on an otherwise writable object.",
-    },
-    {
-        "id": "MA-04-behavioral-decision",
-        "basis": ["CWE-915", "WSTG-INPV-20"],
-        "principle": "Treat acceptance or persistence of a property explicitly outside the caller's writable policy as decisive target evidence; a 2xx response alone is insufficient unless the property effect is established.",
-    },
-    {
-        "id": "MA-05-persistence-check",
-        "basis": ["OWASP API3:2023"],
-        "principle": "Prefer stored before/after or read-back evidence showing the protected property actually changed, and distinguish accepted-but-ignored input from persisted mutation.",
-    },
-    {
-        "id": "MA-06-contradiction-and-confounders",
-        "basis": ["WSTG-INPV-20"],
-        "principle": "Look for field rejection, server allow-list enforcement, ignored sensitive properties, and neighboring BOLA/BFLA/business-logic explanations before promotion or confirmation.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in MASS_ASSIGNMENT_SPEC.standard.writeups
 )
-
-MASS_ASSIGNMENT_FALSE_POSITIVE_CHECKS = (
-    "The sensitive-looking property is intentionally writable by the current role or workflow.",
-    "The property is accepted syntactically but ignored and never persisted.",
-    "The server enforces an explicit allow-list/DTO/serializer that excludes the protected property.",
-    "A validation echo or response reflection is mistaken for a persisted property mutation.",
-    "The real issue is object ownership authorization (BOLA), not property authorization on an otherwise writable object.",
-    "The real issue is permission to invoke the function (BFLA), not permission to modify a specific property.",
-    "A business rule intentionally allows the state/property transition for the tested account context.",
-)
-
-MASS_ASSIGNMENT_WRITEUP_PATTERNS = (
-    {
-        "id": "ghsl-wekan-2026-044",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2026-044 / Wekan",
-        "url": "https://securitylab.github.com/advisories/GHSL-2026-044_Wekan/",
-        "principle": "Writable privileged/custom-field behavior is only meaningful when the server applies a property outside the caller's intended property policy.",
-        "signals": ["privileged_property", "protected_property_accepted", "protected_property_mutated", "property_authorization_differential"],
-    },
-)
-
 
 def _loads(value: Any, default: Any) -> Any:
     if isinstance(value, (dict, list)):

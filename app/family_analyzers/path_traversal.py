@@ -17,6 +17,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -35,87 +36,25 @@ ARCHIVE_MARKERS = {"archive", "zip", "tar", "extract", "unpack", "restore"}
 IMPORT_MARKERS = {"import", "ingest", "restore"}
 UPLOAD_MARKERS = {"upload", "uploads", "attachment", "document", "avatar"}
 
-PATH_TRAVERSAL_TAXONOMY = {
-    "owasp": ["Broken Access Control"],
-    "wstg": ["WSTG-ATHZ-01"],
-    "cwe": ["CWE-22"],
-    "related_cwe": ["CWE-23", "CWE-36"],
-    "capec": ["CAPEC-139", "CAPEC-597"],
-}
+PATH_TRAVERSAL_SPEC = get_detection_spec("path_traversal")
 
-PATH_TRAVERSAL_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+PATH_TRAVERSAL_TAXONOMY = PATH_TRAVERSAL_SPEC.taxonomy()
+PATH_TRAVERSAL_METHOD = tuple(step.as_dict() for step in PATH_TRAVERSAL_SPEC.standard.methodology)
+PATH_TRAVERSAL_FALSE_POSITIVE_CHECKS = tuple(PATH_TRAVERSAL_SPEC.standard.false_positive_checks)
+PATH_TRAVERSAL_WRITEUP_PATTERNS = tuple(
     {
-        "id": "PATH-01-path-surface",
-        "basis": ["WSTG-ATHZ-01", "CWE-22"],
-        "principle": "Identify a concrete user-influenced path, filename, archive member, or storage-path input and a file-system-relevant operation; names and routes alone remain structural evidence.",
-    },
-    {
-        "id": "PATH-02-expected-root-policy",
-        "basis": ["WSTG-ATHZ-01", "CWE-22"],
-        "principle": "Model the intended base/root directory, canonicalization step, path allow-list, absolute-path policy, archive extraction root and file-operation boundary before classifying a path as unsafe.",
-    },
-    {
-        "id": "PATH-03-controlled-boundary-observation",
-        "basis": ["WSTG-ATHZ-01", "CWE-23", "CWE-36"],
-        "principle": "Potential-Finding evidence requires stored behavior for an explicitly controlled non-sensitive test resource showing that a path expected to remain inside or be rejected resolved outside the intended base and reached a file operation.",
-    },
-    {
-        "id": "PATH-04-canonicalization-and-root-controls",
-        "basis": ["CWE-22", "CWE-23", "CWE-36"],
-        "principle": "Treat canonicalization, root containment, absolute-path rejection, archive-member normalization and equivalent enforcement as evidence against traversal when actually observed.",
-    },
-    {
-        "id": "PATH-05-confirmation-boundary",
-        "basis": ["WSTG-ATHZ-01", "CWE-22"],
-        "principle": "Confirmation is stricter than path escape: the same controlled observation must establish out-of-root access/write behavior or an actual canonicalization/root-boundary bypass tied to the file operation.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in PATH_TRAVERSAL_SPEC.standard.writeups
 )
-
-PATH_TRAVERSAL_FALSE_POSITIVE_CHECKS = (
-    "A parameter named path, file, filename, directory, folder, or storage_path is only an input surface.",
-    "A /download, /archive, /import, /extract, or /upload route does not prove the supplied path reaches a filesystem API.",
-    "A normalization change or appearance of parent-directory syntax in stored input is not proof that the resolved target escaped the intended root.",
-    "Direct evidence is accepted only from explicitly controlled, non-sensitive test resources; requests for sensitive operating-system or unrelated-user files are outside this analyzer contract.",
-    "Canonicalization, real-path resolution, root containment, absolute-path rejection, archive-member sanitization and equivalent enforcement are contradictions when observed on the relevant operation.",
-    "File Upload concerns remain a neighboring family unless filename/path control crosses a filesystem boundary; upload acceptance alone is not Path Traversal.",
-    "Information disclosure is a possible consequence, not interchangeable with the traversal root cause.",
-)
-
-PATH_TRAVERSAL_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-athz-01-directory-traversal",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-ATHZ-01 / Testing Directory Traversal File Include",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include",
-        "principle": "The relevant boundary is whether user-controlled path input can escape the application's intended root and reach files or directories that should be inaccessible.",
-        "signals": ["path_parameter", "file_operation", "path_escape_observed", "out_of_root_file_access_observed"],
-    },
-    {
-        "id": "cwe-22-restricted-directory",
-        "source": "MITRE CWE",
-        "ref": "CWE-22 / Improper Limitation of a Pathname to a Restricted Directory",
-        "url": "https://cwe.mitre.org/data/definitions/22.html",
-        "principle": "Path traversal exists when external input constructs a pathname that resolves outside the restricted directory because containment is not properly enforced.",
-        "signals": ["path_parameter", "base_directory_enforced", "path_escape_observed", "canonicalization_bypass_observed"],
-    },
-    {
-        "id": "cwe-23-relative-path-traversal",
-        "source": "MITRE CWE",
-        "ref": "CWE-23 / Relative Path Traversal",
-        "url": "https://cwe.mitre.org/data/definitions/23.html",
-        "principle": "Relative traversal is a specialization of CWE-22 involving externally controlled path segments that can resolve outside the intended directory.",
-        "signals": ["path_escape_observed", "canonicalization_bypass_observed"],
-    },
-    {
-        "id": "cwe-36-absolute-path-traversal",
-        "source": "MITRE CWE",
-        "ref": "CWE-36 / Absolute Path Traversal",
-        "url": "https://cwe.mitre.org/data/definitions/36.html",
-        "principle": "Absolute-path traversal is a specialization where an externally supplied absolute pathname escapes the intended base/root.",
-        "signals": ["path_escape_observed", "canonicalization_bypass_observed"],
-    },
-)
-
 
 def _normalize(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")

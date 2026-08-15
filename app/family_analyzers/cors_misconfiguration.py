@@ -12,6 +12,7 @@ analyzer performs no browser request or credentialed cross-origin fetch.
 from typing import Any, Mapping
 
 from core import Database
+from family_specs.registry import get_detection_spec
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .remaining_common import add_unique, finalize_result, header_map, observations, scalar, truth
 
@@ -19,62 +20,24 @@ from .remaining_common import add_unique, finalize_result, header_map, observati
 CORS_MISCONFIGURATION_FAMILY_ANALYZER_VERSION = "1.0.0"
 CORS_MISCONFIGURATION_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
 
-CORS_MISCONFIGURATION_TAXONOMY = {
-    "owasp": ["A05:2021 Security Misconfiguration", "CORS"],
-    "wstg": ["WSTG-CLNT-07"],
-    "cwe": ["CWE-942"],
-    "related_cwe": ["CWE-346"],
-}
+CORS_MISCONFIGURATION_SPEC = get_detection_spec("cors_misconfiguration")
 
-CORS_MISCONFIGURATION_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+CORS_MISCONFIGURATION_TAXONOMY = CORS_MISCONFIGURATION_SPEC.taxonomy()
+CORS_MISCONFIGURATION_METHOD = tuple(step.as_dict() for step in CORS_MISCONFIGURATION_SPEC.standard.methodology)
+CORS_MISCONFIGURATION_FALSE_POSITIVE_CHECKS = tuple(CORS_MISCONFIGURATION_SPEC.standard.false_positive_checks)
+CORS_MISCONFIGURATION_WRITEUP_PATTERNS = tuple(
     {
-        "id": "CORS-01-policy-surface",
-        "basis": ["WSTG-CLNT-07", "CWE-942"],
-        "principle": "Record exact CORS response policy without treating wildcard or reflected-looking headers alone as readable sensitive data.",
-    },
-    {
-        "id": "CORS-02-sensitive-context",
-        "basis": ["WSTG-CLNT-07"],
-        "principle": "Establish whether the endpoint response is security-sensitive or identity-specific independently from the header observation.",
-    },
-    {
-        "id": "CORS-03-controlled-origin-observation",
-        "basis": ["WSTG-CLNT-07", "CWE-942"],
-        "principle": "Direct evidence requires already-stored behavior from an explicitly controlled unintended origin; the analyzer itself performs no cross-origin request.",
-    },
-    {
-        "id": "CORS-04-browser-credential-boundary",
-        "basis": ["CWE-942", "CWE-346"],
-        "principle": "Separate origin allowance from credential behavior and actual browser readability; credentials disabled or browser-blocked reads are contradiction evidence.",
-    },
-)
-
-CORS_MISCONFIGURATION_FALSE_POSITIVE_CHECKS = (
-    "Access-Control-Allow-Origin: * is not automatically exploitable, especially when the response is public or credentials are unavailable.",
-    "A reflected Origin string in logs or a serialized header object does not prove arbitrary origins are accepted at runtime.",
-    "Access-Control-Allow-Credentials must be interpreted together with exact origin behavior and browser readability.",
-    "Public static/API metadata may intentionally allow broad cross-origin reads.",
-    "A strict trusted-origin allow-list, disabled credentials, or a browser-blocked controlled read is contradiction evidence.",
-    "The analyzer performs no credentialed request, browser script execution, controlled-origin fetch or cross-origin exploit attempt.",
-)
-
-CORS_MISCONFIGURATION_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-clnt-07-cors",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-CLNT-07 / Testing Cross Origin Resource Sharing",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing",
-        "principle": "CORS testing evaluates allowed origins, credentials and whether sensitive resources become readable by unintended origins.",
-        "signals": ["cors_header", "untrusted_origin_allowed", "credentialed_cross_origin_read"],
-    },
-    {
-        "id": "cwe-942-permissive-cross-domain-policy",
-        "source": "MITRE CWE",
-        "ref": "CWE-942 / Permissive Cross-domain Policy with Untrusted Domains",
-        "url": "https://cwe.mitre.org/data/definitions/942.html",
-        "principle": "Overly permissive cross-domain policy can expose sensitive information or operations to untrusted domains.",
-        "signals": ["cors_header", "sensitive_context", "untrusted_origin_allowed"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in CORS_MISCONFIGURATION_SPEC.standard.writeups
 )
 
 _SENSITIVE_CONTEXTS = {"payment", "identity", "customer_data", "administration", "partner_portal", "authentication", "account", "private"}
