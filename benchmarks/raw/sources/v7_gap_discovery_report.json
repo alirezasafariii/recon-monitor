@@ -1,11 +1,11 @@
 {
-  "api_request_count": 89,
+  "api_request_count": 91,
   "evaluation_kind": "fresh_blind_v7_targeted_gap_discovery_report",
   "families_without_candidates_after_merge": [],
   "first_blind_consumed": false,
   "hard_engine_exposure_scope": "materialized_or_scored_golden_v1_v4_raw_v1_v6_and_calibration_plus_real_world_corpus_v1@a6f02912343bc0ab9b2da4e5b9d2724108541f75",
   "research_preexposure_scope": "historical_unscored_candidate_and_source_research_metadata_v1_v6",
-  "rule_version": "2026.08.14.6.33.v7.gap.2",
+  "rule_version": "2026.08.15.6.33.v7.gap.3",
   "scoring_executed": false,
   "targeted_gap_candidate_counts": {
     "broken_object_authorization": 20,
@@ -18,6 +18,7 @@
     "improper_inventory_management": 20,
     "information_disclosure": 20,
     "mass_assignment": 20,
+    "security_misconfiguration": 20,
     "sensitive_business_flow_abuse": 1,
     "source_map_exposure": 7,
     "sql_injection": 20,
@@ -35,11 +36,12 @@
     "improper_inventory_management",
     "information_disclosure",
     "mass_assignment",
+    "security_misconfiguration",
     "sensitive_business_flow_abuse",
     "source_map_exposure",
     "sql_injection",
     "unsafe_api_consumption",
     "websocket_authorization"
   ],
-  "version": "1.1.0"
+  "version": "1.2.0"
 }

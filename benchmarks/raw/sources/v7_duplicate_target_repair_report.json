@@ -1,20 +1,23 @@
 {
-  "api_request_count": 14,
+  "api_request_count": 16,
   "evaluation_kind": "fresh_blind_v7_duplicate_target_metadata_repair",
   "families": [
     "dom_xss",
+    "security_misconfiguration",
     "sensitive_business_flow_abuse"
   ],
   "first_blind_consumed": false,
   "promoted_or_appended_counts": {
     "dom_xss": 20,
+    "security_misconfiguration": 20,
     "sensitive_business_flow_abuse": 1
   },
-  "rule_version": "2026.08.15.6.33.v7.duplicate-target.1",
+  "rule_version": "2026.08.15.6.33.v7.duplicate-target.2",
   "scoring_executed": false,
   "targeted_candidate_counts": {
     "dom_xss": 20,
+    "security_misconfiguration": 20,
     "sensitive_business_flow_abuse": 1
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
