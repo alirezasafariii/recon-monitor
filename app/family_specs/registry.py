@@ -12,14 +12,22 @@ from typing import Any
 import family_reasoning as _reasoning
 
 from .base import FamilyDetectionSpec, FamilyStandardSpec, compose_detection_spec
+from .broken_function_authorization import BFLA_STANDARD_SPEC
 from .broken_object_authorization import BOLA_STANDARD_SPEC
+from .ssrf import SSRF_STANDARD_SPEC
 
 
-FAMILY_SPEC_REGISTRY_VERSION = "1.0.0"
-MIGRATED_FAMILIES = ("broken_object_authorization",)
+FAMILY_SPEC_REGISTRY_VERSION = "1.1.0"
+MIGRATED_FAMILIES = (
+    "broken_object_authorization",
+    "broken_function_authorization",
+    "ssrf",
+)
 
 FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     BOLA_STANDARD_SPEC.family: BOLA_STANDARD_SPEC,
+    BFLA_STANDARD_SPEC.family: BFLA_STANDARD_SPEC,
+    SSRF_STANDARD_SPEC.family: SSRF_STANDARD_SPEC,
 }
 
 
@@ -45,6 +53,10 @@ def validate_family_spec_registry() -> list[str]:
     errors: list[str] = []
     if set(MIGRATED_FAMILIES) != set(FAMILY_STANDARD_SPECS):
         errors.append("migrated family coverage does not match the standard-spec registry")
+
+    strategies = [spec.strategy for spec in FAMILY_DETECTION_SPECS.values()]
+    if len(strategies) != len(set(strategies)):
+        errors.append("migrated family strategies must be unique")
 
     for family, spec in FAMILY_DETECTION_SPECS.items():
         live = _reasoning.FAMILY_REASONING.get(family, {})
