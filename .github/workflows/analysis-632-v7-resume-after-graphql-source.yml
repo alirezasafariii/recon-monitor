@@ -22,11 +22,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate source pool and diagnose uniqueness before scoring
+      - name: Validate WSTG CWE OWASP writeup grounded source pool before scoring
         env:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          python -m py_compile app/raw_recon_v7_collision_supplement.py app/raw_recon_v7_merge_patchable.py
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
@@ -35,7 +36,27 @@ jobs:
           from pathlib import Path
           from raw_recon_v7_source_selection import _prepare_pool
           from raw_recon_v7_source_firewall import exposure_index
+
+          collision=json.loads(Path('benchmarks/raw/sources/v7_collision_supplement.json').read_text())
+          assert collision['standards_grounding_required']==['WSTG','CWE','OWASP','primary_or_adjacent_writeup']
+          assert collision['grounding_counts_as_target_evidence'] is False
+          assert collision['scoring_executed'] is False
+          for family in ('race_condition','authentication_session'):
+              rows=collision['candidates_by_family'][family]
+              assert rows
+              row=rows[0]
+              assert row['patch_probe_passed'] is True
+              assert row['v7_firewall_allowed'] is True
+              assert row['source_family_audit_passed'] is True
+              assert row['pre_score_expected_condition_signals']
+              assert row['standards_grounding']['grounding_counts_as_target_evidence'] is False
+              assert row['standards_grounding']['wstg']
+              assert row['standards_grounding']['cwe']
+              assert row['standards_grounding']['owasp']
+              assert row['standards_grounding']['writeups']
+
           raw=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          assert raw['collision_replacement_supplement_merged'] is True
           pools={}
           prior=exposure_index()
           for family,rows in sorted(raw['candidates_by_family'].items()):
@@ -60,6 +81,8 @@ jobs:
           assert r['firewall']['passed'] is True
           assert r['firewall']['unique_root_count']==36
           assert r['firewall']['unique_project_count']==36
+          assert r['selection_uses_v6_first_blind_score'] is False
+          assert r['selection_uses_v6_first_blind_case_errors'] is False
           assert r['scoring_executed'] is False
           print({'selected_count':len(r['selected']),'unique_projects':r['firewall']['unique_project_count']})
           PY
