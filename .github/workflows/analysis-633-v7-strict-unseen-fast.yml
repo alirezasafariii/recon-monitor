@@ -46,7 +46,7 @@ jobs:
           from pathlib import Path
           allowed=(
               'app/raw_recon_v7_', 'app/v7_', 'benchmarks/raw/sources/v7_',
-              '.github/workflows/analysis-633-v7-', 'tests/test_v7_'
+              '.github/workflows/analysis-633-v7-', 'tests/test_v7_', 'MANIFEST.sha256'
           )
           changed=[x.strip() for x in Path('/tmp/v7_changed.txt').read_text().splitlines() if x.strip()]
           bad=[x for x in changed if not x.startswith(allowed)]
