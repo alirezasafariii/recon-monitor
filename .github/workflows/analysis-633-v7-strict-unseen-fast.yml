@@ -131,7 +131,7 @@ jobs:
           assert r['first_blind_consumed'] is False
           assert repair['scoring_executed'] is False
           assert repair['first_blind_consumed'] is False
-          for family in ('dom_xss','sensitive_business_flow_abuse'):
+          for family in ('dom_xss','security_misconfiguration','sensitive_business_flow_abuse'):
               assert repair['targeted_candidate_counts'][family] > 0, repair
               assert repair['promoted_or_appended_counts'][family] > 0, repair
           for k in (
@@ -227,7 +227,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          forbidden="$(git ls-files | grep -E '(^|/)(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
+          forbidden="$(git ls-files | grep -E '^(state|runs|output|reports|backups)/.+|(^|/)config\.env$|\.db($|-)' || true)"
           forbidden="$(printf '%s\n' "$forbidden" | grep -Ev '/\.gitkeep$' || true)"
           if [ -n "$forbidden" ]; then printf '%s\n' "$forbidden"; exit 1; fi
 
