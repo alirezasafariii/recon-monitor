@@ -15,9 +15,10 @@ from typing import Any, Mapping
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.sixth-pass.resolve.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.sixth-pass.resolve.2"
 RESIDUAL = ROOT / "benchmarks/raw/sources/v7_residual_unresolved_worklist.json"
+FOURTH_RESOLUTION = ROOT / "benchmarks/raw/sources/v7_fourth_pass_resolution_queue.json"
 SIXTH = ROOT / "benchmarks/raw/sources/v7_sixth_pass_reference_tree_candidates.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_sixth_pass_resolution_queue.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_sixth_pass_resolution_queue_report.json"
@@ -66,14 +67,17 @@ def tree_test_ref(row: Mapping[str, Any]) -> dict[str, Any]:
 def main() -> int:
     freeze = assert_capture_source_freeze()
     residual = load(RESIDUAL)
+    fourth = load(FOURTH_RESOLUTION)
     sixth = load(SIXTH)
-    for doc in (residual, sixth):
+    for doc in (residual, fourth, sixth):
         if doc.get("source_assignment_commit") != freeze["source_assignment_commit"]:
             raise RuntimeError("V7 sixth-pass resolution input assignment drift")
         if doc.get("scoring_executed") is not False or doc.get("first_blind_consumed") is not False:
             raise RuntimeError("V7 sixth-pass resolution requires unconsumed inputs")
     if residual.get("unresolved_item_count") != 18 or residual.get("unresolved_family_count") != 14:
         raise RuntimeError("V7 sixth-pass resolution residual coverage drift")
+    if fourth.get("still_unresolved_count") != 18 or fourth.get("cumulative_candidate_available_count") != 48:
+        raise RuntimeError("V7 fourth-pass item-level baseline drift")
     if sixth.get("residual_input_count") != 18 or sixth.get("family_result_count") != 14:
         raise RuntimeError("V7 sixth-pass candidate coverage drift")
     if sixth.get("candidate_semantics_adjudicated") is not False or sixth.get("evidence_published") is not False:
@@ -84,17 +88,23 @@ def main() -> int:
         for x in sixth.get("families") or []
         if isinstance(x, Mapping)
     }
+    unresolved_rows = [
+        x for x in fourth.get("items") or []
+        if isinstance(x, Mapping) and x.get("resolution_status") == "still_unresolved_after_fourth_pass"
+    ]
+    if len(unresolved_rows) != 18:
+        raise RuntimeError(f"V7 fourth-pass unresolved item rows {len(unresolved_rows)} != 18")
+
     items = []
-    for family_row in residual.get("families") or []:
-        if not isinstance(family_row, Mapping):
-            continue
-        family = text(family_row.get("family"))
+    for row in unresolved_rows:
+        family = text(row.get("family"))
+        kind = text(row.get("case_kind"))
         source = candidate_by.get(family)
         if source is None:
             raise RuntimeError(f"{family}: missing sixth-pass candidate row")
-        if text(source.get("source_root")) != text(family_row.get("source_root")):
+        if text(source.get("source_root")) != text(row.get("source_root")):
             raise RuntimeError(f"{family}: source_root drift")
-        if text(source.get("source_project")).casefold() != text(family_row.get("source_project")).casefold():
+        if text(source.get("source_project")).casefold() != text(row.get("source_project")).casefold():
             raise RuntimeError(f"{family}: source_project drift")
 
         release_pairs = [
@@ -108,48 +118,43 @@ def main() -> int:
             if isinstance(x, Mapping) and int(x.get("test_case_count") or 0) > 0
         ]
 
-        for capture_id, required_path, kind in zip(
-            family_row.get("capture_ids") or [],
-            family_row.get("required_evidence_paths") or [],
-            family_row.get("unresolved_case_kinds") or [],
-        ):
-            kind = text(kind)
-            if kind in {"positive", "secure_negative"}:
-                relevant_release = release_pairs
-                relevant_tests = []
-                required_shape = "sixth_pass_two_sided_explicit_release_boundary"
-            elif kind == "near_miss":
-                relevant_release = []
-                relevant_tests = tree_rows
-                required_shape = "sixth_pass_adjacent_same_source_tree_test_candidates"
-            else:
-                relevant_release = []
-                relevant_tests = []
-                required_shape = "unsupported_residual_kind"
-            count = len(relevant_release) + len(relevant_tests)
-            items.append({
-                "family": family,
-                "case_kind": kind,
-                "capture_id": capture_id,
-                "source_root": family_row.get("source_root"),
-                "source_project": family_row.get("source_project"),
-                "required_evidence_path": required_path,
-                "required_candidate_shape": required_shape,
-                "resolution_status": "candidate_material_available_for_human_review" if count else "still_unresolved_after_sixth_pass",
-                "candidate_count": count,
-                "release_boundary_refs": [release_ref(x) for x in relevant_release],
-                "tree_test_refs": [tree_test_ref(x) for x in relevant_tests],
-                "human_semantic_decision": None,
-                "human_semantic_notes": None,
-                "candidate_semantics_adjudicated": False,
-                "source_replacement_used": False,
-                "synthetic_fixture_used": False,
-                "cross_variant_mutation_used": False,
-                "evidence_published": False,
-                "publication_authorized": False,
-                "scoring_executed": False,
-                "first_blind_consumed": False,
-            })
+        if kind in {"positive", "secure_negative"}:
+            relevant_release = release_pairs
+            relevant_tests = []
+            required_shape = "sixth_pass_two_sided_explicit_release_boundary"
+        elif kind == "near_miss":
+            relevant_release = []
+            relevant_tests = tree_rows
+            required_shape = "sixth_pass_adjacent_same_source_tree_test_candidates"
+        else:
+            relevant_release = []
+            relevant_tests = []
+            required_shape = "unsupported_residual_kind"
+        count = len(relevant_release) + len(relevant_tests)
+        items.append({
+            "family": family,
+            "case_kind": kind,
+            "capture_id": row.get("capture_id"),
+            "source_root": row.get("source_root"),
+            "source_project": row.get("source_project"),
+            "required_evidence_path": row.get("required_evidence_path"),
+            "variant_purpose": row.get("variant_purpose"),
+            "required_candidate_shape": required_shape,
+            "resolution_status": "candidate_material_available_for_human_review" if count else "still_unresolved_after_sixth_pass",
+            "candidate_count": count,
+            "release_boundary_refs": [release_ref(x) for x in relevant_release],
+            "tree_test_refs": [tree_test_ref(x) for x in relevant_tests],
+            "human_semantic_decision": None,
+            "human_semantic_notes": None,
+            "candidate_semantics_adjudicated": False,
+            "source_replacement_used": False,
+            "synthetic_fixture_used": False,
+            "cross_variant_mutation_used": False,
+            "evidence_published": False,
+            "publication_authorized": False,
+            "scoring_executed": False,
+            "first_blind_consumed": False,
+        })
 
     if len(items) != 18:
         raise RuntimeError(f"V7 sixth-pass resolution item coverage {len(items)} != 18")
