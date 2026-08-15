@@ -1,0 +1,42 @@
+{
+  "acquired_candidate_material_count": 66,
+  "all_variants_awaiting_human_review": true,
+  "by_case_kind": {
+    "near_miss": 36,
+    "positive": 36,
+    "secure_negative": 36,
+    "sparse_noisy": 36
+  },
+  "candidate_coverage_ledger_sha256": "bba0c1b4b13b06c11baf2517b4aa33b219c9113ef54db814c4da441d50f0a886",
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:54:26.861729+00:00",
+  "cross_variant_mutation_allowed": false,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "engine_output_allowed_as_evidence": false,
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_consolidated_semantic_review_packet_unscored",
+  "evidence_published": false,
+  "family_adjudication_required_count": 11,
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "human_review_complete": false,
+  "human_verified_record_count": 0,
+  "original_source_grounded_draft_count": 78,
+  "prior_packet_status_counts": {
+    "blocked_family_literal_adjudication": 26,
+    "blocked_missing_literal_source": 66,
+    "draft_ready_for_human_semantic_review": 52
+  },
+  "publication_authorized": false,
+  "review_material_available_count": 144,
+  "review_material_missing_count": 0,
+  "rule_version": "2026.08.15.6.33.v7.unseen.semantic-review-packet.2",
+  "scoring_executed": false,
+  "semantic_adjudication_complete": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "synthetic_fixture_allowed": false,
+  "variant_count": 144,
+  "version": "2.0.0"
+}
