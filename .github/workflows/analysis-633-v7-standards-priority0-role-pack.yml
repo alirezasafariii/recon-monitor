@@ -53,11 +53,13 @@ jobs:
           assert r['third_party_code_executed'] is False
           assert r['target_contact_performed'] is False
           assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          assert r['historical_exact_pair_identity_mismatch_count'] == len(r['historical_exact_pair_identity_mismatch_families'])
           print({
             'records': r['record_count'],
             'roles': r['role_counts'],
             'families_with_vulnerable_condition_records': r['families_with_vulnerable_condition_records'],
-            'families_with_exact_revision_pairs': r['families_with_exact_revision_pairs'],
+            'families_with_exact_revision_pairs_used': r['families_with_exact_revision_pairs_used'],
+            'historical_exact_pair_identity_mismatches': r['historical_exact_pair_identity_mismatch_families'],
           })
           PY
       - name: Freeze role pack and manifest
