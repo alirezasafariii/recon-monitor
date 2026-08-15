@@ -97,7 +97,7 @@ def significant_terms(packet: Mapping[str, Any], family: str) -> list[str]:
     values: list[str] = []
     for key in ("blocking_controls_vocabulary", "condition_signals_vocabulary", "override_signals_vocabulary"):
         for value in packet.get(key) or []:
-            value = text(value).strip('"\'')
+            value = text(value).strip("\"'")
             if value:
                 values.append(value)
     values.extend(part for part in family.replace("_", " ").split() if len(part) >= 4)
@@ -354,8 +354,6 @@ def main() -> int:
             row = commit_detail(project, sha, token, "+".join(sorted(candidate_basis[sha])), terms, ids)
             if row is None or not row.get("single_parent_pair_candidate") or int(row.get("source_code_file_count") or 0) <= 0:
                 continue
-            # Date-window candidates must have a semantic breadcrumb; release-range
-            # candidates may remain broader because their ancestry is already bounded.
             if "advisory_date_window" in candidate_basis[sha] and "release_range_commit" not in candidate_basis[sha]:
                 if not row.get("matched_terms") and not row.get("matched_identifiers") and not row.get("security_word_match"):
                     continue
