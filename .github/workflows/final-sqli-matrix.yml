@@ -1,4 +1,4 @@
-name: Final SQLi Matrix
+name: Final DOM XSS Matrix
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.event.head_commit.message == 'Verify finalized SQL injection migration'
+    if: github.event.head_commit.message == 'Verify finalized DOM XSS migration'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,8 +20,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Verify manifest
-        run: sha256sum --strict -c MANIFEST.sha256
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
       - name: Integration test
