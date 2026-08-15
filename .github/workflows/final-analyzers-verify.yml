@@ -35,7 +35,11 @@ jobs:
             app/family_specs/registry.py \
             app/family_specs/ssrf.py \
             app/vulnerability_knowledge.py \
+            tests/fixtures/vulnerability_intelligence_golden_v1.json \
+            tests/test_bug_candidates_v41.py \
             tests/test_family_analyzer_bfla_v869.py \
+            tests/test_family_analyzer_bola_v868.py \
             tests/test_family_analyzer_ssrf_v876.py \
             tests/test_final_analyzers_bfla_ssrf_specs.py \
-            tests/test_final_analyzers_bola_spec.py
+            tests/test_final_analyzers_bola_spec.py \
+            tests/test_knowledge_coverage_31_v892.py
