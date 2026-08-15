@@ -46,8 +46,21 @@ class BugCandidateV41Tests(unittest.TestCase):
                 rows = db.all("SELECT * FROM bug_candidates WHERE analysis_id=? AND alert_id=?", (result['analysis_id'], alert_id))
                 families = {str(row['bug_family']) for row in rows}
                 self.assertIn('broken_object_authorization', families)
-                self.assertIn('broken_function_authorization', families)
+                self.assertNotIn('broken_function_authorization', families)
                 self.assertIn('mass_assignment', families)
+
+                # An administrative route plus state-changing method is only a
+                # BFLA surface. Without stored role/permission-boundary evidence
+                # it must remain a hidden hypothesis rather than Potential Finding.
+                bfla_hypothesis = db.one(
+                    "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='broken_function_authorization'",
+                    (result['analysis_id'],),
+                )
+                self.assertIsNotNone(bfla_hypothesis)
+                bfla_admission = json.loads(bfla_hypothesis['admission_json'])
+                self.assertFalse(bfla_admission['admitted'])
+                self.assertTrue(bfla_admission['required_missing'])
+
                 bola = next(row for row in rows if row['bug_family'] == 'broken_object_authorization')
                 self.assertLessEqual(int(bola['likelihood_score']), 100)
                 self.assertIn(str(bola['candidate_state']), {'possible', 'plausible', 'strong_candidate'})
