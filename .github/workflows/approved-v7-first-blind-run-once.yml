@@ -1,0 +1,127 @@
+name: Approved Analysis 6.32 v7 First Blind Run Once
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/approved-v7-first-blind-run-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approved-analysis-632-v7-first-blind-once
+  cancel-in-progress: false
+
+jobs:
+  first-blind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact approved branch state
+        uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require sealed pre-blind checkpoint and frozen evaluator
+        env:
+          PYTHONPATH: app
+        run: |
+          set -euo pipefail
+          python app/v7_preblind_verify.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('benchmarks/raw/sources/v7_pre_score_checkpoint.json')
+          checkpoint=json.loads(p.read_text())
+          assert checkpoint['checkpoint_status']=='pre_v7_first_blind_ready_waiting_explicit_approval'
+          assert checkpoint['label_leakage_count']==0
+          assert checkpoint['materialized_case_count']==276
+          assert checkpoint['scoring_executed'] is False
+          assert checkpoint['first_blind_consumed'] is False
+          PY
+
+      - name: Prove no prior v7 First Blind consumption
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e benchmarks/raw/sources/v7_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v7_first_blind.json
+
+      - name: Authorize single v7 First Blind consumption
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v7_first_blind_consume.py authorize \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT"
+
+      - name: Persist authorization before scoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmarks/raw/sources/v7_first_blind_consumption.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Authorize single Analysis 6.32 v7 First Blind consumption'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
+
+      - name: Execute canonical v7 First Blind once
+        id: first_blind
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v7_first_blind_consume.py execute \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT"
+
+      - name: Persist immutable v7 First Blind result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f benchmarks/raw/sources/v7_first_blind_consumption.json
+          test -f benchmarks/raw/results/analysis_raw_v7_first_blind.json
+          git add \
+            benchmarks/raw/sources/v7_first_blind_consumption.json \
+            benchmarks/raw/results/analysis_raw_v7_first_blind.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then
+            echo 'No v7 First Blind result changes to commit.' >&2
+            exit 1
+          fi
+          git commit -m 'Record immutable Analysis 6.32 v7 First Blind result'
+          git pull --rebase origin agent/analysis-engine-6.32-post-blind-calibration
+          git push origin HEAD:agent/analysis-engine-6.32-post-blind-calibration
+
+      - name: Report immutable v7 quality gate outcome
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt_path=Path('benchmarks/raw/sources/v7_first_blind_consumption.json')
+          result_path=Path('benchmarks/raw/results/analysis_raw_v7_first_blind.json')
+          if not receipt_path.exists() or not result_path.exists():
+              raise SystemExit('v7 First Blind did not produce immutable receipt/result pair')
+          receipt=json.loads(receipt_path.read_text())
+          result=json.loads(result_path.read_text())
+          print(json.dumps({
+              'receipt_state': receipt.get('state'),
+              'first_blind_consumed': receipt.get('first_blind_consumed'),
+              'scoring_executed': result.get('scoring_executed'),
+              'quality_gate_passed': (result.get('quality_gate') or {}).get('passed'),
+          }, indent=2, sort_keys=True))
+          if receipt.get('state') != 'completed':
+              raise SystemExit(f"v7 First Blind did not complete cleanly: {receipt.get('state')}")
+          if result.get('scoring_executed') is not True or result.get('first_blind_consumed') is not True:
+              raise SystemExit('v7 First Blind result does not prove single scoring consumption')
+          PY
