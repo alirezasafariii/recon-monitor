@@ -2,10 +2,9 @@ from __future__ import annotations
 
 """Dedicated Broken Function Level Authorization family analyzer.
 
-This analyzer separates privileged-function discovery from actual role/permission
-failure. OWASP/WSTG/CWE and public write-up patterns shape methodology,
-false-positive review and next-evidence planning only; they never become target
-evidence and never satisfy admission or confirmation.
+The analyzer executes against stored target observations. OWASP, WSTG, CWE and
+curated write-up lessons come from the canonical family specification and never
+become supporting evidence or satisfy admission/confirmation by themselves.
 """
 
 import json
@@ -13,13 +12,15 @@ import re
 from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
-from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_reasoning import confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
-BFLA_FAMILY_ANALYZER_VERSION = "1.0.0"
-BFLA_FAMILY_ANALYZER_RULE_VERSION = "2026.08.10.1"
+BFLA_FAMILY_ANALYZER_VERSION = "1.1.0"
+BFLA_FAMILY_ANALYZER_RULE_VERSION = "2026.08.15.3"
+BFLA_SPEC = get_detection_spec("broken_function_authorization")
 
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -39,7 +40,6 @@ PRIVILEGED_FIELDS = {
     "role", "roles", "isadmin", "admin", "permissions", "permission",
     "privilege", "privileges", "isstaff", "staff", "accounttype",
 }
-
 ROLE_KEYS = (
     "role", "user_role", "actor_role", "current_role", "request_role",
     "identity_role", "member_role", "account_role",
@@ -61,82 +61,22 @@ EXPECTED_ACCESS_KEYS = (
     "should_be_allowed", "expected_authorized",
 )
 
-BFLA_TAXONOMY = {
-    "owasp": ["API5:2023 Broken Function Level Authorization", "Broken Access Control"],
-    "wstg": ["WSTG-APIT-04", "WSTG-ATHZ-02"],
-    "cwe": ["CWE-862"],
-    "related_cwe": ["CWE-285", "CWE-863", "CWE-269"],
-}
-
-BFLA_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+BFLA_TAXONOMY = BFLA_SPEC.taxonomy()
+BFLA_METHOD = tuple(step.as_dict() for step in BFLA_SPEC.standard.methodology)
+BFLA_FALSE_POSITIVE_CHECKS = tuple(BFLA_SPEC.standard.false_positive_checks)
+BFLA_WRITEUP_PATTERNS = tuple(
     {
-        "id": "BFLA-01-function-inventory",
-        "basis": ["OWASP API5:2023", "WSTG-APIT-04"],
-        "principle": "Identify functions whose intended use is limited by role, group, permission, scope or administrative privilege; a privileged-looking route is only an attack-surface signal.",
-    },
-    {
-        "id": "BFLA-02-role-function-matrix",
-        "basis": ["CWE-862", "WSTG-ATHZ-02"],
-        "principle": "Model the expected role-to-function matrix, including the exact operation and HTTP method, before interpreting a response as unauthorized.",
-    },
-    {
-        "id": "BFLA-03-vertical-comparison",
-        "basis": ["WSTG-ATHZ-02", "WSTG-APIT-04"],
-        "principle": "Prefer like-for-like comparison between explicitly authorized lower- and higher-privilege test contexts for the same function and operation.",
-    },
-    {
-        "id": "BFLA-04-method-and-scope-differential",
-        "basis": ["OWASP API5:2023", "CWE-862"],
-        "principle": "Check whether a weaker role, permission or scope can invoke a sensitive operation, including cases where an alternate method reaches a more privileged effect.",
-    },
-    {
-        "id": "BFLA-05-behavioral-decision",
-        "basis": ["CWE-862", "WSTG-APIT-04"],
-        "principle": "Treat successful execution by a context explicitly expected to be denied as decisive target evidence; route names, UI visibility and client-side checks are not confirmation.",
-    },
-    {
-        "id": "BFLA-06-contradiction-check",
-        "basis": ["WSTG-ATHZ-02"],
-        "principle": "Look for server-side permission enforcement, lower-privilege denials, intentionally shared functions, no-op/validation-only behavior and neighboring BOLA or property-authorization explanations before promotion.",
-    },
-)
-
-BFLA_FALSE_POSITIVE_CHECKS = (
-    "The function is intentionally available to the lower role despite an administrative-looking route or label.",
-    "The observed control is authentication-only; authentication presence does not establish or refute function-level authorization.",
-    "A successful response is a harmless validation, preview or no-op and does not execute the privileged function.",
-    "The apparent privilege difference is actually object-level authorization (BOLA) rather than access to the function itself.",
-    "The apparent issue is property-level authorization or mass assignment rather than permission to invoke the function.",
-    "A gateway, middleware, policy engine or server-side permission check consistently denies the lower-privilege context.",
-    "Different HTTP methods intentionally expose different operations and the tested role is authorized for the observed method.",
-)
-
-# Non-evidentiary real-world patterns. These are reasoning references only.
-BFLA_WRITEUP_PATTERNS = (
-    {
-        "id": "ghsl-outline-2025-117",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2025-117 / Outline / CVE-2025-64487",
-        "url": "https://securitylab.github.com/advisories/GHSL-2025-117_GHSL-2025-118_Outline/",
-        "principle": "A membership-management function used a weaker update permission where a stronger manage-users permission was required.",
-        "signals": ["privileged_function", "role_authorization_differential", "permission_scope_mismatch"],
-    },
-    {
-        "id": "ghsl-sentry-2025-120",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2025-120 / Sentry",
-        "url": "https://securitylab.github.com/advisories/GHSL-2025-120_Sentry/",
-        "principle": "A POST function capable of destructive deletion required a weaker write permission than the stricter administrative permission used by the dedicated DELETE path.",
-        "signals": ["state_change", "permission_scope_mismatch", "unauthorized_function_success"],
-    },
-    {
-        "id": "ghsl-openmetadata-2023-235",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2023-235..237 / OpenMetadata",
-        "url": "https://securitylab.github.com/advisories/GHSL-2023-235_GHSL-2023-237_Open_Metadata/",
-        "principle": "A sensitive function omitted the expected authorization call, allowing authenticated non-admin users to invoke privileged behavior.",
-        "signals": ["privileged_function", "unauthorized_function_success", "missing_authorization_check"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in BFLA_SPEC.standard.writeups
 )
 
 
@@ -334,18 +274,20 @@ def _role_context_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, A
 
 def _matched_writeups(observed: set[str]) -> list[dict[str, Any]]:
     matches: list[dict[str, Any]] = []
-    for doc in BFLA_WRITEUP_PATTERNS:
-        overlap = sorted(observed & {str(signal) for signal in doc.get("signals", [])})
+    for item in BFLA_SPEC.standard.writeups:
+        overlap = sorted(observed & set(item.signal_hints))
         if not overlap:
             continue
         matches.append({
-            "id": str(doc["id"]),
-            "source": str(doc["source"]),
-            "ref": str(doc["ref"]),
-            "url": str(doc["url"]),
-            "principle": str(doc["principle"]),
+            "id": item.id,
+            "source": item.source,
+            "ref": item.ref,
+            "url": item.url,
+            "relation": item.relation,
+            "principle": item.lesson,
             "matched_signals": overlap,
             "non_evidentiary": True,
+            "counts_as_target_evidence": False,
         })
     return matches
 
@@ -380,16 +322,20 @@ class BflaFamilyAnalyzer(FamilyAnalyzer):
 
         route_markers = [marker for marker in PRIVILEGED_ROUTE_MARKERS if marker in haystack]
         action_markers = [marker for marker in PRIVILEGED_ACTION_MARKERS if marker in haystack]
-        normalized_fields = {_normalize_key(value).replace("_", "") for value in body_fields}
-        privileged_fields = sorted(field for field in body_fields if _normalize_key(field).replace("_", "") in PRIVILEGED_FIELDS)
+        privileged_fields = sorted(
+            field for field in body_fields
+            if _normalize_key(field).replace("_", "") in PRIVILEGED_FIELDS
+        )
         classification_text = json.dumps(
             context.details.get("endpoint_classification") or context.details.get("diff_summary") or {},
             sort_keys=True,
             default=str,
         ).lower()
-        classified_privileged = any(token in classification_text for token in ("admin", "privileged", "authorization", "permission", "role"))
+        classified_privileged = any(
+            token in classification_text
+            for token in ("admin", "privileged", "authorization", "permission", "role")
+        )
 
-        # Keep recall high, but require a credible privileged-function surface.
         function_signal = bool(route_markers or classified_privileged or privileged_fields)
         if not function_signal and context.business_context == "administration" and action_markers:
             function_signal = True
@@ -475,15 +421,9 @@ class BflaFamilyAnalyzer(FamilyAnalyzer):
             summary = "Stored target evidence indicates that a role or permission context expected to be denied can invoke a privileged function. The condition remains a Potential Finding until analyst confirmation of the intended role matrix and actual function effect."
             base = 30
         else:
-            summary = "A privileged function surface is present, but stored target evidence does not yet establish that a lower-privilege role can invoke it. The signal is retained for role-differential investigation."
+            summary = "A privileged function surface is present, but stored target evidence does not yet establish that a lower-privilege role can invoke it. The signal is retained as a hidden role-differential hypothesis."
             base = 16
 
-        missing = [
-            "Expected role/group/permission matrix for the function",
-            "Like-for-like lower- and higher-privilege comparison using authorized test identities",
-            "Observed server-side decision and, for state-changing functions, confirmation that the privileged effect occurred",
-        ]
-        policy = FAMILY_REASONING[self.family]
         confirmation_missing = confirmation_gaps(self.family, observed)
         matched_writeups = _matched_writeups(observed)
 
@@ -492,7 +432,7 @@ class BflaFamilyAnalyzer(FamilyAnalyzer):
             "base": base,
             "support": support,
             "contradict": contradict,
-            "missing": missing,
+            "missing": list(BFLA_SPEC.next_evidence),
             "rule_ids": [
                 "bfla-privileged-function",
                 "bfla-role-function-matrix",
@@ -504,17 +444,20 @@ class BflaFamilyAnalyzer(FamilyAnalyzer):
             "family_analyzer": {
                 **self.metadata(),
                 "rule_version": BFLA_FAMILY_ANALYZER_RULE_VERSION,
-                "taxonomy": {key: list(value) for key, value in BFLA_TAXONOMY.items()},
-                "methodology": [dict(step) for step in BFLA_METHOD],
+                "family_spec_version": BFLA_SPEC.version,
+                "family_spec_strategy": BFLA_SPEC.strategy,
+                "taxonomy": BFLA_SPEC.taxonomy(),
+                "methodology": [step.as_dict() for step in BFLA_SPEC.standard.methodology],
                 "writeup_patterns": matched_writeups,
-                "false_positive_checks": list(BFLA_FALSE_POSITIVE_CHECKS),
+                "false_positive_checks": list(BFLA_SPEC.standard.false_positive_checks),
                 "triggered_false_positive_checks": _triggered_false_positive_checks(contradiction_types),
-                "promotion_required": [sorted(group) for group in policy["promotion_required"]],
-                "confirmation_required": [sorted(group) for group in policy["confirmation_required"]],
+                "promotion_required": [sorted(group) for group in BFLA_SPEC.promotion_required],
+                "promotion_ready_from_stored_target_evidence": direct,
+                "confirmation_required": [sorted(group) for group in BFLA_SPEC.confirmation_required],
                 "confirmation_missing": confirmation_missing,
                 "confirmation_ready_from_stored_target_evidence": not confirmation_missing,
-                "next_evidence": list(policy.get("next_evidence", ())),
-                "validation_level": str(policy.get("validation_level") or "controlled"),
+                "next_evidence": list(BFLA_SPEC.next_evidence),
+                "validation_level": BFLA_SPEC.validation_level,
                 "knowledge_sources_matched": len(matched_writeups),
                 "knowledge_does_not_change_target_evidence": True,
             },
@@ -554,8 +497,10 @@ def analyze_bfla_signal(
 __all__ = [
     "BFLA_FAMILY_ANALYZER_VERSION",
     "BFLA_FAMILY_ANALYZER_RULE_VERSION",
+    "BFLA_SPEC",
     "BFLA_METHOD",
     "BFLA_TAXONOMY",
+    "BFLA_FALSE_POSITIVE_CHECKS",
     "BFLA_WRITEUP_PATTERNS",
     "BflaFamilyAnalyzer",
     "analyze_bfla_signal",
