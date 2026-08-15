@@ -6,18 +6,24 @@ from pathlib import Path
 
 path = Path("app/family_specs/information_disclosure.py")
 text = path.read_text(encoding="utf-8")
+# A02 already captures the misconfiguration/error-disclosure category for this
+# family. Keep the full reviewed CWE taxonomy (including CWE-1295) and make the
+# retrieval projection fit the legacy 11-document bound by removing redundant
+# CWE write-up documents whose taxonomy references remain projected separately.
 text = text.replace(
     '    owasp=("A02:2025 Security Misconfiguration", "A10:2025 Mishandling of Exceptional Conditions"),\n',
     '    owasp=("A02:2025 Security Misconfiguration",),\n',
 )
-text = text.replace(
-    '    cwe=("CWE-209", "CWE-497", "CWE-1295", "CWE-200"),\n',
-    '    cwe=("CWE-209", "CWE-497", "CWE-200"),\n',
-)
-start = text.find('        WriteupLesson(\n            id="cwe-497-sensitive-system-information"')
-end = text.find('        WriteupLesson(\n            id="wstg-error-handling-and-page-content"', start)
-if start >= 0 and end > start:
-    text = text[:start] + text[end:]
+
+for writeup_id, next_id in (
+    ("cwe-200-sensitive-information-exposure", "cwe-209-sensitive-error-message"),
+    ("cwe-497-sensitive-system-information", "wstg-error-handling-and-page-content"),
+):
+    start = text.find(f'        WriteupLesson(\n            id="{writeup_id}"')
+    end = text.find(f'        WriteupLesson(\n            id="{next_id}"', start)
+    if start >= 0 and end > start:
+        text = text[:start] + text[end:]
+
 path.write_text(text, encoding="utf-8")
 
 # Main migration has already added the permanent batch files to the manifest.
