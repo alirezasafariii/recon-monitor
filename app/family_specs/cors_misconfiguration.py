@@ -5,7 +5,7 @@ from .base import FamilyStandardSpec, MethodologyStep, WriteupLesson
 
 CORS_MISCONFIGURATION_STANDARD_SPEC = FamilyStandardSpec(
     family="cors_misconfiguration",
-    version="1.0.0",
+    version="1.0.1",
     strategy="cross_origin_read_authorization_boundary",
     principle=(
         "CORS response headers are policy surface, not a vulnerability verdict; promotion requires an independently "
@@ -55,6 +55,18 @@ CORS_MISCONFIGURATION_STANDARD_SPEC = FamilyStandardSpec(
         "OWASP, WSTG, CWE and write-up similarity never count as target evidence.",
     ),
     writeups=(
+        WriteupLesson(
+            id="owasp-wstg-clnt-07-cors-global",
+            source="OWASP WSTG",
+            ref="WSTG-CLNT-07 / Testing Cross Origin Resource Sharing",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/07-Testing_Cross_Origin_Resource_Sharing",
+            relation="canonical_testing_method",
+            lesson=(
+                "CORS assessment evaluates exact allowed origins, credential behavior and whether a sensitive resource becomes readable by an unintended origin. "
+                "The standard guides evidence collection and adds zero target evidence."
+            ),
+            signal_hints=("cors_header", "sensitive_context", "untrusted_origin_allowed", "credentialed_cross_origin_read", "cross_origin_read_blocked"),
+        ),
         WriteupLesson(
             id="ghsl-2024-034-memos-cors",
             source="GitHub Security Lab",
