@@ -33,8 +33,8 @@ from researcher_logic import (
 )
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-adjudication.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-adjudication.2"
 PACKET = ROOT / "benchmarks/raw/sources/v7_semantic_review_packet_v2.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_standards_adjudication.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_standards_adjudication_report.json"
@@ -138,7 +138,7 @@ def _term_match(term: str, tokens: set[str]) -> bool:
     required = 1 if len(concepts) == 1 else max(2, math.ceil(len(concepts) * 0.6))
     if matched < required:
         return False
-    polar = [c for c in concepts if c in POLARITY_CONCEPTS or c in SYNONYMS and c in POLARITY_CONCEPTS]
+    polar = [c for c in concepts if c in POLARITY_CONCEPTS]
     return not polar or any(_concept_present(c, tokens) for c in polar)
 
 
@@ -174,6 +174,43 @@ def _find_capture_rows(value: Any, capture_id: str) -> list[dict[str, Any]]:
     return found
 
 
+def _fingerprints(value: Any) -> set[str]:
+    found: set[str] = set()
+    if isinstance(value, Mapping):
+        for child in value.values():
+            found |= _fingerprints(child)
+    elif isinstance(value, list):
+        for child in value:
+            found |= _fingerprints(child)
+    elif isinstance(value, str):
+        scalar = value.strip()
+        if len(scalar) >= 8:
+            found.add(scalar)
+    return found
+
+
+def _find_fingerprint_rows(value: Any, fingerprints: set[str]) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    if not fingerprints:
+        return found
+    if isinstance(value, Mapping):
+        direct = {
+            text(v) for v in value.values()
+            if isinstance(v, str) and len(text(v)) >= 8
+        }
+        if direct & fingerprints:
+            found.append(dict(value))
+        for child in value.values():
+            found.extend(_find_fingerprint_rows(child, fingerprints))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(_find_fingerprint_rows(child, fingerprints))
+    deduped: dict[str, dict[str, Any]] = {}
+    for row in found:
+        deduped[sha_json(row)] = row
+    return list(deduped.values())
+
+
 def _material_payload(variant: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
     capture_id = text(variant.get("capture_id"))
     material = variant.get("review_material") if isinstance(variant.get("review_material"), Mapping) else {}
@@ -185,20 +222,28 @@ def _material_payload(variant: Mapping[str, Any]) -> tuple[dict[str, Any], list[
         if not path.exists():
             raise RuntimeError(f"{capture_id}: missing draft {path}")
         payload = load(path)
-        provenance.update({"artifact": str(path.relative_to(ROOT)), "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+        provenance.update({
+            "artifact": str(path.relative_to(ROOT)),
+            "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "binding_mode": "direct_capture_draft",
+        })
     elif kind == "acquired_literal_candidate_material":
         path = ROOT / text(material.get("literal_material_artifact"))
         if not path.exists():
             raise RuntimeError(f"{capture_id}: missing literal material artifact {path}")
         doc = load(path)
+        candidate_refs = list(material.get("candidate_refs") or [])
         rows = _find_capture_rows(doc, capture_id)
+        binding_mode = "capture_id"
         if not rows:
-            raise RuntimeError(f"{capture_id}: no matching row in {path}")
-        payload = {"matched_rows": rows, "candidate_refs": list(material.get("candidate_refs") or [])}
+            rows = _find_fingerprint_rows(doc, _fingerprints(candidate_refs))
+            binding_mode = "frozen_candidate_fingerprint" if rows else "candidate_refs_only"
+        payload = {"matched_rows": rows, "candidate_refs": candidate_refs}
         provenance.update({
             "artifact": str(path.relative_to(ROOT)),
             "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "matched_row_count": len(rows),
+            "binding_mode": binding_mode,
             "resolution_stage": material.get("resolution_stage"),
         })
     else:
