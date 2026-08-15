@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 
 import raw_recon_v7_source_firewall as firewall
+import raw_recon_v7_duplicate_target_repair as duplicate_repair
 import v7_external_exposure as external
 
 
@@ -66,6 +67,56 @@ class V7StrictUnseenFirewallTests(unittest.TestCase):
         self.assertTrue(result["allowed"])
         self.assertFalse(result["engine_seen"])
         self.assertTrue(result["research_preexposed"])
+
+    def test_duplicate_target_repair_promotes_same_root_without_labeling(self) -> None:
+        payload = {
+            "scoring_executed": False,
+            "first_blind_consumed": False,
+            "candidates_by_family": {
+                "dom_xss": [
+                    {
+                        "source_root": "GHSA-DOM-TEST",
+                        "source_project": "owner/dom-project",
+                        "matched_cwes": [],
+                        "scoring_executed": False,
+                    }
+                ]
+            },
+        }
+        targeted = {
+            "dom_xss": [
+                {
+                    "source_root": "GHSA-DOM-TEST",
+                    "source_project": "owner/dom-project",
+                    "matched_cwes": ["CWE-79"],
+                    "v7_targeted_gap_candidate": True,
+                    "v7_targeted_exact_cwe": True,
+                    "v7_targeted_context_match": True,
+                    "v7_targeted_context_tokens": ["dom", "xss"],
+                    "v7_target_family_is_candidate_only": True,
+                    "v7_target_family_requires_literal_adjudication": True,
+                    "selection_uses_detector_scores": False,
+                    "selection_uses_admission_results": False,
+                    "selection_uses_ranking_results": False,
+                    "selection_uses_v6_first_blind_score": False,
+                    "selection_uses_v6_first_blind_case_errors": False,
+                    "selection_uses_corpus_v1_labels": False,
+                    "selection_uses_corpus_v1_evidence": False,
+                    "selection_uses_corpus_v1_scores": False,
+                    "scoring_executed": False,
+                }
+            ]
+        }
+        merged, promoted = duplicate_repair.merge_targeted_rows(payload, targeted)
+        self.assertEqual(promoted["dom_xss"], 1)
+        rows = merged["candidates_by_family"]["dom_xss"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["matched_cwes"], ["CWE-79"])
+        self.assertTrue(rows[0]["v7_targeted_gap_candidate"])
+        self.assertTrue(rows[0]["v7_target_family_is_candidate_only"])
+        self.assertNotIn("final_family", rows[0])
+        self.assertNotIn("label", rows[0])
+        self.assertFalse(merged["duplicate_target_repair_scoring_executed"])
 
     def test_protocol_pins_engine_and_corpus_v1(self) -> None:
         protocol_path = Path(__file__).resolve().parents[1] / "benchmarks/raw/sources/v7_protocol.json"
