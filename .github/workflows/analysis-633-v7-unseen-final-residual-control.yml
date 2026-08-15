@@ -1,0 +1,76 @@
+name: Analysis 6.33 V7 Unseen Final Residual Control
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-final-residual-control.yml'
+      - 'app/v7_final_residual_control_capture.py'
+      - 'tests/test_v7_final_residual_control_capture.py'
+      - 'benchmarks/raw/sources/v7_sixth_pass_resolution_queue.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused final residual guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_final_residual_control_capture -q
+      - name: Capture final sibling-control candidates
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python app/v7_final_residual_control_capture.py
+      - name: Verify final residual firewall and coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_final_residual_control_candidates_report.json').read_text())
+          d=json.loads(Path('benchmarks/raw/sources/v7_final_residual_control_candidates.json').read_text())
+          assert r['residual_input_count']==2 and r['candidate_count']==2
+          assert set(r['families'])=={'command_injection','cors_misconfiguration'}
+          assert len(d['candidates'])==2
+          assert r['source_assignment_locked'] is True
+          assert r['source_replacement_allowed'] is False and r['source_replacement_used'] is False
+          assert r['synthetic_fixture_allowed'] is False and r['synthetic_fixture_used'] is False
+          assert r['cross_variant_mutation_allowed'] is False
+          assert r['candidate_semantics_adjudicated'] is False
+          assert r['human_adjudication_performed'] is False
+          assert r['evidence_published'] is False and r['publication_authorized'] is False
+          assert r['third_party_code_executed'] is False and r['target_contact_performed'] is False
+          assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          for c in d['candidates']:
+              assert c['case_kind']=='near_miss'
+              assert c['candidate_semantics_adjudicated'] is False
+              assert c['human_semantic_decision'] is None
+              assert c['source_snapshot']['text_sha256']
+              assert c['source_snapshot']['file_sha256']
+              assert c['evidence_published'] is False
+          print([(c['family'], c['source_commit'], c['source_file'], c['candidate_role']) for c in d['candidates']])
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze final residual candidates and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_final_residual_control_candidates.json benchmarks/raw/sources/v7_final_residual_control_candidates_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze final V7 residual control candidates'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
