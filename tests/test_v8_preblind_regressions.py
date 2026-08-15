@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -53,3 +54,24 @@ def test_v8_hygiene_guard_exists_and_blocks_first_blind_state():
     assert 'analysis_raw_v8_first_blind.json' in text
     assert 'candidate_selection_uses_v7_first_blind_score' in text
     assert 'selection_uses_v7_first_blind_error' in text
+
+
+def test_v8_canonical_snapshot_routes_existing_ghsa_root_without_broad_fallback():
+    sys.path.insert(0, str(ROOT/'app'))
+    from v8_literal_source_research import _canonical_route
+
+    canonical, api, basis = _canonical_route(
+        'https://github.com/kubev2v/migration-planner',
+        'GHSA-vf2h-7x3w-97fr',
+    )
+    assert canonical == 'https://github.com/advisories/GHSA-vf2h-7x3w-97fr'
+    assert api == 'https://api.github.com/advisories/GHSA-vf2h-7x3w-97fr'
+    assert basis == 'source_root_ghsa_fallback'
+
+    canonical, api, basis = _canonical_route(
+        'https://github.com/example/project',
+        'NOT-A-GHSA',
+    )
+    assert canonical == 'https://github.com/example/project'
+    assert api is None
+    assert basis == 'unsupported'
