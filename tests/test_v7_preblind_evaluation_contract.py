@@ -31,9 +31,11 @@ class V7PreblindEvaluationContractTests(unittest.TestCase):
         contract = module.build_contract()
         self.assertTrue(contract["descriptive_only"])
         self.assertTrue(all(value is None for value in contract["performance_thresholds"].values()))
-        self.assertEqual(contract["v6_scorer_lineage"]["version"], module.EXPECTED_V6_SCORER_VERSION)
-        self.assertEqual(contract["v6_scorer_lineage"]["rule_version"], module.EXPECTED_V6_SCORER_RULE)
-        self.assertFalse(contract["v6_scorer_lineage"]["engine_output_allowed_as_ground_truth"])
+        lineage = contract["v6_evaluator_lineage"]
+        self.assertEqual(lineage["version"], module.EXPECTED_V6_EVALUATOR_FREEZE_VERSION)
+        self.assertEqual(lineage["rule_version"], module.EXPECTED_V6_EVALUATOR_FREEZE_RULE)
+        self.assertEqual(lineage["evaluator_sha256"], module.EXPECTED_V6_EVALUATOR_SHA256)
+        self.assertFalse(lineage["engine_output_allowed_as_ground_truth"])
 
     def test_contract_has_no_invented_top3_metric(self) -> None:
         contract = module.build_contract()
@@ -51,14 +53,31 @@ class V7PreblindEvaluationContractTests(unittest.TestCase):
         self.assertFalse(contract["scoring_executed"])
         self.assertFalse(contract["first_blind_consumed"])
 
-    def test_ground_truth_requires_completed_human_review(self) -> None:
+    def test_ground_truth_uses_source_grounded_standards_adjudication_not_humans(self) -> None:
         contract = module.build_contract()
         truth = contract["ground_truth_contract"]
         gates = contract["integrity_gates"]
-        self.assertEqual(truth["minimum_distinct_human_reviewers"], 3)
+        self.assertFalse(truth["human_review_required"])
+        self.assertEqual(truth["minimum_distinct_human_reviewers"], 0)
+        self.assertEqual(truth["required_human_verified_variant_count"], 0)
+        self.assertTrue(truth["standards_used_as_interpretation_rubric"])
+        self.assertTrue(truth["writeups_used_as_interpretation_rubric"])
+        self.assertFalse(truth["standards_count_as_target_evidence"])
+        self.assertFalse(truth["writeups_count_as_target_evidence"])
         self.assertFalse(truth["engine_output_allowed_as_ground_truth"])
-        self.assertTrue(gates["human_review_complete_required_before_scoring"])
-        self.assertEqual(gates["human_verified_variant_count_required_before_scoring"], 144)
+        self.assertFalse(gates["human_review_required_before_scoring"])
+        self.assertEqual(gates["human_verified_variant_count_required_before_scoring"], 0)
+        self.assertTrue(gates["machine_semantic_adjudication_complete_required_before_scoring"])
+        self.assertEqual(gates["source_grounded_accepted_variant_count_required_before_scoring"], 144)
+        self.assertEqual(gates["unresolved_variant_count_required_before_scoring"], 0)
+
+    def test_current_incomplete_adjudication_blocks_scoring_readiness(self) -> None:
+        contract = module.build_contract()
+        readiness = contract["pre_scoring_readiness"]
+        self.assertEqual(readiness["accepted_variant_count"] + readiness["unresolved_variant_count"], 144)
+        if readiness["unresolved_variant_count"]:
+            self.assertFalse(readiness["ready"])
+            self.assertIsNotNone(readiness["blocking_reason"])
 
 
 if __name__ == "__main__":
