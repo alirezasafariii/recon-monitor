@@ -30,8 +30,8 @@ jobs:
         with:
           python-version: '3.11'
       - name: Focused reviewer packet guards
-        env: {PYTHONPATH: .}
-        run: python -m unittest tests.test_v7_human_reviewer_packets -v
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_v7_human_reviewer_packets.py' -v
       - name: Build isolated reviewer packets
         env: {PYTHONPATH: app}
         run: python app/v7_human_reviewer_packets.py
