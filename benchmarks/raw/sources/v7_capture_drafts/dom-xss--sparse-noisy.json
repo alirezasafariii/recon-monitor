@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-dom_xss-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.771814+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "aff63f7440ad6a5fb7d8ac8a8a72a16557d2e185c378e06eb6e681dcbf400264",
+  "draft_version": "2.0.0",
+  "family": "dom_xss",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/dom-xss--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "gogs/gogs",
+  "source_root": "GHSA-vcm5-gvmp-78mp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "8805a4d41741ccb45505b541d8c6a84d0130a3ca6725cff2d365a0b35bad992b",
+    "payload": {
+      "description": "### Summary\nThe fix for GHSA-vgjm-2cpf-4g7c (DOM-based XSS via milestone selection) was only applied to `templates/repo/issue/view_content.tmpl` but not to `templates/repo/issue/new_form.tmpl`. An attacker can store an HTML/JavaScript payload in a milestone name, and when any user opens the New Issue page and interacts with the milestone dropdown, the payload executes in their browser via Semantic UI's `preserveHTML` behavior.\n\n### Details\nGHSA-vgjm-2cpf-4g7c was patched by adding `| Sanitize` (bluemonday HTML tag stripping) to milestone name rendering in `view_content.tmpl`. However, the same milestone dropdown exists in `new_form.tmpl` and was **not** patched.\n\nIn `new_form.tmpl`, milestone names are rendered with Go's default auto-escaping (`{{.Name}}`), which converts `<` to `&lt;` etc. This prevents direct HTML injection. However, when the browser renders the DOM, the text content of the element contains the **decoded** original payload (e.g., `<img src=x onerror=alert(1)>`).\n\nSemantic UI 2.4.2's dropdown component has `preserveHTML: true` as the default setting. When a user selects a dropdown item, the internal `set.text()` method calls jQuery's `.html()` with the item's text content. This re-parses the decoded text as HTML, creating the injected element and triggering the JavaScript event handler.\n\n### PoC\n[poc.zip](https://github.com/user-attachments/files/26508268/poc.zip)\nPlease extract the uploaded compressed file before proceeding\n\n1. docker compose up --build\n\n<img width=\"1325\" height=\"315\" alt=\"스크린샷 2026-04-06 오후 9 34 05\" src=\"https://github.com/user-attachments/assets/87895cce-5b8e-4320-829a-87a5890cc0d9\" />\n\n### Impact\n- Stored DOM XSS: Any user with write access to a repository can create a malicious milestone. Any other user who visits the New Issue page and interacts with the milestone dropdown will have arbitrary JavaScript executed in their browser session.\n- Session hijacking: The attacker can steal session cookies, perform actions as the victim, or escalate privileges.",
+      "ghsa_id": "GHSA-vcm5-gvmp-78mp",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "gogs.io/gogs",
+          "patched_version": "0.14.3",
+          "vulnerable_version_range": "< 0.14.3"
+        }
+      ]
+    },
+    "reference": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

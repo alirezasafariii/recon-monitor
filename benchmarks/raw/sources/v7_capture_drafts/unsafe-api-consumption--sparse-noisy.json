@@ -1,0 +1,75 @@
+{
+  "capture_id": "v7-unsafe_api_consumption-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/rancher/steve/security/advisories/GHSA-95fc-g4gj-mqmx",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.782545+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "c1050acf5fe4ca5d126607095ada11ba67cc51ce60e033cec67f1f737d2348c8",
+  "draft_version": "2.0.0",
+  "family": "unsafe_api_consumption",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 4
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/unsafe-api-consumption--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "rancher/steve",
+  "source_root": "GHSA-95fc-g4gj-mqmx",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "49867c44f8ffd7dd1d56c06f114c16d47b104bc13c1a98f996050bebe195de66",
+    "payload": {
+      "description": "### Impact\nA vulnerability has been identified in Steve where by default it was using an insecure option that did not validate the certificate presented by the remote server while performing a TLS connection. This could allow the execution of a man-in-the-middle (MitM) attack against services using Steve.\n\nFor example, Rancher relies on Steve as a dependency for its user interface (UI) to proxy requests to Kubernetes clusters. Users who have the permission to create a service in Rancher’s local cluster can take over Rancher’s UI and display their own UI to gather sensitive information. This is only possible when the setting `ui-offline-preferred` is manually set to `remote` (by default Rancher sets it to `dynamic`). This enables further attacks such as cross-site scripting (XSS), or tampering the UI to collect passwords from other users etc.\n\nPlease consult the associated  [MITRE ATT&CK - Technique - Adversary-in-the-Middle](https://attack.mitre.org/techniques/T1557/) for further information about this category of attack.\n\n### Patches\nPatched versions of Steve include releases `v0.2.1`, `v0.3.3`, `v0.4.4` and `v0.5.13`.\n\nThis vulnerability is addressed by changing Steve to always verify a server’s certificate based on Go’s TLS settings.\n\n### Workarounds\nIf you can't upgrade to a fixed version, please make sure that you are only using Steve to connect to trusted servers.\n\n### References\nIf you have any questions or comments about this advisory:\n- Reach out to the [SUSE Rancher Security team](https://github.com/rancher/rancher/security/policy) for security related inquiries.\n- Open an issue in the [Rancher](https://github.com/rancher/rancher/issues/new/choose) repository.\n- Verify with our [support matrix](https://www.suse.com/suse-rancher/support-matrix/all-supported-versions/) and [product support lifecycle](https://www.suse.com/lifecycle/).",
+      "ghsa_id": "GHSA-95fc-g4gj-mqmx",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.2.1",
+          "vulnerable_version_range": ">= 0.2.0, < 0.2.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.4.4",
+          "vulnerable_version_range": ">= 0.4.0, < 0.4.4"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/rancher/steve",
+          "patched_version": "0.5.13",
+          "vulnerable_version_range": ">= 0.5.0, < 0.5.13"
+        }
+      ]
+    },
+    "reference": "https://github.com/rancher/steve/security/advisories/GHSA-95fc-g4gj-mqmx",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

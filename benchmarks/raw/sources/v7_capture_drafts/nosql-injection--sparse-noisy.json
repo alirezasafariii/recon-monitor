@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-nosql_injection-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.775603+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "d6b32654f68b91ba4ec8531b26afd3e746c8914b38f5b826b8a16f998e464b67",
+  "draft_version": "2.0.0",
+  "family": "nosql_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/nosql-injection--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "langchain-ai/langgraphjs",
+  "source_root": "GHSA-98xf-r82g-9mhx",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "4450b2aab65b0b2a4f9f7676b6eafc132a83835afed7a61fa7fef0616bd79f2e",
+    "payload": {
+      "description": "## Summary\n\nA NoSQL injection vulnerability existed in `MongoDBSaver` where checkpoint identifier fields from `config.configurable` were used in MongoDB queries without strict type enforcement. In vulnerable versions, attacker-controlled object payloads (for example MongoDB operators like `$gt` and `$ne`) could be interpreted as query operators instead of literal identifier values.\n\nThis could bypass intended thread scoping and return checkpoints from other tenants.\n\n## Attack surface\n\nThe vulnerable path was in `MongoDBSaver.getTuple()`, where `thread_id`, `checkpoint_ns`, and `checkpoint_id` were used in MongoDB `find()` queries. The same unvalidated values were then reused to fetch pending writes.\n\nApplications were exposed when untrusted input was forwarded into `config.configurable` (for example, directly from request bodies or query parameters) without string coercion or schema validation.\n\n## Who is affected?\n\nApplications are vulnerable if they:\n\n- Use `@langchain/langgraph-checkpoint-mongodb` with multi-tenant or user-isolated thread models.\n- Accept user-controlled values for `thread_id`, `checkpoint_ns`, or `checkpoint_id`.\n- Pass those values into `app.invoke()`, `app.stream()`, or direct saver methods without validation.\n\nApplications are generally not vulnerable if they:\n\n- Use server-issued identifiers only.\n- Source `thread_id` from trusted URL params that remain strings.\n- Enforce schema validation that rejects non-string identifier fields.\n\n## Impact\n\nAn attacker with control over configurable checkpoint identifiers could read checkpoint data outside their authorized thread boundary.\n\nPotentially exposed data includes:\n\n- Checkpoint state\n- Metadata\n- Pending writes\n\nThis is a confidentiality issue with cross-tenant data disclosure risk.\n\n## Exploit example\n\nAn attacker-controlled request can inject MongoDB operators:\n\n```ts\ngraph = new StateGraph(...)\n  .compile({\n    checkpointer: new MongoDBSaver()\n  });\n\ngraph.invoke(..., {\n  configurable: {  \n    \"thread_id\": { \"$gt\": \"\" },\n    \"checkpoint_ns\": { \"$ne\": null }\n  }\n});\n```\n\nIf this payload is forwarded into `config.configurable`, the resulting query may match checkpoints outside the intended tenant/thread scope.\n\n## Security hardening changes\n\nVersion `1.3.1` hardens `@langchain/langgraph-checkpoint-mongodb` by adding runtime validation for configurable checkpoint identifiers and rejecting invalid values before MongoDB query/write paths execute.\n\nThe patch also includes regression tests covering object/operator payloads across affected methods.\n\n## Migration guide\n\nUpgrade to `@langchain/langgraph-checkpoint-mongodb@1.3.1` or later.\n\nNo API migration is required for valid callers. However, applications that currently pass non-string identifier values in `config.configurable` will now receive explicit errors and should normalize/validate inputs.\n\nAs defense in depth, validate identifier fields at API boundaries and avoid passing raw client objects into graph config.\n\n## Resources\n\n- Issue: https://github.com/langchain-ai/langgraphjs/issues/2351\n- Fix PR: https://github.com/langchain-ai/langgraphjs/pull/2397",
+      "ghsa_id": "GHSA-98xf-r82g-9mhx",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "@langchain/langgraph-checkpoint-mongodb",
+          "patched_version": "1.3.1",
+          "vulnerable_version_range": "<= 1.3.0"
+        }
+      ]
+    },
+    "reference": "https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-98xf-r82g-9mhx",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

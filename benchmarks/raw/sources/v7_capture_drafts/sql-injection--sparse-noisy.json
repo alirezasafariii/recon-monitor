@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-sql_injection-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/kubev2v/migration-planner",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.781885+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "eefcf79f60604cca406d7f70b3dfaf9d3ef8b80bc396fdd90c977e1bf57247fe",
+  "draft_version": "2.0.0",
+  "family": "sql_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sql-injection--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "kubev2v/migration-planner",
+  "source_root": "GHSA-vf2h-7x3w-97fr",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "68f8d88f0aa4b784762d34e237f5745796af2038d275aa68d2b20f17670ab37c",
+    "payload": {
+      "description": "A flaw was found in migration-planner. A remote authenticated attacker could exploit this vulnerability by uploading a specially crafted RVTools .xlsx file. Due to improper input sanitization, malicious SQL embedded within a spreadsheet cell is executed when cluster names are processed. This SQL Injection allows for arbitrary file reading on the system, potentially exposing sensitive information such as Kubernetes service account tokens and other credentials, which could lead to a full compromise of the SaaS environment.",
+      "ghsa_id": "GHSA-vf2h-7x3w-97fr",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/kubev2v/migration-planner",
+          "patched_version": "0.13.5",
+          "vulnerable_version_range": "< 0.13.5"
+        }
+      ]
+    },
+    "reference": "https://github.com/kubev2v/migration-planner",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

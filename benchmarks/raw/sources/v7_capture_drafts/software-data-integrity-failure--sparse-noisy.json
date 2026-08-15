@@ -1,0 +1,56 @@
+{
+  "capture_id": "v7-software_data_integrity_failure-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/advisories/GHSA-9pp6-v7j8-j65j",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.780453+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "998c2888a85e4f0d47c753994462b6b17056a115511d1034a42c850c4bb6ca18",
+  "draft_version": "2.0.0",
+  "family": "software_data_integrity_failure",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 0
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/software-data-integrity-failure--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "lucasgelfond/zerobrew",
+  "source_root": "GHSA-9pp6-v7j8-j65j",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "ea3fd5a5a494ddf74b475653a1d4a52cd2a70f02f3d325e0d0068e4c84154964",
+    "payload": {
+      "description": "ZeroBrew version 0.3.1 and prior contains a missing integrity verification vulnerability in the Ruby compatibility shim that allows network attackers to execute arbitrary code by substituting malicious content at formula resource or URL-based patch URLs without checksum validation. Attackers can intercept or replace downloads for secondary resource and patch paths in shim.rb, injecting attacker-controlled build steps or source tree modifications that execute during source builds via 'zb install --build-from-source' without any integrity warning.",
+      "ghsa_id": "GHSA-9pp6-v7j8-j65j",
+      "version_boundaries": []
+    },
+    "reference": "https://github.com/advisories/GHSA-9pp6-v7j8-j65j",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

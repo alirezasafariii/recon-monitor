@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-broken_function_authorization-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/surrealdb/surrealdb/blob/8f89b260bb9692e5b0d58930793d482a8207eedc/language-tests/tests/reproductions/7356_array_element_select_permission_leak.surql",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.768697+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "c9179bea6c84b4850997a7f47940ecca435cfd8f4a33f8a14cd4a78e7bc3187d",
+  "draft_version": "2.0.0",
+  "family": "broken_function_authorization",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "8f89b260bb9692e5b0d58930793d482a8207eedc",
+      "source_file": "language-tests/tests/reproductions/7356_array_element_select_permission_leak.surql"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/broken-function-authorization--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "surrealdb/surrealdb",
+  "source_root": "GHSA-8rw6-p7m8-63jp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "00fa1be122534538cdd7c4298c0ca0e5b30596fd3453d4aaa8525efef4493890",
+    "payload": {
+      "file_sha256": "8598663abbbc40e725ecc767ce0eacc3880b28175917f6795ded3fcfe8d7e05f",
+      "line_end": 30,
+      "line_start": 1,
+      "revision_sha": "8f89b260bb9692e5b0d58930793d482a8207eedc",
+      "source_excerpt": "/**\n[test]\nreason = \"Array element-level SELECT permissions (items[*]) must filter elements by identity. reduce_document / apply_select_field_permissions / filter_fields_by_permission expanded items[*] via Value::each (ascending indices) and cut each denied element with Value::cut, which does Vec::remove(i) — shifting later indices down. Cutting forward therefore invalidated the pending indices: a deny-all leaked the odd-indexed elements ([1,3,5]) and a predicate kept/dropped the wrong elements. Fixed by cutting in reverse (descending) index order at every site.\"\nissue = 7356\n\n[[test.results]]\nvalue = \"'OK'\"\n\n[[test.results]]\nvalue = \"{ id: doc:1, items: [] }\"\n\n[[test.results]]\nvalue = \"{ id: docp:1, items: [{ n: 0 }, { n: 2 }, { n: 4 }] }\"\n\n[env]\nimports = [\"reproductions/7356_array_element_select_permission_leak_import.surql\"]\nauth = { namespace = \"test\", database = \"test\", access = \"user\", rid = \"person:guest\" }\n\n*/\n\n-- Authenticated as record user person:guest.\nRETURN 'OK';\n\n-- Deny-all element permission: the whole array must be empty (pre-fix it\n-- leaked the odd-indexed elements [{n:1},{n:3},{n:5}]).\nSELECT * FROM ONLY doc:1;\n\n-- Per-element predicate: only the even-n elements survive, by identity\n-- (pre-fix the index-shift kept {n:3},{n:5} and dropped {n:4}).\nSELECT * FROM ONLY docp:1;",
+      "source_excerpt_sha256": "767287475533bdd8dc505c95142031a7a4c0eb093939495fa5fddf6a62291a7a",
+      "source_file": "language-tests/tests/reproductions/7356_array_element_select_permission_leak.surql"
+    },
+    "reference": "https://github.com/surrealdb/surrealdb/blob/8f89b260bb9692e5b0d58930793d482a8207eedc/language-tests/tests/reproductions/7356_array_element_select_permission_leak.surql",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

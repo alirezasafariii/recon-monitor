@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-path_traversal-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/ooples/token-optimizer-mcp/security/advisories/GHSA-76pc-mqxp-3rq5",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.776629+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "2e9e86184d27033c67ec046643aaee7c6b2fad02ada04a1088d41b2b4a577c6d",
+  "draft_version": "2.0.0",
+  "family": "path_traversal",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/path-traversal--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "ooples/token-optimizer-mcp",
+  "source_root": "GHSA-76pc-mqxp-3rq5",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "4117dbc33e82e00f9afb1da8f29c5b03391add81660eb671cdb683b6ae13d4cd",
+    "payload": {
+      "description": "# Unauthenticated Path Traversal in Dashboard Session Log API Endpoints\n\n| Field            | Value |\n| ---------------- | ----- |\n| Repository       | ooples/token-optimizer-mcp |\n| Affected version | 5.0.1 (commit 8137147) |\n| Vulnerability    | CWE-22 — Improper Limitation of a Pathname to a Restricted Directory |\n| Severity         | Medium |\n| CVSS 3.1         | 5.3 (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) |\n\n\n## Summary\n\nThe dashboard HTTP server in `token-optimizer-mcp` exposes `/api/session-summary` and `/api/session-events` with no authentication middleware — any network-accessible client can reach them without credentials. Both handlers concatenate the caller-supplied `sessionId` query parameter directly into a filesystem path via `path.join`, and Node.js normalizes `..` segments at resolution time, allowing an unauthenticated attacker to read any `.jsonl` file reachable from the server's filesystem. Successful reproduction confirmed exfiltration of a `.jsonl` file located outside the intended `hooksDataPath` directory with a single unauthenticated HTTP GET request.\n\n## Affected Code\n\n`src/server/web-server.ts:73–88` — `/api/session-summary`: unsanitized `sessionId` interpolated into `path.join` then passed to `fs.readFileSync`\n\n```typescript\n    const hooksDataPath = getHooksDataPath();\n    const jsonlFilePath = path.join(\n      hooksDataPath,\n      `session-log-${sessionId}.jsonl`\n    );\n\n    if (!fs.existsSync(jsonlFilePath)) {\n      return res.status(404).json({\n        success: false,\n        error: `JSONL log not found for session ${sessionId}`,\n        sessionId,\n      });\n    }\n\n    // Parse JSONL file\n    const jsonlContent = fs.readFileSync(jsonlFilePath, 'utf-8');\n```\n\n`src/server/web-server.ts:297–311` — `/api/session-events`: identical unsanitized `path.join` + `fs.readFileSync` pattern\n\n```typescript\n    const hooksDataPath = getHooksDataPath();\n    const jsonlFilePath = path.join(\n      hooksDataPath,\n      `session-log-${sessionId}.jsonl`\n    );\n\n    if (!fs.existsSync(jsonlFilePath)) {\n      return res.status(404).json({\n        success: false,\n        error: `JSONL log not found for session ${sessionId}`,\n      });\n    }\n\n    // Parse JSONL file\n    const jsonlContent = fs.readFileSync(jsonlFilePath, 'utf-8');\n```\n\n`req.query.sessionId` flows unsanitized into `path.join(hooksDataPath, \\`session-log-${sessionId}.jsonl\\`)`, which Node.js resolves by normalizing `..` traversal sequences before the `fs.readFileSync` call.\n\n## Proof of Concept\n\nStep 1 — Send traversal payload to `/api/session-events` with no credentials: server returns HTTP 200 with contents of a `.jsonl` file outside `hooksDataPath` — proves unauthenticated out-of-bounds file read.\n\n```bash\ncurl -s \"http://127.0.0.1:3100/api/session-events?sessionId=abc%2F..%2F..%2F..%2F..%2Ftraversal-target\"\n```\n\n```http\nGET /api/session-events?sessionId=abc%2F..%2F..%2F..%2F..%2Ftraversal-target HTTP/1.1\nHost: 127.0.0.1:3100\nUser-Agent: python-requests/2.x\nAccept: */*\n```\n\n```http\nHTTP/1.1 200 OK\nX-Powered-By: Express\nAccess-Control-Allow-Origin: *\nContent-Type: application/json; charset=utf-8\nContent-Length: 186\n\n{\"success\":true,\"sessionId\":\"abc/../../../../traversal-target\",\"total\":1,\"offset\":0,\"limit\":100,\"events\":[{\"type\":\"PATH_TRAVERSAL_EVIDENCE\",\"secret\":\"sensitive-data-outside-hooks-dir\"}]}\n```\n\n## Impact\n\nAn unauthenticated remote attacker can read the contents of any `.jsonl` file accessible to the process running the dashboard server. In a typical deployment this includes all session log files (which contain tool invocations, hook outputs, and token usage data) as well as any other `.jsonl` file reachable via `..` traversal from `hooksDataPath`. The constraint that the resolved path must end in `.jsonl` limits the attack surface to that file extension, but session logs can contain sensitive operational data. The same path traversal is present in both `/api/session-summary` and `/api/session-events`, and neither endpoint requires authentication.\n\n## Remediation\n\n1. **Validate `sessionId` format** before use: reject any value that does not match a strict allowlist such as `/^[a-zA-Z0-9_-]{1,64}$/`. This prevents `/` and `.` characters from entering the path construction entirely.\n\n   ```typescript\n   const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;\n   if (!SESSION_ID_RE.test(sessionId)) {\n     return res.status(400).json({ success: false, error: 'Invalid sessionId' });\n   }\n   ```\n\n2. **Alternatively, apply `path.basename`** to strip all directory components: `path.basename(sessionId)` reduces any traversal sequence to a bare filename before `path.join`.\n\n3. **Add authentication middleware** to all `/api/*` routes so that even if a bypass is found the endpoints are not reachable without a valid session token.",
+      "ghsa_id": "GHSA-76pc-mqxp-3rq5",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "@ooples/token-optimizer-mcp",
+          "patched_version": "5.1.0",
+          "vulnerable_version_range": "< 5.1.0"
+        }
+      ]
+    },
+    "reference": "https://github.com/ooples/token-optimizer-mcp/security/advisories/GHSA-76pc-mqxp-3rq5",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-ldap_injection-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/cmd/fabric-ca-client/command/main_test.go",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.774569+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "4cd02e9efb26e4975791425a9beb9b316279ba993fab6d2ff61d7d1cb83121c4",
+  "draft_version": "2.0.0",
+  "family": "ldap_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "d379df823534d56dec0166a6da8f0415e3beee24",
+      "source_file": "cmd/fabric-ca-client/command/main_test.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/ldap-injection--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "hyperledger/fabric-ca",
+  "source_root": "GHSA-xghw-p77p-3r7x",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e23743ea66f382f772d9f5ea3c5e1419167b38c114a2ca0504cf4059d9d0bc78",
+    "payload": {
+      "file_sha256": "867d0448fca328df0fae6a9fe261835f3be6cc3465084f79dcb150bcc145b410",
+      "line_end": 388,
+      "line_start": 374,
+      "revision_sha": "d379df823534d56dec0166a6da8f0415e3beee24",
+      "source_excerpt": "\t\t\tdefer os.RemoveAll(adminHome)\n\n\t\t\terr = RunMain([]string{\n\t\t\t\tcmdName, \"enroll\", \"-d\", \"-u\", enrollURL, \"-H\", adminHome,\n\t\t\t\ttestcase.flag, testcase.file,\n\t\t\t})\n\t\t\tassert.Errorf(t, err, \"enroll should reject path escape for %s\", testcase.name)\n\n\t\t\tescapedFile := filepath.Join(filepath.Dir(filepath.Join(adminHome, \"msp\")), filepath.Base(testcase.file))\n\t\t\t_, statErr := os.Stat(escapedFile)\n\t\t\tassert.True(t, os.IsNotExist(statErr), \"Path escape should not write %s\", escapedFile)\n\t\t})\n\t}\n}\n",
+      "source_excerpt_sha256": "d2901d4c9caa27af98512306df290d878f6dd183247e972eec3481184f4ed9b0",
+      "source_file": "cmd/fabric-ca-client/command/main_test.go"
+    },
+    "reference": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/cmd/fabric-ca-client/command/main_test.go",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

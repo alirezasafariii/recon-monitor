@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-file_upload-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/cfd07048019694d2aaeaa9247a63991703173858/README.md",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.772635+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "e9d48382dbe152f9c1c73fb43d93880888874c21eff64ad1f8dea43a021c22fa",
+  "draft_version": "2.0.0",
+  "family": "file_upload",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "cfd07048019694d2aaeaa9247a63991703173858",
+      "source_file": "README.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/file-upload--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "mckenziearts/livewire-markdown-editor",
+  "source_root": "GHSA-gxxh-8vcj-w2mh",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+    "payload": {
+      "file_sha256": "29f8758575e75c3651a5610992987ab89ac06f4a3cd04e9af43d918a43f041a2",
+      "line_end": 169,
+      "line_start": 148,
+      "revision_sha": "cfd07048019694d2aaeaa9247a63991703173858",
+      "source_excerpt": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to `storage/app/public/` when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+      "source_excerpt_sha256": "bbc3507a2c136819f150737630430e349329ea70d73ef3cdfd5d00aba179bd25",
+      "source_file": "README.md"
+    },
+    "reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/cfd07048019694d2aaeaa9247a63991703173858/README.md",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

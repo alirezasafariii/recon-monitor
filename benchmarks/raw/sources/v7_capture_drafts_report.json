@@ -1,0 +1,1486 @@
+{
+  "case_kind_status_counts": {
+    "near_miss": {
+      "blocked_family_literal_adjudication": 3,
+      "blocked_missing_literal_source": 26,
+      "draft_ready_for_human_semantic_review": 7
+    },
+    "positive": {
+      "blocked_family_literal_adjudication": 6,
+      "blocked_missing_literal_source": 20,
+      "draft_ready_for_human_semantic_review": 10
+    },
+    "secure_negative": {
+      "blocked_family_literal_adjudication": 6,
+      "blocked_missing_literal_source": 20,
+      "draft_ready_for_human_semantic_review": 10
+    },
+    "sparse_noisy": {
+      "blocked_family_literal_adjudication": 11,
+      "draft_ready_for_human_semantic_review": 25
+    }
+  },
+  "draft_count": 78,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_capture_draft_build_unscored",
+  "evidence_published": false,
+  "first_blind_consumed": false,
+  "missing_literal_source_count": 66,
+  "planned_count": 144,
+  "publication_authorized": false,
+  "ready_for_human_semantic_review_count": 52,
+  "rows": [
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-account_enumeration-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "account_enumeration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-account_enumeration-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "account_enumeration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-account_enumeration-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "account_enumeration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-account_enumeration-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/account-enumeration--sparse-noisy.json",
+      "draft_sha256": "5d392e1c2edc51931ff9df130de451d73be87cbf316e7dffca4484a198c631ed",
+      "family": "account_enumeration",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-authentication_session-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--positive.json",
+      "draft_sha256": "6c8c8a97444de08c651e6c0632a37fb7ed376c1d5c011fa0f1dab50ecef3dbc3",
+      "family": "authentication_session",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-authentication_session-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--near-miss.json",
+      "draft_sha256": "64da8cdd9bb5b1353cbdf03e88349caeb94197a46ec4e474bf38d3de094b105b",
+      "family": "authentication_session",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-authentication_session-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--secure-negative.json",
+      "draft_sha256": "338fde8091f691686aff8dc968e36fe4408d53b3ed49bf5179e0b8b920b55567",
+      "family": "authentication_session",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-authentication_session-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/authentication-session--sparse-noisy.json",
+      "draft_sha256": "8e6c7d0babd17659d7806bd8820beb8ff2d0345508cf523824ef0c8d46527f72",
+      "family": "authentication_session",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-broken_function_authorization-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-function-authorization--positive.json",
+      "draft_sha256": "dea74e70c74537fe3e899101cf170e356477e460ccf4da01e91b5d7c81764176",
+      "family": "broken_function_authorization",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-broken_function_authorization-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "broken_function_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-broken_function_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-function-authorization--secure-negative.json",
+      "draft_sha256": "c9179bea6c84b4850997a7f47940ecca435cfd8f4a33f8a14cd4a78e7bc3187d",
+      "family": "broken_function_authorization",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-broken_function_authorization-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-function-authorization--sparse-noisy.json",
+      "draft_sha256": "ea9fd2ca21ddc64ec9aae0d102f3ffc0afa6cea70ebae645f950c71b72778ce3",
+      "family": "broken_function_authorization",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-broken_object_authorization-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "broken_object_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-broken_object_authorization-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "broken_object_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-broken_object_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "broken_object_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-broken_object_authorization-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/broken-object-authorization--sparse-noisy.json",
+      "draft_sha256": "d8af9c7809e3b9b7717a125135a458bb2d60a909b3a09e1dce77f3d0d5de2778",
+      "family": "broken_object_authorization",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-business_logic-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "business_logic",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-business_logic-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "business_logic",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-business_logic-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "business_logic",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-business_logic-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/business-logic--sparse-noisy.json",
+      "draft_sha256": "874af5d18aa245ef8ba13df38d19f430e5bd339d51b9235976242910d88b5495",
+      "family": "business_logic",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-command_injection-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--positive.json",
+      "draft_sha256": "3c3c921476e2a78ffef8cd8e6e2afcf1fd1307bbe5a266b75f7413c67d4e0d24",
+      "family": "command_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-command_injection-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "command_injection",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-command_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--secure-negative.json",
+      "draft_sha256": "73ac531d1a4121ca623e6be9beb756784b00019445842abc81646957cb580e8a",
+      "family": "command_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-command_injection-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/command-injection--sparse-noisy.json",
+      "draft_sha256": "fe2dba28c161f3a92b4ae53cd5af9feb0165755de23e760b24be369ade64b9e1",
+      "family": "command_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-cors_misconfiguration-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "cors_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-cors_misconfiguration-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "cors_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-cors_misconfiguration-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "cors_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-cors_misconfiguration-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cors-misconfiguration--sparse-noisy.json",
+      "draft_sha256": "bc227c4e5582cba0d112dbb7648e628b8006f88cfee1d9accf93a1d1412d2076",
+      "family": "cors_misconfiguration",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-cryptographic_failure-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--positive.json",
+      "draft_sha256": "6d7cbf9d7404a778aa9d33d5e60ec241086ba5f9deb038f5193bf9c116b0cf27",
+      "family": "cryptographic_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-cryptographic_failure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--near-miss.json",
+      "draft_sha256": "e181a159c5046491b3b11a0b4ce3fd96b5d352534d3eb75b5ecc8dc9668efcde",
+      "family": "cryptographic_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-cryptographic_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--secure-negative.json",
+      "draft_sha256": "eae9e12020aa764df529382105e18aad4cdde279accc28b0eca3f2cdc214ef4b",
+      "family": "cryptographic_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-cryptographic_failure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--sparse-noisy.json",
+      "draft_sha256": "a3bbdd75c2e1a2ea7c134f130dec2a3095544aa710af97cb900d79a3143b33bb",
+      "family": "cryptographic_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-dom_xss-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--positive.json",
+      "draft_sha256": "a2ccab7d7fa982dca86ae1db339d762efff33062d55eeeac533ad55a31d308e2",
+      "family": "dom_xss",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-dom_xss-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "dom_xss",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-dom_xss-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--secure-negative.json",
+      "draft_sha256": "70af3e56f6a760f513896381e0c9c11d60e02e2e66c0fb87dae14433d67b98b4",
+      "family": "dom_xss",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-dom_xss-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--sparse-noisy.json",
+      "draft_sha256": "aff63f7440ad6a5fb7d8ac8a8a72a16557d2e185c378e06eb6e681dcbf400264",
+      "family": "dom_xss",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-exceptional_condition_mishandling-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--positive.json",
+      "draft_sha256": "b5956d65bd4db000d98740e8e8a8959f6966bbfd23e5993a64cba969dcb58e09",
+      "family": "exceptional_condition_mishandling",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-exceptional_condition_mishandling-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "exceptional_condition_mishandling",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-exceptional_condition_mishandling-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--secure-negative.json",
+      "draft_sha256": "72bc3eb3405113168c7e3a512ac6921ceb741eb35cb38127391e0ea1a392cb44",
+      "family": "exceptional_condition_mishandling",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-exceptional_condition_mishandling-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/exceptional-condition-mishandling--sparse-noisy.json",
+      "draft_sha256": "1641de4703f8ec2919a5ce5450b10051e4e8ccfd981f583796e45387c7111b16",
+      "family": "exceptional_condition_mishandling",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-file_upload-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--positive.json",
+      "draft_sha256": "e9d48382dbe152f9c1c73fb43d93880888874c21eff64ad1f8dea43a021c22fa",
+      "family": "file_upload",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-file_upload-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--near-miss.json",
+      "draft_sha256": "e31d71990a9f97816443d42801e1103b0b030f77078784fcf0e201d399467787",
+      "family": "file_upload",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-file_upload-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--secure-negative.json",
+      "draft_sha256": "599f272641185f8780887126a6a2cbbee7586fc0c7996ec7bd807a573614e91d",
+      "family": "file_upload",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-file_upload-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/file-upload--sparse-noisy.json",
+      "draft_sha256": "05049612b75080f4d70a7ca79f2fa515e8faffbf6273a4c864789c5fd399b4c5",
+      "family": "file_upload",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-graphql_authorization-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-graphql_authorization-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-graphql_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-graphql_authorization-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-authorization--sparse-noisy.json",
+      "draft_sha256": "e4232129dde0a3a96d013cb2c2ec59db8cda80a5f98166a214d2202dd288dd29",
+      "family": "graphql_authorization",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-graphql_data_exposure-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_data_exposure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-graphql_data_exposure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_data_exposure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-graphql_data_exposure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "graphql_data_exposure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-graphql_data_exposure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/graphql-data-exposure--sparse-noisy.json",
+      "draft_sha256": "afd009559d1a4505df133399b13c060dcd7931851dc1c23787f72b370791fab4",
+      "family": "graphql_data_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-improper_inventory_management-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "improper_inventory_management",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-improper_inventory_management-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "improper_inventory_management",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-improper_inventory_management-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "improper_inventory_management",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-improper_inventory_management-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/improper-inventory-management--sparse-noisy.json",
+      "draft_sha256": "46bd8fce62738e0ca1dd7870322dbd6a90737612df4ae559c6954cc45db21d6b",
+      "family": "improper_inventory_management",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-information_disclosure-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "information_disclosure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-information_disclosure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "information_disclosure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-information_disclosure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "information_disclosure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-information_disclosure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/information-disclosure--sparse-noisy.json",
+      "draft_sha256": "a44bf89075e5f489c1e0ed79817e0596704850b2c62312cb7706e29895fbe2fa",
+      "family": "information_disclosure",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-ldap_injection-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ldap-injection--positive.json",
+      "draft_sha256": "08fac7175cef8884b2d881ff34783a481c7dd2e007c1fc7538e4dadb95e733e3",
+      "family": "ldap_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-ldap_injection-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ldap-injection--near-miss.json",
+      "draft_sha256": "be8441cb504a572359fc456dffc05cf1b84511af88cef5e6d98584fdc37df7a9",
+      "family": "ldap_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-ldap_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ldap-injection--secure-negative.json",
+      "draft_sha256": "4cd02e9efb26e4975791425a9beb9b316279ba993fab6d2ff61d7d1cb83121c4",
+      "family": "ldap_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-ldap_injection-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ldap-injection--sparse-noisy.json",
+      "draft_sha256": "29bf4708349769e018806ba91ffc0a9cc15f289e4b4e83d51c95bea08f89b969",
+      "family": "ldap_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-mass_assignment-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "mass_assignment",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-mass_assignment-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "mass_assignment",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-mass_assignment-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "mass_assignment",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-mass_assignment-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/mass-assignment--sparse-noisy.json",
+      "draft_sha256": "9bf814d9297d24369dd14a8a974bf7645c5fe672c712d3a5ce4c03d3e5b04776",
+      "family": "mass_assignment",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-nosql_injection-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--positive.json",
+      "draft_sha256": "2ea507c7725946150f937901179a56a2efa55534c7e244df1b5203601cb85226",
+      "family": "nosql_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-nosql_injection-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--near-miss.json",
+      "draft_sha256": "a5f7d97a6ed968c5945c79816da3ac3b40df3b482eb3636395713bee1a55b025",
+      "family": "nosql_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-nosql_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--secure-negative.json",
+      "draft_sha256": "e6026f59b90293c237466ebbde1a5b9f550fff266fc32cf14aaa11ab9896e531",
+      "family": "nosql_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-nosql_injection-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/nosql-injection--sparse-noisy.json",
+      "draft_sha256": "d6b32654f68b91ba4ec8531b26afd3e746c8914b38f5b826b8a16f998e464b67",
+      "family": "nosql_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-open_redirect-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "open_redirect",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-open_redirect-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "open_redirect",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-open_redirect-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "open_redirect",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-open_redirect-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/open-redirect--sparse-noisy.json",
+      "draft_sha256": "59809a4b2015ea0226f6f6072679db52a046f25d886ba9a2ebeab2e8f8a1b49a",
+      "family": "open_redirect",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-path_traversal-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--positive.json",
+      "draft_sha256": "0cb3a6c4dc0855ad601edb2ec95e35851ecca2027d76c4478f623a2e872b5129",
+      "family": "path_traversal",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-path_traversal-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--near-miss.json",
+      "draft_sha256": "0e157e0b161a3ceee51052c63b33a868f41ad68689e6bda321bd037666360359",
+      "family": "path_traversal",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-path_traversal-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--secure-negative.json",
+      "draft_sha256": "27ff641702be7e63125d1f0d0b216e4a5e4c7c993e33fc4d3407fb69077589a2",
+      "family": "path_traversal",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-path_traversal-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--sparse-noisy.json",
+      "draft_sha256": "2e9e86184d27033c67ec046643aaee7c6b2fad02ada04a1088d41b2b4a577c6d",
+      "family": "path_traversal",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-postmessage_trust-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "postmessage_trust",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-postmessage_trust-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "postmessage_trust",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-postmessage_trust-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "postmessage_trust",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-postmessage_trust-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/postmessage-trust--sparse-noisy.json",
+      "draft_sha256": "5107ec66562b01411c81643352506bd60a75984e75c093fde10154280b68c07d",
+      "family": "postmessage_trust",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-race_condition-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "race_condition",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-race_condition-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "race_condition",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-race_condition-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "race_condition",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-race_condition-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/race-condition--sparse-noisy.json",
+      "draft_sha256": "7c81464069f1409eb330b9f0827a6bd09816ba2084e25e723a2c40f5d22fab07",
+      "family": "race_condition",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-secret_exposure-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--positive.json",
+      "draft_sha256": "57a3e37dabe51d932ffad675b03b9f85af8e5a954772476b202b7666081f1a6f",
+      "family": "secret_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-secret_exposure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "secret_exposure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-secret_exposure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--secure-negative.json",
+      "draft_sha256": "5fba884a151241e4412d6ad12188b699cd4d39eaa6f2f11bac58367b898e81e7",
+      "family": "secret_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-secret_exposure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/secret-exposure--sparse-noisy.json",
+      "draft_sha256": "22da1fc52c4887477de32c430cf1861fd0ef893e9190596b60471868672d69e5",
+      "family": "secret_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-security_logging_alerting_failure-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "security_logging_alerting_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-security_logging_alerting_failure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "security_logging_alerting_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-security_logging_alerting_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "security_logging_alerting_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-security_logging_alerting_failure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-logging-alerting-failure--sparse-noisy.json",
+      "draft_sha256": "696452519a71fa9fe9bd554173ebcadd8bcef8f8f2540cd7e4aeac78f6eee2e7",
+      "family": "security_logging_alerting_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-security_misconfiguration-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--positive.json",
+      "draft_sha256": "9b19535156d4cdca1ffb7bc01ab1f9bb836b534ae726e9ab5dffb832fe20caf7",
+      "family": "security_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-security_misconfiguration-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--near-miss.json",
+      "draft_sha256": "551ef560a4fa03a694355199cc7015782dd3053e97e0415364b4c640f1ff04ce",
+      "family": "security_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-security_misconfiguration-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--secure-negative.json",
+      "draft_sha256": "6a70e9681716abd1220ea913493e65b2cbaa228cd09e1518a270a84b8bde2f24",
+      "family": "security_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-security_misconfiguration-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--sparse-noisy.json",
+      "draft_sha256": "b841da4ac3f8b40306325d9b9aedd7bc8a2a8564f370b1b57ee1ba5cdf117bbe",
+      "family": "security_misconfiguration",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sensitive_business_flow_abuse-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--positive.json",
+      "draft_sha256": "6739dfc91d9941b3fc5af41925238701516d8d6181ef029f26ca1b275474912a",
+      "family": "sensitive_business_flow_abuse",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sensitive_business_flow_abuse-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--near-miss.json",
+      "draft_sha256": "14f6db90ebf4a99abbfe8670c836a658a798f76cf78b97fe32202c2f70f33020",
+      "family": "sensitive_business_flow_abuse",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sensitive_business_flow_abuse-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--secure-negative.json",
+      "draft_sha256": "3a23056428517f6838fc6484d17e14661c4d24b1edd81e4e96792f125fd8abc8",
+      "family": "sensitive_business_flow_abuse",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sensitive_business_flow_abuse-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--sparse-noisy.json",
+      "draft_sha256": "32f5c5ac448a6b642370c05018f3690408cc60c7449d8ec74d7b47b29f52157b",
+      "family": "sensitive_business_flow_abuse",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-sensitive_caching-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--positive.json",
+      "draft_sha256": "7f85dddb748758ad9fe797b55ca2b23007e07943058bf580c1cb1a498eba223a",
+      "family": "sensitive_caching",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-sensitive_caching-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--near-miss.json",
+      "draft_sha256": "04a437c2416cbb739058a80dcd1e12e1514dbea36daa702c74a2c79dc102a79c",
+      "family": "sensitive_caching",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-sensitive_caching-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--secure-negative.json",
+      "draft_sha256": "ece7f7399940c87f7e96e3c74a87cb290698e86874947dbb427bf3c8b9db4ece",
+      "family": "sensitive_caching",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-sensitive_caching-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--sparse-noisy.json",
+      "draft_sha256": "97e44d28802b60a7bfbceca8fba2a81553e21b8f5d854f4f6c43880d88905884",
+      "family": "sensitive_caching",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-server_side_template_injection-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "server_side_template_injection",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-server_side_template_injection-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "server_side_template_injection",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-server_side_template_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "server_side_template_injection",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-server_side_template_injection-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/server-side-template-injection--sparse-noisy.json",
+      "draft_sha256": "09a0240f05ff72d4b731e5babc15822325228fc1b4bf9910811cd544e96702f7",
+      "family": "server_side_template_injection",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-software_data_integrity_failure-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_data_integrity_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-software_data_integrity_failure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_data_integrity_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-software_data_integrity_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_data_integrity_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-software_data_integrity_failure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/software-data-integrity-failure--sparse-noisy.json",
+      "draft_sha256": "998c2888a85e4f0d47c753994462b6b17056a115511d1034a42c850c4bb6ca18",
+      "family": "software_data_integrity_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-software_supply_chain_failure-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_supply_chain_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-software_supply_chain_failure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_supply_chain_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-software_supply_chain_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "software_supply_chain_failure",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-software_supply_chain_failure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/software-supply-chain-failure--sparse-noisy.json",
+      "draft_sha256": "f90f8667217353c15bb033c4bc74eb1756ced21c97aa4fe760d8024066f175a8",
+      "family": "software_supply_chain_failure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-source_map_exposure-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--positive.json",
+      "draft_sha256": "6d60376cd87d623fa2f903a53360a8fc616a22263cf9d08995db513a62e916b1",
+      "family": "source_map_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-source_map_exposure-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--near-miss.json",
+      "draft_sha256": "f9184e81c9af7626739807c439d823d6f4a4a2c845b6e1bb7586e4b9b574af38",
+      "family": "source_map_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-source_map_exposure-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--secure-negative.json",
+      "draft_sha256": "acde31e2db252495b417a18097aad5afacc3009a1bd39925275a07040974717f",
+      "family": "source_map_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-source_map_exposure-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--sparse-noisy.json",
+      "draft_sha256": "1e652ce0801595992c6e21ffa111a65d6e24410e2c460d79a7b7a5664281f9ff",
+      "family": "source_map_exposure",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sql_injection-positive",
+      "case_kind": "positive",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--positive.json",
+      "draft_sha256": "bd36a8b813e1ff74be526ddcb5ad38292b3186165da23bd38981da3944bb9548",
+      "family": "sql_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-sql_injection-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "sql_injection",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sql_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--secure-negative.json",
+      "draft_sha256": "7ad359eafb82fc7afde44550224c1fbca726b2b848aaa39028eea2318a7fcb80",
+      "family": "sql_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-sql_injection-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--sparse-noisy.json",
+      "draft_sha256": "eefcf79f60604cca406d7f70b3dfaf9d3ef8b80bc396fdd90c977e1bf57247fe",
+      "family": "sql_injection",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-ssrf-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "ssrf",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-ssrf-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "ssrf",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-ssrf-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "ssrf",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-ssrf-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/ssrf--sparse-noisy.json",
+      "draft_sha256": "61056e98e8ab633365ce25befab2dd9041e8c5958a0a4d6245f893f8ff945aa6",
+      "family": "ssrf",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-unrestricted_resource_consumption-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unrestricted_resource_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-unrestricted_resource_consumption-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unrestricted_resource_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-unrestricted_resource_consumption-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unrestricted_resource_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-unrestricted_resource_consumption-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unrestricted-resource-consumption--sparse-noisy.json",
+      "draft_sha256": "ba74499bd1eeb70115c800a06e33de6f1299df5ebec6d70ae2a249d4081ecd39",
+      "family": "unrestricted_resource_consumption",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-unsafe_api_consumption-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unsafe_api_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-unsafe_api_consumption-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unsafe_api_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-unsafe_api_consumption-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "unsafe_api_consumption",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": null,
+      "capture_id": "v7-unsafe_api_consumption-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/unsafe-api-consumption--sparse-noisy.json",
+      "draft_sha256": "c1050acf5fe4ca5d126607095ada11ba67cc51ce60e033cec67f1f737d2348c8",
+      "family": "unsafe_api_consumption",
+      "publication_authorized": false,
+      "status": "draft_ready_for_human_semantic_review"
+    },
+    {
+      "block_reason": "no exact parent source snippet available",
+      "capture_id": "v7-websocket_authorization-positive",
+      "case_kind": "positive",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "websocket_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no upstream control-like test snippet available",
+      "capture_id": "v7-websocket_authorization-near_miss",
+      "case_kind": "near_miss",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "websocket_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "no exact fix source snippet available",
+      "capture_id": "v7-websocket_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "draft_path": null,
+      "draft_sha256": null,
+      "family": "websocket_authorization",
+      "publication_authorized": false,
+      "status": "blocked_missing_literal_source"
+    },
+    {
+      "block_reason": "independent literal family confirmation required before any variant can be published",
+      "capture_id": "v7-websocket_authorization-sparse_noisy",
+      "case_kind": "sparse_noisy",
+      "draft_path": "benchmarks/raw/sources/v7_capture_drafts/websocket-authorization--sparse-noisy.json",
+      "draft_sha256": "58496f9c7e1aaf3a5610b7e174ed570b07f80d13ca1c76523c6cba43ccc86f3b",
+      "family": "websocket_authorization",
+      "publication_authorized": false,
+      "status": "blocked_family_literal_adjudication"
+    }
+  ],
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "status_counts": {
+    "blocked_family_literal_adjudication": 26,
+    "blocked_missing_literal_source": 66,
+    "draft_ready_for_human_semantic_review": 52
+  },
+  "target_contact_performed": false,
+  "targeted_family_blocked_count": 26,
+  "third_party_code_executed": false,
+  "version": "2.0.0"
+}

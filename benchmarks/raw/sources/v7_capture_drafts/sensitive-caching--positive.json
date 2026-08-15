@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_caching-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/directus/directus/blob/e522e0251f46ceb8578421038a679cc379ac0f22/api/src/utils/get-cache-key.test.ts",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.779526+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "7f85dddb748758ad9fe797b55ca2b23007e07943058bf580c1cb1a498eba223a",
+  "draft_version": "2.0.0",
+  "family": "sensitive_caching",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "e522e0251f46ceb8578421038a679cc379ac0f22",
+      "source_file": "api/src/utils/get-cache-key.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-caching--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "directus/directus",
+  "source_root": "GHSA-c6w9-5g5j-jh2p",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e9236b632551f7a7feaa99d102d1cd53c40b490e58a543c3b65ef06efb00f686",
+    "payload": {
+      "file_sha256": "72388d5500660e09b442231318e66dcb1e6b82c86fa5cd0e3ae0726a45994996",
+      "line_end": 88,
+      "line_start": 75,
+      "revision_sha": "e522e0251f46ceb8578421038a679cc379ac0f22",
+      "source_excerpt": "\t},\n\t{\n\t\tname: 'an authenticated GraphQL POST query request',\n\t\tparams: { method: 'POST', originalUrl: graphQlUrl, accountability, body: { query: 'query { test { name } }' } },\n\t\tkey: '358336a2c61f7ea2b41b5c1566bbebe692be601d',\n\t},\n];\n\nconst cases = requests.map(({ name, params, key }) => [name, params, key]);\n\nbeforeEach(() => {\n\tvi.mocked(useEnv).mockReturnValue({});\n});\n",
+      "source_excerpt_sha256": "9d348f883ea27fc781192928fbecdbc50db7a840c5a796721db5fe763318907c",
+      "source_file": "api/src/utils/get-cache-key.test.ts"
+    },
+    "reference": "https://github.com/directus/directus/blob/e522e0251f46ceb8578421038a679cc379ac0f22/api/src/utils/get-cache-key.test.ts",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

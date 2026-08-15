@@ -1,0 +1,62 @@
+{
+  "capture_id": "v7-security_misconfiguration-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/server/config/lunch_flow_test.go",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.778288+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "551ef560a4fa03a694355199cc7015782dd3053e97e0415364b4c640f1ff04ce",
+  "draft_version": "2.0.0",
+  "family": "security_misconfiguration",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_file": "server/config/lunch_flow_test.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/security-misconfiguration--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+    "payload": {
+      "control_keyword_match": [
+        "allowed",
+        "valid"
+      ],
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_file": "server/config/lunch_flow_test.go",
+      "test_control_excerpt": ")\n\nfunc TestLunchFlow_ValidateConfig(t *testing.T) {\n\tt.Run(\"disabled is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        false,\n\t\t\tAllowedApiUrls: []string{\"not a valid url\"},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"no allowed urls is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"valid urls are accepted\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t\tAllowedApiUrls: []string{\n\t\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\t\"http://lunchflow.app/api/v1\",\n\t\t\t},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})",
+      "test_control_excerpt_sha256": "5dfc83e3b703aed189d684c2ef85bfa884e2e857f0de0f5b34ec2c68d369bf36"
+    },
+    "reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/server/config/lunch_flow_test.go",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

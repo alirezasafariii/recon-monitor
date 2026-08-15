@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-broken_function_authorization-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/surrealdb/surrealdb/security/advisories/GHSA-8rw6-p7m8-63jp",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.768919+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "ea9fd2ca21ddc64ec9aae0d102f3ffc0afa6cea70ebae645f950c71b72778ce3",
+  "draft_version": "2.0.0",
+  "family": "broken_function_authorization",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/broken-function-authorization--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "surrealdb/surrealdb",
+  "source_root": "GHSA-8rw6-p7m8-63jp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "00fa1be122534538cdd7c4298c0ca0e5b30596fd3453d4aaa8525efef4493890",
+    "payload": {
+      "description": "A `SELECT` permission defined on an array element (`DEFINE FIELD field.* … PERMISSIONS FOR select …`) is not enforced correctly for `RECORD` users. Instead of hiding the denied elements, the query leaks a subset of them: a deny-all returns the odd-indexed elements, and a per-element predicate keeps and drops the wrong ones.\n\nThe filter removed each denied element by index while walking the array forwards. Because removing an element shifts every later index down, each cut invalidated the indices still pending in the loop, leaving denied elements behind. Field-level permissions are enforced correctly; only the element (`field.*`) level is affected, and only for record users — root and record-owner sessions are not.\n\n## Impact\n\nWhat an attacker **can** do:\n\n- As a record (scope) user, read array elements that an element-level (`field.*`) SELECT permission should hide, on any table they can already SELECT.\n- Recover denied elements through both a deny-all and a `WHERE` predicate — the wrong elements are selected either way.\n\nWhat it **can't** do:\n\n- Bypass field-level SELECT permissions, which are evaluated correctly.\n- Affect root or record-owner sessions, or cross namespace/database isolation.\n- Modify data, escalate privileges, or affect availability (confidentiality only).\n\n## Patches\n\nThe three permission-filtering paths (`doc/reduce.rs`, `doc/output.rs`, `exec/operators/scan/pipeline.rs`) now remove denied elements in reverse index order, so removing one element no longer shifts the elements still to be checked. Regression tests reproducing the issue were added.\n\nThe fix is included in SurrealDB 3.1.4.\n\n## Workarounds\n\n- Do not rely on element-level (`field.*`) permissions to hide data from record users; use field-level permissions, which are enforced correctly.\n- Restrict record users from selecting tables whose schema uses element-level permissions.\n\n## Resources\n\n- [DEFINE FIELD](https://surrealdb.com/docs/surrealql/statements/define/field)\n- [USERS](https://surrealdb.com/docs/learn/security/authentication/authentication)\n- [DEFINE TABLE … PERMISSIONS](https://surrealdb.com/docs/surrealql/statements/define/table)\n- `fix(sec): stop array element-level SELECT permissions leaking elements` (commit `8f89b260b`)",
+      "ghsa_id": "GHSA-8rw6-p7m8-63jp",
+      "version_boundaries": [
+        {
+          "ecosystem": "rust",
+          "package": "surrealdb",
+          "patched_version": "3.1.4",
+          "vulnerable_version_range": "<= 3.1.3"
+        }
+      ]
+    },
+    "reference": "https://github.com/surrealdb/surrealdb/security/advisories/GHSA-8rw6-p7m8-63jp",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

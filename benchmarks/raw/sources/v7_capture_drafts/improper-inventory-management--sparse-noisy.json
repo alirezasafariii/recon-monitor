@@ -1,0 +1,69 @@
+{
+  "capture_id": "v7-improper_inventory_management-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.773800+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "46bd8fce62738e0ca1dd7870322dbd6a90737612df4ae559c6954cc45db21d6b",
+  "draft_version": "2.0.0",
+  "family": "improper_inventory_management",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/improper-inventory-management--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "edgexfoundry/edgex-go",
+  "source_root": "GHSA-g63h-q855-vp3q",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "037d97cf0c5fe23caf0f402620c3536e73be4488b63604b675823c490d04aee0",
+    "payload": {
+      "description": "### Impact\nThe /api/v2/config endpoint exposes message bus credentials to local unauthenticated users.  In security-enabled mode, message bus credentials are supposed to be kept in the EdgeX secret store and require authentication to access.  This vulnerability bypasses the access controls on message bus credentials when running in security-enabled mode.  (No credentials are required when running in security-disabled mode.)  As a result, attackers could intercept data or inject fake data into the EdgeX message bus.\n\n### Patches\nUsers should upgrade to EdgeXFoundry Kamakura release (2.2.0) or to the June 2022 EdgeXFoundry LTS Jakarta release (2.1.1).\n\nThe issue has been patched in the following docker containers and snaps:\n\n#### Patched go modules\ngithub.com/edgexfoundry/device-sdk-go/v2 >= v2.1.1\ngithub.com/edgexfoundry/app-functions-sdk-go/v2 >= v2.1.1\n\n#### Patched docker containers\nURL: https://hub.docker.com/r/edgexfoundry\n- docker.io/edgexfoundry/core-metadata:>=2.1.1\n- docker.io/edgexfoundry/core-metadata-arm64:>=2.1.1\n- docker.io/edgexfoundry/core-data:>=2.1.1\n- docker.io/edgexfoundry/core-data-arm64:>=2.1.1\n- docker.io/edgexfoundry/core-command:>=2.1.1\n- docker.io/edgexfoundry/core-command-arm64:>=2.1.1\n- docker.io/edgexfoundry/support-notifications:>=2.1.1\n- docker.io/edgexfoundry/support-notifications-arm64:>=2.1.1\n- docker.io/edgexfoundry/support-scheduler:>=2.1.1\n- docker.io/edgexfoundry/support-scheduler-arm64:>=2.1.1\n- docker.io/edgexfoundry/sys-mgmt-agent:>=2.1.1\n- docker.io/edgexfoundry/sys-mgmt-agent-arm64:>=2.1.1\n- docker.io/edgexfoundry/security-proxy-setup:>=2.1.1\n- docker.io/edgexfoundry/security-proxy-setup-arm64:>=2.1.1\n- docker.io/edgexfoundry/security-secretstore-setup:>=2.1.1\n- docker.io/edgexfoundry/security-secretstore-setup-arm64:>=2.1.1\n- docker.io/edgexfoundry/security-bootstrapper:>=2.1.1\n- docker.io/edgexfoundry/security-bootstrapper-arm64:>=2.1.1\n- docker.io/edgexfoundry/app-rfid-llrp-inventory:>=2.1.1\n- docker.io/edgexfoundry/app-rfid-llrp-inventory-arm64:>=2.1.1\n- docker.io/edgexfoundry/app-service-configurable:>=2.1.1\n- docker.io/edgexfoundry/app-service-configurable-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-camera:>=2.2.0\n- docker.io/edgexfoundry/device-camera-arm64:>=2.2.0\n- docker.io/edgexfoundry/device-gpio:>=2.1.1\n- docker.io/edgexfoundry/device-gpio-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-modbus:>=2.1.1\n- docker.io/edgexfoundry/device-modbus-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-mqtt:>=2.1.1\n- docker.io/edgexfoundry/device-mqtt-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-rest:>=2.1.1\n- docker.io/edgexfoundry/device-rest-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-rfid-llrp:>=2.1.1\n- docker.io/edgexfoundry/device-rfid-llrp-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-snmp:>=2.1.1\n- docker.io/edgexfoundry/device-snmp-arm64:>=2.1.1\n- docker.io/edgexfoundry/device-virtual:>=2.1.1\n- docker.io/edgexfoundry/device-virtual-arm64:>=2.1.1\n\n#### Patched snaps\nURL: https://snapcraft.io/edgexfoundry\nedgexfoundry  2.1/stable  (will be automatically upgraded to 2.1.1)\n\n### Workarounds\nNo workaround available.\n\n### References\n* https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q\n* https://github.com/edgexfoundry/device-sdk-go/pull/1161 (patch against Kamakura)\n* https://github.com/edgexfoundry/edgex-go/pull/4016 (patch against Kamakura)\n* https://github.com/edgexfoundry/edgex-go/pull/4039 (cherry-pick patch against Jakarta)\n* https://github.com/edgexfoundry/device-sdk-go/pull/1167 (differs from patch on main: don't copy PW in vs delete it after)\n\n### For more information\nIf you have any questions or comments about this advisory:\n* Contact us in the [Slack #security channel](https://slack.edgexfoundry.org/)\n* Open an issue in [edgex-go](https://github.com/edgexfoundry/edgex-go)\n* Email us at [EdgeX-TSC-Security@lists.edgexfoundry.org](mailto:EdgeX-TSC-Security@lists.edgexfoundry.org)\n",
+      "ghsa_id": "GHSA-g63h-q855-vp3q",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/edgexfoundry/device-sdk-go/v2",
+          "patched_version": "2.1.1",
+          "vulnerable_version_range": "< 2.1.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "github.com/edgexfoundry/app-functions-sdk-go/v2",
+          "patched_version": "2.1.1",
+          "vulnerable_version_range": "< 2.1.1"
+        }
+      ]
+    },
+    "reference": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

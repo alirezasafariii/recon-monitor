@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-source_map_exposure-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/postcss/postcss/blob/decea51421682341401575b3740709fda0e12930/lib/previous-map.js",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.780823+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "6d60376cd87d623fa2f903a53360a8fc616a22263cf9d08995db513a62e916b1",
+  "draft_version": "2.0.0",
+  "family": "source_map_exposure",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "decea51421682341401575b3740709fda0e12930",
+      "source_file": "lib/previous-map.js"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/source-map-exposure--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "postcss/postcss",
+  "source_root": "GHSA-fxqj-rqcc-2cmp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "8960b1f099714ab6d8de4a824969eb4e86b1d14fc098edfb02f1dd9da824e447",
+    "payload": {
+      "file_sha256": "8d41a57e20c31504342b278f488cacb846b78dba4f54ea342eadd19a2f3c14de",
+      "line_end": 109,
+      "line_start": 83,
+      "revision_sha": "decea51421682341401575b3740709fda0e12930",
+      "source_excerpt": "      this.annotation = this.getAnnotationURL(css.substring(start, end))\n    }\n  }\n\n  loadFile(path, cssFile, trusted) {\n    if (!trusted && !this.unsafeMap) {\n      if (!/\\.map$/i.test(path)) {\n        return undefined\n      }\n      if (cssFile) {\n        let relativePath = relative(dirname(cssFile), path)\n        if (\n          relativePath === '..' ||\n          relativePath.startsWith('..' + sep) ||\n          isAbsolute(relativePath)\n        ) {\n          return undefined\n        }\n      }\n    }\n    this.root = dirname(path)\n    if (existsSync(path)) {\n      this.mapFile = path\n      return readFileSync(path, 'utf-8').toString().trim()\n    }\n  }\n",
+      "source_excerpt_sha256": "7f15a664fdfba8b601eccff527c9ded79118df934e96f8f0e1c0e421289f5609",
+      "source_file": "lib/previous-map.js"
+    },
+    "reference": "https://github.com/postcss/postcss/blob/decea51421682341401575b3740709fda0e12930/lib/previous-map.js",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

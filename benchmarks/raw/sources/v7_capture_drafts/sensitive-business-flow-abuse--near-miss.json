@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_business_flow_abuse-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/src/gateway/server.hooks.test.ts",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.779008+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "14f6db90ebf4a99abbfe8670c836a658a798f76cf78b97fe32202c2f70f33020",
+  "draft_version": "2.0.0",
+  "family": "sensitive_business_flow_abuse",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_file": "src/gateway/server.hooks.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-business-flow-abuse--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "openclaw/openclaw",
+  "source_root": "GHSA-6rmx-gvvg-vh6j",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "9cdbae92580b2f26c6af876f2d11bfa05cdbe9cb36ed9190ea6aa4d2ad75aae4",
+    "payload": {
+      "control_keyword_match": [
+        "empty"
+      ],
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_file": "src/gateway/server.hooks.test.ts",
+      "test_control_excerpt": "  });\n\n  test(\"denies explicit agentId when hooks.allowedAgentIds is empty\", async () => {\n    testState.hooksConfig = {\n      enabled: true,\n      token: HOOK_TOKEN,\n      allowedAgentIds: [],\n    };\n    testState.agentsConfig = {\n      list: [{ id: \"main\", default: true }, { id: \"hooks\" }],\n    };\n    await withGatewayServer(async ({ port }) => {\n      const resDenied = await postHook(port, \"/hooks/agent\", {\n        message: \"Denied\",\n        agentId: \"hooks\",\n      });\n      expect(resDenied.status).toBe(400);\n      const deniedBody = (await resDenied.json()) as { error?: string };\n      expect(deniedBody.error).toContain(\"hooks.allowedAgentIds\");\n      expect(peekSystemEvents(resolveMainKey()).length).toBe(0);\n    });\n  });\n\n  test(\"throttles repeated hook auth failures and resets after success\", async () => {\n    testState.hooksConfig = { enabled: true, token: HOOK_TOKEN };\n    await withGatewayServer(async ({ port }) => {\n      const firstFail = await postHook(\n        port,",
+      "test_control_excerpt_sha256": "026108ff92606d112d590ae68793250a9386c3343e079a00256f4a88e9726ff9"
+    },
+    "reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/src/gateway/server.hooks.test.ts",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

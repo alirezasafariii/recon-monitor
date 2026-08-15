@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-exceptional_condition_mishandling-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sipsorcery-org/sipsorcery/blob/ccb0b5a845efa2fb131fd00de4f5321bae627f29/src/SIPSorcery/net/TURN/TurnServer.cs",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.772254+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "72bc3eb3405113168c7e3a512ac6921ceb741eb35cb38127391e0ea1a392cb44",
+  "draft_version": "2.0.0",
+  "family": "exceptional_condition_mishandling",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "ccb0b5a845efa2fb131fd00de4f5321bae627f29",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/exceptional-condition-mishandling--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "sipsorcery-org/sipsorcery",
+  "source_root": "GHSA-pfvm-w89x-94jw",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "820df76833f6fe47daf3a1b17a83754d9471432172fde536bffff7b76c8868f6",
+    "payload": {
+      "file_sha256": "fa9deaf862d9b493ec36e87c998fca5e809e7b3c800f7c63a9ec17db04273dcf",
+      "line_end": 520,
+      "line_start": 499,
+      "revision_sha": "ccb0b5a845efa2fb131fd00de4f5321bae627f29",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        try\n                        {\n                            HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                        }\n                        catch (Exception channelDataExcp)\n                        {\n                            logger.LogWarning(channelDataExcp, \"TURN server dropped channel data from TCP client {Client} that could not be processed. {ErrorMessage}\", clientId, channelDataExcp.Message);\n                        }\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "f91eb3d0850bed9e15d846d961d4d62f10dc2b5e6138cd63a5c84c84702698c7",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "reference": "https://github.com/sipsorcery-org/sipsorcery/blob/ccb0b5a845efa2fb131fd00de4f5321bae627f29/src/SIPSorcery/net/TURN/TurnServer.cs",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

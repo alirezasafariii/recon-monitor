@@ -1,0 +1,56 @@
+{
+  "capture_id": "v7-server_side_template_injection-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/getgrav/grav/security/advisories/GHSA-xx48-97m4-h7qm",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.780227+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "09a0240f05ff72d4b731e5babc15822325228fc1b4bf9910811cd544e96702f7",
+  "draft_version": "2.0.0",
+  "family": "server_side_template_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 0
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/server-side-template-injection--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "getgrav/grav",
+  "source_root": "GHSA-4jrc-qc5x-3wrr",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "b9231ee71935033a9205db4b3a3fbb8bee1ac190944537ec0aff9c58ee81061f",
+    "payload": {
+      "description": "Grav CMS before 2.0.13 contains a server-side template injection vulnerability in email-action parameters that allows low-privileged page editors to execute arbitrary operating-system commands. Attackers can inject Twig payloads using the unsandboxed find filter in email subject, body, to, or from fields to achieve remote code execution when forms are submitted.",
+      "ghsa_id": "GHSA-4jrc-qc5x-3wrr",
+      "version_boundaries": []
+    },
+    "reference": "https://github.com/getgrav/grav/security/advisories/GHSA-xx48-97m4-h7qm",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

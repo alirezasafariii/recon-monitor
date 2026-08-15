@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-mass_assignment-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.774911+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "9bf814d9297d24369dd14a8a974bf7645c5fe672c712d3a5ce4c03d3e5b04776",
+  "draft_version": "2.0.0",
+  "family": "mass_assignment",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/mass-assignment--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "kimai/kimai",
+  "source_root": "GHSA-qh43-xrjm-4ggp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "3e2c4e607d24a2f89b02fa9af05ab0c143796fc4c8698ac622570de00703ce42",
+    "payload": {
+      "description": "### Summary\nA Mass Assignment / Broken Object Property Level Authorization (BOPA) vulnerability in the User Preferences API allows any authenticated user (even those with the lowest privileges) to arbitrarily modify restricted financial attributes on their profile, specifically their `hourly_rate` and `internal_rate`.\n\n### Details\nKimai restrictively protects the `hourly_rate` and `internal_rate` parameters during standard GUI flow. Users lacking the `hourly-rate` role permissions cannot see or edit these fields via the standard Web Form (`UserApiEditForm` / `UserEditType`). \n\nThe vulnerability exists in the dedicated preferences API endpoint: `src/API/UserController.php::updateUserPreference`.\n\nWhen a `PATCH` request is sent to `/api/users/{id}/preferences`, the endpoint iterates through the submitted JSON array and blindly applies the new values:\n```php\nforeach ($request->request->all() as $preference) {\n    // ... validation omitted ...\n    if (null === ($meta = $profile->getPreference($name))) {\n        throw $this->createNotFoundException(\\sprintf('Unknown custom-field \"%s\" requested', $name));\n    }\n\n    $meta->setValue($value); // <-- VULNERABILITY\n}\n```\n\nThe underlying Role-Based Access Control logic (`UserPreferenceSubscriber::getDefaultPreferences`) accurately identifies that standard users lack the `hourly-rate` role, and flags the dynamically generated preference object as disabled (`$preference->setEnabled(false)`). \n\nHowever, the `updateUserPreference` API endpoint entirely ignores this `isEnabled()` flag and forcefully saves the mutated object to the database natively via Doctrine ORM. This allows unauthorized accounts to manipulate the business-logic variables calculating their own financial earnings.\n\n### PoC\n1. Log into Kimai as an unprivileged, standard employee account (a user with absolutely no `roles` array privileges). \n2. Capture the `cookie` or Session cookies. (In this example, the user's ID is `2`).\n3. Send the following cURL request (or intercept via Burp Suite) targeting your own user ID:\n\n```bash\ncurl -i -X PATCH \"http://localhost:8001/api/users/2/preferences\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"cookie: <YOUR_STANDARD_USER_TOKEN>\" \\\n  -d '[\n  {\n    \"name\": \"hourly_rate\",\n    \"value\": \"1337\"\n  },\n  {\n    \"name\": \"internal_rate\",\n    \"value\": \"1337\"\n  }\n]'\n```\n\n4. The server responds with `HTTP/1.1 200 OK`. (Note: The `hourly_rate` will intentionally NOT appear in the JSON echo due to `User::getVisiblePreferences` sanitizing output based on the same disabled flag).\n5. If an Administrator organically views User 2's profile within Kimai, or if the user logs any new timesheets, the active and billed `hourly_rate` applied to their account will be confirmed as `1337`.\n<img width=\"1542\" height=\"1039\" alt=\"user_account\" src=\"https://github.com/user-attachments/assets/fff5e2da-d598-408d-8a01-784499ade844\" />\n<img width=\"1539\" height=\"1037\" alt=\"admin_account\" src=\"https://github.com/user-attachments/assets/86a6e8c3-a97f-4be3-9f9f-2e23fad1d8a0\" />\n\n### Impact\nThis is a Privilege Escalation and Business Logic Flaw impacting the core financial calculations of the application. An attacker with a standard user account can manipulate their own billing rate multipliers unbeknownst to administrators, resulting in fraudulent invoices, distorted timesheet exports, and unauthorized financial tampering.",
+      "ghsa_id": "GHSA-qh43-xrjm-4ggp",
+      "version_boundaries": [
+        {
+          "ecosystem": "composer",
+          "package": "kimai/kimai",
+          "patched_version": "2.53.0",
+          "vulnerable_version_range": "<= 2.52.0"
+        }
+      ]
+    },
+    "reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

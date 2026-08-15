@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-path_traversal-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/ooples/token-optimizer-mcp/blob/4ae7c351659b3a1a7f741f6dc427577aead9fdd8/package-lock.json",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.776013+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "0cb3a6c4dc0855ad601edb2ec95e35851ecca2027d76c4478f623a2e872b5129",
+  "draft_version": "2.0.0",
+  "family": "path_traversal",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "4ae7c351659b3a1a7f741f6dc427577aead9fdd8",
+      "source_file": "package-lock.json"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/path-traversal--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "ooples/token-optimizer-mcp",
+  "source_root": "GHSA-76pc-mqxp-3rq5",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "4117dbc33e82e00f9afb1da8f29c5b03391add81660eb671cdb683b6ae13d4cd",
+    "payload": {
+      "file_sha256": "6d06c040c87641b375417d435455643d6d76c549124a7e11caa09b7a2669701c",
+      "line_end": 26,
+      "line_start": 13,
+      "revision_sha": "4ae7c351659b3a1a7f741f6dc427577aead9fdd8",
+      "source_excerpt": "        \"@modelcontextprotocol/sdk\": \"^1.26.0\",\n        \"async-mutex\": \"^0.5.0\",\n        \"better-sqlite3\": \"^12.4.1\",\n        \"cors\": \"^2.8.5\",\n        \"diff\": \"^8.0.2\",\n        \"express\": \"^5.1.0\",\n        \"glob\": \"^11.1.0\",\n        \"lru-cache\": \"^11.2.2\",\n        \"tiktoken\": \"^1.0.22\",\n        \"zod\": \">=3.25.0 <5\"\n      },\n      \"bin\": {\n        \"token-optimizer-daemon\": \"dist/server/daemon.js\",\n        \"token-optimizer-mcp\": \"dist/server/index.js\"",
+      "source_excerpt_sha256": "1e20e1c56e07f70c7cce155cdfb3a299bbb8c19ba505c59e8ff15cf531de2445",
+      "source_file": "package-lock.json"
+    },
+    "reference": "https://github.com/ooples/token-optimizer-mcp/blob/4ae7c351659b3a1a7f741f6dc427577aead9fdd8/package-lock.json",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

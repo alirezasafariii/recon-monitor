@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-file_upload-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/1e60eaa5781e89704e112425f832774be85cd71f/README.md",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.772985+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "599f272641185f8780887126a6a2cbbee7586fc0c7996ec7bd807a573614e91d",
+  "draft_version": "2.0.0",
+  "family": "file_upload",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+      "source_file": "README.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/file-upload--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "mckenziearts/livewire-markdown-editor",
+  "source_root": "GHSA-gxxh-8vcj-w2mh",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+    "payload": {
+      "file_sha256": "44654f75f0a8a8c32c81042b2782e1992c2f02291eab90c7e439a6d5a0b47128",
+      "line_end": 195,
+      "line_start": 148,
+      "revision_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+      "source_excerpt": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to the configured disk when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n### Security\n\nTo prevent arbitrary file upload vulnerabilities (stored XSS, phishing page hosting, malware distribution), only images are accepted by default. Uploaded files are stored under a randomly generated filename with the validated extension, and the original client-provided filename is sanitized before being inserted into the markdown output.\n\nYou can customize the allowed file types and max size via the `upload` config key:\n\n```php\n// config/livewire-markdown-editor.php\n'upload' => [\n    'max_size' => 4096, // kilobytes\n    'allowed_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],\n    'images_only' => true,\n],\n```\n\nIf you need to allow non-image files, extend `allowed_extensions` and set `images_only` to `false`. When using a public cloud disk (S3, Spaces, R2, Scaleway), review the bucket policy to ensure non-whitelisted Content-Types cannot be served inline.\n\nIf you do not use file uploads at all, disable the feature entirely:\n\n```blade\n<livewire:markdown-editor\n    wire:model=\"content\"\n    :show-upload=\"false\"\n/>\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+      "source_excerpt_sha256": "966d66654fd6efe3fa2638446c0326dcdf2eb4b8493b712bf91eeaca0c8a1ac5",
+      "source_file": "README.md"
+    },
+    "reference": "https://github.com/mckenziearts/livewire-markdown-editor/blob/1e60eaa5781e89704e112425f832774be85cd71f/README.md",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

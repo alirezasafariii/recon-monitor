@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sql_injection-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/kubev2v/migration-planner/blob/db4c7857bd8f8e04747a5ea0efca04b0235d6e4a/pkg/duckdb_parser/builder.go",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.781540+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "bd36a8b813e1ff74be526ddcb5ad38292b3186165da23bd38981da3944bb9548",
+  "draft_version": "2.0.0",
+  "family": "sql_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "db4c7857bd8f8e04747a5ea0efca04b0235d6e4a",
+      "source_file": "pkg/duckdb_parser/builder.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sql-injection--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "kubev2v/migration-planner",
+  "source_root": "GHSA-vf2h-7x3w-97fr",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "68f8d88f0aa4b784762d34e237f5745796af2038d275aa68d2b20f17670ab37c",
+    "payload": {
+      "file_sha256": "b02d6435af0992e6b1684497d490bda6cc61578a4ec09f444ab6fd9be2d9c5ed",
+      "line_end": 99,
+      "line_start": 82,
+      "revision_sha": "db4c7857bd8f8e04747a5ea0efca04b0235d6e4a",
+      "source_excerpt": "\t\tquoted = append(quoted, fmt.Sprintf(`i.\"Network #%d\"`, i))\n\t}\n\tnetworkColumns := strings.Join(quoted, \", \")\n\n\tparams := queryParams{\n\t\tNetworkColumns:   networkColumns,\n\t\tClusterFilter:    filters.Cluster,\n\t\tOSFilter:         filters.OS,\n\t\tPowerStateFilter: filters.PowerState,\n\t\tVmIDFilter:       filters.VmId,\n\t\tVMListFilter:     buildVMListFilter(filters.VMList, \"i\"),\n\t\tLimit:            options.Limit,\n\t\tOffset:           options.Offset,\n\t}\n\treturn b.buildQuery(\"vm_query\", mustGetTemplate(\"vm_query\"), params)\n}\n\n// DatastoreQuery builds the datastore query with filters and pagination.",
+      "source_excerpt_sha256": "f072dd545510b981f6cafc9867ce2b5b1d7f689b49d2aa23019e5598e25fb929",
+      "source_file": "pkg/duckdb_parser/builder.go"
+    },
+    "reference": "https://github.com/kubev2v/migration-planner/blob/db4c7857bd8f8e04747a5ea0efca04b0235d6e4a/pkg/duckdb_parser/builder.go",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

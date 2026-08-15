@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-nosql_injection-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/langchain-ai/langgraphjs/blob/284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c/.changeset/khaki-pugs-cheer.md",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.775448+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "e6026f59b90293c237466ebbde1a5b9f550fff266fc32cf14aaa11ab9896e531",
+  "draft_version": "2.0.0",
+  "family": "nosql_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c",
+      "source_file": ".changeset/khaki-pugs-cheer.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/nosql-injection--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "langchain-ai/langgraphjs",
+  "source_root": "GHSA-98xf-r82g-9mhx",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "4450b2aab65b0b2a4f9f7676b6eafc132a83835afed7a61fa7fef0616bd79f2e",
+    "payload": {
+      "file_sha256": "9d2defec0fcdaee0931ba922836967077cdff8207a4877889be04a01d2ebede5",
+      "line_end": 10,
+      "line_start": 1,
+      "revision_sha": "284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c",
+      "source_excerpt": "---\n\"@langchain/langgraph-checkpoint-mongodb\": patch\n---\n\nfix(checkpoint-mongodb): validate configurable checkpoint identifiers before queries\n\nAdd runtime validation for `thread_id`, `checkpoint_ns`, and `checkpoint_id` in\n`MongoDBSaver` methods that read and write checkpoints. This prevents object-based\noperator payloads from being passed into MongoDB query filters and ensures invalid\nconfigurable values fail fast with explicit errors.",
+      "source_excerpt_sha256": "defa22e8be045d34bf4ea8ab7d4c55f3b8d38e835460695e56be3216ceab5734",
+      "source_file": ".changeset/khaki-pugs-cheer.md"
+    },
+    "reference": "https://github.com/langchain-ai/langgraphjs/blob/284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c/.changeset/khaki-pugs-cheer.md",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

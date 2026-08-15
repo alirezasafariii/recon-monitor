@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-dom_xss-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/gogs/gogs/blob/573eacdc658641487f8ad883da96b29ec8e2852d/CHANGELOG.md",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.771630+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "70af3e56f6a760f513896381e0c9c11d60e02e2e66c0fb87dae14433d67b98b4",
+  "draft_version": "2.0.0",
+  "family": "dom_xss",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "573eacdc658641487f8ad883da96b29ec8e2852d",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/dom-xss--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "gogs/gogs",
+  "source_root": "GHSA-vcm5-gvmp-78mp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "8805a4d41741ccb45505b541d8c6a84d0130a3ca6725cff2d365a0b35bad992b",
+    "payload": {
+      "file_sha256": "f13a4d96e7d3babf14dc2c5be406e3133fe8b49428484d2f0d5909216bd8e445",
+      "line_end": 34,
+      "line_start": 20,
+      "revision_sha": "573eacdc658641487f8ad883da96b29ec8e2852d",
+      "source_excerpt": "- _Security:_ Organization team and member management actions accepted GET requests, allowing a logged-in owner to be tricked into adding an attacker to the Owners team via a crafted link. [#8321](https://github.com/gogs/gogs/pull/8321) - [GHSA-pwx3-qcgw-vh7h](https://github.com/gogs/gogs/security/advisories/GHSA-pwx3-qcgw-vh7h)\n- _Security:_ SSRF via mirror address update bypassing clone address validation. [#8225](https://github.com/gogs/gogs/pull/8225) - [GHSA-wv27-2vqp-j7g5](https://github.com/gogs/gogs/security/advisories/GHSA-wv27-2vqp-j7g5)\n- _Security:_ Open redirect on login and other post-action flows via the `redirect_to` query parameter. [#8322](https://github.com/gogs/gogs/pull/8322) - [GHSA-xxhq-69mf-w8cr](https://github.com/gogs/gogs/security/advisories/GHSA-xxhq-69mf-w8cr)\n- _Security:_ Privilege escalation to repository owner via collaboration access mode update. [#8227](https://github.com/gogs/gogs/pull/8227) - [GHSA-4565-r4x7-hg8j](https://github.com/gogs/gogs/security/advisories/GHSA-4565-r4x7-hg8j)\n- _Security:_ Remote command execution via pull request rebase merges with crafted branch names. [#8301](https://github.com/gogs/gogs/pull/8301) - [GHSA-qf6p-p7ww-cwr9](https://github.com/gogs/gogs/security/advisories/GHSA-qf6p-p7ww-cwr9)\n- _Security:_ SSRF in repository migration and recurring mirror sync via HTTP redirects and stale host validation on stored mirror URLs. [#8324](https://github.com/gogs/gogs/pull/8324) - [GHSA-g2f5-gjr4-qjvm](https://github.com/gogs/gogs/security/advisories/GHSA-g2f5-gjr4-qjvm)\n- _Security:_ Stored XSS in the milestone dropdown on the new issue page via crafted milestone names. [#8325](https://github.com/gogs/gogs/pull/8325) - [GHSA-vcm5-gvmp-78mp](https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp)\n\n##",
+      "source_excerpt_sha256": "73eb461a1f9341160faca81bfd5ae7bbe792d476307a89a7bf9f920b455859fe",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/gogs/gogs/blob/573eacdc658641487f8ad883da96b29ec8e2852d/CHANGELOG.md",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-ldap_injection-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/cmd/fabric-ca-client/command/main_test.go",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.774403+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "be8441cb504a572359fc456dffc05cf1b84511af88cef5e6d98584fdc37df7a9",
+  "draft_version": "2.0.0",
+  "family": "ldap_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "d379df823534d56dec0166a6da8f0415e3beee24",
+      "source_file": "cmd/fabric-ca-client/command/main_test.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/ldap-injection--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "hyperledger/fabric-ca",
+  "source_root": "GHSA-xghw-p77p-3r7x",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e23743ea66f382f772d9f5ea3c5e1419167b38c114a2ca0504cf4059d9d0bc78",
+    "payload": {
+      "control_keyword_match": [
+        "without"
+      ],
+      "revision_sha": "d379df823534d56dec0166a6da8f0415e3beee24",
+      "source_file": "cmd/fabric-ca-client/command/main_test.go",
+      "test_control_excerpt": "}\n\nfunc TestEnroll(t *testing.T) {\n\tt.Log(\"Testing Enroll\")\n\tadminHome := filepath.Join(tdDir, \"enrolladminhome\")\n\n\t// Remove admin home directory if it exists\n\terr := os.RemoveAll(adminHome)\n\tif err != nil {\n\t\tt.Fatalf(\"Failed to remove directory %s: %s\", adminHome, err)\n\t}\n\n\t// Remove admin home directory that this test is going to create before\n\t// exiting the test case\n\tdefer os.RemoveAll(adminHome)\n\n\tsrv := setupEnrollTest(t)\n\n\t// Cleanup before exiting the test case\n\tdefer stopAndCleanupServer(t, srv)\n\n\t// Enroll with -u parameter. Value of the -u parameter is used as server URL\n\terr = RunMain([]string{cmdName, \"enroll\", \"-d\", \"-u\", enrollURL, \"-H\", adminHome})\n\tif err != nil {\n\t\tt.Errorf(\"client enroll -u failed: %s\", err)\n\t}\n\n\t// Enroll without -u parameter, should fail as the server URL is picked",
+      "test_control_excerpt_sha256": "b273cb536805411c041b74a8bbcdc78bc82e6280765e34ee667c5e279e361c73"
+    },
+    "reference": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/cmd/fabric-ca-client/command/main_test.go",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

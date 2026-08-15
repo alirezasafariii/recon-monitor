@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-exceptional_condition_mishandling-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/sipsorcery-org/sipsorcery/blob/b5786e4409714a7813fd3391880e86ef660deadb/src/SIPSorcery/net/TURN/TurnServer.cs",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.772074+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "b5956d65bd4db000d98740e8e8a8959f6966bbfd23e5993a64cba969dcb58e09",
+  "draft_version": "2.0.0",
+  "family": "exceptional_condition_mishandling",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "b5786e4409714a7813fd3391880e86ef660deadb",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/exceptional-condition-mishandling--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "sipsorcery-org/sipsorcery",
+  "source_root": "GHSA-pfvm-w89x-94jw",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "820df76833f6fe47daf3a1b17a83754d9471432172fde536bffff7b76c8868f6",
+    "payload": {
+      "file_sha256": "58c245be936a1fdd78a29849b0f170bce63ae62d75eb1ef1547633419072020c",
+      "line_end": 513,
+      "line_start": 499,
+      "revision_sha": "b5786e4409714a7813fd3391880e86ef660deadb",
+      "source_excerpt": "                        if (padding > 0)\n                        {\n                            if (!await ReadExactAsync(stream, paddingBuffer, 0, padding).ConfigureAwait(false))\n                                break;\n                        }\n\n                        HandleChannelData(allocation, channelNumber, data, 0, data.Length);\n                    }\n                    else\n                    {\n                        // STUN message: bytes 2-3 = attributes length\n                        var msgLength = (ushort)((header[2] << 8) | header[3]);\n                        var remaining = 16 + msgLength; // magic cookie(4) + txnId(12) + attributes\n                        var fullMsg = new byte[4 + remaining];\n                        Buffer.BlockCopy(header, 0, fullMsg, 0, 4);",
+      "source_excerpt_sha256": "ff22b82c8053a82879ffbcaac28f21cf2334e69ee2008cde02ca4ebbfd8b004f",
+      "source_file": "src/SIPSorcery/net/TURN/TurnServer.cs"
+    },
+    "reference": "https://github.com/sipsorcery-org/sipsorcery/blob/b5786e4409714a7813fd3391880e86ef660deadb/src/SIPSorcery/net/TURN/TurnServer.cs",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

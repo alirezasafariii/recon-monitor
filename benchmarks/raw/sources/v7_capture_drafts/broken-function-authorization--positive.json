@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-broken_function_authorization-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/surrealdb/surrealdb/blob/11430e25f523b6a8f84fa1800a236c828351bf28/surrealdb/core/src/doc/output.rs",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.768501+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "dea74e70c74537fe3e899101cf170e356477e460ccf4da01e91b5d7c81764176",
+  "draft_version": "2.0.0",
+  "family": "broken_function_authorization",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "11430e25f523b6a8f84fa1800a236c828351bf28",
+      "source_file": "surrealdb/core/src/doc/output.rs"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/broken-function-authorization--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "surrealdb/surrealdb",
+  "source_root": "GHSA-8rw6-p7m8-63jp",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "00fa1be122534538cdd7c4298c0ca0e5b30596fd3453d4aaa8525efef4493890",
+    "payload": {
+      "file_sha256": "6a385e2a190015d162d99ee102242a822ec70c6fe2904f83606b6040b19cf28b",
+      "line_end": 351,
+      "line_start": 320,
+      "revision_sha": "11430e25f523b6a8f84fa1800a236c828351bf28",
+      "source_excerpt": "\t\t\treturn Ok(());\n\t\t}\n\t\t// Should we run permissions checks?\n\t\tif !ctx.check_perms(opt, Action::View)? {\n\t\t\treturn Ok(());\n\t\t}\n\t\t// Loop through all field statements\n\t\tfor fd in self.doc_ctx.fd()?.iter() {\n\t\t\t// SECURITY: apply the field's AUTH LIMIT before evaluating\n\t\t\t// PERMISSIONS FOR select so the predicate runs under the\n\t\t\t// definer's downgraded auth, not the caller's. Mirrors the\n\t\t\t// pluck.rs / field.rs paths.\n\t\t\tlet opt = AuthLimit::try_from(&fd.auth_limit)?.limit_opt(opt);\n\t\t\t// Loop over each field in document\n\t\t\tfor k in out.each(&fd.name).iter() {\n\t\t\t\t// Process the field permissions\n\t\t\t\tmatch &fd.select_permission {\n\t\t\t\t\tPermission::Full => (),\n\t\t\t\t\tPermission::None => out.cut(k),\n\t\t\t\t\tPermission::Specific(e) => {\n\t\t\t\t\t\t// Disable permissions\n\t\t\t\t\t\tlet opt = &opt.new_with_perms(false);\n\t\t\t\t\t\t// Get the current value\n\t\t\t\t\t\tlet val = Arc::new(self.current.doc.as_ref().pick(k));\n\t\t\t\t\t\t// Configure the context\n\t\t\t\t\t\tlet mut child_ctx = Context::new_child(ctx);\n\t\t\t\t\t\tchild_ctx.add_value(\"value\", val);\n\t\t\t\t\t\tlet child_ctx = child_ctx.freeze();\n\t\t\t\t\t\t// Process the PERMISSION clause\n\t\t\t\t\t\tif !stk\n\t\t\t\t\t\t\t.run(|stk| e.compute(stk, &child_ctx, opt, Some(&self.current)))\n\t\t\t\t\t\t\t.await",
+      "source_excerpt_sha256": "539ca6644217809d363eb94871d8f8f1860df62caad5243c796a0078b70edbaf",
+      "source_file": "surrealdb/core/src/doc/output.rs"
+    },
+    "reference": "https://github.com/surrealdb/surrealdb/blob/11430e25f523b6a8f84fa1800a236c828351bf28/surrealdb/core/src/doc/output.rs",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

@@ -1,0 +1,62 @@
+{
+  "capture_id": "v7-authentication_session-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/getkin/kin-openapi/blob/f0407d53b0730280266f454b755010e7eeb985da/openapi3filter/validation_error_test.go",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.767697+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "64da8cdd9bb5b1353cbdf03e88349caeb94197a46ec4e474bf38d3de094b105b",
+  "draft_version": "2.0.0",
+  "family": "authentication_session",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "f0407d53b0730280266f454b755010e7eeb985da",
+      "source_file": "openapi3filter/validation_error_test.go"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/authentication-session--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "getkin/kin-openapi",
+  "source_root": "GHSA-r277-6w6q-xmqw",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "41beba852d228e05462d1bcdf6609f78749892ff54fddd73137d834d3dfed1c5",
+    "payload": {
+      "control_keyword_match": [
+        "invalid",
+        "valid"
+      ],
+      "revision_sha": "f0407d53b0730280266f454b755010e7eeb985da",
+      "source_file": "openapi3filter/validation_error_test.go",
+      "test_control_excerpt": "}\n\nfunc TestValidationHandler_ServeHTTP(t *testing.T) {\n\tt.Run(\"errors on invalid requests\", func(t *testing.T) {\n\t\ttype pig struct{}\n\t\thttpCtx := context.WithValue(t.Context(), pig{}, \"tails\")\n\t\tr, err := http.NewRequest(http.MethodGet, \"http://unknown-host.com/v2/pet\", nil)\n\t\trequire.NoError(t, err)\n\t\tr = r.WithContext(httpCtx)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.False(t, handler.Called)\n\t\trequire.True(t, encoder.Called)\n\t\trequire.Equal(t, httpCtx, encoder.Ctx)\n\t\trequire.NotNil(t, encoder.Err)\n\t})\n\n\tt.Run(\"passes valid requests through\", func(t *testing.T) {\n\t\tr := newPetstoreRequest(t, http.MethodGet, \"/pet/findByStatus?status=sold\", nil)\n\n\t\thandler := &testHandler{}\n\t\tencoder := &mockErrorEncoder{}\n\t\trunTest_ServeHTTP(t, handler, encoder.Encode, r)\n\n\t\trequire.True(t, handler.Called)",
+      "test_control_excerpt_sha256": "5a38fcf4500cd879e03e48711facaf5f5167d0a535df2eeae31d076dac9bd724"
+    },
+    "reference": "https://github.com/getkin/kin-openapi/blob/f0407d53b0730280266f454b755010e7eeb985da/openapi3filter/validation_error_test.go",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

@@ -1,0 +1,69 @@
+{
+  "capture_id": "v7-cryptographic_failure-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/oras-project/oras-go/security/advisories/GHSA-xf85-363p-868w",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.771229+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "a3bbdd75c2e1a2ea7c134f130dec2a3095544aa710af97cb900d79a3143b33bb",
+  "draft_version": "2.0.0",
+  "family": "cryptographic_failure",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 2
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/cryptographic-failure--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "oras-project/oras-go",
+  "source_root": "GHSA-xf85-363p-868w",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "8fbcdf20e0a746b1889f0956ae81cb0a2624e4aea46536235a676f3d62bba328",
+    "payload": {
+      "description": "## Summary\n\noras-go's `auth.Client` follows the `realm` URL from a registry's `WWW-Authenticate: Bearer` challenge without validating its scheme or host. The `realm` field is server-controlled by design in the OCI/distribution spec — registries legitimately point token requests at a separate auth endpoint (e.g. Docker Hub's `registry-1.docker.io` -> `auth.docker.io`), so cross-host realms on public DNS names are not in themselves a vulnerability. Two specific patterns, however, are never legitimate under any registry trust model and can be abused by a malicious or compromised registry (or a man-in-the-middle on a plaintext connection):\n\n1. **SSRF to internal networks.** A realm of `http://169.254.169.254/...` (AWS/Azure IMDS), `http://10.0.0.x/...` (RFC 1918), or `http://127.0.0.1/...` causes oras-go running on a cloud VM or corporate workstation to issue outbound HTTP requests from inside the user's trust boundary to an endpoint the user did not choose. The user's stored credentials are attached to those requests, but the principal harm is the network primitive — probing internal endpoints from the client. On IMDSv1 the response body is recoverable from log channels; on IMDSv2 the probe itself can still be used for service discovery.\n\n2. **TLS downgrade.** A registry contacted over `https://` can return a realm with an `http://` scheme, causing oras-go to send the user's credentials over plaintext to the token endpoint. This defeats the transport security the user chose when typing `https://`.\n\n## What is NOT claimed\n\nThis advisory does **not** claim that credential forwarding to an arbitrary public attacker host through a server-controlled realm is, on its own, a vulnerability. The distribution spec defines `realm` as a server-controlled field; a strict same-host or same-eTLD+1 enforcement would deviate from the spec and break legitimate split-host deployments. Operators who want defense-in-depth against cross-host realm forwarding can use the opt-in `Client.TrustedRealmHosts` allowlist (added separately).\n\n## Affected versions\n\n`oras.land/oras-go/v2 <= v2.6.0`\n\n## Severity\n\nMedium. Network attack vector, low complexity, no privileges required, user interaction required (victim runs an oras command against the malicious or MITM'd registry), unchanged scope. Confidentiality impact is limited — IMDS probe responses can disclose information, and TLS downgrade exposes the realm request to passive observers — but the attacker does not obtain credentials beyond what the malicious endpoint already controls.\n\n## Affected code\n\n- `registry/remote/auth/client.go` — `Client.Do()` (bearer challenge handling)\n- `registry/remote/auth/client.go` — `Client.fetchBearerToken()` / `fetchDistributionToken` / `fetchOAuth2Token`\n\nThe `realm` parameter from `parseChallenge` is threaded through to `http.NewRequestWithContext` without scheme or host validation.\n\n## CWE\n\n- CWE-918: Server-Side Request Forgery (SSRF)\n- CWE-319: Cleartext Transmission of Sensitive Information\n\n## Patch\n\n`registry/remote/auth/client.go` now rejects realm URLs that:\n\n- use a scheme other than `http` or `https`\n- use `http` when the registry was contacted over `https` (TLS downgrade)\n- use an IP literal in a loopback, link-local, private, or unspecified range, unless the registry itself was reached at the same hostname (so loopback / in-cluster deployments are unaffected)\n\nCross-host realms on public DNS names continue to be accepted.\n\n## Credit\n\nReported by bugbunny.ai.",
+      "ghsa_id": "GHSA-xf85-363p-868w",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "oras.land/oras-go/v2",
+          "patched_version": "2.6.1",
+          "vulnerable_version_range": "< 2.6.1"
+        },
+        {
+          "ecosystem": "go",
+          "package": "oras.land/oras-go",
+          "patched_version": "",
+          "vulnerable_version_range": "<= 1.2.7"
+        }
+      ]
+    },
+    "reference": "https://github.com/oras-project/oras-go/security/advisories/GHSA-xf85-363p-868w",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

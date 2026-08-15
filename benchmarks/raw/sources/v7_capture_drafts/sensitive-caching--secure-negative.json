@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_caching-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/.changeset/thick-buttons-visit.md",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.779862+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "ece7f7399940c87f7e96e3c74a87cb290698e86874947dbb427bf3c8b9db4ece",
+  "draft_version": "2.0.0",
+  "family": "sensitive_caching",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_file": ".changeset/thick-buttons-visit.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-caching--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "directus/directus",
+  "source_root": "GHSA-c6w9-5g5j-jh2p",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e9236b632551f7a7feaa99d102d1cd53c40b490e58a543c3b65ef06efb00f686",
+    "payload": {
+      "file_sha256": "54765518a2f0c1e067cc6116c4ee91632be49e161ebdd8d67e2e2c4597968b5f",
+      "line_end": 5,
+      "line_start": 1,
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_excerpt": "---\n'@directus/api': patch\n---\n\nAdded a namespace to shares cache keys",
+      "source_excerpt_sha256": "6b7bc47ee49fedd7f906f47024ddb95f76911014c6155f23afa5ea3878972f66",
+      "source_file": ".changeset/thick-buttons-visit.md"
+    },
+    "reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/.changeset/thick-buttons-visit.md",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_business_flow_abuse-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/CHANGELOG.md",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.779181+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "3a23056428517f6838fc6484d17e14661c4d24b1edd81e4e96792f125fd8abc8",
+  "draft_version": "2.0.0",
+  "family": "sensitive_business_flow_abuse",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-business-flow-abuse--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "openclaw/openclaw",
+  "source_root": "GHSA-6rmx-gvvg-vh6j",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "9cdbae92580b2f26c6af876f2d11bfa05cdbe9cb36ed9190ea6aa4d2ad75aae4",
+    "payload": {
+      "file_sha256": "e0768f2c1e0001cf28f4036624b82e6ee9b9210342d7f43d655d54a85dbf11f8",
+      "line_end": 614,
+      "line_start": 600,
+      "revision_sha": "44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89",
+      "source_excerpt": "- Models/OpenAI forward compat: add support for `openai/gpt-5.4`, `openai/gpt-5.4-pro`, and `openai-codex/gpt-5.4`, including direct OpenAI Responses `serviceTier` passthrough safeguards for valid values. (#36590) Thanks @dorukardahan.\n- Android/Play package ID: rename the Android app package to `ai.openclaw.app`, including matching benchmark and Android tooling references for Play publishing. (#38712) Thanks @obviyus.\n\n### Fixes\n\n- Models/provider config precedence: prefer exact `models.providers.<name>` matches before normalized provider aliases in embedded model resolution, preventing alias/canonical key collisions from applying the wrong provider `api`, `baseUrl`, or headers. (#35934) thanks @RealKai42.\n- Hooks/auth throttling: reject non-`POST` `/hooks/*` requests before auth-failure accounting so unsupported methods can no longer burn the hook auth lockout budget and block legitimate webhook delivery. Thanks @P1ck3d for reporting.\n- Network/fetch guard redirect auth stripping: switch cross-origin redirect handling in `fetchWithSsrFGuard` from a narrow sensitive-header denylist to a safe-header allowlist so custom auth headers like `X-Api-Key` and `Private-Token` no longer leak on origin changes. Thanks @Rickidevs for reporting.\n- Logging/Subsystem console timestamps: route subsystem console timestamp rendering through `formatConsoleTimestamp(...)` so `pretty` and timestamp-prefix output use local timezone formatting consistently instead of inline UTC `toISOString()` paths. (#25970) Thanks @openperf.\n- Feishu/Multi-account + reply reliability: add `channels.feishu.defaultAccount` outbound routing support with schema validation, prevent inbound preview text from leaking into prompt system events, keep quoted-message extraction text-first (post/interactive/file place",
+      "source_excerpt_sha256": "c2d015f6ba08713e9db69a80b0dff8d2def28381ddceca64d2791ec8fdb736e1",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/openclaw/openclaw/blob/44820dceadac65ac7c0ce8fc0ffba8c2bd9fae89/CHANGELOG.md",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

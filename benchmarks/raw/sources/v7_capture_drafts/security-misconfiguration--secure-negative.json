@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-security_misconfiguration-secure_negative",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/.github/dictionary.txt",
+  "case_kind": "secure_negative",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.778450+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "patched_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream fixed-revision source neighborhood candidate; semantic review must confirm the decisive condition is absent.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "6a70e9681716abd1220ea913493e65b2cbaa228cd09e1518a270a84b8bde2f24",
+  "draft_version": "2.0.0",
+  "family": "security_misconfiguration",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_patched_source_neighborhood",
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_file": ".github/dictionary.txt"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/security-misconfiguration--secure-negative.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+    "payload": {
+      "file_sha256": "ef91bd25838f0fc6f96ccc1485fa745a195d4b6110640c6d2dc6b4f25f19c205",
+      "line_end": 15,
+      "line_start": 1,
+      "revision_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+      "source_excerpt": "1Password\n3D\nAPI.*\nAVX\nAVX512\nAboutFeatures\nAllowlist\nBackgroundGradientAnimation\nBiometric\nBitnami\nBlogHeader\nBlogIndex\nBlogMeme\nCLI\nCMake",
+      "source_excerpt_sha256": "dd3236af189b47293402581e646118b7437d6af179fdaeb38a6b905231e51843",
+      "source_file": ".github/dictionary.txt"
+    },
+    "reference": "https://github.com/monetr/monetr/blob/c260caa3c573a4a396ec2d264c7641a5d958385b/.github/dictionary.txt",
+    "snapshot_role": "linked_upstream_fixed_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

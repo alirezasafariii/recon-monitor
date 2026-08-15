@@ -1,0 +1,75 @@
+{
+  "capture_id": "v7-graphql_authorization-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/n8n-io/n8n/security/advisories/GHSA-gq66-9cw5-j5jm",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.773355+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "e4232129dde0a3a96d013cb2c2ec59db8cda80a5f98166a214d2202dd288dd29",
+  "draft_version": "2.0.0",
+  "family": "graphql_authorization",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 3
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "n8n-io/n8n",
+  "source_root": "GHSA-gq66-9cw5-j5jm",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "5201db534bbdc322fd6efef4d235e84195f97c16a7fd603259412a717f71a9b6",
+    "payload": {
+      "description": "## Impact\nThe GraphQL node did not enforce the \"Allowed HTTP Request Domains\" restriction on HTTP-based credentials (such as Header Auth, Basic Auth, Query Auth, and OAuth), unlike the HTTP Request node. An authenticated user able to create or edit workflows could therefore point the node's endpoint at a server they control and exfiltrate restricted credentials.\n\nOnly instances where a credential has \"Allowed HTTP Request Domains\" configured and is usable by non-owner users are affected.\n\n## Patches\nThe issue has been fixed in n8n versions 1.123.64, 2.29.8, and 2.30.1. Users should upgrade to one of these versions or later to remediate the vulnerability.\n\n## Workarounds\nIf upgrading is not immediately possible, administrators should consider the following temporary mitigations:\n- Restrict workflow creation and editing permissions to fully trusted users only.\n- Restrict credential sharing to fully trusted users only.\n- Audit credentials with domain restrictions for unexpected sharing relationships.\n\nThese workarounds do not fully remediate the risk and should only be used as short-term mitigation measures.",
+      "ghsa_id": "GHSA-gq66-9cw5-j5jm",
+      "version_boundaries": [
+        {
+          "ecosystem": "npm",
+          "package": "n8n",
+          "patched_version": "1.123.64",
+          "vulnerable_version_range": "< 1.123.64"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "n8n",
+          "patched_version": "2.30.1",
+          "vulnerable_version_range": ">= 2.30.0, < 2.30.1"
+        },
+        {
+          "ecosystem": "npm",
+          "package": "n8n",
+          "patched_version": "2.29.8",
+          "vulnerable_version_range": ">= 2.0.0, < 2.29.8"
+        }
+      ]
+    },
+    "reference": "https://github.com/n8n-io/n8n/security/advisories/GHSA-gq66-9cw5-j5jm",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}

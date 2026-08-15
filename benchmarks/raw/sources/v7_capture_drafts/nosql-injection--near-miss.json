@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-nosql_injection-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/langchain-ai/langgraphjs/blob/284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c/libs/checkpoint-mongodb/src/tests/checkpoints.test.ts",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.775280+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "a5f7d97a6ed968c5945c79816da3ac3b40df3b482eb3636395713bee1a55b025",
+  "draft_version": "2.0.0",
+  "family": "nosql_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c",
+      "source_file": "libs/checkpoint-mongodb/src/tests/checkpoints.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/nosql-injection--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "langchain-ai/langgraphjs",
+  "source_root": "GHSA-98xf-r82g-9mhx",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "4450b2aab65b0b2a4f9f7676b6eafc132a83835afed7a61fa7fef0616bd79f2e",
+    "payload": {
+      "control_keyword_match": [
+        "empty"
+      ],
+      "revision_sha": "284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c",
+      "source_file": "libs/checkpoint-mongodb/src/tests/checkpoints.test.ts",
+      "test_control_excerpt": "});\n\ndescribe(\"MongoDBSaver\", () => {\n  it(\"should set client metadata\", async () => {\n    const client = createMockClient();\n    // eslint-disable-next-line no-new\n    new MongoDBSaver({ client: client as unknown as MongoClient });\n    expect(client.appendMetadata).toHaveBeenCalledWith({\n      name: \"langgraphjs_checkpoint_saver\",\n    });\n  });\n\n  describe(\"timestampOp\", () => {\n    it(\"should return empty object when enableTimestamps is not set\", () => {\n      const client = createMockClient();\n      const saver = new MongoDBSaver({\n        client: client as unknown as MongoClient,\n      });\n\n      // eslint-disable-next-line @typescript-eslint/no-explicit-any\n      const op = (saver as any).timestampOp;\n      expect(op).toEqual({});\n    });\n\n    it(\"should return $currentDate operator when enableTimestamps is true\", () => {\n      const client = createMockClient();\n      const saver = new MongoDBSaver({\n        client: client as unknown as MongoClient,",
+      "test_control_excerpt_sha256": "869ef42914a0810d13bee8715f5eeda027fa33bd44eadfa4ea0ed6f9a187d2ff"
+    },
+    "reference": "https://github.com/langchain-ai/langgraphjs/blob/284226c7ca164b3c81fe2d9e32b10f1fc6b99a3c/libs/checkpoint-mongodb/src/tests/checkpoints.test.ts",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

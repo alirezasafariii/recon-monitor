@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-security_misconfiguration-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/monetr/monetr/blob/195a0c94cad26105dc1e9ee9d5ed902af41ed46c/.github/dictionary.txt",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.778128+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "9b19535156d4cdca1ffb7bc01ab1f9bb836b534ae726e9ab5dffb832fe20caf7",
+  "draft_version": "2.0.0",
+  "family": "security_misconfiguration",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c",
+      "source_file": ".github/dictionary.txt"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/security-misconfiguration--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "monetr/monetr",
+  "source_root": "GHSA-29v9-frvh-c426",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+    "payload": {
+      "file_sha256": "c0936c385df7873de5a16c4d8618c7f9fdea222b44a39c17aa7dcf3e8326bfe3",
+      "line_end": 14,
+      "line_start": 1,
+      "revision_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c",
+      "source_excerpt": "1Password\n3D\nAPI.*\nAVX\nAVX512\nAboutFeatures\nBackgroundGradientAnimation\nBiometric\nBitnami\nBlogHeader\nBlogIndex\nBlogMeme\nCLI\nCMake",
+      "source_excerpt_sha256": "b64f51037272b78a64624ee96ad7e997ab473756f6196bf786cfa39652f2d667",
+      "source_file": ".github/dictionary.txt"
+    },
+    "reference": "https://github.com/monetr/monetr/blob/195a0c94cad26105dc1e9ee9d5ed902af41ed46c/.github/dictionary.txt",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

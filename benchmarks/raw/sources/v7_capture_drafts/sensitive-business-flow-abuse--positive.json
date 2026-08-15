@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_business_flow_abuse-positive",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/openclaw/openclaw/blob/262fef6ac8f57661151afc2a27df2835d747142f/CHANGELOG.md",
+  "case_kind": "positive",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.778822+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Exact upstream vulnerable-parent source neighborhood candidate; semantic review must confirm it proves the frozen family condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "6739dfc91d9941b3fc5af41925238701516d8d6181ef029f26ca1b275474912a",
+  "draft_version": "2.0.0",
+  "family": "sensitive_business_flow_abuse",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "exact_vulnerable_parent_source_neighborhood",
+      "revision_sha": "262fef6ac8f57661151afc2a27df2835d747142f",
+      "source_file": "CHANGELOG.md"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-business-flow-abuse--positive.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "openclaw/openclaw",
+  "source_root": "GHSA-6rmx-gvvg-vh6j",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "9cdbae92580b2f26c6af876f2d11bfa05cdbe9cb36ed9190ea6aa4d2ad75aae4",
+    "payload": {
+      "file_sha256": "b36f7f9a6f6e5e5461f9a44628a2f58295973e34b5fd3223fa038ddc9208e3b7",
+      "line_end": 613,
+      "line_start": 600,
+      "revision_sha": "262fef6ac8f57661151afc2a27df2835d747142f",
+      "source_excerpt": "- Models/OpenAI forward compat: add support for `openai/gpt-5.4`, `openai/gpt-5.4-pro`, and `openai-codex/gpt-5.4`, including direct OpenAI Responses `serviceTier` passthrough safeguards for valid values. (#36590) Thanks @dorukardahan.\n- Android/Play package ID: rename the Android app package to `ai.openclaw.app`, including matching benchmark and Android tooling references for Play publishing. (#38712) Thanks @obviyus.\n\n### Fixes\n\n- Models/provider config precedence: prefer exact `models.providers.<name>` matches before normalized provider aliases in embedded model resolution, preventing alias/canonical key collisions from applying the wrong provider `api`, `baseUrl`, or headers. (#35934) thanks @RealKai42.\n- Network/fetch guard redirect auth stripping: switch cross-origin redirect handling in `fetchWithSsrFGuard` from a narrow sensitive-header denylist to a safe-header allowlist so custom auth headers like `X-Api-Key` and `Private-Token` no longer leak on origin changes. Thanks @Rickidevs for reporting.\n- Logging/Subsystem console timestamps: route subsystem console timestamp rendering through `formatConsoleTimestamp(...)` so `pretty` and timestamp-prefix output use local timezone formatting consistently instead of inline UTC `toISOString()` paths. (#25970) Thanks @openperf.\n- Feishu/Multi-account + reply reliability: add `channels.feishu.defaultAccount` outbound routing support with schema validation, prevent inbound preview text from leaking into prompt system events, keep quoted-message extraction text-first (post/interactive/file placeholders instead of raw JSON), route Feishu video sends as `msg_type: \"file\"`, and avoid websocket event blocking by using non-blocking event handling in monitor dispatch. Landed from contributor PRs #31209, #29610, #30432, #30331, and",
+      "source_excerpt_sha256": "fe639552f825d15126eff39a0fd717208d5993391d2070d67740ff4da054c582",
+      "source_file": "CHANGELOG.md"
+    },
+    "reference": "https://github.com/openclaw/openclaw/blob/262fef6ac8f57661151afc2a27df2835d747142f/CHANGELOG.md",
+    "snapshot_role": "linked_upstream_parent_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

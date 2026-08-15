@@ -1,0 +1,61 @@
+{
+  "capture_id": "v7-sensitive_caching-near_miss",
+  "capture_method": "repository_test_fixture",
+  "capture_reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/api/src/utils/get-cache-key.test.ts",
+  "case_kind": "near_miss",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.779685+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "repository_test_control_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Independent upstream control-like test excerpt candidate; semantic review must verify it is a genuine confounder and not a positive condition.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "04a437c2416cbb739058a80dcd1e12e1514dbea36daa702c74a2c79dc102a79c",
+  "draft_version": "2.0.0",
+  "family": "sensitive_caching",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "upstream_control_test_candidate",
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_file": "api/src/utils/get-cache-key.test.ts"
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sensitive-caching--near-miss.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "directus/directus",
+  "source_root": "GHSA-c6w9-5g5j-jh2p",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e9236b632551f7a7feaa99d102d1cd53c40b490e58a543c3b65ef06efb00f686",
+    "payload": {
+      "control_keyword_match": [
+        "empty"
+      ],
+      "revision_sha": "7ba4efb97525d3af33570537c76e44baea767f13",
+      "source_file": "api/src/utils/get-cache-key.test.ts",
+      "test_control_excerpt": "\t});\n\n\ttest('should not include raw query params for standard REST endpoints', async () => {\n\t\tconst reqWithCustomQuery: any = {\n\t\t\tmethod,\n\t\t\toriginalUrl: `${restUrl}?custom=foo`,\n\t\t\tquery: { custom: 'foo' },\n\t\t\tsanitizedQuery: {},\n\t\t};\n\n\t\tconst reqWithoutCustomQuery: any = {\n\t\t\tmethod,\n\t\t\toriginalUrl: restUrl,\n\t\t\tsanitizedQuery: {},\n\t\t};\n\n\t\texpect(await getCacheKey(reqWithCustomQuery)).toEqual(await getCacheKey(reqWithoutCustomQuery));\n\t});\n\n\ttest('should not change cache key when req.query is empty on flow trigger', async () => {\n\t\tconst reqWithEmptyQuery: any = {\n\t\t\tmethod,\n\t\t\toriginalUrl: flowTriggerUrl,\n\t\t\tquery: {},\n\t\t\tsanitizedQuery: {},\n\t\t};\n\n\t\tconst reqWithoutQuery: any = {",
+      "test_control_excerpt_sha256": "ffdab64e05d5ec90008cadbc5e4959e817664b8c34b9498b0bee0a35a1df533a"
+    },
+    "reference": "https://github.com/directus/directus/blob/7ba4efb97525d3af33570537c76e44baea767f13/api/src/utils/get-cache-key.test.ts",
+    "snapshot_role": "upstream_control_candidate"
+  },
+  "synthetic_fixture_generated": false
+}

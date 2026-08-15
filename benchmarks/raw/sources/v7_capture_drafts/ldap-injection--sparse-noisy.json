@@ -1,0 +1,63 @@
+{
+  "capture_id": "v7-ldap_injection-sparse_noisy",
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/hyperledger/fabric-ca/security/advisories/GHSA-xghw-p77p-3r7x",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "kind": "v7_engine_unseen_public_source_draft",
+    "target_contact_performed": false,
+    "third_party_code_executed": false,
+    "version": "2.0.0"
+  },
+  "created_at": "2026-08-15T01:30:31.774727+00:00",
+  "cross_variant_mutation_used": false,
+  "draft_adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation_candidate",
+    "corpus_v1_evidence_used": false,
+    "corpus_v1_labels_used": false,
+    "corpus_v1_scores_used": false,
+    "detector_output_used": false,
+    "human_adjudication_complete": false,
+    "notes": "Partial frozen public-source metadata candidate; deliberately insufficient for positive admission until semantic review.",
+    "publication_authorized": false,
+    "ranking_output_used": false,
+    "semantic_review_required": true,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "draft_sha256": "29bf4708349769e018806ba91ffc0a9cc15f289e4b4e83d51c95bea08f89b969",
+  "draft_version": "2.0.0",
+  "family": "ldap_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "observation_kind": "partial_public_source_metadata",
+      "version_boundary_count": 1
+    },
+    "method": "UNKNOWN"
+  },
+  "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/ldap-injection--sparse-noisy.json",
+  "rule_version": "2026.08.15.6.33.v7.unseen.drafts.1",
+  "scoring_executed": false,
+  "source_project": "hyperledger/fabric-ca",
+  "source_root": "GHSA-xghw-p77p-3r7x",
+  "source_snapshot": {
+    "frozen_canonical_snapshot_sha256": "e23743ea66f382f772d9f5ea3c5e1419167b38c114a2ca0504cf4059d9d0bc78",
+    "payload": {
+      "description": "When fabric-ca is configured with an LDAP backend, the username from HTTP Basic authentication is included in an LDAP uid search filter without proper escaping. An unauthenticated attacker with network access to the CA enrollment endpoint could exploit this to perform LDAP injection before password validation, and potentially steer authentication attempts toward a victim account.\n\n### Recommendation\n\n- All users of fabric-ca with an LDAP backend should update to a fixed version.\n- For users not using an LDAP backend, no action is required.",
+      "ghsa_id": "GHSA-xghw-p77p-3r7x",
+      "version_boundaries": [
+        {
+          "ecosystem": "go",
+          "package": "github.com/hyperledger/fabric-ca",
+          "patched_version": "1.5.21",
+          "vulnerable_version_range": "<= 1.5.20"
+        }
+      ]
+    },
+    "reference": "https://github.com/hyperledger/fabric-ca/security/advisories/GHSA-xghw-p77p-3r7x",
+    "snapshot_role": "canonical_source_partial_metadata"
+  },
+  "synthetic_fixture_generated": false
+}
