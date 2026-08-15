@@ -7,11 +7,16 @@ on:
       - '.github/workflows/analysis-633-v7-unseen-preblind-evaluation-contract.yml'
       - 'app/v7_preblind_evaluation_contract.py'
       - 'tests/test_v7_preblind_evaluation_contract.py'
-      - 'benchmarks/raw/sources/v7_human_review_template.json'
+      - 'benchmarks/raw/sources/v7_standards_adjudication.json'
+      - 'benchmarks/raw/sources/v6_evaluator_freeze.json'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: analysis-633-v7-preblind-evaluation-contract
+  cancel-in-progress: true
 
 jobs:
   freeze:
@@ -30,20 +35,24 @@ jobs:
       - name: Build frozen pre-blind evaluation contract
         env: {PYTHONPATH: app}
         run: python app/v7_preblind_evaluation_contract.py
-      - name: Verify metric, integrity, and lifecycle freeze
+      - name: Verify standards-grounded metric, integrity, and lifecycle freeze
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           d=json.loads(Path('benchmarks/raw/sources/v7_preblind_evaluation_contract.json').read_text())
           r=json.loads(Path('benchmarks/raw/sources/v7_preblind_evaluation_contract_report.json').read_text())
-          assert d['version']=='1.0.0'
+          assert d['version']=='1.1.0'
           assert d['descriptive_only'] is True
           assert all(v is None for v in d['performance_thresholds'].values())
           assert r['performance_threshold_count']==0
-          assert d['v6_scorer_lineage']['version']=='1.0.0'
-          assert d['v6_scorer_lineage']['rule_version']=='2026.08.14.6.31.v6.scorer.1'
-          assert d['v6_scorer_lineage']['engine_output_allowed_as_ground_truth'] is False
+          v6=d['v6_evaluator_lineage']
+          assert v6['version']=='1.1.0'
+          assert v6['rule_version']=='2026.08.14.6.31.15'
+          assert v6['evaluator_sha256']=='7db75b63d135f59ee2db524f61d0e8856929016198e13ba11f19373b30995489'
+          assert v6['corpus_freeze_sha256']=='3193934edfef046e8dfb867ced2f8bde3ceed77fe8fbea073e7f17f8cc4567ca'
+          assert v6['protocol_sha256']=='fed800eba46f4fadc2556d93c1dfc650a230260c5a628bf6ce1289262235df35'
+          assert v6['engine_output_allowed_as_ground_truth'] is False
           assert d['v7_metric_contract']['no_top3_metric'] is True
           metrics=set(d['v7_metric_contract']['evaluated_metrics'])|set(d['v7_metric_contract']['report_only_metrics'])
           assert 'admission_false_positive_rate' in metrics
@@ -51,13 +60,32 @@ jobs:
           assert 'abstention_rate' in metrics
           assert 'top1_family_accuracy' in metrics
           assert not any('top3' in x or 'top_3' in x for x in metrics)
-          assert d['ground_truth_contract']['minimum_distinct_human_reviewers']==3
-          assert d['ground_truth_contract']['engine_output_allowed_as_ground_truth'] is False
-          assert d['integrity_gates']['candidate_material_coverage_required']==66
-          assert d['integrity_gates']['review_material_coverage_required']==144
-          assert d['integrity_gates']['human_verified_variant_count_required_before_scoring']==144
-          assert d['integrity_gates']['family_adjudication_required_count']==11
-          assert d['integrity_gates']['scorer_contract_mutation_after_results_allowed'] is False
+          truth=d['ground_truth_contract']
+          assert truth['human_review_required'] is False
+          assert truth['minimum_distinct_human_reviewers']==0
+          assert truth['required_human_verified_variant_count']==0
+          assert truth['required_machine_adjudicated_variant_count']==144
+          assert truth['required_source_grounded_accepted_variant_count']==144
+          assert truth['required_unresolved_variant_count']==0
+          assert truth['standards_used_as_interpretation_rubric'] is True
+          assert truth['writeups_used_as_interpretation_rubric'] is True
+          assert truth['standards_count_as_target_evidence'] is False
+          assert truth['writeups_count_as_target_evidence'] is False
+          assert truth['engine_output_allowed_as_ground_truth'] is False
+          gates=d['integrity_gates']
+          assert gates['candidate_material_coverage_required']==66
+          assert gates['review_material_coverage_required']==144
+          assert gates['human_review_required_before_scoring'] is False
+          assert gates['human_verified_variant_count_required_before_scoring']==0
+          assert gates['machine_semantic_adjudication_complete_required_before_scoring'] is True
+          assert gates['machine_adjudicated_variant_count_required_before_scoring']==144
+          assert gates['source_grounded_accepted_variant_count_required_before_scoring']==144
+          assert gates['unresolved_variant_count_required_before_scoring']==0
+          assert gates['standards_or_writeups_as_target_evidence_allowed'] is False
+          assert gates['evaluator_contract_mutation_after_results_allowed'] is False
+          readiness=d['pre_scoring_readiness']
+          assert readiness['accepted_variant_count'] + readiness['unresolved_variant_count'] == 144
+          assert readiness['ready'] == (readiness['machine_semantic_adjudication_complete'] and readiness['accepted_variant_count']==144 and readiness['unresolved_variant_count']==0 and readiness['family_mapping_confirmed_count']==readiness['family_adjudication_required_count'])
           assert d['first_blind_lifecycle']['one_shot'] is True
           assert d['first_blind_lifecycle']['mark_consumed_on_scoring_start'] is True
           assert d['first_blind_lifecycle']['v7_reblind_after_tuning_allowed'] is False
@@ -65,10 +93,11 @@ jobs:
           assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
           assert d['contract_sha256']==r['contract_sha256']
           print({
-              'evaluated_metrics':d['v7_metric_contract']['evaluated_metrics'],
-              'report_only_metrics':d['v7_metric_contract']['report_only_metrics'],
-              'threshold_count':0,
-              'one_shot':True,
+              'accepted': readiness['accepted_variant_count'],
+              'unresolved': readiness['unresolved_variant_count'],
+              'pre_scoring_ready': readiness['ready'],
+              'human_review_required': False,
+              'one_shot': True,
           })
           PY
       - name: Full regression suite
@@ -83,5 +112,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore(analysis-633): freeze V7 pre-blind evaluation contract'
+          git commit -m 'chore(analysis-633): freeze standards-grounded V7 pre-blind evaluation contract'
           git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
