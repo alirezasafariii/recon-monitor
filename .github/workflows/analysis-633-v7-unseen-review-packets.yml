@@ -1,0 +1,59 @@
+name: Analysis 6.33 V7 Unseen Review Packets
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-review-packets.yml'
+      - 'app/v7_unseen_review_packet_builder.py'
+      - 'benchmarks/raw/sources/v7_semantic_review_queue.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build review packets and missing-source worklist
+        env: {PYTHONPATH: app}
+        run: python app/v7_unseen_review_packet_builder.py
+      - name: Verify packet firewall and coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('benchmarks/raw/sources/v7_semantic_review_packets.json').read_text())
+          w=json.loads(Path('benchmarks/raw/sources/v7_missing_literal_source_worklist.json').read_text())
+          assert p['family_count']==36 and p['variant_count']==144 and p['packet_count']==36
+          assert w['work_item_count']==66 and w['families_with_missing_items']==26
+          assert w['source_assignment_locked'] is True and w['source_replacement_allowed'] is False
+          assert w['synthetic_fixture_allowed'] is False and w['cross_variant_mutation_allowed'] is False
+          for d in (p,w):
+              assert d['human_adjudication_performed'] is False
+              assert d['publication_authorized'] is False and d['evidence_published'] is False
+              assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          print({'packets':36,'variants':144,'missing_items':66,'missing_families':26})
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze packets and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_semantic_review_packets.json benchmarks/raw/sources/v7_missing_literal_source_worklist.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 review packets and missing-source worklist'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
