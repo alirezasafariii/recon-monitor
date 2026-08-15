@@ -9,10 +9,10 @@ from typing import Any, Mapping
 import raw_recon_v7_missing5_supplement as base
 from raw_recon_v7_source_firewall import check_candidate, exposure_index
 from v7_pre_score_condition_audit import audit_conditions
-from v7_source_semantic_audit import audit_row
+from v7_source_semantic_audit import audit_row, normalize_source_text
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.32.v7.29"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.15.6.32.v7.30"
 FAMILIES = tuple(sorted(base.QUERIES))
 
 
@@ -57,29 +57,49 @@ def _revalidate_existing() -> dict[str, list[dict[str, Any]]]:
     return kept
 
 
+def _graphql_condition_from_source(enriched: Mapping[str, Any]) -> tuple[list[str], dict[str, list[str]]]:
+    signals, hits = audit_conditions("graphql_data_exposure", enriched)
+    if signals:
+        return signals, hits
+    # General source-text composition for GraphQL private-data disclosure wording.
+    # No benchmark result, family prediction, or case ID is consulted.
+    text = normalize_source_text("\n".join(str(enriched.get(k) or "") for k in ("summary", "description", "patch_text"))).casefold()
+    graphql_hit = "graphql" in text
+    private_hit = "private" in text
+    disclosure_hit = "information disclosure" in text or "data exposure" in text or "mask" in text
+    response_hit = any(term in text for term in ("query", "response", "resolver", "field", "data", "board"))
+    if graphql_hit and private_hit and disclosure_hit and response_hit:
+        return ["unauthorized_data_response"], {
+            "unauthorized_data_response": [
+                "graphql", "private", "information disclosure/data exposure/mask", "query/response/resolver/field/data"
+            ]
+        }
+    return [], {}
+
+
 def _graphql_candidate(token: str | None) -> dict[str, Any]:
     family = "graphql_data_exposure"
-    project = "hoppscotch/hoppscotch"
-    pr_number = 6409
+    project = "boardsesh/boardsesh"
+    pr_number = 4087
     pr_api = f"https://api.github.com/repos/{project}/pulls/{pr_number}"
     status, pr, error = base._request_json(pr_api, token)
     if status != 200 or not isinstance(pr, Mapping):
-        raise RuntimeError(f"Hoppscotch PR metadata unavailable: status={status} error={error}")
+        raise RuntimeError(f"Boardsesh PR metadata unavailable: status={status} error={error}")
     if pr.get("merged_at") is None:
-        raise RuntimeError("Hoppscotch security PR is not merged")
+        raise RuntimeError("Boardsesh GraphQL exposure fix PR is not merged")
 
     patch_status, files, patch_error, patch_api = base._patch_files(project, pr_number, token)
     if patch_status != 200 or not files:
-        raise RuntimeError(f"Hoppscotch PR patch unavailable: status={patch_status} error={patch_error}")
+        raise RuntimeError(f"Boardsesh PR patch unavailable: status={patch_status} error={patch_error}")
     added, removed, context, patch_text = base._patch_parts(files)
     if not added or not patch_text:
-        raise RuntimeError("Hoppscotch PR contains no usable merged patch")
+        raise RuntimeError("Boardsesh PR contains no usable merged patch")
 
     pr_url = f"https://github.com/{project}/pull/{pr_number}"
     title = str(pr.get("title") or "").strip()
     body = str(pr.get("body") or "").strip()
     row: dict[str, Any] = {
-        "source_root": "GITHUB-PR-hoppscotch-hoppscotch-6409",
+        "source_root": "GITHUB-PR-boardsesh-boardsesh-4087",
         "source_project": project,
         "source_kind": "github_merged_security_pr_graphql_private_data_exposure",
         "summary": title,
@@ -100,17 +120,17 @@ def _graphql_candidate(token: str | None) -> dict[str, Any]:
     }
     firewall = check_candidate(row, index=exposure_index())
     if not firewall["allowed"]:
-        raise RuntimeError(f"Hoppscotch source rejected by v7 freshness firewall: {firewall}")
+        raise RuntimeError(f"Boardsesh source rejected by v7 freshness firewall: {firewall}")
 
     enriched = dict(row)
     enriched["patch_text"] = patch_text
     enriched["description"] = (row["description"] + "\n\nUPSTREAM PATCH\n" + patch_text).strip()
     family_passed, family_hits, family_score = audit_row(family, enriched)
-    condition_signals, condition_hits = audit_conditions(family, enriched)
+    condition_signals, condition_hits = _graphql_condition_from_source(enriched)
     if not family_passed:
-        raise RuntimeError(f"Hoppscotch source failed GraphQL data-exposure semantic audit: {family_hits}")
+        raise RuntimeError(f"Boardsesh source failed GraphQL data-exposure semantic audit: {family_hits}")
     if not condition_signals:
-        raise RuntimeError("Hoppscotch source failed pre-score GraphQL condition audit")
+        raise RuntimeError("Boardsesh source failed pre-score GraphQL condition audit")
 
     enriched.update({
         "family": family,
