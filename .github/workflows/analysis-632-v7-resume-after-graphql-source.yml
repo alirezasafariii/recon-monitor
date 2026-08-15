@@ -1,0 +1,57 @@
+name: Analysis 6.32 v7 Resume After GraphQL Source Fix
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.32-post-blind-calibration
+    paths:
+      - '.github/workflows/analysis-632-v7-resume-after-graphql-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate-and-resume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.32-post-blind-calibration
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate 36th fresh patchable family without scoring
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app/raw_recon_v7_missing5_supplement_v2.py
+          python app/raw_recon_v7_merge_patchable.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          supplement=json.loads(Path('benchmarks/raw/sources/v7_missing5_supplement.json').read_text())
+          merged=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
+          gql=supplement['candidates_by_family']['graphql_data_exposure']
+          assert gql, supplement['diagnostics']['graphql_data_exposure']
+          candidate=gql[0]
+          assert candidate['patch_probe_passed'] is True
+          assert candidate['v7_firewall_allowed'] is True
+          assert candidate['source_family_audit_passed'] is True
+          assert candidate['pre_score_expected_condition_signals']
+          assert int(candidate['patch_added_line_count']) > 0
+          assert merged['patchable_family_count'] == 36, merged['families_without_candidates']
+          assert merged['families_without_candidates'] == []
+          assert merged['candidate_selection_uses_v6_first_blind_score'] is False
+          assert merged['candidate_selection_uses_v6_first_blind_case_errors'] is False
+          assert merged['scoring_executed'] is False
+          print({'graphql_source_root': candidate['source_root'], 'graphql_project': candidate['source_project'], 'conditions': candidate['pre_score_expected_condition_signals'], 'patchable_family_count': merged['patchable_family_count']})
+          PY
+      - name: Dispatch full existing pre-blind pipeline on latest branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run analysis-632-v7-complete-preblind-v3.yml --ref agent/analysis-engine-6.32-post-blind-calibration
+          echo 'Dispatched Analysis 6.32 v7 Complete Pre-Blind v3 on latest branch state.'
