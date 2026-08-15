@@ -20,10 +20,10 @@ from vulnerability_knowledge import BUILTIN_KNOWLEDGE, SPEC_KNOWLEDGE_ERRORS, ta
 
 
 class FinalAnalyzersBflaSsrfSpecTests(unittest.TestCase):
-    def test_registry_covers_three_reference_families_without_drift(self) -> None:
+    def test_registry_covers_migrated_reference_families_without_drift(self) -> None:
         self.assertEqual(
             MIGRATED_FAMILIES,
-            ("broken_object_authorization", "broken_function_authorization", "ssrf"),
+            ("broken_object_authorization", "broken_function_authorization", "ssrf", "sql_injection"),
         )
         self.assertEqual(validate_family_spec_registry(), [])
         self.assertFalse(SPEC_KNOWLEDGE_ERRORS)
