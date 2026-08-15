@@ -1,0 +1,87 @@
+name: Analysis 6.33 V7 Unseen Preblind Evaluation Contract
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-preblind-evaluation-contract.yml'
+      - 'app/v7_preblind_evaluation_contract.py'
+      - 'tests/test_v7_preblind_evaluation_contract.py'
+      - 'benchmarks/raw/sources/v7_human_review_template.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused evaluator-contract guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_preblind_evaluation_contract -q
+      - name: Build frozen pre-blind evaluation contract
+        env: {PYTHONPATH: app}
+        run: python app/v7_preblind_evaluation_contract.py
+      - name: Verify metric, integrity, and lifecycle freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v7_preblind_evaluation_contract.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_preblind_evaluation_contract_report.json').read_text())
+          assert d['version']=='1.0.0'
+          assert d['descriptive_only'] is True
+          assert all(v is None for v in d['performance_thresholds'].values())
+          assert r['performance_threshold_count']==0
+          assert d['v6_scorer_lineage']['version']=='1.0.0'
+          assert d['v6_scorer_lineage']['rule_version']=='2026.08.14.6.31.v6.scorer.1'
+          assert d['v6_scorer_lineage']['engine_output_allowed_as_ground_truth'] is False
+          assert d['v7_metric_contract']['no_top3_metric'] is True
+          metrics=set(d['v7_metric_contract']['evaluated_metrics'])|set(d['v7_metric_contract']['report_only_metrics'])
+          assert 'admission_false_positive_rate' in metrics
+          assert 'admission_false_negative_rate' in metrics
+          assert 'abstention_rate' in metrics
+          assert 'top1_family_accuracy' in metrics
+          assert not any('top3' in x or 'top_3' in x for x in metrics)
+          assert d['ground_truth_contract']['minimum_distinct_human_reviewers']==3
+          assert d['ground_truth_contract']['engine_output_allowed_as_ground_truth'] is False
+          assert d['integrity_gates']['candidate_material_coverage_required']==66
+          assert d['integrity_gates']['review_material_coverage_required']==144
+          assert d['integrity_gates']['human_verified_variant_count_required_before_scoring']==144
+          assert d['integrity_gates']['family_adjudication_required_count']==11
+          assert d['integrity_gates']['scorer_contract_mutation_after_results_allowed'] is False
+          assert d['first_blind_lifecycle']['one_shot'] is True
+          assert d['first_blind_lifecycle']['mark_consumed_on_scoring_start'] is True
+          assert d['first_blind_lifecycle']['v7_reblind_after_tuning_allowed'] is False
+          assert d['first_blind_lifecycle']['fresh_blind_required_after_tuning']=='V8_or_later'
+          assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          assert d['contract_sha256']==r['contract_sha256']
+          print({
+              'evaluated_metrics':d['v7_metric_contract']['evaluated_metrics'],
+              'report_only_metrics':d['v7_metric_contract']['report_only_metrics'],
+              'threshold_count':0,
+              'one_shot':True,
+          })
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze evaluator contract and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_preblind_evaluation_contract.json benchmarks/raw/sources/v7_preblind_evaluation_contract_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 pre-blind evaluation contract'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
