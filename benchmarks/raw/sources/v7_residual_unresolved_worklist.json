@@ -1,0 +1,557 @@
+{
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:29:57.590584+00:00",
+  "cross_variant_mutation_allowed": false,
+  "cumulative_candidate_available_count": 48,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_residual_unresolved_worklist_unscored",
+  "evidence_published": false,
+  "families": [
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-account_enumeration-positive",
+        "v7-account_enumeration-near_miss",
+        "v7-account_enumeration-secure_negative"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "account_enumeration",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_non_commit_boundary_or_upstream_release_artifact_review_same_frozen_source",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--positive.json",
+        "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--near-miss.json",
+        "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--secure-negative.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-jhh7-832h-f8hv",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 0,
+      "third_pass_revision_candidate_count": 0,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss",
+        "positive",
+        "secure_negative"
+      ],
+      "unresolved_item_count": 3
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-broken_function_authorization-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "broken_function_authorization",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 5,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/broken-function-authorization--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "surrealdb/surrealdb",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-8rw6-p7m8-63jp",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 8,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-broken_object_authorization-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "broken_object_authorization",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 1,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/broken-object-authorization--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-x83g-979r-f5fh",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 4,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-command_injection-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "command_injection",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/command-injection--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "sebhildebrandt/systeminformation",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-5xpp-75jx-m839",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 1,
+      "third_pass_revision_candidate_count": 1,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-cors_misconfiguration-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "cors_misconfiguration",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/cors-misconfiguration--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "BishopFox/joro",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-xqhv-chqm-fhcc",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 1,
+      "third_pass_revision_candidate_count": 1,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-exceptional_condition_mishandling-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "exceptional_condition_mishandling",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 5,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/exceptional-condition-mishandling--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "sipsorcery-org/sipsorcery",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-pfvm-w89x-94jw",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 8,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-graphql_authorization-positive",
+        "v7-graphql_authorization-near_miss",
+        "v7-graphql_authorization-secure_negative"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "graphql_authorization",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_non_commit_boundary_or_upstream_release_artifact_review_same_frozen_source",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--positive.json",
+        "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--near-miss.json",
+        "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--secure-negative.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "n8n-io/n8n",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-gq66-9cw5-j5jm",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 0,
+      "third_pass_revision_candidate_count": 0,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss",
+        "positive",
+        "secure_negative"
+      ],
+      "unresolved_item_count": 3
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-graphql_data_exposure-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "graphql_data_exposure",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/graphql-data-exposure--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-qpm9-h556-mwxm",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 2,
+      "third_pass_revision_candidate_count": 2,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-mass_assignment-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "mass_assignment",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/mass-assignment--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "kimai/kimai",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-qh43-xrjm-4ggp",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 3,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-secret_exposure-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "secret_exposure",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 4,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/secret-exposure--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "Roskus/prospero-flow-crm",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-pw58-qr35-gpr4",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 7,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-server_side_template_injection-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "server_side_template_injection",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 3,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/server-side-template-injection--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "getgrav/grav",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-4jrc-qc5x-3wrr",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 6,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-software_data_integrity_failure-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "software_data_integrity_failure",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 0,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/software-data-integrity-failure--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-9pp6-v7j8-j65j",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 2,
+      "third_pass_revision_candidate_count": 2,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-sql_injection-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "sql_injection",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 5,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/sql-injection--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "kubev2v/migration-planner",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-vf2h-7x3w-97fr",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 8,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    },
+    {
+      "automated_searches_attempted": [
+        "identifier_linked_commits_and_prs",
+        "version_tag_boundaries",
+        "advisory_date_window_commits",
+        "release_range_commits",
+        "changed_upstream_test_files",
+        "lexical_same_project_test_search"
+      ],
+      "candidate_semantics_adjudicated": false,
+      "capture_ids": [
+        "v7-unrestricted_resource_consumption-near_miss"
+      ],
+      "cross_variant_mutation_allowed": false,
+      "evidence_published": false,
+      "family": "unrestricted_resource_consumption",
+      "first_blind_consumed": false,
+      "fourth_pass_remaining_revision_candidate_count": 5,
+      "fourth_pass_test_control_candidate_group_count": 0,
+      "human_semantic_decision": null,
+      "recommended_next_route": "manual_same_source_issue_pr_test_example_review_for_independent_near_miss",
+      "required_evidence_paths": [
+        "benchmarks/raw/sources/v7_capture_evidence/unrestricted-resource-consumption--near-miss.json"
+      ],
+      "scoring_executed": false,
+      "source_project": "aws/s2n-quic",
+      "source_replacement_allowed": false,
+      "source_root": "GHSA-9q54-f358-3fqf",
+      "synthetic_fixture_allowed": false,
+      "third_pass_captured_two_sided_pair_count": 3,
+      "third_pass_revision_candidate_count": 8,
+      "third_pass_test_control_candidate_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ],
+      "unresolved_item_count": 1
+    }
+  ],
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "near_miss_count": 14,
+  "positive_count": 2,
+  "publication_authorized": false,
+  "rule_version": "2026.08.15.6.33.v7.unseen.residual.1",
+  "scoring_executed": false,
+  "secure_negative_count": 2,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "synthetic_fixture_allowed": false,
+  "unresolved_family_count": 14,
+  "unresolved_item_count": 18,
+  "version": "1.0.0",
+  "worklist_sha256": "a6cb75567f49be1f0cb77c3110a1d0854109fa202db3a85b162436ed45cdb11b"
+}
