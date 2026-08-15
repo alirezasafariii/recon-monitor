@@ -18,13 +18,13 @@ from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 from v7_unseen_source_snippet_capture import api, file_bytes, hunk_ranges, line_snippet, test_controls
 
-VERSION = "1.0.1"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.capture.2"
+VERSION = "1.0.2"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.capture.3"
 THIRD = ROOT / "benchmarks/raw/sources/v7_third_pass_deep_candidates.json"
 RESOLUTION = ROOT / "benchmarks/raw/sources/v7_second_pass_resolution_queue.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_third_pass_source_snippet_candidates.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_third_pass_source_snippet_candidates_report.json"
-TEST_PATH = re.compile(r"(^|/)(tests?|specs?|__tests__)(/|$)|[^/]*(test|spec)[._-]", re.I)
+TEST_PATH = re.compile(r"(^|/)(tests?|specs?|__tests__)(/|$)|(^|/)(test_[^/]+|[^/]+_(?:test|spec)\.[^/]+|[^/]+\.(?:test|spec)\.[^/]+)$", re.I)
 MAX_PAIRS_PER_FAMILY = 6
 MAX_FILES_PER_PAIR = 10
 MAX_SNIPPETS_PER_SIDE = 28
@@ -104,12 +104,13 @@ def capture_pair(project: str, candidate: Mapping[str, Any], token: str) -> dict
                 if s:
                     fix_snippets.append(s)
                     fix_total += 1
-        controls = test_controls(fix_raw) if TEST_PATH.search(path) else []
+        is_test_path = bool(TEST_PATH.search(path))
+        controls = test_controls(fix_raw) if is_test_path else []
         files.append({
             "filename": path,
             "previous_filename": previous,
             "status": text(item.get("status")),
-            "is_test_path": bool(TEST_PATH.search(path)),
+            "is_test_path": is_test_path,
             "patch_sha256": hashlib.sha256(patch.encode()).hexdigest(),
             "parent_present": parent_raw is not None,
             "fix_present": fix_raw is not None,
