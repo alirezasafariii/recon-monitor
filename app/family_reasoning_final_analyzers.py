@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.0.0"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.3"
+FINAL_ANALYZER_REASONING_VERSION = "1.1.0"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.4"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
@@ -66,3 +66,24 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
         }
     )
     catalog["ssrf"] = ssrf
+
+    dom_xss = dict(catalog["dom_xss"])
+    dom_xss.update(
+        {
+            # Static source/sink structure is discovery context. Promotion into
+            # Potential Findings requires the analyzer-owned runtime condition:
+            # the user-influenced value reached a script-capable DOM/execution
+            # context with effective neutralization explicitly absent.
+            "promotion_required": _groups(
+                {"dataflow_source", "source_sink"},
+                {"dataflow_sink", "source_sink"},
+                {"unsanitized_dom_flow"},
+            ),
+            "blocking_contradictions": frozenset(
+                {"sanitization_observed", "runtime_unreachable"}
+            ),
+            "override_signals": frozenset({"unsanitized_dom_flow"}),
+            "confirmation_required": _groups({"unsanitized_dom_flow"}),
+        }
+    )
+    catalog["dom_xss"] = dom_xss
