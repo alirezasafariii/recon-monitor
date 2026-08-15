@@ -7,7 +7,7 @@ on:
 permissions:
   contents: write
 
-# Triggered only for the controlled migration commit below; removed after verification.
+# Controlled migration/verifier. Projection bound preserves CWE-1295.
 jobs:
   migrate:
     if: github.event.head_commit.message == 'Run exposure family migration'
