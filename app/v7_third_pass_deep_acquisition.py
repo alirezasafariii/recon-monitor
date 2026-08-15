@@ -24,8 +24,8 @@ from typing import Any, Mapping
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.deep.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.deep.2"
 RESOLUTION = ROOT / "benchmarks/raw/sources/v7_second_pass_resolution_queue.json"
 SECOND = ROOT / "benchmarks/raw/sources/v7_second_pass_literal_candidates.json"
 RESEARCH = ROOT / "benchmarks/raw/sources/v7_literal_source_research.json"
@@ -38,8 +38,9 @@ DOC_PATH = re.compile(r"(^|/)(docs?|documentation)(/|$)|(^|/)(readme|changelog|c
 SECURITY_WORDS = re.compile(r"\b(security|vuln|vulnerability|auth|authorization|permission|sanitize|validate|escape|reject|deny|forbid|csrf|xss|sqli|injection|traversal|redirect|ssrf|idor|secret|token|upload)\b", re.I)
 MAX_BODY = 2_000_000
 MAX_WINDOW_COMMITS = 50
-MAX_COMPARE_COMMITS = 24
-MAX_COMMIT_CANDIDATES_PER_FAMILY = 14
+MAX_DATE_SUMMARY_CANDIDATES = 8
+MAX_COMPARE_COMMITS = 12
+MAX_COMMIT_CANDIDATES_PER_FAMILY = 8
 MAX_CODE_SEARCH_TERMS = 2
 MAX_CODE_RESULTS_PER_TERM = 6
 MAX_TEST_BYTES = 1_500_000
@@ -185,7 +186,16 @@ def compare_commit_shas(project: str, old_sha: str, new_sha: str, token: str) ->
     return shas[:MAX_COMPARE_COMMITS]
 
 
-def date_window_shas(project: str, research: Mapping[str, Any], token: str) -> list[str]:
+def summary_matches(message: str, terms: list[str], ids: list[str]) -> bool:
+    haystack = message.casefold()
+    return bool(
+        SECURITY_WORDS.search(message)
+        or any(term.casefold() in haystack for term in terms)
+        or any(ident.casefold() in haystack for ident in ids)
+    )
+
+
+def date_window_shas(project: str, research: Mapping[str, Any], token: str, terms: list[str], ids: list[str]) -> list[str]:
     snapshot = research.get("snapshot_payload") if isinstance(research.get("snapshot_payload"), Mapping) else {}
     anchor = parse_time(snapshot.get("published_at")) or parse_time(snapshot.get("updated_at"))
     if anchor is None:
@@ -199,7 +209,17 @@ def date_window_shas(project: str, research: Mapping[str, Any], token: str) -> l
         return []
     if not isinstance(payload, list):
         return []
-    return [text(x.get("sha")) for x in payload if isinstance(x, Mapping) and text(x.get("sha"))][:MAX_WINDOW_COMMITS]
+    result = []
+    for item in payload:
+        if not isinstance(item, Mapping) or not text(item.get("sha")):
+            continue
+        commit_obj = item.get("commit") if isinstance(item.get("commit"), Mapping) else {}
+        message = text(commit_obj.get("message"))
+        if summary_matches(message, terms, ids):
+            result.append(text(item.get("sha")))
+        if len(result) >= MAX_DATE_SUMMARY_CANDIDATES:
+            break
+    return result
 
 
 def default_branch(project: str, token: str) -> str:
@@ -345,12 +365,12 @@ def main() -> int:
                 if sha not in existing_shas:
                     candidate_basis[sha].add("release_range_commit")
 
-        for sha in date_window_shas(project, research_row, token):
+        for sha in date_window_shas(project, research_row, token, terms, ids):
             if sha not in existing_shas:
                 candidate_basis[sha].add("advisory_date_window")
 
         revision_candidates = []
-        for sha in list(candidate_basis)[:MAX_WINDOW_COMMITS]:
+        for sha in list(candidate_basis):
             row = commit_detail(project, sha, token, "+".join(sorted(candidate_basis[sha])), terms, ids)
             if row is None or not row.get("single_parent_pair_candidate") or int(row.get("source_code_file_count") or 0) <= 0:
                 continue
