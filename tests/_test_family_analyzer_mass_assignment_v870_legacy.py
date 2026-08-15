@@ -121,7 +121,7 @@ class MassAssignmentFamilyAnalyzerV870Tests(unittest.TestCase):
         self.assertEqual(result["family_analyzer"]["confirmation_missing"], [])
         self.assertTrue(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
         refs = {row["id"] for row in result["family_analyzer"]["writeup_patterns"]}
-        self.assertIn("ghsl-wekan-2026-044", refs)
+        self.assertIn("ghsl-liveql-druid-mass-assignment", refs)
         self.assertTrue(all(row["non_evidentiary"] for row in result["family_analyzer"]["writeup_patterns"]))
 
     def test_rejected_ignored_and_allowlisted_properties_are_false_positive_controls(self):
