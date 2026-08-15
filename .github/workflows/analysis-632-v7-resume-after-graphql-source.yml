@@ -27,6 +27,8 @@ jobs:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Revalidate the four already source-grounded patchable families and
+          # fetch only the fresh GraphQL data-exposure advisory/merged patch.
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
@@ -35,7 +37,7 @@ jobs:
           supplement=json.loads(Path('benchmarks/raw/sources/v7_missing5_supplement.json').read_text())
           merged=json.loads(Path('benchmarks/raw/sources/v7_candidates_patchable.json').read_text())
           gql=supplement['candidates_by_family']['graphql_data_exposure']
-          assert gql, supplement['diagnostics']['graphql_data_exposure']
+          assert gql, supplement.get('diagnostics',{})
           candidate=gql[0]
           assert candidate['patch_probe_passed'] is True
           assert candidate['v7_firewall_allowed'] is True
