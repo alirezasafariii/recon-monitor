@@ -49,7 +49,14 @@ jobs:
           set -euo pipefail
           python tools/build_v8_pipeline.py
           PYTHONPATH=app python -m py_compile app/*v8*.py
-          pytest -q tests/test_v8_preblind_regressions.py
+          python - <<'PY'
+          import runpy
+          ns=runpy.run_path('tests/test_v8_preblind_regressions.py')
+          tests=[(name,fn) for name,fn in ns.items() if name.startswith('test_') and callable(fn)]
+          for name,fn in tests:
+              fn();print('PASS',name)
+          assert len(tests)>=3
+          PY
           PYTHONPATH=app python - <<'PY'
           from v8_preblind_contract import inspect_evaluator
           r=inspect_evaluator();print(r);assert r['passed'],r['errors']
