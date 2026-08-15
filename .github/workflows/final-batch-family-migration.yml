@@ -23,7 +23,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re, hashlib
+          import re, hashlib, textwrap
 
           def project(path, import_anchor, start, end, spec_name, family, prefix):
               p=Path(path); t=p.read_text()
@@ -61,6 +61,14 @@ jobs:
           project("app/family_analyzers/file_upload.py","from family_reasoning import FAMILY_REASONING, confirmation_gaps\n","FILE_UPLOAD_TAXONOMY = {","def _normalize","FILE_UPLOAD_SPEC","file_upload","FILE_UPLOAD")
           project("app/family_analyzers/path_traversal.py","from family_reasoning import FAMILY_REASONING, confirmation_gaps\n","PATH_TRAVERSAL_TAXONOMY = {","def _normalize","PATH_TRAVERSAL_SPEC","path_traversal","PATH_TRAVERSAL")
           project("app/family_analyzers/cors_misconfiguration.py","from core import Database\n","CORS_MISCONFIGURATION_TAXONOMY = {","_SENSITIVE_CONTEXTS =","CORS_MISCONFIGURATION_SPEC","cors_misconfiguration","CORS_MISCONFIGURATION")
+
+          # The canonical taxonomy keeps all CWE mappings in one `cwe` list;
+          # update the old compatibility assertion without reintroducing a
+          # second taxonomy shape into runtime code.
+          legacy_path = Path("tests/_test_family_analyzer_path_traversal_v878_legacy.py")
+          legacy_text = legacy_path.read_text()
+          legacy_text = legacy_text.replace('meta["taxonomy"]["related_cwe"]', 'meta["taxonomy"]["cwe"]')
+          legacy_path.write_text(legacy_text)
 
           new='''(
                           "broken_object_authorization",
@@ -130,6 +138,11 @@ jobs:
                       {"type":"upload_operation","source_group":"structure"},
                       {"type":"unsafe_file_accepted","source_group":"controlled"}])
                   self.assertTrue(direct["admitted"])
+                  stronger=assess_admission("file_upload",[
+                      {"type":"file_input","source_group":"structure"},
+                      {"type":"upload_operation","source_group":"structure"},
+                      {"type":"content_type_bypass_observed","source_group":"controlled"}])
+                  self.assertTrue(stronger["admitted"])
                   self.assertEqual(direct["confirmation_required"],[["content_type_bypass_observed","executable_upload_observed"]])
 
               def test_path_traversal_requires_controlled_root_escape(self):
@@ -142,6 +155,11 @@ jobs:
                       {"type":"file_operation","source_group":"structure"},
                       {"type":"path_escape_observed","source_group":"controlled"}])
                   self.assertTrue(direct["admitted"])
+                  stronger=assess_admission("path_traversal",[
+                      {"type":"path_parameter","source_group":"structure"},
+                      {"type":"file_operation","source_group":"structure"},
+                      {"type":"canonicalization_bypass_observed","source_group":"controlled"}])
+                  self.assertTrue(stronger["admitted"])
 
               def test_cors_requires_controlled_unintended_origin(self):
                   surface=assess_admission("cors_misconfiguration",[
@@ -168,8 +186,6 @@ jobs:
           if __name__ == "__main__":
               unittest.main()
           '''
-          # Remove workflow indentation from generated Python test file.
-          import textwrap
           Path("tests/test_final_analyzers_property_file_path_cors_specs.py").write_text(textwrap.dedent(TEST))
 
           m=Path("MANIFEST.sha256")
@@ -199,7 +215,7 @@ jobs:
         run: |
           git config user.name 'Alireza Safari'
           git config user.email '88625680+alirezasafariii@users.noreply.github.com'
-          git add app/family_analyzers/mass_assignment.py app/family_analyzers/file_upload.py app/family_analyzers/path_traversal.py app/family_analyzers/cors_misconfiguration.py tests/test_final_analyzers_property_file_path_cors_specs.py tests/test_final_analyzers_*spec*.py MANIFEST.sha256
+          git add app/family_analyzers/mass_assignment.py app/family_analyzers/file_upload.py app/family_analyzers/path_traversal.py app/family_analyzers/cors_misconfiguration.py tests/_test_family_analyzer_path_traversal_v878_legacy.py tests/test_final_analyzers_property_file_path_cors_specs.py tests/test_final_analyzers_*spec*.py MANIFEST.sha256
           if ! git diff --cached --quiet; then
             git commit -m 'Finalize property file path CORS analyzer migration'
             git push origin HEAD:final-analyzers
