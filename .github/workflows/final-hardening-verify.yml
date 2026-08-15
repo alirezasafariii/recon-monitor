@@ -1,0 +1,28 @@
+name: Final Hardening Verify
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.head_commit.message == 'Verify hardened final analyzers'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
