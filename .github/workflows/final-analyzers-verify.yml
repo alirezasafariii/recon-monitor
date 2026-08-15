@@ -1,0 +1,41 @@
+name: Final Analyzers Verify
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Print changed-file SHA256
+        if: always()
+        shell: bash
+        run: |
+          sha256sum \
+            app/family_analyzers/bfla.py \
+            app/family_analyzers/bola.py \
+            app/family_analyzers/ssrf.py \
+            app/family_reasoning.py \
+            app/family_reasoning_final_analyzers.py \
+            app/family_specs/__init__.py \
+            app/family_specs/base.py \
+            app/family_specs/broken_function_authorization.py \
+            app/family_specs/broken_object_authorization.py \
+            app/family_specs/knowledge_projection.py \
+            app/family_specs/registry.py \
+            app/family_specs/ssrf.py \
+            app/vulnerability_knowledge.py \
+            tests/test_family_analyzer_bfla_v869.py \
+            tests/test_family_analyzer_ssrf_v876.py \
+            tests/test_final_analyzers_bfla_ssrf_specs.py \
+            tests/test_final_analyzers_bola_spec.py
