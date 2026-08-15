@@ -379,5 +379,59 @@ class TemporalWorkflowIntelligenceV964Tests(unittest.TestCase):
             temp.cleanup()
 
 
+    def test_stored_capture_comparison_rejects_cross_case_and_analysis_rebinding(self):
+        temp, _paths, db = self.project()
+        target = "example.test"
+        endpoint = "https://example.test/api/orders/TEST-3"
+        when = "2026-08-14T10:00:00Z"
+        try:
+            for case_id, analysis_id in (("CASE-BIND-A", "BIND-A1"), ("CASE-BIND-B", "BIND-A2")):
+                db.execute(
+                    "INSERT INTO security_cases(case_id,case_key,analysis_id,source_run_id,target,title,summary,primary_family,priority_score,state,assigned_to,scope_status,report_readiness,created_at,updated_at) "
+                    "VALUES(?,?,?,?,?,?,?,?,0,'new','','in_scope',0,?,?)",
+                    (case_id, case_id.lower(), analysis_id, analysis_id + '-R', target, 'Bind test', 'Bind test', 'broken_object_authorization', when, when),
+                )
+            base = {
+                "target": target, "endpoint": endpoint, "resource_id": "TEST-3",
+                "resource_owner_identity": "owner", "status_code": 200, "shape_hash": "shape",
+                "controlled_capture": True, "test_owned": True, "reversible": True,
+            }
+            captures = (
+                ("OBS-BIND-CONTROL", "CASE-BIND-A", "owner"),
+                ("OBS-BIND-PROBE", "CASE-BIND-A", "peer"),
+                ("OBS-BIND-OTHER", "CASE-BIND-B", "peer"),
+            )
+            for observation_id, case_id, identity in captures:
+                db.execute(
+                    "INSERT INTO imported_http_evidence(observation_id,case_id,target,source_type,source_file,observation_json,imported_by,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                    (observation_id, case_id, target, 'controlled_test_capture', observation_id + '.json', json.dumps({**base, 'identity_id': identity}), 'analyst', when),
+                )
+            contract = {
+                "family": "broken_object_authorization", "target": target, "endpoint": endpoint,
+                "expected_relation": "probe_must_be_rejected", "authorization_acknowledged": True,
+                "test_owned": True, "reversible": True, "control_identity": "owner",
+                "probe_identity": "peer", "resource_id": "TEST-3", "resource_owner_identity": "owner",
+            }
+            wrong_analysis = execute_stored_capture_comparison(
+                db, analysis_id="BIND-A2", contract=contract,
+                control_observation_id="OBS-BIND-CONTROL", probe_observation_id="OBS-BIND-PROBE",
+            )
+            self.assertEqual(wrong_analysis["status"], "blocked")
+            self.assertIn("analysis_case_mismatch", wrong_analysis["blocking_reasons"])
+
+            cross_case = execute_stored_capture_comparison(
+                db, analysis_id="BIND-A1", contract=contract,
+                control_observation_id="OBS-BIND-CONTROL", probe_observation_id="OBS-BIND-OTHER",
+            )
+            self.assertEqual(cross_case["status"], "blocked")
+            self.assertIn("capture_case_mismatch", cross_case["blocking_reasons"])
+            self.assertEqual(
+                db.one("SELECT COUNT(*) AS count FROM differential_findings WHERE analysis_id IN ('BIND-A1','BIND-A2')")["count"],
+                0,
+            )
+        finally:
+            db.close(); temp.cleanup()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -34,6 +34,20 @@ class FinalHardeningV889Tests(unittest.TestCase):
         self.assertFalse(public)
         self.assertEqual(addresses, ["93.184.216.34", "127.0.0.1"])
 
+    def test_public_resolution_rejects_shared_cgnat(self) -> None:
+        rows = [(2, 1, 6, "", ("100.64.0.1", 443))]
+        with mock.patch.object(safe_transport.socket, "getaddrinfo", return_value=rows):
+            public, addresses = safe_transport.resolve_public_addresses("example.com", 443)
+        self.assertFalse(public)
+        self.assertEqual(addresses, ["100.64.0.1"])
+
+    def test_public_resolution_rejects_documentation_range(self) -> None:
+        rows = [(2, 1, 6, "", ("192.0.2.1", 443))]
+        with mock.patch.object(safe_transport.socket, "getaddrinfo", return_value=rows):
+            public, addresses = safe_transport.resolve_public_addresses("example.com", 443)
+        self.assertFalse(public)
+        self.assertEqual(addresses, ["192.0.2.1"])
+
     def test_http_connection_uses_pinned_ip_not_hostname(self) -> None:
         connection = safe_transport._PinnedHTTPConnection(
             "example.com",

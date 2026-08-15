@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable
 
-SAFE_TRANSPORT_VERSION = "1.0.0"
+SAFE_TRANSPORT_VERSION = "1.1.0"
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -54,14 +54,11 @@ def resolve_public_addresses(host: str, port: int | None = None) -> tuple[bool, 
             ip = ipaddress.ip_address(address)
         except ValueError:
             return False, addresses
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
+        # Positive allow-list: only globally routable addresses may be
+        # connected. This also rejects shared CGNAT (100.64.0.0/10),
+        # documentation/reserved ranges and future special-purpose space that a
+        # blacklist can miss.
+        if not ip.is_global:
             return False, addresses
     return True, addresses
 

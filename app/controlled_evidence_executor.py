@@ -20,8 +20,8 @@ from core import Database, json_dumps, parse_int, utc_now
 from family_reasoning import validation_level_for_family
 
 
-CONTROLLED_EVIDENCE_EXECUTOR_VERSION = "1.0.0"
-CONTROLLED_EVIDENCE_RULE_VERSION = "2026.08.14.1"
+CONTROLLED_EVIDENCE_EXECUTOR_VERSION = "1.1.0"
+CONTROLLED_EVIDENCE_RULE_VERSION = "2026.08.15.2"
 
 SUCCESS_STATUSES = set(range(200, 300))
 DENY_STATUSES = {401, 403, 404}
@@ -387,7 +387,7 @@ def analyzer_details_from_comparison(result: Mapping[str, Any]) -> dict[str, Any
 
 def _load_imported_observation(db: Database, observation_id: str) -> dict[str, Any]:
     row = db.one(
-        "SELECT observation_id,target,source_type,source_file,observation_json,imported_by,created_at "
+        "SELECT observation_id,case_id,target,source_type,source_file,observation_json,imported_by,created_at "
         "FROM imported_http_evidence WHERE observation_id=?",
         (observation_id,),
     )
@@ -399,7 +399,74 @@ def _load_imported_observation(db: Database, observation_id: str) -> dict[str, A
     result = dict(observation)
     result.setdefault("target", str(row["target"] or ""))
     result.setdefault("source_ref", f"imported_http_evidence:{observation_id}")
+    result["_case_id"] = str(row["case_id"] or "")
+    result["_observation_id"] = str(row["observation_id"] or observation_id)
     return result
+
+
+def _family_id(value: Any) -> str:
+    normalized = "_".join(
+        part for part in __import__("re").split(r"[^a-z0-9]+", str(value or "").strip().lower()) if part
+    )
+    aliases = {
+        "bola": "broken_object_authorization",
+        "bola_idor": "broken_object_authorization",
+        "idor": "broken_object_authorization",
+        "bfla": "broken_function_authorization",
+        "dom_xss": "dom_xss",
+        "cors": "cors_misconfiguration",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _stored_provenance_errors(
+    db: Database,
+    analysis_id: str,
+    contract: Mapping[str, Any],
+    control: Mapping[str, Any],
+    probe: Mapping[str, Any],
+) -> tuple[list[str], str]:
+    errors: list[str] = []
+    control_case = str(control.get("_case_id") or "").strip()
+    probe_case = str(probe.get("_case_id") or "").strip()
+    if not control_case:
+        errors.append("control_case_binding_required")
+    if not probe_case:
+        errors.append("probe_case_binding_required")
+    if control_case and probe_case and control_case != probe_case:
+        errors.append("capture_case_mismatch")
+    case_id = control_case if control_case and control_case == probe_case else ""
+    case = db.one(
+        "SELECT case_id,analysis_id,target,primary_family FROM security_cases WHERE case_id=?",
+        (case_id,),
+    ) if case_id else None
+    if case_id and not case:
+        errors.append("capture_case_not_found")
+    if case:
+        if str(case["analysis_id"] or "") != str(analysis_id or ""):
+            errors.append("analysis_case_mismatch")
+        contract_target = str(contract.get("target") or "").strip()
+        if str(case["target"] or "") != contract_target:
+            errors.append("case_target_mismatch")
+        contract_family = _family_id(contract.get("family"))
+        case_family = _family_id(case["primary_family"])
+        if contract_family and case_family and contract_family != case_family:
+            errors.append("case_family_mismatch")
+
+    contract_target = str(contract.get("target") or "").strip()
+    contract_endpoint = str(contract.get("endpoint") or "").strip()
+    for label, observation in (("control", control), ("probe", probe)):
+        observed_target = str(observation.get("target") or "").strip()
+        observed_endpoint = str(observation.get("endpoint") or observation.get("url") or "").strip()
+        if not observed_target:
+            errors.append(f"{label}_target_required")
+        elif observed_target != contract_target:
+            errors.append(f"{label}_target_mismatch")
+        if not observed_endpoint:
+            errors.append(f"{label}_endpoint_required")
+        elif observed_endpoint != contract_endpoint:
+            errors.append(f"{label}_endpoint_mismatch")
+    return sorted(set(errors)), case_id
 
 
 def execute_stored_capture_comparison(
@@ -430,9 +497,39 @@ def execute_stored_capture_comparison(
             "confirms_vulnerability": False,
         }
 
+    provenance_errors, case_id = _stored_provenance_errors(
+        db, analysis_id, contract, control, probe
+    )
+    if provenance_errors:
+        return {
+            "version": CONTROLLED_EVIDENCE_EXECUTOR_VERSION,
+            "rule_version": CONTROLLED_EVIDENCE_RULE_VERSION,
+            "status": "blocked",
+            "classification": "inconclusive",
+            "family": str(contract.get("family") or ""),
+            "analysis_id": str(analysis_id or ""),
+            "case_id": case_id,
+            "control_observation_id": control_observation_id,
+            "probe_observation_id": probe_observation_id,
+            "blocking_reasons": provenance_errors,
+            "network_requests": False,
+            "changes_admission": False,
+            "confirms_vulnerability": False,
+        }
+
     result = compare_controlled_captures(contract, control, probe)
+    result["analysis_id"] = str(analysis_id or "")
+    result["case_id"] = case_id
     result["control_observation_id"] = control_observation_id
     result["probe_observation_id"] = probe_observation_id
+    if isinstance(result.get("provenance"), dict):
+        result["provenance"].update({
+            "case_id": case_id,
+            "analysis_id": str(analysis_id or ""),
+            "target": str(contract.get("target") or ""),
+            "endpoint": str(contract.get("endpoint") or ""),
+            "stored_capture_binding": "case_analysis_target_endpoint",
+        })
     result["analyzer_details"] = analyzer_details_from_comparison(result)
 
     if persist and str(result.get("status") or "") == "completed":

@@ -23,6 +23,8 @@ from safe_validation import (
     import_burp_xml,
     import_har,
     record_validation_feedback,
+    _classify,
+    _record_validation_evidence,
     validation_detail,
     validation_eligibility,
 )
@@ -128,6 +130,66 @@ class SafeValidationV51Tests(unittest.TestCase):
             stored = json.loads(db.one("SELECT observation_json FROM validation_observations LIMIT 1")["observation_json"])
             self.assertNotIn("body", stored); self.assertFalse(stored["raw_body_stored"])
         finally: db.close(); temp.cleanup()
+
+    def test_candidate_specific_validation_evidence_does_not_cross_link_endpoints(self):
+        temp, paths, db = self.project()
+        try:
+            first = self.add_case(db, case_id="CASE-MAP-1", endpoint="https://example.com/api/account")
+            second = self.add_case(db, case_id="CASE-MAP-2", endpoint="https://example.com/api/profile")
+            db.execute("DELETE FROM security_case_members WHERE case_id='CASE-MAP-2' AND member_id=?", (second,))
+            db.execute(
+                "INSERT INTO security_case_members(case_id,member_type,member_id,relation,metadata_json,created_at) VALUES('CASE-MAP-1','candidate',?,'supports_case','{}',?)",
+                (second, utc_now()),
+            )
+            plan = create_validation_plan(paths, db, "CASE-MAP-1")
+            ownership = {}
+            for request in plan["requests"]:
+                ownership.setdefault(request["url"], set()).update(request.get("candidate_ids") or [])
+            self.assertEqual(ownership["https://example.com/api/account"], {first})
+            self.assertEqual(ownership["https://example.com/api/profile"], {second})
+
+            observations = [
+                {
+                    "candidate_ids": [first], "method": "GET", "url": "https://example.com/api/account",
+                    "status_code": 200, "headers": {}, "sensitive_key_names": ["email"],
+                    "sensitive_pattern_categories": [],
+                },
+                {
+                    "candidate_ids": [second], "method": "GET", "url": "https://example.com/api/profile",
+                    "status_code": 403, "headers": {}, "sensitive_key_names": [],
+                    "sensitive_pattern_categories": [],
+                },
+            ]
+            linked = _record_validation_evidence(db, "CASE-MAP-1", "SVR-MAP", "strengthened", observations)
+            self.assertEqual(linked, 2)
+            rows = db.all(
+                "SELECT l.candidate_id,e.polarity,e.raw_reference FROM candidate_evidence_links l "
+                "JOIN evidence_records e ON e.evidence_id=l.evidence_id "
+                "WHERE e.source_artifact='SVR-MAP' ORDER BY l.candidate_id"
+            )
+            by_candidate = {str(row["candidate_id"]): (str(row["polarity"]), str(row["raw_reference"])) for row in rows}
+            self.assertEqual(by_candidate[first][0], "supports")
+            self.assertEqual(by_candidate[second][0], "contradicts")
+            self.assertIn(first, by_candidate[first][1])
+            self.assertIn(second, by_candidate[second][1])
+        finally:
+            db.close(); temp.cleanup()
+
+    def test_cors_headers_alone_never_strengthen_without_browser_readability(self):
+        wildcard = [{
+            "status_code": 200,
+            "headers": {"access-control-allow-origin": "*", "access-control-allow-credentials": "true"},
+            "sensitive_key_names": ["email"],
+            "sensitive_pattern_categories": [],
+        }]
+        reflected = [{
+            "status_code": 200,
+            "headers": {"access-control-allow-origin": "https://safe-validation.invalid", "access-control-allow-credentials": "true"},
+            "sensitive_key_names": ["email"],
+            "sensitive_pattern_categories": [],
+        }]
+        self.assertEqual(_classify("cors_misconfiguration", wildcard)[0], "inconclusive")
+        self.assertEqual(_classify("cors_misconfiguration", reflected)[0], "inconclusive")
 
     def test_feedback_is_structured_and_audited(self):
         temp, paths, db = self.project()

@@ -31,7 +31,7 @@ from core import (
 )
 from family_reasoning import FAMILY_REASONING, validation_level_for_family
 
-VALIDATION_VERSION = "6.1.0"
+VALIDATION_VERSION = "6.2.0"
 VALIDATION_LEVELS = ["offline", "passive_live", "controlled", "manual_only"]
 PLAN_STATES = ["plan_ready", "awaiting_approval", "approved", "running", "completed", "stopped_for_safety", "failed", "not_eligible"]
 VALIDATION_RESULTS = ["strengthened", "weakened", "inconclusive", "manual_only", "offline_only", "blocked_by_scope", "stopped_for_safety"]
@@ -211,37 +211,48 @@ def _policy_for_target(paths: AppPaths, target: str) -> TargetPolicy | None:
     return None
 
 
-def _candidate_urls(db: Database, target: str, candidates: list[dict[str, Any]]) -> list[str]:
-    found: list[str] = []
+def _candidate_url_targets(db: Database, target: str, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Resolve candidate endpoints while preserving which candidate owns each URL.
+
+    Validation requests are case-scoped, but evidence links are candidate-scoped.
+    Carrying candidate IDs from planning prevents a response for one endpoint
+    from being attached to unrelated candidates that merely share the case.
+    """
+    found: dict[str, set[str]] = {}
     for row in candidates:
+        candidate_id = str(row.get("candidate_id") or "").strip()
         endpoint = str(row.get("endpoint") or "").strip()
         source_ref = str(row.get("source_ref") or "").strip()
         for value in (endpoint, source_ref):
             if not value:
                 continue
             normalized = normalize_url(value)
-            if normalized:
-                found.append(normalized)
-                continue
-            validation = db.one(
-                "SELECT resolved_url FROM endpoint_validations WHERE target=? AND endpoint=? ORDER BY checked_at DESC LIMIT 1",
-                (target, value),
-            )
-            if validation and normalize_url(str(validation["resolved_url"])):
-                found.append(str(validation["resolved_url"]))
-                continue
-            if value.startswith("/") and "{" not in value and "}" not in value:
+            if not normalized:
+                validation = db.one(
+                    "SELECT resolved_url FROM endpoint_validations WHERE target=? AND endpoint=? ORDER BY checked_at DESC LIMIT 1",
+                    (target, value),
+                )
+                if validation:
+                    normalized = normalize_url(str(validation["resolved_url"] or ""))
+            if not normalized and value.startswith("/") and "{" not in value and "}" not in value:
                 normalized = normalize_url(f"https://{target}{value}")
-                if normalized:
-                    found.append(normalized)
-    unique: list[str] = []
-    for value in found:
-        parsed = urllib.parse.urlsplit(value)
-        # Queries are not replayed automatically. This prevents token reuse and side-effect parameters.
-        clean = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/", "", ""))
-        if clean not in unique:
-            unique.append(clean)
-    return unique[:3]
+            if not normalized:
+                continue
+            parsed = urllib.parse.urlsplit(normalized)
+            # Queries are not replayed automatically. This prevents token reuse
+            # and state-changing/sensitive parameters from being re-used.
+            clean = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/", "", ""))
+            if candidate_id:
+                found.setdefault(clean, set()).add(candidate_id)
+    return [
+        {"url": url, "candidate_ids": sorted(candidate_ids)}
+        for url, candidate_ids in list(found.items())[:3]
+    ]
+
+
+def _candidate_urls(db: Database, target: str, candidates: list[dict[str, Any]]) -> list[str]:
+    """Compatibility projection for callers that only need URLs."""
+    return [item["url"] for item in _candidate_url_targets(db, target, candidates)]
 
 
 def _url_safety(url: str, policy: TargetPolicy | None) -> tuple[bool, str]:
@@ -263,24 +274,35 @@ def _url_safety(url: str, policy: TargetPolicy | None) -> tuple[bool, str]:
     return True, "safe"
 
 
-def _request_recipe(family: str, url: str) -> list[dict[str, Any]]:
+def _request_recipe(family: str, url: str, *, candidate_ids: Iterable[str] = ()) -> list[dict[str, Any]]:
     family_id = str(family or "").strip().lower()
+    owners = sorted({str(value) for value in candidate_ids if str(value).strip()})
+
+    def request(method: str, headers: dict[str, str], purpose: str) -> dict[str, Any]:
+        return {
+            "method": method,
+            "url": url,
+            "headers": headers,
+            "purpose": purpose,
+            "candidate_ids": owners,
+        }
+
     if family_id == "cors_misconfiguration" or "cors" in family_id:
         return [
-            {"method": "OPTIONS", "url": url, "headers": {"Origin": SAFE_ORIGIN, "Access-Control-Request-Method": "GET"}, "purpose": "Observe preflight policy"},
-            {"method": "GET", "url": url, "headers": {"Origin": SAFE_ORIGIN}, "purpose": "Observe CORS response headers"},
+            request("OPTIONS", {"Origin": SAFE_ORIGIN, "Access-Control-Request-Method": "GET"}, "Observe preflight policy"),
+            request("GET", {"Origin": SAFE_ORIGIN}, "Observe CORS response headers"),
         ]
     if family_id == "source_map_exposure" or "source map" in family_id or url.endswith(".map"):
-        return [{"method": "GET", "url": url, "headers": {}, "purpose": "Presence and metadata check only"}]
+        return [request("GET", {}, "Presence and metadata check only")]
     if family_id == "open_redirect" or "redirect" in family_id:
-        return [{"method": "GET", "url": url, "headers": {}, "purpose": "Inspect Location without following redirect"}]
+        return [request("GET", {}, "Inspect Location without following redirect")]
     if family_id == "authentication_session" or "authentication" in family_id or "session" in family_id:
-        return [{"method": "GET", "url": url, "headers": {}, "purpose": "Anonymous boundary observation"}]
+        return [request("GET", {}, "Anonymous boundary observation")]
     if family_id == "sensitive_caching" or "cache" in family_id or "caching" in family_id:
-        return [{"method": "GET", "url": url, "headers": {}, "purpose": "Observe cache directives and redacted response shape"}]
+        return [request("GET", {}, "Observe cache directives and redacted response shape")]
     return [
-        {"method": "HEAD", "url": url, "headers": {}, "purpose": "Reachability and response metadata"},
-        {"method": "GET", "url": url, "headers": {}, "purpose": "Redacted response-shape observation"},
+        request("HEAD", {}, "Reachability and response metadata"),
+        request("GET", {}, "Redacted response-shape observation"),
     ]
 
 
@@ -302,20 +324,31 @@ def create_validation_plan(paths: AppPaths, db: Database, case_id: str, *, reque
     if level not in allowed_levels.get(recommended, {recommended}):
         raise ReconError(f"Requested level {level} is less restrictive than required level {recommended}")
     policy = _policy_for_target(paths, str(case["target"]))
-    urls = _candidate_urls(db, str(case["target"]), candidates)
-    safe_urls: list[str] = []
-    blocked: list[dict[str, str]] = []
-    for url in urls:
+    targets = _candidate_url_targets(db, str(case["target"]), candidates)
+    safe_targets: list[dict[str, Any]] = []
+    blocked: list[dict[str, Any]] = []
+    for target_item in targets:
+        url = str(target_item.get("url") or "")
         allowed, reason = _url_safety(url, policy)
         if allowed:
-            safe_urls.append(url)
+            safe_targets.append(target_item)
         else:
-            blocked.append({"url": url, "reason": reason})
+            blocked.append({
+                "url": url,
+                "reason": reason,
+                "candidate_ids": list(target_item.get("candidate_ids") or []),
+            })
     family = str(eligibility.get("canonical_family") or "") or _family_text(case, candidates)
     requests: list[dict[str, Any]] = []
     if level == "passive_live":
-        for url in safe_urls:
-            requests.extend(_request_recipe(family, url))
+        for target_item in safe_targets:
+            requests.extend(
+                _request_recipe(
+                    family,
+                    str(target_item["url"]),
+                    candidate_ids=target_item.get("candidate_ids") or (),
+                )
+            )
             if len(requests) >= MAX_REQUESTS:
                 break
         requests = requests[:MAX_REQUESTS]
@@ -389,7 +422,7 @@ def _public_resolution(host: str) -> tuple[bool, list[str]]:
             ip = ipaddress.ip_address(address)
         except ValueError:
             return False, addresses
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+        if not ip.is_global:
             return False, addresses
     return bool(addresses), addresses
 
@@ -515,12 +548,39 @@ def _classify(primary_family: str, observations: list[dict[str, Any]]) -> tuple[
     sensitive = sorted({item for row in observations for item in row.get("sensitive_key_names", [])})
     patterns = sorted({item for row in observations for item in row.get("sensitive_pattern_categories", [])})
     if "cors" in family:
+        permissive_reasons: list[str] = []
+        explicit_other_origin = False
+        successful_response = False
         for row in observations:
-            origin = str(row.get("headers", {}).get("access-control-allow-origin", ""))
-            credentials = str(row.get("headers", {}).get("access-control-allow-credentials", "")).lower() == "true"
-            if origin in {"*", SAFE_ORIGIN} and credentials:
-                return "strengthened", ["Origin policy is permissive while credentials are allowed; data availability was not proven."]
-        return "weakened", ["The bounded observations did not show a permissive credentialed CORS combination."]
+            status = parse_int(row.get("status_code"), 0)
+            successful_response = successful_response or 200 <= status <= 399
+            origin = str(row.get("headers", {}).get("access-control-allow-origin", "")).strip()
+            credentials = str(row.get("headers", {}).get("access-control-allow-credentials", "")).strip().lower() == "true"
+            if origin == "*":
+                if credentials:
+                    permissive_reasons.append(
+                        "Wildcard ACAO and a credentials header were observed, but wildcard ACAO is not proof of a credentialed browser-readable response."
+                    )
+                else:
+                    permissive_reasons.append(
+                        "Wildcard ACAO was observed; this is policy surface and does not establish sensitive browser readability."
+                    )
+            elif origin == SAFE_ORIGIN:
+                permissive_reasons.append(
+                    "The controlled validation Origin was allowed by the response policy"
+                    + (" with ACAC=true." if credentials else ".")
+                )
+            elif origin:
+                explicit_other_origin = True
+        if permissive_reasons:
+            return "inconclusive", permissive_reasons + [
+                "Safe Validation does not send credentials or execute a browser cross-origin read; confirmation requires stored controlled-origin/browser readability evidence."
+            ]
+        if explicit_other_origin or successful_response:
+            return "weakened", [
+                "The bounded response did not grant CORS access to the controlled validation Origin; this weakens but does not disprove other-origin misconfiguration."
+            ]
+        return "inconclusive", ["No decisive CORS policy behavior was observed in the bounded request."]
     if "redirect" in family:
         if any(row.get("redirect_outside_scope") for row in observations):
             return "strengthened", ["A redirect Location outside the authorized scope was observed without following it."]
@@ -559,20 +619,60 @@ def _classify(primary_family: str, observations: list[dict[str, Any]]) -> tuple[
 
 def _record_validation_evidence(db: Database, case_id: str, run_id: str, result: str, observations: list[dict[str, Any]]) -> int:
     _, candidates = _case(db, case_id)
-    polarity = "supports" if result == "strengthened" else "contradicts" if result == "weakened" else "unknown"
     count = 0
+    has_explicit_ownership = any(
+        row.get("candidate_id") or row.get("candidate_ids")
+        for row in observations
+    )
     for candidate in candidates:
-        root = sha256_text(json_dumps({"run_id": run_id, "candidate_id": candidate["candidate_id"], "observations": observations}))
+        candidate_id = str(candidate["candidate_id"])
+        matched = [
+            row
+            for row in observations
+            if candidate_id == str(row.get("candidate_id") or "")
+            or candidate_id in {str(value) for value in row.get("candidate_ids", [])}
+        ]
+        # Backward compatibility for a single-candidate case only. Multi-candidate
+        # cases must carry explicit ownership from plan/request provenance.
+        if not matched and len(candidates) == 1 and not has_explicit_ownership:
+            matched = list(observations)
+        if not matched:
+            continue
+
+        explicit_results = {
+            str(row.get("validation_result") or "")
+            for row in matched
+            if str(row.get("validation_result") or "")
+        }
+        if len(explicit_results) == 1:
+            candidate_result = next(iter(explicit_results))
+        elif any(row.get("method") or row.get("url") for row in matched):
+            candidate_result, _ = _classify(str(candidate.get("bug_family") or ""), matched)
+        else:
+            candidate_result = result
+        polarity = (
+            "supports" if candidate_result == "strengthened"
+            else "contradicts" if candidate_result == "weakened"
+            else "unknown"
+        )
+        root = sha256_text(json_dumps({
+            "run_id": run_id,
+            "candidate_id": candidate_id,
+            "observations": matched,
+        }))
         evidence_id = "EVD-" + root[:16].upper()
-        summary = f"Safe validation result {result}; raw response bodies were not stored."
+        summary = (
+            f"Candidate-scoped Safe Validation result {candidate_result}; "
+            "raw response bodies were not stored."
+        )
         now = utc_now()
         db.execute(
             "INSERT OR REPLACE INTO evidence_records(evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,parser_name,parser_version,source_group,root_fingerprint,trust_score,observation_quality,directness,summary,raw_reference,integrity_hash,first_seen,last_seen,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (evidence_id, candidate["analysis_id"], candidate["source_run_id"], candidate["target"], "safe_validation", polarity, "live_observation", "recon-monitor-safe-validation", run_id, "safe_validation", VALIDATION_VERSION, f"safe_validation:{run_id}", root, 85, 85, "direct", summary, f"validation_run:{run_id}", root, now, now, now),
+            (evidence_id, candidate["analysis_id"], candidate["source_run_id"], candidate["target"], "safe_validation", polarity, "live_observation", "recon-monitor-safe-validation", run_id, "safe_validation", VALIDATION_VERSION, f"safe_validation:{run_id}:{candidate_id}", root, 85, 85, "direct", summary, f"validation_run:{run_id};candidate:{candidate_id}", root, now, now, now),
         )
         db.execute(
             "INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)",
-            (candidate["candidate_id"], evidence_id, polarity, 80, "safe_validation_result", now),
+            (candidate_id, evidence_id, polarity, 80, "safe_validation_result", now),
         )
         count += 1
     return count
@@ -581,11 +681,12 @@ def _record_validation_evidence(db: Database, case_id: str, run_id: str, result:
 def _offline_validate(db: Database, case_id: str) -> tuple[str, list[dict[str, Any]], list[str]]:
     _, candidates = _case(db, case_id)
     observations: list[dict[str, Any]] = []
-    roots: set[str] = set()
-    direct = 0
-    static_only = 0
-    contradictions = 0
+    candidate_results: list[str] = []
     for candidate in candidates:
+        roots: set[str] = set()
+        direct = 0
+        static_only = 0
+        contradictions = 0
         rows = db.all(
             "SELECT e.root_fingerprint,e.directness,e.polarity,e.source_kind,e.integrity_hash,e.summary FROM candidate_evidence_links l JOIN evidence_records e ON e.evidence_id=l.evidence_id WHERE l.candidate_id=?",
             (candidate["candidate_id"],),
@@ -595,19 +696,30 @@ def _offline_validate(db: Database, case_id: str) -> tuple[str, list[dict[str, A
             direct += 1 if str(row["directness"]) == "direct" else 0
             static_only += 1 if str(row["source_kind"]) in {"javascript", "source_map", "static_inference"} else 0
             contradictions += 1 if str(row["polarity"]) == "contradicts" else 0
-    observations.append({
-        "check": "evidence_lineage",
-        "independent_roots": len(roots),
-        "direct_observations": direct,
-        "static_only_observations": static_only,
-        "contradictions": contradictions,
-        "raw_body_stored": False,
-    })
-    if len(roots) >= 2 and direct >= 1 and contradictions == 0:
-        return "strengthened", observations, ["At least two independent evidence roots and one direct observation were verified offline."]
-    if roots and static_only >= max(1, len(roots)) and direct == 0:
-        return "weakened", observations, ["The candidate currently relies on static/inferred evidence without a direct observation."]
-    return "inconclusive", observations, ["Offline provenance checks completed, but the evidence mix was not decisive."]
+        if len(roots) >= 2 and direct >= 1 and contradictions == 0:
+            candidate_result = "strengthened"
+        elif roots and static_only >= max(1, len(roots)) and direct == 0:
+            candidate_result = "weakened"
+        else:
+            candidate_result = "inconclusive"
+        candidate_results.append(candidate_result)
+        observations.append({
+            "check": "evidence_lineage",
+            "candidate_id": str(candidate["candidate_id"]),
+            "candidate_ids": [str(candidate["candidate_id"])],
+            "candidate_endpoint": str(candidate.get("endpoint") or ""),
+            "validation_result": candidate_result,
+            "independent_roots": len(roots),
+            "direct_observations": direct,
+            "static_only_observations": static_only,
+            "contradictions": contradictions,
+            "raw_body_stored": False,
+        })
+    if "strengthened" in candidate_results:
+        return "strengthened", observations, ["At least one candidate has two independent roots, direct evidence and no contradiction; each evidence link remains candidate-scoped."]
+    if candidate_results and all(value == "weakened" for value in candidate_results):
+        return "weakened", observations, ["All candidate-scoped offline checks rely on static/inferred evidence without direct observation."]
+    return "inconclusive", observations, ["Candidate-scoped offline provenance checks completed, but the evidence mix was not decisive."]
 
 
 
@@ -680,6 +792,10 @@ def execute_validation_plan(paths: AppPaths, config: Config, db: Database, plan_
                 break
             observation, state = _perform_request(item, policy)
             observation["sequence"] = index + 1
+            observation["candidate_ids"] = sorted({
+                str(value) for value in item.get("candidate_ids", []) if str(value).strip()
+            })
+            observation["request_purpose"] = str(item.get("purpose") or "")
             observations.append(observation)
             db.execute("INSERT INTO validation_observations(run_id,sequence,method,url,status_code,observation_json,created_at) VALUES(?,?,?,?,?,?,?)", (run_id, index + 1, observation["method"], observation["url"], observation["status_code"], json_dumps(observation), utc_now()))
             status = parse_int(observation.get("status_code"), 0)
