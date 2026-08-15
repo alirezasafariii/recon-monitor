@@ -5,7 +5,7 @@ from .base import FamilyStandardSpec, MethodologyStep, WriteupLesson
 
 MASS_ASSIGNMENT_STANDARD_SPEC = FamilyStandardSpec(
     family="mass_assignment",
-    version="1.0.0",
+    version="1.0.1",
     strategy="object_property_authorization_boundary",
     principle=(
         "Sensitive-looking writable properties are attack-surface clues only; promotion requires "
@@ -22,7 +22,7 @@ MASS_ASSIGNMENT_STANDARD_SPEC = FamilyStandardSpec(
     methodology=(
         MethodologyStep(
             id="MA-01-property-surface",
-            basis=("API3:2023", "WSTG-INPV-20", "CWE-915"),
+            basis=("OWASP API3:2023", "WSTG-INPV-20", "CWE-915"),
             principle="Identify client-controlled write operations exposing security-sensitive properties; names alone are only surface evidence.",
         ),
         MethodologyStep(
@@ -32,7 +32,7 @@ MASS_ASSIGNMENT_STANDARD_SPEC = FamilyStandardSpec(
         ),
         MethodologyStep(
             id="MA-03-property-authorization",
-            basis=("API3:2023", "CWE-915"),
+            basis=("OWASP API3:2023", "CWE-915"),
             principle="Separate property-level authorization from object ownership and function permission; determine whether this caller may modify this exact property.",
         ),
         MethodologyStep(
@@ -42,7 +42,7 @@ MASS_ASSIGNMENT_STANDARD_SPEC = FamilyStandardSpec(
         ),
         MethodologyStep(
             id="MA-05-falsification",
-            basis=("API3:2023", "CWE-915"),
+            basis=("OWASP API3:2023", "CWE-915"),
             principle="Treat rejection, ignored protected fields, and enforced server writable-field allow-lists as contradiction evidence.",
         ),
     ),
@@ -69,6 +69,18 @@ MASS_ASSIGNMENT_STANDARD_SPEC = FamilyStandardSpec(
                 "when a client can read or change a sensitive property outside the caller's property policy."
             ),
             signal_hints=("privileged_property", "protected_property_accepted", "protected_property_mutated", "property_authorization_differential"),
+        ),
+        WriteupLesson(
+            id="owasp-wstg-inpv-20-mass-assignment",
+            source="OWASP WSTG",
+            ref="WSTG-INPV-20 / Testing for Mass Assignment",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/20-Testing_for_Mass_Assignment",
+            relation="canonical_testing_method",
+            lesson=(
+                "Mass-assignment testing compares exposed object properties with the server's intended writable-property contract. "
+                "The test methodology guides evidence collection but is never evidence about a target."
+            ),
+            signal_hints=("privileged_property", "body_schema", "protected_property_accepted", "server_allowlist_observed"),
         ),
         WriteupLesson(
             id="ghsl-liveql-druid-mass-assignment",
