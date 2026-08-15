@@ -1,0 +1,73 @@
+name: Analysis 6.33 V7 Unseen Human Review Contract
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-human-review-contract.yml'
+      - 'app/v7_human_review_contract.py'
+      - 'tests/test_v7_human_review_contract.py'
+      - 'benchmarks/raw/sources/v7_semantic_review_packet_v2.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused human-review-contract guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_human_review_contract -q
+      - name: Build blank independent human review template
+        env: {PYTHONPATH: app}
+        run: python app/v7_human_review_contract.py
+      - name: Validate blank contract structure and firewall
+        env: {PYTHONPATH: app}
+        run: |
+          python app/v7_human_review_contract.py --validate benchmarks/raw/sources/v7_human_review_template.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v7_human_review_template.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_human_review_template_report.json').read_text())
+          assert d['family_count']==36 and d['variant_count']==144
+          assert d['family_adjudication_required_count']==11
+          assert d['review_protocol']['required_unique_human_reviewers']==3
+          assert d['review_protocol']['primary_reviews_per_variant']==2
+          assert d['review_protocol']['tie_breaker_required_on_disagreement'] is True
+          assert d['review_protocol']['engine_output_allowed_as_evidence'] is False
+          assert {s:x['family_count'] for s,x in d['reviewer_load'].items()}=={'reviewer_a':24,'reviewer_b':24,'reviewer_c':24}
+          assert all(x['variant_count']==96 for x in d['reviewer_load'].values())
+          assert all(x['actual_reviewer_id'] is None for x in d['reviewers'].values())
+          assert all(x['reviewer_attestation'] is None for x in d['reviewers'].values())
+          assert d['human_review_started'] is False and d['human_review_complete'] is False
+          assert d['human_verified_record_count']==0
+          assert d['semantic_adjudication_complete'] is False
+          assert d['evidence_published'] is False and d['publication_authorized'] is False
+          assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          assert r['family_count']==36 and r['variant_count']==144
+          print({'reviewer_load':d['reviewer_load'],'family_adjudication_required_count':11})
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze human review template and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_human_review_template.json benchmarks/raw/sources/v7_human_review_template_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 independent human review template'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
