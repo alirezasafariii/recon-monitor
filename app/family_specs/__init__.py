@@ -10,6 +10,8 @@ from .broken_function_authorization import BFLA_STANDARD_SPEC
 from .broken_object_authorization import BOLA_STANDARD_SPEC
 from .knowledge_projection import (
     KNOWLEDGE_PROJECTION_VERSION,
+    family_knowledge_projection,
+    standard_knowledge_projection,
     taxonomy_projection,
     validate_knowledge_projection,
     writeup_knowledge_projection,
