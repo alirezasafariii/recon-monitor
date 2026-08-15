@@ -4,8 +4,8 @@ from typing import Any, Mapping
 
 from family_detectors.registry import DETECTOR_SPECS
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.6"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.32.v7.7"
 
 # Pre-score source-text label anchors. These are generic proof phrases derived
 # from the family security contracts and research lessons. They are not detector
@@ -93,7 +93,9 @@ CONDITION_ANCHORS: dict[str, dict[str, tuple[str, ...]]] = {
     "graphql_data_exposure": {
         "unauthorized_data_response": (
             "graphql data exposure", "graphql information disclosure", "sensitive graphql data",
-            "unauthorized graphql data", "graphql response exposes",
+            "unauthorized graphql data", "graphql response exposes", "private data exposure",
+            "cross-user private data exposure", "cross user private data exposure",
+            "private field over-exposure", "private field over exposure",
         ),
     },
     "improper_inventory_management": {
@@ -258,31 +260,25 @@ CONDITION_ANCHORS: dict[str, dict[str, tuple[str, ...]]] = {
         ),
         "channel_authorization_failure": (
             "websocket authorization", "socket authorization", "channel authorization", "unauthorized message",
-            "websocket access control",
         ),
     },
 }
 
 
-def _source_text(row: Mapping[str, Any]) -> str:
-    pieces = [
-        str(row.get("summary") or ""),
-        str(row.get("description") or ""),
-        str(row.get("patch_text") or ""),
-    ]
-    return "\n".join(pieces).casefold()
-
-
 def audit_conditions(family: str, row: Mapping[str, Any]) -> tuple[list[str], dict[str, list[str]]]:
-    if family not in CONDITION_ANCHORS:
-        raise KeyError(f"unknown v7 condition-audit family: {family}")
+    if family not in DETECTOR_SPECS:
+        raise KeyError(f"unknown family: {family}")
+    text = "\n".join(
+        str(row.get(key) or "")
+        for key in ("summary", "description", "patch_text")
+    ).casefold()
+    anchors = CONDITION_ANCHORS.get(family, {})
     allowed = set(DETECTOR_SPECS[family].condition_signals)
-    text = _source_text(row)
-    hits: dict[str, list[str]] = {}
     signals: list[str] = []
-    for signal, phrases in CONDITION_ANCHORS[family].items():
+    hits: dict[str, list[str]] = {}
+    for signal, phrases in anchors.items():
         if signal not in allowed:
-            continue
+            raise RuntimeError(f"condition audit signal is not canonical for {family}: {signal}")
         matched = sorted({phrase for phrase in phrases if phrase.casefold() in text})
         if matched:
             signals.append(signal)
@@ -290,20 +286,4 @@ def audit_conditions(family: str, row: Mapping[str, Any]) -> tuple[list[str], di
     return sorted(signals), hits
 
 
-def validate_registry() -> list[str]:
-    errors: list[str] = []
-    if set(CONDITION_ANCHORS) != set(DETECTOR_SPECS):
-        errors.append("family coverage mismatch")
-    for family, mapping in CONDITION_ANCHORS.items():
-        allowed = set(DETECTOR_SPECS[family].condition_signals)
-        invalid = sorted(set(mapping) - allowed)
-        if invalid:
-            errors.append(f"{family}: invalid condition anchors {invalid}")
-        if not mapping:
-            errors.append(f"{family}: empty condition anchor map")
-    return errors
-
-
-_ERRORS = validate_registry()
-if _ERRORS:
-    raise RuntimeError("v7 pre-score condition audit registry invalid: " + "; ".join(_ERRORS))
+__all__ = ["VERSION", "RULE_VERSION", "CONDITION_ANCHORS", "audit_conditions"]
