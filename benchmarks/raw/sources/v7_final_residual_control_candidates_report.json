@@ -1,0 +1,28 @@
+{
+  "candidate_count": 2,
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:48:19.592549+00:00",
+  "cross_variant_mutation_allowed": false,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_final_residual_sibling_control_candidates_unscored",
+  "evidence_published": false,
+  "families": [
+    "command_injection",
+    "cors_misconfiguration"
+  ],
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "publication_authorized": false,
+  "residual_input_count": 2,
+  "rule_version": "2026.08.15.6.33.v7.unseen.final-residual-control.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "synthetic_fixture_allowed": false,
+  "synthetic_fixture_used": false,
+  "target_contact_performed": false,
+  "third_party_code_executed": false,
+  "version": "1.0.0"
+}
