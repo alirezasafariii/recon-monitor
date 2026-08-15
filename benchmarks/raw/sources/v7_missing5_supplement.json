@@ -498,6 +498,7 @@
           "https://github.com/Tapetide-hq/agentdraft/pull/33"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -571,6 +572,7 @@
           "https://github.com/Fryrocket/armband-ai/pull/1"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -1483,6 +1485,7 @@
           "https://github.com/Dileepadari/CanteenX/pull/4"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -1915,6 +1918,7 @@
           "https://github.com/bcrave/language-learning-marketplace/pull/63"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -1943,7 +1947,306 @@
         "v7_firewall_allowed": true
       }
     ],
-    "graphql_data_exposure": [],
+    "graphql_data_exposure": [
+      {
+        "active_target_validation_performed": false,
+        "advisory_source_type": "upstream_pr",
+        "canonical_advisory_url": "https://github.com/boardsesh/boardsesh/pull/4087",
+        "description": "fix(web): authenticate private board slug lookups\n\n## Summary\n\n- forward the signed-in server token when resolving board slugs\n- keep authenticated private-board responses out of shared caches while retaining short anonymous public-board revalidation\n- mask private boards from anonymous slug lookups without breaking signed-in owner or non-owner links\n- cover both authenticated/anonymous request orders and the complete board visibility matrix\n\nFollow-up to #3648 and #4086.\n\n## Validation\n\n- independent security re-review approved `c3805bc8243e0577465773bdc4eea9dde5b5151d`\n- web regression tests: 5 passed\n- backend board resolver tests: 24 passed\n- backend typecheck passed\n- scoped `vp check` and `git diff --check` passed\n\n## Release Notes\n\nPrivate board links now keep working when you are signed in without exposing the board to signed-out visitors.\n\nUPSTREAM PATCH\nFILE packages/backend/src/__tests__/anon-entity-masking.test.ts\n@@ -20,8 +20,9 @@ import { SYSTEM_BOARD_OWNER_ID } from '../graphql/resolvers/board-presence/share\n  *    requireAnonReadableBoard and the board-presence family \u2014 a signed-in\n  *    climber still resolves a gym's private board by uuid (BLE connect flow,\n  *    boardsBySerialNumbers).\n- *  - boardBySlug is NOT masked at all (the anonymous, shared-cached /b/{slug}\n- *    web surface has no token path); pinned so the exclusion stays deliberate.\n+ *  - boardBySlug uses the same anonymous-only mask. The server-rendered web\n+ *    lookup forwards a signed-in user's token and keeps that response out of\n+ *    the shared cache, so private direct links still work without leaking.\n  *\n  * Masking is expressed as `null` rather than a thrown NOT_FOUND because these\n  * SDL fields are nullable \u2014 `null` already means \"no such entity\", so it is the\n@@ -270,16 +271,38 @@ describe('board(boardUuid) anonymous masking', () => {\n });\n \n // ============================================================================\n-// boardBySlug \u2014 deliberately NOT masked\n+// boardBySlug \u2014 same anonymous-only mask as board(boardUuid)\n // ============================================================================\n \n-describe('boardBySlug is deliberately not anon-masked', () => {\n-  it('still enriches a PRIVATE board for an anonymous caller', async () => {\n-    // Accepted residual exposure (#3648): /b/{slug} resolves through an\n-    // anonymous, cross-user cached fetch with no token path, so masking here\n-    // would 404 a private board's own owner on their own pages.\n-    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());\n+describe('boardBySlug anonymous masking', () => {\n+  it('masks a PRIVATE board identically to a board that does not exist', async () => {\n+    const missing = await socialBoardQueries.boardBySlug(null, { slug: uuidv4() }, anonCtx());\n+    const privateResult = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());\n+\n+    expect(privateResult).toEqual(missing);\n+    expect(privateResult).toBeNull();\n+  });\n+\n+  it.each([\n+    ['PUBLIC', () => publicBoard, 'Public Wall'],\n+    ['UNLISTED but public', () => unlistedBoard, 'Unlisted Wall'],\n+    ['non-public SYSTEM-owned', () => systemPrivateBoard, 'Shared MoonBoard Config'],\n+  ] as const)('keeps a %s board readable anonymously', async (_label, getBoard, expectedName) => {\n+    const board = getBoard();\n+    const result = await socialBoardQueries.boardBySlug(null, { slug: board.slug }, anonCtx());\n+    expect(result?.name).toBe(expectedName);\n+  });\n+\n+  it('returns a PRIVATE board to its owner', async () => {\n+    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(OWNER));\n     expect(board?.name).toBe('Private Wall');\n+    expect(board?.canEdit).toBe(true);\n+  });\n+\n+  it('returns a PRIVATE board to an authenticated non-owner', async () => {\n+    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(STRANGER));\n+    expect(board?.name).toBe('Private Wall');\n+    expect(board?.boardId).toBeNull();\n   });\n });\n \nFILE packages/backend/src/graphql/resolvers/social/boards.ts\n@@ -802,14 +802,9 @@ export const socialBoardQueries = {\n   /**\n    * Get a board by slug (for URL routing).\n    *\n-   * INTENTIONALLY NOT anon-masked, unlike `board(boardUuid)` above. This read\n-   * backs the entire `/b/{slug}/**` web surface through\n-   * `packages/web/app/lib/board-slug-utils.ts`, whose fetch is anonymous by\n-   * construction \u2014 no token path at all, and a cross-user `revalidate: 300`\n-   * shared cache that could never hold a per-viewer result. Masking here would\n-   * 404 every private board's own OWNER on their own board pages. Accepted\n-   * residual exposure (a private board's name is disclosable to a slug holder)\n-   * until the end-of-life web climbing surface goes away. See #3648.\n+   * This follows the same anonymous-only mask as `board(boardUuid)`: direct\n+   * private-board links keep working for signed-in climbers, while anonymous\n+   * requests cannot disclose a private board through the shared web cache.\n    */\n   boardBySlug: async (_: unknown, { slug }: { slug: string }, ctx: ConnectionContext) => {\n     // Validate slug format: lowercase alphanumeric with hyphens, max 120 chars\n@@ -824,7 +819,9 @@ export const socialBoardQueries = {\n       .limit(1);\n \n     if (!board) return null;\n-    return enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined);\n+    const viewerId = ctx.isAuthenticated ? ctx.userId : undefined;\n+    if (!viewerId && !isRowAnonReadable(board)) return null;\n+    return enrichBoard(board, viewerId);\n   },\n \n   /**\nFILE packages/web/app/lib/__tests__/board-slug-utils.test.ts\n@@ -0,0 +1,136 @@\n+// @vitest-environment node\n+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';\n+\n+const { fetchMock, getServerAuthTokenMock } = vi.hoisted(() => ({\n+  fetchMock: vi.fn<typeof fetch>(),\n+  getServerAuthTokenMock: vi.fn<() => Promise<string | undefined>>(),\n+}));\n+\n+vi.mock('server-only', () => ({}));\n+\n+vi.mock('react', () => ({\n+  // React cache is request-scoped in Server Components. Keep the unit under\n+  // test directly callable so separate invocations can model separate requests.\n+  cache: <CachedFunction extends (...args: never[]) => unknown>(fn: CachedFunction): CachedFunction => fn,\n+}));\n+\n+vi.mock('@/app/lib/auth/server-auth', () => ({\n+  getServerAuthToken: getServerAuthTokenMock,\n+}));\n+\n+vi.mock('@/app/lib/graphql/client', () => ({\n+  getGraphQLHttpUrl: () => 'http://backend.test/graphql',\n+}));\n+\n+vi.stubGlobal('fetch', fetchMock);\n+\n+import { resolveBoardBySlug, type ResolvedBoard } from '../board-slug-utils';\n+\n+const publicBoard: ResolvedBoard = {\n+  uuid: '11111111-1111-4111-8111-111111111111',\n+  slug: 'community-wall',\n+  boardType: 'kilter',\n+  layoutId: 1,\n+  sizeId: 10,\n+  setIds: '1,20',\n+  name: 'Community Wall',\n+  description: null,\n+  locationName: null,\n+  isPublic: true,\n+  isOwned: true,\n+  ownerId: 'owner-1',\n+  angle: 40,\n+  isAngleAdjustable: true,\n+};\n+\n+const privateBoard: ResolvedBoard = {\n+  ...publicBoard,\n+  uuid: '22222222-2222-4222-8222-222222222222',\n+  slug: 'home-project-wall',\n+  name: 'Home Project Wall',\n+  isPublic: false,\n+};\n+\n+function graphQlResponse(board: ResolvedBoard | null): Response {\n+  return new Response(JSON.stringify({ data: { boardBySlug: board } }), {\n+    status: 200,\n+    headers: { 'Content-Type': 'application/json' },\n+  });\n+}\n+\n+describe('resolveBoardBySlug', () => {\n+  beforeEach(() => {\n+    fetchMock.mockReset();\n+    getServerAuthTokenMock.mockReset();\n+    getServerAuthTokenMock.mockResolvedValue(undefined);\n+  });\n+\n+  it('shares public anonymous lookups without sending an authorization header', async () => {\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(publicBoard));\n+\n+    await expect(resolveBoardBySlug(publicBoard.slug)).resolves.toEqual(publicBoard);\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(1);\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();\n+    expect(requestInit).toMatchObject({\n+      method: 'POST',\n+      next: { revalidate: 300 },\n+    });\n+    expect(requestInit).not.toHaveProperty('cache');\n+  });\n+\n+  it('keeps an anonymously masked private lookup as not found', async () => {\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(null));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();\n+    expect(requestInit).toMatchObject({ next: { revalidate: 300 } });\n+  });\n+\n+  it('forwards the session token for private boards and disables shared caching', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token');\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer signed-session-token');\n+    expect(requestInit).toMatchObject({ cache: 'no-store' });\n+    expect(requestInit).not.toHaveProperty('next');\n+  });\n+\n+  it('does not let a private authenticated result cross into a later anonymous request', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token').mockResolvedValueOnce(undefined);\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard)).mockResolvedValueOnce(graphQlResponse(null));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(2);\n+    const [, authenticatedRequest] = fetchMock.mock.calls[0];\n+    const [, anonymousRequest] = fetchMock.mock.calls[1];\n+    expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });\n+    expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });\n+    expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();\n+  });\n+\n+  it('does not let an anonymous miss cross into a later authenticated request', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce('signed-session-token');\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(null)).mockResolvedValueOnce(graphQlResponse(privateBoard));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(2);\n+    const [, anonymousRequest] = fetchMock.mock.calls[0];\n+    const [, authenticatedRequest] = fetchMock.mock.calls[1];\n+    expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });\n+    expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();\n+    expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });\n+    expect(authenticatedRequest).not.toHaveProperty('next');\n+    expect(new Headers(authenticatedRequest?.headers).get('Authorization')).toBe('Bearer signed-session-token');\n+  });\n+});\nFILE packages/web/app/lib/board-slug-utils.ts\n@@ -1,5 +1,7 @@\n+import 'server-only';\n import { cache } from 'react';\n import type { ParsedBoardRouteParameters, BoardName } from '@/app/lib/types';\n+import { getServerAuthToken } from '@/app/lib/auth/server-auth';\n import { getGraphQLHttpUrl } from '@/app/lib/graphql/client';\n \n export type ResolvedBoard = {\n@@ -47,11 +49,21 @@ export const resolveBoardBySlug = cache(async (slug: string): Promise<ResolvedBo\n   `;\n \n   try {\n+    const authToken = await getServerAuthToken();\n+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };\n+    if (authToken) {\n+      headers.Authorization = `Bearer ${authToken}`;\n+    }\n+\n+    // Authenticated responses can contain private boards, so they must never\n+    // enter the shared data cache. Anonymous responses remain safely reusable.\n+    const cacheOptions = authToken ? { cache: 'no-store' as const } : { next: { revalidate: 300 } };\n+\n     const response = await fetch(url, {\n       method: 'POST',\n-      headers: { 'Content-Type': 'application/json' },\n+      headers,\n       body: JSON.stringify({ query, variables: { slug } }),\n-      next: { revalidate: 300 }, // Cache for 5 minutes\n+      ...cacheOptions,\n     });\n \n     if (!response.ok) {",
+        "family": "graphql_data_exposure",
+        "freshness_validated": true,
+        "patch_added_line_count": 156,
+        "patch_added_lines": [
+          "*  - boardBySlug uses the same anonymous-only mask. The server-rendered web",
+          "*    lookup forwards a signed-in user's token and keeps that response out of",
+          "*    the shared cache, so private direct links still work without leaking.",
+          "// boardBySlug \u2014 same anonymous-only mask as board(boardUuid)",
+          "describe('boardBySlug anonymous masking', () => {",
+          "it('masks a PRIVATE board identically to a board that does not exist', async () => {",
+          "const missing = await socialBoardQueries.boardBySlug(null, { slug: uuidv4() }, anonCtx());",
+          "const privateResult = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());",
+          "expect(privateResult).toEqual(missing);",
+          "expect(privateResult).toBeNull();",
+          "});",
+          "it.each([",
+          "['PUBLIC', () => publicBoard, 'Public Wall'],",
+          "['UNLISTED but public', () => unlistedBoard, 'Unlisted Wall'],",
+          "['non-public SYSTEM-owned', () => systemPrivateBoard, 'Shared MoonBoard Config'],",
+          "] as const)('keeps a %s board readable anonymously', async (_label, getBoard, expectedName) => {",
+          "const board = getBoard();",
+          "const result = await socialBoardQueries.boardBySlug(null, { slug: board.slug }, anonCtx());",
+          "expect(result?.name).toBe(expectedName);",
+          "});",
+          "it('returns a PRIVATE board to its owner', async () => {",
+          "const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(OWNER));",
+          "expect(board?.canEdit).toBe(true);",
+          "});",
+          "it('returns a PRIVATE board to an authenticated non-owner', async () => {",
+          "const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(STRANGER));",
+          "expect(board?.name).toBe('Private Wall');",
+          "expect(board?.boardId).toBeNull();",
+          "* This follows the same anonymous-only mask as `board(boardUuid)`: direct",
+          "* private-board links keep working for signed-in climbers, while anonymous",
+          "* requests cannot disclose a private board through the shared web cache.",
+          "const viewerId = ctx.isAuthenticated ? ctx.userId : undefined;",
+          "if (!viewerId && !isRowAnonReadable(board)) return null;",
+          "return enrichBoard(board, viewerId);",
+          "// @vitest-environment node",
+          "import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';",
+          "const { fetchMock, getServerAuthTokenMock } = vi.hoisted(() => ({",
+          "fetchMock: vi.fn<typeof fetch>(),",
+          "getServerAuthTokenMock: vi.fn<() => Promise<string | undefined>>(),",
+          "}));",
+          "vi.mock('server-only', () => ({}));",
+          "vi.mock('react', () => ({",
+          "// React cache is request-scoped in Server Components. Keep the unit under",
+          "// test directly callable so separate invocations can model separate requests.",
+          "cache: <CachedFunction extends (...args: never[]) => unknown>(fn: CachedFunction): CachedFunction => fn,",
+          "}));",
+          "vi.mock('@/app/lib/auth/server-auth', () => ({",
+          "getServerAuthToken: getServerAuthTokenMock,",
+          "}));",
+          "vi.mock('@/app/lib/graphql/client', () => ({",
+          "getGraphQLHttpUrl: () => 'http://backend.test/graphql',",
+          "}));",
+          "vi.stubGlobal('fetch', fetchMock);",
+          "import { resolveBoardBySlug, type ResolvedBoard } from '../board-slug-utils';",
+          "const publicBoard: ResolvedBoard = {",
+          "uuid: '11111111-1111-4111-8111-111111111111',",
+          "slug: 'community-wall',",
+          "boardType: 'kilter',",
+          "layoutId: 1,",
+          "sizeId: 10,",
+          "setIds: '1,20',",
+          "name: 'Community Wall',",
+          "description: null,",
+          "locationName: null,",
+          "isPublic: true,",
+          "isOwned: true,",
+          "ownerId: 'owner-1',",
+          "angle: 40,",
+          "isAngleAdjustable: true,",
+          "};",
+          "const privateBoard: ResolvedBoard = {",
+          "...publicBoard,",
+          "uuid: '22222222-2222-4222-8222-222222222222',",
+          "slug: 'home-project-wall',",
+          "name: 'Home Project Wall',",
+          "isPublic: false,",
+          "};",
+          "function graphQlResponse(board: ResolvedBoard | null): Response {",
+          "return new Response(JSON.stringify({ data: { boardBySlug: board } }), {",
+          "status: 200,",
+          "headers: { 'Content-Type': 'application/json' },",
+          "});",
+          "}",
+          "describe('resolveBoardBySlug', () => {",
+          "beforeEach(() => {",
+          "fetchMock.mockReset();",
+          "getServerAuthTokenMock.mockReset();",
+          "getServerAuthTokenMock.mockResolvedValue(undefined);",
+          "});",
+          "it('shares public anonymous lookups without sending an authorization header', async () => {",
+          "fetchMock.mockResolvedValueOnce(graphQlResponse(publicBoard));",
+          "await expect(resolveBoardBySlug(publicBoard.slug)).resolves.toEqual(publicBoard);",
+          "expect(fetchMock).toHaveBeenCalledTimes(1);",
+          "const [, requestInit] = fetchMock.mock.calls[0];",
+          "expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();",
+          "expect(requestInit).toMatchObject({",
+          "method: 'POST',",
+          "next: { revalidate: 300 },",
+          "});",
+          "expect(requestInit).not.toHaveProperty('cache');",
+          "});",
+          "it('keeps an anonymously masked private lookup as not found', async () => {",
+          "fetchMock.mockResolvedValueOnce(graphQlResponse(null));",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();",
+          "const [, requestInit] = fetchMock.mock.calls[0];",
+          "expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();",
+          "expect(requestInit).toMatchObject({ next: { revalidate: 300 } });",
+          "});",
+          "it('forwards the session token for private boards and disables shared caching', async () => {",
+          "getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token');",
+          "fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard));",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);",
+          "const [, requestInit] = fetchMock.mock.calls[0];",
+          "expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer signed-session-token');",
+          "expect(requestInit).toMatchObject({ cache: 'no-store' });",
+          "expect(requestInit).not.toHaveProperty('next');",
+          "});",
+          "it('does not let a private authenticated result cross into a later anonymous request', async () => {",
+          "getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token').mockResolvedValueOnce(undefined);",
+          "fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard)).mockResolvedValueOnce(graphQlResponse(null));",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();",
+          "expect(fetchMock).toHaveBeenCalledTimes(2);",
+          "const [, authenticatedRequest] = fetchMock.mock.calls[0];",
+          "const [, anonymousRequest] = fetchMock.mock.calls[1];",
+          "expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });",
+          "expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });",
+          "expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();",
+          "});",
+          "it('does not let an anonymous miss cross into a later authenticated request', async () => {",
+          "getServerAuthTokenMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce('signed-session-token');",
+          "fetchMock.mockResolvedValueOnce(graphQlResponse(null)).mockResolvedValueOnce(graphQlResponse(privateBoard));",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();",
+          "await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);",
+          "expect(fetchMock).toHaveBeenCalledTimes(2);",
+          "const [, anonymousRequest] = fetchMock.mock.calls[0];",
+          "const [, authenticatedRequest] = fetchMock.mock.calls[1];",
+          "expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });",
+          "expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();",
+          "expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });",
+          "expect(authenticatedRequest).not.toHaveProperty('next');",
+          "expect(new Headers(authenticatedRequest?.headers).get('Authorization')).toBe('Bearer signed-session-token');",
+          "});",
+          "});",
+          "import 'server-only';",
+          "import { getServerAuthToken } from '@/app/lib/auth/server-auth';",
+          "const authToken = await getServerAuthToken();",
+          "const headers: Record<string, string> = { 'Content-Type': 'application/json' };",
+          "if (authToken) {",
+          "headers.Authorization = `Bearer ${authToken}`;",
+          "}",
+          "// Authenticated responses can contain private boards, so they must never",
+          "// enter the shared data cache. Anonymous responses remain safely reusable.",
+          "const cacheOptions = authToken ? { cache: 'no-store' as const } : { next: { revalidate: 300 } };",
+          "headers,",
+          "...cacheOptions,"
+        ],
+        "patch_api_reference": "https://api.github.com/repos/boardsesh/boardsesh/pulls/4087/files?per_page=100",
+        "patch_context_line_count": 33,
+        "patch_context_lines": [
+          "*    requireAnonReadableBoard and the board-presence family \u2014 a signed-in",
+          "*    climber still resolves a gym's private board by uuid (BLE connect flow,",
+          "*    boardsBySerialNumbers).",
+          "*",
+          "* Masking is expressed as `null` rather than a thrown NOT_FOUND because these",
+          "* SDL fields are nullable \u2014 `null` already means \"no such entity\", so it is the",
+          "});",
+          "// ============================================================================",
+          "// ============================================================================",
+          "expect(board?.name).toBe('Private Wall');",
+          "});",
+          "});",
+          "/**",
+          "* Get a board by slug (for URL routing).",
+          "*",
+          "*/",
+          "boardBySlug: async (_: unknown, { slug }: { slug: string }, ctx: ConnectionContext) => {",
+          "// Validate slug format: lowercase alphanumeric with hyphens, max 120 chars",
+          ".limit(1);",
+          "if (!board) return null;",
+          "},",
+          "/**",
+          "import { cache } from 'react';",
+          "import type { ParsedBoardRouteParameters, BoardName } from '@/app/lib/types';",
+          "import { getGraphQLHttpUrl } from '@/app/lib/graphql/client';",
+          "export type ResolvedBoard = {",
+          "`;",
+          "try {",
+          "const response = await fetch(url, {",
+          "method: 'POST',",
+          "body: JSON.stringify({ query, variables: { slug } }),",
+          "});",
+          "if (!response.ok) {"
+        ],
+        "patch_file_count": 4,
+        "patch_probe_passed": true,
+        "patch_probe_rule_version": "2026.08.15.6.32.v7.30",
+        "patch_probe_version": "1.1.0",
+        "patch_removed_line_count": 20,
+        "patch_removed_lines": [
+          "*  - boardBySlug is NOT masked at all (the anonymous, shared-cached /b/{slug}",
+          "*    web surface has no token path); pinned so the exclusion stays deliberate.",
+          "// boardBySlug \u2014 deliberately NOT masked",
+          "describe('boardBySlug is deliberately not anon-masked', () => {",
+          "it('still enriches a PRIVATE board for an anonymous caller', async () => {",
+          "// Accepted residual exposure (#3648): /b/{slug} resolves through an",
+          "// anonymous, cross-user cached fetch with no token path, so masking here",
+          "// would 404 a private board's own owner on their own pages.",
+          "const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());",
+          "* INTENTIONALLY NOT anon-masked, unlike `board(boardUuid)` above. This read",
+          "* backs the entire `/b/{slug}/**` web surface through",
+          "* `packages/web/app/lib/board-slug-utils.ts`, whose fetch is anonymous by",
+          "* construction \u2014 no token path at all, and a cross-user `revalidate: 300`",
+          "* shared cache that could never hold a per-viewer result. Masking here would",
+          "* 404 every private board's own OWNER on their own board pages. Accepted",
+          "* residual exposure (a private board's name is disclosable to a slug holder)",
+          "* until the end-of-life web climbing surface goes away. See #3648.",
+          "return enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined);",
+          "headers: { 'Content-Type': 'application/json' },",
+          "next: { revalidate: 300 }, // Cache for 5 minutes"
+        ],
+        "patch_route": "pull",
+        "patch_text": "FILE packages/backend/src/__tests__/anon-entity-masking.test.ts\n@@ -20,8 +20,9 @@ import { SYSTEM_BOARD_OWNER_ID } from '../graphql/resolvers/board-presence/share\n  *    requireAnonReadableBoard and the board-presence family \u2014 a signed-in\n  *    climber still resolves a gym's private board by uuid (BLE connect flow,\n  *    boardsBySerialNumbers).\n- *  - boardBySlug is NOT masked at all (the anonymous, shared-cached /b/{slug}\n- *    web surface has no token path); pinned so the exclusion stays deliberate.\n+ *  - boardBySlug uses the same anonymous-only mask. The server-rendered web\n+ *    lookup forwards a signed-in user's token and keeps that response out of\n+ *    the shared cache, so private direct links still work without leaking.\n  *\n  * Masking is expressed as `null` rather than a thrown NOT_FOUND because these\n  * SDL fields are nullable \u2014 `null` already means \"no such entity\", so it is the\n@@ -270,16 +271,38 @@ describe('board(boardUuid) anonymous masking', () => {\n });\n \n // ============================================================================\n-// boardBySlug \u2014 deliberately NOT masked\n+// boardBySlug \u2014 same anonymous-only mask as board(boardUuid)\n // ============================================================================\n \n-describe('boardBySlug is deliberately not anon-masked', () => {\n-  it('still enriches a PRIVATE board for an anonymous caller', async () => {\n-    // Accepted residual exposure (#3648): /b/{slug} resolves through an\n-    // anonymous, cross-user cached fetch with no token path, so masking here\n-    // would 404 a private board's own owner on their own pages.\n-    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());\n+describe('boardBySlug anonymous masking', () => {\n+  it('masks a PRIVATE board identically to a board that does not exist', async () => {\n+    const missing = await socialBoardQueries.boardBySlug(null, { slug: uuidv4() }, anonCtx());\n+    const privateResult = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, anonCtx());\n+\n+    expect(privateResult).toEqual(missing);\n+    expect(privateResult).toBeNull();\n+  });\n+\n+  it.each([\n+    ['PUBLIC', () => publicBoard, 'Public Wall'],\n+    ['UNLISTED but public', () => unlistedBoard, 'Unlisted Wall'],\n+    ['non-public SYSTEM-owned', () => systemPrivateBoard, 'Shared MoonBoard Config'],\n+  ] as const)('keeps a %s board readable anonymously', async (_label, getBoard, expectedName) => {\n+    const board = getBoard();\n+    const result = await socialBoardQueries.boardBySlug(null, { slug: board.slug }, anonCtx());\n+    expect(result?.name).toBe(expectedName);\n+  });\n+\n+  it('returns a PRIVATE board to its owner', async () => {\n+    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(OWNER));\n     expect(board?.name).toBe('Private Wall');\n+    expect(board?.canEdit).toBe(true);\n+  });\n+\n+  it('returns a PRIVATE board to an authenticated non-owner', async () => {\n+    const board = await socialBoardQueries.boardBySlug(null, { slug: privateBoard.slug }, authCtx(STRANGER));\n+    expect(board?.name).toBe('Private Wall');\n+    expect(board?.boardId).toBeNull();\n   });\n });\n \nFILE packages/backend/src/graphql/resolvers/social/boards.ts\n@@ -802,14 +802,9 @@ export const socialBoardQueries = {\n   /**\n    * Get a board by slug (for URL routing).\n    *\n-   * INTENTIONALLY NOT anon-masked, unlike `board(boardUuid)` above. This read\n-   * backs the entire `/b/{slug}/**` web surface through\n-   * `packages/web/app/lib/board-slug-utils.ts`, whose fetch is anonymous by\n-   * construction \u2014 no token path at all, and a cross-user `revalidate: 300`\n-   * shared cache that could never hold a per-viewer result. Masking here would\n-   * 404 every private board's own OWNER on their own board pages. Accepted\n-   * residual exposure (a private board's name is disclosable to a slug holder)\n-   * until the end-of-life web climbing surface goes away. See #3648.\n+   * This follows the same anonymous-only mask as `board(boardUuid)`: direct\n+   * private-board links keep working for signed-in climbers, while anonymous\n+   * requests cannot disclose a private board through the shared web cache.\n    */\n   boardBySlug: async (_: unknown, { slug }: { slug: string }, ctx: ConnectionContext) => {\n     // Validate slug format: lowercase alphanumeric with hyphens, max 120 chars\n@@ -824,7 +819,9 @@ export const socialBoardQueries = {\n       .limit(1);\n \n     if (!board) return null;\n-    return enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined);\n+    const viewerId = ctx.isAuthenticated ? ctx.userId : undefined;\n+    if (!viewerId && !isRowAnonReadable(board)) return null;\n+    return enrichBoard(board, viewerId);\n   },\n \n   /**\nFILE packages/web/app/lib/__tests__/board-slug-utils.test.ts\n@@ -0,0 +1,136 @@\n+// @vitest-environment node\n+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';\n+\n+const { fetchMock, getServerAuthTokenMock } = vi.hoisted(() => ({\n+  fetchMock: vi.fn<typeof fetch>(),\n+  getServerAuthTokenMock: vi.fn<() => Promise<string | undefined>>(),\n+}));\n+\n+vi.mock('server-only', () => ({}));\n+\n+vi.mock('react', () => ({\n+  // React cache is request-scoped in Server Components. Keep the unit under\n+  // test directly callable so separate invocations can model separate requests.\n+  cache: <CachedFunction extends (...args: never[]) => unknown>(fn: CachedFunction): CachedFunction => fn,\n+}));\n+\n+vi.mock('@/app/lib/auth/server-auth', () => ({\n+  getServerAuthToken: getServerAuthTokenMock,\n+}));\n+\n+vi.mock('@/app/lib/graphql/client', () => ({\n+  getGraphQLHttpUrl: () => 'http://backend.test/graphql',\n+}));\n+\n+vi.stubGlobal('fetch', fetchMock);\n+\n+import { resolveBoardBySlug, type ResolvedBoard } from '../board-slug-utils';\n+\n+const publicBoard: ResolvedBoard = {\n+  uuid: '11111111-1111-4111-8111-111111111111',\n+  slug: 'community-wall',\n+  boardType: 'kilter',\n+  layoutId: 1,\n+  sizeId: 10,\n+  setIds: '1,20',\n+  name: 'Community Wall',\n+  description: null,\n+  locationName: null,\n+  isPublic: true,\n+  isOwned: true,\n+  ownerId: 'owner-1',\n+  angle: 40,\n+  isAngleAdjustable: true,\n+};\n+\n+const privateBoard: ResolvedBoard = {\n+  ...publicBoard,\n+  uuid: '22222222-2222-4222-8222-222222222222',\n+  slug: 'home-project-wall',\n+  name: 'Home Project Wall',\n+  isPublic: false,\n+};\n+\n+function graphQlResponse(board: ResolvedBoard | null): Response {\n+  return new Response(JSON.stringify({ data: { boardBySlug: board } }), {\n+    status: 200,\n+    headers: { 'Content-Type': 'application/json' },\n+  });\n+}\n+\n+describe('resolveBoardBySlug', () => {\n+  beforeEach(() => {\n+    fetchMock.mockReset();\n+    getServerAuthTokenMock.mockReset();\n+    getServerAuthTokenMock.mockResolvedValue(undefined);\n+  });\n+\n+  it('shares public anonymous lookups without sending an authorization header', async () => {\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(publicBoard));\n+\n+    await expect(resolveBoardBySlug(publicBoard.slug)).resolves.toEqual(publicBoard);\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(1);\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();\n+    expect(requestInit).toMatchObject({\n+      method: 'POST',\n+      next: { revalidate: 300 },\n+    });\n+    expect(requestInit).not.toHaveProperty('cache');\n+  });\n+\n+  it('keeps an anonymously masked private lookup as not found', async () => {\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(null));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBeNull();\n+    expect(requestInit).toMatchObject({ next: { revalidate: 300 } });\n+  });\n+\n+  it('forwards the session token for private boards and disables shared caching', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token');\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+\n+    const [, requestInit] = fetchMock.mock.calls[0];\n+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer signed-session-token');\n+    expect(requestInit).toMatchObject({ cache: 'no-store' });\n+    expect(requestInit).not.toHaveProperty('next');\n+  });\n+\n+  it('does not let a private authenticated result cross into a later anonymous request', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce('signed-session-token').mockResolvedValueOnce(undefined);\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(privateBoard)).mockResolvedValueOnce(graphQlResponse(null));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(2);\n+    const [, authenticatedRequest] = fetchMock.mock.calls[0];\n+    const [, anonymousRequest] = fetchMock.mock.calls[1];\n+    expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });\n+    expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });\n+    expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();\n+  });\n+\n+  it('does not let an anonymous miss cross into a later authenticated request', async () => {\n+    getServerAuthTokenMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce('signed-session-token');\n+    fetchMock.mockResolvedValueOnce(graphQlResponse(null)).mockResolvedValueOnce(graphQlResponse(privateBoard));\n+\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toBeNull();\n+    await expect(resolveBoardBySlug(privateBoard.slug)).resolves.toEqual(privateBoard);\n+\n+    expect(fetchMock).toHaveBeenCalledTimes(2);\n+    const [, anonymousRequest] = fetchMock.mock.calls[0];\n+    const [, authenticatedRequest] = fetchMock.mock.calls[1];\n+    expect(anonymousRequest).toMatchObject({ next: { revalidate: 300 } });\n+    expect(new Headers(anonymousRequest?.headers).get('Authorization')).toBeNull();\n+    expect(authenticatedRequest).toMatchObject({ cache: 'no-store' });\n+    expect(authenticatedRequest).not.toHaveProperty('next');\n+    expect(new Headers(authenticatedRequest?.headers).get('Authorization')).toBe('Bearer signed-session-token');\n+  });\n+});\nFILE packages/web/app/lib/board-slug-utils.ts\n@@ -1,5 +1,7 @@\n+import 'server-only';\n import { cache } from 'react';\n import type { ParsedBoardRouteParameters, BoardName } from '@/app/lib/types';\n+import { getServerAuthToken } from '@/app/lib/auth/server-auth';\n import { getGraphQLHttpUrl } from '@/app/lib/graphql/client';\n \n export type ResolvedBoard = {\n@@ -47,11 +49,21 @@ export const resolveBoardBySlug = cache(async (slug: string): Promise<ResolvedBo\n   `;\n \n   try {\n+    const authToken = await getServerAuthToken();\n+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };\n+    if (authToken) {\n+      headers.Authorization = `Bearer ${authToken}`;\n+    }\n+\n+    // Authenticated responses can contain private boards, so they must never\n+    // enter the shared data cache. Anonymous responses remain safely reusable.\n+    const cacheOptions = authToken ? { cache: 'no-store' as const } : { next: { revalidate: 300 } };\n+\n     const response = await fetch(url, {\n       method: 'POST',\n-      headers: { 'Content-Type': 'application/json' },\n+      headers,\n       body: JSON.stringify({ query, variables: { slug } }),\n-      next: { revalidate: 300 }, // Cache for 5 minutes\n+      ...cacheOptions,\n     });\n \n     if (!response.ok) {",
+        "patch_text_sha256": "01ea17a38e9df098ddac616d1d35150f4b59f63c27e07be186b4b980313d35b3",
+        "pr_number": 4087,
+        "pre_score_condition_source_hits": {
+          "unauthorized_data_response": [
+            "graphql",
+            "private",
+            "disclose/expose/mask",
+            "query/response/resolver/field/data"
+          ]
+        },
+        "pre_score_expected_condition_signals": [
+          "unauthorized_data_response"
+        ],
+        "published_at": "2026-07-31T23:14:42Z",
+        "references": [
+          "https://github.com/boardsesh/boardsesh/pull/4087"
+        ],
+        "repository_advisory_url": "",
+        "scoring_executed": false,
+        "selection_uses_v6_case_errors": false,
+        "selection_uses_v6_score": false,
+        "source_code_location": "https://github.com/boardsesh/boardsesh/pull/4087",
+        "source_family_audit_group_hits": [
+          [
+            "graphql"
+          ],
+          [
+            "data exposure",
+            "information disclosure"
+          ],
+          [
+            "data",
+            "field",
+            "query",
+            "response"
+          ]
+        ],
+        "source_family_audit_passed": true,
+        "source_family_audit_score": 23,
+        "source_kind": "github_merged_security_pr_graphql_private_data_exposure",
+        "source_project": "boardsesh/boardsesh",
+        "source_root": "GITHUB-PR-boardsesh-boardsesh-4087",
+        "summary": "fix(web): authenticate private board slug lookups",
+        "updated_at": "2026-08-07T22:01:47Z",
+        "upstream_repository_reference": "https://github.com/boardsesh/boardsesh/pull/4087",
+        "v7_firewall_allowed": true,
+        "v7_firewall_diagnostics": {
+          "allowed": true,
+          "checked_project_aliases": [
+            "boardsesh/boardsesh"
+          ],
+          "checked_root_aliases": [
+            "github-pr-boardsesh-boardsesh-4087"
+          ],
+          "firewall_rule_version": "2026.08.14.6.32.v7.1",
+          "firewall_version": "1.0.0",
+          "identifier_overlap": [],
+          "prior_scope": "all_exposed_sources_and_provenance_v1_through_consumed_v6",
+          "project_overlap": [],
+          "root_overlap": [],
+          "scoring_executed": false,
+          "source_project": "boardsesh/boardsesh",
+          "source_root": "github-pr-boardsesh-boardsesh-4087",
+          "url_overlap": []
+        }
+      }
+    ],
     "security_logging_alerting_failure": [
       {
         "active_target_validation_performed": false,
@@ -2391,6 +2694,7 @@
           "https://github.com/dreynox/SkillSprint/pull/38"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -2903,6 +3207,7 @@
           "https://github.com/imrohitagrawal/quorum-ai/pull/315"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -3083,6 +3388,7 @@
           "https://github.com/Chemsorly/coding-agent-automation/pull/2000"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -3821,6 +4127,7 @@
           "https://github.com/homeofe/supply-chain-guard/pull/142"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -3966,6 +4273,7 @@
           "https://github.com/SalesforceCommerceCloud/dw-api-mock/pull/29"
         ],
         "repository_advisory_url": "",
+        "revalidated_for_rule_version": "2026.08.15.6.32.v7.30",
         "scoring_executed": false,
         "selection_uses_v6_case_errors": false,
         "selection_uses_v6_score": false,
@@ -3995,114 +4303,31 @@
     ]
   },
   "diagnostics": {
-    "file_upload": {
-      "patchable_count": 2,
-      "queries": [
-        {
-          "error": null,
-          "query": "\"arbitrary file upload\" security",
-          "result_count": 30
-        }
-      ],
-      "rejections": {
-        "condition_semantic": 9,
-        "family_semantic": 17,
-        "firewall": 1,
-        "patch_has_no_added_fix": 1
-      }
-    },
-    "graphql_authorization": {
-      "patchable_count": 2,
-      "queries": [
-        {
-          "error": null,
-          "query": "GraphQL authorization security",
-          "result_count": 30
-        }
-      ],
-      "rejections": {
-        "condition_semantic": 26,
-        "family_semantic": 1,
-        "firewall": 1
-      }
-    },
     "graphql_data_exposure": {
-      "patchable_count": 0,
-      "queries": [
-        {
-          "error": null,
-          "query": "GraphQL \"information disclosure\"",
-          "result_count": 30
-        },
-        {
-          "error": null,
-          "query": "GraphQL \"data exposure\" security",
-          "result_count": 30
-        },
-        {
-          "error": null,
-          "query": "GraphQL \"sensitive data\" exposure",
-          "result_count": 30
-        },
-        {
-          "error": null,
-          "query": "GraphQL introspection exposure security",
-          "result_count": 30
-        }
+      "patch_added_line_count": 156,
+      "pre_score_expected_condition_signals": [
+        "unauthorized_data_response"
       ],
-      "rejections": {
-        "condition_semantic": 87,
-        "family_semantic": 22,
-        "firewall": 4
-      }
+      "source_project": "boardsesh/boardsesh",
+      "source_root": "GITHUB-PR-boardsesh-boardsesh-4087"
     },
-    "security_logging_alerting_failure": {
-      "patchable_count": 3,
-      "queries": [
-        {
-          "error": null,
-          "query": "password log redaction security",
-          "result_count": 30
-        }
-      ],
-      "rejections": {
-        "condition_semantic": 25,
-        "firewall": 1,
-        "patch_has_no_added_fix": 1
-      }
-    },
-    "software_supply_chain_failure": {
-      "patchable_count": 2,
-      "queries": [
-        {
-          "error": null,
-          "query": "\"dependency confusion\" security",
-          "result_count": 30
-        }
-      ],
-      "rejections": {
-        "condition_semantic": 18,
-        "family_semantic": 10
-      }
-    }
+    "mode": "revalidate_committed_patchable_four_plus_fetch_single_fresh_graphql_pr"
   },
-  "evaluation_kind": "fresh_blind_v7_missing5_patchable_supplement_unscored",
-  "families_without_candidates": [
-    "graphql_data_exposure"
-  ],
+  "evaluation_kind": "fresh_blind_v7_missing5_revalidated_plus_fresh_graphql_pr_unscored",
+  "families_without_candidates": [],
   "family_candidate_counts": {
     "file_upload": 2,
     "graphql_authorization": 2,
-    "graphql_data_exposure": 0,
+    "graphql_data_exposure": 1,
     "security_logging_alerting_failure": 3,
     "software_supply_chain_failure": 2
   },
   "family_count": 5,
   "first_blind_consumed": false,
-  "generated_at": "2026-08-14T18:30:13.186370+00:00",
-  "patch_api_call_count": 226,
-  "rule_version": "2026.08.14.6.32.v7.16",
+  "generated_at": "2026-08-15T01:18:43.850332+00:00",
+  "patch_api_call_count": 1,
+  "rule_version": "2026.08.15.6.32.v7.30",
   "scoring_executed": false,
-  "search_api_call_count": 8,
-  "version": "1.0.0"
+  "search_api_call_count": 0,
+  "version": "1.1.0"
 }
