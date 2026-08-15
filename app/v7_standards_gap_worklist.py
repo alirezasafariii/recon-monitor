@@ -12,8 +12,8 @@ from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from researcher_logic import researcher_logic_for_family
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-gap-worklist.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-gap-worklist.2"
 ADJUDICATION = ROOT / "benchmarks/raw/sources/v7_standards_adjudication.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_standards_gap_worklist.json"
 
@@ -83,10 +83,10 @@ def _missing_requirements(case_kind: str, literal: Mapping[str, Any]) -> list[st
 def _seed_terms(family: str, case_kind: str) -> dict[str, list[str]]:
     spec = DETECTOR_SPECS[family]
     logic = researcher_logic_for_family(family)
-    condition = list(spec.condition_signals[:8])
-    controls = list(spec.blocking_controls[:8])
-    surfaces = list(spec.surface_terms[:8])
-    identity = list(spec.identity_signals[:8])
+    condition = sorted(spec.condition_signals)[:8]
+    controls = sorted(spec.blocking_controls)[:8]
+    surfaces = sorted(spec.surface_terms)[:8]
+    identity = sorted(spec.identity_signals)[:8]
     writeup = []
     for lesson in logic.get("writeup_logic") or []:
         if isinstance(lesson, Mapping):
