@@ -3,15 +3,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from family_detectors.registry import DETECTOR_SPECS
 from raw_recon_corpus import ROOT
 from v7_pre_score_condition_audit import audit_conditions
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.13"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.32.v7.14"
 SHORTLIST = ROOT / "benchmarks/raw/sources/v7_shortlist.json"
 LINKED = ROOT / "benchmarks/raw/sources/v7_literal_linked_research.json"
 PLAN = ROOT / "benchmarks/raw/sources/v7_literal_capture_plan.json"
@@ -26,6 +28,84 @@ def _sha(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
+
+
+def _benchmark_markers() -> tuple[str, ...]:
+    markers = set(DETECTOR_SPECS)
+    for spec in DETECTOR_SPECS.values():
+        markers.update(str(value) for value in spec.condition_signals if str(value))
+    return tuple(sorted(markers, key=lambda value: (-len(value), value)))
+
+
+BENCHMARK_MARKERS = _benchmark_markers()
+
+
+def _contains_benchmark_marker(value: Any) -> bool:
+    text = str(value or "").casefold()
+    if not text:
+        return False
+    return any(
+        re.search(rf"(?<![a-z0-9]){re.escape(marker.casefold())}(?![a-z0-9])", text)
+        for marker in BENCHMARK_MARKERS
+        if marker
+    )
+
+
+def _label_blind_values(values: list[str], *, limit: int) -> list[str]:
+    selected: list[str] = []
+    for raw in values:
+        value = str(raw or "").strip()
+        if not value or _contains_benchmark_marker(value):
+            continue
+        selected.append(value)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _label_blind_narrative(text: str, *, limit: int = 16) -> list[str]:
+    # Preserve exact upstream wording. We omit whole clauses/paragraphs that carry
+    # canonical benchmark identifiers; we never rewrite or substitute source text.
+    selected: list[str] = []
+    for segment in re.split(r"(?:\n{2,}|(?<=[.!?])\s+)", str(text or "")):
+        value = segment.strip()
+        if len(value) < 24 or _contains_benchmark_marker(value):
+            continue
+        selected.append(value[:1600])
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _label_blind_phrase_evidence(source_hits: Mapping[str, Any]) -> list[str]:
+    # Keep only literal matched source phrases, never the canonical signal names.
+    values: list[str] = []
+    for phrases in source_hits.values():
+        for phrase in phrases or []:
+            value = str(phrase or "").strip()
+            if value and not _contains_benchmark_marker(value) and value not in values:
+                values.append(value)
+    return values[:24]
+
+
+def _raw_scalars(value: Any) -> list[str]:
+    out: list[str] = []
+    if isinstance(value, Mapping):
+        for child in value.values():
+            out.extend(_raw_scalars(child))
+    elif isinstance(value, list):
+        for child in value:
+            out.extend(_raw_scalars(child))
+    elif isinstance(value, (str, int, float, bool)):
+        out.append(str(value))
+    return out
+
+
+def _assert_label_blind_raw(family: str, kind: str, raw: Mapping[str, Any]) -> None:
+    leaked = sorted({value for value in _raw_scalars(raw) if _contains_benchmark_marker(value)})
+    if leaked:
+        preview = [value[:180] for value in leaked[:6]]
+        raise RuntimeError(f"{family}/{kind}: canonical benchmark identifier remained in raw: {preview}")
 
 
 def _patch_lines(payload: Any) -> tuple[list[str], list[str], list[str], list[str]]:
@@ -74,6 +154,8 @@ def _source_text(row: Mapping[str, Any]) -> str:
 def _non_decisive_context(family: str, lines: list[str]) -> list[str]:
     selected: list[str] = []
     for line in lines:
+        if _contains_benchmark_marker(line):
+            continue
         candidate = {"summary": "", "description": line}
         signals, _ = audit_conditions(family, candidate)
         if not signals:
@@ -86,12 +168,11 @@ def _non_decisive_context(family: str, lines: list[str]) -> list[str]:
 def _non_decisive_narrative(family: str, text: str) -> list[str]:
     # Independent source-grounded context only: split the real upstream narrative
     # into intact clauses/paragraphs and keep clauses that do not satisfy a
-    # decisive preregistered condition. No positive-field deletion or mutation.
-    import re
+    # decisive preregistered condition or expose a canonical benchmark identifier.
     selected: list[str] = []
     for segment in re.split(r"(?:\n{2,}|(?<=[.!?])\s+)", str(text or "")):
         value = segment.strip()
-        if len(value) < 24:
+        if len(value) < 24 or _contains_benchmark_marker(value):
             continue
         signals, _ = audit_conditions(family, {"summary": "", "description": value})
         if signals:
@@ -106,7 +187,7 @@ def _non_decisive_filenames(family: str, filenames: list[str]) -> list[str]:
     selected: list[str] = []
     for filename in filenames:
         value = str(filename or "").strip()
-        if not value:
+        if not value or _contains_benchmark_marker(value):
             continue
         signals, _ = audit_conditions(family, {"summary": "", "description": value})
         if signals:
@@ -148,6 +229,7 @@ def _capture(
         endpoint=reference,
         details=details,
     )
+    _assert_label_blind_raw(family, kind, raw)
     return {
         "family": family,
         "case_kind": kind,
@@ -224,6 +306,18 @@ def collect(output_dir: Path) -> dict[str, Any]:
             raise RuntimeError(f"{family}: selected condition label is not reproducible from source text")
         if not added:
             raise RuntimeError(f"{family}: upstream merged patch has no added fix implementation")
+
+        blind_filenames = _label_blind_values(filenames, limit=40)
+        blind_added = _label_blind_values(added, limit=80)
+        blind_removed = _label_blind_values(removed, limit=80)
+        blind_narrative = _label_blind_narrative(source_text)
+        blind_phrase_evidence = _label_blind_phrase_evidence(source_hits)
+        if not blind_narrative and not blind_removed and not blind_phrase_evidence:
+            # The complete source snapshot is still preserved outside raw. If no
+            # verbatim label-blind positive observation exists, replace the source
+            # rather than rewriting upstream wording or leaking the benchmark label.
+            raise RuntimeError(f"{family}: source has no verbatim label-blind positive observation")
+
         near = _non_decisive_context(family, context)
         near_basis = "unchanged_patch_context"
         if not near:
@@ -238,7 +332,7 @@ def collect(output_dir: Path) -> dict[str, Any]:
 
         common = {
             "upstream_reference": source.get("upstream_repository_reference"),
-            "changed_files": filenames[:40],
+            "changed_files": blind_filenames,
         }
         variants = {
             "positive": _capture(
@@ -248,14 +342,14 @@ def collect(output_dir: Path) -> dict[str, Any]:
                 linked=link,
                 details={
                     **common,
-                    "source_security_narrative": source_text[:30000],
-                    "vulnerable_or_removed_patch_lines": removed[:80],
-                    "positive_source_basis": "Fresh upstream security narrative is the positive proof; removed patch lines are supplemental when the fix replaces existing code.",
-                    "source_condition_phrase_hits": source_hits,
+                    "source_security_narrative_excerpt": blind_narrative,
+                    "vulnerable_or_removed_patch_lines": blind_removed,
+                    "source_condition_phrase_evidence": blind_phrase_evidence,
+                    "positive_source_basis": "Verbatim label-blind excerpts from the fresh upstream security narrative and removed patch side are the positive observation; the complete immutable source snapshot remains attached outside raw.",
                 },
                 signals=expected,
                 basis="source_observation",
-                notes="Fresh upstream source narrative plus the removed side of the real merged patch independently support the preregistered positive condition label.",
+                notes="Fresh upstream source narrative plus the removed side of the real merged patch independently support the preregistered positive condition label; canonical benchmark identifiers are excluded only from raw, never rewritten in the source snapshot.",
                 captured_at=captured_at,
             ),
             "near_miss": _capture(
@@ -282,7 +376,7 @@ def collect(output_dir: Path) -> dict[str, Any]:
                 details={
                     **common,
                     "merged_fix_implementation": "The upstream merged PR/commit contains the following added implementation lines after the vulnerable behavior was changed.",
-                    "added_fix_patch_lines": added[:80],
+                    "added_fix_patch_lines": blind_added,
                     "patch_status": "implemented in the selected upstream merged patch",
                 },
                 signals=[],
@@ -301,7 +395,7 @@ def collect(output_dir: Path) -> dict[str, Any]:
                     "added_line_observation_count": len(added),
                     "removed_line_observation_count": len(removed),
                     "context_line_observation_count": len(context),
-                    "changed_file_sample": filenames[:5],
+                    "changed_file_sample": _label_blind_values(filenames, limit=5),
                 },
                 signals=[],
                 basis="source_observation",
@@ -317,6 +411,9 @@ def collect(output_dir: Path) -> dict[str, Any]:
             "added_line_count": len(added),
             "removed_line_count": len(removed),
             "context_line_count": len(context),
+            "label_blind_narrative_excerpt_count": len(blind_narrative),
+            "label_blind_removed_line_count": len(blind_removed),
+            "label_blind_phrase_evidence_count": len(blind_phrase_evidence),
             "near_miss_non_decisive_context_count": len(near),
             "expected_condition_signals": expected,
         }
