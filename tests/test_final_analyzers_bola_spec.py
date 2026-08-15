@@ -9,8 +9,19 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from family_analyzers.bola import BOLA_FALSE_POSITIVE_CHECKS, BOLA_METHOD, BOLA_SPEC
 from family_reasoning import FAMILY_REASONING
+from family_specs.knowledge_projection import (
+    taxonomy_projection,
+    validate_knowledge_projection,
+    writeup_knowledge_projection,
+)
 from family_specs.registry import registry_status, validate_family_spec_registry
 from hypothesis_admission import assess_admission
+from vulnerability_knowledge import (
+    BUILTIN_KNOWLEDGE,
+    SPEC_KNOWLEDGE_ERRORS,
+    knowledge_for_family,
+    taxonomy_for_family,
+)
 
 
 class FinalAnalyzersBolaSpecTests(unittest.TestCase):
@@ -58,6 +69,38 @@ class FinalAnalyzersBolaSpecTests(unittest.TestCase):
             BOLA_FALSE_POSITIVE_CHECKS,
             BOLA_SPEC.standard.false_positive_checks,
         )
+
+    def test_knowledge_projection_is_drift_free(self) -> None:
+        self.assertEqual(validate_knowledge_projection(BOLA_SPEC), [])
+        self.assertEqual(SPEC_KNOWLEDGE_ERRORS, ())
+
+    def test_knowledge_taxonomy_comes_from_spec(self) -> None:
+        expected = taxonomy_projection(BOLA_SPEC)
+        self.assertEqual(taxonomy_for_family(self.family), expected)
+        self.assertEqual(BUILTIN_KNOWLEDGE[self.family], writeup_knowledge_projection(BOLA_SPEC))
+
+    def test_knowledge_writeups_are_exact_non_evidentiary_projection(self) -> None:
+        projected = BUILTIN_KNOWLEDGE[self.family]
+        self.assertEqual(
+            {str(item["id"]) for item in projected},
+            {item.id for item in BOLA_SPEC.standard.writeups},
+        )
+        self.assertTrue(
+            all(item.get("counts_as_target_evidence") is False for item in projected)
+        )
+        self.assertTrue(all("type" not in item for item in projected))
+
+        public_docs = knowledge_for_family(self.family)
+        public_writeup_ids = {
+            str(item.get("id") or "")
+            for item in public_docs
+            if not str(item.get("id") or "").startswith("profile:")
+        }
+        self.assertEqual(
+            public_writeup_ids,
+            {item.id for item in BOLA_SPEC.standard.writeups},
+        )
+        self.assertTrue(all("type" not in item for item in public_docs))
 
     def test_surface_only_bola_stays_hidden(self) -> None:
         result = assess_admission(
