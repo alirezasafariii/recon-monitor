@@ -9,6 +9,7 @@ on:
       - 'app/v7_literal_patch_capture.py'
       - 'app/v7_benchmark_validate.py'
       - 'app/v7_benchmark_dataset.py'
+      - 'tools/refine_v7_near_miss_capture.py'
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,8 @@ jobs:
             app/v7_literal_source_research.py \
             app/v7_literal_linked_research.py \
             app/v7_literal_patch_capture.py \
-            app/v7_benchmark_validate.py
+            app/v7_benchmark_validate.py \
+            tools/refine_v7_near_miss_capture.py
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
