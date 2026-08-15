@@ -6,6 +6,9 @@ on:
       - agent/analysis-engine-6.32-post-blind-calibration
     paths:
       - '.github/workflows/analysis-632-v7-resume-after-graphql-source.yml'
+      - 'app/v7_literal_patch_capture.py'
+      - 'app/v7_benchmark_validate.py'
+      - 'app/v7_benchmark_dataset.py'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +34,9 @@ jobs:
             app/raw_recon_v7_collision_supplement.py \
             app/raw_recon_v7_merge_patchable.py \
             app/v7_literal_source_research.py \
-            app/v7_literal_linked_research.py
+            app/v7_literal_linked_research.py \
+            app/v7_literal_patch_capture.py \
+            app/v7_benchmark_validate.py
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
