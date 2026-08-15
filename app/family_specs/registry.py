@@ -14,16 +14,18 @@ import family_reasoning as _reasoning
 from .base import FamilyDetectionSpec, FamilyStandardSpec, compose_detection_spec
 from .broken_function_authorization import BFLA_STANDARD_SPEC
 from .broken_object_authorization import BOLA_STANDARD_SPEC
+from .dom_xss import DOM_XSS_STANDARD_SPEC
 from .sql_injection import SQL_INJECTION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
 
 
-FAMILY_SPEC_REGISTRY_VERSION = "1.2.0"
+FAMILY_SPEC_REGISTRY_VERSION = "1.3.0"
 MIGRATED_FAMILIES = (
     "broken_object_authorization",
     "broken_function_authorization",
     "ssrf",
     "sql_injection",
+    "dom_xss",
 )
 
 FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
@@ -31,6 +33,7 @@ FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     BFLA_STANDARD_SPEC.family: BFLA_STANDARD_SPEC,
     SSRF_STANDARD_SPEC.family: SSRF_STANDARD_SPEC,
     SQL_INJECTION_STANDARD_SPEC.family: SQL_INJECTION_STANDARD_SPEC,
+    DOM_XSS_STANDARD_SPEC.family: DOM_XSS_STANDARD_SPEC,
 }
 
 
