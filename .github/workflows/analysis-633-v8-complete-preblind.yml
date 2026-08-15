@@ -1,0 +1,254 @@
+name: Analysis 6.33 v8 Complete Pre-Blind
+
+on:
+  push:
+    branches:
+      - agent/analysis-engine-6.33-fresh-blind-v8-validation
+    paths:
+      - '.github/workflows/analysis-633-v8-complete-preblind.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v8-complete-preblind
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-fresh-blind-v8-validation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Lock consumed v7 terminal state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          receipt=json.loads(Path('benchmarks/raw/sources/v7_first_blind_consumption.json').read_text())
+          result=Path('benchmarks/raw/results/analysis_raw_v7_first_blind.json')
+          status=json.loads(Path('benchmarks/raw/sources/v7_terminal_status.json').read_text())
+          assert receipt['first_blind_consumed'] is True and receipt['rerun_allowed'] is False
+          assert receipt['state']=='consumed_execution_error'
+          assert receipt['execution_error']=='v7 evaluator cardinality mismatch'
+          assert status['metrics_valid'] is False and status['rerun_allowed'] is False
+          assert hashlib.sha256(result.read_bytes()).hexdigest()==receipt['result_sha256']
+          PY
+
+      - name: Generate isolated v8 code and protocol
+        run: |
+          set -euo pipefail
+          python tools/build_v8_pipeline.py
+          PYTHONPATH=app python -m py_compile app/*v8*.py
+          pytest -q tests/test_v8_preblind_regressions.py
+          PYTHONPATH=app python - <<'PY'
+          from v8_preblind_contract import inspect_evaluator
+          r=inspect_evaluator();print(r);assert r['passed'],r['errors']
+          from v8_freeze_verify import verify_freeze
+          assert callable(verify_freeze)
+          PY
+
+      - name: Discover fresh v8 passive sources through v1-v7 firewall
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from raw_recon_v8_source_discovery import discover,OUT
+          r=discover(recent_reviewed_pages=8,recent_unreviewed_pages=16,targeted_reviewed_pages=2,targeted_unreviewed_pages=4,target_per_family=100)
+          r['candidate_selection_uses_v7_first_blind_score']=False
+          r['candidate_selection_uses_v7_first_blind_case_errors']=False
+          r['candidate_selection_uses_v7_first_blind_error']=False
+          OUT.parent.mkdir(parents=True,exist_ok=True);OUT.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          print(json.dumps({'family_candidate_counts':r['family_candidate_counts'],'missing':r['families_without_candidates'],'firewall_rejections':r['source_firewall_rejection_count'],'api_requests':r['api_request_count']},sort_keys=True))
+          PY
+
+      - name: Verify upstream patch feasibility and condition grounding
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/raw_recon_v8_patch_probe.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('benchmarks/raw/sources/v8_candidates_patchable.json');r=json.loads(p.read_text())
+          r['candidate_selection_uses_v7_first_blind_score']=False
+          r['candidate_selection_uses_v7_first_blind_case_errors']=False
+          r['candidate_selection_uses_v7_first_blind_error']=False
+          p.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          print({'patchable_family_count':36-len(r['families_without_candidates']),'missing':r['families_without_candidates']})
+          PY
+
+      - name: Select 36 globally unique fresh v8 sources
+        id: select
+        continue-on-error: true
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/raw_recon_v8_source_selection.py
+
+      - name: Commit diagnostics if 36-source assignment is incomplete
+        if: steps.select.outcome != 'success'
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('benchmarks/raw/sources/v8_candidates_patchable.json');r=json.loads(p.read_text())
+          report={'version':'1.0.0','status':'fresh_v8_source_pool_incomplete','families_without_candidates':r.get('families_without_candidates',[]),'family_candidate_counts':r.get('family_candidate_counts',{}),'scoring_executed':False,'first_blind_consumed':False,'v7_first_blind_error_used_for_selection':False}
+          Path('benchmarks/raw/sources/v8_preblind_blocker.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/*v8*.py benchmarks/raw/sources/v8_protocol.json benchmarks/raw/sources/v8_candidates.json benchmarks/raw/sources/v8_candidates_patchable.json benchmarks/raw/sources/v8_shortlist.json benchmarks/raw/sources/v8_preblind_blocker.json || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record fresh v8 source-pool diagnostics'
+            git pull --rebase origin agent/analysis-engine-6.33-fresh-blind-v8-validation
+            git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v8-validation
+          fi
+          exit 1
+
+      - name: Assert fresh unique v8 shortlist
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from raw_recon_v8_source_firewall import validate_shortlist
+          r=json.loads(Path('benchmarks/raw/sources/v8_shortlist.json').read_text())
+          assert len(r['selected'])==36 and r['global_assignment_complete'] is True
+          assert r['firewall']['passed'] is True and r['firewall']['unique_root_count']==36 and r['firewall']['unique_project_count']==36
+          assert validate_shortlist(r['selected'])['passed'] is True
+          assert all(row.get('patch_probe_passed') is True and int(row.get('patch_added_line_count') or 0)>0 for row in r['selected'])
+          assert all(row.get('pre_score_expected_condition_signals') for row in r['selected'])
+          assert r['scoring_executed'] is False
+          PY
+
+      - name: Collect canonical and linked passive v8 snapshots
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app/v8_literal_source_research.py --require-all
+          python app/v8_literal_linked_research.py --require-all
+
+      - name: Build 144 label-blind literal captures
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+        run: |
+          rm -rf benchmarks/raw/sources/v8_capture_evidence /tmp/v8-captures
+          rm -f benchmarks/raw/sources/v8_literal_captures.jsonl benchmarks/raw/sources/v8_literal_capture_ingest_report.json benchmarks/raw/sources/v8_literal_capture_verification.json benchmarks/raw/analysis_raw_v8.jsonl benchmarks/raw/sources/v8_materialization_report.json benchmarks/raw/sources/v8_validation_report.json
+          mkdir -p /tmp/v8-captures
+          python app/v8_literal_label_schema.py
+          python app/v8_literal_capture_plan.py
+          python app/v8_literal_patch_capture.py /tmp/v8-captures
+          test "$(find /tmp/v8-captures -type f -name '*.json' | wc -l | tr -d ' ')" = "144"
+          python app/v8_literal_evidence_publish.py /tmp/v8-captures
+          python app/v8_literal_capture_plan.py
+          python app/v8_literal_capture_ingest.py
+          python app/v8_literal_capture_verify.py --write-report
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v8_literal_capture_verification.json').read_text())
+          assert r['passed'] is True,r['errors'];assert r['capture_count']==144 and r['evidence_count']==144 and r['unique_evidence_hash_count']==144;assert r['family_count']==36 and r['scoring_executed'] is False
+          PY
+
+      - name: Materialize validate and contract-check 276 v8 cases
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v8_benchmark_dataset.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v8_benchmark_validate import validate_v8_corpus
+          cases=[json.loads(line) for line in Path('benchmarks/raw/analysis_raw_v8.jsonl').read_text().splitlines() if line.strip()]
+          shortlist=json.loads(Path('benchmarks/raw/sources/v8_shortlist.json').read_text())
+          r=validate_v8_corpus(cases,shortlist,require_literal_single_capture=True)
+          Path('benchmarks/raw/sources/v8_validation_report.json').write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          assert r['passed'] is True,r['errors'];assert r['case_count']==276;assert r['single_case_count']==144 and r['pair_case_count']==72 and r['triad_case_count']==60;assert r['literal_single_capture_count']==144 and r['label_leakage_count']==0;assert r['source_firewall']['passed'] is True and r['scoring_executed'] is False
+          PY
+          python app/v8_preblind_contract.py
+
+      - name: Seal exact v8 corpus only after evaluator-corpus contract passes
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v8_preblind_contract.py
+          python app/v8_corpus_freeze.py
+          python app/v8_freeze_verify.py --require-freeze
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=json.loads(Path('benchmarks/raw/sources/v8_corpus_freeze.json').read_text())
+          assert f['evaluation_status']=='sealed_fresh_v8_unscored_holdout';assert f['case_count']==276 and f['literal_evidence_artifact_count']==144 and f['family_count']==36;assert f['source_root_count']==36 and f['source_project_count']==36;assert f['scoring_executed'] is False and f['first_blind_consumed'] is False
+          PY
+
+      - name: Freeze evaluator and single-consumption wrapper
+        if: steps.select.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+          protocol=json.loads(Path('benchmarks/raw/sources/v8_protocol.json').read_text())
+          report={'version':'1.0.0','rule_version':'2026.08.15.6.33.v8.5','evaluation_kind':'fresh_blind_v8_evaluator_freeze','first_blind_evaluator_frozen':True,'scoring_executed':False,'first_blind_consumed':False,'v6_first_blind_score_used':False,'v6_first_blind_case_errors_used':False,'v7_first_blind_score_used':False,'v7_first_blind_case_errors_used':False,'v7_first_blind_error_used':False,'evaluator_sha256':sha('app/v8_benchmark_evaluate.py'),'consumer_sha256':sha('app/v8_first_blind_consume.py'),'protocol_sha256':sha('benchmarks/raw/sources/v8_protocol.json'),'corpus_freeze_sha256':sha('benchmarks/raw/sources/v8_corpus_freeze.json'),'contract_sha256':sha('app/v8_preblind_contract.py'),'pre_registered_gates':{'single':protocol['single_quality_gates'],'pair':protocol['pair_quality_gates'],'triad':protocol['triad_quality_gates']},'mutation_policy':'v8 evaluator, consumer, contract, corpus and protocol are immutable before the single v8 First Blind'}
+          Path('benchmarks/raw/sources/v8_evaluator_freeze.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          PY
+          PYTHONPATH=app python app/v8_preblind_verify.py
+
+      - name: Write explicit v8 STOP checkpoint
+        if: steps.select.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          checkpoint={'version':'1.0.0','rule_version':'2026.08.15.6.33.v8.6','checkpoint_status':'pre_v8_first_blind_ready_waiting_explicit_approval','production_calibration_status':'analysis_6_32_green_613_unit_tests_plus_golden_integration','fresh_source_family_count':36,'fresh_unique_root_count':36,'fresh_unique_project_count':36,'evidence_present_count':144,'evidence_missing_count':0,'unique_evidence_hash_count':144,'materialized_case_count':276,'single_case_count':144,'pair_case_count':72,'triad_case_count':60,'label_leakage_count':0,'evaluator_corpus_contract_passed':True,'corpus_freeze_status':'sealed_fresh_v8_unscored_holdout','evaluator_freeze_status':'frozen_against_exact_v8_corpus_contract_and_single_consumption_wrapper','v6_first_blind_score_used_for_v8_source_selection':False,'v6_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_score_used_for_v8_source_selection':False,'v7_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_error_used_for_v8_source_selection':False,'active_target_validation_performed':False,'scoring_executed':False,'first_blind_consumed':False,'next_required_transition':'STOP. Await explicit approval before the single-consumption v8 First Blind score. Do not merge or finalize before explicit approval.'}
+          Path('benchmarks/raw/sources/v8_pre_score_checkpoint.json').write_text(json.dumps(checkpoint,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Final preblind integrity
+        if: steps.select.outcome == 'success'
+        env:
+          PYTHONPATH: app
+        run: |
+          python app/v8_preblind_contract.py
+          python app/v8_preblind_verify.py
+          test ! -e benchmarks/raw/sources/v8_first_blind_consumption.json
+          test ! -e benchmarks/raw/results/analysis_raw_v8_first_blind.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v8_pre_score_checkpoint.json').read_text());assert r['checkpoint_status']=='pre_v8_first_blind_ready_waiting_explicit_approval';assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          PY
+
+      - name: Commit complete v8 preblind state
+        if: steps.select.outcome == 'success'
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/*v8*.py benchmarks/raw/analysis_raw_v8.jsonl benchmarks/raw/sources/v8_* benchmarks/raw/sources/v8_capture_evidence
+          git commit -m 'Seal Analysis 6.33 v8 fresh preblind state'
+          git pull --rebase origin agent/analysis-engine-6.33-fresh-blind-v8-validation
+          git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v8-validation
