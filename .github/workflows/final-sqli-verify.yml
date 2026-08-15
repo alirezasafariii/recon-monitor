@@ -35,7 +35,7 @@ jobs:
           replace_once(
               'app/hypothesis_admission.py',
               'ADMISSION_ENGINE_VERSION = "2.0.0"\nADMISSION_RULE_VERSION = "2026.08.10.2"',
-              'ADMISSION_ENGINE_VERSION = "2.1.0"\nADMISSION_RULE_VERSION = "2026.08.15.4"',
+              'ADMISSION_ENGINE_VERSION = "2.0.0"\nADMISSION_RULE_VERSION = "2026.08.15.4"',
           )
           replace_once(
               'app/hypothesis_admission.py',
