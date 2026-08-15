@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Dedicated DOM-based XSS analyzer.
+"""Dedicated DOM-based XSS analyzer backed by the canonical family spec.
 
 The analyzer separates static client-side source/sink proximity from stored
 runtime evidence that a controlled, non-executing marker reaches a dangerous
@@ -15,12 +15,14 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
-DOM_XSS_FAMILY_ANALYZER_VERSION = "1.0.0"
-DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.08.11.1"
+DOM_XSS_FAMILY_ANALYZER_VERSION = "1.1.0"
+DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.08.15.4"
+DOM_XSS_SPEC = get_detection_spec("dom_xss")
 
 DOM_SOURCE_MARKERS = {
     "location", "location_href", "location_search", "location_hash",
@@ -38,73 +40,22 @@ EXECUTION_SINKS = {
 }
 SAFE_SINKS = {"textcontent", "innertext", "createTextNode", "create_text_node"}
 
-DOM_XSS_TAXONOMY = {
-    "owasp": ["A03:2021 Injection"],
-    "wstg": ["WSTG-CLNT-01"],
-    "related_wstg": ["WSTG-CLNT-02", "WSTG-CLNT-06"],
-    "cwe": ["CWE-79"],
-}
-
-DOM_XSS_METHOD = (
+# Compatibility exports; canonical standards/write-up definitions live in family_specs.
+DOM_XSS_TAXONOMY = DOM_XSS_SPEC.taxonomy()
+DOM_XSS_METHOD = tuple(step.as_dict() for step in DOM_XSS_SPEC.standard.methodology)
+DOM_XSS_FALSE_POSITIVE_CHECKS = tuple(DOM_XSS_SPEC.standard.false_positive_checks)
+DOM_XSS_WRITEUP_PATTERNS = tuple(
     {
-        "id": "DOMXSS-01-source-classification",
-        "basis": ["WSTG-CLNT-01", "CWE-79"],
-        "principle": "Classify whether a browser-side value is actually user-influenced; the mere presence of location, storage or URL APIs is only source-surface evidence.",
-    },
-    {
-        "id": "DOMXSS-02-flow-and-transformation",
-        "basis": ["WSTG-CLNT-01"],
-        "principle": "Preserve the source-to-sink relationship and inspect stored transformation evidence; nearby source and sink tokens are one correlated static observation, not two independent proofs.",
-    },
-    {
-        "id": "DOMXSS-03-sink-context",
-        "basis": ["CWE-79", "WSTG-CLNT-02"],
-        "principle": "Distinguish HTML-rendering and executable JavaScript contexts from safe text sinks and from neighboring navigation or postMessage families.",
-    },
-    {
-        "id": "DOMXSS-04-neutralization-controls",
-        "basis": ["CWE-79", "WSTG-CLNT-01"],
-        "principle": "Treat context-appropriate sanitization, encoding, Trusted Types enforcement or a safe DOM API as security controls rather than vulnerability evidence.",
-    },
-    {
-        "id": "DOMXSS-05-runtime-reachability",
-        "basis": ["WSTG-CLNT-01"],
-        "principle": "Runtime reachability requires a stored observation that a controlled harmless marker propagated from the identified source into the identified dangerous sink; no payload execution is performed here.",
-    },
-    {
-        "id": "DOMXSS-06-vulnerability-condition",
-        "basis": ["CWE-79", "WSTG-CLNT-01"],
-        "principle": "Direct DOM-XSS condition evidence requires a runtime-reachable dangerous context plus explicit evidence that effective neutralization was absent; source/sink proximity alone remains a hidden hypothesis.",
-    },
-)
-
-DOM_XSS_FALSE_POSITIVE_CHECKS = (
-    "A source token and a dangerous sink in the same JavaScript bundle do not prove that the value reaches that sink at runtime.",
-    "Static source/sink proximity is a single correlated observation root and must not satisfy the independent-evidence requirement by itself.",
-    "textContent, innerText and equivalent text-only DOM APIs are not HTML/executable sinks for this family.",
-    "A postMessage source belongs primarily to the postMessage Trust family unless independent runtime DOM-XSS evidence establishes an unsafe DOM flow.",
-    "A navigation-only sink belongs primarily to Open Redirect / client-side resource manipulation unless an executable DOM context is independently established.",
-    "Context-appropriate sanitization, encoding, Trusted Types enforcement or a blocked unsafe assignment is evidence against the DOM-XSS condition.",
-    "A harmless marker reaching an HTML sink proves reachability, not script execution; an unsafe/executable context and absent neutralization must be established separately.",
-)
-
-DOM_XSS_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-clnt-01-dom-xss",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-CLNT-01 / Testing for DOM-Based Cross Site Scripting",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/11-Client-side_Testing/01-Testing_for_DOM-based_Cross_Site_Scripting",
-        "principle": "DOM XSS reasoning must connect a user-influenced browser source to a dangerous sink and reason about client-side transformations and execution context.",
-        "signals": ["dataflow_source", "dataflow_sink", "unsanitized_dom_flow"],
-    },
-    {
-        "id": "ghsl-2026-030-nocodb-rendering",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2026-030 / NocoDB XSS rendering pattern",
-        "url": "https://securitylab.github.com/advisories/GHSL-2026-030_nocodb/",
-        "principle": "Rendering attacker-controlled rich content directly into a DOM HTML sink without effective sanitization demonstrates why sink context and neutralization must be evaluated together.",
-        "signals": ["unsanitized_dom_flow"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in DOM_XSS_SPEC.standard.writeups
 )
 
 
@@ -385,9 +336,6 @@ def analyze_dom_xss_signal(
 
     observed = {str(item.get("type") or "") for item in support}
     confirmation_missing = confirmation_gaps("dom_xss", observed)
-    # DOM-XSS confirmation is intentionally stricter than the legacy family
-    # catalog: runtime sink reach alone is insufficient without an explicitly
-    # unsanitized flow into an executable/script-capable context.
     if "unsanitized_dom_flow" not in observed:
         confirmation_missing = [
             "unsanitized_dom_flow: runtime-reachable dangerous DOM/execution context with effective neutralization explicitly absent"
@@ -396,6 +344,7 @@ def analyze_dom_xss_signal(
     metadata = DomXssFamilyAnalyzer().metadata()
     metadata.update({
         "family_rule_version": DOM_XSS_FAMILY_ANALYZER_RULE_VERSION,
+        "family_spec_version": DOM_XSS_SPEC.version,
         "taxonomy": {key: list(value) for key, value in DOM_XSS_TAXONOMY.items()},
         "methodology": [dict(step) for step in DOM_XSS_METHOD],
         "false_positive_checks": list(DOM_XSS_FALSE_POSITIVE_CHECKS),
