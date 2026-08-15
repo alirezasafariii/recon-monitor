@@ -10,6 +10,7 @@ on:
       - 'app/raw_recon_v7_source_discovery.py'
       - 'app/raw_recon_v7_source_discovery_fast.py'
       - 'app/raw_recon_v7_gap_discovery.py'
+      - 'app/raw_recon_v7_duplicate_target_repair.py'
       - 'app/raw_recon_v7_source_selection.py'
       - 'app/v7_external_exposure.py'
       - 'benchmarks/raw/sources/v7_protocol.json'
@@ -106,22 +107,44 @@ jobs:
             --max-pages 12 \
             --target 20
 
+      - name: Repair duplicate targeted metadata for final gap families
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python app/raw_recon_v7_duplicate_target_repair.py \
+            --input benchmarks/raw/sources/v7_candidates.json \
+            --output benchmarks/raw/sources/v7_candidates.json \
+            --report benchmarks/raw/sources/v7_duplicate_target_repair_report.json \
+            --max-pages 12 \
+            --target 20
+
       - name: Verify candidate pool remains fully pre-scoring
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           r=json.loads(Path('benchmarks/raw/sources/v7_candidates.json').read_text())
+          repair=json.loads(Path('benchmarks/raw/sources/v7_duplicate_target_repair_report.json').read_text())
           assert r['family_count']==36
           assert r['scoring_executed'] is False
           assert r['first_blind_consumed'] is False
+          assert repair['scoring_executed'] is False
+          assert repair['first_blind_consumed'] is False
+          for family in ('dom_xss','sensitive_business_flow_abuse'):
+              assert repair['targeted_candidate_counts'][family] > 0, repair
+              assert repair['promoted_or_appended_counts'][family] > 0, repair
           for k in (
             'candidate_selection_uses_detector_scores','candidate_selection_uses_admission_results',
             'candidate_selection_uses_ranking_results','candidate_selection_uses_v6_first_blind_score',
             'candidate_selection_uses_v6_first_blind_case_errors','candidate_selection_uses_corpus_v1_labels',
             'candidate_selection_uses_corpus_v1_evidence','candidate_selection_uses_corpus_v1_scores'):
               assert r[k] is False, (k,r[k])
-          print({'targeted_gap_counts':r.get('targeted_gap_candidate_counts',{}),'scoring_executed':False})
+          print({
+            'targeted_gap_counts':r.get('targeted_gap_candidate_counts',{}),
+            'duplicate_repair':repair['promoted_or_appended_counts'],
+            'scoring_executed':False
+          })
           PY
 
       - name: Persist immutable pre-scoring candidate checkpoint
@@ -133,7 +156,8 @@ jobs:
           git add benchmarks/raw/sources/v7_external_exclusions.json \
                   benchmarks/raw/sources/v7_candidates_fast.json \
                   benchmarks/raw/sources/v7_candidates.json \
-                  benchmarks/raw/sources/v7_gap_discovery_report.json
+                  benchmarks/raw/sources/v7_gap_discovery_report.json \
+                  benchmarks/raw/sources/v7_duplicate_target_repair_report.json
           if ! git diff --cached --quiet; then
             git commit -m 'chore(analysis-633): checkpoint unscored V7 candidate pool'
             git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v7-unseen-fast
@@ -215,6 +239,7 @@ jobs:
                   benchmarks/raw/sources/v7_candidates_fast.json \
                   benchmarks/raw/sources/v7_candidates.json \
                   benchmarks/raw/sources/v7_gap_discovery_report.json \
+                  benchmarks/raw/sources/v7_duplicate_target_repair_report.json \
                   benchmarks/raw/sources/v7_shortlist.json
           git ls-files -z \
             | python -c 'import sys; items=[x for x in sys.stdin.buffer.read().split(b"\0") if x and x != b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(items))+b"\0")' \
