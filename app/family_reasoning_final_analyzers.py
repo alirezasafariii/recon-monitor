@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.2.0"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.5"
+FINAL_ANALYZER_REASONING_VERSION = "1.2.1"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.6"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
@@ -108,7 +108,10 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
             "promotion_required": _groups(
                 {"file_input"},
                 {"upload_operation", "import_operation"},
-                {"unsafe_file_accepted", "file_policy_differential"},
+                {
+                    "unsafe_file_accepted", "file_policy_differential",
+                    "content_type_bypass_observed", "executable_upload_observed",
+                },
             ),
             "blocking_contradictions": frozenset({"file_type_enforcement_observed", "safe_storage_observed"}),
             "override_signals": frozenset(
@@ -127,7 +130,11 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
             "promotion_required": _groups(
                 {"path_parameter", "filename_field", "storage_path"},
                 {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
-                {"path_escape_observed", "path_boundary_differential"},
+                {
+                    "path_escape_observed", "path_boundary_differential",
+                    "canonicalization_bypass_observed", "out_of_root_file_access_observed",
+                    "out_of_root_file_write_observed",
+                },
             ),
             "blocking_contradictions": frozenset({"canonicalization_enforced", "base_directory_enforced"}),
             "override_signals": frozenset(
