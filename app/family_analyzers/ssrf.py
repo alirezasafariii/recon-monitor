@@ -5,8 +5,8 @@ from __future__ import annotations
 The analyzer separates a user-controlled remote-destination surface from proof
 that the application server performed an outbound request and from the stricter
 question of whether the destination trust boundary was actually bypassed.
-CWE/WSTG/write-up material guides reasoning only; it never becomes target
-evidence and this module performs no active network validation.
+Standards and write-up lessons come from the canonical family specification and
+never become target evidence. This module performs no active network validation.
 """
 
 import ipaddress
@@ -15,14 +15,16 @@ import re
 from typing import Any, Iterable, Mapping
 from urllib.parse import urlsplit
 
-from core import Database, parse_int
-from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from core import Database
+from family_reasoning import confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
-SSRF_FAMILY_ANALYZER_VERSION = "1.0.0"
-SSRF_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.2"
+SSRF_FAMILY_ANALYZER_VERSION = "1.1.0"
+SSRF_FAMILY_ANALYZER_RULE_VERSION = "2026.08.15.3"
+SSRF_SPEC = get_detection_spec("ssrf")
 
 DESTINATION_FIELDS = {
     "url", "uri", "endpoint", "destination", "destination_url", "destinationurl",
@@ -38,75 +40,22 @@ SERVER_FEATURE_MARKERS = {
     "downloadurl", "download_url", "server_fetch", "outbound_request", "http_client",
 }
 
-SSRF_TAXONOMY = {
-    "owasp": ["Server-Side Request Forgery (SSRF)"],
-    "wstg": ["WSTG-INPV-19"],
-    "cwe": ["CWE-918"],
-}
-
-SSRF_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+SSRF_TAXONOMY = SSRF_SPEC.taxonomy()
+SSRF_METHOD = tuple(step.as_dict() for step in SSRF_SPEC.standard.methodology)
+SSRF_FALSE_POSITIVE_CHECKS = tuple(SSRF_SPEC.standard.false_positive_checks)
+SSRF_WRITEUP_PATTERNS = tuple(
     {
-        "id": "SSRF-01-destination-surface",
-        "basis": ["WSTG-INPV-19", "CWE-918"],
-        "principle": "Identify the exact user-controlled remote destination and keep URL-looking field names as structural surface evidence only.",
-    },
-    {
-        "id": "SSRF-02-execution-location",
-        "basis": ["WSTG-INPV-19"],
-        "principle": "Separate browser-side network activity from a server, worker or backend component performing the outbound request.",
-    },
-    {
-        "id": "SSRF-03-destination-policy",
-        "basis": ["CWE-918"],
-        "principle": "Model scheme/host allow-lists, private-network restrictions, redirect revalidation and egress controls before treating a remote fetch as a security-boundary failure.",
-    },
-    {
-        "id": "SSRF-04-stored-outbound-observation",
-        "basis": ["WSTG-INPV-19", "CWE-918"],
-        "principle": "Potential-Finding evidence requires a stored observation tying a user-controlled destination to an outbound request performed by the server or a correlated controlled callback.",
-    },
-    {
-        "id": "SSRF-05-boundary-failure",
-        "basis": ["CWE-918"],
-        "principle": "Confirmation remains stricter: stored evidence must show that an intended destination restriction was bypassed or a restricted destination was actually accepted.",
-    },
-)
-
-SSRF_FALSE_POSITIVE_CHECKS = (
-    "A URL parameter plus webhook/import/preview/proxy wording is one structural surface, not proof of a server-side request.",
-    "A browser fetch, client-side image load or JavaScript request is not SSRF.",
-    "An application response status such as HTTP 200 does not prove that the backend fetched the supplied destination.",
-    "A server feature intentionally fetching a fixed or allow-listed destination is not an SSRF boundary failure.",
-    "A controlled callback must be correlated to the tested destination and request and attributed to server/backend execution; unrelated DNS/HTTP noise is not target evidence.",
-    "Private, loopback, link-local or metadata-looking destinations are never probed automatically by this analyzer.",
-    "Scheme restrictions, exact host allow-lists, private-network blocking, redirect revalidation and egress policy are evidence against the vulnerable condition when enforcement is observed.",
-    "Hostname text is not resolved by the analyzer and no claim about private/public routing is inferred from an unresolved hostname.",
-)
-
-SSRF_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-inpv-19-ssrf",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-INPV-19 / Testing for Server-Side Request Forgery",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/19-Testing_for_Server-Side_Request_Forgery",
-        "principle": "User-controlled destinations become SSRF-relevant only when the server performs the request and destination controls fail.",
-        "signals": ["remote_destination", "server_fetch_observed", "destination_policy_bypass_observed"],
-    },
-    {
-        "id": "cwe-918-server-side-request-forgery",
-        "source": "MITRE CWE",
-        "ref": "CWE-918 / Server-Side Request Forgery (SSRF)",
-        "url": "https://cwe.mitre.org/data/definitions/918.html",
-        "principle": "A server receives a destination from an upstream component and retrieves it without sufficient validation that the request is being sent to the intended destination.",
-        "signals": ["url_parameter", "server_fetch_observed", "restricted_destination_accepted"],
-    },
-    {
-        "id": "public-writeup-webhook-preview-fetch-pattern",
-        "source": "Public write-up pattern corpus",
-        "ref": "webhook / preview / import remote-fetch pattern",
-        "principle": "Real-world SSRF reports commonly distinguish a URL-taking feature from the decisive proof that backend request execution can cross the intended destination boundary.",
-        "signals": ["server_feature", "controlled_callback_observed", "destination_policy_bypass_observed"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in SSRF_SPEC.standard.writeups
 )
 
 
@@ -263,7 +212,12 @@ def _execution_location(observation: Mapping[str, Any]) -> str:
 
 def _destination_classification(value: str) -> dict[str, Any]:
     raw = str(value or "").strip()
-    result: dict[str, Any] = {"raw_present": bool(raw), "scheme": "", "host_kind": "unknown", "restricted_literal": False}
+    result: dict[str, Any] = {
+        "raw_present": bool(raw),
+        "scheme": "",
+        "host_kind": "unknown",
+        "restricted_literal": False,
+    }
     if not raw:
         return result
     try:
@@ -289,10 +243,12 @@ def _destination_classification(value: str) -> dict[str, Any]:
         kind = "multicast"
     elif address.is_reserved:
         kind = "reserved"
+    elif not address.is_global:
+        kind = "non_global"
     else:
         kind = "public_ip"
     result["host_kind"] = kind
-    result["restricted_literal"] = kind in {"loopback", "link_local", "private", "multicast", "reserved"}
+    result["restricted_literal"] = kind != "public_ip"
     return result
 
 
@@ -328,7 +284,6 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
         )))
         explicit_no_fetch = _bool(_scalar(observation, ("server_fetch_not_observed", "outbound_request_not_observed")))
         browser_fetch = _bool(_scalar(observation, ("browser_side_fetch_observed", "client_fetch_observed")))
-
         callback_observed = _bool(_scalar(observation, ("controlled_callback_observed", "callback_received", "oast_callback_observed")))
         callback_correlated = _bool(_scalar(observation, (
             "callback_token_match", "callback_correlated", "request_correlation_match", "controlled_destination_correlated",
@@ -336,7 +291,6 @@ def _runtime_evidence(details: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
         controlled_destination = _bool(_scalar(observation, (
             "controlled_destination", "destination_owned_by_tester", "callback_destination_controlled",
         )))
-
         validation_present = _bool(_scalar(observation, (
             "destination_validation_observed", "destination_allowlist_enforced", "host_allowlist_enforced",
             "scheme_validation_enforced", "private_network_blocked", "metadata_endpoint_blocked",
@@ -471,6 +425,26 @@ def _variant(support: list[dict[str, Any]], contradict: list[dict[str, Any]]) ->
     return "remote_fetch_surface"
 
 
+def _matched_writeups(observed: set[str]) -> list[dict[str, Any]]:
+    matches: list[dict[str, Any]] = []
+    for item in SSRF_SPEC.standard.writeups:
+        overlap = sorted(observed & set(item.signal_hints))
+        if not overlap:
+            continue
+        matches.append({
+            "id": item.id,
+            "source": item.source,
+            "ref": item.ref,
+            "url": item.url,
+            "relation": item.relation,
+            "principle": item.lesson,
+            "matched_signals": overlap,
+            "non_evidentiary": True,
+            "counts_as_target_evidence": False,
+        })
+    return matches
+
+
 def analyze_ssrf_signal(
     db: Database,
     *,
@@ -498,33 +472,38 @@ def analyze_ssrf_signal(
 
     observed = {str(item.get("type") or "") for item in support}
     catalog_confirmation_missing = confirmation_gaps("ssrf", observed)
-    confirmation_missing = [] if confirmation_direct else [
-        "destination_policy_bypass_observed / restricted_destination_accepted: stored target evidence that the intended destination trust boundary actually failed"
-    ]
     blockers = {str(item.get("type") or "") for item in contradict}
     confirmation_ready = confirmation_direct and not blockers.intersection(
         {"browser_side_fetch_observed", "destination_validation_observed", "server_fetch_not_observed"}
     )
+    matched_writeups = _matched_writeups(observed)
 
     metadata = SsrfFamilyAnalyzer().metadata()
     metadata.update({
         "family_rule_version": SSRF_FAMILY_ANALYZER_RULE_VERSION,
-        "taxonomy": {key: list(value) for key, value in SSRF_TAXONOMY.items()},
-        "methodology": [dict(step) for step in SSRF_METHOD],
-        "false_positive_checks": list(SSRF_FALSE_POSITIVE_CHECKS),
+        "family_spec_version": SSRF_SPEC.version,
+        "family_spec_strategy": SSRF_SPEC.strategy,
+        "taxonomy": SSRF_SPEC.taxonomy(),
+        "methodology": [step.as_dict() for step in SSRF_SPEC.standard.methodology],
+        "false_positive_checks": list(SSRF_SPEC.standard.false_positive_checks),
         "triggered_false_positive_checks": [
             {"signal": str(item.get("type") or ""), "text": str(item.get("text") or "")}
             for item in contradict
         ],
-        "writeup_patterns": [dict(item, non_evidentiary=True) for item in SSRF_WRITEUP_PATTERNS],
+        "writeup_patterns": matched_writeups,
+        "promotion_required": [sorted(group) for group in SSRF_SPEC.promotion_required],
+        "promotion_ready_from_stored_target_evidence": promotion_direct,
+        "confirmation_required": [sorted(group) for group in SSRF_SPEC.confirmation_required],
+        "family_reasoning_confirmation_gaps": catalog_confirmation_missing,
+        "confirmation_missing": catalog_confirmation_missing,
+        "confirmation_ready_from_stored_target_evidence": confirmation_ready,
+        "next_evidence": list(SSRF_SPEC.next_evidence),
+        "validation_level": SSRF_SPEC.validation_level,
+        "knowledge_sources_matched": len(matched_writeups),
         "destination_fields": list(destinations),
         "server_feature_markers": list(features),
         "destination_context": destination_context,
         "structural_destination_and_feature_are_one_evidence_root": True,
-        "promotion_ready_from_stored_target_evidence": promotion_direct,
-        "family_reasoning_confirmation_gaps": catalog_confirmation_missing,
-        "confirmation_missing": confirmation_missing,
-        "confirmation_ready_from_stored_target_evidence": confirmation_ready,
         "knowledge_does_not_change_target_evidence": True,
         "active_validation_performed": False,
         "internal_or_metadata_probing_performed": False,
@@ -532,7 +511,7 @@ def analyze_ssrf_signal(
         "dns_resolution_performed": False,
     })
 
-    missing = list(FAMILY_REASONING["ssrf"]["next_evidence"])
+    missing = list(SSRF_SPEC.next_evidence)
     if promotion_direct:
         missing = [item for item in missing if "server, not the browser" not in item.lower()]
     if confirmation_ready:
@@ -580,3 +559,16 @@ class SsrfFamilyAnalyzer(FamilyAnalyzer):
             query_fields=kwargs.get("query_fields") or (),
             semantic_text=str(kwargs.get("semantic_text") or ""),
         )
+
+
+__all__ = [
+    "SSRF_FAMILY_ANALYZER_VERSION",
+    "SSRF_FAMILY_ANALYZER_RULE_VERSION",
+    "SSRF_SPEC",
+    "SSRF_TAXONOMY",
+    "SSRF_METHOD",
+    "SSRF_FALSE_POSITIVE_CHECKS",
+    "SSRF_WRITEUP_PATTERNS",
+    "SsrfFamilyAnalyzer",
+    "analyze_ssrf_signal",
+]
