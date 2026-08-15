@@ -1,0 +1,699 @@
+{
+  "by_case_kind": {
+    "near_miss": 26,
+    "positive": 20,
+    "secure_negative": 20
+  },
+  "by_resolution_stage": {
+    "final_residual_control": 2,
+    "fourth_pass": 3,
+    "second_pass": 27,
+    "sixth_pass": 16,
+    "third_pass": 18
+  },
+  "candidate_material_complete": true,
+  "candidate_material_coverage_count": 66,
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:51:38.045680+00:00",
+  "cross_variant_mutation_allowed": false,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_candidate_material_coverage_ledger_unscored",
+  "evidence_published": false,
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "human_review_complete": false,
+  "items": [
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-account_enumeration-near_miss",
+      "case_kind": "near_miss",
+      "family": "account_enumeration",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_root": "GHSA-jhh7-832h-f8hv"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-account_enumeration-positive",
+      "case_kind": "positive",
+      "family": "account_enumeration",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_root": "GHSA-jhh7-832h-f8hv"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-account_enumeration-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "account_enumeration",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_root": "GHSA-jhh7-832h-f8hv"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-broken_function_authorization-near_miss",
+      "case_kind": "near_miss",
+      "family": "broken_function_authorization",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "surrealdb/surrealdb",
+      "source_root": "GHSA-8rw6-p7m8-63jp"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-broken_object_authorization-near_miss",
+      "case_kind": "near_miss",
+      "family": "broken_object_authorization",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_root": "GHSA-x83g-979r-f5fh"
+    },
+    {
+      "candidate_count": 6,
+      "capture_id": "v7-broken_object_authorization-positive",
+      "case_kind": "positive",
+      "family": "broken_object_authorization",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_root": "GHSA-x83g-979r-f5fh"
+    },
+    {
+      "candidate_count": 6,
+      "capture_id": "v7-broken_object_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "broken_object_authorization",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_root": "GHSA-x83g-979r-f5fh"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-business_logic-near_miss",
+      "case_kind": "near_miss",
+      "family": "business_logic",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "ethyca/fides",
+      "source_root": "GHSA-qx5f-ghc2-7g5c"
+    },
+    {
+      "candidate_count": 4,
+      "capture_id": "v7-business_logic-positive",
+      "case_kind": "positive",
+      "family": "business_logic",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "ethyca/fides",
+      "source_root": "GHSA-qx5f-ghc2-7g5c"
+    },
+    {
+      "candidate_count": 4,
+      "capture_id": "v7-business_logic-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "business_logic",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "ethyca/fides",
+      "source_root": "GHSA-qx5f-ghc2-7g5c"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-command_injection-near_miss",
+      "case_kind": "near_miss",
+      "family": "command_injection",
+      "resolution_stage": "final_residual_control",
+      "semantic_adjudicated": false,
+      "source_project": "sebhildebrandt/systeminformation",
+      "source_root": "GHSA-5xpp-75jx-m839"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-cors_misconfiguration-near_miss",
+      "case_kind": "near_miss",
+      "family": "cors_misconfiguration",
+      "resolution_stage": "final_residual_control",
+      "semantic_adjudicated": false,
+      "source_project": "BishopFox/joro",
+      "source_root": "GHSA-xqhv-chqm-fhcc"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-cors_misconfiguration-positive",
+      "case_kind": "positive",
+      "family": "cors_misconfiguration",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "BishopFox/joro",
+      "source_root": "GHSA-xqhv-chqm-fhcc"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-cors_misconfiguration-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "cors_misconfiguration",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "BishopFox/joro",
+      "source_root": "GHSA-xqhv-chqm-fhcc"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-dom_xss-near_miss",
+      "case_kind": "near_miss",
+      "family": "dom_xss",
+      "resolution_stage": "fourth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "gogs/gogs",
+      "source_root": "GHSA-vcm5-gvmp-78mp"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-exceptional_condition_mishandling-near_miss",
+      "case_kind": "near_miss",
+      "family": "exceptional_condition_mishandling",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "sipsorcery-org/sipsorcery",
+      "source_root": "GHSA-pfvm-w89x-94jw"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-graphql_authorization-near_miss",
+      "case_kind": "near_miss",
+      "family": "graphql_authorization",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "n8n-io/n8n",
+      "source_root": "GHSA-gq66-9cw5-j5jm"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-graphql_authorization-positive",
+      "case_kind": "positive",
+      "family": "graphql_authorization",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "n8n-io/n8n",
+      "source_root": "GHSA-gq66-9cw5-j5jm"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-graphql_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "graphql_authorization",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "n8n-io/n8n",
+      "source_root": "GHSA-gq66-9cw5-j5jm"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-graphql_data_exposure-near_miss",
+      "case_kind": "near_miss",
+      "family": "graphql_data_exposure",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_root": "GHSA-qpm9-h556-mwxm"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-graphql_data_exposure-positive",
+      "case_kind": "positive",
+      "family": "graphql_data_exposure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_root": "GHSA-qpm9-h556-mwxm"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-graphql_data_exposure-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "graphql_data_exposure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_root": "GHSA-qpm9-h556-mwxm"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-improper_inventory_management-near_miss",
+      "case_kind": "near_miss",
+      "family": "improper_inventory_management",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "edgexfoundry/edgex-go",
+      "source_root": "GHSA-g63h-q855-vp3q"
+    },
+    {
+      "candidate_count": 5,
+      "capture_id": "v7-improper_inventory_management-positive",
+      "case_kind": "positive",
+      "family": "improper_inventory_management",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "edgexfoundry/edgex-go",
+      "source_root": "GHSA-g63h-q855-vp3q"
+    },
+    {
+      "candidate_count": 5,
+      "capture_id": "v7-improper_inventory_management-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "improper_inventory_management",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "edgexfoundry/edgex-go",
+      "source_root": "GHSA-g63h-q855-vp3q"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-information_disclosure-near_miss",
+      "case_kind": "near_miss",
+      "family": "information_disclosure",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "OpenListTeam/OpenList",
+      "source_root": "GHSA-p6ph-3jx2-3337"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-information_disclosure-positive",
+      "case_kind": "positive",
+      "family": "information_disclosure",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "OpenListTeam/OpenList",
+      "source_root": "GHSA-p6ph-3jx2-3337"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-information_disclosure-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "information_disclosure",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "OpenListTeam/OpenList",
+      "source_root": "GHSA-p6ph-3jx2-3337"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-mass_assignment-near_miss",
+      "case_kind": "near_miss",
+      "family": "mass_assignment",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-qh43-xrjm-4ggp"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-mass_assignment-positive",
+      "case_kind": "positive",
+      "family": "mass_assignment",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-qh43-xrjm-4ggp"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-mass_assignment-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "mass_assignment",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "kimai/kimai",
+      "source_root": "GHSA-qh43-xrjm-4ggp"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-open_redirect-near_miss",
+      "case_kind": "near_miss",
+      "family": "open_redirect",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "go-chi/chi",
+      "source_root": "GHSA-xcvf-46f4-xwxf"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-open_redirect-positive",
+      "case_kind": "positive",
+      "family": "open_redirect",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "go-chi/chi",
+      "source_root": "GHSA-xcvf-46f4-xwxf"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-open_redirect-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "open_redirect",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "go-chi/chi",
+      "source_root": "GHSA-xcvf-46f4-xwxf"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-postmessage_trust-near_miss",
+      "case_kind": "near_miss",
+      "family": "postmessage_trust",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "tinacms/tinacms",
+      "source_root": "GHSA-g5qx-h5f3-mp2f"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-postmessage_trust-positive",
+      "case_kind": "positive",
+      "family": "postmessage_trust",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "tinacms/tinacms",
+      "source_root": "GHSA-g5qx-h5f3-mp2f"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-postmessage_trust-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "postmessage_trust",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "tinacms/tinacms",
+      "source_root": "GHSA-g5qx-h5f3-mp2f"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-race_condition-near_miss",
+      "case_kind": "near_miss",
+      "family": "race_condition",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "SpectoLabs/hoverfly",
+      "source_root": "GHSA-qrh4-p6v4-mrfg"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-race_condition-positive",
+      "case_kind": "positive",
+      "family": "race_condition",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "SpectoLabs/hoverfly",
+      "source_root": "GHSA-qrh4-p6v4-mrfg"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-race_condition-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "race_condition",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "SpectoLabs/hoverfly",
+      "source_root": "GHSA-qrh4-p6v4-mrfg"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-secret_exposure-near_miss",
+      "case_kind": "near_miss",
+      "family": "secret_exposure",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "Roskus/prospero-flow-crm",
+      "source_root": "GHSA-pw58-qr35-gpr4"
+    },
+    {
+      "candidate_count": 5,
+      "capture_id": "v7-security_logging_alerting_failure-near_miss",
+      "case_kind": "near_miss",
+      "family": "security_logging_alerting_failure",
+      "resolution_stage": "fourth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+      "source_root": "GHSA-8rrq-wcg8-cv5q"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-security_logging_alerting_failure-positive",
+      "case_kind": "positive",
+      "family": "security_logging_alerting_failure",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+      "source_root": "GHSA-8rrq-wcg8-cv5q"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-security_logging_alerting_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "security_logging_alerting_failure",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+      "source_root": "GHSA-8rrq-wcg8-cv5q"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-server_side_template_injection-near_miss",
+      "case_kind": "near_miss",
+      "family": "server_side_template_injection",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "getgrav/grav",
+      "source_root": "GHSA-4jrc-qc5x-3wrr"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-server_side_template_injection-positive",
+      "case_kind": "positive",
+      "family": "server_side_template_injection",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "getgrav/grav",
+      "source_root": "GHSA-4jrc-qc5x-3wrr"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-server_side_template_injection-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "server_side_template_injection",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "getgrav/grav",
+      "source_root": "GHSA-4jrc-qc5x-3wrr"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-software_data_integrity_failure-near_miss",
+      "case_kind": "near_miss",
+      "family": "software_data_integrity_failure",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_root": "GHSA-9pp6-v7j8-j65j"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-software_data_integrity_failure-positive",
+      "case_kind": "positive",
+      "family": "software_data_integrity_failure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_root": "GHSA-9pp6-v7j8-j65j"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-software_data_integrity_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "software_data_integrity_failure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_root": "GHSA-9pp6-v7j8-j65j"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-software_supply_chain_failure-near_miss",
+      "case_kind": "near_miss",
+      "family": "software_supply_chain_failure",
+      "resolution_stage": "fourth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lightdash/lightdash",
+      "source_root": "GHSA-3hfp-gqgh-xc5g"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-software_supply_chain_failure-positive",
+      "case_kind": "positive",
+      "family": "software_supply_chain_failure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lightdash/lightdash",
+      "source_root": "GHSA-3hfp-gqgh-xc5g"
+    },
+    {
+      "candidate_count": 3,
+      "capture_id": "v7-software_supply_chain_failure-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "software_supply_chain_failure",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "lightdash/lightdash",
+      "source_root": "GHSA-3hfp-gqgh-xc5g"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-sql_injection-near_miss",
+      "case_kind": "near_miss",
+      "family": "sql_injection",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "kubev2v/migration-planner",
+      "source_root": "GHSA-vf2h-7x3w-97fr"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-ssrf-near_miss",
+      "case_kind": "near_miss",
+      "family": "ssrf",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "IBM/mcp-context-forge",
+      "source_root": "GHSA-9hgc-g3w5-67cm"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-ssrf-positive",
+      "case_kind": "positive",
+      "family": "ssrf",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "IBM/mcp-context-forge",
+      "source_root": "GHSA-9hgc-g3w5-67cm"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-ssrf-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "ssrf",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "IBM/mcp-context-forge",
+      "source_root": "GHSA-9hgc-g3w5-67cm"
+    },
+    {
+      "candidate_count": 8,
+      "capture_id": "v7-unrestricted_resource_consumption-near_miss",
+      "case_kind": "near_miss",
+      "family": "unrestricted_resource_consumption",
+      "resolution_stage": "sixth_pass",
+      "semantic_adjudicated": false,
+      "source_project": "aws/s2n-quic",
+      "source_root": "GHSA-9q54-f358-3fqf"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-unrestricted_resource_consumption-positive",
+      "case_kind": "positive",
+      "family": "unrestricted_resource_consumption",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "aws/s2n-quic",
+      "source_root": "GHSA-9q54-f358-3fqf"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-unrestricted_resource_consumption-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "unrestricted_resource_consumption",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "aws/s2n-quic",
+      "source_root": "GHSA-9q54-f358-3fqf"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-unsafe_api_consumption-near_miss",
+      "case_kind": "near_miss",
+      "family": "unsafe_api_consumption",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "rancher/steve",
+      "source_root": "GHSA-95fc-g4gj-mqmx"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-unsafe_api_consumption-positive",
+      "case_kind": "positive",
+      "family": "unsafe_api_consumption",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "rancher/steve",
+      "source_root": "GHSA-95fc-g4gj-mqmx"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-unsafe_api_consumption-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "unsafe_api_consumption",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "rancher/steve",
+      "source_root": "GHSA-95fc-g4gj-mqmx"
+    },
+    {
+      "candidate_count": 2,
+      "capture_id": "v7-websocket_authorization-near_miss",
+      "case_kind": "near_miss",
+      "family": "websocket_authorization",
+      "resolution_stage": "third_pass",
+      "semantic_adjudicated": false,
+      "source_project": "pipecat-ai/pipecat",
+      "source_root": "GHSA-j8cv-x86q-rj85"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-websocket_authorization-positive",
+      "case_kind": "positive",
+      "family": "websocket_authorization",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "pipecat-ai/pipecat",
+      "source_root": "GHSA-j8cv-x86q-rj85"
+    },
+    {
+      "candidate_count": 1,
+      "capture_id": "v7-websocket_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "family": "websocket_authorization",
+      "resolution_stage": "second_pass",
+      "semantic_adjudicated": false,
+      "source_project": "pipecat-ai/pipecat",
+      "source_root": "GHSA-j8cv-x86q-rj85"
+    }
+  ],
+  "ledger_sha256": "bba0c1b4b13b06c11baf2517b4aa33b219c9113ef54db814c4da441d50f0a886",
+  "original_missing_variant_count": 66,
+  "publication_authorized": false,
+  "rule_version": "2026.08.15.6.33.v7.unseen.coverage-ledger.1",
+  "scoring_executed": false,
+  "semantic_adjudication_complete": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "synthetic_fixture_allowed": false,
+  "unresolved_candidate_material_count": 0,
+  "version": "1.0.0"
+}
