@@ -2,17 +2,15 @@
   "evidence_missing_count": 0,
   "evidence_present_count": 0,
   "evidence_verify_passed": false,
-  "failed_stage": "select_36_unique_sources",
+  "failed_stage": "collect_36_plus_36_snapshots",
   "first_blind_consumed": false,
   "label_leakage_count": null,
   "materialized_case_count": 0,
   "patchable_family_count": 36,
   "patchable_missing_families": [],
   "scoring_executed": false,
-  "shortlist_missing_families": [
-    "graphql_data_exposure"
-  ],
-  "shortlist_selected_count": 0,
+  "shortlist_missing_families": [],
+  "shortlist_selected_count": 36,
   "validation_passed": false,
   "verified_capture_count": 0
 }
