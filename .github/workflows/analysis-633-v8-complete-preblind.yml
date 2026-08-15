@@ -48,6 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           python tools/build_v8_pipeline.py
+          python tools/optimize_generated_v8_discovery.py
           PYTHONPATH=app python -m py_compile app/*v8*.py
           python - <<'PY'
           import runpy
