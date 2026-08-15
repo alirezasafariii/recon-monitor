@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
 
-VERSION = '1.0.3'
-RULE_VERSION = '2026.08.15.6.32.v8.33'
+VERSION = '1.0.4'
+RULE_VERSION = '2026.08.15.6.32.v8.34'
 SHORTLIST = ROOT / 'benchmarks/raw/sources/v8_shortlist.json'
 OUTPUT = ROOT / 'benchmarks/raw/sources/v8_literal_source_research.json'
 GHSA_RE = re.compile(r'^GHSA-[0-9a-z-]+$', re.I)
@@ -43,6 +43,26 @@ def _api_url(reference: str) -> str | None:
         if len(parts) >= 5 and parts[2] == 'security' and parts[3] == 'advisories' and GHSA_RE.fullmatch(parts[4]):
             return f'https://api.github.com/repos/{owner}/{repo}/security-advisories/{parts[4]}'
     return None
+
+
+def _canonical_route(reference: str, source_root: str) -> tuple[str, str | None, str]:
+    """Resolve a passive canonical snapshot without changing source selection.
+
+    Some global GHSA rows expose source_code_location as a repository root. The
+    shortlist still preserves the GHSA identifier in source_root. When the
+    selected reference is not itself routable and source_root is a GHSA, use
+    that existing immutable identifier to fetch GitHub's canonical advisory.
+    This is provenance routing only: it does not alter the selected source,
+    upstream patch reference, labels, conditions, or target evidence.
+    """
+    api = _api_url(reference)
+    if api:
+        return reference, api, 'selected_reference'
+    root = str(source_root or '').strip()
+    if GHSA_RE.fullmatch(root):
+        canonical = f'https://github.com/advisories/{root}'
+        return canonical, f'https://api.github.com/advisories/{root}', 'source_root_ghsa_fallback'
+    return reference, None, 'unsupported'
 
 
 def _request(url: str, token: str | None) -> tuple[int, Any, str | None]:
@@ -93,11 +113,12 @@ def build(token: str | None = None) -> dict[str, Any]:
 
     entries = []
     for row in sorted(rows, key=lambda item: str(item.get('family') or '')):
-        reference = str(row.get('canonical_advisory_url') or row.get('repository_advisory_url') or row.get('source_code_location') or '').strip()
+        selected_reference = str(row.get('canonical_advisory_url') or row.get('repository_advisory_url') or row.get('source_code_location') or '').strip()
+        source_root = str(row.get('source_root') or '').strip()
         upstream = str(row.get('upstream_repository_reference') or '').strip()
         if not upstream.startswith('https://github.com/'):
             raise RuntimeError(f"{row.get('family')}: selected v8 source lacks upstream repository reference")
-        api = _api_url(reference)
+        canonical_reference, api, route_basis = _canonical_route(selected_reference, source_root)
         if not api:
             status, payload, error = 0, None, 'v8 canonical source is not a supported GitHub reference'
         else:
@@ -109,7 +130,9 @@ def build(token: str | None = None) -> dict[str, Any]:
             'family': row.get('family'),
             'source_root': row.get('source_root'),
             'source_project': row.get('source_project'),
-            'canonical_reference': reference,
+            'selected_canonical_reference': selected_reference,
+            'canonical_reference': canonical_reference,
+            'canonical_route_basis': route_basis,
             'upstream_repository_reference': upstream,
             'github_api_reference': api,
             'fetch_status': status,
@@ -138,7 +161,7 @@ def build(token: str | None = None) -> dict[str, Any]:
         'successful_families': sorted(str(item['family']) for item in good),
         'unresolved_snapshot_count': len(bad),
         'unresolved_sources': [
-            {key: item.get(key) for key in ('family', 'source_root', 'source_project', 'canonical_reference', 'fetch_status', 'fetch_error')}
+            {key: item.get(key) for key in ('family', 'source_root', 'source_project', 'selected_canonical_reference', 'canonical_reference', 'canonical_route_basis', 'fetch_status', 'fetch_error')}
             for item in bad
         ],
         'entries': entries,
