@@ -1,0 +1,470 @@
+name: Final Auth Redirect PostMessage GraphQL Migration
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'Run auth redirect postmessage graphql migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Project canonical family specs and harden admission
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+          import textwrap
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"{label}: expected anchor missing")
+              return text.replace(old, new, 1)
+
+          # Tighten the live evidence contracts. Strong decisive evidence is
+          # permitted to satisfy weaker structural groups, but standards and
+          # knowledge never enter these sets.
+          reasoning = Path("app/family_reasoning_final_analyzers.py")
+          t = reasoning.read_text()
+          t = t.replace('FINAL_ANALYZER_REASONING_VERSION = "1.2.1"', 'FINAL_ANALYZER_REASONING_VERSION = "1.3.0"')
+          t = t.replace('FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.6"', 'FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.16.1"')
+          anchor = '    catalog["cors_misconfiguration"] = cors\n'
+          if 'catalog["authentication_session"] = auth_session' not in t:
+              insert = r'''
+
+    auth_session = dict(catalog["authentication_session"])
+    auth_session.update(
+        {
+            "promotion_required": _groups(
+                {"authentication_surface", "auth_boundary", "session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+                {"client_operation", "state_change", "auth_boundary", "session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+                {"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+            ),
+            "blocking_contradictions": frozenset(
+                {"session_rotation_observed", "recovery_verification_enforced", "expired_session_rejected"}
+            ),
+            "override_signals": frozenset(
+                {"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"}
+            ),
+            "confirmation_required": _groups(
+                {"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"}
+            ),
+        }
+    )
+    catalog["authentication_session"] = auth_session
+
+    open_redirect = dict(catalog["open_redirect"])
+    open_redirect.update(
+        {
+            "promotion_required": _groups(
+                {"redirect_parameter", "user_controlled_destination", "external_destination_accepted"},
+                {"navigation_context", "dataflow_sink", "external_destination_accepted"},
+                {"external_destination_accepted"},
+            ),
+            "blocking_contradictions": frozenset(
+                {"destination_allowlist_observed", "same_origin_navigation_enforced"}
+            ),
+            "override_signals": frozenset({"external_destination_accepted"}),
+            "confirmation_required": _groups({"external_destination_accepted"}),
+        }
+    )
+    catalog["open_redirect"] = open_redirect
+
+    postmessage = dict(catalog["postmessage_trust"])
+    postmessage.update(
+        {
+            "promotion_required": _groups(
+                {"dataflow_source", "postmessage_source", "untrusted_message_accepted"},
+                {"dataflow_sink", "message_handler", "sensitive_sink", "untrusted_message_accepted"},
+                {"untrusted_message_accepted"},
+            ),
+            "blocking_contradictions": frozenset({"origin_check_observed", "trusted_origin_only"}),
+            "override_signals": frozenset({"untrusted_message_accepted"}),
+            "confirmation_required": _groups({"untrusted_message_accepted"}),
+        }
+    )
+    catalog["postmessage_trust"] = postmessage
+
+    graphql = dict(catalog["graphql_authorization"])
+    graphql.update(
+        {
+            "promotion_required": _groups(
+                {"graphql_identifier", "graphql_unauthorized_object_response", "graphql_authorization_differential"},
+                {"graphql_operation", "graphql_unauthorized_object_response", "graphql_authorization_differential"},
+                {"graphql_unauthorized_object_response", "graphql_authorization_differential"},
+            ),
+            "blocking_contradictions": frozenset({"resolver_authorization_observed", "cross_context_denied"}),
+            "override_signals": frozenset({"graphql_unauthorized_object_response", "graphql_authorization_differential"}),
+            "confirmation_required": _groups({"graphql_unauthorized_object_response", "graphql_authorization_differential"}),
+        }
+    )
+    catalog["graphql_authorization"] = graphql
+'''
+              t = replace_once(t, anchor, anchor + insert, "reasoning")
+          reasoning.write_text(t)
+
+          # Extend the incremental canonical registry.
+          registry = Path("app/family_specs/registry.py")
+          t = registry.read_text()
+          imports = (
+              'from .authentication_session import AUTHENTICATION_SESSION_STANDARD_SPEC\n',
+              'from .open_redirect import OPEN_REDIRECT_STANDARD_SPEC\n',
+              'from .postmessage_trust import POSTMESSAGE_TRUST_STANDARD_SPEC\n',
+              'from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC\n',
+          )
+          import_anchor = 'from .ssrf import SSRF_STANDARD_SPEC\n'
+          for line in imports:
+              if line not in t:
+                  t = replace_once(t, import_anchor, line + import_anchor, "registry import")
+          t = t.replace('FAMILY_SPEC_REGISTRY_VERSION = "1.4.0"', 'FAMILY_SPEC_REGISTRY_VERSION = "1.5.0"')
+          tuple_anchor = '    "cors_misconfiguration",\n)'
+          tuple_replacement = '''    "cors_misconfiguration",
+    "authentication_session",
+    "open_redirect",
+    "postmessage_trust",
+    "graphql_authorization",
+)'''
+          if '    "authentication_session",\n    "open_redirect",\n    "postmessage_trust",\n    "graphql_authorization",\n)' not in t:
+              t = replace_once(t, tuple_anchor, tuple_replacement, "registry migrated tuple")
+          dict_anchor = '    CORS_MISCONFIGURATION_STANDARD_SPEC.family: CORS_MISCONFIGURATION_STANDARD_SPEC,\n}'
+          dict_replacement = '''    CORS_MISCONFIGURATION_STANDARD_SPEC.family: CORS_MISCONFIGURATION_STANDARD_SPEC,
+    AUTHENTICATION_SESSION_STANDARD_SPEC.family: AUTHENTICATION_SESSION_STANDARD_SPEC,
+    OPEN_REDIRECT_STANDARD_SPEC.family: OPEN_REDIRECT_STANDARD_SPEC,
+    POSTMESSAGE_TRUST_STANDARD_SPEC.family: POSTMESSAGE_TRUST_STANDARD_SPEC,
+    GRAPHQL_AUTHORIZATION_STANDARD_SPEC.family: GRAPHQL_AUTHORIZATION_STANDARD_SPEC,
+}'''
+          if 'AUTHENTICATION_SESSION_STANDARD_SPEC.family' not in t:
+              t = replace_once(t, dict_anchor, dict_replacement, "registry spec map")
+          registry.write_text(t)
+
+          # Export the new specs through the package compatibility surface.
+          init = Path("app/family_specs/__init__.py")
+          t = init.read_text()
+          init_anchor = 'from .ssrf import SSRF_STANDARD_SPEC\n'
+          for line in imports:
+              if line not in t:
+                  t = replace_once(t, init_anchor, line + init_anchor, "family_specs init")
+          init.write_text(t)
+
+          # For migrated families, remaining_common must expose taxonomy from
+          # the canonical spec rather than the older parallel OWASP catalog.
+          common = Path("app/family_analyzers/remaining_common.py")
+          t = common.read_text()
+          reg_import = 'from family_specs.registry import MIGRATED_FAMILIES, get_detection_spec\n'
+          if reg_import not in t:
+              t = replace_once(
+                  t,
+                  'from family_reasoning import FAMILY_REASONING, confirmation_gaps\n',
+                  'from family_reasoning import FAMILY_REASONING, confirmation_gaps\n' + reg_import,
+                  "remaining_common import",
+              )
+          t = replace_once(
+              t,
+              '    effective_taxonomy = CANONICAL_TAXONOMY.get(family, taxonomy)\n',
+              '    effective_taxonomy = (\n        get_detection_spec(family).taxonomy()\n        if family in MIGRATED_FAMILIES\n        else CANONICAL_TAXONOMY.get(family, taxonomy)\n    )\n',
+              "remaining_common taxonomy",
+          )
+          common.write_text(t)
+
+          # Replace duplicated analyzer methodology/taxonomy/write-up catalogs
+          # with compatibility projections from the canonical family spec.
+          def project(path, import_anchor, start, end, spec_name, family, prefix):
+              p = Path(path)
+              text = p.read_text()
+              imp = 'from family_specs.registry import get_detection_spec\n'
+              if imp not in text:
+                  text = replace_once(text, import_anchor, import_anchor + imp, f"{path} import")
+              block = f'''{spec_name} = get_detection_spec("{family}")
+
+          # Compatibility exports; canonical definitions live in family_specs.
+          {prefix}_TAXONOMY = {spec_name}.taxonomy()
+          {prefix}_METHOD = tuple(step.as_dict() for step in {spec_name}.standard.methodology)
+          {prefix}_FALSE_POSITIVE_CHECKS = tuple({spec_name}.standard.false_positive_checks)
+          {prefix}_WRITEUP_PATTERNS = tuple(
+              {{
+                  "id": item.id,
+                  "source": item.source,
+                  "ref": item.ref,
+                  "url": item.url,
+                  "relation": item.relation,
+                  "principle": item.lesson,
+                  "signals": list(item.signal_hints),
+                  "counts_as_target_evidence": False,
+              }}
+              for item in {spec_name}.standard.writeups
+          )
+
+          '''
+              pattern = re.escape(start) + r'.*?' + re.escape(end)
+              text, count = re.subn(pattern, block + end, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"{path}: metadata projection failed")
+              p.write_text(text)
+
+          project(
+              "app/family_analyzers/authentication_session.py",
+              'from family_reasoning import FAMILY_REASONING, confirmation_gaps\n',
+              'AUTH_SESSION_TAXONOMY = {', 'def _loads',
+              'AUTH_SESSION_SPEC', 'authentication_session', 'AUTH_SESSION',
+          )
+          project(
+              "app/family_analyzers/open_redirect.py",
+              'from family_reasoning import FAMILY_REASONING, confirmation_gaps\n',
+              'OPEN_REDIRECT_TAXONOMY = {', 'def _normalize',
+              'OPEN_REDIRECT_SPEC', 'open_redirect', 'OPEN_REDIRECT',
+          )
+          project(
+              "app/family_analyzers/postmessage_trust.py",
+              'from family_reasoning import FAMILY_REASONING, confirmation_gaps\n',
+              'POSTMESSAGE_TAXONOMY = {', 'def _normalize',
+              'POSTMESSAGE_TRUST_SPEC', 'postmessage_trust', 'POSTMESSAGE',
+          )
+          project(
+              "app/family_analyzers/graphql_authorization.py",
+              'from core import Database\n',
+              'GRAPHQL_AUTHORIZATION_TAXONOMY = {', 'def _safe_names',
+              'GRAPHQL_AUTHORIZATION_SPEC', 'graphql_authorization', 'GRAPHQL_AUTHORIZATION',
+          )
+
+          # Update the auth compatibility assertions to the lifecycle-specific
+          # canonical WSTG mapping.
+          auth_legacy = Path("tests/_test_family_analyzer_authentication_session_v871_legacy.py")
+          t = auth_legacy.read_text()
+          t = t.replace(
+              '        self.assertIn("WSTG-SESS-01", meta["taxonomy"]["wstg"])\n',
+              '        self.assertIn("WSTG-SESS-06", meta["taxonomy"]["wstg"])\n        self.assertIn("WSTG-SESS-07", meta["taxonomy"]["wstg"])\n',
+          )
+          auth_legacy.write_text(t)
+
+          # Earlier batch tests pin the incremental registry size; keep them in
+          # sync without changing their family-specific assertions.
+          for p in Path("tests").glob("test_final_analyzers_*spec*.py"):
+              text = p.read_text()
+              text = text.replace('self.assertEqual(len(MIGRATED_FAMILIES), 9)', 'self.assertEqual(len(MIGRATED_FAMILIES), 13)')
+              p.write_text(text)
+
+          test_content = r'''from __future__ import annotations
+
+          import sys
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          sys.path.insert(0, str(ROOT / "app"))
+
+          from family_analyzers.authentication_session import AUTH_SESSION_METHOD, AUTH_SESSION_SPEC, AUTH_SESSION_TAXONOMY
+          from family_analyzers.graphql_authorization import GRAPHQL_AUTHORIZATION_METHOD, GRAPHQL_AUTHORIZATION_SPEC, GRAPHQL_AUTHORIZATION_TAXONOMY
+          from family_analyzers.open_redirect import OPEN_REDIRECT_METHOD, OPEN_REDIRECT_SPEC, OPEN_REDIRECT_TAXONOMY
+          from family_analyzers.postmessage_trust import POSTMESSAGE_METHOD, POSTMESSAGE_TRUST_SPEC, POSTMESSAGE_TAXONOMY
+          from family_specs.knowledge_projection import family_knowledge_projection, taxonomy_projection, validate_knowledge_projection
+          from family_specs.registry import MIGRATED_FAMILIES, get_detection_spec, validate_family_spec_registry
+          from hypothesis_admission import assess_admission
+          from vulnerability_knowledge import BUILTIN_KNOWLEDGE, SPEC_KNOWLEDGE_ERRORS, taxonomy_for_family
+
+
+          class FinalAnalyzersAuthRedirectPostMessageGraphQLSpecTests(unittest.TestCase):
+              families = ("authentication_session", "open_redirect", "postmessage_trust", "graphql_authorization")
+
+              def test_registry_and_knowledge_are_drift_free(self):
+                  self.assertEqual(len(MIGRATED_FAMILIES), 13)
+                  self.assertEqual(validate_family_spec_registry(), [])
+                  self.assertFalse(SPEC_KNOWLEDGE_ERRORS)
+                  for family in self.families:
+                      spec = get_detection_spec(family)
+                      self.assertEqual(validate_knowledge_projection(spec), [])
+                      self.assertEqual(taxonomy_for_family(family), taxonomy_projection(spec))
+                      self.assertEqual(BUILTIN_KNOWLEDGE[family], family_knowledge_projection(spec))
+                      self.assertTrue(all(doc.get("counts_as_target_evidence") is False for doc in BUILTIN_KNOWLEDGE[family]))
+                      self.assertTrue(all("type" not in doc for doc in BUILTIN_KNOWLEDGE[family]))
+
+              def test_analyzer_compatibility_exports_come_from_specs(self):
+                  rows = (
+                      (AUTH_SESSION_SPEC, AUTH_SESSION_TAXONOMY, AUTH_SESSION_METHOD),
+                      (OPEN_REDIRECT_SPEC, OPEN_REDIRECT_TAXONOMY, OPEN_REDIRECT_METHOD),
+                      (POSTMESSAGE_TRUST_SPEC, POSTMESSAGE_TAXONOMY, POSTMESSAGE_METHOD),
+                      (GRAPHQL_AUTHORIZATION_SPEC, GRAPHQL_AUTHORIZATION_TAXONOMY, GRAPHQL_AUTHORIZATION_METHOD),
+                  )
+                  for spec, taxonomy, methodology in rows:
+                      self.assertEqual(taxonomy, spec.taxonomy())
+                      self.assertEqual(methodology, tuple(step.as_dict() for step in spec.standard.methodology))
+
+              def test_auth_surface_requires_actual_lifecycle_failure(self):
+                  surface = assess_admission("authentication_session", [
+                      {"type":"authentication_surface", "source_group":"surface"},
+                      {"type":"client_operation", "source_group":"operation"},
+                  ])
+                  self.assertFalse(surface["admitted"])
+                  direct = assess_admission("authentication_session", [
+                      {"type":"authentication_surface", "source_group":"surface"},
+                      {"type":"client_operation", "source_group":"operation"},
+                      {"type":"session_reuse_after_logout", "source_group":"controlled_lifecycle"},
+                  ])
+                  self.assertTrue(direct["admitted"])
+                  self.assertEqual(direct["confirmation_required"], [["authentication_state_violation", "recovery_bypass", "session_reuse_after_logout", "token_not_rotated"]])
+
+              def test_redirect_requires_external_user_controlled_navigation(self):
+                  surface = assess_admission("open_redirect", [
+                      {"type":"redirect_parameter", "source_group":"static_flow"},
+                      {"type":"navigation_context", "source_group":"static_flow"},
+                      {"type":"navigation_validation_absent", "source_group":"runtime_policy"},
+                  ])
+                  self.assertFalse(surface["admitted"])
+                  direct = assess_admission("open_redirect", [
+                      {"type":"redirect_parameter", "source_group":"static_flow"},
+                      {"type":"navigation_context", "source_group":"static_flow"},
+                      {"type":"external_destination_accepted", "source_group":"controlled_runtime"},
+                  ])
+                  self.assertTrue(direct["admitted"])
+
+              def test_postmessage_requires_untrusted_sender_sensitive_effect(self):
+                  surface = assess_admission("postmessage_trust", [
+                      {"type":"postmessage_source", "source_group":"static_flow"},
+                      {"type":"message_handler", "source_group":"static_flow"},
+                      {"type":"origin_validation_absent", "source_group":"runtime_policy"},
+                  ])
+                  self.assertFalse(surface["admitted"])
+                  direct = assess_admission("postmessage_trust", [
+                      {"type":"postmessage_source", "source_group":"static_flow"},
+                      {"type":"message_handler", "source_group":"static_flow"},
+                      {"type":"untrusted_message_accepted", "source_group":"controlled_runtime"},
+                  ])
+                  self.assertTrue(direct["admitted"])
+
+              def test_graphql_policy_context_is_not_vulnerability_evidence(self):
+                  context = assess_admission("graphql_authorization", [
+                      {"type":"graphql_identifier", "source_group":"graphql_static"},
+                      {"type":"graphql_operation", "source_group":"graphql_static"},
+                      {"type":"resolver_policy_context", "source_group":"policy"},
+                  ])
+                  self.assertFalse(context["admitted"])
+                  direct = assess_admission("graphql_authorization", [
+                      {"type":"graphql_identifier", "source_group":"graphql_static"},
+                      {"type":"graphql_operation", "source_group":"graphql_static"},
+                      {"type":"graphql_authorization_differential", "source_group":"controlled_graphql"},
+                  ])
+                  self.assertTrue(direct["admitted"])
+
+              def test_curated_reference_compatibility_is_preserved(self):
+                  auth_ids = {doc["id"] for doc in BUILTIN_KNOWLEDGE["authentication_session"]}
+                  redirect_ids = {doc["id"] for doc in BUILTIN_KNOWLEDGE["open_redirect"]}
+                  post_ids = {doc["id"] for doc in BUILTIN_KNOWLEDGE["postmessage_trust"]}
+                  gql_ids = {doc["id"] for doc in BUILTIN_KNOWLEDGE["graphql_authorization"]}
+                  self.assertIn("capec-115", auth_ids)
+                  self.assertIn("ghsl-ruby-saml-2024-329-330", auth_ids)
+                  self.assertIn("ghsl-2025-122-nocodb-open-redirect", redirect_ids)
+                  self.assertIn("owasp-wstg-clnt-11-web-messaging", post_ids)
+                  self.assertIn("owasp-graphql-access-control-global", gql_ids)
+
+              def test_external_knowledge_is_zero_target_evidence(self):
+                  for family in self.families:
+                      result = assess_admission(family, [
+                          {"source":"OWASP", "ref":"standard", "source_group":"knowledge"},
+                          {"source":"WSTG", "ref":"test", "source_group":"knowledge"},
+                          {"source":"CWE", "ref":"weakness", "source_group":"knowledge"},
+                          {"source":"GHSL", "ref":"writeup", "source_group":"knowledge"},
+                      ])
+                      self.assertFalse(result["admitted"])
+                      self.assertEqual(result["independent_sources"], 0)
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          Path("tests/test_final_analyzers_auth_redirect_postmessage_graphql_specs.py").write_text(textwrap.dedent(test_content))
+
+          # Rebuild the signed source manifest from existing tracked manifest
+          # entries plus the newly added canonical specs/test. Temporary
+          # verifier workflows are deliberately excluded.
+          manifest = Path("MANIFEST.sha256")
+          paths = []
+          for line in manifest.read_text().splitlines():
+              if not line.strip():
+                  continue
+              parts = line.split(None, 1)
+              if len(parts) != 2:
+                  raise SystemExit(f"bad manifest line {line!r}")
+              rel = parts[1].strip()
+              if Path(rel).is_file() and rel != ".github/workflows/final-auth-redirect-postmessage-graphql.yml":
+                  paths.append(rel)
+          paths.extend([
+              "app/family_specs/authentication_session.py",
+              "app/family_specs/open_redirect.py",
+              "app/family_specs/postmessage_trust.py",
+              "app/family_specs/graphql_authorization.py",
+              "tests/test_final_analyzers_auth_redirect_postmessage_graphql_specs.py",
+          ])
+          manifest.write_text(
+              "\n".join(
+                  f"{hashlib.sha256(Path(rel).read_bytes()).hexdigest()}  {rel}"
+                  for rel in sorted(set(paths))
+              ) + "\n"
+          )
+          PY
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
+      - name: Commit successful migration
+        shell: bash
+        run: |
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add \
+            app/family_reasoning_final_analyzers.py \
+            app/family_specs/registry.py app/family_specs/__init__.py \
+            app/family_analyzers/remaining_common.py \
+            app/family_analyzers/authentication_session.py \
+            app/family_analyzers/open_redirect.py \
+            app/family_analyzers/postmessage_trust.py \
+            app/family_analyzers/graphql_authorization.py \
+            tests/_test_family_analyzer_authentication_session_v871_legacy.py \
+            tests/test_final_analyzers_*spec*.py \
+            MANIFEST.sha256
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize auth redirect messaging GraphQL migration'
+            git push origin HEAD:final-analyzers
+          fi
+
+  verify:
+    needs: migrate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout migrated branch head
+        run: |
+          git fetch origin final-analyzers
+          git checkout -B final-analyzers origin/final-analyzers
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        run: |
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' \) -print -quit)"
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
