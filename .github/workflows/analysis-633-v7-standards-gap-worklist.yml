@@ -36,8 +36,11 @@ jobs:
           import json
           from pathlib import Path
           r=json.loads(Path('benchmarks/raw/sources/v7_standards_gap_worklist.json').read_text())
-          assert r['unresolved_variant_count'] == 118
-          assert sum(r['by_case_kind'].values()) == 118
+          a=json.loads(Path('benchmarks/raw/sources/v7_standards_adjudication.json').read_text())
+          expected=a['unresolved_variant_count']
+          assert r['unresolved_variant_count'] == expected
+          assert sum(r['by_case_kind'].values()) == expected
+          assert r['adjudication_sha256'] == a['adjudication_sha256']
           assert r['quality_policy']['use_wstg_owasp_cwe_as_rubric'] is True
           assert r['quality_policy']['use_frozen_writeup_lessons_as_rubric'] is True
           assert r['quality_policy']['literal_upstream_source_required_for_acceptance'] is True
@@ -45,10 +48,13 @@ jobs:
           assert r['human_review_required'] is False
           assert r['human_verified_record_count'] == 0
           assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          priority0=sorted({x['family'] for x in r['worklist'] if x['priority']==0})
+          assert len(priority0) == a['family_adjudication_required_count'] - a['family_mapping_confirmed_count']
           print({
             'unresolved': r['unresolved_variant_count'],
             'by_kind': r['by_case_kind'],
             'by_priority': r['by_priority'],
+            'priority0_families': priority0,
             'top_families': list(r['by_family'].items())[:12],
           })
           PY
@@ -61,5 +67,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore(analysis-633): freeze V7 standards gap worklist'
+          git commit -m 'chore(analysis-633): refresh V7 standards gap worklist'
           git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
