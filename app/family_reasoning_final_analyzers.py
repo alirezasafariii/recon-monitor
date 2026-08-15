@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.1.0"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.4"
+FINAL_ANALYZER_REASONING_VERSION = "1.2.0"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.5"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
@@ -54,9 +54,6 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
             "blocking_contradictions": frozenset(
                 {"browser_side_fetch_observed", "destination_validation_observed", "server_fetch_not_observed"}
             ),
-            # A server-side fetch proves execution location, not a destination
-            # control failure. Only actual boundary-failure evidence may override
-            # an observed destination control.
             "override_signals": frozenset(
                 {"destination_policy_bypass_observed", "restricted_destination_accepted"}
             ),
@@ -70,10 +67,6 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
     dom_xss = dict(catalog["dom_xss"])
     dom_xss.update(
         {
-            # Static source/sink structure is discovery context. Promotion into
-            # Potential Findings requires the analyzer-owned runtime condition:
-            # the user-influenced value reached a script-capable DOM/execution
-            # context with effective neutralization explicitly absent.
             "promotion_required": _groups(
                 {"dataflow_source", "source_sink"},
                 {"dataflow_sink", "source_sink"},
@@ -87,3 +80,79 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
         }
     )
     catalog["dom_xss"] = dom_xss
+
+    mass_assignment = dict(catalog["mass_assignment"])
+    mass_assignment.update(
+        {
+            "promotion_required": _groups(
+                {"privileged_property", "privileged_fields"},
+                {"write_method", "body_schema", "object_update"},
+                {"protected_property_accepted", "protected_property_mutated", "property_authorization_differential"},
+            ),
+            "blocking_contradictions": frozenset(
+                {"protected_property_rejected", "server_allowlist_observed", "sensitive_property_ignored"}
+            ),
+            "override_signals": frozenset(
+                {"protected_property_accepted", "protected_property_mutated", "property_authorization_differential"}
+            ),
+            "confirmation_required": _groups(
+                {"protected_property_accepted", "protected_property_mutated", "property_authorization_differential"}
+            ),
+        }
+    )
+    catalog["mass_assignment"] = mass_assignment
+
+    file_upload = dict(catalog["file_upload"])
+    file_upload.update(
+        {
+            "promotion_required": _groups(
+                {"file_input"},
+                {"upload_operation", "import_operation"},
+                {"unsafe_file_accepted", "file_policy_differential"},
+            ),
+            "blocking_contradictions": frozenset({"file_type_enforcement_observed", "safe_storage_observed"}),
+            "override_signals": frozenset(
+                {"unsafe_file_accepted", "content_type_bypass_observed", "executable_upload_observed"}
+            ),
+            "confirmation_required": _groups(
+                {"content_type_bypass_observed", "executable_upload_observed"}
+            ),
+        }
+    )
+    catalog["file_upload"] = file_upload
+
+    path_traversal = dict(catalog["path_traversal"])
+    path_traversal.update(
+        {
+            "promotion_required": _groups(
+                {"path_parameter", "filename_field", "storage_path"},
+                {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
+                {"path_escape_observed", "path_boundary_differential"},
+            ),
+            "blocking_contradictions": frozenset({"canonicalization_enforced", "base_directory_enforced"}),
+            "override_signals": frozenset(
+                {"path_escape_observed", "canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}
+            ),
+            "confirmation_required": _groups(
+                {"canonicalization_bypass_observed", "out_of_root_file_access_observed", "out_of_root_file_write_observed"}
+            ),
+        }
+    )
+    catalog["path_traversal"] = path_traversal
+
+    cors = dict(catalog["cors_misconfiguration"])
+    cors.update(
+        {
+            "promotion_required": _groups(
+                {"cors_header"},
+                {"sensitive_context"},
+                {"untrusted_origin_allowed", "credentialed_cross_origin_read"},
+            ),
+            "blocking_contradictions": frozenset(
+                {"trusted_origin_only", "credentials_disabled", "cross_origin_read_blocked"}
+            ),
+            "override_signals": frozenset({"untrusted_origin_allowed", "credentialed_cross_origin_read"}),
+            "confirmation_required": _groups({"untrusted_origin_allowed", "credentialed_cross_origin_read"}),
+        }
+    )
+    catalog["cors_misconfiguration"] = cors
