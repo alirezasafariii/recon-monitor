@@ -1,0 +1,1019 @@
+{
+  "candidate_inventory_sha256": "5da3257cdf96e3385537d05db868fadd6a74de52b6d7170f7855bab5054d5c19",
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:25:28.444890+00:00",
+  "cross_variant_mutation_allowed": false,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_fourth_pass_targeted_candidate_inventory_unscored",
+  "evidence_published": false,
+  "families": [
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "account_enumeration",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "generic_error",
+        "uniform_response",
+        "account_existence_differential",
+        "distinct_error",
+        "error_schema",
+        "response_difference",
+        "timing_difference",
+        "account",
+        "enumeration"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_replacement_used": false,
+      "source_root": "GHSA-jhh7-832h-f8hv",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss",
+        "positive",
+        "secure_negative"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "broken_function_authorization",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "confirmed_role_enforcement",
+        "lower_privilege_denied",
+        "role_boundary_enforced",
+        "authorization_response_differential",
+        "function_access_without_role",
+        "lower_privilege_success",
+        "role_boundary_failure",
+        "role_boundary_regression",
+        "unauthorized_function_response",
+        "broken"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "surrealdb/surrealdb",
+      "source_replacement_used": false,
+      "source_root": "GHSA-8rw6-p7m8-63jp",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "broken_object_authorization",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "3.3",
+      "near_miss_search_terms": [
+        "cross_context_denied",
+        "ownership_enforcement_observed",
+        "scope_binding_observed",
+        "secondary_guard_enforced",
+        "authorization_response_differential",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "identity_object_relation_conflict",
+        "object_access_without_secondary_guard",
+        "ownership_mismatch"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 1,
+      "scoring_executed": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_replacement_used": false,
+      "source_root": "GHSA-x83g-979r-f5fh",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "command_injection",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "master",
+      "near_miss_search_terms": [
+        "command_allowlist",
+        "exec_file_argument_array",
+        "input_not_used_in_command",
+        "shell_disabled",
+        "command_output_observed",
+        "command_time_delay_observed",
+        "process_execution_reached",
+        "shell_metacharacter_effect",
+        "unsafe_command_construction",
+        "command"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "sebhildebrandt/systeminformation",
+      "source_replacement_used": false,
+      "source_root": "GHSA-5xpp-75jx-m839",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "cors_misconfiguration",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "credentials_disabled",
+        "public_intended",
+        "strict_origin_allowlist",
+        "authenticated_context",
+        "credentials_allowed",
+        "sensitive_cross_origin_response",
+        "cors",
+        "misconfiguration"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "BishopFox/joro",
+      "source_replacement_used": false,
+      "source_root": "GHSA-xqhv-chqm-fhcc",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "dom_xss",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "constant_value",
+        "non_reachable",
+        "recognized_sanitizer",
+        "text_only_sink",
+        "javascript_runtime",
+        "no_sanitizer",
+        "reachable_route",
+        "runtime_reachable_flow"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "gogs/gogs",
+      "source_replacement_used": false,
+      "source_root": "GHSA-vcm5-gvmp-78mp",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 1,
+      "test_control_candidates": [
+        {
+          "commit_sha": "f35a767af74e05342bafc6fdda02c791816426f8",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "empty",
+                "valid"
+              ],
+              "line_start": 16,
+              "text": ")\n\nfunc TestLocalStorage_storagePath(t *testing.T) {\n\tif runtime.GOOS == \"windows\" {\n\t\tt.Skip(\"Skipping testing on Windows\")\n\t\treturn\n\t}\n\n\ts := &LocalStorage{\n\t\tRoot: \"/lfs-objects\",\n\t}\n\n\ttests := []struct {\n\t\tname    string\n\t\toid     OID\n\t\texpPath string\n\t}{\n\t\t{\n\t\t\tname: \"empty oid\",\n\t\t\toid:  \"\",\n\t\t},\n\n\t\t{\n\t\t\tname:    \"valid oid\",\n\t\t\toid:     \"ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f\",\n\t\t\texpPath: \"/lfs-objects/e/f/ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f\",\n\t\t},\n\t}",
+              "text_sha256": "2f4573813125b047f2a77026e646c3d221d2037882debd676153c5d91dabefc2"
+            },
+            {
+              "control_keyword_match": [
+                "invalid",
+                "valid"
+              ],
+              "line_start": 49,
+              "text": "}\n\nfunc TestLocalStorage_Upload(t *testing.T) {\n\tbase := t.TempDir()\n\ts := &LocalStorage{\n\t\tRoot:    filepath.Join(base, \"lfs-objects\"),\n\t\tTempDir: filepath.Join(base, \"tmp\", \"lfs\"),\n\t}\n\n\tconst helloWorldOID = OID(\"c0535e4be2b79ffd93291305436bf889314e4a3faec05ecffcbb7df31ad9e51a\") // \"Hello world!\"\n\n\tt.Run(\"invalid OID\", func(t *testing.T) {\n\t\twritten, err := s.Upload(\"bad_oid\", io.NopCloser(strings.NewReader(\"\")))\n\t\tassert.Equal(t, int64(0), written)\n\t\tassert.Equal(t, ErrInvalidOID, err)\n\t})\n\n\tt.Run(\"valid OID\", func(t *testing.T) {\n\t\twritten, err := s.Upload(helloWorldOID, io.NopCloser(strings.NewReader(\"Hello world!\")))\n\t\trequire.NoError(t, err)\n\t\tassert.Equal(t, int64(12), written)\n\t})\n\n\tt.Run(\"valid OID but wrong content\", func(t *testing.T) {\n\t\toid := OID(\"ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f\")\n\t\twritten, err := s.Upload(oid, io.NopCloser(strings.NewReader(\"Hello world!\")))\n\t\tassert.Equal(t, int64(0), written)\n\t\tassert.Equal(t, ErrOIDMismatch, err)",
+              "text_sha256": "ee98c11fc283c8e19aa951de322910b14fb1f7b5532c46c25405456a569cf382"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "892c76918ea523367d2f0f32f9d078070672348ccdc152d53ad409dff7ebe172",
+          "html_url": "https://github.com/gogs/gogs/blob/f35a767af74e05342bafc6fdda02c791816426f8/internal%2Flfsx%2Fstorage_test.go",
+          "path": "internal/lfsx/storage_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        }
+      ],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "exceptional_condition_mishandling",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "master",
+      "near_miss_search_terms": [
+        "centralized_error_handling",
+        "fail_closed_observed",
+        "generic_error_response",
+        "transaction_rollback_observed",
+        "crash_on_exception",
+        "exception_control_bypass",
+        "fail_open_observed",
+        "partial_commit_after_error",
+        "state_corruption_after_error",
+        "unhandled_exception_observed"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "sipsorcery-org/sipsorcery",
+      "source_replacement_used": false,
+      "source_root": "GHSA-pfvm-w89x-94jw",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_authorization",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "master",
+      "near_miss_search_terms": [
+        "cross_context_denied",
+        "resolver_authorization",
+        "schema_only",
+        "authorization_response_differential",
+        "cross_context",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "resolver_authorization_failure",
+        "unauthorized_object_response",
+        "graphql"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "n8n-io/n8n",
+      "source_replacement_used": false,
+      "source_root": "GHSA-gq66-9cw5-j5jm",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss",
+        "positive",
+        "secure_negative"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_data_exposure",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "next-minor",
+      "near_miss_search_terms": [
+        "field_authorization",
+        "minimal_projection",
+        "schema_only",
+        "cross_context",
+        "field_expansion",
+        "response_data",
+        "sensitive_expansion",
+        "unauthorized_data_response",
+        "graphql",
+        "exposure"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qpm9-h556-mwxm",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "mass_assignment",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "field_allowlist",
+        "privileged_fields_removed",
+        "privileged_property_rejected",
+        "read_only_contract",
+        "privileged_property_accepted",
+        "property_authorization_differential",
+        "response_reflects_privileged_change",
+        "unauthorized_property_change",
+        "mass",
+        "assignment"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "kimai/kimai",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qh43-xrjm-4ggp",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "secret_exposure",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "example_value",
+        "placeholder",
+        "redacted_only",
+        "credential_context",
+        "high_entropy_value",
+        "non_placeholder_secret",
+        "token_exposure",
+        "secret",
+        "exposure"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 4,
+      "scoring_executed": false,
+      "source_project": "Roskus/prospero-flow-crm",
+      "source_replacement_used": false,
+      "source_root": "GHSA-pw58-qr35-gpr4",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "security_logging_alerting_failure",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "alert_triggered",
+        "log_encoding_present",
+        "log_integrity_protected",
+        "security_event_logged",
+        "alerting_absent_observed",
+        "log_injection_observed",
+        "log_integrity_missing",
+        "security_event_not_logged",
+        "sensitive_data_logged",
+        "security"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "open-telemetry/opentelemetry-ebpf-instrumentation",
+      "source_replacement_used": false,
+      "source_root": "GHSA-8rrq-wcg8-cv5q",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 5,
+      "test_control_candidates": [
+        {
+          "commit_sha": "3a1d3d753718d75d47ada9546b937386945af99f",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "without"
+              ],
+              "line_start": 130,
+              "text": "}\n\nfunc TestGRPCTracesEndpointOptions(t *testing.T) {\n\tdefer RestoreEnvAfterExecution()()\n\tt.Run(\"do not accept URLs without a scheme\", func(t *testing.T) {\n\t\t_, err := GRPCTracesEndpointOptions(&TracesConfig{CommonEndpoint: \"foo:3939\", Instrumentations: []instrumentations.Instrumentation{instrumentations.InstrumentationALL}})\n\t\trequire.Error(t, err)\n\t})\n\ttcfg := TracesConfig{\n\t\tCommonEndpoint:   \"https://localhost:3131\",\n\t\tTracesEndpoint:   \"https://localhost:3232\",\n\t\tInstrumentations: []instrumentations.Instrumentation{instrumentations.InstrumentationALL},\n\t}\n\n\tt.Run(\"testing with two endpoints\", func(t *testing.T) {\n\t\ttestTracesGRPCOptions(t, OTLPOptions{Endpoint: \"localhost:3232\", Headers: map[string]string{}}, &tcfg)\n\t})\n\n\ttcfg = TracesConfig{\n\t\tCommonEndpoint:   \"https://localhost:3131\",\n\t\tInstrumentations: []instrumentations.Instrumentation{instrumentations.InstrumentationALL},\n\t}\n\n\tt.Run(\"testing with only common endpoint\", func(t *testing.T) {\n\t\ttestTracesGRPCOptions(t, OTLPOptions{Endpoint: \"localhost:3131\", Headers: map[string]string{}}, &tcfg)\n\t})\n\n\ttcfg = TracesConfig{",
+              "text_sha256": "2a43f04fbae5a71faea651eee33cd8ebeb25285cc5860c661300003571e21da5"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "b8b5826f76d90f64af273ab828db9788656659d02b6d9e2815071c14644fc029",
+          "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/3a1d3d753718d75d47ada9546b937386945af99f/pkg%2Fexport%2Fotel%2Fotelcfg%2Fconfig_traces_test.go",
+          "path": "pkg/export/otel/otelcfg/config_traces_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        },
+        {
+          "commit_sha": "3a1d3d753718d75d47ada9546b937386945af99f",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "invalid"
+              ],
+              "line_start": 354,
+              "text": "}\n\nfunc TestConfigValidate(t *testing.T) {\n\ttestCases := []envMap{\n\t\t{\"OTEL_EXPORTER_OTLP_ENDPOINT\": \"localhost:1234\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT\": \"localhost:1234\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT\": \"localhost:1234\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EBPF_TRACE_PRINTER\": \"text\", \"OTEL_EBPF_SHUTDOWN_TIMEOUT\": \"1m\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t\t{\"OTEL_EBPF_TRACE_PRINTER\": \"json\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t\t{\"OTEL_EBPF_TRACE_PRINTER\": \"json_indent\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t\t{\"OTEL_EBPF_TRACE_PRINTER\": \"counter\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t\t{\"OTEL_EBPF_PROMETHEUS_PORT\": \"8080\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EBPF_INTERNAL_OTEL_METRICS\": \"true\", \"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT\": \"localhost:1234\", \"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t}\n\tfor n, tc := range testCases {\n\t\tt.Run(fmt.Sprint(\"case\", n), func(t *testing.T) {\n\t\t\trequire.NoError(t, loadConfig(t, tc).Validate())\n\t\t})\n\t}\n}\n\nfunc TestConfigValidate_error(t *testing.T) {\n\ttestCases := []envMap{\n\t\t{\"OTEL_EXPORTER_OTLP_ENDPOINT\": \"localhost:1234\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"disabled\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"invalid\"},\n\t}",
+              "text_sha256": "da01ccf8cf42bc193b495c188bc2780c63662e557b08766ab1239258dbb36006"
+            },
+            {
+              "control_keyword_match": [
+                "invalid"
+              ],
+              "line_start": 373,
+              "text": "}\n\nfunc TestConfigValidate_error(t *testing.T) {\n\ttestCases := []envMap{\n\t\t{\"OTEL_EXPORTER_OTLP_ENDPOINT\": \"localhost:1234\", \"INSTRUMENT_FUNC_NAME\": \"bar\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"disabled\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"\"},\n\t\t{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"INSTRUMENT_FUNC_NAME\": \"bar\", \"OTEL_EBPF_TRACE_PRINTER\": \"invalid\"},\n\t}\n\tfor n, tc := range testCases {\n\t\tt.Run(fmt.Sprint(\"case\", n), func(t *testing.T) {\n\t\t\trequire.Error(t, loadConfig(t, tc).Validate())\n\t\t})\n\t}\n}\n\nfunc TestConfigValidateDiscovery(t *testing.T) {\n\tuserConfig := bytes.NewBufferString(`trace_printer: text\ndiscovery:\n  services:\n    - name: foo\n      k8s_pod_name: tralara\n`)\n\tcfg, err := LoadConfig(userConfig)\n\trequire.NoError(t, err)\n\trequire.NoError(t, cfg.Validate())\n}\n",
+              "text_sha256": "b15ef7878961592f614bc2e55aa7c1ed7543f51a585afaf3fcbd3cc8bb4c64b7"
+            },
+            {
+              "control_keyword_match": [
+                "invalid",
+                "missing"
+              ],
+              "line_start": 387,
+              "text": "}\n\nfunc TestConfigValidateDiscovery(t *testing.T) {\n\tuserConfig := bytes.NewBufferString(`trace_printer: text\ndiscovery:\n  services:\n    - name: foo\n      k8s_pod_name: tralara\n`)\n\tcfg, err := LoadConfig(userConfig)\n\trequire.NoError(t, err)\n\trequire.NoError(t, cfg.Validate())\n}\n\nfunc TestConfigValidateDiscovery_Errors(t *testing.T) {\n\tfor _, tc := range []string{\n\t\t`trace_printer: text\ndiscovery:\n  services:\n    - name: missing-attributes\n`, `trace_printer: text\ndiscovery:\n  services:\n    - name: invalid-attribute\n      k8s_unexisting_stuff: lalala\n`,\n\t} {\n\t\ttestCaseName := regexp.MustCompile(\"name: (.+)\\n\").FindStringSubmatch(tc)[1]",
+              "text_sha256": "618437e8c4007a076036b65dc0a7031ed45e61b77e091e5ef2f09619ebe3712d"
+            },
+            {
+              "control_keyword_match": [
+                "invalid",
+                "missing"
+              ],
+              "line_start": 399,
+              "text": "}\n\nfunc TestConfigValidateDiscovery_Errors(t *testing.T) {\n\tfor _, tc := range []string{\n\t\t`trace_printer: text\ndiscovery:\n  services:\n    - name: missing-attributes\n`, `trace_printer: text\ndiscovery:\n  services:\n    - name: invalid-attribute\n      k8s_unexisting_stuff: lalala\n`,\n\t} {\n\t\ttestCaseName := regexp.MustCompile(\"name: (.+)\\n\").FindStringSubmatch(tc)[1]\n\t\tt.Run(testCaseName, func(t *testing.T) {\n\t\t\tuserConfig := bytes.NewBufferString(tc)\n\t\t\tcfg, err := LoadConfig(userConfig)\n\t\t\trequire.NoError(t, err)\n\t\t\trequire.Error(t, cfg.Validate())\n\t\t})\n\t}\n}\n\nfunc TestConfigValidate_Network_Kube(t *testing.T) {\n\tuserConfig := bytes.NewBufferString(`\notel_metrics_export:",
+              "text_sha256": "0225c9d17af091593a801a3748c48889fa41c3270d7e4e3e83fbe83656c8c1d8"
+            },
+            {
+              "control_keyword_match": [
+                "invalid"
+              ],
+              "line_start": 442,
+              "text": "}\n\nfunc TestConfigValidate_TracePrinter(t *testing.T) {\n\ttype test struct {\n\t\tenv      envMap\n\t\terrorMsg string\n\t}\n\n\ttestCases := []test{\n\t\t{\n\t\t\tenv:      envMap{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\", \"OTEL_EBPF_TRACE_PRINTER\": \"invalid_printer\"},\n\t\t\terrorMsg: \"invalid value for trace_printer: 'invalid_printer'\",\n\t\t},\n\t\t{\n\t\t\tenv:      envMap{\"OTEL_EBPF_EXECUTABLE_PATH\": \"foo\"},\n\t\t\terrorMsg: \"you need to define at least one exporter: trace_printer, otel_metrics_export, otel_traces_export or prometheus_export\",\n\t\t},\n\t}\n\n\tfor _, tc := range testCases {\n\t\tt.Run(tc.errorMsg, func(t *testing.T) {\n\t\t\tcfg := loadConfig(t, tc.env)\n\n\t\t\terr := cfg.Validate()\n\t\t\trequire.Error(t, err)\n\t\t\tassert.Equal(t, err.Error(), tc.errorMsg)\n\t\t})\n\t}",
+              "text_sha256": "626b2ddaf3568be7848b7a6d9901bcc1f83221c887a264676b7f1600f4ee4c98"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "e1ee63241722b0c876e2a2b00972ef255fce46d17127857486219a07a279a8a3",
+          "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/3a1d3d753718d75d47ada9546b937386945af99f/pkg%2Fobi%2Fconfig_test.go",
+          "path": "pkg/obi/config_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        },
+        {
+          "commit_sha": "360521f411213566a3b557a1f0c093e6cd68a4de",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 21,
+              "text": "//\t0x04  c0 03 5f d6  RET\nfunc TestFindReturnOffsets_SingleRet_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0x00, 0x00, 0x00, 0x00, // non-RET\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x04\n\t}\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x04}, offsets)\n}\n\n// TestFindReturnOffsets_BaseOffset_ARM64 verifies that every reported offset\n// equals baseOffset + the instruction's position within data.\n//\n//\t0x00  c0 03 5f d6  RET\nfunc TestFindReturnOffsets_BaseOffset_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x00\n\t}\n\tconst base = uint64(0x1000)\n\toffsets, err := FindReturnOffsets(base, prog)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{base}, offsets)\n}\n\n// TestFindReturnOffsets_Empty_ARM64 verifies that an empty input produces no\n// offsets and no error.\nfunc TestFindReturnOffsets_Empty_ARM64(t *testing.T) {",
+              "text_sha256": "998b9402bebce4799fac1f1da10d2efaec72e19a08227caee72634b9f33cbde1"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 35,
+              "text": "//\t0x00  c0 03 5f d6  RET\nfunc TestFindReturnOffsets_BaseOffset_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x00\n\t}\n\tconst base = uint64(0x1000)\n\toffsets, err := FindReturnOffsets(base, prog)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{base}, offsets)\n}\n\n// TestFindReturnOffsets_Empty_ARM64 verifies that an empty input produces no\n// offsets and no error.\nfunc TestFindReturnOffsets_Empty_ARM64(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, []byte{})\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_NoRet_ARM64 verifies that a buffer with no RET\n// instruction produces an empty result.\n//\n//\t0x00  00 00 00 00  (non-RET instruction)\n//\t0x04  00 00 00 00  (non-RET instruction)\nfunc TestFindReturnOffsets_NoRet_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0x00, 0x00, 0x00, 0x00,\n\t\t0x00, 0x00, 0x00, 0x00,",
+              "text_sha256": "c5f422c26596814b221e23e996ad5382fa71c40a20195904b8d3173dc35725e2"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 47,
+              "text": "// offsets and no error.\nfunc TestFindReturnOffsets_Empty_ARM64(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, []byte{})\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_NoRet_ARM64 verifies that a buffer with no RET\n// instruction produces an empty result.\n//\n//\t0x00  00 00 00 00  (non-RET instruction)\n//\t0x04  00 00 00 00  (non-RET instruction)\nfunc TestFindReturnOffsets_NoRet_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0x00, 0x00, 0x00, 0x00,\n\t\t0x00, 0x00, 0x00, 0x00,\n\t}\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_MultipleRets_ARM64 checks that all RET instructions are\n// reported when more than one is present.  Equal (not ElementsMatch) is correct:\n// the implementation scans left-to-right in fixed 4-byte steps, so the returned\n// slice is guaranteed to be in ascending offset order.\n//\n//\t0x00  c0 03 5f d6  RET",
+              "text_sha256": "3c7bc81bc35508f69573e4acd2dab3752f6c1ea71019f2b9dcc3437b812ee9f7"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 58,
+              "text": "//\t0x04  00 00 00 00  (non-RET instruction)\nfunc TestFindReturnOffsets_NoRet_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0x00, 0x00, 0x00, 0x00,\n\t\t0x00, 0x00, 0x00, 0x00,\n\t}\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_MultipleRets_ARM64 checks that all RET instructions are\n// reported when more than one is present.  Equal (not ElementsMatch) is correct:\n// the implementation scans left-to-right in fixed 4-byte steps, so the returned\n// slice is guaranteed to be in ascending offset order.\n//\n//\t0x00  c0 03 5f d6  RET\n//\t0x04  00 00 00 00  (non-RET)\n//\t0x08  c0 03 5f d6  RET\nfunc TestFindReturnOffsets_MultipleRets_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x00\n\t\t0x00, 0x00, 0x00, 0x00, // non-RET\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x08\n\t}\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x00, 0x08}, offsets)",
+              "text_sha256": "5237f9a11bcdbf100e2b5ca524e9e523a2f18c9f5224f1889d448d810bc3ac65"
+            },
+            {
+              "control_keyword_match": [
+                "empty",
+                "without"
+              ],
+              "line_start": 76,
+              "text": "//\t0x08  c0 03 5f d6  RET\nfunc TestFindReturnOffsets_MultipleRets_ARM64(t *testing.T) {\n\tprog := []byte{\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x00\n\t\t0x00, 0x00, 0x00, 0x00, // non-RET\n\t\t0xc0, 0x03, 0x5f, 0xd6, // RET  \u2192 offset 0x08\n\t}\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x00, 0x08}, offsets)\n}\n\n// TestFindReturnOffsets_Truncated_ARM64 verifies that a buffer shorter than one\n// instruction (< 4 bytes) is handled without error.  The decoder fails on the\n// incomplete word; the implementation advances by 4 anyway and exits the loop,\n// returning no offsets.\nfunc TestFindReturnOffsets_Truncated_ARM64(t *testing.T) {\n\tprog := []byte{0xc0, 0x03, 0x5f} // 3 bytes \u2014 incomplete RET encoding\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}",
+              "text_sha256": "32a494145197dd108862ecd6c0876d5951509e462cf818f77cc5c798bcaebb1e"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 91,
+              "text": "// returning no offsets.\nfunc TestFindReturnOffsets_Truncated_ARM64(t *testing.T) {\n\tprog := []byte{0xc0, 0x03, 0x5f} // 3 bytes \u2014 incomplete RET encoding\n\toffsets, err := FindReturnOffsets(0, prog)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}",
+              "text_sha256": "5e9bc3d2e2278b34065c7df875e8ed6c5c49336010010dbba579756fea6de6f4"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "4d2ef127ebe2a2c433105245cd01e44736ad3c6804d6265dcce3fa8ecad48666",
+          "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/360521f411213566a3b557a1f0c093e6cd68a4de/pkg%2Finternal%2Fgoexec%2Finstructions_arm64_test.go",
+          "path": "pkg/internal/goexec/instructions_arm64_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        },
+        {
+          "commit_sha": "360521f411213566a3b557a1f0c093e6cd68a4de",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 71,
+              "text": "// found in singleRetProg is {0x46} \u2014 no more, no fewer.\nfunc TestFindReturnOffsets_SingleRet(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, singleRetProg)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x46}, offsets)\n}\n\n// TestFindReturnOffsets_BaseOffset verifies that every reported offset equals\n// baseOffset + the instruction's position within data.\nfunc TestFindReturnOffsets_BaseOffset(t *testing.T) {\n\tconst base = uint64(0x1000)\n\toffsets, err := FindReturnOffsets(base, singleRetProg)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{base + 0x46}, offsets)\n}\n\n// TestFindReturnOffsets_Empty verifies that an empty input produces no offsets\n// and no error.\nfunc TestFindReturnOffsets_Empty(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, []byte{})\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_NoRet verifies that a buffer with no RET instruction\n// produces an empty result.\n//\n//\t0x00  55        PUSH RBP",
+              "text_sha256": "1d308597463757b5d2fd9d1a10545f5988b377e36f64ce1ed4a56e304a6f02d1"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 79,
+              "text": "// baseOffset + the instruction's position within data.\nfunc TestFindReturnOffsets_BaseOffset(t *testing.T) {\n\tconst base = uint64(0x1000)\n\toffsets, err := FindReturnOffsets(base, singleRetProg)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{base + 0x46}, offsets)\n}\n\n// TestFindReturnOffsets_Empty verifies that an empty input produces no offsets\n// and no error.\nfunc TestFindReturnOffsets_Empty(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, []byte{})\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_NoRet verifies that a buffer with no RET instruction\n// produces an empty result.\n//\n//\t0x00  55        PUSH RBP\n//\t0x01  48 89 e5  MOV RBP, RSP\n//\t0x04  5d        POP RBP\nfunc TestFindReturnOffsets_NoRet(t *testing.T) {\n\tnoRet := []byte{\n\t\t0x55,             // PUSH RBP\n\t\t0x48, 0x89, 0xe5, // MOV RBP, RSP\n\t\t0x5d, // POP RBP\n\t}",
+              "text_sha256": "9430fb9bcf6b820df8297dbed07a2297ce8f4eef235a502427e0deb48dbf106a"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 88,
+              "text": "// and no error.\nfunc TestFindReturnOffsets_Empty(t *testing.T) {\n\toffsets, err := FindReturnOffsets(0, []byte{})\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_NoRet verifies that a buffer with no RET instruction\n// produces an empty result.\n//\n//\t0x00  55        PUSH RBP\n//\t0x01  48 89 e5  MOV RBP, RSP\n//\t0x04  5d        POP RBP\nfunc TestFindReturnOffsets_NoRet(t *testing.T) {\n\tnoRet := []byte{\n\t\t0x55,             // PUSH RBP\n\t\t0x48, 0x89, 0xe5, // MOV RBP, RSP\n\t\t0x5d, // POP RBP\n\t}\n\toffsets, err := FindReturnOffsets(0, noRet)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_MultipleRets checks that all RET instructions are\n// reported when more than one is present.  Equal (not ElementsMatch) is correct\n// here: the implementation scans left-to-right and appends in order, so the\n// returned slice is guaranteed to be in ascending offset order.",
+              "text_sha256": "edb61329ee6f95f75b25e3bf51d2c89b6231700339c3417246583a6db577aaa5"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 100,
+              "text": "//\t0x04  5d        POP RBP\nfunc TestFindReturnOffsets_NoRet(t *testing.T) {\n\tnoRet := []byte{\n\t\t0x55,             // PUSH RBP\n\t\t0x48, 0x89, 0xe5, // MOV RBP, RSP\n\t\t0x5d, // POP RBP\n\t}\n\toffsets, err := FindReturnOffsets(0, noRet)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}\n\n// TestFindReturnOffsets_MultipleRets checks that all RET instructions are\n// reported when more than one is present.  Equal (not ElementsMatch) is correct\n// here: the implementation scans left-to-right and appends in order, so the\n// returned slice is guaranteed to be in ascending offset order.\n//\n//\t0x00  90  NOP\n//\t0x01  c3  RET\n//\t0x02  90  NOP\n//\t0x03  c3  RET\nfunc TestFindReturnOffsets_MultipleRets(t *testing.T) {\n\tmultiRet := []byte{\n\t\t0x90, // NOP\n\t\t0xc3, // RET  \u2192 offset 0x01\n\t\t0x90, // NOP\n\t\t0xc3, // RET  \u2192 offset 0x03\n\t}",
+              "text_sha256": "4ef296b77270fd900cb9e3a1caec2ca5aa4ffad90a3baa15e1ba4fee3da80c30"
+            },
+            {
+              "control_keyword_match": [
+                "without"
+              ],
+              "line_start": 120,
+              "text": "//\t0x03  c3  RET\nfunc TestFindReturnOffsets_MultipleRets(t *testing.T) {\n\tmultiRet := []byte{\n\t\t0x90, // NOP\n\t\t0xc3, // RET  \u2192 offset 0x01\n\t\t0x90, // NOP\n\t\t0xc3, // RET  \u2192 offset 0x03\n\t}\n\toffsets, err := FindReturnOffsets(0, multiRet)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x01, 0x03}, offsets)\n}\n\n// TestFindReturnOffsets_RetWithImmediate verifies that the far-return-with-immediate\n// variant (c2 imm16) is recognized as a RET.  Both c3 and c2 decode to\n// x86asm.RET, so the function handles them identically.\n//\n//\t0x00  c2 10 00  RET 0x10\nfunc TestFindReturnOffsets_RetWithImmediate(t *testing.T) {\n\tbuf := []byte{0xc2, 0x10, 0x00} // RET 0x10\n\toffsets, err := FindReturnOffsets(0, buf)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x00}, offsets)\n}\n\n// TestFindReturnOffsets_TruncatedInstruction verifies that a buffer ending with\n// an incomplete instruction sequence is handled without error.  The underlying\n// x86asm decoder does not return errors for truncated encodings \u2014 it emits a",
+              "text_sha256": "54fe3ac4088bb650c6d3094b416d60d72d895d9575d28776b117adb91263323d"
+            },
+            {
+              "control_keyword_match": [
+                "empty",
+                "valid",
+                "without"
+              ],
+              "line_start": 137,
+              "text": "//\t0x00  c2 10 00  RET 0x10\nfunc TestFindReturnOffsets_RetWithImmediate(t *testing.T) {\n\tbuf := []byte{0xc2, 0x10, 0x00} // RET 0x10\n\toffsets, err := FindReturnOffsets(0, buf)\n\trequire.NoError(t, err)\n\trequire.Equal(t, []uint64{0x00}, offsets)\n}\n\n// TestFindReturnOffsets_TruncatedInstruction verifies that a buffer ending with\n// an incomplete instruction sequence is handled without error.  The underlying\n// x86asm decoder does not return errors for truncated encodings \u2014 it emits a\n// synthetic Op(0) instruction of length 1 and advances past the byte \u2014 so\n// FindReturnOffsets silently skips unrecognized bytes rather than aborting.\n//\n//\t0x00  90        NOP   (valid)\n//\t0x01  48 8b     REX.W + MOV opcode, ModRM byte absent  (truncated)\nfunc TestFindReturnOffsets_TruncatedInstruction(t *testing.T) {\n\tbuf := []byte{\n\t\t0x90,       // NOP\n\t\t0x48, 0x8b, // incomplete MOV r64,r/m64 \u2014 no ModRM byte\n\t}\n\toffsets, err := FindReturnOffsets(0, buf)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}",
+              "text_sha256": "96e02ffef95f1e214ed7acb28f323936ffe792784c97d3d42cfac441898258a5"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 152,
+              "text": "//\t0x01  48 8b     REX.W + MOV opcode, ModRM byte absent  (truncated)\nfunc TestFindReturnOffsets_TruncatedInstruction(t *testing.T) {\n\tbuf := []byte{\n\t\t0x90,       // NOP\n\t\t0x48, 0x8b, // incomplete MOV r64,r/m64 \u2014 no ModRM byte\n\t}\n\toffsets, err := FindReturnOffsets(0, buf)\n\trequire.NoError(t, err)\n\trequire.Empty(t, offsets)\n}",
+              "text_sha256": "1bf34a78eeeaaa066dbf043aee8a0348bec2387f02499ac192fbd6a3a6b71228"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "84440819de293422673a1f2a40a496c7b7fef03752bdeab1edd5fea8971ab217",
+          "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/360521f411213566a3b557a1f0c093e6cd68a4de/pkg%2Finternal%2Fgoexec%2Finstructions_test.go",
+          "path": "pkg/internal/goexec/instructions_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        },
+        {
+          "commit_sha": "360521f411213566a3b557a1f0c093e6cd68a4de",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "invalid"
+              ],
+              "line_start": 222,
+              "text": "// static binary case where pclntable.data == gopclntabAddr (exact start).\nfunc TestValidateModuledata_PclntableDataAtGopclntabStart(t *testing.T) {\n\telfF := buildTestELF(t, testGopclntabVMA) // pclntable.data == gopclntab start\n\ttext, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.True(t, ok)\n\trequire.Equal(t, testTextVMA, text)\n}\n\n// TestValidateModuledata_PclntableDataWithinGopclntab is the CGo PIE regression\n// test (docker-proxy).  pclntable.data points to an internal function-table slice\n// inside .gopclntab rather than to its start.  The old code rejected this candidate\n// because it checked for exact equality; the fixed code accepts it.\nfunc TestValidateModuledata_PclntableDataWithinGopclntab(t *testing.T) {\n\tpclntableData := testGopclntabVMA + 0x10 // well inside [gopclntab, gopclntab+size)\n\telfF := buildTestELF(t, pclntableData)\n\ttext, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.True(t, ok)\n\trequire.Equal(t, testTextVMA, text)\n}\n\n// TestValidateModuledata_PclntableDataOutOfRange checks that a candidate is\n// rejected when pclntable.data falls outside .gopclntab entirely.\nfunc TestValidateModuledata_PclntableDataOutOfRange(t *testing.T) {\n\tpclntableData := testGopclntabVMA - 1 // just before .gopclntab \u2192 invalid\n\telfF := buildTestELF(t, pclntableData)\n\t_, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.False(t, ok)\n}",
+              "text_sha256": "c673b665b3f7788cc7a36872fe62886d927d43bdd85dafab82aa156987e66d24"
+            },
+            {
+              "control_keyword_match": [
+                "invalid",
+                "valid"
+              ],
+              "line_start": 233,
+              "text": "// because it checked for exact equality; the fixed code accepts it.\nfunc TestValidateModuledata_PclntableDataWithinGopclntab(t *testing.T) {\n\tpclntableData := testGopclntabVMA + 0x10 // well inside [gopclntab, gopclntab+size)\n\telfF := buildTestELF(t, pclntableData)\n\ttext, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.True(t, ok)\n\trequire.Equal(t, testTextVMA, text)\n}\n\n// TestValidateModuledata_PclntableDataOutOfRange checks that a candidate is\n// rejected when pclntable.data falls outside .gopclntab entirely.\nfunc TestValidateModuledata_PclntableDataOutOfRange(t *testing.T) {\n\tpclntableData := testGopclntabVMA - 1 // just before .gopclntab \u2192 invalid\n\telfF := buildTestELF(t, pclntableData)\n\t_, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.False(t, ok)\n}\n\n// TestValidateModuledata_WrongPcHeader checks that a candidate is rejected when\n// pcHeader does not point to the exact start of .gopclntab.  We inject a wrong\n// value via relocs.explicit so the ELF file data stays valid; only the resolved\n// pointer is changed.\nfunc TestValidateModuledata_WrongPcHeader(t *testing.T) {\n\telfF := buildTestELF(t, testGopclntabVMA)\n\n\t// Override pcHeader to point one word past the gopclntab start.\n\trelocs := relocationInfo{\n\t\texplicit: map[uint64]uint64{",
+              "text_sha256": "65886c9756352bcea00b1eb40a8b408a0f26ae5da4d6dafc224e05b8ed83f212"
+            },
+            {
+              "control_keyword_match": [
+                "invalid",
+                "valid"
+              ],
+              "line_start": 243,
+              "text": "// rejected when pclntable.data falls outside .gopclntab entirely.\nfunc TestValidateModuledata_PclntableDataOutOfRange(t *testing.T) {\n\tpclntableData := testGopclntabVMA - 1 // just before .gopclntab \u2192 invalid\n\telfF := buildTestELF(t, pclntableData)\n\t_, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, emptyRelocs())\n\trequire.False(t, ok)\n}\n\n// TestValidateModuledata_WrongPcHeader checks that a candidate is rejected when\n// pcHeader does not point to the exact start of .gopclntab.  We inject a wrong\n// value via relocs.explicit so the ELF file data stays valid; only the resolved\n// pointer is changed.\nfunc TestValidateModuledata_WrongPcHeader(t *testing.T) {\n\telfF := buildTestELF(t, testGopclntabVMA)\n\n\t// Override pcHeader to point one word past the gopclntab start.\n\trelocs := relocationInfo{\n\t\texplicit: map[uint64]uint64{\n\t\t\ttestDataVMA + testMDPcHeader: testGopclntabVMA + 8, // wrong: not the gopclntab start\n\t\t},\n\t\trelr: map[uint64]struct{}{},\n\t}\n\n\t_, ok := validateModuledata(elfF, testDataVMA, testGopclntabVMA, testGopclntabSz, testMDOffsets, relocs)\n\trequire.False(t, ok)\n}\n\n// \u2500\u2500 moduledataCandidates \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+              "text_sha256": "c7da907e821d87e4207488e91db99fc11eeae962230f8498987ae508931df2a2"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "69eb55d7ca5ecfb8cef17aa3e072f94316709f69e148002aebc2435b65373f09",
+          "html_url": "https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/blob/360521f411213566a3b557a1f0c093e6cd68a4de/pkg%2Finternal%2Fgoexec%2Fmoduledata_test.go",
+          "path": "pkg/internal/goexec/moduledata_test.go",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        }
+      ],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "server_side_template_injection",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "develop",
+      "near_miss_search_terms": [
+        "client_side_only",
+        "literal_template_rendering",
+        "template_input_escaped",
+        "template_sandbox_enforced",
+        "server_template_execution",
+        "template_engine_error_observed",
+        "template_expression_evaluated",
+        "template_output_differential",
+        "server",
+        "side"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 3,
+      "scoring_executed": false,
+      "source_project": "getgrav/grav",
+      "source_replacement_used": false,
+      "source_root": "GHSA-4jrc-qc5x-3wrr",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "software_data_integrity_failure",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "integrity_check_present",
+        "safe_deserializer",
+        "signature_verified",
+        "trusted_repository_only",
+        "integrity_check_missing",
+        "unsafe_deserialization_observed",
+        "unsigned_serialized_data_trusted",
+        "unsigned_update_accepted",
+        "untrusted_code_executed",
+        "software"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 0,
+      "scoring_executed": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_replacement_used": false,
+      "source_root": "GHSA-9pp6-v7j8-j65j",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "software_supply_chain_failure",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "component_current_and_supported",
+        "component_not_deployed",
+        "pipeline_untrusted_code_isolated",
+        "trusted_component_source",
+        "component_update_path_compromised",
+        "known_vulnerable_component_observed",
+        "privileged_pipeline_executes_untrusted_code",
+        "unmaintained_component_confirmed",
+        "untrusted_component_source",
+        "software"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 3,
+      "scoring_executed": false,
+      "source_project": "lightdash/lightdash",
+      "source_replacement_used": false,
+      "source_root": "GHSA-3hfp-gqgh-xc5g",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 2,
+      "test_control_candidates": [
+        {
+          "commit_sha": "c9b1d29a8d4c7e7a5a0f9a0ce10e5886ac9a66d2",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 269,
+              "text": "});\n\ndescribe('PromoteService dashboard changes', () => {\n    const service = new PromoteService({\n        lightdashConfig: lightdashConfigMock,\n\n        analytics: analyticsMock,\n        projectModel: projectModel as unknown as ProjectModel,\n        savedChartModel: savedChartModel as unknown as SavedChartModel,\n        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,\n        spaceModel: spaceModel as unknown as SpaceModel,\n        dashboardModel: {} as DashboardModel,\n        spacePermissionService:\n            spacePermissionService as unknown as SpacePermissionService,\n    });\n    afterEach(() => {\n        jest.clearAllMocks();\n    });\n\n    test('getPromotionDashboardChanges create empty dashboard and space', async () => {\n        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);\n        const [changes, promotedCharts] =\n            await service.getPromotionDashboardChanges(\n                user,\n                {\n                    ...promotedDashboard,\n                    dashboard: {\n                        ...promotedDashboard.dashboard,",
+              "text_sha256": "5a058ba40cd278288481494161b58a37121f56e2b41ca298fedefc41f0cf72ed"
+            },
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 286,
+              "text": "    });\n\n    test('getPromotionDashboardChanges create empty dashboard and space', async () => {\n        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);\n        const [changes, promotedCharts] =\n            await service.getPromotionDashboardChanges(\n                user,\n                {\n                    ...promotedDashboard,\n                    dashboard: {\n                        ...promotedDashboard.dashboard,\n                        tiles: [],\n                    },\n                },\n                missingUpstreamDashboard,\n            );\n\n        expect(changes.charts.length).toBe(0);\n        expect(changes.spaces.length).toBe(1);\n        expect(changes.dashboards.length).toBe(1);\n\n        expect(changes.dashboards[0].action).toBe('create');\n        expect(changes.spaces[0].action).toBe('create');\n\n        expect(changes.dashboards[0].data).toEqual({\n            ...promotedDashboard.dashboard,\n            projectUuid: missingUpstreamDashboard.projectUuid,\n            spaceSlug: promotedDashboard.space.slug,",
+              "text_sha256": "88794f5e272816b45248436997ad3d9596dd8ff8ab0d076e07e730d71569bd44"
+            },
+            {
+              "control_keyword_match": [
+                "without"
+              ],
+              "line_start": 1096,
+              "text": "    });\n\n    test('upsertSqlCharts update/no-change paths remap to upstream SQL UUID without create', async () => {\n        const dashboardWithOnlySqlTile = {\n            ...promotedDashboardWithSqlTile,\n            dashboard: {\n                ...promotedDashboardWithSqlTile.dashboard,\n                tiles: promotedDashboardWithSqlTile.dashboard.tiles.filter(\n                    (tile) => tile.type === DashboardTileTypes.SQL_CHART,\n                ),\n            },\n        };\n\n        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(\n            async () => ({\n                ...promotedSqlChart,\n                lastUpdatedAt: new Date('2025-01-01T00:00:00.000Z'),\n                name: 'new sql chart title',\n            }),\n        );\n        (savedSqlModel.find as jest.Mock).mockImplementationOnce(async () => [\n            {\n                saved_sql_uuid: existingUpstreamSqlChart.savedSqlUuid,\n                name: 'old sql chart title',\n                description: promotedSqlChart.description,\n                slug: existingUpstreamSqlChart.slug,\n                dashboard_uuid: null,\n                created_at: existingUpstreamSqlChart.createdAt,",
+              "text_sha256": "14d9078d9a1c600e0ccfbdc4dc3e7f44d76f02a07ce0cd5f9ec802008b848762"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "f0cf4016ea567dac180d17f4b7fa2218070844b31863129ad731c89da12c3e8e",
+          "html_url": "https://github.com/lightdash/lightdash/blob/c9b1d29a8d4c7e7a5a0f9a0ce10e5886ac9a66d2/packages%2Fbackend%2Fsrc%2Fservices%2FPromoteService%2FPromoteService.test.ts",
+          "path": "packages/backend/src/services/PromoteService/PromoteService.test.ts",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        },
+        {
+          "commit_sha": "f6a55b21bfe7e5526db3984556f6ac6c1b1a81e9",
+          "controls": [
+            {
+              "control_keyword_match": [
+                "empty"
+              ],
+              "line_start": 264,
+              "text": "    });\n\n    it('should handle empty result set', async () => {\n        const streamMock = jest.fn(async () =>\n            getMockStreamResult([], [DUCKDB_TYPE_IDS.INTEGER]),\n        );\n\n        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));\n\n        const client = DuckdbWarehouseClient.createForPreAggregate();\n        const result = await client.runQuery('SELECT id FROM empty_table');\n\n        expect(result.rows).toEqual([]);\n        expect(result.fields).toEqual({});\n    });\n\n    it('should set timezone, S3 config, and shared resource limits before streaming', async () => {\n        const runMock = jest.fn();\n        const streamMock = jest.fn(async () =>\n            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),\n        );\n\n        createInstanceMock.mockResolvedValue(\n            createMockConnection(streamMock, runMock),\n        );\n\n        const config = {\n            type: 'duckdb_s3' as const,",
+              "text_sha256": "f6bae18b1cb50cb5358181bb6677f75fa4fb9b0abf3f60884593718671999074"
+            },
+            {
+              "control_keyword_match": [
+                "without"
+              ],
+              "line_start": 329,
+              "text": "    });\n\n    it('should use DuckDB credential chain for S3 config without static credentials', async () => {\n        const runMock = jest.fn();\n        const streamMock = jest.fn(async () =>\n            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),\n        );\n\n        createInstanceMock.mockResolvedValue(\n            createMockConnection(streamMock, runMock),\n        );\n\n        const client = DuckdbWarehouseClient.createForPreAggregate({\n            type: 'duckdb_s3',\n            s3Config: {\n                endpoint: 's3.eu-west-1.amazonaws.com',\n                region: 'eu-west-1',\n                forcePathStyle: false,\n                useSsl: true,\n            },\n        });\n\n        await client.runQuery('SELECT 1 AS val');\n\n        expect(runMock).toHaveBeenCalledWith('INSTALL aws;');\n        expect(runMock).toHaveBeenCalledWith('LOAD aws;');\n\n        const secretSql = runMock.mock.calls",
+              "text_sha256": "0c1bc9b71824f58d89d5e8c8051a6030333671eed6ea6c935aa1fad738fdd260"
+            },
+            {
+              "control_keyword_match": [
+                "reject"
+              ],
+              "line_start": 575,
+              "text": "    });\n\n    describe('SQL security validation', () => {\n        it.each([\n            {\n                name: 'SET statements',\n                sql: \"SET s3_endpoint = 'attacker.com'\",\n                statementType: 20,\n            },\n            {\n                name: 'COPY statements',\n                sql: \"COPY t TO '/tmp/data.csv'\",\n                statementType: 11,\n            },\n            {\n                name: 'ATTACH statements',\n                sql: \"ATTACH DATABASE 'file.db'\",\n                statementType: 25,\n            },\n            {\n                name: 'EXPLAIN statements',\n                sql: 'EXPLAIN SELECT * FROM users',\n                statementType: 4,\n            },\n        ])('should reject $name', async ({ sql, statementType }) => {\n            const streamMock = jest.fn(async () =>\n                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),\n            );",
+              "text_sha256": "dd9a08e7910005bfe14763f79af767e397af400832b65f9f7b59651d865ac6ac"
+            },
+            {
+              "control_keyword_match": [
+                "allowed",
+                "reject"
+              ],
+              "line_start": 617,
+              "text": "        });\n\n        it('should reject multiple statements', async () => {\n            const streamMock = jest.fn(async () =>\n                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),\n            );\n\n            createInstanceMock.mockResolvedValue(\n                createMockConnection(streamMock, jest.fn(), {\n                    extractStatements: createMockExtractStatements({\n                        count: 2,\n                    }),\n                }),\n            );\n\n            const client = new DuckdbWarehouseClient();\n            await expect(\n                client.runQuery('SELECT 1; DROP TABLE users'),\n            ).rejects.toThrow(\n                'SQL validation error: multiple SQL statements are not allowed',\n            );\n        });\n\n        it.each(['current_setting', 'duckdb_settings', 'duckdb_secrets'])(\n            'should reject queries with %s()',\n            async (blockedFunction) => {\n                const streamMock = jest.fn(async () =>\n                    getMockStreamResult(",
+              "text_sha256": "9787a524e109033f138e2d9b40cf5a4918f4efa77249f52aad320a925ec02539"
+            },
+            {
+              "control_keyword_match": [
+                "allowed",
+                "reject",
+                "valid"
+              ],
+              "line_start": 734,
+              "text": "        });\n\n        it('should reject introspection functions in runSql', async () => {\n            const streamMock = jest.fn();\n            const runMock = jest.fn();\n\n            createInstanceMock.mockResolvedValue(\n                createMockConnection(streamMock, runMock),\n            );\n\n            const client = new DuckdbWarehouseClient();\n            await expect(\n                client.runSql(\n                    \"COPY (SELECT current_setting('s3_secret_access_key')) TO '/tmp/out.csv'\",\n                ),\n            ).rejects.toThrow(\n                \"SQL validation error: function 'current_setting' is not allowed\",\n            );\n            expect(runMock).not.toHaveBeenCalledWith(\n                \"COPY (SELECT current_setting('s3_secret_access_key')) TO '/tmp/out.csv'\",\n            );\n        });\n\n        it('should allow valid SELECT queries', async () => {\n            const streamMock = jest.fn(async () =>\n                getMockStreamResult(\n                    [[{ id: 1, name: 'test' }]],\n                    [DUCKDB_TYPE_IDS.INTEGER, DUCKDB_TYPE_IDS.VARCHAR],",
+              "text_sha256": "2cf0008050011435008cbc5fac53b1ab230dafea358076cef36fcfbb479b3239"
+            },
+            {
+              "control_keyword_match": [
+                "valid"
+              ],
+              "line_start": 755,
+              "text": "        });\n\n        it('should allow valid SELECT queries', async () => {\n            const streamMock = jest.fn(async () =>\n                getMockStreamResult(\n                    [[{ id: 1, name: 'test' }]],\n                    [DUCKDB_TYPE_IDS.INTEGER, DUCKDB_TYPE_IDS.VARCHAR],\n                ),\n            );\n\n            createInstanceMock.mockResolvedValue(\n                createMockConnection(streamMock),\n            );\n\n            const client = new DuckdbWarehouseClient();\n            const result = await client.runQuery(\n                'SELECT id, name FROM users WHERE id = 1',\n            );\n            expect(result.rows).toEqual([{ id: 1, name: 'test' }]);\n        });\n    });\n\n    it.each([\n        {\n            name: 'pass token in connection string for MotherDuck',\n            credentials: {\n                type: WarehouseTypes.DUCKDB as const,\n                database: 'my_database',",
+              "text_sha256": "1dfaf675f9897de174b8373d9cbb6fb545721b1687bd0af520d8589d8424c33e"
+            }
+          ],
+          "discovery_basis": "changed_test_file_in_frozen_same_source_candidate",
+          "file_sha256": "bf4938f2974813916cd637bd42e49d75cb6328729b87a0b9d0f01c7e1131647e",
+          "html_url": "https://github.com/lightdash/lightdash/blob/f6a55b21bfe7e5526db3984556f6ac6c1b1a81e9/packages%2Fwarehouses%2Fsrc%2FwarehouseClients%2FDuckdbWarehouseClient.test.ts",
+          "path": "packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.test.ts",
+          "semantic_role": "unadjudicated_fourth_pass_upstream_test_control_candidate"
+        }
+      ],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "sql_injection",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "input_not_used_in_query",
+        "parameterized_query",
+        "query_builder_binding",
+        "uniform_database_behavior",
+        "boolean_response_differential",
+        "database_error_observed",
+        "database_time_delay_observed",
+        "query_structure_influence",
+        "sql_error_differential",
+        "unsafe_query_construction"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "kubev2v/migration-planner",
+      "source_replacement_used": false,
+      "source_root": "GHSA-vf2h-7x3w-97fr",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    },
+    {
+      "candidate_semantics_adjudicated": false,
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "unrestricted_resource_consumption",
+      "first_blind_consumed": false,
+      "literal_pair_candidate_count": 0,
+      "literal_pair_candidates": [],
+      "near_miss_default_branch": "main",
+      "near_miss_search_terms": [
+        "batch_limit_enforced",
+        "page_size_capped",
+        "payload_size_rejected",
+        "rate_limit_enforced",
+        "spending_limit_enforced",
+        "timeout_enforced",
+        "batch_limit_absent_observed",
+        "cost_amplification_observed",
+        "oversized_payload_accepted",
+        "rate_limit_absent_observed"
+      ],
+      "publication_authorized": false,
+      "remaining_revision_candidate_count": 5,
+      "scoring_executed": false,
+      "source_project": "aws/s2n-quic",
+      "source_replacement_used": false,
+      "source_root": "GHSA-9q54-f358-3fqf",
+      "synthetic_fixture_used": false,
+      "target_contact_performed": false,
+      "test_control_candidate_group_count": 0,
+      "test_control_candidates": [],
+      "third_party_code_executed": false,
+      "two_sided_literal_pair_count": 0,
+      "unresolved_case_kinds": [
+        "near_miss"
+      ]
+    }
+  ],
+  "families_with_test_control_candidates": 3,
+  "families_with_two_sided_literal_pairs": 0,
+  "family_result_count": 17,
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "literal_pair_candidate_count": 0,
+  "publication_authorized": false,
+  "rule_version": "2026.08.15.6.33.v7.unseen.fourth-pass.targeted.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "synthetic_fixture_allowed": false,
+  "synthetic_fixture_used": false,
+  "target_contact_performed": false,
+  "test_control_candidate_group_count": 8,
+  "third_party_code_executed": false,
+  "two_sided_literal_pair_count": 0,
+  "unresolved_family_count": 17,
+  "unresolved_input_count": 21,
+  "version": "1.0.0"
+}
