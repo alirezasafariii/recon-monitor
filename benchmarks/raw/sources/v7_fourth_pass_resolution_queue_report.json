@@ -1,0 +1,49 @@
+{
+  "by_case_kind": {
+    "near_miss": {
+      "fourth_pass_input_count": 17,
+      "new_candidate_available_count": 3,
+      "still_unresolved_count": 14
+    },
+    "positive": {
+      "fourth_pass_input_count": 2,
+      "new_candidate_available_count": 0,
+      "still_unresolved_count": 2
+    },
+    "secure_negative": {
+      "fourth_pass_input_count": 2,
+      "new_candidate_available_count": 0,
+      "still_unresolved_count": 2
+    },
+    "sparse_noisy": {
+      "fourth_pass_input_count": 0,
+      "new_candidate_available_count": 0,
+      "still_unresolved_count": 0
+    }
+  },
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:27:39.281517+00:00",
+  "cross_variant_mutation_allowed": false,
+  "cumulative_candidate_available_count": 48,
+  "cumulative_candidate_missing_count": 18,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_fourth_pass_resolution_queue_unscored",
+  "evidence_published": false,
+  "families_still_unresolved": 14,
+  "families_with_new_candidate_material": 3,
+  "first_blind_consumed": false,
+  "fourth_pass_input_count": 21,
+  "human_adjudication_performed": false,
+  "new_candidate_available_count": 3,
+  "publication_authorized": false,
+  "rule_version": "2026.08.15.6.33.v7.unseen.fourth-pass.resolve.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "still_unresolved_count": 18,
+  "synthetic_fixture_allowed": false,
+  "synthetic_fixture_used": false,
+  "version": "1.0.0"
+}
