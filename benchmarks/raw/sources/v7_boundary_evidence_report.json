@@ -1,0 +1,19 @@
+{
+  "ambiguous_direct_fix_reference_count": 2,
+  "audit_fallback_count": 4,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_public_boundary_acquisition",
+  "exact_revision_pair_count": 16,
+  "first_blind_consumed": false,
+  "global_advisory_alias_resolution_count": 0,
+  "literal_adjudication_required_count": 11,
+  "reference_failure_count": 0,
+  "rule_version": "2026.08.15.6.33.v7.unseen.boundary.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_count": 36,
+  "sources_with_changed_tests": 13,
+  "sources_with_version_boundary": 32,
+  "target_contact_performed": false,
+  "version": "2.1.0"
+}
