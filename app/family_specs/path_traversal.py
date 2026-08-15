@@ -5,7 +5,7 @@ from .base import FamilyStandardSpec, MethodologyStep, WriteupLesson
 
 PATH_TRAVERSAL_STANDARD_SPEC = FamilyStandardSpec(
     family="path_traversal",
-    version="1.0.0",
+    version="1.0.1",
     strategy="filesystem_root_containment_boundary",
     principle=(
         "Path or filename inputs plus file operations are attack-surface context only; promotion requires stored "
@@ -14,7 +14,7 @@ PATH_TRAVERSAL_STANDARD_SPEC = FamilyStandardSpec(
     owasp=("A01:2025 Broken Access Control",),
     wstg=("WSTG-ATHZ-01",),
     cwe=("CWE-22", "CWE-23", "CWE-36"),
-    capec=("CAPEC-139", "CAPEC-597"),
+    capec=("CAPEC-126", "CAPEC-139", "CAPEC-597"),
     methodology=(
         MethodologyStep(
             id="PATH-01-path-surface",
@@ -55,6 +55,18 @@ PATH_TRAVERSAL_STANDARD_SPEC = FamilyStandardSpec(
         "OWASP, WSTG, CWE, CAPEC and write-up similarity add zero target evidence.",
     ),
     writeups=(
+        WriteupLesson(
+            id="owasp-path-traversal",
+            source="OWASP WSTG",
+            ref="WSTG-ATHZ-01 / Testing Directory Traversal File Include",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include",
+            relation="canonical_testing_method",
+            lesson=(
+                "Traversal analysis follows user-controlled path data to the filesystem boundary and verifies canonicalized root containment. "
+                "The testing method guides evidence collection but does not create target evidence."
+            ),
+            signal_hints=("path_parameter", "file_operation", "path_escape_observed", "canonicalization_enforced", "canonicalization_bypass_observed"),
+        ),
         WriteupLesson(
             id="ghsl-2024-073-reposilite-path-traversal",
             source="GitHub Security Lab",
