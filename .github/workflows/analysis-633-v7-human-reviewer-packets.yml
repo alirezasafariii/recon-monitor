@@ -1,0 +1,77 @@
+name: Analysis 6.33 V7 Human Reviewer Packets
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-human-reviewer-packets.yml'
+      - 'app/v7_human_reviewer_packets.py'
+      - 'tests/test_v7_human_reviewer_packets.py'
+      - 'benchmarks/raw/sources/v7_human_review_template.json'
+      - 'benchmarks/raw/sources/v7_semantic_review_packet_v2.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-human-reviewer-packets
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused reviewer packet guards
+        env: {PYTHONPATH: .}
+        run: python -m unittest tests.test_v7_human_reviewer_packets -v
+      - name: Build isolated reviewer packets
+        env: {PYTHONPATH: app}
+        run: python app/v7_human_reviewer_packets.py
+      - name: Verify reviewer isolation and blind firewall
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_human_reviewer_packets_report.json').read_text())
+          assert r['reviewer_packet_count']==3
+          assert r['family_count']==36 and r['variant_count']==144
+          assert r['primary_reviews_per_family']==2 and r['primary_reviews_per_variant']==2
+          assert r['engine_output_allowed_as_evidence'] is False
+          assert r['other_reviewer_votes_visible'] is False
+          assert r['human_adjudication_performed'] is False
+          assert r['human_review_complete'] is False and r['human_verified_record_count']==0
+          assert r['evidence_published'] is False and r['publication_authorized'] is False
+          assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          for slot in ('reviewer_a','reviewer_b','reviewer_c'):
+              p=json.loads(Path(f'benchmarks/raw/sources/v7_human_reviewer_packets/{slot}.json').read_text())
+              assert p['reviewer_slot']==slot
+              assert p['primary_family_count']==24 and p['primary_variant_count']==96
+              assert p['tie_break_family_count']==12 and p['tie_break_variant_count']==48
+              assert p['instructions']['engine_output_allowed_as_evidence'] is False
+              assert p['instructions']['other_reviewer_votes_visible'] is False
+              assert p['human_review_started'] is False and p['human_review_complete'] is False
+              assert p['scoring_executed'] is False and p['first_blind_consumed'] is False
+          print({'reviewer_packets':3,'families':36,'variants':144,'primary_reviews_per_variant':2})
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze reviewer packets and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_human_reviewer_packets benchmarks/raw/sources/v7_human_reviewer_packets_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 independent reviewer packets'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
