@@ -1,0 +1,80 @@
+name: Analysis 6.33 V7 Unseen Candidate Coverage Ledger
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-candidate-coverage-ledger.yml'
+      - 'app/v7_candidate_coverage_ledger.py'
+      - 'tests/test_v7_candidate_coverage_ledger.py'
+      - 'benchmarks/raw/sources/v7_final_residual_control_candidates.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused coverage-ledger guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_candidate_coverage_ledger -q
+      - name: Build exact candidate coverage ledger
+        env: {PYTHONPATH: app}
+        run: python app/v7_candidate_coverage_ledger.py
+      - name: Verify exact 66-of-66 accounting and firewall
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v7_candidate_coverage_ledger.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_candidate_coverage_ledger_report.json').read_text())
+          for x in (d,r):
+              assert x['original_missing_variant_count']==66
+              assert x['candidate_material_coverage_count']==66
+              assert x['unresolved_candidate_material_count']==0
+              assert x['candidate_material_complete'] is True
+              assert x['candidate_semantics_adjudicated'] is False
+              assert x['semantic_adjudication_complete'] is False
+              assert x['human_adjudication_performed'] is False
+              assert x['human_review_complete'] is False
+              assert x['evidence_published'] is False and x['publication_authorized'] is False
+              assert x['source_assignment_locked'] is True
+              assert x['source_replacement_allowed'] is False
+              assert x['synthetic_fixture_allowed'] is False
+              assert x['cross_variant_mutation_allowed'] is False
+              assert x['scoring_executed'] is False and x['first_blind_consumed'] is False
+          assert d['by_case_kind']=={'near_miss':26,'positive':20,'secure_negative':20}
+          assert len(d['items'])==66
+          ids=[x['capture_id'] for x in d['items']]
+          assert len(ids)==len(set(ids))==66
+          assert all(x['semantic_adjudicated'] is False for x in d['items'])
+          print({
+              'coverage': d['candidate_material_coverage_count'],
+              'unresolved': d['unresolved_candidate_material_count'],
+              'by_case_kind': d['by_case_kind'],
+              'by_stage': d['by_resolution_stage'],
+          })
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze coverage ledger and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_candidate_coverage_ledger.json benchmarks/raw/sources/v7_candidate_coverage_ledger_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 candidate coverage ledger'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
