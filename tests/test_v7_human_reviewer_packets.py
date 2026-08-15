@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from app import v7_human_reviewer_packets as packets
+import v7_human_reviewer_packets as packets
 
 
 class V7HumanReviewerPacketsTests(unittest.TestCase):
