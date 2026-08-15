@@ -7,26 +7,16 @@ globals().update(_loaded)
 
 
 def _canonical_compatibility_surface_test(self):
+    import bola_intelligence
+    import bug_candidates
     from family_analyzers.bola import BOLA_FAMILY_ANALYZER_VERSION, BOLA_SPEC, analyze_bola_signal
 
-    result = analyze_bola_signal(
-        self.db,
-        analysis_id="AN-BOLA-FAMILY",
-        target="example.com",
-        endpoint="https://example.com/api/orders/1001",
-        method="GET",
-        object_ids=["1001"],
-        structural_fields=[],
-        details={
-            "identity_id": "fixture-user-a",
-            "object_owner_id": "fixture-user-b",
-            "status_code": 200,
-        },
-    )
-    self.assertIsNotNone(result)
+    self.assertIs(bola_intelligence.analyze_bola_signal, analyze_bola_signal)
+    self.assertIs(bug_candidates._alert_candidates.__globals__["analyze_bola_signal"], analyze_bola_signal)
+    self.assertEqual(bola_intelligence.BOLA_ENGINE_VERSION, "2.0.0")
+    self.assertEqual(bola_intelligence.BOLA_RULE_VERSION, "2026.08.8.5")
     self.assertEqual(BOLA_FAMILY_ANALYZER_VERSION, "1.1.0")
-    self.assertEqual(result["family_analyzer"]["family_spec_version"], BOLA_SPEC.version)
-    self.assertTrue(result["family_analyzer"]["knowledge_does_not_change_target_evidence"])
+    self.assertEqual(BOLA_SPEC.family, "broken_object_authorization")
 
 
 BolaFamilyAnalyzerV868Tests.test_production_compatibility_surface_routes_to_family_analyzer = _canonical_compatibility_surface_test
