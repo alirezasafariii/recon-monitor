@@ -13,8 +13,8 @@ from raw_recon_corpus import ROOT
 from raw_recon_v8_source_firewall import check_candidate, exposure_index
 from researcher_logic import researcher_logic_for_family
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v8.targeted8.1"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.33.v8.targeted8.2"
 SOURCES = ROOT / "benchmarks/raw/sources"
 CANDIDATES = SOURCES / "v8_candidates.json"
 PATCHABLE = SOURCES / "v8_candidates_patchable.json"
@@ -49,9 +49,9 @@ SPECS: tuple[dict[str, Any], ...] = (
     },
     {
         "family": "graphql_data_exposure",
-        "kind": "commit",
-        "project": "nautobot/nautobot",
-        "sha": "a05eb7d0c939dd4205aca839955e4b3ee5f32af4",
+        "kind": "pr",
+        "project": "datahub-project/datahub",
+        "number": 19212,
     },
     {
         "family": "improper_inventory_management",
@@ -79,9 +79,9 @@ SPECS: tuple[dict[str, Any], ...] = (
     },
     {
         "family": "software_supply_chain_failure",
-        "kind": "commit",
-        "project": "mastra-ai/mastra",
-        "sha": "ec4da8a09e0d2ab452c6ee2c786042ea826b77e5",
+        "kind": "pr",
+        "project": "znasllc-io/memql",
+        "number": 3862,
     },
 )
 
