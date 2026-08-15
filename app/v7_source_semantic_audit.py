@@ -5,11 +5,11 @@ from typing import Any, Mapping
 
 from raw_recon_v5_source_audit import AUDIT_RULE_VERSION, AUDIT_VERSION, audit_row as _audit_row
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.14.6.32.v7.10"
+VERSION = "1.0.1"
+RULE_VERSION = "2026.08.15.6.32.v7.11"
 
-# Syntax-only normalizations. They do not add a security concept that is absent
-# from the source; they normalize punctuation/casing/common identifier spelling
+# Syntax/morphology-only normalizations. They do not invent a security fact; they
+# normalize punctuation, casing, common identifier spelling, and inflected forms
 # before the existing strict family audit runs.
 _NORMALIZATIONS: tuple[tuple[str, str], ...] = (
     (r"\bman[- ]in[- ]the[- ]middle\b", "man in the middle"),
@@ -24,6 +24,8 @@ _NORMALIZATIONS: tuple[tuple[str, str], ...] = (
     (r"\bcross[- ]origin\b", "cross origin"),
     (r"\bsource[- ]map\b", "source map"),
     (r"\bserver[- ]side\b", "server side"),
+    (r"\bdisclos(?:e|es|ed|ing)\b", "information disclosure"),
+    (r"\bexpos(?:e|es|ed|ing)\b", "data exposure"),
 )
 
 
