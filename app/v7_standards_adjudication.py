@@ -3,8 +3,10 @@ from __future__ import annotations
 """Conservative standards-grounded semantic adjudication for Fresh Blind V7.
 
 WSTG, OWASP, CWE and write-up lessons define the interpretation rubric only. They
-never count as target/source evidence. Decisions are made only from frozen public-
-source material already bound to each V7 capture. Ambiguous material fails closed.
+never count as target/source evidence. Decisions are made only from frozen public
+source material. For priority-0 positives, role-aware upstream sections keep a
+remediation/fixed state from being mistaken for a blocker in the documented
+vulnerable state. Ambiguity still fails closed.
 """
 
 import hashlib
@@ -12,7 +14,7 @@ import json
 import math
 import re
 from collections import Counter
-from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -33,39 +35,25 @@ from researcher_logic import (
 )
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = "1.0.1"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-adjudication.2"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.standards-adjudication.3"
 PACKET = ROOT / "benchmarks/raw/sources/v7_semantic_review_packet_v2.json"
+ROLE_PACK = ROOT / "benchmarks/raw/sources/v7_standards_priority0_role_pack.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_standards_adjudication.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_standards_adjudication_report.json"
 KINDS = ("positive", "near_miss", "secure_negative", "sparse_noisy")
 
-# Metadata that describes our acquisition/review process is never allowed to prove
-# semantics. Source snippets, paths, test names, commit messages and upstream prose
-# remain eligible source material.
 META_KEY_FRAGMENTS = (
-    "adjudicat",
-    "human_",
-    "engine_",
-    "scoring",
-    "first_blind",
-    "expected_",
-    "review_status",
-    "reviewer",
-    "variant_purpose",
-    "semantic_role",
-    "rule_version",
-    "evaluation_kind",
-    "publication_authorized",
+    "adjudicat", "human_", "engine_", "scoring", "first_blind", "expected_",
+    "review_status", "reviewer", "variant_purpose", "semantic_role", "rule_version",
+    "evaluation_kind", "publication_authorized",
 )
-
 STOP = {
     "a", "an", "and", "are", "as", "at", "be", "by", "can", "does", "for", "from",
     "in", "into", "is", "it", "of", "on", "or", "only", "the", "this", "to", "with",
     "without", "user", "controlled", "observed", "requires", "require", "condition",
     "surface", "surfaces", "failure", "weakness", "security", "application", "api",
 }
-
 SYNONYMS: dict[str, set[str]] = {
     "authorization": {"authorization", "authorize", "authorized", "permission", "permissions", "access", "acl"},
     "authentication": {"authentication", "authenticate", "authenticated", "login", "session", "token", "credential"},
@@ -88,7 +76,6 @@ SYNONYMS: dict[str, set[str]] = {
     "fixed": {"fixed", "fix", "patched", "patch", "mitigated", "prevented", "reject", "rejected", "deny", "denied"},
     "control": {"control", "validation", "validate", "check", "guard", "sanitize", "sanitizer", "enforce", "enforced"},
 }
-
 POLARITY_CONCEPTS = {
     "missing", "bypass", "exposure", "unsafe", "failure", "unauthorized", "unrestricted",
     "incorrect", "improper", "public", "weak", "dangerous", "permissive", "untrusted",
@@ -96,6 +83,15 @@ POLARITY_CONCEPTS = {
 FIX_MARKERS = {"fixed", "fix", "patched", "patch", "mitigated", "prevented", "rejected", "denied", "guard", "validation"}
 TEST_MARKERS = {"test", "tests", "spec", "assert", "expect", "fixture", "control"}
 PARTIAL_MARKERS = {"advisory", "metadata", "changelog", "release", "readme", "partial", "reference"}
+VULNERABLE_CONTROL_NONAPPLICATION_MARKERS = (
+    "left unfixed", "still vulnerable", "still builds", "still uses", "unsanitized",
+    "not sanitized", "without sanitization", "without validation", "unvalidated",
+    "unquoted", "not checked", "without checking", "not enforced", "without enforcement",
+    "not applied", "fails to enforce", "failed to enforce", "missing authorization",
+    "without authorization", "missing authentication", "without authentication",
+    "can bypass", "could bypass", "bypasses", "bypassable", "not escaped", "without escaping",
+)
+VULNERABLE_ROLES = {"vulnerable_or_impact_state", "vulnerable_parent_state"}
 
 
 def text(value: Any) -> str:
@@ -126,7 +122,6 @@ def _concept_present(concept: str, tokens: set[str]) -> bool:
     choices = SYNONYMS.get(concept, {concept})
     if choices & tokens:
         return True
-    # Small morphology tolerance without fuzzy matching arbitrary strings.
     return any(len(concept) >= 5 and (tok.startswith(concept[:5]) or concept.startswith(tok[:5])) for tok in tokens if len(tok) >= 5)
 
 
@@ -143,8 +138,7 @@ def _term_match(term: str, tokens: set[str]) -> bool:
 
 
 def _collect_source_strings(value: Any, *, key: str = "") -> list[str]:
-    key_l = key.casefold()
-    if any(fragment in key_l for fragment in META_KEY_FRAGMENTS):
+    if any(fragment in key.casefold() for fragment in META_KEY_FRAGMENTS):
         return []
     if isinstance(value, Mapping):
         rows: list[str] = []
@@ -182,10 +176,8 @@ def _fingerprints(value: Any) -> set[str]:
     elif isinstance(value, list):
         for child in value:
             found |= _fingerprints(child)
-    elif isinstance(value, str):
-        scalar = value.strip()
-        if len(scalar) >= 8:
-            found.add(scalar)
+    elif isinstance(value, str) and len(value.strip()) >= 8:
+        found.add(value.strip())
     return found
 
 
@@ -194,10 +186,7 @@ def _find_fingerprint_rows(value: Any, fingerprints: set[str]) -> list[dict[str,
     if not fingerprints:
         return found
     if isinstance(value, Mapping):
-        direct = {
-            text(v) for v in value.values()
-            if isinstance(v, str) and len(text(v)) >= 8
-        }
+        direct = {text(v) for v in value.values() if isinstance(v, str) and len(text(v)) >= 8}
         if direct & fingerprints:
             found.append(dict(value))
         for child in value.values():
@@ -205,10 +194,7 @@ def _find_fingerprint_rows(value: Any, fingerprints: set[str]) -> list[dict[str,
     elif isinstance(value, list):
         for child in value:
             found.extend(_find_fingerprint_rows(child, fingerprints))
-    deduped: dict[str, dict[str, Any]] = {}
-    for row in found:
-        deduped[sha_json(row)] = row
-    return list(deduped.values())
+    return list({sha_json(row): row for row in found}.values())
 
 
 def _material_payload(variant: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -216,17 +202,12 @@ def _material_payload(variant: Mapping[str, Any]) -> tuple[dict[str, Any], list[
     material = variant.get("review_material") if isinstance(variant.get("review_material"), Mapping) else {}
     kind = text(material.get("material_kind"))
     provenance: dict[str, Any] = {"material_kind": kind}
-    payload: Any
     if kind == "original_source_grounded_draft":
         path = ROOT / text(material.get("draft_path"))
         if not path.exists():
             raise RuntimeError(f"{capture_id}: missing draft {path}")
-        payload = load(path)
-        provenance.update({
-            "artifact": str(path.relative_to(ROOT)),
-            "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "binding_mode": "direct_capture_draft",
-        })
+        payload: Any = load(path)
+        provenance.update({"artifact": str(path.relative_to(ROOT)), "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "binding_mode": "direct_capture_draft"})
     elif kind == "acquired_literal_candidate_material":
         path = ROOT / text(material.get("literal_material_artifact"))
         if not path.exists():
@@ -239,17 +220,10 @@ def _material_payload(variant: Mapping[str, Any]) -> tuple[dict[str, Any], list[
             rows = _find_fingerprint_rows(doc, _fingerprints(candidate_refs))
             binding_mode = "frozen_candidate_fingerprint" if rows else "candidate_refs_only"
         payload = {"matched_rows": rows, "candidate_refs": candidate_refs}
-        provenance.update({
-            "artifact": str(path.relative_to(ROOT)),
-            "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "matched_row_count": len(rows),
-            "binding_mode": binding_mode,
-            "resolution_stage": material.get("resolution_stage"),
-        })
+        provenance.update({"artifact": str(path.relative_to(ROOT)), "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "matched_row_count": len(rows), "binding_mode": binding_mode, "resolution_stage": material.get("resolution_stage")})
     else:
         raise RuntimeError(f"{capture_id}: unsupported review material kind {kind!r}")
-    strings = _collect_source_strings(payload)
-    return provenance, strings
+    return provenance, _collect_source_strings(payload)
 
 
 def _hits(terms: Iterable[str], tokens: set[str]) -> list[str]:
@@ -267,24 +241,97 @@ def _family_alignment(family: str, tokens: set[str]) -> dict[str, Any]:
         for item in standards_for_family(family).get(group) or []
         if isinstance(item, Mapping) and text(item.get("title"))
     ]
-    # Standard-title overlap is a consistency signal only; it never contributes to
-    # the literal evidence count used for acceptance.
-    standard_title_hits = _hits(standard_titles, tokens)
     confounder_hits = []
     for confounder in spec.confounders:
         other = DETECTOR_SPECS.get(confounder)
-        if not other:
-            continue
-        if _hits(other.identity_signals, tokens) or sum(_term_match(t, tokens) for t in other.surface_terms) >= 2:
+        if other and (_hits(other.identity_signals, tokens) or sum(_term_match(t, tokens) for t in other.surface_terms) >= 2):
             confounder_hits.append(confounder)
-    family_source_aligned = bool(identity_hits or surface_hits)
     return {
-        "family_source_aligned": family_source_aligned,
+        "family_source_aligned": bool(identity_hits or surface_hits),
         "identity_hits": identity_hits,
         "surface_hits": surface_hits[:20],
-        "standards_title_consistency_hits": standard_title_hits[:20],
+        "standards_title_consistency_hits": _hits(standard_titles, tokens)[:20],
         "confounder_hits": sorted(set(confounder_hits)),
         "writeup_lesson_count": len(logic.get("writeup_logic") or []),
+    }
+
+
+@lru_cache(maxsize=1)
+def _role_pack_index() -> dict[tuple[str, str], dict[str, Any]]:
+    if not ROLE_PACK.exists():
+        return {}
+    pack = load(ROLE_PACK)
+    freeze = assert_capture_source_freeze()
+    if pack.get("source_assignment_commit") != freeze["source_assignment_commit"]:
+        raise RuntimeError("V7 role-aware source pack source assignment drift")
+    if pack.get("engine_baseline_commit") != freeze["engine_baseline_commit"]:
+        raise RuntimeError("V7 role-aware source pack engine baseline drift")
+    if pack.get("source_replacement_used") is not False:
+        raise RuntimeError("V7 role-aware source pack used source replacement")
+    if pack.get("standards_count_as_target_evidence") is not False or pack.get("writeups_count_as_target_evidence") is not False:
+        raise RuntimeError("V7 role-aware source pack scientific boundary drift")
+    if pack.get("engine_output_used") is not False or pack.get("scoring_executed") is not False or pack.get("first_blind_consumed") is not False:
+        raise RuntimeError("V7 role-aware source pack must be unscored and engine-independent")
+    return {
+        (text(row.get("family")), text(row.get("capture_id"))): dict(row)
+        for row in pack.get("families") or []
+        if isinstance(row, Mapping)
+    }
+
+
+def _explicit_control_nonapplication(body: str) -> list[str]:
+    value = body.casefold()
+    return [marker for marker in VULNERABLE_CONTROL_NONAPPLICATION_MARKERS if marker in value]
+
+
+def _role_aware_positive_support(family: str, capture_id: str) -> dict[str, Any]:
+    family_row = _role_pack_index().get((family, capture_id))
+    if not family_row:
+        return {"available": False, "qualifying_record_count": 0, "records_evaluated": 0, "qualifying_records": []}
+    spec = DETECTOR_SPECS[family]
+    qualifying = []
+    evaluated = 0
+    for record in family_row.get("records") or []:
+        if not isinstance(record, Mapping) or text(record.get("source_state_role")) not in VULNERABLE_ROLES:
+            continue
+        body = text(record.get("text"))
+        if not body or text(record.get("text_sha256")) != hashlib.sha256(body.encode()).hexdigest():
+            raise RuntimeError(f"{capture_id}: role-aware source text hash drift")
+        evaluated += 1
+        row_tokens = _tokens(body)
+        alignment = _family_alignment(family, row_tokens)
+        conditions = _hits(spec.condition_signals, row_tokens)
+        controls = _hits(spec.blocking_controls, row_tokens)
+        overrides = _hits(spec.override_signals, row_tokens)
+        nonapplication = _explicit_control_nonapplication(body)
+        controls_effective = bool(controls and not overrides and not nonapplication)
+        qualifies = bool(
+            alignment["family_source_aligned"]
+            and conditions
+            and not alignment["confounder_hits"]
+            and not controls_effective
+        )
+        if qualifies:
+            qualifying.append({
+                "origin": record.get("origin"),
+                "source_state_role": record.get("source_state_role"),
+                "text_sha256": record.get("text_sha256"),
+                "identity_hits": alignment["identity_hits"],
+                "surface_hits": alignment["surface_hits"],
+                "condition_hits": conditions,
+                "blocking_control_hits": controls,
+                "override_hits": overrides,
+                "explicit_control_nonapplication_markers": nonapplication,
+            })
+    return {
+        "available": True,
+        "role_pack_sha256": load(ROLE_PACK).get("role_pack_sha256"),
+        "source_root": family_row.get("source_root"),
+        "source_project": family_row.get("source_project"),
+        "records_evaluated": evaluated,
+        "qualifying_record_count": len(qualifying),
+        "qualifying_records": qualifying,
+        "fixed_or_remediation_records_excluded_from_positive_blocking": True,
     }
 
 
@@ -292,49 +339,55 @@ def adjudicate_variant(family: str, variant: Mapping[str, Any]) -> dict[str, Any
     spec = DETECTOR_SPECS[family]
     logic = researcher_logic_for_family(family)
     provenance, strings = _material_payload(variant)
-    tokens = _tokens("\n".join(strings))
-    condition_hits = _hits(spec.condition_signals, tokens)
-    control_hits = _hits(spec.blocking_controls, tokens)
-    override_hits = _hits(spec.override_signals, tokens)
-    alignment = _family_alignment(family, tokens)
+    all_tokens = _tokens("\n".join(strings))
+    condition_hits = _hits(spec.condition_signals, all_tokens)
+    control_hits = _hits(spec.blocking_controls, all_tokens)
+    override_hits = _hits(spec.override_signals, all_tokens)
+    alignment = _family_alignment(family, all_tokens)
     kind = text(variant.get("case_kind"))
-    marker_tokens = tokens
-    fixed_shape = bool(FIX_MARKERS & marker_tokens)
-    test_shape = bool(TEST_MARKERS & marker_tokens)
-    partial_shape = bool(PARTIAL_MARKERS & marker_tokens)
+    fixed_shape = bool(FIX_MARKERS & all_tokens)
+    test_shape = bool(TEST_MARKERS & all_tokens)
+    partial_shape = bool(PARTIAL_MARKERS & all_tokens)
     blocked_by_control = bool(control_hits and not override_hits)
     wrong_family_risk = bool(alignment["confounder_hits"] and not alignment["family_source_aligned"])
+    role_support = _role_aware_positive_support(family, text(variant.get("capture_id"))) if kind == "positive" else {"available": False, "qualifying_record_count": 0}
 
     decision = "needs_additional_source_material"
     reason = "source material does not satisfy the frozen case-kind rubric"
     accepted = False
-    if wrong_family_risk:
+    if kind == "positive" and int(role_support.get("qualifying_record_count") or 0) > 0:
+        accepted = True
+        decision = "accept_candidate_as_variant"
+        reason = "role-aware literal upstream source documents a decisive vulnerable state; remediation/fixed-state text is excluded from positive blocking"
+    elif wrong_family_risk:
         decision = "reject_candidate"
         reason = "source material aligns with a frozen confounder more strongly than the target family"
     elif kind == "positive":
         if alignment["family_source_aligned"] and condition_hits and not blocked_by_control:
-            accepted = True
-            decision = "accept_candidate_as_variant"
+            accepted, decision = True, "accept_candidate_as_variant"
             reason = "literal source supports family identity and a decisive condition without an unoverridden blocker"
     elif kind == "secure_negative":
         if alignment["family_source_aligned"] and not condition_hits and (control_hits or fixed_shape):
-            accepted = True
-            decision = "accept_candidate_as_variant"
+            accepted, decision = True, "accept_candidate_as_variant"
             reason = "literal source supports the family and an implemented control/fixed state while the decisive condition is absent"
     elif kind == "near_miss":
         if alignment["family_source_aligned"] and not condition_hits and (control_hits or test_shape):
-            accepted = True
-            decision = "accept_candidate_as_variant"
-            reason = "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape"
+            accepted, decision = True, "accept_candidate_as_variant"
+            reason = "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape"
     elif kind == "sparse_noisy":
-        if alignment["family_source_aligned"] and not condition_hits and (partial_shape or len(tokens) < 120):
-            accepted = True
-            decision = "accept_candidate_as_variant"
+        if alignment["family_source_aligned"] and not condition_hits and (partial_shape or len(all_tokens) < 120):
+            accepted, decision = True, "accept_candidate_as_variant"
             reason = "source is family-adjacent and partial/noisy but lacks the decisive condition required for promotion"
-    else:
+    elif kind not in KINDS:
         raise RuntimeError(f"{variant.get('capture_id')}: unexpected case kind {kind!r}")
 
     standards = standards_for_family(family)
+    if role_support.get("available"):
+        provenance = {
+            **provenance,
+            "role_aware_priority0_source_pack": str(ROLE_PACK.relative_to(ROOT)),
+            "role_aware_priority0_source_pack_sha256": role_support.get("role_pack_sha256"),
+        }
     return {
         "capture_id": variant.get("capture_id"),
         "case_kind": kind,
@@ -351,7 +404,8 @@ def adjudicate_variant(family: str, variant: Mapping[str, Any]) -> dict[str, Any
             "test_control_shape_observed": test_shape,
             "partial_shape_observed": partial_shape,
             "eligible_source_string_count": len(strings),
-            "eligible_source_token_count": len(tokens),
+            "eligible_source_token_count": len(all_tokens),
+            "role_aware_positive_support": role_support,
         },
         "standards_rubric_layer": {
             "principle": standards.get("principle"),
@@ -386,22 +440,18 @@ def build_adjudication() -> dict[str, Any]:
 
     families = []
     variant_counts: Counter[str] = Counter()
-    standards_coverage = 0
-    writeup_coverage = 0
-    accepted_count = 0
-    rejected_count = 0
-    needs_more_count = 0
-    required_family_count = 0
-    confirmed_family_count = 0
+    accepted_count = rejected_count = needs_more_count = 0
+    required_family_count = confirmed_family_count = 0
+    standards_coverage = writeup_coverage = 0
+    role_supported_positive_count = 0
 
     for packet_family in packet.get("packets") or []:
         if not isinstance(packet_family, Mapping):
             continue
         family = text(packet_family.get("family"))
         if family not in DETECTOR_SPECS:
-            raise RuntimeError(f"V7 standards adjudication unknown family {family!r}")
-        standards = standards_for_family(family)
-        logic = researcher_logic_for_family(family)
+            raise RuntimeError(f"unknown family {family!r}")
+        standards, logic = standards_for_family(family), researcher_logic_for_family(family)
         if not standards.get("wstg") or not standards.get("owasp") or not standards.get("cwe"):
             raise RuntimeError(f"{family}: incomplete WSTG/OWASP/CWE rubric")
         if not logic.get("writeup_logic"):
@@ -422,8 +472,10 @@ def build_adjudication() -> dict[str, Any]:
                 rejected_count += 1
             else:
                 needs_more_count += 1
+            if row["case_kind"] == "positive" and int(row["literal_source_layer"]["role_aware_positive_support"].get("qualifying_record_count") or 0) > 0:
+                role_supported_positive_count += 1
         if len(variants) != 4 or {v["case_kind"] for v in variants} != set(KINDS):
-            raise RuntimeError(f"{family}: standards adjudication variant coverage drift")
+            raise RuntimeError(f"{family}: variant coverage drift")
 
         family_required = packet_family.get("literal_family_adjudication_required") is True
         if family_required:
@@ -432,10 +484,7 @@ def build_adjudication() -> dict[str, Any]:
         family_confirmed = bool(positive["accepted_for_v7"])
         if family_required and family_confirmed:
             confirmed_family_count += 1
-        family_decision = (
-            "confirm_family_mapping" if family_confirmed else "needs_additional_source_material"
-        ) if family_required else "preexisting_mapping_retained_subject_to_variant_adjudication"
-
+        family_decision = ("confirm_family_mapping" if family_confirmed else "needs_additional_source_material") if family_required else "preexisting_mapping_retained_subject_to_variant_adjudication"
         families.append({
             "family": family,
             "source_root": packet_family.get("source_root"),
@@ -448,7 +497,7 @@ def build_adjudication() -> dict[str, Any]:
     if len(families) != 36 or sum(variant_counts.values()) != 144:
         raise RuntimeError("V7 standards adjudication total coverage drift")
     if dict(variant_counts) != {kind: 36 for kind in KINDS}:
-        raise RuntimeError(f"V7 standards adjudication case-kind drift: {dict(variant_counts)}")
+        raise RuntimeError(f"case-kind drift: {dict(variant_counts)}")
 
     unresolved = rejected_count + needs_more_count
     complete = unresolved == 0 and confirmed_family_count == required_family_count
@@ -456,10 +505,10 @@ def build_adjudication() -> dict[str, Any]:
         "version": VERSION,
         "rule_version": RULE_VERSION,
         "evaluation_kind": "fresh_blind_v7_standards_grounded_machine_semantic_adjudication_unscored",
-        "created_at": datetime.now(timezone.utc).isoformat(),
         "adjudication_kind": "standards_grounded_machine_semantic_adjudication",
         "quality_model": {
             "literal_source_layer": "frozen source material must satisfy family identity plus case-kind-specific condition/control requirements",
+            "role_aware_positive_layer": "documented vulnerable-state records are evaluated separately from remediation/fixed-state records",
             "standards_rubric_layer": "WSTG + OWASP + CWE define taxonomy and interpretation criteria only",
             "writeup_rubric_layer": "frozen write-up lessons and confounders guide interpretation only",
             "fail_closed_on_ambiguity": True,
@@ -486,6 +535,7 @@ def build_adjudication() -> dict[str, Any]:
         "unresolved_variant_count": unresolved,
         "family_adjudication_required_count": required_family_count,
         "family_mapping_confirmed_count": confirmed_family_count,
+        "role_aware_positive_supported_count": role_supported_positive_count,
         "machine_semantic_adjudication_complete": complete,
         "human_review_required": False,
         "human_adjudication_performed": False,
@@ -502,6 +552,7 @@ def build_adjudication() -> dict[str, Any]:
         "engine_baseline_commit": freeze["engine_baseline_commit"],
         "source_assignment_commit": freeze["source_assignment_commit"],
         "semantic_review_packet_sha256": packet.get("packet_set_sha256"),
+        "role_aware_source_pack_sha256": load(ROLE_PACK).get("role_pack_sha256") if ROLE_PACK.exists() else None,
         "families": families,
     }
     result["adjudication_sha256"] = sha_json({k: v for k, v in result.items() if k != "adjudication_sha256"})
