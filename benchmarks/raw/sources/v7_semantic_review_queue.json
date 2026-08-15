@@ -1,0 +1,910 @@
+{
+  "created_at": "2026-08-15T01:32:26.279584+00:00",
+  "draft_count": 78,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_semantic_review_queue_unscored",
+  "evidence_published": false,
+  "families": [
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "account_enumeration",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "authentication_session",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "broken_function_authorization",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "broken_object_authorization",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "business_logic",
+      "family_blocked_variants": [
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "command_injection",
+      "family_blocked_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "cors_misconfiguration",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "cryptographic_failure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "dom_xss",
+      "family_blocked_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "exceptional_condition_mishandling",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication"
+      ],
+      "draft_coverage_count": 4,
+      "family": "file_upload",
+      "family_blocked_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [],
+      "next_action": "independent_family_adjudication_then_human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_family_literal_adjudication",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "graphql_authorization",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "graphql_data_exposure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "improper_inventory_management",
+      "family_blocked_variants": [
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "information_disclosure",
+      "family_blocked_variants": [
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "ldap_injection",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "mass_assignment",
+      "family_blocked_variants": [
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "nosql_injection",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "open_redirect",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "path_traversal",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "postmessage_trust",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "race_condition",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "secret_exposure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "security_logging_alerting_failure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication"
+      ],
+      "draft_coverage_count": 4,
+      "family": "security_misconfiguration",
+      "family_blocked_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [],
+      "next_action": "independent_family_adjudication_then_human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_family_literal_adjudication",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication"
+      ],
+      "draft_coverage_count": 4,
+      "family": "sensitive_business_flow_abuse",
+      "family_blocked_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [],
+      "next_action": "independent_family_adjudication_then_human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_family_literal_adjudication",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "sensitive_caching",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "server_side_template_injection",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "software_data_integrity_failure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "software_supply_chain_failure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [],
+      "draft_coverage_count": 4,
+      "family": "source_map_exposure",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [],
+      "next_action": "human_semantic_review",
+      "priority": 1,
+      "reviewable_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "draft_ready_for_human_semantic_review",
+        "positive": "draft_ready_for_human_semantic_review",
+        "secure_negative": "draft_ready_for_human_semantic_review",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:near_miss"
+      ],
+      "draft_coverage_count": 3,
+      "family": "sql_injection",
+      "family_blocked_variants": [
+        "positive",
+        "secure_negative",
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "near_miss"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_family_literal_adjudication",
+        "secure_negative": "blocked_family_literal_adjudication",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "ssrf",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "unrestricted_resource_consumption",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "unsafe_api_consumption",
+      "family_blocked_variants": [],
+      "literal_family_adjudication_required": false,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [
+        "sparse_noisy"
+      ],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "draft_ready_for_human_semantic_review"
+      }
+    },
+    {
+      "blockers": [
+        "independent_literal_family_adjudication",
+        "missing_literal_source:positive,near_miss,secure_negative"
+      ],
+      "draft_coverage_count": 1,
+      "family": "websocket_authorization",
+      "family_blocked_variants": [
+        "sparse_noisy"
+      ],
+      "literal_family_adjudication_required": true,
+      "missing_variants": [
+        "positive",
+        "near_miss",
+        "secure_negative"
+      ],
+      "next_action": "acquire_missing_literal_sources_then_review",
+      "priority": 2,
+      "reviewable_variants": [],
+      "variant_status": {
+        "near_miss": "blocked_missing_literal_source",
+        "positive": "blocked_missing_literal_source",
+        "secure_negative": "blocked_missing_literal_source",
+        "sparse_noisy": "blocked_family_literal_adjudication"
+      }
+    }
+  ],
+  "family_action_counts": {
+    "acquire_missing_literal_sources_then_review": 26,
+    "human_semantic_review": 7,
+    "independent_family_adjudication_then_human_semantic_review": 3
+  },
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "missing_literal_source_count": 66,
+  "publication_authorized": false,
+  "ready_for_human_semantic_review_count": 52,
+  "rule_version": "2026.08.15.6.33.v7.unseen.review.queue.1",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "targeted_family_blocked_count": 26,
+  "variant_count": 144,
+  "version": "1.0.0"
+}
