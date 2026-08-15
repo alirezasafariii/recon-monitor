@@ -1,0 +1,60 @@
+name: Final SQLi Verify
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.event.head_commit.message == 'Verify canonical SQL injection migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: final-analyzers
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
+      - name: Refresh and verify manifest
+        shell: bash
+        run: |
+          rm .github/workflows/final-sqli-verify.yml
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          manifest = Path('MANIFEST.sha256')
+          paths = []
+          for raw in manifest.read_text(encoding='utf-8').splitlines():
+              if '  ' in raw:
+                  paths.append(raw.split('  ', 1)[1])
+          paths.extend([
+              'app/family_specs/sql_injection.py',
+              'tests/test_final_analyzers_sql_injection_spec.py',
+          ])
+          lines = []
+          for path in sorted(set(paths)):
+              file = Path(path)
+              if not file.is_file():
+                  continue
+              lines.append(f'{hashlib.sha256(file.read_bytes()).hexdigest()}  {path}')
+          manifest.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Commit manifest and workflow cleanup
+        shell: bash
+        run: |
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add MANIFEST.sha256
+          git add -u .github/workflows/final-sqli-verify.yml
+          git commit -m 'Finalize canonical SQL injection migration'
+          git push origin HEAD:final-analyzers
