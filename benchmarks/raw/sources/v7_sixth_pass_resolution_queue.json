@@ -1,0 +1,1382 @@
+{
+  "by_case_kind": {
+    "near_miss": {
+      "new_candidate_available_count": 12,
+      "sixth_pass_input_count": 14,
+      "still_unresolved_count": 2
+    },
+    "positive": {
+      "new_candidate_available_count": 2,
+      "sixth_pass_input_count": 2,
+      "still_unresolved_count": 0
+    },
+    "secure_negative": {
+      "new_candidate_available_count": 2,
+      "sixth_pass_input_count": 2,
+      "still_unresolved_count": 0
+    },
+    "sparse_noisy": {
+      "new_candidate_available_count": 0,
+      "sixth_pass_input_count": 0,
+      "still_unresolved_count": 0
+    }
+  },
+  "candidate_semantics_adjudicated": false,
+  "created_at": "2026-08-15T02:43:15.525048+00:00",
+  "cross_variant_mutation_allowed": false,
+  "cumulative_candidate_available_count": 64,
+  "cumulative_candidate_missing_count": 2,
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "evaluation_kind": "fresh_blind_v7_engine_unseen_sixth_pass_resolution_queue_unscored",
+  "evidence_published": false,
+  "families_still_unresolved": 2,
+  "families_with_new_candidate_material": 12,
+  "first_blind_consumed": false,
+  "human_adjudication_performed": false,
+  "items": [
+    {
+      "candidate_count": 1,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-account_enumeration-positive",
+      "case_kind": "positive",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "account_enumeration",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [
+        {
+          "adjacent_older_tag": "wp-graphql/v2.15.0",
+          "fix_sha": "6e0c08d652674ea97b4bf039dd3a866773807ed0",
+          "fixed_release_tag": "wp-graphql/v2.15.1",
+          "parent_sha": "bf4daf58032ab620a8a8ca29ecbd760c540cc15a",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 16,
+          "source_code_parent_snippet_count": 13
+        }
+      ],
+      "required_candidate_shape": "sixth_pass_two_sided_explicit_release_boundary",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--positive.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_replacement_used": false,
+      "source_root": "GHSA-jhh7-832h-f8hv",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Literal source-grounded observation proving the target condition from the frozen fresh source or its upstream regression/PoC. No detector-generated fixture."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-account_enumeration-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "account_enumeration",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_replacement_used": false,
+      "source_root": "GHSA-jhh7-832h-f8hv",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "08a48c0934fc30dc0fa063e198d76a0df705acaeac637804fbe242301923662a",
+          "path": "plugins/wp-graphql-smart-cache/tests/functional/MutationsCest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "6635492e91334f26001831ee8199b71b16ea216b4171f964f9eafbe0290fa73a",
+          "path": "plugins/wp-graphql-smart-cache/tests/wpunit/MutationCreateDocumentTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "f742acf6b60ddeb3a7ddfcfe03a62538dc3b81de439db476a112890d94f0813a",
+          "path": "plugins/wp-graphql-smart-cache/tests/wpunit/MutationDeleteDocumentTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "9f6cc33732620a9e7ea8618ebfcc87dfa5507ea71f30f2de4340d94c9cb6c87d",
+          "path": "plugins/wp-graphql/tests/wpunit/CommentMutationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "594aa6a2771b5dcac713a5d18ae34637a99311489333ac9df16aae912860e6dc",
+          "path": "plugins/wp-graphql/tests/wpunit/MediaItemMutationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "0088b618eb1c3c4083b1ac40fa9a5d5f63c96a517a70dea791e9c74fa0c89e41",
+          "path": "plugins/wp-graphql/tests/wpunit/PostObjectMutationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "c257c434fe029197ac363d34a87bb85331601289da16be0b817ca345ac5f481b",
+          "path": "plugins/wp-graphql/tests/wpunit/PostObjectNestedMutationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        },
+        {
+          "file_sha256": "5324a09a9384e5f9abcc0c05388ff2cbef7d68dabad2fd7fc5616886d00da0ae",
+          "path": "plugins/wp-graphql/tests/wpunit/SettingsMutationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 8,
+          "tree_sha": "52aec9083d02d1e176863ab4442f99d5c2161b81"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 1,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-account_enumeration-secure_negative",
+      "case_kind": "secure_negative",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "account_enumeration",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [
+        {
+          "adjacent_older_tag": "wp-graphql/v2.15.0",
+          "fix_sha": "6e0c08d652674ea97b4bf039dd3a866773807ed0",
+          "fixed_release_tag": "wp-graphql/v2.15.1",
+          "parent_sha": "bf4daf58032ab620a8a8ca29ecbd760c540cc15a",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 16,
+          "source_code_parent_snippet_count": 13
+        }
+      ],
+      "required_candidate_shape": "sixth_pass_two_sided_explicit_release_boundary",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/account-enumeration--secure-negative.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "wp-graphql/wp-graphql",
+      "source_replacement_used": false,
+      "source_root": "GHSA-jhh7-832h-f8hv",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Implemented fixed, patched, unaffected, or enforced-control observation showing the target condition absent. Recommendation text alone is forbidden."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-broken_function_authorization-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "broken_function_authorization",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/broken-function-authorization--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "surrealdb/surrealdb",
+      "source_replacement_used": false,
+      "source_root": "GHSA-8rw6-p7m8-63jp",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "8601b331c23413bccff3abc89488cf17b921397cf6a294bfdfa2a44714714df7",
+          "path": "language-tests/tests/language/statements/select/4781_where_field_type_record_id.surql",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 7,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "509ffde4aa833e729b94b7194001284c62b39ad015cc450fdfa0a3620ff3be17",
+          "path": "language-tests/tests/language/statements/select/where_record_and_index_new_executor.surql",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "93fe6eba419a02853710b5643dec3ff9c51fa453d5dc1519a8a55a6027dff780",
+          "path": "language-tests/tests/reproductions/select_skip_field_eval_on_missing_record.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 9,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "18a63b05ebe7d88d87a285121b65e6dea1517d20d5d0fb27d75d65f6db59197f",
+          "path": "language-tests/tests/bench/permissions/select_scan.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 4,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "451b2146f04bf861bbb349e60f0050d1dd9b6efd32bc3aa09f3f71cc1718c0d4",
+          "path": "language-tests/tests/language/planner/select_std_index_with_record_id_new_executor.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "f9b7a21f993d7a2cb4a2598d3c8d6eb62b5bdfc9ac1e1ebdfb9ee9e49c2045bb",
+          "path": "language-tests/tests/upgrade/define/field_permissions.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "112b6ce0b876c572d35e05657436c054073b5501ea1c1e39d05a974fa62902d7",
+          "path": "language-tests/tests/upgrade/define/field_permissions_import.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        },
+        {
+          "file_sha256": "579c4807c5a39bdf8b835717d3bcddb0de90ba60356ba8141ffc7df121d6a833",
+          "path": "language-tests/tests/language/indexes/full_text/select_where_and_with_fulltext_index_new_executor.surql",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 6,
+          "tree_sha": "807703c18b4dd5d722f4c9e06fd763ebfe1c3efa"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-broken_object_authorization-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "broken_object_authorization",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/broken-object-authorization--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "Sylius/MolliePlugin",
+      "source_replacement_used": false,
+      "source_root": "GHSA-x83g-979r-f5fh",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "f2fcf182ce9003544540870fbd81caa52cd574af828a3df6ede0fa19ab8c415b",
+          "path": "tests/Unit/Resolver/MolliePaymentsMethodResolverTest.php",
+          "path_term_match_count": 5,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 4,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "634d98803542be3bfdb4ca1f9f03533d3a4a5963e91dc587dfb580a06a065a80",
+          "path": "tests/Unit/Controller/Shop/PageRedirectControllerTest.php",
+          "path_term_match_count": 5,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 8,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "d846dcdb4cdaa62cf34ebc3eecbf8f89c14c1704b35d006497d9292bb7fa3002",
+          "path": "tests/Unit/Controller/Shop/PaymentWebhookControllerTest.php",
+          "path_term_match_count": 4,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 6,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "79a7e3a59048ce859f687ff45a6b474698273d50a0b8651213d2dd2ea174914e",
+          "path": "tests/Unit/Resolver/MollieMethodsResolverTest.php",
+          "path_term_match_count": 3,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 4,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "471245f47965a47d35526ab8a28cb2d24a180c71e2ef36568bd5961af05005cf",
+          "path": "tests/Unit/Payments/MethodResolver/MollieMethodFilterTest.php",
+          "path_term_match_count": 3,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "faa6757018533d75b3cdcc7468028c033d2cc70ab63a8ceecc42bed40bca92ec",
+          "path": "tests/Unit/Payments/MethodResolver/MolliePaymentMethodsResolverTest.php",
+          "path_term_match_count": 3,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "0d4eb94f736d65121d809c977bc006e9752eb43918a12eb9ddd3f3abee759688",
+          "path": "tests/Unit/Provider/Form/ResolverGroupProviderTest.php",
+          "path_term_match_count": 3,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        },
+        {
+          "file_sha256": "70c65f4106e1a72ab6afda14fa62477960a7b9eccc756dc459058233f33023cf",
+          "path": "tests/Unit/Action/CaptureActionTest.php",
+          "path_term_match_count": 2,
+          "ref": "3.3",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "028589e80c87c4da9238a5247dc0147167b1edcb"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 0,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-command_injection-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "command_injection",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/command-injection--near-miss.json",
+      "resolution_status": "still_unresolved_after_sixth_pass",
+      "scoring_executed": false,
+      "source_project": "sebhildebrandt/systeminformation",
+      "source_replacement_used": false,
+      "source_root": "GHSA-5xpp-75jx-m839",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 0,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-cors_misconfiguration-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "cors_misconfiguration",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/cors-misconfiguration--near-miss.json",
+      "resolution_status": "still_unresolved_after_sixth_pass",
+      "scoring_executed": false,
+      "source_project": "BishopFox/joro",
+      "source_replacement_used": false,
+      "source_root": "GHSA-xqhv-chqm-fhcc",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-exceptional_condition_mishandling-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "exceptional_condition_mishandling",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/exceptional-condition-mishandling--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "sipsorcery-org/sipsorcery",
+      "source_replacement_used": false,
+      "source_root": "GHSA-pfvm-w89x-94jw",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "f0acc2f32b1f559e2741cba5192d9be273802d5b36fc0adb044ec32aa3f12814",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/PixelConverterTest.cs",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "c24a0288cd02e489f54db824118f00409e6bee321120627cb5a1627496061374",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/SIPSorceryMedia.Abstractions.UnitTest.csproj",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "f7c7a8e5aa206aca1fa31c58586ab6fa23c4928a364516a81d03af8bc1101938",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/TestHelper.cs",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "4dc2007c2ae9c261c81f7c307e4a2543bf2fbe0250115f4d3c3cd0633a81c552",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/TestLogger.cs",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "52cc6b526713574c855d5acc7d1d8d3fd31d67ce12f0ead5918dfed17b070c79",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/VideoFormatTest.cs",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "fd3bfee07c0362fad44d9bf5b50ae81922a4fc032f7630df254eee3b2fe75605",
+          "path": "test/SIPSorceryMedia.Abstractions.UnitTest/img/ref-nv12.yuv",
+          "path_term_match_count": 3,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "b2e8f8ea6ae7629fb447cb47a1d044122eb10a0d9fa81bebff10af91682dc131",
+          "path": "test/integration/net/ICE/MockTurnServer.cs",
+          "path_term_match_count": 2,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        },
+        {
+          "file_sha256": "faec6f2e0f7ab8c502d2eff372a43ca8d9c84874bfb6ce8917f8f6a15f13bae9",
+          "path": "test/unit/net/TURN/TurnServerUnitTest.cs",
+          "path_term_match_count": 2,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "17b12304e0142e36eb3095742343e271c76eeb96"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 3,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-graphql_authorization-positive",
+      "case_kind": "positive",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_authorization",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [
+        {
+          "adjacent_older_tag": "n8n@1.123.63",
+          "fix_sha": "25d74f918253845e2ad25eb824238b49d0d8a30c",
+          "fixed_release_tag": "n8n@1.123.64",
+          "parent_sha": "90b2f59d103095947ff657f0794bae4443978bff",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 13,
+          "source_code_parent_snippet_count": 12
+        },
+        {
+          "adjacent_older_tag": "n8n@2.29.7",
+          "fix_sha": "7786117e976664b67288f13d6cfcd1fcf1b1289b",
+          "fixed_release_tag": "n8n@2.29.8",
+          "parent_sha": "60109bba8cae51bdb60615a41552cebf397b7438",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 14,
+          "source_code_parent_snippet_count": 13
+        },
+        {
+          "adjacent_older_tag": "n8n@2.30.0",
+          "fix_sha": "40138cfe727bdb024a741e267f5e86535c29350e",
+          "fixed_release_tag": "n8n@2.30.1",
+          "parent_sha": "f96d6dbd8442a0db3a90b7c8376b75994b26ed5d",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 14,
+          "source_code_parent_snippet_count": 13
+        }
+      ],
+      "required_candidate_shape": "sixth_pass_two_sided_explicit_release_boundary",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--positive.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "n8n-io/n8n",
+      "source_replacement_used": false,
+      "source_root": "GHSA-gq66-9cw5-j5jm",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Literal source-grounded observation proving the target condition from the frozen fresh source or its upstream regression/PoC. No detector-generated fixture."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-graphql_authorization-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_authorization",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "n8n-io/n8n",
+      "source_replacement_used": false,
+      "source_root": "GHSA-gq66-9cw5-j5jm",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "bb37a7e3cf73ff5a484fdb3f2a87f7b78cacd27263d39b3f68fb4f45fc2d3753",
+          "path": "packages/workflow/test/credential-domain-restrictions.test.ts",
+          "path_term_match_count": 2,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "425d36a790b4dadcce3ffd535fe4dc163a1580524f216438945cf5fc73f28742",
+          "path": "packages/cli/test/migration/1784000000024-add-resource-to-oauth-authorization-codes.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 7,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "aa2c03be1ffc1b1d1d81f8fb762f456f7dba24232505118a63c9b16ca082b5b5",
+          "path": "packages/testing/test-impact/src/changes.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "831d24524ee408122e1cf03edb5be82b6bd54d4c29639015d5b76dbcf0dde8ae",
+          "path": "packages/testing/test-impact/src/dep-graph.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "30f0c5e1c1d2180b81a27b500a7a9e46f9b05a1a380f0edc34c5a2ce3f69a648",
+          "path": "packages/testing/test-impact/src/impact-map.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "2cc1a656e734c324ac56ba88516ef762d24140f86429ae6aa4cc40bf45a529b9",
+          "path": "packages/testing/test-impact/src/map-build.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 6,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "e100ee451825090bc92732e5a8664bb08bc63763e77c5891cc754ed004d2d750",
+          "path": "packages/testing/test-impact/src/select.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        },
+        {
+          "file_sha256": "edd2f576b87109dd79a746aaaef871f2a76939d5a8f09f0c6409f8c16feed5df",
+          "path": "packages/testing/test-impact/src/shard-distributor.test.ts",
+          "path_term_match_count": 1,
+          "ref": "master",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "6d4cff5bacc064fe28b276e136c6aff1a3c060ff"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 3,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-graphql_authorization-secure_negative",
+      "case_kind": "secure_negative",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_authorization",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [
+        {
+          "adjacent_older_tag": "n8n@1.123.63",
+          "fix_sha": "25d74f918253845e2ad25eb824238b49d0d8a30c",
+          "fixed_release_tag": "n8n@1.123.64",
+          "parent_sha": "90b2f59d103095947ff657f0794bae4443978bff",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 13,
+          "source_code_parent_snippet_count": 12
+        },
+        {
+          "adjacent_older_tag": "n8n@2.29.7",
+          "fix_sha": "7786117e976664b67288f13d6cfcd1fcf1b1289b",
+          "fixed_release_tag": "n8n@2.29.8",
+          "parent_sha": "60109bba8cae51bdb60615a41552cebf397b7438",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 14,
+          "source_code_parent_snippet_count": 13
+        },
+        {
+          "adjacent_older_tag": "n8n@2.30.0",
+          "fix_sha": "40138cfe727bdb024a741e267f5e86535c29350e",
+          "fixed_release_tag": "n8n@2.30.1",
+          "parent_sha": "f96d6dbd8442a0db3a90b7c8376b75994b26ed5d",
+          "semantic_role": "unadjudicated_sixth_pass_explicit_release_boundary_candidate",
+          "source_code_fix_snippet_count": 14,
+          "source_code_parent_snippet_count": 13
+        }
+      ],
+      "required_candidate_shape": "sixth_pass_two_sided_explicit_release_boundary",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/graphql-authorization--secure-negative.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "n8n-io/n8n",
+      "source_replacement_used": false,
+      "source_root": "GHSA-gq66-9cw5-j5jm",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [],
+      "variant_purpose": "Implemented fixed, patched, unaffected, or enforced-control observation showing the target condition absent. Recommendation text alone is forbidden."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-graphql_data_exposure-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "graphql_data_exposure",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/graphql-data-exposure--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "nl-portal/nl-portal-backend-libraries",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qpm9-h556-mwxm",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "51e29dede351e627c80e54e968009f7e28a4b0615a0f416d3bf3ddfff2d0bcca",
+          "path": "zgw/verificatie/src/test/kotlin/nl/nlportal/verificatie/graphql/VerificatieMutationIT.kt",
+          "path_term_match_count": 5,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "db8f1aaec34e613d260c9231333bd28e9606d510e161dc9799e874eb7d152d32",
+          "path": "zgw/documenten-api/src/test/kotlin/nl/nlportal/documentenapi/domain/ResultPageTest.kt",
+          "path_term_match_count": 4,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "20fba2279dee02a324440423270a99ed120cdf58f7e564e69c3be71f9e11fad5",
+          "path": "zgw/verificatie/src/test/kotlin/nl/nlportal/verificatie/graphql/VerificatieQueryIT.kt",
+          "path_term_match_count": 4,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "785b7986b50f375d6504cc758956eb88247f74f512b6a75859ccf227907d739c",
+          "path": "app/src/test/kotlin/nl/nlportal/app/security/GraphQLEndpointAuthorizationIT.kt",
+          "path_term_match_count": 3,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "c77f93a413ecb0f7ace9c8a741ca52ef7c2c38edc2589775f766af22c43bdd49",
+          "path": "case/src/test/kotlin/nl/nlportal/case/graphql/CaseInstanceQueryTest.kt",
+          "path_term_match_count": 3,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 8,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "ea9b85919c2af468eab3f8262bf11fa295a24aca54e0325fea8ebc44d1f1c46d",
+          "path": "form/src/test/kotlin/nl/nlportal/form/domain/FormIoFormDefinitionTest.kt",
+          "path_term_match_count": 3,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "e4b7379be363b1578ad3abbe4022561a39489a14c0a447d3a54f1bf64e4ddcc5",
+          "path": "haalcentraal2/src/test/kotlin/nl/nlportal/haalcentraal2/graphql/HaalCentraal2BewoningenQueryIT.kt",
+          "path_term_match_count": 3,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        },
+        {
+          "file_sha256": "fb728a2743ac347d8a1e1266aae8832dc7957876e132df790b6b4f1c8916c659",
+          "path": "haalcentraal2/src/test/kotlin/nl/nlportal/haalcentraal2/graphql/HaalCentraal2BrpQueryIT.kt",
+          "path_term_match_count": 3,
+          "ref": "next-minor",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "0bbcf353d847fa49188aa1e40306ee335b54682b"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-mass_assignment-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "mass_assignment",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/mass-assignment--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "kimai/kimai",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qh43-xrjm-4ggp",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "b3c6ec2b1dc7955115b979d9b6a6c7956eef836c9d91fae20684ff1ceb210bcd",
+          "path": "tests/EventSubscriber/UserPreferenceSubscriberTest.php",
+          "path_term_match_count": 3,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "88da02aa2a56c1d5a58500b8102ae51b980e9a4a06f50feefce36e4b21cfae0a",
+          "path": "tests/EventSubscriber/WorkContractPreferenceSubscriberTest.php",
+          "path_term_match_count": 2,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "2842b699837b1b5abc99c3eaf997e300f8064c8ffc8399b9fa4c9f4d801d8dd2",
+          "path": "tests/TranslationsTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "1647db74e0a71b5f3a7914e41ed47b33a86b96b921b477b210f9a2073b55daca",
+          "path": "tests/API/UserControllerTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "73e47bfa98140471ccaed54ad4114d43ed14ac8502fa045b244a8a4ed2f729d5",
+          "path": "tests/Controller/UserControllerTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "a0b3018305574e635e64ea12cad302025340d8da2942824838d7b9f37a5d8842",
+          "path": "tests/Entity/UserPreferenceTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 3,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "dec79daf05ff332cb574cc092a32492f564fcada37edab214f470c0b92858168",
+          "path": "tests/Event/EmailEventTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        },
+        {
+          "file_sha256": "af5a8accb2f76777dbd5839f05a96e9eb5c138bbd7b7859055c14b7242b94530",
+          "path": "tests/Event/EmailPasswordResetEventTest.php",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "c7211918e362e58ae5114d493ae521de36a0643e"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-secret_exposure-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "secret_exposure",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/secret-exposure--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "Roskus/prospero-flow-crm",
+      "source_replacement_used": false,
+      "source_root": "GHSA-pw58-qr35-gpr4",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "fbb48837629d254084bc7cdff5f52a60de52deabd09a896fccd656d3f1fd56f7",
+          "path": "tests/Feature/Security/CompanySvgLogoFixTest.php",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "49f3e2aa18419a11535696d79b14c7f6a269b3e0bf82d1f6cce1842db7d8581e",
+          "path": "tests/Feature/Security/CompanySvgLogoXssTest.php",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "31f0afe4396b29c1aaad708997b3ea878bee0c9fb914e1d218d62b5a410104ad",
+          "path": "tests/Feature/Controllers/Company/CompanyIndexControllerTest.php",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "3010ed95e16f087b9d4a3de9a18ede38dd8f87ef5c3c538f8fb00202b70ab995",
+          "path": "tests/Feature/Controllers/Company/CompanySaveControllerTest.php",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "d94f09220feb142f011bb79bd15b32cc24329e1e1750b5b0a80aa5b11a6b00e3",
+          "path": "tests/Feature/Security/SvgLogoUploadXssTest.php",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "5d8a1d511c07a6f35db29e96267bc2ccd943a151fac27fa56c444672459ca3de",
+          "path": "tests/Feature/Controllers/Bank/BankIndexControllerTest.php",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "c6c5058ec029e2492a6b15557dc665d4fe8aca72ef87c691e0aefde6a1e815fb",
+          "path": "tests/Feature/Controllers/Brand/BrandIndexControllerTest.php",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        },
+        {
+          "file_sha256": "ceceb36967aa8b251607600dbbef61dbd435011700354e042fc99af3d1d31708",
+          "path": "tests/Feature/Controllers/Company/CompanyCreateControllerTest.php",
+          "path_term_match_count": 4,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "be0ffa11138cef20e18446eb939472fc8467da2a"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-server_side_template_injection-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "server_side_template_injection",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/server-side-template-injection--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "getgrav/grav",
+      "source_replacement_used": false,
+      "source_root": "GHSA-4jrc-qc5x-3wrr",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "431c74b2d400961ce77ccaf3e68b546a756ede98bb41ee827119678ce59e4213",
+          "path": "tests/unit/Grav/Common/Security/SandboxDefaultsMergeTest.php",
+          "path_term_match_count": 5,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "7ebea2a87fb72962da1b3dc0ef67513fda8272bd3116125715022259fa61cf82",
+          "path": "tests/unit/Grav/Common/Security/TwigSandboxTest.php",
+          "path_term_match_count": 4,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "3918fd2d63ba472772e59ecb1b49612af74de766856efd49a7e601c0f34d890b",
+          "path": "tests/unit/Grav/Common/Twig/Sandbox/SandboxConfigTest.php",
+          "path_term_match_count": 4,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "887dcb85a50ad7091f76e0dc3776b59bd398e10264088524a6352a4895f63620",
+          "path": "tests/unit/Grav/Common/ComposerTest.php",
+          "path_term_match_count": 3,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "5ecd4b065f4710ddbd8a6a472481ad94311ccb5a951e78406b951c4fe4a3e87b",
+          "path": "tests/unit/Grav/Common/Page/PageOrderingTest.php",
+          "path_term_match_count": 3,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "3bd07bff5e892eb4a1ba6bf4fdf2cbefe5bf9d015a0d39f9710ba75e258fc7b1",
+          "path": "tests/unit/Grav/Common/Page/PagesTest.php",
+          "path_term_match_count": 3,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "100c9c701618a2d2b8a21729bc785dee535ecd12eeeffd17027472db9fca02d2",
+          "path": "tests/unit/Grav/Common/Security/DetectXssTest.php",
+          "path_term_match_count": 3,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        },
+        {
+          "file_sha256": "71fda88c0c4935ced27190a3d1506e32892c28fef14e726dc0d12a2e10597f73",
+          "path": "tests/unit/Grav/Common/Security/ModularTwigContentGuardTest.php",
+          "path_term_match_count": 3,
+          "ref": "develop",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 4,
+          "tree_sha": "488d1792d7e8c3648462be5e04c5a885f33bdaae"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 2,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-software_data_integrity_failure-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "software_data_integrity_failure",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/software-data-integrity-failure--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "lucasgelfond/zerobrew",
+      "source_replacement_used": false,
+      "source_root": "GHSA-9pp6-v7j8-j65j",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "2e1840ddd33baba49c930bf6748a323aa83712cc49899bfca70934ca6d258b30",
+          "path": "zb_io/tests/api_contract.rs",
+          "path_term_match_count": 2,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "2212ee65b274d470070e8456e1d1fcf25bb1c969"
+        },
+        {
+          "file_sha256": "775ba9c970887848b3969c0eff0f43d390a2765ff2726141992ae8315d1ccea5",
+          "path": "zb_cli/tests/integration.rs",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 6,
+          "tree_sha": "2212ee65b274d470070e8456e1d1fcf25bb1c969"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-sql_injection-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "sql_injection",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/sql-injection--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "kubev2v/migration-planner",
+      "source_replacement_used": false,
+      "source_root": "GHSA-vf2h-7x3w-97fr",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "6234bf53d406fb27c60d472c5c0c5843f976fdbef22d8ecfea4e6fba1d715fd7",
+          "path": "pkg/duckdb_parser/inventory_builder_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "04e729a576247a1104015583804e5db34fd30a45175398588314932fd5d1a440",
+          "path": "pkg/migrations/migrations_suite_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "4b78ab4046ddf0d8e65584c5c532fa51a1645edb33490fba0bc3fe4f740b0566",
+          "path": "pkg/migrations/migrations_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "2d0e44ebee53bebc90a84684d4204a663652223614c12114e82b1f9718eff544",
+          "path": "test/e2e/e2e_rvtools.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "de9b3a6718e5c49a9d712dd89232a5171158ec7d5c5894bdb3a9ebd2564de806",
+          "path": "internal/rvtools/jobs/client_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "c4c00690347005d49b9805a9c949ed544a99d73a828d694eef2e6678517bb089",
+          "path": "test/e2e/utils/rvtools.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 2,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "c70fdff4f26116f640534d9bf7772b162d5b7306560eb6bc4d4c7a0773742b27",
+          "path": "pkg/estimations/estimation/calculators/postMigration_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        },
+        {
+          "file_sha256": "e767a3a22c432e097d11c6b8547da299080056a05e9d5f1c24bb9f796b0506d6",
+          "path": "pkg/estimations/estimation/calculators/storageMigration_test.go",
+          "path_term_match_count": 1,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 5,
+          "tree_sha": "1add1f437b6fa5f58038707d4f55b99fb0a7a4c8"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    },
+    {
+      "candidate_count": 8,
+      "candidate_semantics_adjudicated": false,
+      "capture_id": "v7-unrestricted_resource_consumption-near_miss",
+      "case_kind": "near_miss",
+      "cross_variant_mutation_used": false,
+      "evidence_published": false,
+      "family": "unrestricted_resource_consumption",
+      "first_blind_consumed": false,
+      "human_semantic_decision": null,
+      "human_semantic_notes": null,
+      "publication_authorized": false,
+      "release_boundary_refs": [],
+      "required_candidate_shape": "sixth_pass_adjacent_same_source_tree_test_candidates",
+      "required_evidence_path": "benchmarks/raw/sources/v7_capture_evidence/unrestricted-resource-consumption--near-miss.json",
+      "resolution_status": "candidate_material_available_for_human_review",
+      "scoring_executed": false,
+      "source_project": "aws/s2n-quic",
+      "source_replacement_used": false,
+      "source_root": "GHSA-9q54-f358-3fqf",
+      "synthetic_fixture_used": false,
+      "tree_test_refs": [
+        {
+          "file_sha256": "4b741edd39aac2ca9e4987b164db418f13ab3cdb6b88b65e1403df8a6717f40f",
+          "path": "quic/s2n-quic-tests/src/tests/snapshots/tests__dc__dc_mtls_handshake_auth_failure_self_test__events.snap",
+          "path_term_match_count": 6,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "118136b9fdfe2891e9d479eef33c21f521679cedd785e713b4b52f92981676e1",
+          "path": "quic/s2n-quic-tests/src/tests/snapshots/tests__dc__dc_mtls_handshake_auth_failure_with_server_offloading_test__events.snap",
+          "path_term_match_count": 6,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 10,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "ebdb750c3cf1127dad70a742fbc1d6add6594fa3b96dcc4fd922a6275890b6f2",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ethernet__tests__snapshot_filled_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "8fff3dead3c632dd1c4b270d24d076f675f4e846e55229719adabccc628596e6",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ethernet__tests__snapshot_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "6361b075e351a97f5edda2749c15b75749885defcbcede738bd47045bb2b60b3",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ipv4__tests__snapshot_filled_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "dbcf6732e862186cf7159b5fdefe294a8aa030672f19fe55626c8c21929ba67f",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ipv4__tests__snapshot_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "529ddb19ab6d35295c8e2b63d2a7fa915d198e3ff7ab29b2e800bb3a810bbdac",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ipv6__tests__snapshot_filled_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        },
+        {
+          "file_sha256": "56f752a7d224f7b40fa5aaf966158a00d55479dbea5c16e90c5bf7f306dd5300",
+          "path": "quic/s2n-quic-core/src/inet/snapshots/s2n_quic_core__inet__ipv6__tests__snapshot_test.snap",
+          "path_term_match_count": 5,
+          "ref": "main",
+          "semantic_role": "unadjudicated_sixth_pass_adjacent_tree_test_file_candidate",
+          "test_case_count": 1,
+          "tree_sha": "2c56fa8e2687ba6771e055738f0813112cc34f56"
+        }
+      ],
+      "variant_purpose": "Independent source-grounded similar/confounding observation that does not satisfy the decisive condition. No mutation of the positive row."
+    }
+  ],
+  "new_candidate_available_count": 16,
+  "publication_authorized": false,
+  "resolution_queue_sha256": "359f1615b888d23045d25841b2aaeadc4e21f052d779228e3de77a707b32ac8a",
+  "rule_version": "2026.08.15.6.33.v7.unseen.sixth-pass.resolve.2",
+  "scoring_executed": false,
+  "sixth_pass_input_count": 18,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "still_unresolved_count": 2,
+  "synthetic_fixture_allowed": false,
+  "synthetic_fixture_used": false,
+  "version": "1.0.1"
+}
