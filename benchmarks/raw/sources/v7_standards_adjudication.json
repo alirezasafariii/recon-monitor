@@ -1,14 +1,13 @@
 {
-  "accepted_variant_count": 26,
+  "accepted_variant_count": 29,
   "adjudication_kind": "standards_grounded_machine_semantic_adjudication",
-  "adjudication_sha256": "866d3966a8cac5c50c031c3c46fb95edd7cb7607fd2c4ea247cedbd239d0c9f7",
+  "adjudication_sha256": "3f244f5853ee7d47b6c3861902f525a562f85cd9989fcb53e4dc40e71d6904dc",
   "by_case_kind": {
     "near_miss": 36,
     "positive": 36,
     "secure_negative": 36,
     "sparse_noisy": 36
   },
-  "created_at": "2026-08-15T03:45:30.661692+00:00",
   "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
   "engine_output_allowed_as_evidence": false,
   "evaluation_kind": "fresh_blind_v7_standards_grounded_machine_semantic_adjudication_unscored",
@@ -47,6 +46,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures"
             ],
@@ -121,6 +126,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Account Enumeration and Guessable User Account",
               "Authentication Failures",
@@ -192,6 +201,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures"
             ],
@@ -256,6 +269,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Account Enumeration and Guessable User Account"
             ],
@@ -325,6 +342,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Bypassing Authentication Schema",
               "Session Management Schema"
@@ -388,6 +411,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "session"
@@ -447,6 +474,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Bypassing Authentication Schema",
               "Session Management Schema"
@@ -514,6 +545,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Bypassing Authentication Schema",
               "Improper Authentication",
@@ -588,6 +623,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Function Level Authorization",
               "Broken Access Control",
@@ -670,6 +711,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Function Level Authorization",
               "Broken Access Control",
@@ -743,6 +788,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Function Level Authorization",
               "Broken Access Control",
@@ -815,6 +864,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Function Level Authorization",
               "Broken Access Control",
@@ -919,6 +972,12 @@
               "unauthorized_object_response"
             ],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Object Level Authorization",
               "Authorization Bypass Through User-Controlled Key",
@@ -1010,6 +1069,10 @@
               "unauthorized_object_response"
             ],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Object Level Authorization",
               "Authorization Bypass Through User-Controlled Key",
@@ -1107,6 +1170,10 @@
               "unauthorized_object_response"
             ],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Object Level Authorization",
               "Authorization Bypass Through User-Controlled Key",
@@ -1184,6 +1251,10 @@
               "unauthorized_object_response"
             ],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Object Level Authorization",
               "Broken Access Control",
@@ -1269,6 +1340,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 1,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "ethyca/fides",
+              "source_root": "GHSA-qx5f-ghc2-7g5c"
+            },
             "standards_title_consistency_hits": [
               "Circumvention of Work Flows"
             ],
@@ -1290,7 +1371,9 @@
             "binding_mode": "frozen_candidate_fingerprint",
             "matched_row_count": 30,
             "material_kind": "acquired_literal_candidate_material",
-            "resolution_stage": "second_pass"
+            "resolution_stage": "second_pass",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -1346,6 +1429,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Circumvention of Work Flows"
             ],
@@ -1423,6 +1510,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Circumvention of Work Flows"
             ],
@@ -1495,6 +1586,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Business Logic Data Validation"
             ],
@@ -1539,16 +1634,16 @@
     },
     {
       "family": "command_injection",
-      "family_adjudication_decision": "needs_additional_source_material",
+      "family_adjudication_decision": "confirm_family_mapping",
       "literal_family_adjudication_required": true,
       "source_project": "sebhildebrandt/systeminformation",
       "source_root": "GHSA-5xpp-75jx-m839",
       "variants": [
         {
-          "accepted_for_v7": false,
+          "accepted_for_v7": true,
           "capture_id": "v7-command_injection-positive",
           "case_kind": "positive",
-          "decision": "needs_additional_source_material",
+          "decision": "accept_candidate_as_variant",
           "engine_output_used": false,
           "first_blind_consumed": false,
           "human_verified": false,
@@ -1565,6 +1660,83 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 3,
+              "qualifying_records": [
+                {
+                  "blocking_control_hits": [
+                    "exec_file_argument_array"
+                  ],
+                  "condition_hits": [
+                    "process_execution_reached",
+                    "shell_metacharacter_effect"
+                  ],
+                  "explicit_control_nonapplication_markers": [
+                    "left unfixed",
+                    "still builds",
+                    "unsanitized",
+                    "without sanitization",
+                    "unquoted"
+                  ],
+                  "identity_hits": [
+                    "command_execution_surface",
+                    "process_execution_surface",
+                    "shell_command_semantic"
+                  ],
+                  "origin": "authoritative_advisory_description",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_or_impact_state",
+                  "surface_hits": [
+                    "command",
+                    "shell",
+                    "system("
+                  ],
+                  "text_sha256": "69dcb614ed25b32990bf821240a2c86a61f2f3e22ded897d659d7ff7b2f498d8"
+                },
+                {
+                  "blocking_control_hits": [],
+                  "condition_hits": [
+                    "process_execution_reached"
+                  ],
+                  "explicit_control_nonapplication_markers": [],
+                  "identity_hits": [
+                    "command_execution_surface",
+                    "process_execution_surface"
+                  ],
+                  "origin": "authoritative_advisory_description",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_or_impact_state",
+                  "surface_hits": [
+                    "command"
+                  ],
+                  "text_sha256": "aa5252e822e6f1c64a8fabf7c5244564be53115bad3f6a382bd4661be542be35"
+                },
+                {
+                  "blocking_control_hits": [],
+                  "condition_hits": [
+                    "shell_metacharacter_effect"
+                  ],
+                  "explicit_control_nonapplication_markers": [],
+                  "identity_hits": [
+                    "shell_command_semantic"
+                  ],
+                  "origin": "exact_revision_parent",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_parent_state",
+                  "surface_hits": [
+                    "command",
+                    "shell"
+                  ],
+                  "text_sha256": "dba89168950f5c558b9588cccdf7e6326ef0e80355848639dd10888bb0a06999"
+                }
+              ],
+              "records_evaluated": 11,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "sebhildebrandt/systeminformation",
+              "source_root": "GHSA-5xpp-75jx-m839"
+            },
             "standards_title_consistency_hits": [
               "Command Injection",
               "Injection"
@@ -1576,13 +1748,15 @@
             "test_control_shape_observed": false,
             "writeup_lesson_count": 1
           },
-          "reason": "source material does not satisfy the frozen case-kind rubric",
+          "reason": "role-aware literal upstream source documents a decisive vulnerable state; remediation/fixed-state text is excluded from positive blocking",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/command-injection--positive.json",
             "artifact_sha256": "9494e1380de3b571d0cdacff8a2059ca862e98be8c39d0cb0c19efb2dd2d7464",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -1626,6 +1800,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Command Injection",
               "Injection"
@@ -1688,6 +1866,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Command Injection",
               "Injection"
@@ -1757,6 +1939,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Command Injection",
               "Injection"
@@ -1843,6 +2029,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Cross Origin Resource Sharing",
               "Permissive Cross-domain Security Policy with Untrusted Domains",
@@ -1912,6 +2104,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Security Misconfiguration"
             ],
@@ -1923,7 +2119,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_final_residual_control_candidates.json",
@@ -1989,6 +2185,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Cross Origin Resource Sharing",
               "Permissive Cross-domain Security Policy with Untrusted Domains",
@@ -2068,6 +2268,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Security Misconfiguration"
             ],
@@ -2138,6 +2342,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Cryptographic Failures"
             ],
@@ -2202,6 +2412,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Cryptographic Failures"
             ],
@@ -2211,7 +2425,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/cryptographic-failure--near-miss.json",
@@ -2262,6 +2476,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Cryptographic Failures"
             ],
@@ -2334,6 +2552,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Cleartext Transmission of Sensitive Information",
               "Cryptographic Failures"
@@ -2405,6 +2627,16 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "gogs/gogs",
+              "source_root": "GHSA-vcm5-gvmp-78mp"
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [],
             "test_control_shape_observed": false,
@@ -2416,7 +2648,9 @@
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/dom-xss--positive.json",
             "artifact_sha256": "d3e885559cbf3242e628ea64b865db37b4b10b10dc009ef9a223bbee8afe3cc1",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -2460,6 +2694,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection"
             ],
@@ -2517,6 +2755,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [],
             "test_control_shape_observed": false,
@@ -2572,6 +2814,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection"
             ],
@@ -2636,6 +2882,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Mishandling of Exceptional Conditions"
             ],
@@ -2713,6 +2965,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Mishandling of Exceptional Conditions",
               "Not Failing Securely (Failing Open)"
@@ -2783,6 +3039,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Mishandling of Exceptional Conditions"
             ],
@@ -2850,6 +3110,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Mishandling of Exceptional Conditions"
             ],
@@ -2920,6 +3184,16 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 4,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "mckenziearts/livewire-markdown-editor",
+              "source_root": "GHSA-gxxh-8vcj-w2mh"
+            },
             "standards_title_consistency_hits": [
               "Upload of Malicious Files"
             ],
@@ -2936,7 +3210,9 @@
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/file-upload--positive.json",
             "artifact_sha256": "5ef7fc347fa1a24b058d59163b37c149946a0c9fecae953c959ef00755fb65d0",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -2981,6 +3257,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Upload of Malicious Files"
             ],
@@ -2991,7 +3271,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/file-upload--near-miss.json",
@@ -3044,6 +3324,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Upload of Malicious Files",
               "Upload of Unexpected File Types"
@@ -3111,6 +3395,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Upload of Malicious Files"
             ],
@@ -3189,6 +3477,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Missing Authorization"
@@ -3270,6 +3564,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Broken Object Level Authorization",
               "Broken Access Control",
@@ -3349,6 +3647,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Missing Authorization"
@@ -3416,6 +3718,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "graphql",
@@ -3502,6 +3808,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "API Excessive Data Exposure",
               "Broken Access Control",
@@ -3579,6 +3891,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Excessive Data Exposure",
               "Broken Access Control",
@@ -3663,6 +3979,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Excessive Data Exposure",
               "Broken Access Control",
@@ -3735,6 +4055,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Excessive Data Exposure",
               "Exposure of Sensitive Information to an Unauthorized Actor"
@@ -3817,6 +4141,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "edgexfoundry/edgex-go",
+              "source_root": "GHSA-g63h-q855-vp3q"
+            },
             "standards_title_consistency_hits": [
               "API Reconnaissance",
               "Exposure of Sensitive Information to an Unauthorized Actor",
@@ -3845,7 +4179,9 @@
             "binding_mode": "frozen_candidate_fingerprint",
             "matched_row_count": 47,
             "material_kind": "acquired_literal_candidate_material",
-            "resolution_stage": "second_pass"
+            "resolution_stage": "second_pass",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -3903,6 +4239,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Reconnaissance",
               "Exposure of Sensitive Information to an Unauthorized Actor",
@@ -3989,6 +4329,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "API Reconnaissance",
               "Exposure of Sensitive Information to an Unauthorized Actor",
@@ -4062,6 +4406,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Exposure of Sensitive Information to an Unauthorized Actor",
               "Improper Inventory Management"
@@ -4104,16 +4452,16 @@
     },
     {
       "family": "information_disclosure",
-      "family_adjudication_decision": "needs_additional_source_material",
+      "family_adjudication_decision": "confirm_family_mapping",
       "literal_family_adjudication_required": true,
       "source_project": "OpenListTeam/OpenList",
       "source_root": "GHSA-p6ph-3jx2-3337",
       "variants": [
         {
-          "accepted_for_v7": false,
+          "accepted_for_v7": true,
           "capture_id": "v7-information_disclosure-positive",
           "case_kind": "positive",
-          "decision": "needs_additional_source_material",
+          "decision": "accept_candidate_as_variant",
           "engine_output_used": false,
           "first_blind_consumed": false,
           "human_verified": false,
@@ -4145,6 +4493,32 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 1,
+              "qualifying_records": [
+                {
+                  "blocking_control_hits": [],
+                  "condition_hits": [
+                    "unauthorized_data_response"
+                  ],
+                  "explicit_control_nonapplication_markers": [],
+                  "identity_hits": [],
+                  "origin": "authoritative_advisory_description",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_or_impact_state",
+                  "surface_hits": [
+                    "internal"
+                  ],
+                  "text_sha256": "61767246e126e8eca8e003954d4e3e0c98f27b971b3110b2afeebf42039bf581"
+                }
+              ],
+              "records_evaluated": 3,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "OpenListTeam/OpenList",
+              "source_root": "GHSA-p6ph-3jx2-3337"
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Exposure of Sensitive Information to an Unauthorized Actor",
@@ -4163,7 +4537,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source material does not satisfy the frozen case-kind rubric",
+          "reason": "role-aware literal upstream source documents a decisive vulnerable state; remediation/fixed-state text is excluded from positive blocking",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_second_pass_source_snippet_candidates.json",
@@ -4171,7 +4545,9 @@
             "binding_mode": "frozen_candidate_fingerprint",
             "matched_row_count": 47,
             "material_kind": "acquired_literal_candidate_material",
-            "resolution_stage": "second_pass"
+            "resolution_stage": "second_pass",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -4228,6 +4604,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Exposure of Sensitive Information to an Unauthorized Actor"
@@ -4309,6 +4689,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Exposure of Sensitive Information to an Unauthorized Actor",
@@ -4385,6 +4769,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Exposure of Sensitive Information to an Unauthorized Actor"
@@ -4458,6 +4846,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "LDAP Injection"
@@ -4518,6 +4912,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "LDAP Injection"
@@ -4580,6 +4978,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "LDAP Injection"
@@ -4646,6 +5048,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "LDAP Injection"
@@ -4730,6 +5136,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 2,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "kimai/kimai",
+              "source_root": "GHSA-qh43-xrjm-4ggp"
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Broken Object Property Level Authorization",
@@ -4754,7 +5170,9 @@
             "binding_mode": "frozen_candidate_fingerprint",
             "matched_row_count": 17,
             "material_kind": "acquired_literal_candidate_material",
-            "resolution_stage": "second_pass"
+            "resolution_stage": "second_pass",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -4815,6 +5233,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Broken Object Property Level Authorization"
@@ -4897,6 +5319,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Broken Object Property Level Authorization",
@@ -4977,6 +5403,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Broken Object Property Level Authorization",
@@ -5055,6 +5485,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "NoSQL Injection"
@@ -5122,6 +5558,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "NoSQL Injection"
@@ -5189,6 +5629,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "NoSQL Injection"
@@ -5265,6 +5709,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "NoSQL Injection"
@@ -5352,6 +5800,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Client-side URL Redirect"
@@ -5435,6 +5889,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Client-side URL Redirect"
@@ -5518,6 +5976,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Client-side URL Redirect"
@@ -5582,6 +6044,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "redirect"
@@ -5644,6 +6110,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "path"
@@ -5701,6 +6173,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "path"
@@ -5708,7 +6184,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/path-traversal--near-miss.json",
@@ -5754,6 +6230,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "path"
@@ -5824,6 +6304,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Directory Traversal File Include",
@@ -5908,6 +6392,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures",
               "Origin Validation Error"
@@ -5986,6 +6476,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures",
               "Origin Validation Error"
@@ -6064,6 +6558,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures",
               "Origin Validation Error"
@@ -6136,6 +6634,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "event.origin",
@@ -6217,6 +6719,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
               "Process Timing"
@@ -6294,6 +6802,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
               "Process Timing"
@@ -6371,6 +6883,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
               "Process Timing"
@@ -6437,6 +6953,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "concurrent",
@@ -6503,6 +7023,12 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "secret"
@@ -6573,6 +7099,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Authentication Failures",
               "Exposure of Sensitive Information to an Unauthorized Actor"
@@ -6640,6 +7170,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "secret"
@@ -6697,6 +7231,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Use of Hard-coded Credentials"
             ],
@@ -6779,6 +7317,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Improper Error Handling",
@@ -6856,6 +7400,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "telemetry"
@@ -6931,6 +7479,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Improper Error Handling",
@@ -7008,6 +7560,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Security Logging and Alerting Failures"
             ],
@@ -7053,16 +7609,16 @@
     },
     {
       "family": "security_misconfiguration",
-      "family_adjudication_decision": "needs_additional_source_material",
+      "family_adjudication_decision": "confirm_family_mapping",
       "literal_family_adjudication_required": true,
       "source_project": "monetr/monetr",
       "source_root": "GHSA-29v9-frvh-c426",
       "variants": [
         {
-          "accepted_for_v7": false,
+          "accepted_for_v7": true,
           "capture_id": "v7-security_misconfiguration-positive",
           "case_kind": "positive",
-          "decision": "needs_additional_source_material",
+          "decision": "accept_candidate_as_variant",
           "engine_output_used": false,
           "first_blind_consumed": false,
           "human_verified": false,
@@ -7079,6 +7635,51 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 2,
+              "qualifying_records": [
+                {
+                  "blocking_control_hits": [],
+                  "condition_hits": [
+                    "insecure_http_enabled"
+                  ],
+                  "explicit_control_nonapplication_markers": [
+                    "not enforced"
+                  ],
+                  "identity_hits": [
+                    "deployment_configuration_surface"
+                  ],
+                  "origin": "authoritative_advisory_description",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_or_impact_state",
+                  "surface_hits": [
+                    "http://"
+                  ],
+                  "text_sha256": "ac215899496ba3c2716ac8decb192bd70161dab6b4b165419a72b95bad749a40"
+                },
+                {
+                  "blocking_control_hits": [],
+                  "condition_hits": [
+                    "insecure_http_enabled"
+                  ],
+                  "explicit_control_nonapplication_markers": [],
+                  "identity_hits": [],
+                  "origin": "exact_revision_parent",
+                  "override_hits": [],
+                  "source_state_role": "vulnerable_parent_state",
+                  "surface_hits": [
+                    "http://"
+                  ],
+                  "text_sha256": "07d6ef48b3bad94032a88f6f60c1077f74ae3488480947b993ba73586d9e4920"
+                }
+              ],
+              "records_evaluated": 9,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "monetr/monetr",
+              "source_root": "GHSA-29v9-frvh-c426"
+            },
             "standards_title_consistency_hits": [
               "Security Misconfiguration"
             ],
@@ -7086,13 +7687,15 @@
             "test_control_shape_observed": false,
             "writeup_lesson_count": 1
           },
-          "reason": "source material does not satisfy the frozen case-kind rubric",
+          "reason": "role-aware literal upstream source documents a decisive vulnerable state; remediation/fixed-state text is excluded from positive blocking",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/security-misconfiguration--positive.json",
             "artifact_sha256": "b086ad46301789e1af9c7e00c699dfea8935109ebb74076644a656bde7e4e878",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -7147,6 +7750,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Security Misconfiguration"
             ],
@@ -7215,6 +7822,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Security Misconfiguration"
             ],
@@ -7284,6 +7895,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Generation of Error Message Containing Sensitive Information",
               "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')",
@@ -7366,6 +7981,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "openclaw/openclaw",
+              "source_root": "GHSA-6rmx-gvvg-vh6j"
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [],
             "test_control_shape_observed": false,
@@ -7377,7 +8002,9 @@
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--positive.json",
             "artifact_sha256": "51e774eaa2a5b4fff85a682f30830cad6ee9b73fea9117144cdecaddab8d5eca",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -7422,12 +8049,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [],
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/sensitive-business-flow-abuse--near-miss.json",
@@ -7480,6 +8111,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [],
             "test_control_shape_observed": false,
@@ -7543,6 +8178,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "checkout"
@@ -7610,6 +8249,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "public"
@@ -7666,6 +8311,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "cache-control",
@@ -7674,7 +8323,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/sensitive-caching--near-miss.json",
@@ -7725,6 +8374,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               "public"
@@ -7794,6 +8447,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Use of Cache Containing Sensitive Information",
               "Use of Web Browser Cache Containing Sensitive Information"
@@ -7884,6 +8541,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Improper Neutralization of Special Elements Used in a Template Engine",
               "Injection",
@@ -7968,6 +8631,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "Server-Side Template Injection"
@@ -8051,6 +8718,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Improper Neutralization of Special Elements Used in a Template Engine",
               "Injection",
@@ -8123,6 +8794,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "Server-Side Template Injection"
@@ -8209,6 +8884,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Download of Code Without Integrity Check",
@@ -8293,6 +8974,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Download of Code Without Integrity Check",
@@ -8379,6 +9064,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Download of Code Without Integrity Check",
@@ -8456,6 +9145,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Download of Code Without Integrity Check",
               "Software or Data Integrity Failures"
@@ -8541,6 +9234,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Dependency on Vulnerable Third-Party Component",
@@ -8617,6 +9316,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Network and Application Platform Configuration"
             ],
@@ -8627,7 +9330,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_fourth_pass_targeted_candidates.json",
@@ -8695,6 +9398,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Application Platform Configuration",
               "Dependency on Vulnerable Third-Party Component",
@@ -8773,6 +9480,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Network and Application Platform Configuration",
               "Software Supply Chain Failures"
@@ -8846,6 +9557,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               ".map",
@@ -8904,6 +9621,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               ".map",
@@ -8914,7 +9635,7 @@
             "test_control_shape_observed": true,
             "writeup_lesson_count": 1
           },
-          "reason": "source is family-adjacent but does not satisfy the decisive condition and contains an independent control/test shape",
+          "reason": "source is family-adjacent but lacks the decisive condition and contains an independent control/test shape",
           "scoring_executed": false,
           "source_material": {
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/source-map-exposure--near-miss.json",
@@ -8962,6 +9683,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               ".map",
@@ -9025,6 +9750,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [],
             "surface_hits": [
               ".map",
@@ -9099,6 +9828,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 1,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "kubev2v/migration-planner",
+              "source_root": "GHSA-vf2h-7x3w-97fr"
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "SQL Injection"
@@ -9116,7 +9855,9 @@
             "artifact": "benchmarks/raw/sources/v7_capture_drafts/sql-injection--positive.json",
             "artifact_sha256": "62d0e1c225326db01301288e8d9fe122ae288a39697e9263b2d0aff7903cd6c0",
             "binding_mode": "direct_capture_draft",
-            "material_kind": "original_source_grounded_draft"
+            "material_kind": "original_source_grounded_draft",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -9180,6 +9921,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
               "Injection",
@@ -9253,6 +9998,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": false,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Injection",
               "SQL Injection"
@@ -9315,6 +10064,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
               "Injection",
@@ -9398,6 +10151,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Server-Side Request Forgery (SSRF)"
@@ -9482,6 +10241,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Server Side Request Forgery",
@@ -9566,6 +10329,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Server-Side Request Forgery (SSRF)"
@@ -9638,6 +10405,10 @@
             "identity_hits": [],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Server Side Request Forgery",
@@ -9731,6 +10502,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Number of Times a Function Can Be Used Limits"
@@ -9814,6 +10591,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Number of Times a Function Can Be Used Limits"
@@ -9902,6 +10683,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Number of Times a Function Can Be Used Limits"
@@ -9974,6 +10759,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Unrestricted Resource Consumption"
             ],
@@ -10061,6 +10850,12 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Business Logic Data Validation",
@@ -10157,6 +10952,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Business Logic Data Validation",
@@ -10253,6 +11052,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Allocation of Resources Without Limits or Throttling",
               "Business Logic Data Validation",
@@ -10332,6 +11135,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Unsafe Consumption of APIs"
             ],
@@ -10420,6 +11227,16 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": true,
+              "fixed_or_remediation_records_excluded_from_positive_blocking": true,
+              "qualifying_record_count": 0,
+              "qualifying_records": [],
+              "records_evaluated": 8,
+              "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+              "source_project": "pipecat-ai/pipecat",
+              "source_root": "GHSA-j8cv-x86q-rj85"
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Bypassing Authorization Schema",
@@ -10443,7 +11260,9 @@
             "binding_mode": "frozen_candidate_fingerprint",
             "matched_row_count": 17,
             "material_kind": "acquired_literal_candidate_material",
-            "resolution_stage": "second_pass"
+            "resolution_stage": "second_pass",
+            "role_aware_priority0_source_pack": "benchmarks/raw/sources/v7_standards_priority0_role_pack.json",
+            "role_aware_priority0_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe"
           },
           "standards_rubric_layer": {
             "counts_as_target_evidence": false,
@@ -10507,6 +11326,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Bypassing Authorization Schema",
@@ -10593,6 +11416,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Bypassing Authorization Schema",
@@ -10667,6 +11494,10 @@
             ],
             "override_hits": [],
             "partial_shape_observed": true,
+            "role_aware_positive_support": {
+              "available": false,
+              "qualifying_record_count": 0
+            },
             "standards_title_consistency_hits": [
               "Broken Access Control",
               "Missing Authorization",
@@ -10713,17 +11544,18 @@
   ],
   "family_adjudication_required_count": 11,
   "family_count": 36,
-  "family_mapping_confirmed_count": 0,
+  "family_mapping_confirmed_count": 3,
   "first_blind_consumed": false,
   "human_adjudication_performed": false,
   "human_review_required": false,
   "human_verified_record_count": 0,
   "machine_adjudicated_variant_count": 144,
   "machine_semantic_adjudication_complete": false,
-  "needs_additional_source_material_count": 113,
+  "needs_additional_source_material_count": 110,
   "quality_model": {
     "fail_closed_on_ambiguity": true,
     "literal_source_layer": "frozen source material must satisfy family identity plus case-kind-specific condition/control requirements",
+    "role_aware_positive_layer": "documented vulnerable-state records are evaluated separately from remediation/fixed-state records",
     "standards_rubric_layer": "WSTG + OWASP + CWE define taxonomy and interpretation criteria only",
     "writeup_rubric_layer": "frozen write-up lessons and confounders guide interpretation only"
   },
@@ -10738,7 +11570,9 @@
     "wstg_reference_version": "latest@2026-08-10"
   },
   "rejected_candidate_count": 5,
-  "rule_version": "2026.08.15.6.33.v7.unseen.standards-adjudication.2",
+  "role_aware_positive_supported_count": 3,
+  "role_aware_source_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+  "rule_version": "2026.08.15.6.33.v7.unseen.standards-adjudication.3",
   "scoring_executed": false,
   "semantic_review_packet_sha256": "1326946ceea3b980eea1c631522316d2c8cdba361c4deeaf6ac924eb1b3bfbb2",
   "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
@@ -10747,9 +11581,9 @@
   "standards_count_as_target_evidence": false,
   "standards_coverage_family_count": 36,
   "synthetic_fixture_allowed": false,
-  "unresolved_variant_count": 118,
+  "unresolved_variant_count": 115,
   "variant_count": 144,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "writeup_coverage_family_count": 36,
   "writeups_count_as_target_evidence": false
 }
