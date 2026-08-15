@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 
-VERSION = '2.1.0'
-RULE_VERSION = '2026.08.15.6.33.v7.unseen.capture.research.4'
+VERSION = '2.2.0'
+RULE_VERSION = '2026.08.15.6.33.v7.unseen.capture.research.5'
 SHORTLIST = ROOT / 'benchmarks/raw/sources/v7_shortlist.json'
 OUTPUT = ROOT / 'benchmarks/raw/sources/v7_literal_source_research.json'
 GHSA_RE = re.compile(r'^GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}$', re.I)
@@ -85,11 +85,6 @@ def _links(payload: Mapping[str, Any]) -> list[str]:
 
 
 def _ghsa_aliases(row: Mapping[str, Any]) -> list[str]:
-    """Return only GHSA identities that were already frozen into source-selection metadata.
-
-    This intentionally does not inspect the newly fetched advisory payload. A redirect or
-    canonicalization may only be accepted when the observed GHSA was present before capture.
-    """
     values: list[str] = []
     for key in (
         'source_root',
@@ -119,19 +114,23 @@ def _validate_observed_ghsa(
     aliases = _ghsa_aliases(row)
     normalized_root = root.casefold() if GHSA_RE.fullmatch(root) else ''
     normalized_observed = observed.casefold() if GHSA_RE.fullmatch(observed) else ''
-    if observed and not normalized_observed:
+
+    if normalized_root:
+        if not normalized_observed:
+            raise RuntimeError(f'{family}: frozen GHSA root returned no valid ghsa_id')
+        if normalized_observed != normalized_root:
+            raise RuntimeError(
+                f'{family}: GHSA source identity drift {observed!r}!={root!r}; '
+                'capture must match the frozen source_root exactly'
+            )
+    elif observed and not normalized_observed:
         raise RuntimeError(f'{family}: malformed observed GHSA identity {observed!r}')
-    if normalized_root and normalized_root not in aliases:
-        raise RuntimeError(f'{family}: frozen source_root missing from its own GHSA identity set')
-    if normalized_root and normalized_observed and normalized_observed not in aliases:
-        raise RuntimeError(
-            f'{family}: GHSA source identity drift {observed!r}!={root!r}; '
-            'observed identity was not frozen as a pre-capture alias'
-        )
+
     return {
         'observed_ghsa_id': observed or None,
         'frozen_ghsa_aliases': aliases,
-        'alias_used': bool(normalized_root and normalized_observed and normalized_root != normalized_observed),
+        'alias_used': False,
+        'exact_frozen_root_match': bool(normalized_root and normalized_observed == normalized_root),
     }
 
 
@@ -157,11 +156,17 @@ def build(token: str | None = None) -> dict[str, Any]:
             or row.get('source_code_location')
             or ''
         ).strip()
-        api = _api_url(ref)
-        resolution_basis = 'canonical_reference'
-        if api is None and GHSA_RE.fullmatch(root):
+
+        # The frozen GHSA root is authoritative whenever one exists. This avoids
+        # accidentally following a related/reference advisory with a different
+        # GHSA identity while preserving the immutable source assignment.
+        canonical_api = _api_url(ref)
+        if GHSA_RE.fullmatch(root):
             api = f'https://api.github.com/advisories/{root}'
-            resolution_basis = 'frozen_ghsa_source_root_fallback'
+            resolution_basis = 'frozen_ghsa_source_root_authoritative'
+        else:
+            api = canonical_api
+            resolution_basis = 'canonical_reference'
 
         if not api:
             status, payload, error = 0, None, 'v7 canonical source and frozen source_root are not supported GitHub references'
@@ -174,8 +179,6 @@ def build(token: str | None = None) -> dict[str, Any]:
         targeted = family in literal
         observed = str(pm.get('ghsa_id') or '').strip() if isinstance(payload, Mapping) else ''
         identity = _validate_observed_ghsa(row, root, observed, family=family)
-        if identity['alias_used']:
-            resolution_basis += '_verified_frozen_ghsa_alias'
 
         entries.append(
             {
@@ -183,11 +186,13 @@ def build(token: str | None = None) -> dict[str, Any]:
                 'source_root': root,
                 'source_project': row.get('source_project'),
                 'canonical_reference': ref,
+                'canonical_reference_api': canonical_api,
                 'github_api_reference': api,
                 'source_resolution_basis': resolution_basis,
                 'observed_ghsa_id': identity['observed_ghsa_id'],
                 'frozen_ghsa_aliases': identity['frozen_ghsa_aliases'],
-                'ghsa_alias_resolution_used': identity['alias_used'],
+                'ghsa_alias_resolution_used': False,
+                'exact_frozen_root_match': identity['exact_frozen_root_match'],
                 'fetch_status': status,
                 'fetch_error': error,
                 'snapshot_payload': payload,
@@ -209,6 +214,10 @@ def build(token: str | None = None) -> dict[str, Any]:
     if sorted(str(x['family']) for x in entries if x['family_literal_adjudication_required']) != sorted(literal):
         raise RuntimeError('v7 literal-adjudication source set drift')
 
+    ghsa_rows = [x for x in entries if GHSA_RE.fullmatch(str(x.get('source_root') or ''))]
+    if any(x.get('exact_frozen_root_match') is not True for x in ghsa_rows if x.get('fetch_status') == 200):
+        raise RuntimeError('one or more fetched GHSA snapshots do not exactly match their frozen source_root')
+
     return {
         'version': VERSION,
         'rule_version': RULE_VERSION,
@@ -226,20 +235,23 @@ def build(token: str | None = None) -> dict[str, Any]:
                     'source_root',
                     'source_project',
                     'canonical_reference',
+                    'canonical_reference_api',
                     'github_api_reference',
                     'source_resolution_basis',
                     'observed_ghsa_id',
+                    'exact_frozen_root_match',
                     'fetch_status',
                     'fetch_error',
                 )
             }
             for x in bad
         ],
-        'ghsa_root_fallback_count': sum(
-            str(x.get('source_resolution_basis') or '').startswith('frozen_ghsa_source_root_fallback')
+        'ghsa_root_authoritative_count': sum(
+            x.get('source_resolution_basis') == 'frozen_ghsa_source_root_authoritative'
             for x in entries
         ),
-        'ghsa_alias_resolution_count': sum(bool(x.get('ghsa_alias_resolution_used')) for x in entries),
+        'exact_frozen_root_match_count': sum(bool(x.get('exact_frozen_root_match')) for x in entries),
+        'ghsa_alias_resolution_count': 0,
         'entries': entries,
         'engine_baseline_commit': freeze['engine_baseline_commit'],
         'source_assignment_commit': freeze['source_assignment_commit'],
@@ -275,8 +287,8 @@ def main() -> int:
                 'successful_snapshot_count': r['successful_snapshot_count'],
                 'unresolved_snapshot_count': r['unresolved_snapshot_count'],
                 'unresolved_sources': r['unresolved_sources'],
-                'ghsa_root_fallback_count': r['ghsa_root_fallback_count'],
-                'ghsa_alias_resolution_count': r['ghsa_alias_resolution_count'],
+                'ghsa_root_authoritative_count': r['ghsa_root_authoritative_count'],
+                'exact_frozen_root_match_count': r['exact_frozen_root_match_count'],
                 'audit_fallback_count': r['audit_fallback_count'],
                 'literal_adjudication_required_count': r['literal_adjudication_required_count'],
                 'scoring_executed': False,
