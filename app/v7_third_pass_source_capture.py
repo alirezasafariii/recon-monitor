@@ -18,16 +18,16 @@ from raw_recon_corpus import ROOT
 from v7_capture_guard import assert_capture_source_freeze
 from v7_unseen_source_snippet_capture import api, file_bytes, hunk_ranges, line_snippet, test_controls
 
-VERSION = "1.0.2"
-RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.capture.3"
+VERSION = "1.0.3"
+RULE_VERSION = "2026.08.15.6.33.v7.unseen.third-pass.capture.4"
 THIRD = ROOT / "benchmarks/raw/sources/v7_third_pass_deep_candidates.json"
 RESOLUTION = ROOT / "benchmarks/raw/sources/v7_second_pass_resolution_queue.json"
 OUTPUT = ROOT / "benchmarks/raw/sources/v7_third_pass_source_snippet_candidates.json"
 REPORT = ROOT / "benchmarks/raw/sources/v7_third_pass_source_snippet_candidates_report.json"
 TEST_PATH = re.compile(r"(^|/)(tests?|specs?|__tests__)(/|$)|(^|/)(test_[^/]+|[^/]+_(?:test|spec)\.[^/]+|[^/]+\.(?:test|spec)\.[^/]+)$", re.I)
-MAX_PAIRS_PER_FAMILY = 6
-MAX_FILES_PER_PAIR = 10
-MAX_SNIPPETS_PER_SIDE = 28
+MAX_PAIRS_PER_FAMILY = 3
+MAX_FILES_PER_PAIR = 6
+MAX_SNIPPETS_PER_SIDE = 16
 
 
 def text(value: Any) -> str:
