@@ -1,0 +1,21 @@
+{
+  "admission_output_used": false,
+  "detector_output_used": false,
+  "error_count": 0,
+  "errors": [],
+  "evaluation_kind": "fresh_blind_v8_literal_capture_ingest_unscored",
+  "first_blind_consumed": false,
+  "missing_capture_count": 0,
+  "missing_capture_ids": [],
+  "passed": true,
+  "plan_sha256": "12da82d06d54ce8e120c8aef043ccec2e66dfaad24db03d92e29c8d7943b8f0c",
+  "ranking_output_used": false,
+  "require_complete": true,
+  "rule_version": "2026.08.14.6.32.v8.1",
+  "scoring_executed": false,
+  "shortlist_sha256": "615e83fde0c8fcaff33d95af6a7af415048d184464d62012e91d43f61482169d",
+  "v6_first_blind_case_errors_used": false,
+  "v6_first_blind_score_used": false,
+  "valid_capture_count": 144,
+  "version": "1.0.0"
+}

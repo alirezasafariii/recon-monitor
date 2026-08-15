@@ -1,0 +1,240 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "cross_tenant_object_access"
+    ],
+    "notes": "Fresh upstream source narrative plus the removed side of the real merged patch independently support the preregistered positive condition label; canonical benchmark identifiers are excluded only from raw, never rewritten in the source snapshot.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/taubyte/tau/commit/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+  "captured_at": "2026-08-15T03:49:52.210645+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "name": "analysis-632-v8-literal-patch-capture",
+    "network_scope": "passive public upstream PR/commit metadata and diff snapshot only; no target validation",
+    "rule_version": "2026.08.15.6.32.v8.14",
+    "version": "1.0.1"
+  },
+  "evaluation_kind": "fresh_blind_v8_literal_source_evidence",
+  "family": "broken_object_authorization",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "changed_files": [
+        "services/auth/api_domain_repository_test.go",
+        "services/auth/github.go",
+        "services/auth/github_http_endpoints.go",
+        "services/auth/github_project_authz_test.go",
+        "services/auth/mock_types_test.go"
+      ],
+      "positive_source_basis": "Verbatim label-blind excerpts from the fresh upstream security narrative and removed patch side are the positive observation; the complete immutable source snapshot remains attached outside raw.",
+      "source_condition_phrase_evidence": [
+        "another tenant",
+        "other tenant"
+      ],
+      "source_security_narrative_excerpt": [
+        "Taubyte Tau v1.1.10 contains a missing authorization vulnerability in the services/auth HTTP...",
+        "Taubyte Tau v1.1.10 contains a missing authorization vulnerability in the services/auth HTTP service that allows any authenticated user to read or permanently delete another tenant's project by supplying an arbitrary project ID to the GET and DELETE /projects/{id} endpoints.",
+        "The GitHubTokenHTTPAuth middleware only validates that a caller presents a valid GitHub OAuth token without verifying ownership or access rights to the target project, enabling attackers with any valid GitHub token to invoke bare KV-store operations such as projects.Fetch and project.Delete against any project ID to achieve cross-tenant project takeover.",
+        "UPSTREAM PATCH\nFILE services/auth/api_domain_repository_test.go\n@@ -362,8 +362,9 @@ func TestActualHTTPHandlers(t *testing.T) {\n \t\t// Create mock HTTP context\n \t\tmockCtx := &mockHTTPContextWithClient{\n \t\t\tvariables: map[string]interface{}{\n-\t\t\t\t\"provider\": \"github\",\n-\t\t\t\t\"id\":       \"33333\",\n+\t\t\t\t\"provider\":     \"github\",\n+\t\t\t\t\"id\":           \"33333\",\n+\t\t\t\t\"GithubClient\": mockGitHubClient,\n \t\t\t},\n \t\t}\n \nFILE services/auth/github.go\n@@ -8,6 +8,7 @@ import (\n \t\"crypto/rand\"\n \t\"crypto/x509\"\n \t\"encoding/pem\"\n+\t\"errors\"\n \t\"fmt\"\n \t\"strconv\"\n \n@@ -111,12 +112,49 @@ func generateKey() (string, string, string, error) {\n \treturn deployKeyName, string(ssh.MarshalAuthorizedKey(pub)), private.String(), nil\n }\n \n+// repoAccess reports whether the caller may act on a repository.",
+        "GetByID already\n+// fetches it under the caller's own token and GitHub returns that caller's\n+// permissions with it, so this costs no extra API call.",
+        "Read access is not\n+// enough: a public repository reads to everyone, which is what let an unrelated\n+// caller reach another project's repositories.",
+        "+func repoAccess(client GitHubClient, repoID string) bool {\n+\tif client.GetByID(repoID) != nil {\n+\t\treturn false\n+\t}\n+\n+\trepo := client.Cur()\n+\tif repo == nil {\n+\t\treturn false\n+\t}\n+\n+\tperms := repo.GetPermissions()\n+\treturn perms[\"admin\"] || perms[\"maintain\"] || perms[\"push\"]\n+}\n+\n+// authorizeProject refuses a caller who can write to neither of the project's\n+// linked repositories.",
+        "That is the same scoping getGitHubUserProjects applies\n+// when it lists projects, so a project is reachable by id to exactly the people\n+// who already see it in their own list.",
+        "+func (srv *AuthService) authorizeProject(client GitHubClient, project projects.Project) error {\n+\tif srv.devMode {\n+\t\treturn nil\n+\t}\n+\n+\tif repoAccess(client, project.Config()) || repoAccess(client, project.Code()) {\n+\t\treturn nil\n+\t}\n+\n+\t// Worded like a missing project on purpose.",
+        "Telling the caller a project\n+\t// exists but isn't theirs turns the route back into the id oracle this\n+\t// check exists to close.",
+        "+\treturn errors.New(\"project not found\")\n+}\n+\n func (srv *AuthService) registerGitHubRepository(ctx context.Context, client GitHubClient, repoID string) (*RepositoryRegistrationResponse, error) {\n \t// If client is nil (P2P calls), skip GitHub API verification\n \tif client != nil {\n-\t\terr := client.GetByID(repoID)\n-\t\tif err != nil {\n-\t\t\treturn nil, fmt.Errorf(\"fetch repository failed with %w\", err)\n+\t\tif !repoAccess(client, repoID) {\n+\t\t\treturn nil, fmt.Errorf(\"no access to repository `%s`\", repoID)\n \t\t}\n \n \t\tif err := srv.authorizeRepository(client); err != nil {\n@@ -236,9 +274,16 @@ func (srv *AuthService) registerGitHubRepository(ctx context.Context, client Git\n func (srv *AuthService) unregisterGitHubRepository(ctx context.Context, client GitHubClient, repoID string) error {\n \t// If client is nil (P2P calls), skip GitHub API verification\n \tif client != nil {\n-\t\terr := client.GetByID(repoID)\n-\t\tif err != nil {\n-\t\t\treturn fmt.Errorf(\"fetch repository failed with %w\", err)\n+\t\t// Registering already required write access and tenancy ownership;\n+\t\t// unregistering tears down the deploy key and hooks, so it requires\n+\t\t// the same.",
+        "Read access alone would let anyone drop a public\n+\t\t// repository's build wiring.",
+        "+\t\tif !repoAccess(client, repoID) {\n+\t\t\treturn fmt.Errorf(\"no access to repository `%s`\", repoID)\n+\t\t}\n+\n+\t\tif err := srv.authorizeRepository(client); err != nil {\n+\t\t\treturn err\n \t\t}\n \t}\n \n@@ -283,6 +328,26 @@ func (srv *AuthService) newGitHubProject(ctx context.Context, client GitHubClien\n \n \tlogger.Debug(\"Project ID=\" + projectID)\n \n+\tif !srv.devMode {\n+\t\t// The caller is claiming these two repositories for a project, so they\n+\t\t// have to be able to write to both.",
+        "Without this, any id could be\n+\t\t// pointed at repositories the caller has nothing to do with.",
+        "+\t\tfor _, repoID := range []string{configID, codeID} {\n+\t\t\tif !repoAccess(client, repoID) {\n+\t\t\t\treturn nil, fmt.Errorf(\"no access to repository `%s`\", repoID)\n+\t\t\t}\n+\t\t}\n+\n+\t\t// Import supplies the project id, so this call can land on a project\n+\t\t// that already exists and would otherwise overwrite it — including its\n+\t\t// repository links — and add the caller as an owner.",
+        "+\t\tif existing, err := projects.Fetch(ctx, srv.KV(), projectID); err == nil {\n+\t\t\tif err := srv.authorizeProject(client, existing); err != nil {\n+\t\t\t\treturn nil, err\n+\t\t\t}\n+\t\t}\n+\t}\n+\n \tgituser := client.Me()\n \n \tproject, err := projects.New(srv.KV(), projects.Data{\n@@ -386,6 +451,10 @@ func (srv *AuthService) getGitHubProjectInfo(ctx context.Context, client GitHubC\n \t\treturn nil, fmt.Errorf(\"retrieving project error: %w\", err)\n \t}\n \n+\tif err := srv.authorizeProject(client, project); err != nil {\n+\t\treturn nil, err\n+\t}\n+\n \treturn &ProjectInfoResponse{\n \t\tProject: ProjectDetails{\n \t\t\tID:   projectid,\n@@ -405,6 +474,10 @@ func (srv *AuthService) deleteGitHubUserProject(ctx context.Context, client GitH\n \t\treturn nil, fmt.Errorf(\"failed to fetch project: %w\", err)\n \t}\n \n+\tif err := srv.authorizeProject(client, project); err != nil {\n+\t\treturn nil, err\n+\t}\n+\n \terr = project.Delete()\n \tif err != nil {\n \t\treturn nil, fmt.Errorf(\"failed to delete project: %w\", err)\nFILE services/auth/github_http_endpoints.go\n@@ -111,6 +111,10 @@ func (srv *AuthService) registerGitHubUserRepositoryHTTPHandler(ctx http.Context\n \n func (srv *AuthService) getGitHubUserRepositoryHTTPHandler(ctx http.Context) (interface{}, error) {\n \tctxVars := ctx.Variables()\n+\tclient, err := getGithubClientFromContext(ctx)\n+\tif err != nil {\n+\t\treturn nil, err\n+\t}\n \tprovider, err := maps.String(ctxVars, \"provider\")\n \tif err != nil {\n \t\treturn nil, err\n@@ -121,6 +125,10 @@ func (srv *AuthService) getGitHubUserRepositoryHTTPHandler(ctx http.Context) (in\n \t\treturn nil, fmt.Errorf(\"parsing github repository ID failed with %w"
+      ],
+      "upstream_reference": "https://github.com/taubyte/tau/commit/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+      "vulnerable_or_removed_patch_lines": [
+        "\"provider\": \"github\",",
+        "\"id\":       \"33333\",",
+        "err := client.GetByID(repoID)",
+        "if err != nil {",
+        "return nil, fmt.Errorf(\"fetch repository failed with %w\", err)",
+        "err := client.GetByID(repoID)",
+        "if err != nil {",
+        "return fmt.Errorf(\"fetch repository failed with %w\", err)",
+        "return nil",
+        "ID:       github.Int64(12345),",
+        "SSHURL:   github.Ptr(\"git@github.com:test/test-repo.git\"),",
+        "FullName: github.Ptr(\"test/test-repo\"),"
+      ]
+    },
+    "endpoint": "https://github.com/taubyte/tau/commit/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "taubyte/tau"
+  },
+  "raw_sha256": "edd9d3f3fb29b96bac613615ff79b188ba4004702399f9e12e80302e0211d8b0",
+  "schema_version": "1.0",
+  "scoring_executed": false,
+  "source_project": "taubyte/tau",
+  "source_root": "GHSA-gq8x-2577-rmx8",
+  "source_snapshot": {
+    "content_sha256": "b6b14b5151c5538ffbdb56e6413b1fcd2a3ce85b104f8dadd0ed82fada51c5ca",
+    "payload": {
+      "author": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/76626119?v=4",
+        "events_url": "https://api.github.com/users/samyfodil/events{/privacy}",
+        "followers_url": "https://api.github.com/users/samyfodil/followers",
+        "following_url": "https://api.github.com/users/samyfodil/following{/other_user}",
+        "gists_url": "https://api.github.com/users/samyfodil/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/samyfodil",
+        "id": 76626119,
+        "login": "samyfodil",
+        "node_id": "MDQ6VXNlcjc2NjI2MTE5",
+        "organizations_url": "https://api.github.com/users/samyfodil/orgs",
+        "received_events_url": "https://api.github.com/users/samyfodil/received_events",
+        "repos_url": "https://api.github.com/users/samyfodil/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/samyfodil/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/samyfodil/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/samyfodil",
+        "user_view_type": "public"
+      },
+      "comments_url": "https://api.github.com/repos/taubyte/tau/commits/f5c9c9c311a1ff156814e0c81f186bfd101ec237/comments",
+      "commit": {
+        "author": {
+          "date": "2026-08-05T13:43:12Z",
+          "email": "76626119+samyfodil@users.noreply.github.com",
+          "name": "Samy Fodil"
+        },
+        "comment_count": 0,
+        "committer": {
+          "date": "2026-08-05T13:43:12Z",
+          "email": "noreply@github.com",
+          "name": "GitHub"
+        },
+        "message": "fix(auth): bind project and repository routes to the caller's repo access (#514)\n\nEvery route in this service was gated on one question: does the caller hold\na valid provider token this cloud admits. Nothing then asked whether that\ncaller had anything to do with the id in the path, so any admitted identity\nthat learned a project id could read it, delete it, or import over it, and\nany identity that could merely *read* a repository could unregister it.\n\ngetGitHubUserProjects already had the answer: it scopes the listing to\nrepositories the caller actually has. The by-id routes now apply the same\nrule, so a project is reachable by id by exactly the people who already see\nit in their own list.\n\nAccess means write access. GetByID already fetches the repository under the\ncaller's own token and GitHub returns that caller's permissions with it, so\nthe check costs no extra API call. Read is not enough: a public repository\nreads to everyone, which is what left these routes open.\n\nImport is the one that could take a project over rather than just read or\nbreak it. It supplies the project id, and registration overwrites the four\nproject keys and both repository back-references, so it could repoint a\nproject at the caller's own repositories and add them as an owner. It now\nhas to pass the access check on the project already at that id.\n\nRefusals on the project routes are worded as a missing project. Confirming\nthat an id exists but isn't yours would leave the oracle these checks close.\n\nDev mode skips all of this, as it already does for identity and repository\nownership; local clouds are unaffected.\n\nFixes #513",
+        "tree": {
+          "sha": "bb01d1ed2177e7f3e813073bddd6a80d3bab6c81",
+          "url": "https://api.github.com/repos/taubyte/tau/git/trees/bb01d1ed2177e7f3e813073bddd6a80d3bab6c81"
+        },
+        "url": "https://api.github.com/repos/taubyte/tau/git/commits/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+        "verification": {
+          "payload": "tree bb01d1ed2177e7f3e813073bddd6a80d3bab6c81\nparent 4aefdf42d92b11f643bada223fc85618527e7354\nauthor Samy Fodil <76626119+samyfodil@users.noreply.github.com> 1785937392 -0500\ncommitter GitHub <noreply@github.com> 1785937392 -0500\n\nfix(auth): bind project and repository routes to the caller's repo access (#514)\n\nEvery route in this service was gated on one question: does the caller hold\na valid provider token this cloud admits. Nothing then asked whether that\ncaller had anything to do with the id in the path, so any admitted identity\nthat learned a project id could read it, delete it, or import over it, and\nany identity that could merely *read* a repository could unregister it.\n\ngetGitHubUserProjects already had the answer: it scopes the listing to\nrepositories the caller actually has. The by-id routes now apply the same\nrule, so a project is reachable by id by exactly the people who already see\nit in their own list.\n\nAccess means write access. GetByID already fetches the repository under the\ncaller's own token and GitHub returns that caller's permissions with it, so\nthe check costs no extra API call. Read is not enough: a public repository\nreads to everyone, which is what left these routes open.\n\nImport is the one that could take a project over rather than just read or\nbreak it. It supplies the project id, and registration overwrites the four\nproject keys and both repository back-references, so it could repoint a\nproject at the caller's own repositories and add them as an owner. It now\nhas to pass the access check on the project already at that id.\n\nRefusals on the project routes are worded as a missing project. Confirming\nthat an id exists but isn't yours would leave the oracle these checks close.\n\nDev mode skips all of this, as it already does for identity and repository\nownership; local clouds are unaffected.\n\nFixes #513",
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqcz3wCRC1aQ7uu5UhlAAAnxUQAHxx8/GIoqcreUseBd+SWChX\netssKPiz2dMYYWXKCM4TAI8sPrSwJMCoTnnwKmltesV8sZTuwiyR6BhujtZe1zi3\noIybbjNnjSKJMqIxnGBqWHaxb2Ow2IeyhKT8C8O7yKtWWQW6SLnKwebPWYvNQKYD\nzLiYguFKa3FNuJK4zHg0PJwejmqVEEmlAIUWraHtiZRglWirG3nHYZAgpZUpQDIu\nbob6BxdTXlt7guolCMa2tAScVvLCrxtnX4YTkWGnxrezzRXa+3BuF1Q8+hkcPbzQ\nLCapTriI9e0T/5PwPBfv7jNylpnmpvD7xoWqEMDGgsLl+hErWNkTLIAyxrFyQ9fS\njLqCSwjoYW70RWh6CbI+xTuvNTCz0BLK2HeynK/ON/eCNhX57T/U6aMD1W34mnpT\njPRqCJraNjT/QEH0G0x1TAsjb2KdHNgjQTqxA5/tSehwtxR3K4cEJarYSF92FcMR\n+VJj7xwNalaZVZ3qyJo19/nxI1y4BWQu0JYBNxmXC6vdWSpcBeKaszwsAldNQW8M\nJSCfaaaYs/SNRfPc2bjhwaXTZX3QVKN/brLRVcJds2w6wYLNTxCwTmV4Ihm+dF53\nsKvbTxhnEYTqWbSompbCrIgh/SKWDkGfKhn0PtHCKpLzA1TpMMKEdFDFRZzmeooE\nkav0coJ01Eo7PYgLRzxd\n=T0Bp\n-----END PGP SIGNATURE-----\n",
+          "verified": true,
+          "verified_at": "2026-08-05T13:43:50Z"
+        }
+      },
+      "committer": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/web-flow",
+        "id": 19864447,
+        "login": "web-flow",
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/web-flow",
+        "user_view_type": "public"
+      },
+      "files": [
+        {
+          "additions": 3,
+          "blob_url": "https://github.com/taubyte/tau/blob/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fapi_domain_repository_test.go",
+          "changes": 5,
+          "contents_url": "https://api.github.com/repos/taubyte/tau/contents/services%2Fauth%2Fapi_domain_repository_test.go?ref=f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+          "deletions": 2,
+          "filename": "services/auth/api_domain_repository_test.go",
+          "patch": "@@ -362,8 +362,9 @@ func TestActualHTTPHandlers(t *testing.T) {\n \t\t// Create mock HTTP context\n \t\tmockCtx := &mockHTTPContextWithClient{\n \t\t\tvariables: map[string]interface{}{\n-\t\t\t\t\"provider\": \"github\",\n-\t\t\t\t\"id\":       \"33333\",\n+\t\t\t\t\"provider\":     \"github\",\n+\t\t\t\t\"id\":           \"33333\",\n+\t\t\t\t\"GithubClient\": mockGitHubClient,\n \t\t\t},\n \t\t}\n ",
+          "raw_url": "https://github.com/taubyte/tau/raw/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fapi_domain_repository_test.go",
+          "sha": "9779c8954206771446da594a4286246e13c8cbef",
+          "status": "modified"
+        },
+        {
+          "additions": 79,
+          "blob_url": "https://github.com/taubyte/tau/blob/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub.go",
+          "changes": 85,
+          "contents_url": "https://api.github.com/repos/taubyte/tau/contents/services%2Fauth%2Fgithub.go?ref=f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+          "deletions": 6,
+          "filename": "services/auth/github.go",
+          "patch": "@@ -8,6 +8,7 @@ import (\n \t\"crypto/rand\"\n \t\"crypto/x509\"\n \t\"encoding/pem\"\n+\t\"errors\"\n \t\"fmt\"\n \t\"strconv\"\n \n@@ -111,12 +112,49 @@ func generateKey() (string, string, string, error) {\n \treturn deployKeyName, string(ssh.MarshalAuthorizedKey(pub)), private.String(), nil\n }\n \n+// repoAccess reports whether the caller may act on a repository. GetByID already\n+// fetches it under the caller's own token and GitHub returns that caller's\n+// permissions with it, so this costs no extra API call. Read access is not\n+// enough: a public repository reads to everyone, which is what let an unrelated\n+// caller reach another project's repositories.\n+func repoAccess(client GitHubClient, repoID string) bool {\n+\tif client.GetByID(repoID) != nil {\n+\t\treturn false\n+\t}\n+\n+\trepo := client.Cur()\n+\tif repo == nil {\n+\t\treturn false\n+\t}\n+\n+\tperms := repo.GetPermissions()\n+\treturn perms[\"admin\"] || perms[\"maintain\"] || perms[\"push\"]\n+}\n+\n+// authorizeProject refuses a caller who can write to neither of the project's\n+// linked repositories. That is the same scoping getGitHubUserProjects applies\n+// when it lists projects, so a project is reachable by id to exactly the people\n+// who already see it in their own list.\n+func (srv *AuthService) authorizeProject(client GitHubClient, project projects.Project) error {\n+\tif srv.devMode {\n+\t\treturn nil\n+\t}\n+\n+\tif repoAccess(client, project.Config()) || repoAccess(client, project.Code()) {\n+\t\treturn nil\n+\t}\n+\n+\t// Worded like a missing project on purpose. Telling the caller a project\n+\t// exists but isn't theirs turns the route back into the id oracle this\n+\t// check exists to close.\n+\treturn errors.New(\"project not found\")\n+}\n+\n func (srv *AuthService) registerGitHubRepository(ctx context.Context, client GitHubClient, repoID string) (*RepositoryRegistrationResponse, error) {\n \t// If client is nil (P2P calls), skip GitHub API verification\n \tif client != nil {\n-\t\terr := client.GetByID(repoID)\n-\t\tif err != nil {\n-\t\t\treturn nil, fmt.Errorf(\"fetch repository failed with %w\", err)\n+\t\tif !repoAccess(client, repoID) {\n+\t\t\treturn nil, fmt.Errorf(\"no access to repository `%s`\", repoID)\n \t\t}\n \n \t\tif err := srv.authorizeRepository(client); err != nil {\n@@ -236,9 +274,16 @@ func (srv *AuthService) registerGitHubRepository(ctx context.Context, client Git\n func (srv *AuthService) unregisterGitHubRepository(ctx context.Context, client GitHubClient, repoID string) error {\n \t// If client is nil (P2P calls), skip GitHub API verification\n \tif client != nil {\n-\t\terr := client.GetByID(repoID)\n-\t\tif err != nil {\n-\t\t\treturn fmt.Errorf(\"fetch repository failed with %w\", err)\n+\t\t// Registering already required write access and tenancy ownership;\n+\t\t// unregistering tears down the deploy key and hooks, so it requires\n+\t\t// the same. Read access alone would let anyone drop a public\n+\t\t// repository's build wiring.\n+\t\tif !repoAccess(client, repoID) {\n+\t\t\treturn fmt.Errorf(\"no access to repository `%s`\", repoID)\n+\t\t}\n+\n+\t\tif err := srv.authorizeRepository(client); err != nil {\n+\t\t\treturn err\n \t\t}\n \t}\n \n@@ -283,6 +328,26 @@ func (srv *AuthService) newGitHubProject(ctx context.Context, client GitHubClien\n \n \tlogger.Debug(\"Project ID=\" + projectID)\n \n+\tif !srv.devMode {\n+\t\t// The caller is claiming these two repositories for a project, so they\n+\t\t// have to be able to write to both. Without this, any id could be\n+\t\t// pointed at repositories the caller has nothing to do with.\n+\t\tfor _, repoID := range []string{configID, codeID} {\n+\t\t\tif !repoAccess(client, repoID) {\n+\t\t\t\treturn nil, fmt.Errorf(\"no access to repository `%s`\", repoID)\n+\t\t\t}\n+\t\t}\n+\n+\t\t// Import supplies the project id, so this call can land on a project\n+\t\t// that already exists and would otherwise overwrite it — including its\n+\t\t// repository links — and add the caller as an owner.\n+\t\tif existing, err := projects.Fetch(ctx, srv.KV(), projectID); err == nil {\n+\t\t\tif err := srv.authorizeProject(client, existing); err != nil {\n+\t\t\t\treturn nil, err\n+\t\t\t}\n+\t\t}\n+\t}\n+\n \tgituser := client.Me()\n \n \tproject, err := projects.New(srv.KV(), projects.Data{\n@@ -386,6 +451,10 @@ func (srv *AuthService) getGitHubProjectInfo(ctx context.Context, client GitHubC\n \t\treturn nil, fmt.Errorf(\"retrieving project error: %w\", err)\n \t}\n \n+\tif err := srv.authorizeProject(client, project); err != nil {\n+\t\treturn nil, err\n+\t}\n+\n \treturn &ProjectInfoResponse{\n \t\tProject: ProjectDetails{\n \t\t\tID:   projectid,\n@@ -405,6 +474,10 @@ func (srv *AuthService) deleteGitHubUserProject(ctx context.Context, client GitH\n \t\treturn nil, fmt.Errorf(\"failed to fetch project: %w\", err)\n \t}\n \n+\tif err := srv.authorizeProject(client, project); err != nil {\n+\t\treturn nil, err\n+\t}\n+\n \terr = project.Delete()\n \tif err != nil {\n \t\treturn nil, fmt.Errorf(\"failed to delete project: %w\", err)",
+          "raw_url": "https://github.com/taubyte/tau/raw/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub.go",
+          "sha": "e290ef308b7d7190726b8802bff30639ba5dae82",
+          "status": "modified"
+        },
+        {
+          "additions": 8,
+          "blob_url": "https://github.com/taubyte/tau/blob/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub_http_endpoints.go",
+          "changes": 8,
+          "contents_url": "https://api.github.com/repos/taubyte/tau/contents/services%2Fauth%2Fgithub_http_endpoints.go?ref=f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+          "deletions": 0,
+          "filename": "services/auth/github_http_endpoints.go",
+          "patch": "@@ -111,6 +111,10 @@ func (srv *AuthService) registerGitHubUserRepositoryHTTPHandler(ctx http.Context\n \n func (srv *AuthService) getGitHubUserRepositoryHTTPHandler(ctx http.Context) (interface{}, error) {\n \tctxVars := ctx.Variables()\n+\tclient, err := getGithubClientFromContext(ctx)\n+\tif err != nil {\n+\t\treturn nil, err\n+\t}\n \tprovider, err := maps.String(ctxVars, \"provider\")\n \tif err != nil {\n \t\treturn nil, err\n@@ -121,6 +125,10 @@ func (srv *AuthService) getGitHubUserRepositoryHTTPHandler(ctx http.Context) (in\n \t\treturn nil, fmt.Errorf(\"parsing github repository ID failed with %w\", err)\n \t}\n \n+\tif !srv.devMode && !repoAccess(client, repoId) {\n+\t\treturn nil, fmt.Errorf(\"repository %s not found\", repoId)\n+\t}\n+\n \trequestCtx := ctx.Request().Context()\n \tif !repositories.ExistOn(requestCtx, srv.db, provider, repoId) {\n \t\treturn nil, fmt.Errorf(\"repository %s not found\", repoId)",
+          "raw_url": "https://github.com/taubyte/tau/raw/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub_http_endpoints.go",
+          "sha": "d8bb57229f627a249ba69cea8ba2ad721333e275",
+          "status": "modified"
+        },
+        {
+          "additions": 135,
+          "blob_url": "https://github.com/taubyte/tau/blob/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub_project_authz_test.go",
+          "changes": 135,
+          "contents_url": "https://api.github.com/repos/taubyte/tau/contents/services%2Fauth%2Fgithub_project_authz_test.go?ref=f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+          "deletions": 0,
+          "filename": "services/auth/github_project_authz_test.go",
+          "patch": "@@ -0,0 +1,135 @@\n+package auth\n+\n+import (\n+\t\"context\"\n+\t\"testing\"\n+\n+\t\"github.com/google/go-github/v71/github\"\n+\t\"gotest.tools/v3/assert\"\n+)\n+\n+// authzClient is a GitHubClient for one identity, holding the repositories that\n+// identity can write to. Repositories outside `writable` still resolve — that is\n+// what a public repository does — but carry no write permission.\n+type authzClient struct {\n+\tGitHubClient\n+\tid       int64\n+\tlogin    string\n+\twritable map[string]bool\n+\tcur      *github.Repository\n+}\n+\n+func (c *authzClient) Me() *github.User {\n+\treturn &github.User{ID: &c.id, Login: &c.login}\n+}\n+\n+func (c *authzClient) GetByID(id string) error {\n+\tc.cur = &github.Repository{\n+\t\tID:          &c.id,\n+\t\tFullName:    github.Ptr(\"someone/\" + id),\n+\t\tPermissions: map[string]bool{\"pull\": true, \"push\": c.writable[id], \"admin\": c.writable[id]},\n+\t}\n+\treturn nil\n+}\n+\n+func (c *authzClient) Cur() *github.Repository { return c.cur }\n+\n+func (c *authzClient) ShortRepositoryInfo(id string) RepositoryShortInfo {\n+\treturn RepositoryShortInfo{ID: id}\n+}\n+\n+func newAuthzService(t *testing.T, port int) *AuthService {\n+\tt.Helper()\n+\tsvc, err := New(context.Background(), newTestConfig(t, port))\n+\tassert.NilError(t, err)\n+\tt.Cleanup(func() { svc.Close() })\n+\t// The authorization checks are skipped in dev mode, as every other check in\n+\t// this service is; these tests are about the production path.\n+\tsvc.devMode = false\n+\treturn svc\n+}\n+\n+// TestProjectAccessByID covers taubyte/tau#513: GET and DELETE by project id\n+// must refuse a caller who cannot write to either linked repository.\n+func TestProjectAccessByID(t *testing.T) {\n+\tctx := context.Background()\n+\tsvc := newAuthzService(t, 13513)\n+\n+\tvictim := &authzClient{id: 1, login: \"victim\", writable: map[string]bool{\"1001\": true, \"1002\": true}}\n+\tattacker := &authzClient{id: 2, login: \"attacker\", writable: map[string]bool{\"9001\": true}}\n+\n+\t_, err := svc.newGitHubProject(ctx, victim, \"PROJECT_ID_513\", \"victims-project\", \"1001\", \"1002\")\n+\tassert.NilError(t, err)\n+\n+\t_, err = svc.getGitHubProjectInfo(ctx, attacker, \"PROJECT_ID_513\")\n+\tassert.Error(t, err, \"project not found\")\n+\n+\t_, err = svc.deleteGitHubUserProject(ctx, attacker, \"PROJECT_ID_513\")\n+\tassert.Error(t, err, \"project not found\")\n+\n+\t// The owner still gets through, and the project survived the attempts.\n+\tinfo, err := svc.getGitHubProjectInfo(ctx, victim, \"PROJECT_ID_513\")\n+\tassert.NilError(t, err)\n+\tassert.Equal(t, info.Project.Name, \"victims-project\")\n+\n+\t_, err = svc.deleteGitHubUserProject(ctx, victim, \"PROJECT_ID_513\")\n+\tassert.NilError(t, err)\n+}\n+\n+// TestProjectImportOverExisting covers the takeover path: import supplies the\n+// project id, so it must not overwrite a project the caller has no access to.\n+func TestProjectImportOverExisting(t *testing.T) {\n+\tctx := context.Background()\n+\tsvc := newAuthzService(t, 13514)\n+\n+\tvictim := &authzClient{id: 1, login: \"victim\", writable: map[string]bool{\"1001\": true, \"1002\": true}}\n+\tattacker := &authzClient{id: 2, login: \"attacker\", writable: map[string]bool{\"9001\": true, \"9002\": true}}\n+\n+\t_, err := svc.newGitHubProject(ctx, victim, \"PROJECT_ID_513\", \"victims-project\", \"1001\", \"1002\")\n+\tassert.NilError(t, err)\n+\n+\t// Attacker's own repositories, victim's project id.\n+\t_, err = svc.newGitHubProject(ctx, attacker, \"PROJECT_ID_513\", \"attackers-project\", \"9001\", \"9002\")\n+\tassert.Error(t, err, \"project not found\")\n+\n+\tinfo, err := svc.getGitHubProjectInfo(ctx, victim, \"PROJECT_ID_513\")\n+\tassert.NilError(t, err)\n+\tassert.Equal(t, info.Project.Name, \"victims-project\")\n+\tassert.Equal(t, info.Project.Repositories.Configuration.ID, \"1001\")\n+\n+\t_, err = svc.db.Get(ctx, \"/projects/PROJECT_ID_513/owners/2\")\n+\tassert.Assert(t, err != nil, \"attacker recorded itself as an owner\")\n+\n+\t// The victim's repository still points at the victim's project.\n+\tlinked, err := svc.db.Get(ctx, \"/repositories/github/1001/project\")\n+\tassert.NilError(t, err)\n+\tassert.Equal(t, string(linked), \"PROJECT_ID_513\")\n+}\n+\n+// TestNewProjectRequiresRepoAccess: a project may only be created against\n+// repositories the caller can write to.\n+func TestNewProjectRequiresRepoAccess(t *testing.T) {\n+\tctx := context.Background()\n+\tsvc := newAuthzService(t, 13515)\n+\n+\tattacker := &authzClient{id: 2, login: \"attacker\", writable: map[string]bool{\"9001\": true}}\n+\n+\t// 1002 is readable (public) but not writable by the caller.\n+\t_, err := svc.newGitHubProject(ctx, attacker, \"PROJECT_ID_NEW\", \"grab\", \"9001\", \"1002\")\n+\tassert.Error(t, err, \"no access to repository `1002`\")\n+\n+\t_, err = svc.db.Get(ctx, \"/repositories/github/1002/project\")\n+\tassert.Assert(t, err != nil, \"back-reference written despite refusal\")\n+}\n+\n+// TestUnregisterRepositoryRequiresAccess: read access to a public repository is\n+// not enough to tear down its deploy key and hooks.\n+func TestUnregisterRepositoryRequiresAccess(t *testing.T) {\n+\tctx := context.Background()\n+\tsvc := newAuthzService(t, 13516)\n+\n+\tattacker := &authzClient{id: 2, login: \"attacker\", writable: map[string]bool{}}\n+\n+\terr := svc.unregisterGitHubRepository(ctx, attacker, \"1001\")\n+\tassert.Error(t, err, \"no access to repository `1001`\")\n+}",
+          "raw_url": "https://github.com/taubyte/tau/raw/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fgithub_project_authz_test.go",
+          "sha": "b593c5e9249d9887b449e208a7ba1d9155912427",
+          "status": "added"
+        },
+        {
+          "additions": 5,
+          "blob_url": "https://github.com/taubyte/tau/blob/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fmock_types_test.go",
+          "changes": 9,
+          "contents_url": "https://api.github.com/repos/taubyte/tau/contents/services%2Fauth%2Fmock_types_test.go?ref=f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+          "deletions": 4,
+          "filename": "services/auth/mock_types_test.go",
+          "patch": "@@ -225,7 +225,7 @@ type mockGitHubClient struct {\n }\n \n func (m *mockGitHubClient) Cur() *github.Repository {\n-\treturn nil\n+\treturn m.currentRepo\n }\n \n func (m *mockGitHubClient) Me() *github.User {\n@@ -242,9 +242,10 @@ func (m *mockGitHubClient) Me() *github.User {\n func (m *mockGitHubClient) GetByID(id string) error {\n \t// Create a mock repository when GetByID is called\n \tm.currentRepo = &github.Repository{\n-\t\tID:       github.Int64(12345),\n-\t\tSSHURL:   github.Ptr(\"git@github.com:test/test-repo.git\"),\n-\t\tFullName: github.Ptr(\"test/test-repo\"),\n+\t\tID:          github.Int64(12345),\n+\t\tSSHURL:      github.Ptr(\"git@github.com:test/test-repo.git\"),\n+\t\tFullName:    github.Ptr(\"test/test-repo\"),\n+\t\tPermissions: map[string]bool{\"admin\": true, \"push\": true, \"pull\": true},\n \t}\n \treturn nil\n }",
+          "raw_url": "https://github.com/taubyte/tau/raw/f5c9c9c311a1ff156814e0c81f186bfd101ec237/services%2Fauth%2Fmock_types_test.go",
+          "sha": "a03b37b568bd236415bac915f8d0a1100ef0dd84",
+          "status": "modified"
+        }
+      ],
+      "html_url": "https://github.com/taubyte/tau/commit/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+      "node_id": "C_kwDOJ7OloNoAKGY1YzljOWMzMTFhMWZmMTU2ODE0ZTBjODFmMTg2YmZkMTAxZWMyMzc",
+      "parents": [
+        {
+          "html_url": "https://github.com/taubyte/tau/commit/4aefdf42d92b11f643bada223fc85618527e7354",
+          "sha": "4aefdf42d92b11f643bada223fc85618527e7354",
+          "url": "https://api.github.com/repos/taubyte/tau/commits/4aefdf42d92b11f643bada223fc85618527e7354"
+        }
+      ],
+      "sha": "f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+      "stats": {
+        "additions": 230,
+        "deletions": 12,
+        "total": 242
+      },
+      "url": "https://api.github.com/repos/taubyte/tau/commits/f5c9c9c311a1ff156814e0c81f186bfd101ec237"
+    },
+    "reference": "https://github.com/taubyte/tau/commit/f5c9c9c311a1ff156814e0c81f186bfd101ec237",
+    "retrieved_at": "2026-08-15T03:49:52.210645+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

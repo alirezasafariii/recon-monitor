@@ -1,0 +1,205 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Only sparse upstream change metadata is retained; it is insufficient to prove the vulnerability condition and is independent of the positive narrative payload.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/hyperledger/fabric-ca/commit/d379df823534d56dec0166a6da8f0415e3beee24",
+  "captured_at": "2026-08-15T03:49:52.210645+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "name": "analysis-632-v8-literal-patch-capture",
+    "network_scope": "passive public upstream PR/commit metadata and diff snapshot only; no target validation",
+    "rule_version": "2026.08.15.6.32.v8.14",
+    "version": "1.0.1"
+  },
+  "evaluation_kind": "fresh_blind_v8_literal_source_evidence",
+  "family": "ldap_injection",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "added_line_observation_count": 81,
+      "changed_file_count": 5,
+      "changed_file_sample": [
+        "cmd/fabric-ca-client/command/main_test.go",
+        "lib/client_test.go",
+        "lib/server/ldap/client.go",
+        "lib/server/ldap/client_test.go",
+        "scripts/run_unit_tests"
+      ],
+      "context_line_observation_count": 76,
+      "removed_line_observation_count": 15,
+      "upstream_reference": "https://github.com/hyperledger/fabric-ca/commit/d379df823534d56dec0166a6da8f0415e3beee24"
+    },
+    "endpoint": "https://github.com/hyperledger/fabric-ca/commit/d379df823534d56dec0166a6da8f0415e3beee24",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "hyperledger/fabric-ca"
+  },
+  "raw_sha256": "1c46a988eb6d1c85d21d5af17698323d1f3ae0aae4daf4e54ae9f65e6f7c75b1",
+  "schema_version": "1.0",
+  "scoring_executed": false,
+  "source_project": "hyperledger/fabric-ca",
+  "source_root": "GHSA-xghw-p77p-3r7x",
+  "source_snapshot": {
+    "content_sha256": "828a4fd0a126b818e550b3881cb329241c9092a2c8cc05dc2f830b37b66da359",
+    "payload": {
+      "author": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/4856862?v=4",
+        "events_url": "https://api.github.com/users/bestbeforetoday/events{/privacy}",
+        "followers_url": "https://api.github.com/users/bestbeforetoday/followers",
+        "following_url": "https://api.github.com/users/bestbeforetoday/following{/other_user}",
+        "gists_url": "https://api.github.com/users/bestbeforetoday/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/bestbeforetoday",
+        "id": 4856862,
+        "login": "bestbeforetoday",
+        "node_id": "MDQ6VXNlcjQ4NTY4NjI=",
+        "organizations_url": "https://api.github.com/users/bestbeforetoday/orgs",
+        "received_events_url": "https://api.github.com/users/bestbeforetoday/received_events",
+        "repos_url": "https://api.github.com/users/bestbeforetoday/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/bestbeforetoday/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/bestbeforetoday/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/bestbeforetoday",
+        "user_view_type": "public"
+      },
+      "comments_url": "https://api.github.com/repos/hyperledger/fabric-ca/commits/d379df823534d56dec0166a6da8f0415e3beee24/comments",
+      "commit": {
+        "author": {
+          "date": "2026-05-29T03:44:14Z",
+          "email": "Mark.S.Lewis@outlook.com",
+          "name": "Mark S. Lewis"
+        },
+        "comment_count": 0,
+        "committer": {
+          "date": "2026-05-29T03:44:14Z",
+          "email": "noreply@github.com",
+          "name": "GitHub"
+        },
+        "message": "Escape LDAP user filter (#501)\n\nSpecial characters within the username inserted into an LDAP search\nrequest are not escaped. This could allow the logic of the LDAP query\nused to get a user to be manipulated.\n\nThis change escapes any special characters within the username being\nlooked up within LDAP.\n\nSigned-off-by: Mark S. Lewis <Mark.S.Lewis@outlook.com>",
+        "tree": {
+          "sha": "f087a5765a73ee37d69af49fd8df840a7813ece2",
+          "url": "https://api.github.com/repos/hyperledger/fabric-ca/git/trees/f087a5765a73ee37d69af49fd8df840a7813ece2"
+        },
+        "url": "https://api.github.com/repos/hyperledger/fabric-ca/git/commits/d379df823534d56dec0166a6da8f0415e3beee24",
+        "verification": {
+          "payload": "tree f087a5765a73ee37d69af49fd8df840a7813ece2\nparent 489a658619140e5332c8e72632037728564a3173\nauthor Mark S. Lewis <Mark.S.Lewis@outlook.com> 1780026254 +0100\ncommitter GitHub <noreply@github.com> 1780026254 -0400\n\nEscape LDAP user filter (#501)\n\nSpecial characters within the username inserted into an LDAP search\nrequest are not escaped. This could allow the logic of the LDAP query\nused to get a user to be manipulated.\n\nThis change escapes any special characters within the username being\nlooked up within LDAP.\n\nSigned-off-by: Mark S. Lewis <Mark.S.Lewis@outlook.com>",
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqGQuOCRC1aQ7uu5UhlAAAvrcQAE8KDIsNWOAyeTR9DJjAhQXc\n00OoMxVYCDE7urclPtYoiN1zHae954U6Mq11Hi5wqprkfjoAeoa22L5cwU0d1kL3\nXWmuUzXyawKNv2q0w1CDNioRzv0dRP1vgrDqsLpGcxujeN/aEOsSwhOUDgUgeDHM\nN8Edus7vnF6pMSHP9NgXQrfAY24bBq1TBnW8snWkFFC4SHB2KffsFfEwA0/IqEkP\nKJJgq0A1nqYKH0FphzweQwZ+KR6gOhZcF4nhQmY7m1wT50+yH+gMAXXE9Q71QP7j\nae9952FfXkAVQI20U+fN0HBIyVUiRYsYJLQNFbf701iS1WcRe4Q2fLlQrNxwcgEB\nHAGRts5o4QP1lC4bb8m3+Qb4t/2HvDNLeahRl2EAvC8FzsNMBQW4KI/IVc0+5++N\nurXil/d2pKz9hmuS1TamxJoHjy12Nc1t7Zt8dFm39kifGs9ZV1ksqdAZSn0o8zl3\nXNmRUKDw7cwKMmk6qWpNxw22lDCDEQBjJCWkxBWukimh0N5BMiD5e5HJpms8MdJC\nIdi/MSgiJ9b8BZW4yIcLmjyfZ6nE5WV4llExU3QyFiahwjqzgNLVYbdhOu7Vp4pU\nVBRnNx0/mkHGyXujfRL6f2KcuKOk6oAFGzoAZmGZXeiWA8OuMcc9VwFyaVO/HqL+\nhKk29u0SFxW2DuNOu1/7\n=Etn4\n-----END PGP SIGNATURE-----\n",
+          "verified": true,
+          "verified_at": "2026-05-29T03:44:14Z"
+        }
+      },
+      "committer": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/web-flow",
+        "id": 19864447,
+        "login": "web-flow",
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/web-flow",
+        "user_view_type": "public"
+      },
+      "files": [
+        {
+          "additions": 1,
+          "blob_url": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/cmd%2Ffabric-ca-client%2Fcommand%2Fmain_test.go",
+          "changes": 2,
+          "contents_url": "https://api.github.com/repos/hyperledger/fabric-ca/contents/cmd%2Ffabric-ca-client%2Fcommand%2Fmain_test.go?ref=d379df823534d56dec0166a6da8f0415e3beee24",
+          "deletions": 1,
+          "filename": "cmd/fabric-ca-client/command/main_test.go",
+          "patch": "@@ -377,7 +377,7 @@ func TestEnrollCustomOutputFilesRejectPathEscapes(t *testing.T) {\n \t\t\t\tcmdName, \"enroll\", \"-d\", \"-u\", enrollURL, \"-H\", adminHome,\n \t\t\t\ttestcase.flag, testcase.file,\n \t\t\t})\n-\t\t\tassert.Error(t, err, \"enroll should reject path escape for %s\", testcase.name)\n+\t\t\tassert.Errorf(t, err, \"enroll should reject path escape for %s\", testcase.name)\n \n \t\t\tescapedFile := filepath.Join(filepath.Dir(filepath.Join(adminHome, \"msp\")), filepath.Base(testcase.file))\n \t\t\t_, statErr := os.Stat(escapedFile)",
+          "raw_url": "https://github.com/hyperledger/fabric-ca/raw/d379df823534d56dec0166a6da8f0415e3beee24/cmd%2Ffabric-ca-client%2Fcommand%2Fmain_test.go",
+          "sha": "1fb0d26d66c751ada79e04d9ffb6783397ad4c0c",
+          "status": "modified"
+        },
+        {
+          "additions": 2,
+          "blob_url": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fclient_test.go",
+          "changes": 4,
+          "contents_url": "https://api.github.com/repos/hyperledger/fabric-ca/contents/lib%2Fclient_test.go?ref=d379df823534d56dec0166a6da8f0415e3beee24",
+          "deletions": 2,
+          "filename": "lib/client_test.go",
+          "patch": "@@ -1377,7 +1377,7 @@ func TestNormalizeURL(t *testing.T) {\n \n \tt.Run(\"invalid scheme fails\", func(t *testing.T) {\n \t\tu, err := NormalizeURL(\"ftp://host:9876\")\n-\t\trequire.ErrorContains(t, err, \"ftp\", \"URL: %s\", u)\n+\t\trequire.ErrorContainsf(t, err, \"ftp\", \"URL: %s\", u)\n \t})\n \n \tfor testName, input := range map[string]string{\n@@ -1388,7 +1388,7 @@ func TestNormalizeURL(t *testing.T) {\n \t} {\n \t\tt.Run(testName, func(t *testing.T) {\n \t\t\tu, err := NormalizeURL(input)\n-\t\t\trequire.Error(t, err, \"expected error, got: %s\", u)\n+\t\t\trequire.Errorf(t, err, \"expected error, got: %s\", u)\n \t\t})\n \t}\n }",
+          "raw_url": "https://github.com/hyperledger/fabric-ca/raw/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fclient_test.go",
+          "sha": "b497a00fd89d93c80a745fa4371416e5c246c82a",
+          "status": "modified"
+        },
+        {
+          "additions": 13,
+          "blob_url": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fserver%2Fldap%2Fclient.go",
+          "changes": 17,
+          "contents_url": "https://api.github.com/repos/hyperledger/fabric-ca/contents/lib%2Fserver%2Fldap%2Fclient.go?ref=d379df823534d56dec0166a6da8f0415e3beee24",
+          "deletions": 4,
+          "filename": "lib/server/ldap/client.go",
+          "patch": "@@ -141,6 +141,14 @@ func cfgVal(val1, val2 string) string {\n \treturn val2\n }\n \n+// Connection to an LDAP server.\n+type Connection interface {\n+\t// Search using the given search request.\n+\tSearch(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)\n+\t// Close the connection.\n+\tClose() error\n+}\n+\n // Client is an LDAP client\n type Client struct {\n \tHost          string\n@@ -154,7 +162,7 @@ type Client struct {\n \tattrNames     []string             // Names of attributes to request on an LDAP search\n \tattrExprs     map[string]*userExpr // Expressions to evaluate to get attribute value\n \tattrMaps      map[string]map[string]string\n-\tAdminConn     *ldap.Conn\n+\tAdminConn     Connection\n \tTLS           *ctls.ClientTLSConfig\n \tCSP           bccsp.BCCSP\n }\n@@ -169,10 +177,11 @@ func (lc *Client) GetUser(username string, attrNames []string) (causer.User, err\n \tlog.Debugf(\"Getting user '%s'\", username)\n \n \t// Search for the given username\n+\tescapedUsername := ldap.EscapeFilter(username)\n \tsreq := ldap.NewSearchRequest(\n \t\tlc.Base, ldap.ScopeWholeSubtree,\n \t\tldap.NeverDerefAliases, 0, 0, false,\n-\t\tfmt.Sprintf(lc.UserFilter, username),\n+\t\tfmt.Sprintf(lc.UserFilter, escapedUsername),\n \t\tlc.attrNames,\n \t\tnil,\n \t)\n@@ -297,7 +306,7 @@ func (lc *Client) newConnection() (conn *ldap.Conn, err error) {\n \taddress := fmt.Sprintf(\"%s:%d\", lc.Host, lc.Port)\n \tif !lc.UseSSL {\n \t\tlog.Debug(\"Connecting to LDAP server over TCP\")\n-\t\tconn, err = ldap.Dial(\"tcp\", address)\n+\t\tconn, err = ldap.DialURL(\"ldap://\" + address)\n \t\tif err != nil {\n \t\t\treturn conn, errors.Wrapf(err, \"Failed to connect to LDAP server over TCP at %s\", address)\n \t\t}\n@@ -310,7 +319,7 @@ func (lc *Client) newConnection() (conn *ldap.Conn, err error) {\n \n \t\ttlsConfig.ServerName = lc.Host\n \n-\t\tconn, err = ldap.DialTLS(\"tcp\", address, tlsConfig)\n+\t\tconn, err = ldap.DialURL(\"ldaps://\"+address, ldap.DialWithTLSConfig(tlsConfig))\n \t\tif err != nil {\n \t\t\treturn conn, errors.Wrapf(err, \"Failed to connect to LDAP server over TLS at %s\", address)\n \t\t}",
+          "raw_url": "https://github.com/hyperledger/fabric-ca/raw/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fserver%2Fldap%2Fclient.go",
+          "sha": "a77a9563ec267b3327f2437ca0b4b3bc65da626d",
+          "status": "modified"
+        },
+        {
+          "additions": 76,
+          "blob_url": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fserver%2Fldap%2Fclient_test.go",
+          "changes": 83,
+          "contents_url": "https://api.github.com/repos/hyperledger/fabric-ca/contents/lib%2Fserver%2Fldap%2Fclient_test.go?ref=d379df823534d56dec0166a6da8f0415e3beee24",
+          "deletions": 7,
+          "filename": "lib/server/ldap/client_test.go",
+          "patch": "@@ -8,19 +8,19 @@ package ldap\n \n import (\n \t\"fmt\"\n-\t\"path/filepath\"\n \t\"testing\"\n \n+\tldap \"github.com/go-ldap/ldap/v3\"\n \t\"github.com/stretchr/testify/assert\"\n+\t\"github.com/stretchr/testify/mock\"\n+\t\"github.com/stretchr/testify/require\"\n )\n \n+/*\n func TestLDAP(t *testing.T) {\n-\ttestLDAP(\"ldap\", 10389, t)\n-\t//testLDAP(\"ldaps\", 10636, t)\n-\ttestLDAPNegative(t)\n-}\n+\tproto := \"ldap\"\n+\tport := 10389\n \n-func testLDAP(proto string, port int, t *testing.T) {\n \t//dn := \"uid=admin,ou=system\"\n \t//pwd := \"secret\"\n \tdn := \"cn=admin,dc=example,dc=org\"\n@@ -63,8 +63,9 @@ func testLDAP(proto string, port int, t *testing.T) {\n \t\tassert.EqualValues(t, \"jsmith\", email.Value)\n \t}\n }\n+*/\n \n-func testLDAPNegative(t *testing.T) {\n+func TestLDAPNegative(t *testing.T) {\n \t_, err := NewClient(nil, nil)\n \tif err == nil {\n \t\tt.Errorf(\"ldap.NewClient(nil) passed but should have failed\")\n@@ -83,6 +84,7 @@ func testLDAPNegative(t *testing.T) {\n \t}\n }\n \n+/*\n func TestLDAPTLS(t *testing.T) {\n \tproto := \"ldaps\"\n \tdn := \"cn=admin,dc=example,dc=org\"\n@@ -125,6 +127,7 @@ func TestLDAPTLS(t *testing.T) {\n \t\tassert.EqualValues(t, \"jsmith\", email.Value)\n \t}\n }\n+*/\n \n // Tests String method of ldap.Config\n func TestLDAPConfigStringer(t *testing.T) {\n@@ -150,3 +153,69 @@ func TestLDAPConfigStringer(t *testing.T) {\n \tassert.NotContains(t, str, \"admin\", \"Username is not masked in the ldap URL\")\n \tassert.NotContains(t, str, \"adminpwd\", \"Password is not masked in the ldap URL\")\n }\n+\n+func TestUsernameEscape(t *testing.T) {\n+\tfor testName, testCase := range map[string]struct {\n+\t\tUsername string\n+\t\tExpected string\n+\t}{\n+\t\t\"wildcard\":     {Username: \"*\", Expected: \"\\\\2a\"},\n+\t\t\"right parens\": {Username: \")\", Expected: \"\\\\29\"},\n+\t\t\"left parens\":  {Username: \"(\", Expected: \"\\\\28\"},\n+\t\t\"backslash\":    {Username: \"\\\\\", Expected: \"\\\\5c\"},\n+\t} {\n+\t\tt.Run(testName, func(t *testing.T) {\n+\t\t\tproto := \"ldap\"\n+\t\t\tdn := \"cn=admin,dc=example,dc=org\"\n+\t\t\tpwd := \"admin\"\n+\t\t\thost := \"localhost\"\n+\t\t\tport := 10389\n+\t\t\tbase := \"dc=example,dc=org\"\n+\t\t\turl := fmt.Sprintf(\"%s://%s:%s@%s:%d/%s\", proto, dn, pwd, host, port, base)\n+\n+\t\t\tclient, err := NewClient(&Config{URL: url}, nil)\n+\t\t\trequire.NoError(t, err, \"NewClient\")\n+\n+\t\t\tconnection := NewConnectionStub(t)\n+\t\t\tclient.AdminConn = connection\n+\n+\t\t\texpectedFilter := fmt.Sprintf(client.UserFilter, testCase.Expected)\n+\t\t\tsearchRequestMatcher := func(req *ldap.SearchRequest) bool {\n+\t\t\t\treturn req.Filter == expectedFilter\n+\t\t\t}\n+\t\t\tsearchResult := &ldap.SearchResult{\n+\t\t\t\tEntries: []*ldap.Entry{\n+\t\t\t\t\tnew(ldap.Entry),\n+\t\t\t\t},\n+\t\t\t}\n+\t\t\tconnection.mock.On(\"Search\", mock.MatchedBy(searchRequestMatcher)).Return(searchResult, nil)\n+\t\t\tconnection.mock.On(\"Close\").Maybe().Return(nil)\n+\n+\t\t\t_, err = client.GetUser(testCase.Username, nil)\n+\t\t\trequire.NoError(t, err, \"GetUser\")\n+\n+\t\t\tconnection.mock.AssertExpectations(t)\n+\t\t})\n+\t}\n+}\n+\n+func NewConnectionStub(t *testing.T) *ConnectionStub {\n+\tresult := new(ConnectionStub)\n+\tresult.mock.Test(t)\n+\treturn result\n+}\n+\n+type ConnectionStub struct {\n+\tmock mock.Mock\n+}\n+\n+func (c *ConnectionStub) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error) {\n+\targs := c.mock.MethodCalled(\"Search\", searchRequest)\n+\tresult, _ := args.Get(0).(*ldap.SearchResult)\n+\treturn result, args.Error(1)\n+}\n+\n+func (c *ConnectionStub) Close() error {\n+\targs := c.mock.MethodCalled(\"Close\")\n+\treturn args.Error(0)\n+}",
+          "raw_url": "https://github.com/hyperledger/fabric-ca/raw/d379df823534d56dec0166a6da8f0415e3beee24/lib%2Fserver%2Fldap%2Fclient_test.go",
+          "sha": "3a074f3bc9a1e738ccc709bd2b8de3e061c994b5",
+          "status": "modified"
+        },
+        {
+          "additions": 0,
+          "blob_url": "https://github.com/hyperledger/fabric-ca/blob/d379df823534d56dec0166a6da8f0415e3beee24/scripts%2Frun_unit_tests",
+          "changes": 1,
+          "contents_url": "https://api.github.com/repos/hyperledger/fabric-ca/contents/scripts%2Frun_unit_tests?ref=d379df823534d56dec0166a6da8f0415e3beee24",
+          "deletions": 1,
+          "filename": "scripts/run_unit_tests",
+          "patch": "@@ -8,7 +8,6 @@ set -euo pipefail\n \n excluded=(\n     \"/integration\"\n-    \"/ldap\"\n )\n \n # join array elements by the specified string",
+          "raw_url": "https://github.com/hyperledger/fabric-ca/raw/d379df823534d56dec0166a6da8f0415e3beee24/scripts%2Frun_unit_tests",
+          "sha": "1718dda61f695ee3cfdec41782a0583022b63ef7",
+          "status": "modified"
+        }
+      ],
+      "html_url": "https://github.com/hyperledger/fabric-ca/commit/d379df823534d56dec0166a6da8f0415e3beee24",
+      "node_id": "C_kwDOBLu0k9oAKGQzNzlkZjgyMzUzNGQ1NmRlYzAxNjZhNmRhOGYwNDE1ZTNiZWVlMjQ",
+      "parents": [
+        {
+          "html_url": "https://github.com/hyperledger/fabric-ca/commit/489a658619140e5332c8e72632037728564a3173",
+          "sha": "489a658619140e5332c8e72632037728564a3173",
+          "url": "https://api.github.com/repos/hyperledger/fabric-ca/commits/489a658619140e5332c8e72632037728564a3173"
+        }
+      ],
+      "sha": "d379df823534d56dec0166a6da8f0415e3beee24",
+      "stats": {
+        "additions": 92,
+        "deletions": 15,
+        "total": 107
+      },
+      "url": "https://api.github.com/repos/hyperledger/fabric-ca/commits/d379df823534d56dec0166a6da8f0415e3beee24"
+    },
+    "reference": "https://github.com/hyperledger/fabric-ca/commit/d379df823534d56dec0166a6da8f0415e3beee24",
+    "retrieved_at": "2026-08-15T03:49:52.210645+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

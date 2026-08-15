@@ -1,0 +1,229 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "integrity_check_missing"
+    ],
+    "notes": "Fresh upstream source narrative plus the removed side of the real merged patch independently support the preregistered positive condition label; canonical benchmark identifiers are excluded only from raw, never rewritten in the source snapshot.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/lucasgelfond/zerobrew/commit/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+  "captured_at": "2026-08-15T03:49:52.210645+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "name": "analysis-632-v8-literal-patch-capture",
+    "network_scope": "passive public upstream PR/commit metadata and diff snapshot only; no target validation",
+    "rule_version": "2026.08.15.6.32.v8.14",
+    "version": "1.0.1"
+  },
+  "evaluation_kind": "fresh_blind_v8_literal_source_evidence",
+  "family": "software_data_integrity_failure",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "changed_files": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "zb_io/src/build/executor.rs",
+        "zb_io/src/build/shim.rb"
+      ],
+      "positive_source_basis": "Verbatim label-blind excerpts from the fresh upstream security narrative and removed patch side are the positive observation; the complete immutable source snapshot remains attached outside raw.",
+      "source_condition_phrase_evidence": [
+        "integrity verification"
+      ],
+      "source_security_narrative_excerpt": [
+        "ZeroBrew version 0.3.1 and prior contains a missing integrity verification vulnerability in the...",
+        "ZeroBrew version 0.3.1 and prior contains a missing integrity verification vulnerability in the Ruby compatibility shim that allows network attackers to execute arbitrary code by substituting malicious content at formula resource or URL-based patch URLs without checksum validation.",
+        "Attackers can intercept or replace downloads for secondary resource and patch paths in shim.rb, injecting attacker-controlled build steps or source tree modifications that execute during source builds via 'zb install --build-from-source' without any integrity warning.",
+        "UPSTREAM PATCH\nFILE CHANGELOG.md\n@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0\n \n ## [Unreleased]\n \n+## [0.3.2] - 2026-06-11\n+\n+### Security\n+- Verify SHA-256 checksums for resource and URL patch downloads in the formula build shim before extraction or application (CVE-2026-53970)\n+\n ## [0.3.1] - 2026-05-30\n \n ### Fixed\n@@ -118,7 +123,8 @@ To get an idea of the initial features zerobrew supports, take a look at the [RE\n \n See the [full commit history](https://github.com/lucasgelfond/zerobrew/commits/v0.1.1) for more details.",
+        "-[Unreleased]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.1...HEAD\n+[Unreleased]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.2...HEAD\n+[0.3.2]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.1...v0.3.2\n [0.3.1]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.0...v0.3.1\n [0.3.0]: https://github.com/lucasgelfond/zerobrew/compare/v0.2.1...v0.3.0\n [0.2.1]: https://github.com/lucasgelfond/zerobrew/compare/v0.2.0...v0.2.1\nFILE Cargo.lock\n@@ -2994,7 +2994,7 @@ dependencies = [\n \n [[package]]\n name = \"zb_cli\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"chrono\",\n  \"clap\",\n@@ -3018,15 +3018,15 @@ dependencies = [\n \n [[package]]\n name = \"zb_core\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"serde\",\n  \"serde_json\",\n ]\n \n [[package]]\n name = \"zb_io\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"arwen\",\n  \"flate2\",\nFILE Cargo.toml\n@@ -3,7 +3,7 @@ members = [\"zb_core\", \"zb_io\", \"zb_cli\"]\n resolver = \"3\"\n \n [workspace.package]\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n rust-version = \"1.95\"\n \n [workspace.dependencies]\nFILE zb_io/src/build/executor.rs\n@@ -292,4 +292,213 @@ end\n         assert!(message.contains(\"source build failed\"));\n         assert!(message.contains(\"boom-from-stderr\"));\n     }\n+\n+    fn sha256_hex_file(path: &Path) -> String {\n+        use sha2::{Digest, Sha256};\n+        let bytes = std::fs::read(path).unwrap();\n+        let mut hasher = Sha256::new();\n+        hasher.update(bytes);\n+        hasher\n+            .finalize()\n+            .iter()\n+            .fold(String::with_capacity(64), |mut s, ",
+        "|| expected_sha256.to_s.strip.empty?",
+        "+\n+    expected = normalize_sha256!(expected_sha256, context)\n+    actual = Digest::SHA256.file(path).hexdigest\n+    return if actual == expected\n+\n+    $stderr.puts \"Error: checksum mismatch for #{context} (expected #{expected}, got #{actual})\"\n+    exit 1\n+  end\n+\n+  def normalize_sha256!(value, context)\n+    normalized = value.to_s.strip.downcase\n+    unless normalized.match?(/\\A[0-9a-f]{64}\\z/)\n+      $stderr.puts \"Error: invalid sha256 checksum for #{context}: expected 64 hex chars, got #{normalized.length}\"\n+      exit 1\n+    end\n+    normalized\n+  end\n+end\n \n ZEROBREW_PREFIX = ENV.fetch(\"ZEROBREW_PREFIX\")\n ZEROBREW_CELLAR = ENV.fetch(\"ZEROBREW_CELLAR\")\n@@ -187,6 +212,7 @@ def stage(&block)\n         $stderr.puts \"Error: failed to download resource #{@url}\"\n         exit 1\n       end\n+      ZeroBrewChecksum.verify_file!(archive, @sha256, \"resource #{@url}\")\n       extract_resource(archive, dir)\n       entries = Dir.children(dir).reject { |e| e == basename }\n       src_dir = if entries.length == 1 && File.directory?(File.join(dir, entries.first))\n@@ -597,6 +623,7 @@ def shared_library(name, version = nil)\n         $stderr.puts \"Error: failed to download patch #{p[:url]}\"\n         exit 1\n       end\n+      ZeroBrewChecksum.verify_file!(tmp.path, p[:sha256], \"patch #{p[:url]}\")\n       Kernel.system(\"patch\", strip_flag, \"-i\", tmp.path)\n       unless $?.success?",
+        "$stderr.puts \"Error: patch failed\""
+      ],
+      "upstream_reference": "https://github.com/lucasgelfond/zerobrew/commit/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+      "vulnerable_or_removed_patch_lines": [
+        "[Unreleased]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.1...HEAD",
+        "version = \"0.3.1\"",
+        "version = \"0.3.1\"",
+        "version = \"0.3.1\"",
+        "version = \"0.3.1\""
+      ]
+    },
+    "endpoint": "https://github.com/lucasgelfond/zerobrew/commit/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "lucasgelfond/zerobrew"
+  },
+  "raw_sha256": "90f0c5ccc7f8c98214b127364dd60aae30ff9e4bdbaf1c286a2097188882c63a",
+  "schema_version": "1.0",
+  "scoring_executed": false,
+  "source_project": "lucasgelfond/zerobrew",
+  "source_root": "GHSA-9pp6-v7j8-j65j",
+  "source_snapshot": {
+    "content_sha256": "9d725f0c7f94bce8fe3bb911454482938e4cccd9ee38653b9ce6e55fea26ff25",
+    "payload": {
+      "author": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/111914307?v=4",
+        "events_url": "https://api.github.com/users/cachebag/events{/privacy}",
+        "followers_url": "https://api.github.com/users/cachebag/followers",
+        "following_url": "https://api.github.com/users/cachebag/following{/other_user}",
+        "gists_url": "https://api.github.com/users/cachebag/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/cachebag",
+        "id": 111914307,
+        "login": "cachebag",
+        "node_id": "U_kgDOBqutQw",
+        "organizations_url": "https://api.github.com/users/cachebag/orgs",
+        "received_events_url": "https://api.github.com/users/cachebag/received_events",
+        "repos_url": "https://api.github.com/users/cachebag/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/cachebag/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/cachebag/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/cachebag",
+        "user_view_type": "public"
+      },
+      "comments_url": "https://api.github.com/repos/lucasgelfond/zerobrew/commits/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/comments",
+      "commit": {
+        "author": {
+          "date": "2026-06-12T02:42:24Z",
+          "email": "akrm@cachebag.sh",
+          "name": "akrm"
+        },
+        "comment_count": 0,
+        "committer": {
+          "date": "2026-06-12T02:42:24Z",
+          "email": "noreply@github.com",
+          "name": "GitHub"
+        },
+        "message": "Merge pull request #388 from lucasgelfond/fix/shim-resource-patch-checksum-verification\n\nFix/shim resource patch checksum verification",
+        "tree": {
+          "sha": "5940d7cee76b04bdcf6f7fa4ea80ecaaf24cb111",
+          "url": "https://api.github.com/repos/lucasgelfond/zerobrew/git/trees/5940d7cee76b04bdcf6f7fa4ea80ecaaf24cb111"
+        },
+        "url": "https://api.github.com/repos/lucasgelfond/zerobrew/git/commits/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+        "verification": {
+          "payload": "tree 5940d7cee76b04bdcf6f7fa4ea80ecaaf24cb111\nparent 8d9af905c5508972066ac4dc03f65336bb44d5f0\nparent 1b0a80519d0879b7892042f8edef51fcb5129bea\nauthor akrm <akrm@cachebag.sh> 1781232144 -0400\ncommitter GitHub <noreply@github.com> 1781232144 -0400\n\nMerge pull request #388 from lucasgelfond/fix/shim-resource-patch-checksum-verification\n\nFix/shim resource patch checksum verification",
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqK3IQCRC1aQ7uu5UhlAAAxisQAC08XvimNOfc7XvrfNbxzxby\nz34zZ70F9/hKuy/u5dhBWNYgXA2skU7CVdDhIyT54jPKMCtSsqUM3n2aImLZkqm4\nz1XXggS0ZytrGVmmcwLZ5Ka/kxNqJp8qvovFCVLvrXdmNSGauxBheu8f0Wh7x9FN\nTjsknB5xZEQ2Hn8AiMIC99Tht0Hiyyza+XPU+1bKJ0NMn1Cyl3OYWOuyNxJtTKXx\nmTwzShM9sZrZIkowvZDOINcuo8lHTvwRHTonoX/m5tbfOon94UDazpznyerbxJqP\nXK7Rd9ZVy+hLS00FJqR1ekhexO57M2VFLQRv4M1XrF/mA/Jd1EcozM3KUj4ZXHcY\nHxWrBQYldFoMaAtdD8Y3E2ywN2gcNdXqGl22pMkydTs+m+g8oMm35mwI7110wfA2\nbl7FK3BAYzs15fWpzQVGwoUGprVtteu/0fwhsfBABPlEW5QI7DXnoZPeGkG8CXzR\ne2PWMPwx+IXig26NvCOJjnDsjEKxkn1O2yLwQZ/uw2xB2G3Jyv4HSgOcZKHfJdvB\n179XjO5WkPigFXtEFYiLVcxMJRt4Uh1oJXiePRTWQbz+jmxAxoLxk2z77LXOXrxi\nPNS1DRx9hNuXJWNBRNawL9Tu6YmiR3QVzLYsJOtFsjWjcgjn1igtOB1midbD8t0b\nCcKHoomfl+I3OetqoTnH\n=bqEX\n-----END PGP SIGNATURE-----\n",
+          "verified": true,
+          "verified_at": "2026-06-12T02:42:24Z"
+        }
+      },
+      "committer": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/web-flow",
+        "id": 19864447,
+        "login": "web-flow",
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/web-flow",
+        "user_view_type": "public"
+      },
+      "files": [
+        {
+          "additions": 7,
+          "blob_url": "https://github.com/lucasgelfond/zerobrew/blob/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/CHANGELOG.md",
+          "changes": 8,
+          "contents_url": "https://api.github.com/repos/lucasgelfond/zerobrew/contents/CHANGELOG.md?ref=89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+          "deletions": 1,
+          "filename": "CHANGELOG.md",
+          "patch": "@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0\n \n ## [Unreleased]\n \n+## [0.3.2] - 2026-06-11\n+\n+### Security\n+- Verify SHA-256 checksums for resource and URL patch downloads in the formula build shim before extraction or application (CVE-2026-53970)\n+\n ## [0.3.1] - 2026-05-30\n \n ### Fixed\n@@ -118,7 +123,8 @@ To get an idea of the initial features zerobrew supports, take a look at the [RE\n \n See the [full commit history](https://github.com/lucasgelfond/zerobrew/commits/v0.1.1) for more details.\n \n-[Unreleased]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.1...HEAD\n+[Unreleased]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.2...HEAD\n+[0.3.2]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.1...v0.3.2\n [0.3.1]: https://github.com/lucasgelfond/zerobrew/compare/v0.3.0...v0.3.1\n [0.3.0]: https://github.com/lucasgelfond/zerobrew/compare/v0.2.1...v0.3.0\n [0.2.1]: https://github.com/lucasgelfond/zerobrew/compare/v0.2.0...v0.2.1",
+          "raw_url": "https://github.com/lucasgelfond/zerobrew/raw/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/CHANGELOG.md",
+          "sha": "8a18cc35b8d355d9311f9012a7004f12dbfb20b2",
+          "status": "modified"
+        },
+        {
+          "additions": 3,
+          "blob_url": "https://github.com/lucasgelfond/zerobrew/blob/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/Cargo.lock",
+          "changes": 6,
+          "contents_url": "https://api.github.com/repos/lucasgelfond/zerobrew/contents/Cargo.lock?ref=89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+          "deletions": 3,
+          "filename": "Cargo.lock",
+          "patch": "@@ -2994,7 +2994,7 @@ dependencies = [\n \n [[package]]\n name = \"zb_cli\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"chrono\",\n  \"clap\",\n@@ -3018,15 +3018,15 @@ dependencies = [\n \n [[package]]\n name = \"zb_core\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"serde\",\n  \"serde_json\",\n ]\n \n [[package]]\n name = \"zb_io\"\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n dependencies = [\n  \"arwen\",\n  \"flate2\",",
+          "raw_url": "https://github.com/lucasgelfond/zerobrew/raw/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/Cargo.lock",
+          "sha": "38c7863026df5d2e334d4ec2e80ed44366463eed",
+          "status": "modified"
+        },
+        {
+          "additions": 1,
+          "blob_url": "https://github.com/lucasgelfond/zerobrew/blob/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/Cargo.toml",
+          "changes": 2,
+          "contents_url": "https://api.github.com/repos/lucasgelfond/zerobrew/contents/Cargo.toml?ref=89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+          "deletions": 1,
+          "filename": "Cargo.toml",
+          "patch": "@@ -3,7 +3,7 @@ members = [\"zb_core\", \"zb_io\", \"zb_cli\"]\n resolver = \"3\"\n \n [workspace.package]\n-version = \"0.3.1\"\n+version = \"0.3.2\"\n rust-version = \"1.95\"\n \n [workspace.dependencies]",
+          "raw_url": "https://github.com/lucasgelfond/zerobrew/raw/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/Cargo.toml",
+          "sha": "cd10259d25d3d2c84c13d6dd9e290f540290dbc8",
+          "status": "modified"
+        },
+        {
+          "additions": 209,
+          "blob_url": "https://github.com/lucasgelfond/zerobrew/blob/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/zb_io%2Fsrc%2Fbuild%2Fexecutor.rs",
+          "changes": 209,
+          "contents_url": "https://api.github.com/repos/lucasgelfond/zerobrew/contents/zb_io%2Fsrc%2Fbuild%2Fexecutor.rs?ref=89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+          "deletions": 0,
+          "filename": "zb_io/src/build/executor.rs",
+          "patch": "@@ -292,4 +292,213 @@ end\n         assert!(message.contains(\"source build failed\"));\n         assert!(message.contains(\"boom-from-stderr\"));\n     }\n+\n+    fn sha256_hex_file(path: &Path) -> String {\n+        use sha2::{Digest, Sha256};\n+        let bytes = std::fs::read(path).unwrap();\n+        let mut hasher = Sha256::new();\n+        hasher.update(bytes);\n+        hasher\n+            .finalize()\n+            .iter()\n+            .fold(String::with_capacity(64), |mut s, b| {\n+                use std::fmt::Write;\n+                let _ = write!(s, \"{b:02x}\");\n+                s\n+            })\n+    }\n+\n+    fn file_url(path: &Path) -> String {\n+        format!(\"file://{}\", path.canonicalize().unwrap().display())\n+    }\n+\n+    async fn run_shim_formula(\n+        ruby: &Path,\n+        source_root: &Path,\n+        prefix: &Path,\n+        formula_rb: &str,\n+    ) -> Result<(), Error> {\n+        let tmp = source_root.parent().unwrap();\n+        let shim_path = tmp.join(\"shim.rb\");\n+        std::fs::write(&shim_path, SHIM_RUBY).unwrap();\n+\n+        let formula_path = tmp.join(\"formula.rb\");\n+        std::fs::write(&formula_path, formula_rb).unwrap();\n+\n+        let cellar = prefix.join(\"Cellar\");\n+        std::fs::create_dir_all(&cellar).unwrap();\n+\n+        let mut env = HashMap::new();\n+        env.insert(\"ZEROBREW_PREFIX\".to_string(), prefix.display().to_string());\n+        env.insert(\"ZEROBREW_CELLAR\".to_string(), cellar.display().to_string());\n+        env.insert(\"ZEROBREW_FORMULA_NAME\".to_string(), \"foo\".to_string());\n+        env.insert(\"ZEROBREW_FORMULA_VERSION\".to_string(), \"1.0.0\".to_string());\n+        env.insert(\n+            \"ZEROBREW_FORMULA_FILE\".to_string(),\n+            formula_path.display().to_string(),\n+        );\n+        env.insert(\"ZEROBREW_INSTALLED_DEPS\".to_string(), \"{}\".to_string());\n+\n+        run_build(ruby, &shim_path, source_root, &env).await\n+    }\n+\n+    #[tokio::test]\n+    async fn run_build_rejects_resource_checksum_mismatch() {\n+        let Some(ruby) = find_ruby().await.ok() else {\n+            return;\n+        };\n+\n+        let tmp = tempfile::tempdir().unwrap();\n+        let source_root = tmp.path().join(\"source\");\n+        std::fs::create_dir_all(&source_root).unwrap();\n+\n+        let resource_dir = tmp.path().join(\"resource_content\");\n+        std::fs::create_dir_all(&resource_dir).unwrap();\n+        std::fs::write(resource_dir.join(\"file.txt\"), \"resource-bytes\").unwrap();\n+\n+        let archive = tmp.path().join(\"resource.tar.gz\");\n+        std::process::Command::new(\"tar\")\n+            .args([\n+                \"czf\",\n+                archive.to_str().unwrap(),\n+                \"-C\",\n+                tmp.path().to_str().unwrap(),\n+                \"resource_content\",\n+            ])\n+            .status()\n+            .unwrap()\n+            .success()\n+            .then_some(())\n+            .expect(\"tar failed to create resource archive\");\n+\n+        let resource_url = file_url(&archive);\n+        let formula = format!(\n+            r#\"\n+class Foo < Formula\n+  resource \"dep\" do\n+    url \"{resource_url}\"\n+    sha256 \"0000000000000000000000000000000000000000000000000000000000000000\"\n+  end\n+\n+  def install\n+    resource(\"dep\").stage do |_r|\n+      File.write(prefix + \"done\", \"ok\")\n+    end\n+  end\n+end\n+\"#\n+        );\n+\n+        let prefix = tmp.path().join(\"prefix\");\n+        let err = run_shim_formula(&ruby, &source_root, &prefix, &formula)\n+            .await\n+            .unwrap_err();\n+\n+        assert!(err.to_string().contains(\"checksum mismatch\"));\n+    }\n+\n+    #[tokio::test]\n+    async fn run_build_accepts_matching_resource_checksum() {\n+        let Some(ruby) = find_ruby().await.ok() else {\n+            return;\n+        };\n+\n+        let tmp = tempfile::tempdir().unwrap();\n+        let source_root = tmp.path().join(\"source\");\n+        std::fs::create_dir_all(&source_root).unwrap();\n+\n+        let resource_dir = tmp.path().join(\"resource_content\");\n+        std::fs::create_dir_all(&resource_dir).unwrap();\n+        std::fs::write(resource_dir.join(\"file.txt\"), \"resource-bytes\").unwrap();\n+\n+        let archive = tmp.path().join(\"resource.tar.gz\");\n+        std::process::Command::new(\"tar\")\n+            .args([\n+                \"czf\",\n+                archive.to_str().unwrap(),\n+                \"-C\",\n+                tmp.path().to_str().unwrap(),\n+                \"resource_content\",\n+            ])\n+            .status()\n+            .unwrap()\n+            .success()\n+            .then_some(())\n+            .expect(\"tar failed to create resource archive\");\n+\n+        let resource_url = file_url(&archive);\n+        let resource_sha = sha256_hex_file(&archive);\n+        let formula = format!(\n+            r#\"\n+class Foo < Formula\n+  resource \"dep\" do\n+    url \"{resource_url}\"\n+    sha256 \"{resource_sha}\"\n+  end\n+\n+  def install\n+    resource(\"dep\").stage do |_r|\n+      File.write(prefix + \"done\", \"ok\")\n+    end\n+  end\n+end\n+\"#\n+        );\n+\n+        let prefix = tmp.path().join(\"prefix\");\n+        run_shim_formula(&ruby, &source_root, &prefix, &formula)\n+            .await\n+            .unwrap();\n+\n+        assert!(\n+            prefix\n+                .join(\"Cellar\")\n+                .join(\"foo\")\n+                .join(\"1.0.0\")\n+                .join(\"done\")\n+                .exists()\n+        );\n+    }\n+\n+    #[tokio::test]\n+    async fn run_build_rejects_patch_checksum_mismatch() {\n+        let Some(ruby) = find_ruby().await.ok() else {\n+            return;\n+        };\n+\n+        let tmp = tempfile::tempdir().unwrap();\n+        let source_root = tmp.path().join(\"source\");\n+        std::fs::create_dir_all(&source_root).unwrap();\n+        std::fs::write(source_root.join(\"hello.txt\"), \"hello\\n\").unwrap();\n+\n+        let patch = tmp.path().join(\"change.patch\");\n+        std::fs::write(\n+            &patch,\n+            \"--- a/hello.txt\\n+++ b/hello.txt\\n@@ -1 +1 @@\\n-hello\\n+world\\n\",\n+        )\n+        .unwrap();\n+\n+        let patch_url = file_url(&patch);\n+        let formula = format!(\n+            r#\"\n+class Foo < Formula\n+  patch :p0 do\n+    url \"{patch_url}\"\n+    sha256 \"0000000000000000000000000000000000000000000000000000000000000000\"\n+  end\n+\n+  def install\n+    File.write(prefix + \"done\", File.read(\"hello.txt\"))\n+  end\n+end\n+\"#\n+        );\n+\n+        let prefix = tmp.path().join(\"prefix\");\n+        let err = run_shim_formula(&ruby, &source_root, &prefix, &formula)\n+            .await\n+            .unwrap_err();\n+\n+        assert!(err.to_string().contains(\"checksum mismatch\"));\n+    }\n }",
+          "raw_url": "https://github.com/lucasgelfond/zerobrew/raw/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/zb_io%2Fsrc%2Fbuild%2Fexecutor.rs",
+          "sha": "47ccf6ea66319075fab964489d3e4e516b269777",
+          "status": "modified"
+        },
+        {
+          "additions": 27,
+          "blob_url": "https://github.com/lucasgelfond/zerobrew/blob/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/zb_io%2Fsrc%2Fbuild%2Fshim.rb",
+          "changes": 27,
+          "contents_url": "https://api.github.com/repos/lucasgelfond/zerobrew/contents/zb_io%2Fsrc%2Fbuild%2Fshim.rb?ref=89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+          "deletions": 0,
+          "filename": "zb_io/src/build/shim.rb",
+          "patch": "@@ -16,6 +16,31 @@\n require \"json\"\n require \"tmpdir\"\n require \"tempfile\"\n+require \"digest/sha2\"\n+\n+module ZeroBrewChecksum\n+  module_function\n+\n+  def verify_file!(path, expected_sha256, context)\n+    return if expected_sha256.nil? || expected_sha256.to_s.strip.empty?\n+\n+    expected = normalize_sha256!(expected_sha256, context)\n+    actual = Digest::SHA256.file(path).hexdigest\n+    return if actual == expected\n+\n+    $stderr.puts \"Error: checksum mismatch for #{context} (expected #{expected}, got #{actual})\"\n+    exit 1\n+  end\n+\n+  def normalize_sha256!(value, context)\n+    normalized = value.to_s.strip.downcase\n+    unless normalized.match?(/\\A[0-9a-f]{64}\\z/)\n+      $stderr.puts \"Error: invalid sha256 checksum for #{context}: expected 64 hex chars, got #{normalized.length}\"\n+      exit 1\n+    end\n+    normalized\n+  end\n+end\n \n ZEROBREW_PREFIX = ENV.fetch(\"ZEROBREW_PREFIX\")\n ZEROBREW_CELLAR = ENV.fetch(\"ZEROBREW_CELLAR\")\n@@ -187,6 +212,7 @@ def stage(&block)\n         $stderr.puts \"Error: failed to download resource #{@url}\"\n         exit 1\n       end\n+      ZeroBrewChecksum.verify_file!(archive, @sha256, \"resource #{@url}\")\n       extract_resource(archive, dir)\n       entries = Dir.children(dir).reject { |e| e == basename }\n       src_dir = if entries.length == 1 && File.directory?(File.join(dir, entries.first))\n@@ -597,6 +623,7 @@ def shared_library(name, version = nil)\n         $stderr.puts \"Error: failed to download patch #{p[:url]}\"\n         exit 1\n       end\n+      ZeroBrewChecksum.verify_file!(tmp.path, p[:sha256], \"patch #{p[:url]}\")\n       Kernel.system(\"patch\", strip_flag, \"-i\", tmp.path)\n       unless $?.success?\n         $stderr.puts \"Error: patch failed\"",
+          "raw_url": "https://github.com/lucasgelfond/zerobrew/raw/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa/zb_io%2Fsrc%2Fbuild%2Fshim.rb",
+          "sha": "8584563856d7ddd26adb5209183b6300e9b96870",
+          "status": "modified"
+        }
+      ],
+      "html_url": "https://github.com/lucasgelfond/zerobrew/commit/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+      "node_id": "C_kwDOQ8y2iNoAKDg5YTYwYjczYzdlZGQ2YjY2MmUyYTA4NWJlM2Q5ODFiNmViZWIxYWE",
+      "parents": [
+        {
+          "html_url": "https://github.com/lucasgelfond/zerobrew/commit/8d9af905c5508972066ac4dc03f65336bb44d5f0",
+          "sha": "8d9af905c5508972066ac4dc03f65336bb44d5f0",
+          "url": "https://api.github.com/repos/lucasgelfond/zerobrew/commits/8d9af905c5508972066ac4dc03f65336bb44d5f0"
+        },
+        {
+          "html_url": "https://github.com/lucasgelfond/zerobrew/commit/1b0a80519d0879b7892042f8edef51fcb5129bea",
+          "sha": "1b0a80519d0879b7892042f8edef51fcb5129bea",
+          "url": "https://api.github.com/repos/lucasgelfond/zerobrew/commits/1b0a80519d0879b7892042f8edef51fcb5129bea"
+        }
+      ],
+      "sha": "89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+      "stats": {
+        "additions": 247,
+        "deletions": 5,
+        "total": 252
+      },
+      "url": "https://api.github.com/repos/lucasgelfond/zerobrew/commits/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa"
+    },
+    "reference": "https://github.com/lucasgelfond/zerobrew/commit/89a60b73c7edd6b662e2a085be3d981b6ebeb1aa",
+    "retrieved_at": "2026-08-15T03:49:52.210645+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

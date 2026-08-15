@@ -1,0 +1,262 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [
+      "runtime_reachable_flow"
+    ],
+    "notes": "Fresh upstream source narrative plus the removed side of the real merged patch independently support the preregistered positive condition label; canonical benchmark identifiers are excluded only from raw, never rewritten in the source snapshot.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/Pivotick/Pivotick/commit/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+  "captured_at": "2026-08-15T03:49:52.210645+00:00",
+  "case_kind": "positive",
+  "collector": {
+    "name": "analysis-632-v8-literal-patch-capture",
+    "network_scope": "passive public upstream PR/commit metadata and diff snapshot only; no target validation",
+    "rule_version": "2026.08.15.6.32.v8.14",
+    "version": "1.0.1"
+  },
+  "evaluation_kind": "fresh_blind_v8_literal_source_evidence",
+  "family": "dom_xss",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "changed_files": [
+        "src/interfaces/GraphUI.ts",
+        "src/utils/ElementCreation.ts",
+        "src/utils/Getters.ts"
+      ],
+      "positive_source_basis": "Verbatim label-blind excerpts from the fresh upstream security narrative and removed patch side are the positive observation; the complete immutable source snapshot remains attached outside raw.",
+      "source_condition_phrase_evidence": [
+        "innerhtml"
+      ],
+      "source_security_narrative_excerpt": [
+        "Pivotick contains a DOM-based cross-site scripting vulnerability in its generic UI element...",
+        "Pivotick contains a DOM-based cross-site scripting vulnerability in its generic UI element resolution and icon-rendering utilities.",
+        "The tryResolveHTMLElement function treated any resolved string as HTML markup by assigning it to a <template> element through innerHTML.",
+        "Strings derived from untrusted graph properties or custom rendering callbacks could therefore introduce arbitrary HTML or SVG elements into the live document.",
+        "The vulnerable function was used by multiple UI components, including headers, property panels, extra panels, and tooltips.",
+        "Additionally, createIcon inserted caller-supplied svgIcon markup into a template without sanitization.",
+        "An application integrating Pivotick and deriving icon markup from untrusted data could therefore expose a second script-execution path.",
+        "An unauthenticated attacker able to provide a crafted graph, property value, rendering result, or SVG icon could execute JavaScript in another user's browser when the affected content is displayed or interacted with.",
+        "Successful exploitation could allow the attacker to access information available to the victim, manipulate graph data or application state, and perform actions with the victim's privileges.",
+        "The patch changes string rendering to use textContent, requiring callers to explicitly return an Element when HTML rendering is intended.",
+        "It also sanitizes SVG icon markup before inserting it into the DOM.",
+        "UPSTREAM PATCH\nFILE src/interfaces/GraphUI.ts\n@@ -86,6 +86,7 @@ export interface MainHeader {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML.",
+        "*/\n     render?: ((element: Node | Edge | Node[] | Edge[] | null) => HTMLElement | string) | HTMLElement | string,\n }\n@@ -142,6 +143,7 @@ export interface PropertiesPanel {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML.",
+        "*/\n     render?: ((element: Node | Edge | Node[] | Edge[] | null) => HTMLElement | string) | HTMLElement | string,\n }\n@@ -177,7 +179,9 @@ export interface NeighborsPanel {\n  * ```\n  */\n export interface ExtraPanel {\n+    /** A `string` renders as plain text; pass an `HTMLElement` to render HTML.",
+        "*/\n     title: ((element: Node | Edge | null) => HTMLElement | string) | HTMLElement | string,\n+    /** A `string` renders as plain text; pass an `HTMLElement` to render HTML.",
+        "*/\n     render: ((element: Node | Edge | null) => HTMLElement | string) | HTMLElement | string,\n     /**\n      * should the panel be always visible\n@@ -208,6 +212,7 @@ export interface Tooltip {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML."
+      ],
+      "upstream_reference": "https://github.com/Pivotick/Pivotick/commit/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+      "vulnerable_or_removed_patch_lines": [
+        "import { tryResolveBoolean, tryResolveHTMLElement } from './Getters'",
+        "import type { IconClass, IconUnicode, ImagePath, MenuActionItemOptions, MenuQuickActionItemOptions, PropertyEntry, SVGIcon } from '../interfaces/GraphUI'",
+        "export function createHtmlDL(data: PropertyEntry[], element: Node | Edge | null): HTMLDListElement {",
+        "const dl = createHtmlElement('dl', { class: 'pvt-property-list' })",
+        "for (const entry of data) {",
+        "const resolvedName = tryResolveHTMLElement(entry.name, element) || ''",
+        "const resolvedValue = tryResolveHTMLElement(entry.value, element) || ''",
+        "const row = createHtmlElement('dl',",
+        "{",
+        "'class': 'pvt-property-row',",
+        "},",
+        "[",
+        "createHtmlElement('dt', { class: 'pvt-property-name' }, [resolvedName]),",
+        "createHtmlElement('dd', { class: 'pvt-property-value' }, [resolvedValue]),",
+        "]",
+        ")",
+        "dl.append(row)",
+        "}",
+        "return dl",
+        "}",
+        "const templateEl = document.createElement('template')",
+        "templateEl.innerHTML = options.svgIcon.trim()",
+        "const svgEl = templateEl.content.firstElementChild as HTMLElement",
+        "svgEl.setAttribute('width', '100%')",
+        "svgEl.setAttribute('height', '100%')",
+        "span.append(svgEl)",
+        "* @param input - A string or a function that returns a string or html element.",
+        "if (input instanceof HTMLElement) {",
+        "return input",
+        "} else if (typeof input === 'string') {",
+        "const template = document.createElement('template')",
+        "const trimmed = input.trim()",
+        "template.innerHTML = trimmed",
+        "if (template.content.firstElementChild) {",
+        "return template.content.firstElementChild as HTMLElement",
+        "}",
+        "const span = document.createElement('span')",
+        "span.textContent = trimmed",
+        "return span",
+        "} else if (typeof input === 'boolean') {",
+        "const span = document.createElement('span')",
+        "span.textContent = input",
+        "return span",
+        "} else if (typeof input === 'object') {",
+        "const span = document.createElement('span')",
+        "span.textContent = JSON.stringify(input, undefined, 2)",
+        "return span",
+        "} else if (typeof input === 'function') {",
+        "const result = input(...args)",
+        "if (typeof result === 'string') {",
+        "const template = document.createElement('template')",
+        "template.innerHTML = result",
+        "if (template.content.firstElementChild) {",
+        "return template.content.firstElementChild as HTMLElement",
+        "}",
+        "const span = document.createElement('span')",
+        "span.textContent = result",
+        "return span",
+        "} else {",
+        "return result",
+        "}"
+      ]
+    },
+    "endpoint": "https://github.com/Pivotick/Pivotick/commit/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "Pivotick/Pivotick"
+  },
+  "raw_sha256": "c336eb76219f61fefba9f286fbd56bd2061f90e6e3af8760324b319fac0b86a0",
+  "schema_version": "1.0",
+  "scoring_executed": false,
+  "source_project": "Pivotick/Pivotick",
+  "source_root": "GHSA-q33w-f2qg-4gq7",
+  "source_snapshot": {
+    "content_sha256": "58766714d3a3107ad8a92d34beaf7d2f5deffb17cecf8cb5380aeac8f6da8410",
+    "payload": {
+      "author": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/6977223?v=4",
+        "events_url": "https://api.github.com/users/mokaddem/events{/privacy}",
+        "followers_url": "https://api.github.com/users/mokaddem/followers",
+        "following_url": "https://api.github.com/users/mokaddem/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mokaddem/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/mokaddem",
+        "id": 6977223,
+        "login": "mokaddem",
+        "node_id": "MDQ6VXNlcjY5NzcyMjM=",
+        "organizations_url": "https://api.github.com/users/mokaddem/orgs",
+        "received_events_url": "https://api.github.com/users/mokaddem/received_events",
+        "repos_url": "https://api.github.com/users/mokaddem/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/mokaddem/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mokaddem/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/mokaddem",
+        "user_view_type": "public"
+      },
+      "comments_url": "https://api.github.com/repos/Pivotick/Pivotick/commits/67c597cdf7f6910f97a4c73905a7b845e0d039f1/comments",
+      "commit": {
+        "author": {
+          "date": "2026-07-28T09:16:11Z",
+          "email": "mokaddem.sami@gmail.com",
+          "name": "Sami Mokaddem"
+        },
+        "comment_count": 0,
+        "committer": {
+          "date": "2026-07-28T09:16:11Z",
+          "email": "mokaddem.sami@gmail.com",
+          "name": "Sami Mokaddem"
+        },
+        "message": "fix: [security] stop resolving strings to markup; sanitize UI svg icons\n\ntryResolveHTMLElement parsed any string as HTML and appended it live, which is\nhow untrusted properties became XSS. Strings now resolve to text, matching the\n1.4.0 PropertyEntry rule; return an element to render HTML. Drops the dead\ncreateHtmlDL that fed it, and runs createIcon's svgIcon through the sanitizer.\n\n- As reported by Jeroen Pinoy",
+        "tree": {
+          "sha": "64051cc1a629c933b63f30d2933220b9637c4813",
+          "url": "https://api.github.com/repos/Pivotick/Pivotick/git/trees/64051cc1a629c933b63f30d2933220b9637c4813"
+        },
+        "url": "https://api.github.com/repos/Pivotick/Pivotick/git/commits/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+        "verification": {
+          "payload": "tree 64051cc1a629c933b63f30d2933220b9637c4813\nparent 2a6ad284e7ed69ab845087febe47f4cc82f13e1c\nauthor Sami Mokaddem <mokaddem.sami@gmail.com> 1785230171 +0200\ncommitter Sami Mokaddem <mokaddem.sami@gmail.com> 1785230171 +0200\n\nfix: [security] stop resolving strings to markup; sanitize UI svg icons\n\ntryResolveHTMLElement parsed any string as HTML and appended it live, which is\nhow untrusted properties became XSS. Strings now resolve to text, matching the\n1.4.0 PropertyEntry rule; return an element to render HTML. Drops the dead\ncreateHtmlDL that fed it, and runs createIcon's svgIcon through the sanitizer.\n\n- As reported by Jeroen Pinoy\n",
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE9tmBVZTRLBOEtE0fFkxHP2J6BvoFAmpoc1sACgkQFkxHP2J6\nBvqIqA/5AWr66pgGojEAa6IzylCXLQPMeWtWPQPw5/rrPzBHO1nWA7xBzTRSkGYp\n7HJHgr1TT5JpfmO1GqHR4BouKtoxdWy3L/yMvpFFv9eW1J0te7OHSgUST8qqDSMN\nRomPcZzumzdJkegxYERajJ5kVCMku2iFh+8oehlytlKIFd+VBPunStE7dXuQiL/F\nyanamffsqD+iB6PCBhSkZsumGqcgT3jt5M2csz3LHcKvyMQBjPz7kCnx61r8dhB/\n9m3zuOgkeWYXXtIRriwxkHmJpWPI6n7eIWMRQmjPXiEpEe2G9Of7BC/xBlQOgj/J\nN1qY2qEBGfbpa5+coEsoHEnCs29RL+J0Ls7sJ5V7y3w49lFXi0tjKVUNM80SvVsb\nMfdM8eGRnCsWJIYBeK1iOipTpLnaxtgTwDhAz5dM7SiwFGkladhYoa/I05Pn/kQI\n8iPo1ToVqsCDe/A05pftuhJbOeqKqqyfra38NtQ+1u1IHlRJF55rb4ClRXeZbAZR\nJfTgZRwOnm+gEd+s9ws8x5FLW7WcPn3jUPPemVd1lDuohlnRl/q9RY2YFYH4Rpdv\nld+ajHmxP6sF21Wr10Qw8RiECKu3UlUYpOgA3ySpL63yaB8AjW2IseIUfj0LvTzl\n0yR9in9WY9wo1fL56D5JKmzX3spf8QTuHkmRKiZtq4qTW2csksY=\n=VnrW\n-----END PGP SIGNATURE-----",
+          "verified": true,
+          "verified_at": "2026-07-28T11:10:18Z"
+        }
+      },
+      "committer": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/6977223?v=4",
+        "events_url": "https://api.github.com/users/mokaddem/events{/privacy}",
+        "followers_url": "https://api.github.com/users/mokaddem/followers",
+        "following_url": "https://api.github.com/users/mokaddem/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mokaddem/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/mokaddem",
+        "id": 6977223,
+        "login": "mokaddem",
+        "node_id": "MDQ6VXNlcjY5NzcyMjM=",
+        "organizations_url": "https://api.github.com/users/mokaddem/orgs",
+        "received_events_url": "https://api.github.com/users/mokaddem/received_events",
+        "repos_url": "https://api.github.com/users/mokaddem/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/mokaddem/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mokaddem/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/mokaddem",
+        "user_view_type": "public"
+      },
+      "files": [
+        {
+          "additions": 5,
+          "blob_url": "https://github.com/Pivotick/Pivotick/blob/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Finterfaces%2FGraphUI.ts",
+          "changes": 5,
+          "contents_url": "https://api.github.com/repos/Pivotick/Pivotick/contents/src%2Finterfaces%2FGraphUI.ts?ref=67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+          "deletions": 0,
+          "filename": "src/interfaces/GraphUI.ts",
+          "patch": "@@ -86,6 +86,7 @@ export interface MainHeader {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML.\n     */\n     render?: ((element: Node | Edge | Node[] | Edge[] | null) => HTMLElement | string) | HTMLElement | string,\n }\n@@ -142,6 +143,7 @@ export interface PropertiesPanel {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML.\n     */\n     render?: ((element: Node | Edge | Node[] | Edge[] | null) => HTMLElement | string) | HTMLElement | string,\n }\n@@ -177,7 +179,9 @@ export interface NeighborsPanel {\n  * ```\n  */\n export interface ExtraPanel {\n+    /** A `string` renders as plain text; pass an `HTMLElement` to render HTML. */\n     title: ((element: Node | Edge | null) => HTMLElement | string) | HTMLElement | string,\n+    /** A `string` renders as plain text; pass an `HTMLElement` to render HTML. */\n     render: ((element: Node | Edge | null) => HTMLElement | string) | HTMLElement | string,\n     /**\n      * should the panel be always visible\n@@ -208,6 +212,7 @@ export interface Tooltip {\n     * @default undefined\n     * @example\n     * (element) => `element id: ${element.id}`\n+    * @remarks A returned `string` renders as plain text; return an `HTMLElement` to render HTML.\n     */\n     render?: ((element: Node | Edge) => HTMLElement | string) | HTMLElement | string,\n     setPosition?: (tooltip: HTMLElement, hoveredBCR: DOMRect, canvasBbox: DOMRect) => void, ",
+          "raw_url": "https://github.com/Pivotick/Pivotick/raw/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Finterfaces%2FGraphUI.ts",
+          "sha": "9923180e5d55d25fdbfaa4e103d0e7694adb725c",
+          "status": "modified"
+        },
+        {
+          "additions": 11,
+          "blob_url": "https://github.com/Pivotick/Pivotick/blob/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Futils%2FElementCreation.ts",
+          "changes": 40,
+          "contents_url": "https://api.github.com/repos/Pivotick/Pivotick/contents/src%2Futils%2FElementCreation.ts?ref=67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+          "deletions": 29,
+          "filename": "src/utils/ElementCreation.ts",
+          "patch": "@@ -1,10 +1,11 @@\n-import { tryResolveBoolean, tryResolveHTMLElement } from './Getters'\n+import { tryResolveBoolean } from './Getters'\n+import { parseSvgIconMarkup } from './SvgSanitizer'\n import type { Node } from '../Node'\n import type { Edge } from '../Edge'\n import type { Note } from '../Note'\n import { createButton } from '../ui/components/Button'\n import type { UIElement } from '../ui/UIManager'\n-import type { IconClass, IconUnicode, ImagePath, MenuActionItemOptions, MenuQuickActionItemOptions, PropertyEntry, SVGIcon } from '../interfaces/GraphUI'\n+import type { IconClass, IconUnicode, ImagePath, MenuActionItemOptions, MenuQuickActionItemOptions, SVGIcon } from '../interfaces/GraphUI'\n \n const ACTION_DEFAULT_VARIANT = 'outline-primary'\n \n@@ -100,27 +101,6 @@ export function createShortcutBadge(keyCombo: string, classString?: string | str\n     return badge\n }\n \n-export function createHtmlDL(data: PropertyEntry[], element: Node | Edge | null): HTMLDListElement {\n-    const dl = createHtmlElement('dl', { class: 'pvt-property-list' })\n-    for (const entry of data) {\n-        const resolvedName = tryResolveHTMLElement(entry.name, element) || ''\n-        const resolvedValue = tryResolveHTMLElement(entry.value, element) || ''\n-\n-        const row = createHtmlElement('dl',\n-            {\n-                'class': 'pvt-property-row',\n-            },\n-            [\n-                createHtmlElement('dt', { class: 'pvt-property-name' }, [resolvedName]),\n-                createHtmlElement('dd', { class: 'pvt-property-value' }, [resolvedValue]),\n-            ]\n-        )\n-        dl.append(row)\n-    }\n-    return dl\n-}\n-\n-\n export function createQuickActionList<TThis extends UIElement = UIElement>(thisContext: TThis, actions: MenuQuickActionItemOptions[], element: Node[] | Node | Edge | Note | null): HTMLDivElement {\n         const div = createHtmlElement('div', { class: 'pvt-action-list' })\n         const firstElement = Array.isArray(element) ? element[0] : element\n@@ -256,17 +236,19 @@ export function createIcon(options: iconOptions): HTMLSpanElement {\n         }\n         span.append(textEl)\n     } else if (options.svgIcon) {\n-        const templateEl = document.createElement('template')\n-        templateEl.innerHTML = options.svgIcon.trim()\n-        const svgEl = templateEl.content.firstElementChild as HTMLElement\n-        svgEl.setAttribute('width', '100%')\n-        svgEl.setAttribute('height', '100%')\n+        // Sanitized as defence in depth: svgIcon is caller config, but nothing stops an\n+        // integrator deriving it from untrusted data.\n+        const svgEl = parseSvgIconMarkup(options.svgIcon).firstElementChild\n+        if (svgEl) {\n+            svgEl.setAttribute('width', '100%')\n+            svgEl.setAttribute('height', '100%')\n+            span.append(svgEl)\n+        }\n \n         span.style.display = 'inline-flex'\n         span.style.alignItems = 'center'\n         span.style.justifyContent = 'center'\n         span.style.width = '1em'\n-        span.append(svgEl)\n     } else if (options.imagePath) {\n         const imgEl = document.createElement('img')\n         imgEl.src = options.imagePath",
+          "raw_url": "https://github.com/Pivotick/Pivotick/raw/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Futils%2FElementCreation.ts",
+          "sha": "fd97e6581eb2e78fdad4a76c28aa51d9ca715c05",
+          "status": "modified"
+        },
+        {
+          "additions": 21,
+          "blob_url": "https://github.com/Pivotick/Pivotick/blob/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Futils%2FGetters.ts",
+          "changes": 56,
+          "contents_url": "https://api.github.com/repos/Pivotick/Pivotick/contents/src%2Futils%2FGetters.ts?ref=67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+          "deletions": 35,
+          "filename": "src/utils/Getters.ts",
+          "patch": "@@ -118,10 +118,19 @@ export function tryResolveArray<TArgs extends unknown[], TItem>(\n     return []\n }\n \n+function textSpan(text: string): HTMLElement {\n+    const span = document.createElement('span')\n+    span.textContent = text\n+    return span\n+}\n+\n /**\n  * Resolves the input to an html element. If it's a function, it is invoked with the given arguments.\n  *\n- * @param input - A string or a function that returns a string or html element.\n+ * A string resolves to a `<span>` carrying it as **text**; it is never parsed as markup, since\n+ * these values routinely carry graph data. Return an element to render your own HTML.\n+ *\n+ * @param input - A string, an element, or a function returning either.\n  * @param args - Arguments to pass to the function, if applicable.\n  * @returns A html element if resolved successfully, otherwise undefined.\n  */\n@@ -130,40 +139,17 @@ export function tryResolveHTMLElement<T extends unknown[]>(\n     ...args: T\n ): HTMLElement | undefined {\n \n-    if (input instanceof HTMLElement) {\n-        return input\n-    } else if (typeof input === 'string') {\n-        const template = document.createElement('template')\n-        const trimmed = input.trim()\n-        template.innerHTML = trimmed\n-        if (template.content.firstElementChild) {\n-            return template.content.firstElementChild as HTMLElement\n-        }\n-        const span = document.createElement('span')\n-        span.textContent = trimmed\n-        return span\n-    } else if (typeof input === 'boolean') {\n-        const span = document.createElement('span')\n-        span.textContent = input\n-        return span\n-    } else if (typeof input === 'object') {\n-        const span = document.createElement('span')\n-        span.textContent = JSON.stringify(input, undefined, 2)\n-        return span\n-    } else if (typeof input === 'function') {\n-        const result = input(...args)\n-        if (typeof result === 'string') {\n-            const template = document.createElement('template')\n-            template.innerHTML = result\n-            if (template.content.firstElementChild) {\n-                return template.content.firstElementChild as HTMLElement\n-            }\n-            const span = document.createElement('span')\n-            span.textContent = result\n-            return span\n-        } else {\n-            return result\n-        }\n+    const resolved: unknown = typeof input === 'function' ? input(...args) : input\n+\n+    // Element, not HTMLElement: an SVG element a render callback hands back passes through too.\n+    if (resolved instanceof Element) {\n+        return resolved as HTMLElement\n+    } else if (typeof resolved === 'string') {\n+        return textSpan(resolved.trim())\n+    } else if (typeof resolved === 'boolean') {\n+        return textSpan(String(resolved))\n+    } else if (typeof resolved === 'object') {\n+        return textSpan(JSON.stringify(resolved, undefined, 2))\n     }\n     return undefined\n }",
+          "raw_url": "https://github.com/Pivotick/Pivotick/raw/67c597cdf7f6910f97a4c73905a7b845e0d039f1/src%2Futils%2FGetters.ts",
+          "sha": "ee75f7e8c11e8d59a2b21539786434b6d750d76e",
+          "status": "modified"
+        }
+      ],
+      "html_url": "https://github.com/Pivotick/Pivotick/commit/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+      "node_id": "C_kwDOQO50gdoAKDY3YzU5N2NkZjdmNjkxMGY5N2E0YzczOTA1YTdiODQ1ZTBkMDM5ZjE",
+      "parents": [
+        {
+          "html_url": "https://github.com/Pivotick/Pivotick/commit/2a6ad284e7ed69ab845087febe47f4cc82f13e1c",
+          "sha": "2a6ad284e7ed69ab845087febe47f4cc82f13e1c",
+          "url": "https://api.github.com/repos/Pivotick/Pivotick/commits/2a6ad284e7ed69ab845087febe47f4cc82f13e1c"
+        }
+      ],
+      "sha": "67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+      "stats": {
+        "additions": 37,
+        "deletions": 64,
+        "total": 101
+      },
+      "url": "https://api.github.com/repos/Pivotick/Pivotick/commits/67c597cdf7f6910f97a4c73905a7b845e0d039f1"
+    },
+    "reference": "https://github.com/Pivotick/Pivotick/commit/67c597cdf7f6910f97a4c73905a7b845e0d039f1",
+    "retrieved_at": "2026-08-15T03:49:52.210645+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}

@@ -1,0 +1,642 @@
+{
+  "adjudication_policy": "Source evidence decides condition presence; this schema only freezes accepted condition/control names. OWASP/WSTG/CWE/write-up logic never counts as target evidence.",
+  "admission_output_used": false,
+  "detector_output_used": false,
+  "evaluation_kind": "fresh_blind_v8_pre_score_label_vocabulary",
+  "families": {
+    "account_enumeration": {
+      "blocking_controls": [
+        "generic_error",
+        "uniform_response"
+      ],
+      "condition_signals": [
+        "account_existence_differential",
+        "distinct_error",
+        "error_schema",
+        "response_difference",
+        "timing_difference"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "authentication_session": {
+      "blocking_controls": [
+        "pkce_present",
+        "stable_boundary",
+        "state_present"
+      ],
+      "condition_signals": [
+        "authentication_boundary_regression",
+        "boundary_regression",
+        "missing_state",
+        "protected_to_public",
+        "session_validation_failure",
+        "token_exposure",
+        "token_rotation_failure"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "broken_function_authorization": {
+      "blocking_controls": [
+        "confirmed_role_enforcement",
+        "lower_privilege_denied",
+        "role_boundary_enforced"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "function_access_without_role",
+        "lower_privilege_success",
+        "role_boundary_failure",
+        "role_boundary_regression",
+        "unauthorized_function_response"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "broken_object_authorization": {
+      "blocking_controls": [
+        "cross_context_denied",
+        "ownership_enforcement_observed",
+        "scope_binding_observed",
+        "secondary_guard_enforced"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "identity_object_relation_conflict",
+        "object_access_without_secondary_guard",
+        "ownership_mismatch",
+        "parent_child_scope_mismatch",
+        "unauthorized_object_response"
+      ],
+      "override_signals": [
+        "authorization_response_differential",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "identity_object_relation_conflict",
+        "object_access_without_secondary_guard",
+        "ownership_mismatch",
+        "parent_child_scope_mismatch",
+        "unauthorized_object_response"
+      ],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "business_logic": {
+      "blocking_controls": [
+        "read_only_contract",
+        "server_side_calculation_enforced",
+        "state_machine_enforced"
+      ],
+      "condition_signals": [
+        "business_rule_bypass",
+        "invalid_transition_accepted",
+        "server_calculation_mismatch",
+        "value_constraint_bypass",
+        "workflow_invariant_violation"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "command_injection": {
+      "blocking_controls": [
+        "command_allowlist",
+        "exec_file_argument_array",
+        "input_not_used_in_command",
+        "shell_disabled"
+      ],
+      "condition_signals": [
+        "command_output_observed",
+        "command_time_delay_observed",
+        "process_execution_reached",
+        "shell_metacharacter_effect",
+        "unsafe_command_construction"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "cors_misconfiguration": {
+      "blocking_controls": [
+        "credentials_disabled",
+        "public_intended",
+        "strict_origin_allowlist"
+      ],
+      "condition_signals": [
+        "authenticated_context",
+        "credentials_allowed",
+        "sensitive_cross_origin_response"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "cryptographic_failure": {
+      "blocking_controls": [
+        "approved_crypto_observed",
+        "secure_randomness_observed",
+        "strong_tls_enforced",
+        "unique_nonce_observed"
+      ],
+      "condition_signals": [
+        "crypto_downgrade_observed",
+        "cryptographic_key_reuse",
+        "plaintext_sensitive_transport",
+        "predictable_randomness_observed",
+        "weak_crypto_algorithm_observed",
+        "weak_tls_observed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "dom_xss": {
+      "blocking_controls": [
+        "constant_value",
+        "non_reachable",
+        "recognized_sanitizer",
+        "text_only_sink"
+      ],
+      "condition_signals": [
+        "javascript_runtime",
+        "no_sanitizer",
+        "reachable_route",
+        "runtime_reachable_flow"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "exceptional_condition_mishandling": {
+      "blocking_controls": [
+        "centralized_error_handling",
+        "fail_closed_observed",
+        "generic_error_response",
+        "transaction_rollback_observed"
+      ],
+      "condition_signals": [
+        "crash_on_exception",
+        "exception_control_bypass",
+        "fail_open_observed",
+        "partial_commit_after_error",
+        "state_corruption_after_error",
+        "unhandled_exception_observed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "file_upload": {
+      "blocking_controls": [
+        "inert_storage",
+        "server_generated_filename",
+        "strict_type_allowlist",
+        "upload_rejected"
+      ],
+      "condition_signals": [
+        "active_content_served",
+        "content_type_mismatch_accepted",
+        "dangerous_type_accepted",
+        "executable_upload",
+        "filename_control_reaches_storage",
+        "unsafe_storage",
+        "upload_validation_bypass"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "graphql_authorization": {
+      "blocking_controls": [
+        "cross_context_denied",
+        "resolver_authorization",
+        "schema_only"
+      ],
+      "condition_signals": [
+        "authorization_response_differential",
+        "cross_context",
+        "cross_identity_object_access",
+        "cross_tenant_object_access",
+        "resolver_authorization_failure",
+        "unauthorized_object_response"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "graphql_data_exposure": {
+      "blocking_controls": [
+        "field_authorization",
+        "minimal_projection",
+        "schema_only"
+      ],
+      "condition_signals": [
+        "cross_context",
+        "field_expansion",
+        "response_data",
+        "sensitive_expansion",
+        "unauthorized_data_response"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "improper_inventory_management": {
+      "blocking_controls": [
+        "inventory_documented",
+        "legacy_controls_equivalent",
+        "nonproduction_isolated",
+        "retired_endpoint_unreachable"
+      ],
+      "condition_signals": [
+        "deprecated_version_still_reachable",
+        "inventory_drift_observed",
+        "nonproduction_with_production_data",
+        "older_version_weaker_controls",
+        "retired_endpoint_active",
+        "undocumented_host_observed",
+        "unprotected_legacy_endpoint"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "information_disclosure": {
+      "blocking_controls": [
+        "authentication_required",
+        "intended_public",
+        "placeholder",
+        "redacted_only"
+      ],
+      "condition_signals": [
+        "error_to_data",
+        "protected_to_data",
+        "public_observation",
+        "response_data",
+        "unauthorized_data_response"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "ldap_injection": {
+      "blocking_controls": [
+        "ldap_filter_escaped",
+        "ldap_input_rejected",
+        "ldap_parameter_binding"
+      ],
+      "condition_signals": [
+        "ldap_auth_bypass_observed",
+        "ldap_error_observed",
+        "ldap_filter_influence",
+        "ldap_response_differential"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "mass_assignment": {
+      "blocking_controls": [
+        "field_allowlist",
+        "privileged_fields_removed",
+        "privileged_property_rejected",
+        "read_only_contract"
+      ],
+      "condition_signals": [
+        "privileged_property_accepted",
+        "property_authorization_differential",
+        "response_reflects_privileged_change",
+        "unauthorized_property_change"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "nosql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "nosql_operator_rejected",
+        "operator_allowlist",
+        "typed_query_schema"
+      ],
+      "condition_signals": [
+        "nosql_auth_bypass_observed",
+        "nosql_error_observed",
+        "nosql_operator_accepted",
+        "nosql_response_differential",
+        "query_operator_influence"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "open_redirect": {
+      "blocking_controls": [
+        "constant_value",
+        "host_allowlist",
+        "relative_path_only",
+        "same_origin_only"
+      ],
+      "condition_signals": [
+        "allowlist_bypass",
+        "external_destination",
+        "external_url",
+        "same_origin_bypass",
+        "unrestricted_destination"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "path_traversal": {
+      "blocking_controls": [
+        "canonicalization",
+        "fixed_directory",
+        "opaque_file_id",
+        "path_rejected"
+      ],
+      "condition_signals": [
+        "archive_entry_escape",
+        "base_directory_escape",
+        "canonicalization_bypass",
+        "filesystem_path_reachability",
+        "path_escape_observed",
+        "path_join_user_controlled"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "postmessage_trust": {
+      "blocking_controls": [
+        "schema_validation",
+        "source_window_check",
+        "strict_origin_check"
+      ],
+      "condition_signals": [
+        "message_schema_unvalidated",
+        "missing_origin_check",
+        "missing_source_window_check",
+        "wildcard_origin"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "race_condition": {
+      "blocking_controls": [
+        "duplicate_rejected",
+        "idempotency_control",
+        "transaction_lock"
+      ],
+      "condition_signals": [
+        "atomicity_failure",
+        "concurrency_invariant_violation",
+        "double_spend_observed",
+        "duplicate_effect_observed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "secret_exposure": {
+      "blocking_controls": [
+        "example_value",
+        "placeholder",
+        "redacted_only"
+      ],
+      "condition_signals": [
+        "credential_context",
+        "high_entropy_value",
+        "non_placeholder_secret",
+        "token_exposure"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "security_logging_alerting_failure": {
+      "blocking_controls": [
+        "alert_triggered",
+        "log_encoding_present",
+        "log_integrity_protected",
+        "security_event_logged"
+      ],
+      "condition_signals": [
+        "alerting_absent_observed",
+        "log_injection_observed",
+        "log_integrity_missing",
+        "security_event_not_logged",
+        "sensitive_data_logged"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "security_misconfiguration": {
+      "blocking_controls": [
+        "debug_disabled",
+        "hardening_observed",
+        "method_rejected",
+        "security_headers_present",
+        "tls_enforced"
+      ],
+      "condition_signals": [
+        "debug_mode_exposed",
+        "desync_processing_difference",
+        "directory_listing_observed",
+        "insecure_http_enabled",
+        "security_header_missing_on_sensitive_response",
+        "stack_trace_exposed",
+        "unnecessary_method_enabled",
+        "unsafe_default_configuration"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "sensitive_business_flow_abuse": {
+      "blocking_controls": [
+        "anti_bot_control_enforced",
+        "inventory_limit_enforced",
+        "per_user_limit_enforced",
+        "reservation_limit_enforced",
+        "workflow_frequency_limited"
+      ],
+      "condition_signals": [
+        "anti_bot_control_absent",
+        "automation_limit_absent",
+        "bulk_abuse_observed",
+        "business_flow_limit_bypass",
+        "per_user_limit_absent",
+        "reservation_abuse_observed",
+        "scalping_control_absent",
+        "workflow_frequency_unrestricted"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "sensitive_caching": {
+      "blocking_controls": [
+        "no_store",
+        "private_cache",
+        "vary_authorization"
+      ],
+      "condition_signals": [
+        "browser_cache_no_store_missing",
+        "cache_key_missing_auth_context",
+        "cdn_cache",
+        "missing_vary",
+        "shared_cache_risk"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "server_side_template_injection": {
+      "blocking_controls": [
+        "client_side_only",
+        "literal_template_rendering",
+        "template_input_escaped",
+        "template_sandbox_enforced"
+      ],
+      "condition_signals": [
+        "server_template_execution",
+        "template_engine_error_observed",
+        "template_expression_evaluated",
+        "template_output_differential"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "software_data_integrity_failure": {
+      "blocking_controls": [
+        "integrity_check_present",
+        "safe_deserializer",
+        "signature_verified",
+        "trusted_repository_only"
+      ],
+      "condition_signals": [
+        "integrity_check_missing",
+        "unsafe_deserialization_observed",
+        "unsigned_serialized_data_trusted",
+        "unsigned_update_accepted",
+        "untrusted_code_executed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "software_supply_chain_failure": {
+      "blocking_controls": [
+        "component_current_and_supported",
+        "component_not_deployed",
+        "pipeline_untrusted_code_isolated",
+        "trusted_component_source"
+      ],
+      "condition_signals": [
+        "component_update_path_compromised",
+        "known_vulnerable_component_observed",
+        "privileged_pipeline_executes_untrusted_code",
+        "unmaintained_component_confirmed",
+        "untrusted_component_source"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "source_map_exposure": {
+      "blocking_controls": [
+        "empty_map",
+        "intended_public",
+        "non_reachable"
+      ],
+      "condition_signals": [
+        "direct_reachability",
+        "public_observation"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "sql_injection": {
+      "blocking_controls": [
+        "input_not_used_in_query",
+        "parameterized_query",
+        "query_builder_binding",
+        "uniform_database_behavior"
+      ],
+      "condition_signals": [
+        "boolean_response_differential",
+        "database_error_observed",
+        "database_time_delay_observed",
+        "query_structure_influence",
+        "sql_error_differential",
+        "unsafe_query_construction"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "ssrf": {
+      "blocking_controls": [
+        "browser_side_only",
+        "host_allowlist",
+        "predefined_destination",
+        "relative_path_only"
+      ],
+      "condition_signals": [
+        "backend_fetch",
+        "remote_import_fetch",
+        "server_fetch_observed",
+        "server_fetch_semantic",
+        "server_request_function",
+        "webhook_delivery_observed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "unrestricted_resource_consumption": {
+      "blocking_controls": [
+        "batch_limit_enforced",
+        "page_size_capped",
+        "payload_size_rejected",
+        "rate_limit_enforced",
+        "spending_limit_enforced",
+        "timeout_enforced"
+      ],
+      "condition_signals": [
+        "batch_limit_absent_observed",
+        "cost_amplification_observed",
+        "oversized_payload_accepted",
+        "rate_limit_absent_observed",
+        "resource_exhaustion_differential",
+        "timeout_limit_absent",
+        "unbounded_page_size_observed"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "unsafe_api_consumption": {
+      "blocking_controls": [
+        "third_party_schema_validation",
+        "upstream_redirect_restricted",
+        "upstream_response_capped",
+        "upstream_timeout_enforced",
+        "upstream_tls_enforced"
+      ],
+      "condition_signals": [
+        "third_party_auth_weak",
+        "third_party_data_unsanitized",
+        "unsafe_upstream_data_reaches_sink",
+        "upstream_certificate_validation_failure",
+        "upstream_redirect_followed_unrestricted",
+        "upstream_response_unbounded",
+        "upstream_timeout_absent",
+        "upstream_tls_missing"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    },
+    "websocket_authorization": {
+      "blocking_controls": [
+        "authenticated_handshake",
+        "channel_authorization",
+        "cross_context_denied"
+      ],
+      "condition_signals": [
+        "channel_authorization_failure",
+        "cross_context",
+        "message_received_outside_scope",
+        "unauthorized_subscription"
+      ],
+      "override_signals": [],
+      "schema_role": "canonical_vocabulary_only_not_target_adjudication"
+    }
+  },
+  "family_count": 36,
+  "first_blind_consumed": false,
+  "ranking_output_used": false,
+  "rule_version": "2026.08.14.6.32.v8.1",
+  "schema_content_sha256": "7274ba20b9cf3287be2deb470bbfd49c6a003048b7e8f75cc5a33a8523fed802",
+  "scoring_executed": false,
+  "v6_first_blind_case_errors_used": false,
+  "v6_first_blind_score_used": false,
+  "version": "1.0.0"
+}

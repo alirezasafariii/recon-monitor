@@ -1,0 +1,153 @@
+{
+  "adjudication": {
+    "admission_output_used": false,
+    "basis": "source_observation",
+    "detector_output_used": false,
+    "expected_condition_signals": [],
+    "notes": "Only sparse upstream change metadata is retained; it is insufficient to prove the vulnerability condition and is independent of the positive narrative payload.",
+    "ranking_output_used": false,
+    "v6_first_blind_case_errors_used": false,
+    "v6_first_blind_score_used": false
+  },
+  "capture_method": "passive_source_snapshot",
+  "capture_reference": "https://github.com/CodeByelo/Monorepo-Koda/commit/a9a30e92630944c58ec74f6448983f312891e79a",
+  "captured_at": "2026-08-15T03:49:52.210645+00:00",
+  "case_kind": "sparse_noisy",
+  "collector": {
+    "name": "analysis-632-v8-literal-patch-capture",
+    "network_scope": "passive public upstream PR/commit metadata and diff snapshot only; no target validation",
+    "rule_version": "2026.08.15.6.32.v8.14",
+    "version": "1.0.1"
+  },
+  "evaluation_kind": "fresh_blind_v8_literal_source_evidence",
+  "family": "improper_inventory_management",
+  "first_blind_consumed": false,
+  "raw": {
+    "details": {
+      "added_line_observation_count": 11,
+      "changed_file_count": 1,
+      "changed_file_sample": [
+        "KODA_Remaster/sistema-corporativo/backend/main.py"
+      ],
+      "context_line_observation_count": 6,
+      "removed_line_observation_count": 0,
+      "upstream_reference": "https://github.com/CodeByelo/Monorepo-Koda/commit/a9a30e92630944c58ec74f6448983f312891e79a"
+    },
+    "endpoint": "https://github.com/CodeByelo/Monorepo-Koda/commit/a9a30e92630944c58ec74f6448983f312891e79a",
+    "endpoint_schema": {},
+    "method": "GET",
+    "target": "CodeByelo/Monorepo-Koda"
+  },
+  "raw_sha256": "99daab3c19a46ce665b93782f3309dbfa14eb07bdbff013b676590aeb618db62",
+  "schema_version": "1.0",
+  "scoring_executed": false,
+  "source_project": "CodeByelo/Monorepo-Koda",
+  "source_root": "GITHUB-COMMIT-CodeByelo-Monorepo-Koda-a9a30e92630944c58ec74f6448983f312891e79a",
+  "source_snapshot": {
+    "content_sha256": "a2a8669f5449f4a83c918056b47ea9825e6c26569f9a0de60ef455a823f4ce54",
+    "payload": {
+      "author": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/298366117?v=4",
+        "events_url": "https://api.github.com/users/webmaster541/events{/privacy}",
+        "followers_url": "https://api.github.com/users/webmaster541/followers",
+        "following_url": "https://api.github.com/users/webmaster541/following{/other_user}",
+        "gists_url": "https://api.github.com/users/webmaster541/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/webmaster541",
+        "id": 298366117,
+        "login": "webmaster541",
+        "node_id": "U_kgDOEci0pQ",
+        "organizations_url": "https://api.github.com/users/webmaster541/orgs",
+        "received_events_url": "https://api.github.com/users/webmaster541/received_events",
+        "repos_url": "https://api.github.com/users/webmaster541/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/webmaster541/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/webmaster541/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/webmaster541",
+        "user_view_type": "public"
+      },
+      "comments_url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/commits/a9a30e92630944c58ec74f6448983f312891e79a/comments",
+      "commit": {
+        "author": {
+          "date": "2026-08-14T21:31:02Z",
+          "email": "webmaster@liontechve.com",
+          "name": "KODA ERP"
+        },
+        "comment_count": 0,
+        "committer": {
+          "date": "2026-08-14T21:31:02Z",
+          "email": "webmaster@liontechve.com",
+          "name": "KODA ERP"
+        },
+        "message": "fix(security): disable unauthenticated /api/register account takeover\n\nThis legacy endpoint had no auth dependency, let the caller pick rol_id\n1/2 (CEO/Administrador), and assigned tenant_id from the oldest real\norganization in the system - full unauthenticated takeover of a real\ntenant. routers/auth_router.py already disables /auth/register with\nthis same message; this duplicate had never been deactivated.",
+        "tree": {
+          "sha": "3c602ab2d35618dcdb7cd1efbf0d42c3559a0a12",
+          "url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/git/trees/3c602ab2d35618dcdb7cd1efbf0d42c3559a0a12"
+        },
+        "url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/git/commits/a9a30e92630944c58ec74f6448983f312891e79a",
+        "verification": {
+          "payload": null,
+          "reason": "unsigned",
+          "signature": null,
+          "verified": false,
+          "verified_at": null
+        }
+      },
+      "committer": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/298366117?v=4",
+        "events_url": "https://api.github.com/users/webmaster541/events{/privacy}",
+        "followers_url": "https://api.github.com/users/webmaster541/followers",
+        "following_url": "https://api.github.com/users/webmaster541/following{/other_user}",
+        "gists_url": "https://api.github.com/users/webmaster541/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/webmaster541",
+        "id": 298366117,
+        "login": "webmaster541",
+        "node_id": "U_kgDOEci0pQ",
+        "organizations_url": "https://api.github.com/users/webmaster541/orgs",
+        "received_events_url": "https://api.github.com/users/webmaster541/received_events",
+        "repos_url": "https://api.github.com/users/webmaster541/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/webmaster541/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/webmaster541/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/webmaster541",
+        "user_view_type": "public"
+      },
+      "files": [
+        {
+          "additions": 11,
+          "blob_url": "https://github.com/CodeByelo/Monorepo-Koda/blob/a9a30e92630944c58ec74f6448983f312891e79a/KODA_Remaster%2Fsistema-corporativo%2Fbackend%2Fmain.py",
+          "changes": 11,
+          "contents_url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/contents/KODA_Remaster%2Fsistema-corporativo%2Fbackend%2Fmain.py?ref=a9a30e92630944c58ec74f6448983f312891e79a",
+          "deletions": 0,
+          "filename": "KODA_Remaster/sistema-corporativo/backend/main.py",
+          "patch": "@@ -923,6 +923,17 @@ async def register_user(\n     user: schemas.UsuarioCreate,\n     conn = Depends(get_db_connection)\n ):\n+    # Deshabilitado: este endpoint público, sin autenticación, permitía a\n+    # cualquiera auto-registrarse con rol_id=1/2 (CEO/Administrador) y\n+    # asignaba el tenant_id de la organización MÁS ANTIGUA del sistema —\n+    # toma de control total de un tenant real sin login. routers/auth_router.py\n+    # ya deshabilita /auth/register con este mismo mensaje; este duplicado\n+    # legacy nunca se había desactivado. No usar este endpoint para\n+    # onboarding — el alta real de tenants es vía /dev/tenants + claim-account.\n+    raise HTTPException(\n+        status_code=400,\n+        detail=\"El registro público está deshabilitado en este entorno corporativo.\"\n+    )\n     try:\n         existing = await conn.fetchrow(\n             \"SELECT id FROM profiles WHERE username = $1 OR email = $2\",",
+          "raw_url": "https://github.com/CodeByelo/Monorepo-Koda/raw/a9a30e92630944c58ec74f6448983f312891e79a/KODA_Remaster%2Fsistema-corporativo%2Fbackend%2Fmain.py",
+          "sha": "ffdbdeaffac804a77a5c1dc4742793021a2d5396",
+          "status": "modified"
+        }
+      ],
+      "html_url": "https://github.com/CodeByelo/Monorepo-Koda/commit/a9a30e92630944c58ec74f6448983f312891e79a",
+      "node_id": "C_kwDOTR9YRNoAKGE5YTMwZTkyNjMwOTQ0YzU4ZWM3NGY2NDQ4OTgzZjMxMjg5MWU3OWE",
+      "parents": [
+        {
+          "html_url": "https://github.com/CodeByelo/Monorepo-Koda/commit/38e1da99afd77ee1511015c395abddce593cb068",
+          "sha": "38e1da99afd77ee1511015c395abddce593cb068",
+          "url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/commits/38e1da99afd77ee1511015c395abddce593cb068"
+        }
+      ],
+      "sha": "a9a30e92630944c58ec74f6448983f312891e79a",
+      "stats": {
+        "additions": 11,
+        "deletions": 0,
+        "total": 11
+      },
+      "url": "https://api.github.com/repos/CodeByelo/Monorepo-Koda/commits/a9a30e92630944c58ec74f6448983f312891e79a"
+    },
+    "reference": "https://github.com/CodeByelo/Monorepo-Koda/commit/a9a30e92630944c58ec74f6448983f312891e79a",
+    "retrieved_at": "2026-08-15T03:49:52.210645+00:00",
+    "snapshot_role": "linked_upstream_observation"
+  }
+}
