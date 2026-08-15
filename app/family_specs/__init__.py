@@ -16,6 +16,7 @@ from .knowledge_projection import (
     validate_knowledge_projection,
     writeup_knowledge_projection,
 )
+from .sql_injection import SQL_INJECTION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
 from .registry import (
     FAMILY_DETECTION_SPECS,
