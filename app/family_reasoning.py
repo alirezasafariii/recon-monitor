@@ -9,6 +9,11 @@ Validation) sees one canonical family source of truth.
 """
 
 import family_reasoning_core as _core
+from family_reasoning_final_analyzers import (
+    FINAL_ANALYZER_REASONING_RULE_VERSION,
+    FINAL_ANALYZER_REASONING_VERSION,
+    apply_final_analyzer_reasoning,
+)
 from family_reasoning_owasp import (
     EXTENDED_FAMILY_REASONING,
     FAMILY_REASONING_EXTENSION_VERSION,
@@ -28,8 +33,13 @@ _core.FAMILY_ORDER = _existing + tuple(
 )
 _core.FAMILY_REASONING.update(EXTENDED_FAMILY_REASONING)
 _core.FAMILY_REASONING.update(PHASE2_FAMILY_REASONING)
-_core.FAMILY_REASONING_VERSION = "3.0.0"
-_core.FAMILY_REASONING_RULE_VERSION = _PHASE2_RULE_VERSION
+
+# Families migrated into the final analyzer architecture may tighten historical
+# admission contracts so Potential Findings require analyzer-owned target-side
+# evidence rather than attack-surface structure alone.
+apply_final_analyzer_reasoning(_core.FAMILY_REASONING)
+_core.FAMILY_REASONING_VERSION = "3.1.0"
+_core.FAMILY_REASONING_RULE_VERSION = FINAL_ANALYZER_REASONING_RULE_VERSION
 
 for _name, _value in vars(_core).items():
     if not _name.startswith("__"):
