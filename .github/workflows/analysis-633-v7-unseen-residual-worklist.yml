@@ -1,0 +1,71 @@
+name: Analysis 6.33 V7 Unseen Residual Worklist
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-residual-worklist.yml'
+      - 'app/v7_residual_worklist.py'
+      - 'tests/test_v7_residual_worklist.py'
+      - 'benchmarks/raw/sources/v7_fourth_pass_resolution_queue.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused residual guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_residual_worklist -q
+      - name: Build residual worklist
+        env: {PYTHONPATH: app}
+        run: python app/v7_residual_worklist.py
+      - name: Verify residual firewall and coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          w=json.loads(Path('benchmarks/raw/sources/v7_residual_unresolved_worklist.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_residual_unresolved_worklist_report.json').read_text())
+          assert r['unresolved_item_count']==18 and r['unresolved_family_count']==14
+          assert r['positive_count']==2 and r['secure_negative_count']==2 and r['near_miss_count']==14
+          assert len(w['families'])==14
+          for d in (w,r):
+              assert d['candidate_semantics_adjudicated'] is False
+              assert d['human_adjudication_performed'] is False
+              assert d['evidence_published'] is False
+              assert d['source_assignment_locked'] is True
+              assert d['source_replacement_allowed'] is False
+              assert d['synthetic_fixture_allowed'] is False
+              assert d['cross_variant_mutation_allowed'] is False
+              assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          for f in w['families']:
+              assert f['source_replacement_allowed'] is False
+              assert f['synthetic_fixture_allowed'] is False
+              assert f['human_semantic_decision'] is None
+          print([(f['family'], f['unresolved_case_kinds'], f['recommended_next_route']) for f in w['families']])
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze residual worklist and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_residual_unresolved_worklist.json benchmarks/raw/sources/v7_residual_unresolved_worklist_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 residual unresolved worklist'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
