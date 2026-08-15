@@ -1,0 +1,84 @@
+name: Analysis 6.33 V7 Unseen Draft Build
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-draft-build.yml'
+      - 'app/v7_unseen_capture_draft_builder.py'
+      - 'benchmarks/raw/sources/v7_unseen_source_snippet_candidates.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify frozen inputs
+        env: {PYTHONPATH: app}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v7_capture_guard import assert_capture_source_freeze
+          g=assert_capture_source_freeze()
+          r=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
+          b=json.loads(Path('benchmarks/raw/sources/v7_boundary_evidence.json').read_text())
+          s=json.loads(Path('benchmarks/raw/sources/v7_unseen_source_snippet_candidates.json').read_text())
+          p=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
+          assert g['recomputed_engine_seen_count']==0 and g['merge_authorized'] is False
+          assert r['version']=='2.2.0' and r['exact_frozen_root_match_count']==36 and r['ghsa_alias_resolution_count']==0
+          assert b['source_count']==36 and b['exact_revision_pair_count']==16
+          assert s['source_count']==36 and s['exact_pair_source_count']==16 and s['failure_count']==0
+          assert p['required_capture_count']==144 and p['evidence_present_count']==0
+          for d in (r,b,s,p):
+              assert d['source_assignment_commit']==g['source_assignment_commit']
+              assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          PY
+      - name: Keep published evidence empty
+        run: |
+          count=0
+          if [ -d benchmarks/raw/sources/v7_capture_evidence ]; then count=$(find benchmarks/raw/sources/v7_capture_evidence -type f -name '*.json' | wc -l | tr -d ' '); fi
+          test "$count" = 0
+      - name: Build review-only drafts
+        env: {PYTHONPATH: app}
+        run: |
+          rm -rf benchmarks/raw/sources/v7_capture_drafts
+          python app/v7_unseen_capture_draft_builder.py
+      - name: Verify draft firewall
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('benchmarks/raw/sources/v7_capture_drafts_report.json').read_text())
+          assert x['planned_count']==144
+          assert x['draft_count']+x['missing_literal_source_count']==144
+          assert x['publication_authorized'] is False and x['evidence_published'] is False
+          assert x['scoring_executed'] is False and x['first_blind_consumed'] is False
+          assert len({r['capture_id'] for r in x['rows']})==144
+          assert all(r['publication_authorized'] is False for r in x['rows'])
+          print({k:x[k] for k in ('draft_count','missing_literal_source_count','targeted_family_blocked_count','ready_for_human_semantic_review_count','status_counts','case_kind_status_counts')})
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze drafts
+        run: |
+          git add benchmarks/raw/sources/v7_capture_drafts benchmarks/raw/sources/v7_capture_drafts_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 unseen review-only drafts'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
