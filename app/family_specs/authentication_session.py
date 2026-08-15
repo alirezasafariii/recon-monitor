@@ -13,9 +13,9 @@ AUTHENTICATION_SESSION_STANDARD_SPEC = FamilyStandardSpec(
         "actually failed, such as post-logout reuse, required rotation failure, recovery bypass, or an invalid authenticated state."
     ),
     owasp=("A07:2025 Authentication Failures",),
-    wstg=("WSTG-ATHN-04", "WSTG-SESS-03", "WSTG-SESS-06", "WSTG-SESS-07"),
+    wstg=("WSTG-ATHN-04", "WSTG-SESS-06", "WSTG-SESS-07"),
     cwe=("CWE-287", "CWE-384", "CWE-613", "CWE-640"),
-    capec=(),
+    capec=("CAPEC-115",),
     methodology=(
         MethodologyStep(
             id="AUTH-01-state-machine",
@@ -24,7 +24,7 @@ AUTHENTICATION_SESSION_STANDARD_SPEC = FamilyStandardSpec(
         ),
         MethodologyStep(
             id="AUTH-02-session-rotation",
-            basis=("WSTG-SESS-03", "CWE-384"),
+            basis=("CWE-384",),
             principle="Treat token/session identity as lifecycle evidence only when rotation is explicitly expected for the observed transition and before/after values are tied to the same controlled context.",
         ),
         MethodologyStep(
@@ -39,12 +39,12 @@ AUTHENTICATION_SESSION_STANDARD_SPEC = FamilyStandardSpec(
         ),
         MethodologyStep(
             id="AUTH-05-behavioral-decision",
-            basis=("CWE-287", "CWE-384", "CWE-613", "CWE-640"),
+            basis=("CWE-287", "CWE-384", "CWE-613", "CWE-640", "CAPEC-115"),
             principle="Potential-Finding admission requires an actual stored lifecycle violation: post-logout reuse, required rotation failure, recovery bypass, or a documented authentication-state violation.",
         ),
         MethodologyStep(
             id="AUTH-06-falsification",
-            basis=("WSTG-SESS-03", "WSTG-SESS-06", "WSTG-SESS-07"),
+            basis=("WSTG-SESS-06", "WSTG-SESS-07"),
             principle="Observed rotation, enforced recovery verification and rejection of expired or logged-out sessions are contradiction evidence for the corresponding hypothesis.",
         ),
     ),
@@ -58,7 +58,7 @@ AUTHENTICATION_SESSION_STANDARD_SPEC = FamilyStandardSpec(
         "Client-side logout cleanup is not sufficient evidence of server invalidation, and retaining a stale client token is not evidence of server acceptance.",
         "Recovery may use a verification factor not visible in the current observation; bypass requires an explicit expected-factor versus completed-recovery comparison.",
         "Observed session rotation, recovery verification enforcement, and expired-session rejection are contradiction evidence for the corresponding lifecycle failure.",
-        "OWASP, WSTG, CWE and research write-ups define the reasoning method but add zero target evidence.",
+        "OWASP, WSTG, CWE, CAPEC and research write-ups define the reasoning method but add zero target evidence.",
     ),
     writeups=(
         WriteupLesson(
