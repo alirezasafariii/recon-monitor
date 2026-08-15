@@ -1,16 +1,22 @@
 {
   "evidence_missing_count": 0,
-  "evidence_present_count": 144,
-  "evidence_verify_passed": true,
-  "failed_stage": "materialize_validate_276",
+  "evidence_present_count": 0,
+  "evidence_verify_passed": false,
+  "failed_stage": "refine_collector",
   "first_blind_consumed": false,
-  "label_leakage_count": 10,
-  "materialized_case_count": 276,
-  "patchable_family_count": 36,
-  "patchable_missing_families": [],
+  "label_leakage_count": null,
+  "materialized_case_count": 0,
+  "patchable_family_count": 31,
+  "patchable_missing_families": [
+    "file_upload",
+    "graphql_authorization",
+    "graphql_data_exposure",
+    "security_logging_alerting_failure",
+    "software_supply_chain_failure"
+  ],
   "scoring_executed": false,
   "shortlist_missing_families": [],
-  "shortlist_selected_count": 36,
+  "shortlist_selected_count": 0,
   "validation_passed": false,
-  "verified_capture_count": 144
+  "verified_capture_count": 0
 }
