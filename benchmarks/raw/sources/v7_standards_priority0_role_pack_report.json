@@ -1,0 +1,38 @@
+{
+  "capture_count": 11,
+  "created_at": "2026-08-15T03:57:33.494968+00:00",
+  "engine_baseline_commit": "b8b15261cc4049a1e5e425a83e57b6378a856113",
+  "engine_output_used": false,
+  "evaluation_kind": "fresh_blind_v7_priority0_role_aware_source_pack_unscored",
+  "families_with_exact_revision_pairs_used": 6,
+  "families_with_vulnerable_condition_records": 6,
+  "families_with_vulnerable_identity_or_surface_records": 7,
+  "family_count": 11,
+  "first_blind_consumed": false,
+  "historical_exact_pair_identity_mismatch_count": 1,
+  "historical_exact_pair_identity_mismatch_families": [
+    "information_disclosure"
+  ],
+  "human_adjudication_performed": false,
+  "human_review_required": false,
+  "record_count": 77,
+  "role_counts": {
+    "fixed_or_remediation_state": 28,
+    "fixed_test_control_state": 4,
+    "unclassified_source_state": 6,
+    "vulnerable_or_impact_state": 24,
+    "vulnerable_parent_state": 15
+  },
+  "role_pack_sha256": "820650df0c61f23754367c8e304b7c603988df2bc447bb7a6954b8fc0570e7fe",
+  "rule_version": "2026.08.15.6.33.v7.unseen.priority0-role-pack.2",
+  "scoring_executed": false,
+  "source_assignment_commit": "5656a8add583f61e712a837794ce7302857fce7a",
+  "source_assignment_locked": true,
+  "source_replacement_allowed": false,
+  "source_replacement_used": false,
+  "standards_count_as_target_evidence": false,
+  "target_contact_performed": false,
+  "third_party_code_executed": false,
+  "version": "1.0.1",
+  "writeups_count_as_target_evidence": false
+}
