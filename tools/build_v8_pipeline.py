@@ -32,12 +32,21 @@ TRANSLATE_MODULES = (
     "raw_recon_v7_source_selection.py",
 )
 
+# These have v7 name-counterparts, but v8 versions are rebuilt independently
+# below and therefore are legitimate v8 outputs rather than stale translations.
+SPECIAL_V8_OUTPUTS = {
+    "raw_recon_v8_source_firewall.py",
+    "v8_benchmark_evaluate.py",
+    "v8_first_blind_consume.py",
+}
+
 FORBIDDEN_V8_COUNTERPARTS = tuple(
     sorted(
         {
             src.name.replace("v7", "v8").replace("V7", "V8")
             for src in APP.glob("*v7*.py")
             if src.name not in TRANSLATE_MODULES
+            and src.name.replace("v7", "v8").replace("V7", "V8") not in SPECIAL_V8_OUTPUTS
         }
     )
 )
@@ -278,6 +287,7 @@ def main() -> None:
         "generated_module_count": len(generated),
         "translated_module_allowlist_count": len(TRANSLATE_MODULES),
         "forbidden_stale_counterpart_count": len(FORBIDDEN_V8_COUNTERPARTS),
+        "special_rebuilt_output_count": len(SPECIAL_V8_OUTPUTS),
         "v8_firewall": "strict_v1_through_v7",
         "v8_evaluator_case_contract": "explicit_v8",
         "v7_first_blind_outcome_used_for_selection": False,
