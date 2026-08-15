@@ -22,8 +22,34 @@ def test_v8_builder_explicitly_repairs_case_mode_contract():
     assert 'def verify_freeze(' in source
 
 
-def test_v8_source_firewall_is_declared_through_v7():
+def test_v8_source_firewall_is_declared_through_v7_without_using_v7_outcome():
     source=(ROOT/'tools/build_v8_pipeline.py').read_text()
     assert 'all_exposed_sources_and_provenance_v1_through_consumed_v7' in source
-    assert 'selection_uses_v7_first_blind_error' in source
-    assert 'v7_first_blind_consumption.json' in source
+    assert 'v7_first_blind_score_used' in source
+    assert 'v7_first_blind_case_errors_used' in source
+    assert 'v7_first_blind_error_used' in source
+    assert 'v7_first_blind_outcome_used_for_selection' in source
+
+
+def test_v8_generation_is_allowlisted_not_glob_translated():
+    source=(ROOT/'tools/build_v8_pipeline.py').read_text()
+    assert 'TRANSLATE_MODULES' in source
+    assert 'FORBIDDEN_V8_COUNTERPARTS' in source
+    assert 'for src in sorted(APP.glob("*v7*.py"))' not in source
+    for forbidden in (
+        'raw_recon_v8_collision_supplement.py',
+        'raw_recon_v8_targeted_supplement.py',
+        'raw_recon_v8_missing5_supplement.py',
+        'workspace_v8.py',
+    ):
+        assert not (ROOT/'app'/forbidden).exists()
+
+
+def test_v8_hygiene_guard_exists_and_blocks_first_blind_state():
+    guard=ROOT/'app/v8_preblind_hygiene.py'
+    assert guard.exists()
+    text=guard.read_text()
+    assert 'v8_first_blind_consumption.json' in text
+    assert 'analysis_raw_v8_first_blind.json' in text
+    assert 'candidate_selection_uses_v7_first_blind_score' in text
+    assert 'selection_uses_v7_first_blind_error' in text
