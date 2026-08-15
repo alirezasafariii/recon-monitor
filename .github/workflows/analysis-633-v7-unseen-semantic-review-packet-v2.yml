@@ -1,0 +1,88 @@
+name: Analysis 6.33 V7 Unseen Semantic Review Packet V2
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-semantic-review-packet-v2.yml'
+      - 'app/v7_semantic_review_packet_v2.py'
+      - 'tests/test_v7_semantic_review_packet_v2.py'
+      - 'benchmarks/raw/sources/v7_candidate_coverage_ledger.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused review-packet-v2 guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_semantic_review_packet_v2 -q
+      - name: Build consolidated 144-variant review packet
+        env: {PYTHONPATH: app}
+        run: python app/v7_semantic_review_packet_v2.py
+      - name: Verify review coverage and blind firewall
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmarks/raw/sources/v7_semantic_review_packet_v2.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_semantic_review_packet_v2_report.json').read_text())
+          for x in (d,r):
+              assert x['family_count']==36 and x['variant_count']==144
+              assert x['original_source_grounded_draft_count']==78
+              assert x['acquired_candidate_material_count']==66
+              assert x['review_material_available_count']==144
+              assert x['review_material_missing_count']==0
+              assert x['by_case_kind']=={'near_miss':36,'positive':36,'secure_negative':36,'sparse_noisy':36}
+              assert x['all_variants_awaiting_human_review'] is True
+              assert x['candidate_semantics_adjudicated'] is False
+              assert x['semantic_adjudication_complete'] is False
+              assert x['human_adjudication_performed'] is False
+              assert x['human_review_complete'] is False
+              assert x['human_verified_record_count']==0
+              assert x['evidence_published'] is False and x['publication_authorized'] is False
+              assert x['source_assignment_locked'] is True
+              assert x['source_replacement_allowed'] is False
+              assert x['synthetic_fixture_allowed'] is False
+              assert x['cross_variant_mutation_allowed'] is False
+              assert x['engine_output_allowed_as_evidence'] is False
+              assert x['scoring_executed'] is False and x['first_blind_consumed'] is False
+          assert len(d['packets'])==36
+          variants=[v for p in d['packets'] for v in p['variants']]
+          assert len(variants)==144
+          assert len({v['capture_id'] for v in variants})==144
+          assert all(v['review_status']=='awaiting_human_semantic_review' for v in variants)
+          assert all(v['human_semantic_decision'] is None for v in variants)
+          assert all(v['human_verified'] is False for v in variants)
+          print({
+              'families':36,
+              'variants':144,
+              'drafts':78,
+              'acquired_candidates':66,
+              'family_adjudication_required_count':d['family_adjudication_required_count'],
+          })
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze semantic review packet v2 and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_semantic_review_packet_v2.json benchmarks/raw/sources/v7_semantic_review_packet_v2_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 semantic review packet v2'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
