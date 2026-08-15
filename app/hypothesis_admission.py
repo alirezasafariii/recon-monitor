@@ -27,7 +27,7 @@ from vulnerability_knowledge import (
 )
 
 ADMISSION_ENGINE_VERSION = "2.0.0"
-ADMISSION_RULE_VERSION = "2026.08.10.2"
+ADMISSION_RULE_VERSION = "2026.08.15.4"
 
 # Admission is intentionally stricter than hypothesis generation. Signals that
 # fail admission remain persisted in analysis_hypotheses so recall is preserved.
@@ -153,11 +153,20 @@ def assess_admission(
 ) -> dict[str, Any]:
     support_items = [dict(item) for item in support]
     contradict_items = [dict(item) for item in (contradict or [])]
-    types = {str(item.get("type") or "") for item in support_items}
-    contradiction_types = {str(item.get("type") or "") for item in contradict_items}
+    # Only typed target-evidence records participate in admission. Knowledge
+    # projections intentionally have no evidence ``type`` and therefore cannot
+    # increase the independent-source count or satisfy required groups.
+    typed_support_items = [
+        item for item in support_items if str(item.get("type") or "").strip()
+    ]
+    types = {str(item.get("type") or "") for item in typed_support_items}
+    contradiction_types = {
+        str(item.get("type") or "") for item in contradict_items
+        if str(item.get("type") or "").strip()
+    }
     sources = {
         str(item.get("source_group") or item.get("source") or item.get("type") or "unknown")
-        for item in support_items
+        for item in typed_support_items
     }
     policy = FAMILY_ADMISSION_POLICIES.get(family)
 
