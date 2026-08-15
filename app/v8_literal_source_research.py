@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 
 from raw_recon_corpus import ROOT
 
-VERSION = '1.0.2'
-RULE_VERSION = '2026.08.15.6.32.v8.32'
+VERSION = '1.0.3'
+RULE_VERSION = '2026.08.15.6.32.v8.33'
 SHORTLIST = ROOT / 'benchmarks/raw/sources/v8_shortlist.json'
 OUTPUT = ROOT / 'benchmarks/raw/sources/v8_literal_source_research.json'
 GHSA_RE = re.compile(r'^GHSA-[0-9a-z-]+$', re.I)
@@ -159,7 +159,10 @@ def main() -> int:
     args = parser.parse_args()
     report = build(os.environ.get('GITHUB_TOKEN'))
     OUTPUT.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
-    print(json.dumps({key: report[key] for key in ('family_count', 'successful_snapshot_count', 'unresolved_snapshot_count', 'scoring_executed')}, sort_keys=True))
+    summary = {key: report[key] for key in ('family_count', 'successful_snapshot_count', 'unresolved_snapshot_count', 'scoring_executed')}
+    print(json.dumps(summary, sort_keys=True))
+    if report['unresolved_sources']:
+        print(json.dumps({'unresolved_sources': report['unresolved_sources']}, indent=2, sort_keys=True))
     return 1 if args.require_all and report['successful_snapshot_count'] != 36 else 0
 
 
