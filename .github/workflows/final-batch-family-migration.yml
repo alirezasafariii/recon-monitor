@@ -1,0 +1,206 @@
+name: Final Batch Family Migration
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'Run property file path CORS migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Project canonical specs into analyzers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, hashlib
+
+          def project(path, import_anchor, start, end, spec_name, family, prefix):
+              p=Path(path); t=p.read_text()
+              imp="from family_specs.registry import get_detection_spec\n"
+              if imp not in t:
+                  if import_anchor not in t: raise SystemExit(f"{path}: import anchor missing")
+                  t=t.replace(import_anchor, import_anchor+imp, 1)
+              block=f'''{spec_name} = get_detection_spec("{family}")
+
+          # Compatibility exports; canonical definitions live in family_specs.
+          {prefix}_TAXONOMY = {spec_name}.taxonomy()
+          {prefix}_METHOD = tuple(step.as_dict() for step in {spec_name}.standard.methodology)
+          {prefix}_FALSE_POSITIVE_CHECKS = tuple({spec_name}.standard.false_positive_checks)
+          {prefix}_WRITEUP_PATTERNS = tuple(
+              {{
+                  "id": item.id,
+                  "source": item.source,
+                  "ref": item.ref,
+                  "url": item.url,
+                  "relation": item.relation,
+                  "principle": item.lesson,
+                  "signals": list(item.signal_hints),
+                  "counts_as_target_evidence": False,
+              }}
+              for item in {spec_name}.standard.writeups
+          )
+
+          '''
+              pat=re.escape(start)+r".*?"+re.escape(end)
+              t,n=re.subn(pat, block+end, t, count=1, flags=re.S)
+              if n!=1: raise SystemExit(f"{path}: metadata replace failed")
+              p.write_text(t)
+
+          project("app/family_analyzers/mass_assignment.py","from family_reasoning import FAMILY_REASONING, confirmation_gaps\n","MASS_ASSIGNMENT_TAXONOMY = {","def _loads","MASS_ASSIGNMENT_SPEC","mass_assignment","MASS_ASSIGNMENT")
+          project("app/family_analyzers/file_upload.py","from family_reasoning import FAMILY_REASONING, confirmation_gaps\n","FILE_UPLOAD_TAXONOMY = {","def _normalize","FILE_UPLOAD_SPEC","file_upload","FILE_UPLOAD")
+          project("app/family_analyzers/path_traversal.py","from family_reasoning import FAMILY_REASONING, confirmation_gaps\n","PATH_TRAVERSAL_TAXONOMY = {","def _normalize","PATH_TRAVERSAL_SPEC","path_traversal","PATH_TRAVERSAL")
+          project("app/family_analyzers/cors_misconfiguration.py","from core import Database\n","CORS_MISCONFIGURATION_TAXONOMY = {","_SENSITIVE_CONTEXTS =","CORS_MISCONFIGURATION_SPEC","cors_misconfiguration","CORS_MISCONFIGURATION")
+
+          new='''(
+                          "broken_object_authorization",
+                          "broken_function_authorization",
+                          "mass_assignment",
+                          "ssrf",
+                          "file_upload",
+                          "path_traversal",
+                          "sql_injection",
+                          "dom_xss",
+                          "cors_misconfiguration",
+                      )'''
+          for p in Path("tests").glob("test_final_analyzers_*spec*.py"):
+              t=p.read_text()
+              if "MIGRATED_FAMILIES" in t:
+                  t=re.sub(r'(?<=MIGRATED_FAMILIES,\n            )\([^)]*\)',new,t,count=1,flags=re.S)
+                  p.write_text(t)
+
+          TEST = r'''from __future__ import annotations
+
+          import sys
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          sys.path.insert(0, str(ROOT / "app"))
+
+          from family_specs.knowledge_projection import family_knowledge_projection, taxonomy_projection, validate_knowledge_projection
+          from family_specs.registry import MIGRATED_FAMILIES, get_detection_spec, validate_family_spec_registry
+          from hypothesis_admission import assess_admission
+          from vulnerability_knowledge import BUILTIN_KNOWLEDGE, SPEC_KNOWLEDGE_ERRORS, taxonomy_for_family
+
+
+          class FinalAnalyzersPropertyFilePathCorsSpecTests(unittest.TestCase):
+              families = ("mass_assignment", "file_upload", "path_traversal", "cors_misconfiguration")
+
+              def test_registry_and_knowledge_are_drift_free(self):
+                  self.assertEqual(len(MIGRATED_FAMILIES), 9)
+                  self.assertEqual(validate_family_spec_registry(), [])
+                  self.assertFalse(SPEC_KNOWLEDGE_ERRORS)
+                  for family in self.families:
+                      spec = get_detection_spec(family)
+                      self.assertEqual(validate_knowledge_projection(spec), [])
+                      self.assertEqual(taxonomy_for_family(family), taxonomy_projection(spec))
+                      self.assertEqual(BUILTIN_KNOWLEDGE[family], family_knowledge_projection(spec))
+                      self.assertTrue(all(d.get("counts_as_target_evidence") is False for d in BUILTIN_KNOWLEDGE[family]))
+                      self.assertTrue(all("type" not in d for d in BUILTIN_KNOWLEDGE[family]))
+
+              def test_mass_assignment_requires_target_property_failure(self):
+                  surface=assess_admission("mass_assignment",[
+                      {"type":"privileged_property","source_group":"schema"},
+                      {"type":"write_method","source_group":"operation"}])
+                  self.assertFalse(surface["admitted"])
+                  direct=assess_admission("mass_assignment",[
+                      {"type":"privileged_property","source_group":"schema"},
+                      {"type":"write_method","source_group":"operation"},
+                      {"type":"property_authorization_differential","source_group":"controlled"}])
+                  self.assertTrue(direct["admitted"])
+
+              def test_file_upload_requires_controlled_policy_failure(self):
+                  surface=assess_admission("file_upload",[
+                      {"type":"file_input","source_group":"structure"},
+                      {"type":"upload_operation","source_group":"structure"}])
+                  self.assertFalse(surface["admitted"])
+                  direct=assess_admission("file_upload",[
+                      {"type":"file_input","source_group":"structure"},
+                      {"type":"upload_operation","source_group":"structure"},
+                      {"type":"unsafe_file_accepted","source_group":"controlled"}])
+                  self.assertTrue(direct["admitted"])
+                  self.assertEqual(direct["confirmation_required"],[["content_type_bypass_observed","executable_upload_observed"]])
+
+              def test_path_traversal_requires_controlled_root_escape(self):
+                  surface=assess_admission("path_traversal",[
+                      {"type":"path_parameter","source_group":"structure"},
+                      {"type":"file_operation","source_group":"structure"}])
+                  self.assertFalse(surface["admitted"])
+                  direct=assess_admission("path_traversal",[
+                      {"type":"path_parameter","source_group":"structure"},
+                      {"type":"file_operation","source_group":"structure"},
+                      {"type":"path_escape_observed","source_group":"controlled"}])
+                  self.assertTrue(direct["admitted"])
+
+              def test_cors_requires_controlled_unintended_origin(self):
+                  surface=assess_admission("cors_misconfiguration",[
+                      {"type":"cors_header","source_group":"policy"},
+                      {"type":"sensitive_context","source_group":"context"}])
+                  self.assertFalse(surface["admitted"])
+                  direct=assess_admission("cors_misconfiguration",[
+                      {"type":"cors_header","source_group":"policy"},
+                      {"type":"sensitive_context","source_group":"context"},
+                      {"type":"untrusted_origin_allowed","source_group":"controlled"}])
+                  self.assertTrue(direct["admitted"])
+
+              def test_external_knowledge_is_zero_target_evidence(self):
+                  for family in self.families:
+                      result=assess_admission(family,[
+                          {"source":"OWASP","ref":"standard","source_group":"knowledge"},
+                          {"source":"WSTG","ref":"test","source_group":"knowledge"},
+                          {"source":"CWE","ref":"weakness","source_group":"knowledge"},
+                          {"source":"GHSL","ref":"writeup","source_group":"knowledge"}])
+                      self.assertFalse(result["admitted"])
+                      self.assertEqual(result["independent_sources"],0)
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          # Remove workflow indentation from generated Python test file.
+          import textwrap
+          Path("tests/test_final_analyzers_property_file_path_cors_specs.py").write_text(textwrap.dedent(TEST))
+
+          m=Path("MANIFEST.sha256")
+          paths=[]
+          for line in m.read_text().splitlines():
+              if not line.strip(): continue
+              parts=line.split(None,1)
+              if len(parts)!=2: raise SystemExit(f"bad manifest line {line!r}")
+              rel=parts[1].strip()
+              if Path(rel).is_file() and not rel.startswith(".github/workflows/final-batch-"):
+                  paths.append(rel)
+          for rel in [
+              "app/family_specs/mass_assignment.py","app/family_specs/file_upload.py",
+              "app/family_specs/path_traversal.py","app/family_specs/cors_misconfiguration.py",
+              "tests/test_final_analyzers_property_file_path_cors_specs.py"]:
+              paths.append(rel)
+          m.write_text("\n".join(f"{hashlib.sha256(Path(rel).read_bytes()).hexdigest()}  {rel}" for rel in sorted(set(paths)))+"\n")
+          PY
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
+      - name: Commit successful migration
+        shell: bash
+        run: |
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add app/family_analyzers/mass_assignment.py app/family_analyzers/file_upload.py app/family_analyzers/path_traversal.py app/family_analyzers/cors_misconfiguration.py tests/test_final_analyzers_property_file_path_cors_specs.py tests/test_final_analyzers_*spec*.py MANIFEST.sha256
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize property file path CORS analyzer migration'
+            git push origin HEAD:final-analyzers
+          fi
