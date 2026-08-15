@@ -58,7 +58,7 @@ GRAPHQL_AUTHORIZATION_STANDARD_SPEC = FamilyStandardSpec(
     ),
     writeups=(
         WriteupLesson(
-            id="owasp-graphql-access-control",
+            id="owasp-graphql-access-control-global",
             source="OWASP Cheat Sheet Series",
             ref="GraphQL Cheat Sheet / Access Control",
             url="https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html",
