@@ -1,0 +1,75 @@
+name: Analysis 6.33 V7 Unseen Second Pass Resolution
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-unseen-second-pass-resolution.yml'
+      - 'app/v7_second_pass_resolution_queue.py'
+      - 'tests/test_v7_second_pass_resolution_queue.py'
+      - 'benchmarks/raw/sources/v7_second_pass_source_snippet_candidates.json'
+      - 'benchmarks/raw/sources/v7_missing_literal_source_worklist.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused resolution guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_second_pass_resolution_queue -q
+      - name: Build second-pass resolution queue
+        env: {PYTHONPATH: app}
+        run: python app/v7_second_pass_resolution_queue.py
+      - name: Verify non-adjudicating firewall and coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('benchmarks/raw/sources/v7_second_pass_resolution_queue.json').read_text())
+          r=json.loads(Path('benchmarks/raw/sources/v7_second_pass_resolution_queue_report.json').read_text())
+          assert q['work_item_count']==66 and r['work_item_count']==66
+          assert q['candidate_available_count'] + q['still_unresolved_count'] == 66
+          for d in (q,r):
+              assert d['candidate_semantics_adjudicated'] is False
+              assert d['human_adjudication_performed'] is False
+              assert d['evidence_published'] is False and d['publication_authorized'] is False
+              assert d['source_assignment_locked'] is True
+              assert d['source_replacement_allowed'] is False and d['source_replacement_used'] is False
+              assert d['synthetic_fixture_allowed'] is False and d['synthetic_fixture_used'] is False
+              assert d['scoring_executed'] is False and d['first_blind_consumed'] is False
+          for row in q['items']:
+              assert row['human_semantic_decision'] is None
+              assert row['candidate_semantics_adjudicated'] is False
+              assert row['evidence_published'] is False
+              assert row['scoring_executed'] is False and row['first_blind_consumed'] is False
+          print({
+              'candidate_available': q['candidate_available_count'],
+              'still_unresolved': q['still_unresolved_count'],
+              'by_case_kind': q['by_case_kind'],
+          })
+          PY
+      - name: Full regression suite
+        env: {PYTHONPATH: app}
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Freeze resolution queue and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_second_pass_resolution_queue.json benchmarks/raw/sources/v7_second_pass_resolution_queue_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 second-pass resolution queue'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
