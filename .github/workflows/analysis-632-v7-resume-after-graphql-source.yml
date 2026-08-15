@@ -27,7 +27,11 @@ jobs:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python -m py_compile app/raw_recon_v7_collision_supplement.py app/raw_recon_v7_merge_patchable.py
+          python -m py_compile \
+            app/raw_recon_v7_collision_supplement.py \
+            app/raw_recon_v7_merge_patchable.py \
+            app/v7_literal_source_research.py \
+            app/v7_literal_linked_research.py
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
