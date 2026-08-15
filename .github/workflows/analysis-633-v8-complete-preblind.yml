@@ -111,6 +111,30 @@ jobs:
           PY
           python app/v8_preblind_hygiene.py
 
+      - name: Deepen fresh v8 source gaps and re-probe patches
+        env:
+          PYTHONPATH: app
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python app/raw_recon_v8_deep_source_discovery.py --reviewed-pages 8 --unreviewed-pages 16 --target-semantic 16
+          python app/raw_recon_v8_patch_probe.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('benchmarks/raw/sources/v8_candidates_patchable.json');r=json.loads(p.read_text())
+          r['candidate_selection_uses_v7_first_blind_score']=False
+          r['candidate_selection_uses_v7_first_blind_case_errors']=False
+          r['candidate_selection_uses_v7_first_blind_error']=False
+          p.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          assert r['scoring_executed'] is False
+          assert r['candidate_selection_uses_v7_first_blind_score'] is False
+          assert r['candidate_selection_uses_v7_first_blind_case_errors'] is False
+          assert r['candidate_selection_uses_v7_first_blind_error'] is False
+          print({'post_deep_patchable_family_count':36-len(r['families_without_candidates']),'post_deep_missing':r['families_without_candidates'],'family_candidate_counts':r['family_candidate_counts']})
+          PY
+          python app/v8_preblind_hygiene.py
+
       - name: Select 36 globally unique fresh v8 sources
         id: select
         continue-on-error: true
@@ -127,14 +151,14 @@ jobs:
           import json
           from pathlib import Path
           p=Path('benchmarks/raw/sources/v8_candidates_patchable.json');r=json.loads(p.read_text())
-          report={'version':'1.1.0','status':'fresh_v8_source_pool_incomplete','families_without_candidates':r.get('families_without_candidates',[]),'family_candidate_counts':r.get('family_candidate_counts',{}),'scoring_executed':False,'first_blind_consumed':False,'v7_first_blind_score_used_for_selection':False,'v7_first_blind_case_errors_used_for_selection':False,'v7_first_blind_error_used_for_selection':False}
+          report={'version':'1.2.0','status':'fresh_v8_source_pool_incomplete_after_deep_discovery','families_without_candidates':r.get('families_without_candidates',[]),'family_candidate_counts':r.get('family_candidate_counts',{}),'scoring_executed':False,'first_blind_consumed':False,'v7_first_blind_score_used_for_selection':False,'v7_first_blind_case_errors_used_for_selection':False,'v7_first_blind_error_used_for_selection':False}
           Path('benchmarks/raw/sources/v8_preblind_blocker.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add app/*v8*.py benchmarks/raw/sources/v8_protocol.json benchmarks/raw/sources/v8_candidates.json benchmarks/raw/sources/v8_candidates_patchable.json benchmarks/raw/sources/v8_shortlist.json benchmarks/raw/sources/v8_preblind_blocker.json || true
           if ! git diff --cached --quiet; then
-            git commit -m 'Record clean v8 source-pool diagnostics'
+            git commit -m 'Record deep fresh v8 source-pool diagnostics'
             git pull --rebase origin agent/analysis-engine-6.33-fresh-blind-v8-validation
             git push origin HEAD:agent/analysis-engine-6.33-fresh-blind-v8-validation
           fi
@@ -246,7 +270,7 @@ jobs:
           from pathlib import Path
           def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
           protocol=json.loads(Path('benchmarks/raw/sources/v8_protocol.json').read_text())
-          report={'version':'1.1.0','rule_version':'2026.08.15.6.33.v8.11','evaluation_kind':'fresh_blind_v8_evaluator_freeze','first_blind_evaluator_frozen':True,'scoring_executed':False,'first_blind_consumed':False,'v6_first_blind_score_used':False,'v6_first_blind_case_errors_used':False,'v7_first_blind_score_used':False,'v7_first_blind_case_errors_used':False,'v7_first_blind_error_used':False,'evaluator_sha256':sha('app/v8_benchmark_evaluate.py'),'consumer_sha256':sha('app/v8_first_blind_consume.py'),'protocol_sha256':sha('benchmarks/raw/sources/v8_protocol.json'),'corpus_freeze_sha256':sha('benchmarks/raw/sources/v8_corpus_freeze.json'),'contract_sha256':sha('app/v8_preblind_contract.py'),'hygiene_sha256':sha('app/v8_preblind_hygiene.py'),'pre_registered_gates':{'single':protocol['single_quality_gates'],'pair':protocol['pair_quality_gates'],'triad':protocol['triad_quality_gates']},'mutation_policy':'v8 evaluator, consumer, contract, hygiene guard, corpus and protocol are immutable before the single v8 First Blind'}
+          report={'version':'1.2.0','rule_version':'2026.08.15.6.33.v8.13','evaluation_kind':'fresh_blind_v8_evaluator_freeze','first_blind_evaluator_frozen':True,'scoring_executed':False,'first_blind_consumed':False,'v6_first_blind_score_used':False,'v6_first_blind_case_errors_used':False,'v7_first_blind_score_used':False,'v7_first_blind_case_errors_used':False,'v7_first_blind_error_used':False,'evaluator_sha256':sha('app/v8_benchmark_evaluate.py'),'consumer_sha256':sha('app/v8_first_blind_consume.py'),'protocol_sha256':sha('benchmarks/raw/sources/v8_protocol.json'),'corpus_freeze_sha256':sha('benchmarks/raw/sources/v8_corpus_freeze.json'),'contract_sha256':sha('app/v8_preblind_contract.py'),'hygiene_sha256':sha('app/v8_preblind_hygiene.py'),'pre_registered_gates':{'single':protocol['single_quality_gates'],'pair':protocol['pair_quality_gates'],'triad':protocol['triad_quality_gates']},'mutation_policy':'v8 evaluator, consumer, contract, hygiene guard, corpus and protocol are immutable before the single v8 First Blind'}
           Path('benchmarks/raw/sources/v8_evaluator_freeze.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
           PY
           PYTHONPATH=app python app/v8_preblind_verify.py
@@ -257,7 +281,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          checkpoint={'version':'1.1.0','rule_version':'2026.08.15.6.33.v8.12','checkpoint_status':'pre_v8_first_blind_ready_waiting_explicit_approval','production_calibration_status':'analysis_6_32_green_613_unit_tests_plus_golden_integration','fresh_source_family_count':36,'fresh_unique_root_count':36,'fresh_unique_project_count':36,'evidence_present_count':144,'evidence_missing_count':0,'unique_evidence_hash_count':144,'materialized_case_count':276,'single_case_count':144,'pair_case_count':72,'triad_case_count':60,'label_leakage_count':0,'evaluator_corpus_contract_passed':True,'blind_hygiene_passed':True,'corpus_freeze_status':'sealed_fresh_v8_unscored_holdout','evaluator_freeze_status':'frozen_against_exact_v8_corpus_contract_hygiene_and_single_consumption_wrapper','v6_first_blind_score_used_for_v8_source_selection':False,'v6_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_score_used_for_v8_source_selection':False,'v7_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_error_used_for_v8_source_selection':False,'active_target_validation_performed':False,'scoring_executed':False,'first_blind_consumed':False,'next_required_transition':'STOP. Await explicit approval before the single-consumption v8 First Blind score. Do not merge or finalize before explicit approval.'}
+          checkpoint={'version':'1.2.0','rule_version':'2026.08.15.6.33.v8.14','checkpoint_status':'pre_v8_first_blind_ready_waiting_explicit_approval','production_calibration_status':'analysis_6_32_green_613_unit_tests_plus_golden_integration','fresh_source_family_count':36,'fresh_unique_root_count':36,'fresh_unique_project_count':36,'evidence_present_count':144,'evidence_missing_count':0,'unique_evidence_hash_count':144,'materialized_case_count':276,'single_case_count':144,'pair_case_count':72,'triad_case_count':60,'label_leakage_count':0,'evaluator_corpus_contract_passed':True,'blind_hygiene_passed':True,'corpus_freeze_status':'sealed_fresh_v8_unscored_holdout','evaluator_freeze_status':'frozen_against_exact_v8_corpus_contract_hygiene_and_single_consumption_wrapper','v6_first_blind_score_used_for_v8_source_selection':False,'v6_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_score_used_for_v8_source_selection':False,'v7_first_blind_case_errors_used_for_v8_source_selection':False,'v7_first_blind_error_used_for_v8_source_selection':False,'active_target_validation_performed':False,'scoring_executed':False,'first_blind_consumed':False,'next_required_transition':'STOP. Await explicit approval before the single-consumption v8 First Blind score. Do not merge or finalize before explicit approval.'}
           Path('benchmarks/raw/sources/v8_pre_score_checkpoint.json').write_text(json.dumps(checkpoint,indent=2,sort_keys=True)+'\n')
           PY
 
