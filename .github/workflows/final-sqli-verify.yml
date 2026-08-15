@@ -19,6 +19,35 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Apply admission and taxonomy hardening
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one patch anchor in {path}, found {text.count(old)}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'app/hypothesis_admission.py',
+              'ADMISSION_ENGINE_VERSION = "2.0.0"\nADMISSION_RULE_VERSION = "2026.08.10.2"',
+              'ADMISSION_ENGINE_VERSION = "2.1.0"\nADMISSION_RULE_VERSION = "2026.08.15.4"',
+          )
+          replace_once(
+              'app/hypothesis_admission.py',
+              '''    types = {str(item.get("type") or "") for item in support_items}\n    contradiction_types = {str(item.get("type") or "") for item in contradict_items}\n    sources = {\n        str(item.get("source_group") or item.get("source") or item.get("type") or "unknown")\n        for item in support_items\n    }''',
+              '''    # Only typed target-evidence records participate in admission. Knowledge\n    # projections intentionally have no evidence ``type`` and therefore cannot\n    # increase the independent-source count or satisfy required groups.\n    typed_support_items = [\n        item for item in support_items if str(item.get("type") or "").strip()\n    ]\n    types = {str(item.get("type") or "") for item in typed_support_items}\n    contradiction_types = {\n        str(item.get("type") or "") for item in contradict_items\n        if str(item.get("type") or "").strip()\n    }\n    sources = {\n        str(item.get("source_group") or item.get("source") or item.get("type") or "unknown")\n        for item in typed_support_items\n    }''',
+          )
+          replace_once(
+              'app/owasp_family_catalog.py',
+              '''    "sql_injection": {\n        "owasp": ["Injection"],''',
+              '''    "sql_injection": {\n        # SQL Injection is part of OWASP Top 10 A05:2025 Injection. Keep the\n        # legacy generic label for compatibility; migrated runtime consumers use\n        # the canonical family_specs definition as the final projection.\n        "owasp": ["A05:2025 Injection", "Injection"],''',
+          )
+          PY
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -q
       - name: Integration test
@@ -49,12 +78,15 @@ jobs:
           manifest.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
           sha256sum --strict -c MANIFEST.sha256
-      - name: Commit manifest and workflow cleanup
+      - name: Commit SQLi migration
         shell: bash
         run: |
           git config user.name 'Alireza Safari'
           git config user.email '88625680+alirezasafariii@users.noreply.github.com'
-          git add MANIFEST.sha256
+          git add \
+            app/hypothesis_admission.py \
+            app/owasp_family_catalog.py \
+            MANIFEST.sha256
           git add -u .github/workflows/final-sqli-verify.yml
           git commit -m 'Finalize canonical SQL injection migration'
           git push origin HEAD:final-analyzers
