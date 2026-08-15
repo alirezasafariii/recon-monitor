@@ -9,6 +9,7 @@ on:
       - 'app/v7_capture_guard.py'
       - 'app/v7_literal_source_research.py'
       - 'app/v7_literal_capture_plan.py'
+      - 'tests/test_v7_literal_source_research.py'
   workflow_dispatch:
 
 permissions:
@@ -72,13 +73,19 @@ jobs:
           plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
           assert research['successful_snapshot_count']==36 and research['unresolved_snapshot_count']==0
           assert research['source_assignment_commit']=='5656a8add583f61e712a837794ce7302857fce7a'
+          assert research['ghsa_root_authoritative_count']==36
+          assert research['exact_frozen_root_match_count']==36
+          assert research['ghsa_alias_resolution_count']==0
           assert plan['family_count']==36 and plan['required_capture_count']==144
           assert plan['evidence_present_count']==0 and plan['evidence_missing_count']==144 and plan['all_evidence_present'] is False
           assert plan['source_assignment_commit']=='5656a8add583f61e712a837794ce7302857fce7a'
           for doc in (research,plan):
               assert doc['scoring_executed'] is False and doc['first_blind_consumed'] is False
-          print({'snapshots':36,'planned':144,'present':0,'literal_adjudication_required':plan['literal_adjudication_required_count'],'audit_fallbacks':plan['audit_fallback_count']})
+          print({'snapshots':36,'exact_frozen_root_matches':36,'planned':144,'present':0,'literal_adjudication_required':plan['literal_adjudication_required_count'],'audit_fallbacks':plan['audit_fallback_count']})
           PY
+      - name: Focused exact-identity regression
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests/test_v7_literal_source_research.py -q
       - name: Full regression suite
         env: {PYTHONPATH: app}
         run: python -m unittest discover -s tests -p 'test_*.py' -q
