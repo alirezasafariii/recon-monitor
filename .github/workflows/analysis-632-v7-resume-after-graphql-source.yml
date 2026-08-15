@@ -27,6 +27,8 @@ jobs:
           PYTHONPATH: app
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # The GraphQL source is the merged upstream Boardsesh resolver/cache
+          # security fix; all freshness and source-semantic gates remain active.
           python app/raw_recon_v7_missing5_supplement_v2.py
           python app/raw_recon_v7_merge_patchable.py
           python - <<'PY'
