@@ -5,7 +5,7 @@ from .base import FamilyStandardSpec, MethodologyStep, WriteupLesson
 
 FILE_UPLOAD_STANDARD_SPEC = FamilyStandardSpec(
     family="file_upload",
-    version="1.0.0",
+    version="1.0.1",
     strategy="file_policy_processing_boundary",
     principle=(
         "A file field, multipart request, or upload route is only attack-surface context; promotion requires "
@@ -57,6 +57,18 @@ FILE_UPLOAD_STANDARD_SPEC = FamilyStandardSpec(
         "OWASP, WSTG, CWE and write-ups never count as target evidence.",
     ),
     writeups=(
+        WriteupLesson(
+            id="owasp-upload",
+            source="OWASP Cheat Sheet Series",
+            ref="OWASP File Upload Cheat Sheet",
+            url="https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+            relation="canonical_defensive_method",
+            lesson=(
+                "File-upload assessment must connect extension/content validation, storage, naming, authorization and serving behavior. "
+                "The checklist defines expected controls but never proves a target is vulnerable."
+            ),
+            signal_hints=("file_input", "unsafe_file_accepted", "content_type_bypass_observed", "file_type_enforcement_observed", "safe_storage_observed"),
+        ),
         WriteupLesson(
             id="ghsl-2026-052-docmost-mime-spoofing",
             source="GitHub Security Lab",
