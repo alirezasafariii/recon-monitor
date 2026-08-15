@@ -8,6 +8,7 @@ from .base import (
 )
 from .broken_function_authorization import BFLA_STANDARD_SPEC
 from .broken_object_authorization import BOLA_STANDARD_SPEC
+from .dom_xss import DOM_XSS_STANDARD_SPEC
 from .knowledge_projection import (
     KNOWLEDGE_PROJECTION_VERSION,
     family_knowledge_projection,
