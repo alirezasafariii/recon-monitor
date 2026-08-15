@@ -17,12 +17,12 @@ from raw_recon_corpus import ROOT
 from raw_recon_v7_gap_discovery import _discover_family
 from raw_recon_v7_source_firewall import engine_exposure_index, research_exposure_index
 
-VERSION = "1.0.0"
-RULE_VERSION = "2026.08.15.6.33.v7.duplicate-target.1"
+VERSION = "1.1.0"
+RULE_VERSION = "2026.08.15.6.33.v7.duplicate-target.2"
 DEFAULT_INPUT = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 DEFAULT_OUTPUT = DEFAULT_INPUT
 DEFAULT_REPORT = ROOT / "benchmarks/raw/sources/v7_duplicate_target_repair_report.json"
-REPAIR_FAMILIES = ("dom_xss", "sensitive_business_flow_abuse")
+REPAIR_FAMILIES = ("dom_xss", "security_misconfiguration", "sensitive_business_flow_abuse")
 
 TARGETED_FIELDS = (
     "v7_targeted_gap_candidate",
