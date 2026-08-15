@@ -1,0 +1,73 @@
+name: Analysis 6.33 V7 Priority0 Role-Aware Source Pack
+
+on:
+  push:
+    branches: [agent/analysis-engine-6.33-v7-unseen-capture]
+    paths:
+      - '.github/workflows/analysis-633-v7-standards-priority0-role-pack.yml'
+      - 'app/v7_standards_priority0_role_pack.py'
+      - 'tests/test_v7_standards_priority0_role_pack.py'
+      - 'benchmarks/raw/sources/v7_standards_gap_worklist.json'
+      - 'benchmarks/raw/sources/v7_literal_source_research.json'
+      - 'benchmarks/raw/sources/v7_unseen_source_snippet_candidates.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-633-v7-priority0-role-pack
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/analysis-engine-6.33-v7-unseen-capture
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused role-pack guards
+        env: {PYTHONPATH: app}
+        run: python -m unittest tests.test_v7_standards_priority0_role_pack -v
+      - name: Build role-aware source pack
+        env: {PYTHONPATH: app}
+        run: python app/v7_standards_priority0_role_pack.py
+      - name: Verify source and scientific boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('benchmarks/raw/sources/v7_standards_priority0_role_pack_report.json').read_text())
+          assert r['family_count']==11 and r['capture_count']==11
+          assert r['record_count'] > 0
+          assert r['source_assignment_locked'] is True
+          assert r['source_replacement_allowed'] is False and r['source_replacement_used'] is False
+          assert r['standards_count_as_target_evidence'] is False
+          assert r['writeups_count_as_target_evidence'] is False
+          assert r['engine_output_used'] is False
+          assert r['human_review_required'] is False
+          assert r['third_party_code_executed'] is False
+          assert r['target_contact_performed'] is False
+          assert r['scoring_executed'] is False and r['first_blind_consumed'] is False
+          print({
+            'records': r['record_count'],
+            'roles': r['role_counts'],
+            'families_with_vulnerable_condition_records': r['families_with_vulnerable_condition_records'],
+            'families_with_exact_revision_pairs': r['families_with_exact_revision_pairs'],
+          })
+          PY
+      - name: Freeze role pack and manifest
+        run: |
+          git add benchmarks/raw/sources/v7_standards_priority0_role_pack.json benchmarks/raw/sources/v7_standards_priority0_role_pack_report.json
+          git ls-files -z | python -c 'import sys; x=[v for v in sys.stdin.buffer.read().split(b"\0") if v and v!=b"MANIFEST.sha256"]; sys.stdout.buffer.write(b"\0".join(sorted(x))+b"\0")' | xargs -0 sha256sum > MANIFEST.sha256
+          sha256sum --strict -c MANIFEST.sha256
+          git add MANIFEST.sha256
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(analysis-633): freeze V7 priority0 role-aware source pack'
+          git push origin HEAD:agent/analysis-engine-6.33-v7-unseen-capture
