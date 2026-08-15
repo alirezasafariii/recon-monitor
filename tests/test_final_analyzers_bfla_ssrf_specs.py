@@ -33,6 +33,10 @@ class FinalAnalyzersBflaSsrfSpecTests(unittest.TestCase):
                 "sql_injection",
                 "dom_xss",
                 "cors_misconfiguration",
+                "authentication_session",
+                "open_redirect",
+                "postmessage_trust",
+                "graphql_authorization",
             ),
         )
         self.assertEqual(validate_family_spec_registry(), [])

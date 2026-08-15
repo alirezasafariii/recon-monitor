@@ -20,10 +20,14 @@ from .file_upload import FILE_UPLOAD_STANDARD_SPEC
 from .mass_assignment import MASS_ASSIGNMENT_STANDARD_SPEC
 from .path_traversal import PATH_TRAVERSAL_STANDARD_SPEC
 from .sql_injection import SQL_INJECTION_STANDARD_SPEC
+from .authentication_session import AUTHENTICATION_SESSION_STANDARD_SPEC
+from .open_redirect import OPEN_REDIRECT_STANDARD_SPEC
+from .postmessage_trust import POSTMESSAGE_TRUST_STANDARD_SPEC
+from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
 
 
-FAMILY_SPEC_REGISTRY_VERSION = "1.4.0"
+FAMILY_SPEC_REGISTRY_VERSION = "1.5.0"
 MIGRATED_FAMILIES = (
     "broken_object_authorization",
     "broken_function_authorization",
@@ -34,6 +38,10 @@ MIGRATED_FAMILIES = (
     "sql_injection",
     "dom_xss",
     "cors_misconfiguration",
+    "authentication_session",
+    "open_redirect",
+    "postmessage_trust",
+    "graphql_authorization",
 )
 
 FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
@@ -46,6 +54,10 @@ FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     SQL_INJECTION_STANDARD_SPEC.family: SQL_INJECTION_STANDARD_SPEC,
     DOM_XSS_STANDARD_SPEC.family: DOM_XSS_STANDARD_SPEC,
     CORS_MISCONFIGURATION_STANDARD_SPEC.family: CORS_MISCONFIGURATION_STANDARD_SPEC,
+    AUTHENTICATION_SESSION_STANDARD_SPEC.family: AUTHENTICATION_SESSION_STANDARD_SPEC,
+    OPEN_REDIRECT_STANDARD_SPEC.family: OPEN_REDIRECT_STANDARD_SPEC,
+    POSTMESSAGE_TRUST_STANDARD_SPEC.family: POSTMESSAGE_TRUST_STANDARD_SPEC,
+    GRAPHQL_AUTHORIZATION_STANDARD_SPEC.family: GRAPHQL_AUTHORIZATION_STANDARD_SPEC,
 }
 
 

@@ -66,10 +66,21 @@ class FamilyReasoningV867Tests(unittest.TestCase):
             groups = list(policy["required"])
             if len(groups) < 2:
                 continue
-            support = [
-                {"type": sorted(group)[0], "source": f"source-{index}", "source_group": f"group-{index}"}
-                for index, group in enumerate(groups[:-1], start=1)
-            ]
+            # When decisive evidence is intentionally allowed to satisfy
+            # weaker structural groups, choose a preceding-group signal that
+            # does not also satisfy the omitted final group. This preserves the
+            # actual invariant under test: without the final required condition,
+            # the hypothesis must stay hidden.
+            omitted_group = set(groups[-1])
+            support = []
+            for index, group in enumerate(groups[:-1], start=1):
+                candidates = set(group) - omitted_group
+                chosen = sorted(candidates or set(group))[0]
+                support.append({
+                    "type": chosen,
+                    "source": f"source-{index}",
+                    "source_group": f"group-{index}",
+                })
             result = assess_admission(family, support, [])
             self.assertFalse(result["admitted"], family)
             self.assertIn(result["state"], {"shadow_signal", "shadow_partial"})

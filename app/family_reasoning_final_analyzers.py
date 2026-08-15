@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.2.1"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.15.6"
+FINAL_ANALYZER_REASONING_VERSION = "1.3.0"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.16.1"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
@@ -163,3 +163,64 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
         }
     )
     catalog["cors_misconfiguration"] = cors
+
+
+    auth_session = dict(catalog["authentication_session"])
+    auth_session.update(
+        {
+            "promotion_required": _groups(
+                {"authentication_surface", "auth_boundary", "session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+                {"client_operation", "state_change", "auth_boundary", "session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+                {"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"},
+            ),
+            "blocking_contradictions": frozenset({"session_rotation_observed", "recovery_verification_enforced", "expired_session_rejected"}),
+            "override_signals": frozenset({"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"}),
+            "confirmation_required": _groups({"session_reuse_after_logout", "token_not_rotated", "recovery_bypass", "authentication_state_violation"}),
+        }
+    )
+    catalog["authentication_session"] = auth_session
+
+    open_redirect = dict(catalog["open_redirect"])
+    open_redirect.update(
+        {
+            "promotion_required": _groups(
+                {"redirect_parameter", "user_controlled_destination", "external_destination_accepted"},
+                {"navigation_context", "dataflow_sink", "external_destination_accepted"},
+                {"external_destination_accepted"},
+            ),
+            "blocking_contradictions": frozenset({"destination_allowlist_observed", "same_origin_navigation_enforced"}),
+            "override_signals": frozenset({"external_destination_accepted"}),
+            "confirmation_required": _groups({"external_destination_accepted"}),
+        }
+    )
+    catalog["open_redirect"] = open_redirect
+
+    postmessage = dict(catalog["postmessage_trust"])
+    postmessage.update(
+        {
+            "promotion_required": _groups(
+                {"dataflow_source", "postmessage_source", "untrusted_message_accepted"},
+                {"dataflow_sink", "message_handler", "sensitive_sink", "untrusted_message_accepted"},
+                {"untrusted_message_accepted"},
+            ),
+            "blocking_contradictions": frozenset({"origin_check_observed", "trusted_origin_only"}),
+            "override_signals": frozenset({"untrusted_message_accepted"}),
+            "confirmation_required": _groups({"untrusted_message_accepted"}),
+        }
+    )
+    catalog["postmessage_trust"] = postmessage
+
+    graphql = dict(catalog["graphql_authorization"])
+    graphql.update(
+        {
+            "promotion_required": _groups(
+                {"graphql_identifier", "graphql_unauthorized_object_response", "graphql_authorization_differential"},
+                {"graphql_operation", "graphql_unauthorized_object_response", "graphql_authorization_differential"},
+                {"graphql_unauthorized_object_response", "graphql_authorization_differential"},
+            ),
+            "blocking_contradictions": frozenset({"resolver_authorization_observed", "cross_context_denied"}),
+            "override_signals": frozenset({"graphql_unauthorized_object_response", "graphql_authorization_differential"}),
+            "confirmation_required": _groups({"graphql_unauthorized_object_response", "graphql_authorization_differential"}),
+        }
+    )
+    catalog["graphql_authorization"] = graphql

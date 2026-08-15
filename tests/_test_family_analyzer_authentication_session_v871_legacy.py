@@ -96,7 +96,8 @@ class AuthenticationSessionFamilyAnalyzerV871Tests(unittest.TestCase):
         self.assertEqual(AUTH_SESSION_FAMILY_ANALYZER_VERSION, "1.0.0")
         self.assertIn("CWE-287", meta["taxonomy"]["cwe"])
         self.assertIn("WSTG-ATHN-04", meta["taxonomy"]["wstg"])
-        self.assertIn("WSTG-SESS-01", meta["taxonomy"]["wstg"])
+        self.assertIn("WSTG-SESS-06", meta["taxonomy"]["wstg"])
+        self.assertIn("WSTG-SESS-07", meta["taxonomy"]["wstg"])
         basis = {item for step in AUTH_SESSION_METHOD for item in step["basis"]}
         self.assertIn("CWE-287", basis)
         self.assertIn("CWE-613", basis)

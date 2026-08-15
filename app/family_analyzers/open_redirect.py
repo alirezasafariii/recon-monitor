@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -34,77 +35,25 @@ NAVIGATION_SINKS = {
     "client_redirect", "dataflow_sink", "source_sink",
 }
 
-OPEN_REDIRECT_TAXONOMY = {
-    "owasp": ["Client-side URL Redirect / Open Redirect"],
-    "wstg": ["WSTG-CLNT-04"],
-    "cwe": ["CWE-601"],
-}
+OPEN_REDIRECT_SPEC = get_detection_spec("open_redirect")
 
-OPEN_REDIRECT_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+OPEN_REDIRECT_TAXONOMY = OPEN_REDIRECT_SPEC.taxonomy()
+OPEN_REDIRECT_METHOD = tuple(step.as_dict() for step in OPEN_REDIRECT_SPEC.standard.methodology)
+OPEN_REDIRECT_FALSE_POSITIVE_CHECKS = tuple(OPEN_REDIRECT_SPEC.standard.false_positive_checks)
+OPEN_REDIRECT_WRITEUP_PATTERNS = tuple(
     {
-        "id": "REDIR-01-input-surface",
-        "basis": ["WSTG-CLNT-04", "CWE-601"],
-        "principle": "Identify the exact user-influenced URL/path field and keep generic URL-looking parameters as structural surface evidence only.",
-    },
-    {
-        "id": "REDIR-02-navigation-sink",
-        "basis": ["WSTG-CLNT-04"],
-        "principle": "Trace the destination into an actual browser or response navigation primitive rather than treating URL parsing or link display as redirection.",
-    },
-    {
-        "id": "REDIR-03-destination-policy",
-        "basis": ["CWE-601"],
-        "principle": "Model exact allow-lists, same-origin restrictions, relative-path-only handling, scheme restrictions and normalization before deciding whether an external destination is permitted.",
-    },
-    {
-        "id": "REDIR-04-runtime-destination",
-        "basis": ["WSTG-CLNT-04", "CWE-601"],
-        "principle": "Direct condition evidence requires a stored observation that a user-controlled destination was accepted and the resulting navigation reached an external origin outside the intended trust boundary.",
-    },
-    {
-        "id": "REDIR-05-false-positive-review",
-        "basis": ["WSTG-CLNT-04", "CWE-601"],
-        "principle": "Reject same-origin, relative-only and allow-listed destinations and compare parsed scheme/host/port rather than substring or prefix matches.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in OPEN_REDIRECT_SPEC.standard.writeups
 )
-
-OPEN_REDIRECT_FALSE_POSITIVE_CHECKS = (
-    "A static source-to-navigation flow is one correlated observation, not two independent proofs.",
-    "A parameter named next, url, redirect, returnUrl or redirect_uri is not a vulnerability without a navigation decision.",
-    "A missing visible validation branch does not establish that an external destination is accepted at runtime.",
-    "Relative paths and same-origin absolute URLs are not external redirects.",
-    "Exact host/origin allow-lists and relative-path-only controls are evidence against the open-redirect condition.",
-    "Host checks use parsed hostname/origin semantics; a value such as example.com.evil.test must not be treated as trusted merely because it contains example.com.",
-    "OAuth redirect_uri and callback parameters frequently have explicit registration/allow-list semantics and must not be promoted from parameter names alone.",
-    "JavaScript-scheme or DOM execution concerns remain neighboring injection families and are not inferred from an Open Redirect result.",
-)
-
-OPEN_REDIRECT_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-clnt-04-client-url-redirect",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-CLNT-04 / Testing for Client-side URL Redirect",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/04-Testing_for_Client-side_URL_Redirect",
-        "principle": "User-controlled URL/path input reaching a navigation primitive requires destination validation before external navigation is trusted.",
-        "signals": ["redirect_parameter", "navigation_context", "navigation_validation_absent", "external_destination_accepted"],
-    },
-    {
-        "id": "cwe-601-untrusted-url-redirection",
-        "source": "MITRE CWE",
-        "ref": "CWE-601 / URL Redirection to Untrusted Site ('Open Redirect')",
-        "url": "https://cwe.mitre.org/data/definitions/601.html",
-        "principle": "A product accepts a user-controlled destination and redirects to an untrusted site without sufficient destination restriction.",
-        "signals": ["user_controlled_destination", "external_destination_accepted"],
-    },
-    {
-        "id": "public-writeup-return-url-weak-validation",
-        "source": "Public write-up pattern corpus",
-        "ref": "return/next/callback destination weak-validation pattern",
-        "principle": "Real-world reports commonly distinguish a user-controlled return/next/callback parameter from the decisive observation that weak host/origin validation permits an external destination.",
-        "signals": ["redirect_parameter", "destination_allowlist_observed", "external_destination_accepted"],
-    },
-)
-
 
 def _normalize(value: Any) -> str:
     text = str(value or "").strip().lower()
