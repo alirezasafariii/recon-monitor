@@ -27,8 +27,8 @@ from raw_recon_v7_source_firewall import (
     research_exposure_index,
 )
 
-VERSION = "1.1.0"
-RULE_VERSION = "2026.08.14.6.33.v7.gap.2"
+VERSION = "1.2.0"
+RULE_VERSION = "2026.08.15.6.33.v7.gap.3"
 DEFAULT_BASE = ROOT / "benchmarks/raw/sources/v7_candidates_fast.json"
 DEFAULT_OUT = ROOT / "benchmarks/raw/sources/v7_candidates.json"
 DEFAULT_REPORT = ROOT / "benchmarks/raw/sources/v7_gap_discovery_report.json"
@@ -47,6 +47,7 @@ GAP_FAMILIES = (
     "improper_inventory_management",
     "information_disclosure",
     "mass_assignment",
+    "security_misconfiguration",
     "sensitive_business_flow_abuse",
     "source_map_exposure",
     "sql_injection",
@@ -96,6 +97,16 @@ CONTEXT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
     "mass_assignment": (
         ("mass assignment", "bind", "binding", "model", "object", "update", "fields", "property", "properties", "payload"),
         ("unauthorized", "over-post", "overpost", "privilege", "admin", "protected", "allowlist", "whitelist", "attribute"),
+    ),
+    "security_misconfiguration": (
+        (
+            "configuration", "misconfiguration", "error message", "stack trace", "debug", "debug mode",
+            "http", "strict transport security", "hsts", "method", "directory listing", "request smuggling",
+        ),
+        (
+            "exposed", "exposure", "enabled", "missing", "insecure", "cleartext", "sensitive",
+            "dangerous", "directory listing", "stack trace", "debug", "misconfigured",
+        ),
     ),
     "sensitive_business_flow_abuse": (
         ("workflow", "business", "transaction", "order", "payment", "purchase", "coupon", "redeem", "invite", "credit", "registration", "reset", "verification"),
