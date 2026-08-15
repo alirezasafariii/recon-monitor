@@ -50,12 +50,18 @@ jobs:
           assert guard['merge_authorized'] is False
           research=json.loads(Path('benchmarks/raw/sources/v7_literal_source_research.json').read_text())
           plan=json.loads(Path('benchmarks/raw/sources/v7_literal_capture_plan.json').read_text())
+          assert research['version']=='2.2.0'
           assert research['successful_snapshot_count']==36 and research['unresolved_snapshot_count']==0
+          assert research['ghsa_root_authoritative_count']==36
+          assert research['exact_frozen_root_match_count']==36
+          assert research['ghsa_alias_resolution_count']==0
+          assert research['source_assignment_commit']==guard['source_assignment_commit']
           assert plan['required_capture_count']==144 and plan['evidence_present_count']==0
           assert plan['literal_adjudication_required_count']==11
           assert plan['audit_fallback_count']==4
+          assert plan['source_assignment_commit']==guard['source_assignment_commit']
           assert plan['scoring_executed'] is False and plan['first_blind_consumed'] is False
-          print({'source_assignment_commit':guard['source_assignment_commit'],'engine_seen':0,'planned_captures':144,'existing_evidence':0})
+          print({'source_assignment_commit':guard['source_assignment_commit'],'engine_seen':0,'exact_ghsa_matches':36,'planned_captures':144,'existing_evidence':0})
           PY
 
       - name: Acquire public upstream boundaries
