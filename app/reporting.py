@@ -31,6 +31,7 @@ from analysis_engine import run_analysis
 from collection_quality import snapshot_collection_quality
 from evidence_coverage import snapshot_evidence_coverage
 from evidence_completion_planner import snapshot_evidence_completion_plan
+from validation_eligibility import snapshot_validation_eligibility
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -257,6 +258,7 @@ def generate_report(
     collection_quality: Mapping[str, Any] | None = None,
     evidence_coverage: Mapping[str, Any] | None = None,
     evidence_completion_plan: Mapping[str, Any] | None = None,
+    validation_eligibility: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
@@ -278,6 +280,7 @@ def generate_report(
     quality = dict(collection_quality or {})
     coverage = dict(evidence_coverage or {})
     completion_plan = dict(evidence_completion_plan or {})
+    eligibility = dict(validation_eligibility or {})
     report = {
         "schema": 7,
         "recon_monitor_version": APP_VERSION,
@@ -292,6 +295,7 @@ def generate_report(
         "collection_quality": quality,
         "evidence_coverage": coverage,
         "evidence_completion_plan": completion_plan,
+        "validation_eligibility": eligibility,
         "changes": {
             "total": len(events),
             "by_severity": {
@@ -333,6 +337,7 @@ def generate_report(
         "collection_quality": quality,
         "evidence_coverage": coverage,
         "evidence_completion_plan": completion_plan,
+        "validation_eligibility": eligibility,
         "change_summary": {key: value for key, value in report["changes"].items() if key != "events"},
         "intelligence_summary": {
             "javascript_diffs": len(js_diffs),
@@ -346,6 +351,7 @@ def generate_report(
             "collection_quality_json": str(ctx.run_dir / "collection-quality.json"),
             "evidence_coverage_json": str(ctx.run_dir / "evidence-coverage.json"),
             "evidence_completion_plan_json": str(ctx.run_dir / "evidence-completion-plan.json"),
+            "validation_eligibility_json": str(ctx.run_dir / "validation-eligibility.json"),
             "current_dir": str(ctx.current),
             "changes_dir": str(ctx.changes),
         },
@@ -518,6 +524,42 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
                 "executes_validation": False,
                 "error": str(exc),
             }
+    validation_eligibility: dict[str, Any] = {
+        "version": "1.0.0",
+        "status": "unavailable",
+        "decision_count": 0,
+        "diagnostic_only": True,
+        "affects_admission": False,
+        "affects_candidate_promotion": False,
+        "executes_validation": False,
+        "automatic_execution_allowed": False,
+        "reason": "Evidence Completion Planner did not produce a usable plan snapshot.",
+    }
+    if evidence_completion_plan.get("plans"):
+        try:
+            validation_eligibility = snapshot_validation_eligibility(
+                ctx,
+                evidence_completion_plan=evidence_completion_plan,
+            )
+        except Exception as exc:
+            ctx.logger.warn(
+                "Validation eligibility gate failed without blocking report generation",
+                target=ctx.policy.name,
+                run_id=ctx.run_id,
+                analysis_id=analysis_id,
+                error=str(exc),
+            )
+            validation_eligibility = {
+                "version": "1.0.0",
+                "status": "unavailable",
+                "decision_count": 0,
+                "diagnostic_only": True,
+                "affects_admission": False,
+                "affects_candidate_promotion": False,
+                "executes_validation": False,
+                "automatic_execution_allowed": False,
+                "error": str(exc),
+            }
     report = generate_report(
         ctx,
         baseline,
@@ -525,6 +567,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         collection_quality,
         evidence_coverage,
         evidence_completion_plan,
+        validation_eligibility,
     )
     return {
         "events": report["changes"]["total"],
@@ -536,6 +579,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         "collection_quality": collection_quality,
         "evidence_coverage": evidence_coverage,
         "evidence_completion_plan": evidence_completion_plan,
+        "validation_eligibility": validation_eligibility,
         "analysis": analysis_summary,
     }
 
