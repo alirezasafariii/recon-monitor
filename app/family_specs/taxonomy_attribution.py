@@ -11,8 +11,8 @@ signals.
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-TAXONOMY_ATTRIBUTION_VERSION = "1.0.1"
-TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.2"
+TAXONOMY_ATTRIBUTION_VERSION = "1.0.2"
+TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.3"
 
 
 @dataclass(frozen=True)
@@ -58,9 +58,9 @@ def _cwe(
     )
 
 
-# Ported selectively from Analysis 6.33. Direct family-defining CWEs can be
-# auto-assigned only after admission. Broad/contextual CWEs either require a
-# decisive target signal or remain manual-root-cause-review only.
+# Ported selectively from Analysis 6.33. The canonical final-analyzer spec is
+# authoritative for which references exist; these rules only describe how a
+# matching reference may be attributed after admission.
 FAMILY_CWE_ATTRIBUTION: dict[str, tuple[TaxonomyAttributionRule, ...]] = {
     "broken_object_authorization": (
         _cwe("CWE-639"),
@@ -152,28 +152,31 @@ FAMILY_CWE_ATTRIBUTION: dict[str, tuple[TaxonomyAttributionRule, ...]] = {
 
 
 def rules_for_family(family: str) -> tuple[TaxonomyAttributionRule, ...]:
-    """Return explicit rules plus fail-closed manual rules for spec-only CWEs.
+    """Resolve explicit 6.33 rules against the authoritative final spec.
 
-    A family spec may intentionally carry broader CWE context than Analysis 6.33
-    had an auto-assignment rule for. Those extra references are never guessed as
-    direct mappings: they become contextual/manual-only until an explicit rule is
-    reviewed and added here.
+    Rules for references absent from the final spec are ignored. References in
+    the final spec without a reviewed explicit rule fail closed to
+    contextual/manual-only attribution rather than being guessed as direct.
     """
 
     family_name = str(family)
-    explicit = list(FAMILY_CWE_ATTRIBUTION.get(family_name, ()))
-    explicit_refs = {rule.ref for rule in explicit}
+    explicit_all = list(FAMILY_CWE_ATTRIBUTION.get(family_name, ()))
     try:
         from .registry import FAMILY_STANDARD_SPECS
 
         standard = FAMILY_STANDARD_SPECS.get(family_name)
     except (ImportError, AttributeError):
         standard = None
-    if standard is not None:
-        for ref in standard.cwe:
-            if ref in explicit_refs:
-                continue
-            explicit.append(_cwe(ref, mapping="contextual", auto_assign=False))
+    if standard is None:
+        return tuple(explicit_all)
+
+    spec_refs = set(standard.cwe)
+    explicit = [rule for rule in explicit_all if rule.ref in spec_refs]
+    explicit_refs = {rule.ref for rule in explicit}
+    for ref in standard.cwe:
+        if ref in explicit_refs:
+            continue
+        explicit.append(_cwe(ref, mapping="contextual", auto_assign=False))
     return tuple(explicit)
 
 
@@ -225,7 +228,7 @@ def resolve_taxonomy_attribution(
 
 
 def validate_taxonomy_attribution() -> list[str]:
-    """Validate coverage and reference drift against canonical family specs."""
+    """Validate effective policy coverage and reference drift against specs."""
 
     from .registry import FAMILY_STANDARD_SPECS, MIGRATED_FAMILIES
 
