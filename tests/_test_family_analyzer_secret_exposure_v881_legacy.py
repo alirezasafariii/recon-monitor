@@ -112,13 +112,13 @@ class SecretExposureFamilyAnalyzerV881Tests(unittest.TestCase):
         self.assertFalse(result["family_analyzer"]["promotion_ready_from_stored_target_evidence"])
         self.assertIn("assignment_name_only", {row["type"] for row in result["contradict"]})
 
-    def test_aws_access_key_id_marker_is_candidate_not_confirmation(self):
+    def test_aws_access_key_id_marker_remains_hidden_candidate(self):
         result = self.analyze(markers=["aws_access_key_pattern"])
         observed = {row["type"] for row in result["support"]}
         self.assertIn("secret_pattern", observed)
         self.assertIn("context", observed)
         self.assertNotIn("credential_material_confirmed", observed)
-        self.assertTrue(result["family_analyzer"]["promotion_ready_from_stored_target_evidence"])
+        self.assertFalse(result["family_analyzer"]["promotion_ready_from_stored_target_evidence"])
         self.assertFalse(result["family_analyzer"]["confirmation_ready_from_stored_target_evidence"])
 
     def test_complete_private_key_block_is_confirmed_offline_and_redacted(self):

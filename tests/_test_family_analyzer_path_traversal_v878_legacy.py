@@ -138,8 +138,8 @@ class PathTraversalFamilyAnalyzerV878Tests(unittest.TestCase):
         meta = result["family_analyzer"]
         self.assertEqual(PATH_TRAVERSAL_FAMILY_ANALYZER_VERSION, "1.0.0")
         self.assertIn("CWE-22", meta["taxonomy"]["cwe"])
-        self.assertIn("CWE-23", meta["taxonomy"]["related_cwe"])
-        self.assertIn("CWE-36", meta["taxonomy"]["related_cwe"])
+        self.assertIn("CWE-23", meta["taxonomy"]["cwe"])
+        self.assertIn("CWE-36", meta["taxonomy"]["cwe"])
         self.assertIn("WSTG-ATHZ-01", meta["taxonomy"]["wstg"])
         basis = {item for step in PATH_TRAVERSAL_METHOD for item in step["basis"]}
         self.assertIn("CWE-22", basis)

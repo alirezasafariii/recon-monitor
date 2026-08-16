@@ -80,18 +80,20 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
         admission = json.loads(hidden["admission_json"])
         self.assertFalse(admission["admitted"])
 
-    def test_real_structured_upload_is_promoted(self):
+    def test_real_structured_upload_is_retained_until_policy_failure_is_observed(self):
         row = self.row("https://x.test/api/upload", method="POST", body=["file"])
         created = _alert_candidates(self.db, self.analysis_id, self.run_id, row)
-        self.assertGreaterEqual(created, 1)
-        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='file_upload'")
-        self.assertIsNotNone(candidate)
+        self.assertEqual(created, 0)
+        self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE bug_family='file_upload'"))
         hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE bug_family='file_upload'")
-        self.assertEqual(hypothesis["state"], "promoted")
-        self.assertEqual(hypothesis["promoted_candidate_id"], candidate["candidate_id"])
-        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}
-        self.assertIn("file_input", types)
-        self.assertIn("upload_operation", types)
+        self.assertIsNotNone(hypothesis)
+        self.assertNotEqual(hypothesis["state"], "promoted")
+        support = {item["type"] for item in json.loads(hypothesis["supporting_evidence_json"])}
+        self.assertIn("file_input", support)
+        self.assertIn("upload_operation", support)
+        admission = json.loads(hypothesis["admission_json"])
+        self.assertFalse(admission["admitted"])
+        self.assertTrue(admission["required_missing"])
 
     def test_generic_path_word_is_retained_but_not_promoted(self):
         row = self.row("https://x.test/api/profile", details={"metadata": {"path": "client-side label"}})
@@ -102,16 +104,20 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
         self.assertNotEqual(hypothesis["state"], "promoted")
         self.assertGreaterEqual(hypothesis["seen_count"], 1)
 
-    def test_structured_filename_and_download_operation_promotes_traversal(self):
+    def test_structured_filename_and_download_operation_remains_hidden_without_root_escape(self):
         row = self.row("https://x.test/api/download", method="GET", query=["filename"])
         _alert_candidates(self.db, self.analysis_id, self.run_id, row)
-        candidate = self.db.one("SELECT * FROM bug_candidates WHERE bug_family='path_traversal'")
-        self.assertIsNotNone(candidate)
-        types = {item["type"] for item in json.loads(candidate["supporting_evidence_json"])}
-        self.assertIn("filename_field", types)
-        self.assertIn("download_operation", types)
+        self.assertIsNone(self.db.one("SELECT * FROM bug_candidates WHERE bug_family='path_traversal'"))
+        hypothesis = self.db.one("SELECT * FROM analysis_hypotheses WHERE bug_family='path_traversal'")
+        self.assertIsNotNone(hypothesis)
+        self.assertNotEqual(hypothesis["state"], "promoted")
+        support = {item["type"] for item in json.loads(hypothesis["supporting_evidence_json"])}
+        self.assertIn("filename_field", support)
+        self.assertIn("download_operation", support)
+        admission = json.loads(hypothesis["admission_json"])
+        self.assertFalse(admission["admitted"])
 
-    def test_complementary_evidence_merges_before_promotion(self):
+    def test_complementary_surface_evidence_merges_then_target_failure_promotes(self):
         first = record_hypothesis(
             self.db, analysis_id=self.analysis_id, source_run_id=self.run_id, target="x.test", alert_id=None,
             asset="x.test", endpoint="https://x.test/api/import", source_ref="first", family="file_upload",
@@ -125,9 +131,25 @@ class RecallPreservingAdmissionV843Tests(unittest.TestCase):
             variant="file_validation", support=[{"type": "import_operation", "source": "endpoint", "text": "import operation"}],
             contradict=[], missing=[], rule_ids=["second"], summary="test",
         )
-        self.assertTrue(second["assessment"]["admitted"])
+        self.assertFalse(second["assessment"]["admitted"])
         self.assertEqual(second["seen_count"], 2)
         self.assertEqual({item["type"] for item in second["support"]}, {"file_input", "import_operation"})
+
+        third = record_hypothesis(
+            self.db, analysis_id=self.analysis_id, source_run_id=self.run_id, target="x.test", alert_id=None,
+            asset="x.test", endpoint="https://x.test/api/import", source_ref="controlled", family="file_upload",
+            variant="file_validation", support=[{
+                "type": "unsafe_file_accepted", "source": "controlled_test", "source_group": "controlled-policy-result",
+                "text": "controlled inert disallowed file was accepted",
+            }],
+            contradict=[], missing=[], rule_ids=["controlled"], summary="test",
+        )
+        self.assertTrue(third["assessment"]["admitted"])
+        self.assertEqual(third["seen_count"], 3)
+        self.assertEqual(
+            {item["type"] for item in third["support"]},
+            {"file_input", "import_operation", "unsafe_file_accepted"},
+        )
 
     def test_knowledge_is_context_not_target_evidence(self):
         row = self.row("https://x.test/api/upload", method="POST", body=["file"])

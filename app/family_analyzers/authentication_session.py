@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -40,67 +41,25 @@ LIFECYCLE_STATE_MARKERS = {
     "recovery", "session", "token", "oauth", "saml", "sso",
 }
 
-AUTH_SESSION_TAXONOMY = {
-    "owasp": ["A07:2021 Identification and Authentication Failures"],
-    "wstg": ["WSTG-ATHN-04", "WSTG-SESS-01"],
-    "cwe": ["CWE-287"],
-    "related_cwe": ["CWE-613", "CWE-384", "CWE-640"],
-}
+AUTH_SESSION_SPEC = get_detection_spec("authentication_session")
 
-AUTH_SESSION_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+AUTH_SESSION_TAXONOMY = AUTH_SESSION_SPEC.taxonomy()
+AUTH_SESSION_METHOD = tuple(step.as_dict() for step in AUTH_SESSION_SPEC.standard.methodology)
+AUTH_SESSION_FALSE_POSITIVE_CHECKS = tuple(AUTH_SESSION_SPEC.standard.false_positive_checks)
+AUTH_SESSION_WRITEUP_PATTERNS = tuple(
     {
-        "id": "AUTH-01-state-machine",
-        "basis": ["CWE-287", "WSTG-ATHN-04"],
-        "principle": "Model the intended anonymous, authenticated, recovery, refresh, logout and expired states before interpreting any response as an authentication failure.",
-    },
-    {
-        "id": "AUTH-02-session-lifecycle",
-        "basis": ["WSTG-SESS-01", "CWE-613"],
-        "principle": "Track session/token issuance, binding, rotation, invalidation and expiration using only stored target observations; token presence alone is not a weakness.",
-    },
-    {
-        "id": "AUTH-03-boundary-comparison",
-        "basis": ["WSTG-ATHN-04", "CWE-287"],
-        "principle": "Prefer like-for-like comparisons where the expected authentication state is explicit and the observed state or access decision can be compared safely.",
-    },
-    {
-        "id": "AUTH-04-recovery-verification",
-        "basis": ["CWE-640", "CWE-287"],
-        "principle": "Treat recovery as an authentication boundary of its own; require evidence that a verification step was expected yet bypassed before raising recovery-bypass evidence.",
-    },
-    {
-        "id": "AUTH-05-behavioral-decision",
-        "basis": ["CWE-287", "WSTG-SESS-01"],
-        "principle": "Decisive evidence requires an actual lifecycle violation such as session reuse after logout, missing expected rotation, recovery bypass or a documented authentication-state violation.",
-    },
-    {
-        "id": "AUTH-06-contradiction-check",
-        "basis": ["WSTG-SESS-01", "WSTG-ATHN-04"],
-        "principle": "Look for observed rotation, enforced recovery verification and rejection of expired sessions before promotion or confirmation; a 2xx response or auth-looking route is never enough.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in AUTH_SESSION_SPEC.standard.writeups
 )
-
-AUTH_SESSION_FALSE_POSITIVE_CHECKS = (
-    "An authentication-looking endpoint is only surface discovery; route names and client-side token handling do not prove a server-side weakness.",
-    "A token that remains textually identical may be intentionally reusable unless rotation is explicitly required for the observed transition.",
-    "A 2xx response may describe login/recovery UI or validation without creating an authenticated session.",
-    "Logout may invalidate the server-side session even if a client retains a stale token string.",
-    "Recovery may use an alternate verification factor not visible in the current client observation.",
-    "An expired or logged-out session that is rejected is evidence of enforcement, not a weakness.",
-    "Account enumeration, BFLA and secret exposure are neighboring families and should not be mislabeled as authentication/session failures.",
-)
-
-AUTH_SESSION_WRITEUP_PATTERNS = (
-    {
-        "id": "ghsl-ruby-saml-2024-329-330",
-        "source": "GitHub Security Lab",
-        "ref": "GHSL-2024-329 / GHSL-2024-330 / ruby-saml",
-        "url": "https://securitylab.github.com/advisories/GHSL-2024-329_GHSL-2024-330_ruby-saml/",
-        "principle": "Authentication bypass requires a demonstrated trust or lifecycle validation failure that changes authenticated identity/state; parser or protocol surface alone is non-evidentiary.",
-        "signals": ["authentication_state_violation"],
-    },
-)
-
 
 def _loads(value: Any, default: Any) -> Any:
     if isinstance(value, (dict, list)):

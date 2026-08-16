@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
@@ -35,69 +36,25 @@ STATE_SINKS = {
 }
 SAFE_SINKS = {"textcontent", "innertext", "console_log", "log", "noop", "display_text"}
 
-POSTMESSAGE_TAXONOMY = {
-    "owasp": ["Web Messaging / Cross Document Messaging"],
-    "wstg": ["WSTG-CLNT-11"],
-    "cwe": ["CWE-346"],
-}
+POSTMESSAGE_TRUST_SPEC = get_detection_spec("postmessage_trust")
 
-POSTMESSAGE_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+POSTMESSAGE_TAXONOMY = POSTMESSAGE_TRUST_SPEC.taxonomy()
+POSTMESSAGE_METHOD = tuple(step.as_dict() for step in POSTMESSAGE_TRUST_SPEC.standard.methodology)
+POSTMESSAGE_FALSE_POSITIVE_CHECKS = tuple(POSTMESSAGE_TRUST_SPEC.standard.false_positive_checks)
+POSTMESSAGE_WRITEUP_PATTERNS = tuple(
     {
-        "id": "POSTMSG-01-handler-surface",
-        "basis": ["WSTG-CLNT-11"],
-        "principle": "Identify message handlers and the exact message data consumed; the existence of addEventListener('message', ...) alone is only a client-side trust surface.",
-    },
-    {
-        "id": "POSTMSG-02-origin-source-policy",
-        "basis": ["WSTG-CLNT-11", "CWE-346"],
-        "principle": "Model the expected sender origins and source-window relationship, then distinguish exact allow-list checks from absent, wildcard, substring or otherwise weak trust checks.",
-    },
-    {
-        "id": "POSTMSG-03-message-schema",
-        "basis": ["WSTG-CLNT-11"],
-        "principle": "Treat event.data as untrusted input even when the origin is trusted; record schema/type validation separately from origin validation.",
-    },
-    {
-        "id": "POSTMSG-04-sensitive-consumer",
-        "basis": ["WSTG-CLNT-11"],
-        "principle": "Classify whether accepted message data reaches a sensitive DOM, navigation, network, storage, authentication or state-changing consumer.",
-    },
-    {
-        "id": "POSTMSG-05-runtime-trust-decision",
-        "basis": ["WSTG-CLNT-11", "CWE-346"],
-        "principle": "Direct condition evidence requires a stored observation that an explicitly untrusted sender was accepted and reached the identified sensitive consumer despite the intended trust boundary.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in POSTMESSAGE_TRUST_SPEC.standard.writeups
 )
-
-POSTMESSAGE_FALSE_POSITIVE_CHECKS = (
-    "A message handler and sensitive-looking sink in the same JavaScript flow are one correlated static observation, not two independent proofs.",
-    "The presence of postMessage or event.data does not establish that arbitrary origins are accepted.",
-    "An exact scheme-host-port origin allow-list or a verified source-window check is evidence against an unsafe trust decision.",
-    "A wildcard targetOrigin on the sending side is a separate disclosure concern and does not by itself prove the receiving handler trusts an untrusted sender.",
-    "A trusted-origin message that reaches a sensitive sink does not establish postMessage Trust failure without an untrusted-origin acceptance observation.",
-    "A DOM sink downstream of postMessage may additionally belong to DOM-XSS, but DOM execution is not inferred from Web Messaging trust failure alone.",
-    "Schema/type validation reduces message-data risk but does not substitute for origin/source validation; each control is evaluated separately.",
-)
-
-POSTMESSAGE_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-clnt-11-web-messaging",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-CLNT-11 / Testing Web Messaging",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/11-Testing_Web_Messaging",
-        "principle": "The receiver should validate message origin/source and treat message data as untrusted before sensitive use.",
-        "signals": ["postmessage_source", "message_handler", "origin_validation_absent", "untrusted_message_accepted"],
-    },
-    {
-        "id": "cwe-346-origin-validation",
-        "source": "MITRE CWE",
-        "ref": "CWE-346 / Origin Validation Error",
-        "url": "https://cwe.mitre.org/data/definitions/346.html",
-        "principle": "Improper verification of the source of incoming communication can allow data from an unauthorized subject to be accepted.",
-        "signals": ["origin_validation_absent", "untrusted_message_accepted"],
-    },
-)
-
 
 def _normalize(value: Any) -> str:
     text = str(value or "").strip().lower()

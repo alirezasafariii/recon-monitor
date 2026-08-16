@@ -90,7 +90,7 @@ class KnowledgeCoverage31V892Tests(unittest.TestCase):
             self.assertEqual(missing_contradictions, [], family)
 
     def test_rule_version_records_full_family_knowledge_audit(self):
-        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.13.8")
+        self.assertEqual(KNOWLEDGE_RULE_VERSION, "2026.08.15.3")
 
 
 if __name__ == "__main__":

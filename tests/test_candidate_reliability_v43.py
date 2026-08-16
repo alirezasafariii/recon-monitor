@@ -30,6 +30,11 @@ class CandidateReliabilityV43Tests(unittest.TestCase):
             "authentication": "bearer",
             "endpoint_classification": {"primary_category": "admin", "confidence": 96},
             "response_json": {"user": {"email": "redacted", "role": "admin"}, "tenantId": "t1"},
+            # Candidate-reliability tests need a real admitted candidate. The
+            # stored property behavior supplies target evidence rather than
+            # relying on the sensitive field names alone.
+            "accepted_fields": ["isAdmin"],
+            "persisted_fields": ["isAdmin"],
         }
         alert_id, _, _ = db.upsert_alert(
             "example.com", "v43-alert", "new_endpoint", "HIGH", 88,

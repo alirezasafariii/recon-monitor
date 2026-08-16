@@ -23,7 +23,10 @@ NEW_FAMILY_ORDER = (
 
 CANONICAL_TAXONOMY = {
     "sql_injection": {
-        "owasp": ["Injection"],
+        # SQL Injection is part of OWASP Top 10 A05:2025 Injection. Keep the
+        # legacy generic label for compatibility; migrated runtime consumers use
+        # the canonical family_specs definition as the final projection.
+        "owasp": ["A05:2025 Injection", "Injection"],
         "wstg": ["WSTG-INPV-05"],
         "cwe": ["CWE-89"],
         "capec": ["CAPEC-66"],

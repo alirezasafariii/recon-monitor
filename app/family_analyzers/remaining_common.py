@@ -14,6 +14,7 @@ import re
 from typing import Any, Iterable, Mapping, Sequence
 
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import MIGRATED_FAMILIES, get_detection_spec
 from owasp_family_catalog import CANONICAL_TAXONOMY
 
 
@@ -165,7 +166,11 @@ def finalize_result(
     observed = set(state["observed_types"])
     direct = bool(observed & set(direct_types))
     meta = analyzer.metadata()
-    effective_taxonomy = CANONICAL_TAXONOMY.get(family, taxonomy)
+    effective_taxonomy = (
+        get_detection_spec(family).taxonomy()
+        if family in MIGRATED_FAMILIES
+        else CANONICAL_TAXONOMY.get(family, taxonomy)
+    )
     meta.update({
         "taxonomy": {key: list(values) for key, values in effective_taxonomy.items()},
         "methodology": [dict(step) for step in methodology],

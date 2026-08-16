@@ -13,76 +13,37 @@ from typing import Any, Mapping
 
 from core import Database
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
+from .remaining_common import policy_ready
 
 
 SOURCE_MAP_FAMILY_ANALYZER_VERSION = "1.0.0"
 SOURCE_MAP_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
 
-SOURCE_MAP_TAXONOMY = {
-    "owasp": ["Information Leakage"],
-    "wstg": ["WSTG-INFO-05"],
-    "cwe": ["CWE-200"],
-    "related_cwe": ["CWE-497", "CWE-540"],
-}
-
-SOURCE_MAP_METHOD = (
+SOURCE_MAP_EXPOSURE_SPEC = get_detection_spec("source_map_exposure")
+SOURCE_MAP_EXPOSURE_TAXONOMY = SOURCE_MAP_EXPOSURE_SPEC.taxonomy()
+SOURCE_MAP_EXPOSURE_METHOD = tuple(step.as_dict() for step in SOURCE_MAP_EXPOSURE_SPEC.standard.methodology)
+SOURCE_MAP_EXPOSURE_FALSE_POSITIVE_CHECKS = tuple(SOURCE_MAP_EXPOSURE_SPEC.standard.false_positive_checks)
+SOURCE_MAP_EXPOSURE_WRITEUP_PATTERNS = tuple(
     {
-        "id": "SMAP-01-reference-surface",
-        "basis": ["WSTG-INFO-05"],
-        "principle": "Treat sourceMappingURL directives and .map references as discovery surface only; a reference does not prove public reachability.",
-    },
-    {
-        "id": "SMAP-02-passive-reachability",
-        "basis": ["WSTG-INFO-05", "CWE-200"],
-        "principle": "Use only stored passive collector evidence to establish that the source map was actually reachable without credentials.",
-    },
-    {
-        "id": "SMAP-03-source-structure",
-        "basis": ["WSTG-INFO-05", "CWE-497"],
-        "principle": "Require internal source structure, paths, modules or equivalent implementation metadata before promoting a generic public map into this family.",
-    },
-    {
-        "id": "SMAP-04-sensitive-content",
-        "basis": ["CWE-200", "CWE-540"],
-        "principle": "Sensitive source content is stronger evidence only when explicitly observed in stored data; never infer secrets from filenames and never echo raw source contents.",
-    },
-    {
-        "id": "SMAP-05-contradiction-check",
-        "basis": ["WSTG-INFO-05"],
-        "principle": "A referenced map that was not publicly reachable, or a map with explicitly empty embedded source content when content exposure is the hypothesis, is contradiction evidence.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in SOURCE_MAP_EXPOSURE_SPEC.standard.writeups
 )
-
-SOURCE_MAP_FALSE_POSITIVE_CHECKS = (
-    "A sourceMappingURL directive or .map filename alone is only a reference surface.",
-    "A map with only generated/minified filenames and no internal source structure is not promoted by this analyzer.",
-    "A source map available only with authorized credentials is not treated as publicly exposed.",
-    "Internal-looking filenames are implementation metadata, not automatically secrets or credentials.",
-    "Secret/token material belongs to the dedicated Secret Exposure family and must remain redacted.",
-    "Source contents are never copied into analyzer evidence; only counts, normalized categories and booleans are retained.",
-)
-
-SOURCE_MAP_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-info-05-source-maps",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-INFO-05 / Review Web Page Content for Information Leakage",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Web_Page_Content_for_Information_Leakage",
-        "principle": "Production source maps can make original frontend source structure human-readable and expose implementation metadata or sensitive information.",
-        "signals": ["source_map", "internal_sources", "source_map_publicly_reachable"],
-    },
-    {
-        "id": "cwe-200-source-code-state",
-        "source": "MITRE CWE",
-        "ref": "CWE-200 / Exposure of Sensitive Information to an Unauthorized Actor",
-        "url": "https://cwe.mitre.org/data/definitions/200.html",
-        "principle": "Product code, internal state and system metadata can be sensitive information when exposed outside the intended audience.",
-        "signals": ["source_map_publicly_reachable", "sensitive_source_content_observed"],
-    },
-)
-
+# Historical analyzer exports remain aliases for compatibility.
+SOURCE_MAP_TAXONOMY = SOURCE_MAP_EXPOSURE_TAXONOMY
+SOURCE_MAP_METHOD = SOURCE_MAP_EXPOSURE_METHOD
+SOURCE_MAP_FALSE_POSITIVE_CHECKS = SOURCE_MAP_EXPOSURE_FALSE_POSITIVE_CHECKS
+SOURCE_MAP_WRITEUP_PATTERNS = SOURCE_MAP_EXPOSURE_WRITEUP_PATTERNS
 
 def _truth(value: Any) -> bool | None:
     if isinstance(value, bool):
@@ -200,11 +161,10 @@ def analyze_source_map_exposure_signal(
 
     observed = {str(item.get("type") or "") for item in support}
     blockers = {str(item.get("type") or "") for item in contradict}
-    promotion_ready = "source_map_publicly_reachable" in observed or "sensitive_source_content_observed" in observed
-    confirmation_ready = "source_map_publicly_reachable" in observed and not bool(blockers & {"source_map_not_public"})
-    confirmation_missing = list(confirmation_gaps("source_map_exposure", observed))
-    if confirmation_ready:
-        confirmation_missing = []
+    state = policy_ready("source_map_exposure", support, contradict)
+    promotion_ready = state["promotion_ready"]
+    confirmation_ready = state["confirmation_ready"]
+    confirmation_missing = [] if confirmation_ready else list(confirmation_gaps("source_map_exposure", observed))
 
     if "sensitive_source_content_observed" in observed:
         variant = "sensitive_source_content"

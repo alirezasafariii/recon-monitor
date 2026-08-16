@@ -19,83 +19,31 @@ from typing import Any, Iterable, Mapping
 
 from core import Database
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
+from .remaining_common import policy_ready
 
 
 SECRET_EXPOSURE_FAMILY_ANALYZER_VERSION = "1.0.0"
 SECRET_EXPOSURE_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
 
-SECRET_EXPOSURE_TAXONOMY = {
-    "owasp": ["Secrets Management", "Information Leakage"],
-    "wstg": ["WSTG-INFO-05"],
-    "cwe": ["CWE-798"],
-    "related_cwe": ["CWE-321", "CWE-540", "CWE-200"],
-}
-
-SECRET_EXPOSURE_METHOD = (
+SECRET_EXPOSURE_SPEC = get_detection_spec("secret_exposure")
+SECRET_EXPOSURE_TAXONOMY = SECRET_EXPOSURE_SPEC.taxonomy()
+SECRET_EXPOSURE_METHOD = tuple(step.as_dict() for step in SECRET_EXPOSURE_SPEC.standard.methodology)
+SECRET_EXPOSURE_FALSE_POSITIVE_CHECKS = tuple(SECRET_EXPOSURE_SPEC.standard.false_positive_checks)
+SECRET_EXPOSURE_WRITEUP_PATTERNS = tuple(
     {
-        "id": "SECRET-01-pattern-surface",
-        "basis": ["WSTG-INFO-05", "CWE-798"],
-        "principle": "Treat secret-looking variable names and partial token markers as discovery surface only; names alone do not prove credential material.",
-    },
-    {
-        "id": "SECRET-02-material-classification",
-        "basis": ["CWE-798", "CWE-321"],
-        "principle": "Classify only stored client-delivered material using format structure, paired fields and bounded local context; never validate credentials online.",
-    },
-    {
-        "id": "SECRET-03-placeholder-public-key-filter",
-        "basis": ["OWASP Secrets Management"],
-        "principle": "Reject examples, placeholders, environment references, test-only values and intentionally public client identifiers before promotion.",
-    },
-    {
-        "id": "SECRET-04-exposure-context",
-        "basis": ["WSTG-INFO-05", "CWE-540"],
-        "principle": "Separate credential-shaped material from the fact that it is embedded in client-delivered source or another unintended exposure boundary.",
-    },
-    {
-        "id": "SECRET-05-lifecycle-without-validation",
-        "basis": ["OWASP Secrets Management"],
-        "principle": "Rotation, revocation or live status may be recorded only from already-authorized evidence; the analyzer itself performs no credential-use request.",
-    },
-)
-
-SECRET_EXPOSURE_FALSE_POSITIVE_CHECKS = (
-    "Variable or field names such as apiKey, clientSecret, accessToken or password are surface only.",
-    "AWS access-key identifiers without a paired secret-access-key value are not structurally complete credentials.",
-    "JWT-shaped strings are token material candidates but are not assumed live or privileged.",
-    "Publishable/public client identifiers and SDK configuration values are not treated as secret credentials merely because they contain the word key.",
-    "Examples, samples, placeholders, test values, environment references and templated substitutions are contradiction or hidden-surface evidence.",
-    "A provider-specific test credential is not treated as production-live material merely because its syntax is valid.",
-    "No raw credential, private-key body, password, token or secret value is copied into analyzer output.",
-)
-
-SECRET_EXPOSURE_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-info-05-client-secrets",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-INFO-05 / Review Web Page Content for Information Leakage",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Web_Page_Content_for_Information_Leakage",
-        "principle": "Frontend JavaScript may expose private API keys, credentials and other sensitive implementation material.",
-        "signals": ["secret_pattern", "context", "credential_material_confirmed"],
-    },
-    {
-        "id": "cwe-798-hard-coded-credential",
-        "source": "MITRE CWE",
-        "ref": "CWE-798 / Use of Hard-coded Credentials",
-        "url": "https://cwe.mitre.org/data/definitions/798.html",
-        "principle": "Hard-coded client-side credentials can be extracted by actors who can obtain the shipped code.",
-        "signals": ["credential_material_confirmed"],
-    },
-    {
-        "id": "owasp-secrets-management-source-control",
-        "source": "OWASP Cheat Sheet Series",
-        "ref": "Secrets Management Cheat Sheet",
-        "url": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
-        "principle": "Secrets should not be hard-coded into source/configuration artifacts and should have explicit lifecycle management.",
-        "signals": ["credential_material_confirmed", "live_secret_context"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in SECRET_EXPOSURE_SPEC.standard.writeups
 )
 
 _PLACEHOLDER_RE = re.compile(
@@ -456,11 +404,10 @@ def analyze_secret_exposure_signal(
 
     observed = {str(item.get("type") or "") for item in support}
     blockers = {str(item.get("type") or "") for item in contradict}
-    promotion_ready = "secret_pattern" in observed and "context" in observed and "placeholder" not in blockers
-    confirmation_ready = bool(observed & {"credential_material_confirmed", "live_secret_context"}) and "placeholder" not in blockers
-    confirmation_missing = list(confirmation_gaps("secret_exposure", observed))
-    if confirmation_ready:
-        confirmation_missing = []
+    state = policy_ready("secret_exposure", support, contradict)
+    promotion_ready = state["promotion_ready"]
+    confirmation_ready = state["confirmation_ready"]
+    confirmation_missing = [] if confirmation_ready else list(confirmation_gaps("secret_exposure", observed))
 
     if "live_secret_context" in observed:
         variant = "stored_live_secret_context"

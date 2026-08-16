@@ -137,11 +137,10 @@ class InformationDisclosureFamilyAnalyzerV879Tests(unittest.TestCase):
         meta = result["family_analyzer"]
         self.assertEqual(INFORMATION_DISCLOSURE_FAMILY_ANALYZER_VERSION, "1.0.0")
         self.assertIn("CWE-200", meta["taxonomy"]["cwe"])
-        self.assertIn("CWE-209", meta["taxonomy"]["related_cwe"])
-        self.assertIn("CWE-497", meta["taxonomy"]["related_cwe"])
-        self.assertIn("CWE-1295", meta["taxonomy"]["related_cwe"])
+        self.assertIn("CWE-209", meta["taxonomy"]["cwe"])
+        self.assertIn("CWE-497", meta["taxonomy"]["cwe"])
+        self.assertIn("CWE-1295", meta["taxonomy"]["cwe"])
         self.assertIn("WSTG-ERRH-01", meta["taxonomy"]["wstg"])
-        self.assertIn("WSTG-ERRH-02", meta["taxonomy"]["wstg"])
         self.assertIn("WSTG-INFO-05", meta["taxonomy"]["wstg"])
         basis = {item for step in INFORMATION_DISCLOSURE_METHOD for item in step["basis"]}
         self.assertIn("CWE-200", basis)

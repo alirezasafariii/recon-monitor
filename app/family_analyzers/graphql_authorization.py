@@ -13,6 +13,7 @@ explicitly authorized test identities and test-owned objects.
 from typing import Any, Iterable, Mapping
 
 from core import Database
+from family_specs.registry import get_detection_spec
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .remaining_common import add_unique, finalize_result, observations, scalar, truth
 
@@ -20,64 +21,25 @@ from .remaining_common import add_unique, finalize_result, observations, scalar,
 GRAPHQL_AUTHORIZATION_FAMILY_ANALYZER_VERSION = "1.0.0"
 GRAPHQL_AUTHORIZATION_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
 
-GRAPHQL_AUTHORIZATION_TAXONOMY = {
-    "owasp": ["API1:2023 Broken Object Level Authorization", "GraphQL Access Control"],
-    "wstg": ["WSTG-APIT-02", "WSTG-ATHZ-02"],
-    "cwe": ["CWE-862"],
-    "related_cwe": ["CWE-639", "CWE-863", "CWE-285"],
-}
+GRAPHQL_AUTHORIZATION_SPEC = get_detection_spec("graphql_authorization")
 
-GRAPHQL_AUTHORIZATION_METHOD = (
+# Compatibility exports; canonical definitions live in family_specs.
+GRAPHQL_AUTHORIZATION_TAXONOMY = GRAPHQL_AUTHORIZATION_SPEC.taxonomy()
+GRAPHQL_AUTHORIZATION_METHOD = tuple(step.as_dict() for step in GRAPHQL_AUTHORIZATION_SPEC.standard.methodology)
+GRAPHQL_AUTHORIZATION_FALSE_POSITIVE_CHECKS = tuple(GRAPHQL_AUTHORIZATION_SPEC.standard.false_positive_checks)
+GRAPHQL_AUTHORIZATION_WRITEUP_PATTERNS = tuple(
     {
-        "id": "GQL-AUTHZ-01-operation-surface",
-        "basis": ["OWASP GraphQL Cheat Sheet", "WSTG-APIT-02"],
-        "principle": "Identify object-bearing GraphQL queries or mutations, but never infer missing resolver authorization from an identifier alone.",
-    },
-    {
-        "id": "GQL-AUTHZ-02-resolver-boundary",
-        "basis": ["OWASP GraphQL Cheat Sheet", "WSTG-ATHZ-02"],
-        "principle": "Model authorization at resolver, node and edge boundaries and keep expected ownership/role policy separate from observed response behavior.",
-    },
-    {
-        "id": "GQL-AUTHZ-03-controlled-comparison",
-        "basis": ["WSTG-APIT-02", "CWE-639"],
-        "principle": "Direct evidence is accepted only from controlled comparisons involving authorized test identities and test-owned objects; no identifier enumeration is performed.",
-    },
-    {
-        "id": "GQL-AUTHZ-04-contradictions",
-        "basis": ["CWE-862"],
-        "principle": "Observed resolver authorization or denial across the expected boundary is contradiction evidence unless a stronger controlled differential is already stored.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in GRAPHQL_AUTHORIZATION_SPEC.standard.writeups
 )
-
-GRAPHQL_AUTHORIZATION_FALSE_POSITIVE_CHECKS = (
-    "An argument named id, userId, nodeId, objectId, accountId or similar does not prove broken authorization.",
-    "Client-side knowledge of an object identifier is not evidence that another identity can access that object.",
-    "Introspection or schema visibility is not GraphQL authorization failure by itself.",
-    "A 200 GraphQL HTTP status is not direct evidence; GraphQL errors and field-level nullability must be interpreted in stored response context.",
-    "Direct evidence requires explicitly authorized test identities and test-owned objects; unrelated real-user identifiers are outside this analyzer contract.",
-    "BOLA/IDOR is a neighboring root-cause family and may correlate with this GraphQL-specific resolver boundary, but neither family confirms the other automatically.",
-)
-
-GRAPHQL_AUTHORIZATION_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-graphql-access-control",
-        "source": "OWASP Cheat Sheet Series",
-        "ref": "GraphQL Cheat Sheet / Access Control",
-        "url": "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html",
-        "principle": "GraphQL APIs should validate authorization for requested objects and enforce controls at nodes, edges and resolvers.",
-        "signals": ["graphql_identifier", "graphql_operation", "graphql_authorization_differential"],
-    },
-    {
-        "id": "owasp-wstg-apit-02-graphql-bola",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-APIT-02 / API Broken Object Level Authorization",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/02-API_Broken_Object_Level_Authorization",
-        "principle": "GraphQL object identifiers must remain bound to the caller's authorized object scope.",
-        "signals": ["graphql_identifier", "graphql_unauthorized_object_response"],
-    },
-)
-
 
 def _safe_names(values: Iterable[str]) -> list[str]:
     result: list[str] = []

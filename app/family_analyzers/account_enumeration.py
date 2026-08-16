@@ -14,8 +14,10 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, parse_int
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
+from .remaining_common import policy_ready
 
 
 ACCOUNT_ENUMERATION_FAMILY_ANALYZER_VERSION = "1.0.0"
@@ -37,75 +39,23 @@ GENERIC_MESSAGE_MARKERS = (
 )
 RATE_LIMIT_STATUSES = {429}
 
-ACCOUNT_ENUMERATION_TAXONOMY = {
-    "owasp": ["A07:2021 Identification and Authentication Failures"],
-    "wstg": ["WSTG-IDNT-04"],
-    "cwe": ["CWE-204", "CWE-208"],
-    "related_cwe": ["CWE-203"],
-}
-
-ACCOUNT_ENUMERATION_METHOD = (
+ACCOUNT_ENUMERATION_SPEC = get_detection_spec("account_enumeration")
+ACCOUNT_ENUMERATION_TAXONOMY = ACCOUNT_ENUMERATION_SPEC.taxonomy()
+ACCOUNT_ENUMERATION_METHOD = tuple(step.as_dict() for step in ACCOUNT_ENUMERATION_SPEC.standard.methodology)
+ACCOUNT_ENUMERATION_FALSE_POSITIVE_CHECKS = tuple(ACCOUNT_ENUMERATION_SPEC.standard.false_positive_checks)
+ACCOUNT_ENUMERATION_WRITEUP_PATTERNS = tuple(
     {
-        "id": "ENUM-01-identity-surface",
-        "basis": ["WSTG-IDNT-04", "CWE-204"],
-        "principle": "Identify login, recovery, registration or identity-lookup operations that accept a user/account identifier; the route or field name alone is only attack-surface evidence.",
-    },
-    {
-        "id": "ENUM-02-controlled-comparison",
-        "basis": ["WSTG-IDNT-04"],
-        "principle": "Compare only explicitly controlled test identities, including a known-existing test identity and a deliberately non-existing test identifier; never infer direct evidence from real-user probing.",
-    },
-    {
-        "id": "ENUM-03-response-normalization",
-        "basis": ["CWE-204", "CWE-203"],
-        "principle": "Normalize status, response shape and semantic message class before deciding whether responses materially disclose identity existence; cosmetic text or volatile metadata should not count.",
-    },
-    {
-        "id": "ENUM-04-timing-stability",
-        "basis": ["CWE-208", "WSTG-IDNT-04"],
-        "principle": "Treat timing as direct evidence only when repeated controlled samples show a stable material difference and rate limiting or transport noise is not the likely explanation.",
-    },
-    {
-        "id": "ENUM-05-behavioral-decision",
-        "basis": ["CWE-204", "CWE-208"],
-        "principle": "Confirmation evidence is a material response or stable timing differential between controlled existing/non-existing test identities, not merely an identity lookup surface.",
-    },
-    {
-        "id": "ENUM-06-confounder-review",
-        "basis": ["WSTG-IDNT-04", "CWE-203"],
-        "principle": "Explicitly check generic responses, uniform timing, rate limiting, CAPTCHA/challenge state, localization and transient backend errors before promotion or confirmation.",
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in ACCOUNT_ENUMERATION_SPEC.standard.writeups
 )
-
-ACCOUNT_ENUMERATION_FALSE_POSITIVE_CHECKS = (
-    "A login, recovery, registration or username/email field is only an enumeration surface; it is not evidence that account existence is disclosed.",
-    "Different request IDs, timestamps, CSRF tokens or other volatile fields must not be treated as an identity response differential.",
-    "A generic message such as 'if an account exists' can intentionally hide identity existence even when backend behavior differs internally.",
-    "HTTP 429, CAPTCHA, challenge escalation or retry-after behavior can create response/timing differences unrelated to identity existence.",
-    "A single slow response is network noise, not a timing side channel; repeated controlled samples are required for inferred timing evidence.",
-    "Localization, A/B testing and frontend-only wording differences should not be treated as server-side account enumeration without a material semantic distinction.",
-    "Only identities explicitly marked as controlled test identities may satisfy direct comparison evidence; real-user probing is outside this analyzer's evidence contract.",
-)
-
-ACCOUNT_ENUMERATION_WRITEUP_PATTERNS = (
-    {
-        "id": "owasp-wstg-idnt-04-response-pattern",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-IDNT-04 / Account Enumeration",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/03-Identity_Management_Testing/04-Testing_for_Account_Enumeration_and_Guessable_User_Account",
-        "principle": "Different authentication or recovery responses for existing versus non-existing identities can disclose valid accounts.",
-        "signals": ["identity_response_differential"],
-    },
-    {
-        "id": "cwe-208-account-timing-pattern",
-        "source": "MITRE CWE",
-        "ref": "CWE-208 / Observable Timing Discrepancy",
-        "url": "https://cwe.mitre.org/data/definitions/208.html",
-        "principle": "Stable timing differences can disclose whether an account or internal authentication state exists, but repeated observations are required to separate the signal from noise.",
-        "signals": ["identity_timing_differential"],
-    },
-)
-
 
 def _loads(value: Any, default: Any) -> Any:
     if isinstance(value, (dict, list)):
@@ -523,7 +473,8 @@ class AccountEnumerationFamilyAnalyzer(FamilyAnalyzer):
 
         direct = bool(explicit_direct or paired_direct)
         contradiction_types = {str(item.get("type") or "") for item in contradict}
-        confirmation_missing = confirmation_gaps(self.family, observed)
+        state = policy_ready(self.family, support, contradict)
+        confirmation_missing = [] if state["confirmation_ready"] else confirmation_gaps(self.family, observed)
         policy = FAMILY_REASONING[self.family]
         writeups = _matched_writeups(observed)
 
@@ -572,8 +523,9 @@ class AccountEnumerationFamilyAnalyzer(FamilyAnalyzer):
                 "triggered_false_positive_checks": _triggered_false_positive_checks(contradiction_types),
                 "promotion_required": [sorted(group) for group in policy["promotion_required"]],
                 "confirmation_required": [sorted(group) for group in policy["confirmation_required"]],
+                "promotion_ready_from_stored_target_evidence": state["promotion_ready"],
                 "confirmation_missing": confirmation_missing,
-                "confirmation_ready_from_stored_target_evidence": not confirmation_missing,
+                "confirmation_ready_from_stored_target_evidence": state["confirmation_ready"],
                 "next_evidence": list(policy.get("next_evidence", ())),
                 "validation_level": str(policy.get("validation_level") or "passive_live"),
                 "knowledge_sources_matched": len(writeups),
@@ -622,6 +574,7 @@ __all__ = [
     "ACCOUNT_ENUMERATION_FAMILY_ANALYZER_RULE_VERSION",
     "ACCOUNT_ENUMERATION_TAXONOMY",
     "ACCOUNT_ENUMERATION_METHOD",
+    "ACCOUNT_ENUMERATION_SPEC",
     "AccountEnumerationFamilyAnalyzer",
     "analyze_account_enumeration_signal",
 ]
