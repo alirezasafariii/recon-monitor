@@ -30,6 +30,7 @@ from core import (
     utc_now,
 )
 from family_reasoning import FAMILY_REASONING, validation_level_for_family
+from safe_transport import perform_pinned_request
 
 VALIDATION_VERSION = "6.2.0"
 VALIDATION_LEVELS = ["offline", "passive_live", "controlled", "manual_only"]
@@ -495,50 +496,27 @@ def _observation(method: str, url: str, status: int, headers: Any, body: bytes, 
     }
 
 
-def _perform_request(item: dict[str, Any], policy: TargetPolicy) -> tuple[dict[str, Any], str]:
-    method = str(item.get("method") or "GET").upper()
-    url = str(item.get("url") or "")
-    if method not in SAFE_METHODS:
-        return _observation(method, url, 0, {}, b"", "unsafe_method_blocked"), "stopped_for_safety"
-    allowed, reason = _url_safety(url, policy)
-    if not allowed:
-        return _observation(method, url, 0, {}, b"", reason), "stopped_for_safety"
-    parsed = urllib.parse.urlsplit(url)
-    public, addresses = _public_resolution(parsed.hostname or "")
-    if not public:
-        observation = _observation(method, url, 0, {}, b"", "non_public_resolution_blocked")
-        observation["resolved_addresses"] = addresses
-        return observation, "stopped_for_safety"
-    headers = {"User-Agent": f"Recon-Monitor-Safe-Validation/{VALIDATION_VERSION}", "Accept": "application/json,text/plain,*/*"}
-    headers.update({str(k): str(v) for k, v in dict(item.get("headers") or {}).items()})
-    request = urllib.request.Request(url=url, headers=headers, method=method)
-    opener = urllib.request.build_opener(_NoRedirect())
-    try:
-        with opener.open(request, timeout=8) as response:
-            body = response.read(MAX_RESPONSE_BYTES + 1) if method != "HEAD" else b""
-            if len(body) > MAX_RESPONSE_BYTES:
-                return _observation(method, url, int(response.status), response.headers, body[:MAX_RESPONSE_BYTES], "response_budget_exceeded"), "stopped_for_safety"
-            observation = _observation(method, url, int(response.status), response.headers, body)
-            location = observation["headers"].get("location", "")
-            if location:
-                redirected = urllib.parse.urljoin(url, location)
-                if not policy.url_in_scope(redirected):
-                    observation["redirect_outside_scope"] = True
-            return observation, "ok"
-    except urllib.error.HTTPError as exc:
-        body = exc.read(MAX_RESPONSE_BYTES + 1) if method != "HEAD" else b""
-        if len(body) > MAX_RESPONSE_BYTES:
-            body = body[:MAX_RESPONSE_BYTES]
-        observation = _observation(method, url, int(exc.code), exc.headers, body, "http_error")
-        location = observation["headers"].get("location", "")
-        if location:
-            redirected = urllib.parse.urljoin(url, location)
-            observation["redirect_outside_scope"] = not policy.url_in_scope(redirected)
-        if exc.code == 429:
-            return observation, "stopped_for_safety"
-        return observation, "ok"
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return _observation(method, url, 0, {}, b"", str(exc)[:500]), "error"
+def _perform_request_via_safe_transport(
+    item: dict[str, Any],
+    policy: TargetPolicy,
+) -> tuple[dict[str, Any], str]:
+    """Canonical core transport hook using the pinned Safe Transport boundary."""
+    return perform_pinned_request(
+        item,
+        policy,
+        safe_methods=SAFE_METHODS,
+        url_safety=_url_safety,
+        observation=_observation,
+        max_response_bytes=MAX_RESPONSE_BYTES,
+        validation_version=VALIDATION_VERSION,
+    )
+
+
+def _perform_request(
+    item: dict[str, Any],
+    policy: TargetPolicy,
+) -> tuple[dict[str, Any], str]:
+    return _perform_request_via_safe_transport(item, policy)
 
 
 def _classify(primary_family: str, observations: list[dict[str, Any]]) -> tuple[str, list[str]]:

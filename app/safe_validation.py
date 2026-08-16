@@ -10,7 +10,7 @@ proxies preserve existing unit-test patch points and downstream imports.
 from typing import Any
 
 import safe_validation_core as _core
-from safe_transport import SAFE_TRANSPORT_VERSION, perform_pinned_request
+from safe_transport import SAFE_TRANSPORT_VERSION
 
 for _name, _value in vars(_core).items():
     if not _name.startswith("__"):
@@ -27,15 +27,7 @@ def _perform_request(
     item: dict[str, Any],
     policy: TargetPolicy,
 ) -> tuple[dict[str, Any], str]:
-    return perform_pinned_request(
-        item,
-        policy,
-        safe_methods=_core.SAFE_METHODS,
-        url_safety=_core._url_safety,
-        observation=_core._observation,
-        max_response_bytes=_core.MAX_RESPONSE_BYTES,
-        validation_version=_core.VALIDATION_VERSION,
-    )
+    return _core._perform_request_via_safe_transport(item, policy)
 
 
 def _perform_request_proxy(
