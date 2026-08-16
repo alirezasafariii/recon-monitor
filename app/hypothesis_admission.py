@@ -343,6 +343,115 @@ def _persist_classification_tags(
         )
 
 
+
+def _candidate_auto_state(likelihood_score: Any, evidence_strength: Any) -> str:
+    try:
+        likelihood = int(likelihood_score or 0)
+    except (TypeError, ValueError):
+        likelihood = 0
+    try:
+        strength = int(evidence_strength or 0)
+    except (TypeError, ValueError):
+        strength = 0
+    if likelihood >= 75 and strength >= 60:
+        return "strong_candidate"
+    if likelihood >= 55:
+        return "plausible"
+    if likelihood >= 35:
+        return "possible"
+    return "weak_signal"
+
+
+def _reconcile_promoted_candidate(
+    db: Database,
+    *,
+    candidate_id: str,
+    assessment: Mapping[str, Any],
+    support: Iterable[Mapping[str, Any]],
+    contradict: Iterable[Mapping[str, Any]],
+    missing: Iterable[str],
+) -> dict[str, Any]:
+    """Reconcile a historical promotion with the latest canonical admission.
+
+    Automatic admission may be revoked by newly stored target contradictions.
+    The candidate remains linked for audit/history, but an unreviewed automatic
+    candidate becomes ``needs_revalidation``. Explicit analyst decisions are
+    never overwritten by this automatic reconciliation path.
+    """
+    row = db.one(
+        "SELECT candidate_state,analyst_decision,likelihood_score,evidence_strength,"
+        "supporting_evidence_json,contradicting_evidence_json,missing_evidence_json "
+        "FROM bug_candidates WHERE candidate_id=?",
+        (candidate_id,),
+    )
+    if not row:
+        return {
+            "status": "candidate_missing",
+            "candidate_id": candidate_id,
+            "admitted": bool(assessment.get("admitted")),
+        }
+
+    current_state = str(row["candidate_state"] or "")
+    analyst_decision = str(row["analyst_decision"] or "unreviewed")
+    admitted = bool(assessment.get("admitted"))
+    merged_support = _merge(
+        [*_loads(row["supporting_evidence_json"], []), *[dict(item) for item in support]]
+    )
+    merged_contradict = _merge(
+        [*_loads(row["contradicting_evidence_json"], []), *[dict(item) for item in contradict]]
+    )
+    merged_missing = list(
+        dict.fromkeys(
+            [
+                *[str(item) for item in _loads(row["missing_evidence_json"], []) if str(item).strip()],
+                *[str(item) for item in missing if str(item).strip()],
+            ]
+        )
+    )
+
+    next_state = current_state
+    status = "admission_valid" if admitted else "needs_revalidation"
+    if admitted:
+        if current_state == "needs_revalidation" and analyst_decision in {"unreviewed", "needs_more_evidence"}:
+            next_state = _candidate_auto_state(row["likelihood_score"], row["evidence_strength"])
+            status = "admission_restored"
+    elif analyst_decision == "confirmed_by_analyst":
+        next_state = "confirmed_by_analyst"
+        status = "analyst_confirmation_preserved"
+    elif analyst_decision in {"rejected", "duplicate", "out_of_scope"}:
+        status = "analyst_terminal_decision_preserved"
+    else:
+        next_state = "needs_revalidation"
+
+    if not admitted:
+        reason = str(assessment.get("reason") or "").strip()
+        if reason:
+            marker = f"Canonical admission requires revalidation: {reason}"
+            if marker not in merged_missing:
+                merged_missing.append(marker)
+
+    db.execute(
+        "UPDATE bug_candidates SET candidate_state=?,supporting_evidence_json=?,"
+        "contradicting_evidence_json=?,missing_evidence_json=?,updated_at=? WHERE candidate_id=?",
+        (
+            next_state,
+            json_dumps(merged_support),
+            json_dumps(merged_contradict),
+            json_dumps(merged_missing),
+            utc_now(),
+            candidate_id,
+        ),
+    )
+    return {
+        "status": status,
+        "candidate_id": candidate_id,
+        "admitted": admitted,
+        "candidate_state_before": current_state,
+        "candidate_state_after": next_state,
+        "analyst_decision": analyst_decision,
+        "analyst_decision_preserved": True,
+    }
+
 def record_hypothesis(
     db: Database,
     *,
@@ -432,7 +541,20 @@ def record_hypothesis(
     assessment["family_reasoning_version"] = FAMILY_REASONING_VERSION
     assessment["family_reasoning_rule_version"] = FAMILY_REASONING_RULE_VERSION
 
-    state = "promoted" if promoted_candidate_id else assessment["state"]
+    if promoted_candidate_id:
+        assessment["promotion_reconciliation"] = _reconcile_promoted_candidate(
+            db,
+            candidate_id=promoted_candidate_id,
+            assessment=assessment,
+            support=support,
+            contradict=contradict,
+            missing=missing,
+        )
+    state = (
+        "promoted"
+        if promoted_candidate_id and bool(assessment.get("admitted"))
+        else assessment["state"]
+    )
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
     now = utc_now()
     db.execute(

@@ -13,7 +13,7 @@ from bola_intelligence import analyze_bola_signal
 CANDIDATE_ENGINE_VERSION = "6.0.0"
 CANDIDATE_RULE_VERSION = "2026.08.14.6.0"
 
-AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate")
+AUTO_STATES = ("weak_signal", "possible", "plausible", "strong_candidate", "needs_revalidation")
 ANALYST_DECISIONS = ("unreviewed", "needs_more_evidence", "confirmed_by_analyst", "rejected", "duplicate", "out_of_scope")
 FEEDBACK_REASON_CODES = (
     "", "keyword_only", "expected_behavior", "duplicate", "protected_boundary", "non_reachable",
