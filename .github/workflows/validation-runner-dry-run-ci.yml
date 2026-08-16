@@ -1,0 +1,234 @@
+name: Validation Runner Dry Run CI
+
+on:
+  push:
+    branches:
+      - agent/validation-runner-dry-run-v0
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Integrate runner reporting
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/reporting.py')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  'from validation_eligibility import snapshot_validation_eligibility\n',
+                  'from validation_eligibility import snapshot_validation_eligibility\nfrom validation_runner import snapshot_validation_runner_dry_run\n',
+              ),
+              (
+                  '    validation_eligibility: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:',
+                  '    validation_eligibility: Mapping[str, Any] | None = None,\n    validation_runner_dry_run: Mapping[str, Any] | None = None,\n) -> dict[str, Any]:',
+              ),
+              (
+                  '    eligibility = dict(validation_eligibility or {})\n    report = {',
+                  '    eligibility = dict(validation_eligibility or {})\n    runner_dry_run = dict(validation_runner_dry_run or {})\n    report = {',
+              ),
+              (
+                  '        "validation_eligibility": eligibility,\n        "changes": {',
+                  '        "validation_eligibility": eligibility,\n        "validation_runner_dry_run": runner_dry_run,\n        "changes": {',
+              ),
+              (
+                  '        "validation_eligibility": eligibility,\n        "change_summary":',
+                  '        "validation_eligibility": eligibility,\n        "validation_runner_dry_run": runner_dry_run,\n        "change_summary":',
+              ),
+              (
+                  '            "validation_eligibility_json": str(ctx.run_dir / "validation-eligibility.json"),\n            "current_dir":',
+                  '            "validation_eligibility_json": str(ctx.run_dir / "validation-eligibility.json"),\n            "validation_runner_dry_run_json": str(ctx.run_dir / "validation-runner-dry-run.json"),\n            "current_dir":',
+              ),
+          ]
+
+          for old, new in replacements:
+              if new in text:
+                  continue
+              if old not in text:
+                  raise SystemExit(f'missing reporting anchor: {old!r}')
+              text = text.replace(old, new, 1)
+
+          anchor = (
+              '    report = generate_report(\n'
+              '        ctx,\n'
+              '        baseline,\n'
+              '        notification,\n'
+              '        collection_quality,\n'
+              '        evidence_coverage,\n'
+              '        evidence_completion_plan,\n'
+              '        validation_eligibility,\n'
+              '    )\n'
+          )
+          replacement = (
+              '    validation_runner_dry_run: dict[str, Any] = {\n'
+              '        "version": "0.1.0",\n'
+              '        "status": "unavailable",\n'
+              '        "item_count": 0,\n'
+              '        "contract_count": 0,\n'
+              '        "mode": "dry_run_only",\n'
+              '        "execution_enabled": False,\n'
+              '        "automatic_execution_allowed": False,\n'
+              '        "executes_validation": False,\n'
+              '        "network_requests_planned": 0,\n'
+              '        "network_requests_executed": 0,\n'
+              '        "budget_reserved": False,\n'
+              '        "budget_consumed": False,\n'
+              '        "diagnostic_only": True,\n'
+              '        "affects_admission": False,\n'
+              '        "affects_candidate_promotion": False,\n'
+              '        "reason": "Validation Eligibility Gate did not produce decisions for dry-run review.",\n'
+              '    }\n'
+              '    if validation_eligibility.get("decisions"):\n'
+              '        try:\n'
+              '            validation_runner_dry_run = snapshot_validation_runner_dry_run(\n'
+              '                ctx,\n'
+              '                evidence_completion_plan=evidence_completion_plan,\n'
+              '                validation_eligibility=validation_eligibility,\n'
+              '            )\n'
+              '        except Exception as exc:\n'
+              '            ctx.logger.warn(\n'
+              '                "Validation runner dry-run failed without blocking report generation",\n'
+              '                target=ctx.policy.name,\n'
+              '                run_id=ctx.run_id,\n'
+              '                analysis_id=analysis_id,\n'
+              '                error=str(exc),\n'
+              '            )\n'
+              '            validation_runner_dry_run = {\n'
+              '                "version": "0.1.0",\n'
+              '                "status": "unavailable",\n'
+              '                "item_count": 0,\n'
+              '                "contract_count": 0,\n'
+              '                "mode": "dry_run_only",\n'
+              '                "execution_enabled": False,\n'
+              '                "automatic_execution_allowed": False,\n'
+              '                "executes_validation": False,\n'
+              '                "network_requests_planned": 0,\n'
+              '                "network_requests_executed": 0,\n'
+              '                "budget_reserved": False,\n'
+              '                "budget_consumed": False,\n'
+              '                "diagnostic_only": True,\n'
+              '                "affects_admission": False,\n'
+              '                "affects_candidate_promotion": False,\n'
+              '                "error": str(exc),\n'
+              '            }\n'
+              '    report = generate_report(\n'
+              '        ctx,\n'
+              '        baseline,\n'
+              '        notification,\n'
+              '        collection_quality,\n'
+              '        evidence_coverage,\n'
+              '        evidence_completion_plan,\n'
+              '        validation_eligibility,\n'
+              '        validation_runner_dry_run,\n'
+              '    )\n'
+          )
+          if replacement not in text:
+              if anchor not in text:
+                  raise SystemExit('missing stage_report generate_report anchor')
+              text = text.replace(anchor, replacement, 1)
+
+          old_return = '        "validation_eligibility": validation_eligibility,\n        "analysis": analysis_summary,\n'
+          new_return = '        "validation_eligibility": validation_eligibility,\n        "validation_runner_dry_run": validation_runner_dry_run,\n        "analysis": analysis_summary,\n'
+          if new_return not in text:
+              if old_return not in text:
+                  raise SystemExit('missing stage_report return anchor')
+              text = text.replace(old_return, new_return, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Refresh manifest
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          path = Path('MANIFEST.sha256')
+          rows = {}
+          for line in path.read_text(encoding='utf-8').splitlines():
+              if not line.strip():
+                  continue
+              digest, name = line.split('  ', 1)
+              rows[name] = digest
+          for name in (
+              'app/reporting.py',
+              'app/validation_runner.py',
+              'tests/test_validation_runner_dry_run.py',
+          ):
+              rows[name] = hashlib.sha256(Path(name).read_bytes()).hexdigest()
+          path.write_text(
+              ''.join(f'{rows[name]}  {name}\n' for name in sorted(rows)),
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Compile and targeted tests
+        run: |
+          python3 -m py_compile app/validation_runner.py app/reporting.py
+          python3 -m unittest discover -s tests -p 'test_validation_runner_dry_run.py' -v
+          python3 -m unittest discover -s tests -p 'test_validation_eligibility.py' -q
+          python3 -m unittest discover -s tests -p 'test_evidence_completion_planner.py' -q
+
+      - name: Commit integration
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/reporting.py MANIFEST.sha256
+          if git diff --cached --quiet; then
+            echo 'Integration already current'
+          else
+            git commit -m 'Integrate dry-run validation runner'
+            git push origin HEAD:agent/validation-runner-dry-run-v0
+          fi
+
+  full-ci:
+    needs: integrate
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - name: Checkout latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/validation-runner-dry-run-v0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
