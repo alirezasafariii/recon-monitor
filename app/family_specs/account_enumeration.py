@@ -62,6 +62,15 @@ ACCOUNT_ENUMERATION_STANDARD_SPEC = FamilyStandardSpec(
     ),
     writeups=(
         WriteupLesson(
+            id="owasp-wstg-idnt-04-account-enumeration",
+            source="OWASP WSTG",
+            ref="WSTG-IDNT-04 / Account Enumeration",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/03-Identity_Management_Testing/04-Testing_for_Account_Enumeration_and_Guessable_User_Account",
+            relation="historical_knowledge_compatibility",
+            lesson="Controlled differences between existing and non-existing test identities define the reusable account-enumeration pattern; endpoint names alone are not target evidence.",
+            signal_hints=("identity_lookup", "identity_response_differential", "identity_timing_differential"),
+        ),
+        WriteupLesson(
             id="owasp-wstg-idnt-04-response-pattern",
             source="OWASP WSTG",
             ref="WSTG-IDNT-04 / Testing for Account Enumeration and Guessable User Account",

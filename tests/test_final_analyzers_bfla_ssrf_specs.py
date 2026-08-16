@@ -37,6 +37,10 @@ class FinalAnalyzersBflaSsrfSpecTests(unittest.TestCase):
                 "open_redirect",
                 "postmessage_trust",
                 "graphql_authorization",
+                "account_enumeration",
+                "information_disclosure",
+                "source_map_exposure",
+                "secret_exposure",
             ),
         )
         self.assertEqual(validate_family_spec_registry(), [])

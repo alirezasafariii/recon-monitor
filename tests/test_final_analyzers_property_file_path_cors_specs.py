@@ -17,7 +17,7 @@ class FinalAnalyzersPropertyFilePathCorsSpecTests(unittest.TestCase):
     families = ("mass_assignment", "file_upload", "path_traversal", "cors_misconfiguration")
 
     def test_registry_and_knowledge_are_drift_free(self):
-        self.assertEqual(len(MIGRATED_FAMILIES), 13)
+        self.assertEqual(len(MIGRATED_FAMILIES), 17)
         self.assertEqual(validate_family_spec_registry(), [])
         self.assertFalse(SPEC_KNOWLEDGE_ERRORS)
         for family in self.families:

@@ -21,13 +21,17 @@ from .mass_assignment import MASS_ASSIGNMENT_STANDARD_SPEC
 from .path_traversal import PATH_TRAVERSAL_STANDARD_SPEC
 from .sql_injection import SQL_INJECTION_STANDARD_SPEC
 from .authentication_session import AUTHENTICATION_SESSION_STANDARD_SPEC
+from .account_enumeration import ACCOUNT_ENUMERATION_STANDARD_SPEC
+from .information_disclosure import INFORMATION_DISCLOSURE_STANDARD_SPEC
+from .source_map_exposure import SOURCE_MAP_EXPOSURE_STANDARD_SPEC
+from .secret_exposure import SECRET_EXPOSURE_STANDARD_SPEC
 from .open_redirect import OPEN_REDIRECT_STANDARD_SPEC
 from .postmessage_trust import POSTMESSAGE_TRUST_STANDARD_SPEC
 from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
 
 
-FAMILY_SPEC_REGISTRY_VERSION = "1.5.0"
+FAMILY_SPEC_REGISTRY_VERSION = "1.6.0"
 MIGRATED_FAMILIES = (
     "broken_object_authorization",
     "broken_function_authorization",
@@ -42,6 +46,10 @@ MIGRATED_FAMILIES = (
     "open_redirect",
     "postmessage_trust",
     "graphql_authorization",
+    "account_enumeration",
+    "information_disclosure",
+    "source_map_exposure",
+    "secret_exposure",
 )
 
 FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
@@ -58,6 +66,10 @@ FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     OPEN_REDIRECT_STANDARD_SPEC.family: OPEN_REDIRECT_STANDARD_SPEC,
     POSTMESSAGE_TRUST_STANDARD_SPEC.family: POSTMESSAGE_TRUST_STANDARD_SPEC,
     GRAPHQL_AUTHORIZATION_STANDARD_SPEC.family: GRAPHQL_AUTHORIZATION_STANDARD_SPEC,
+    ACCOUNT_ENUMERATION_STANDARD_SPEC.family: ACCOUNT_ENUMERATION_STANDARD_SPEC,
+    INFORMATION_DISCLOSURE_STANDARD_SPEC.family: INFORMATION_DISCLOSURE_STANDARD_SPEC,
+    SOURCE_MAP_EXPOSURE_STANDARD_SPEC.family: SOURCE_MAP_EXPOSURE_STANDARD_SPEC,
+    SECRET_EXPOSURE_STANDARD_SPEC.family: SECRET_EXPOSURE_STANDARD_SPEC,
 }
 
 

@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.3.0"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.16.1"
+FINAL_ANALYZER_REASONING_VERSION = "1.4.0"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.16.2"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
@@ -224,3 +224,64 @@ def apply_final_analyzer_reasoning(catalog: dict[str, dict[str, Any]]) -> None:
         }
     )
     catalog["graphql_authorization"] = graphql
+
+
+    account_enumeration = dict(catalog["account_enumeration"])
+    account_enumeration.update(
+        {
+            "promotion_required": _groups(
+                {"identity_lookup", "identity_response_differential", "identity_timing_differential"},
+                {"authentication_surface", "client_operation", "identity_response_differential", "identity_timing_differential"},
+                {"identity_response_differential", "identity_timing_differential"},
+            ),
+            "blocking_contradictions": frozenset({"uniform_identity_response", "uniform_identity_timing"}),
+            "override_signals": frozenset({"identity_response_differential", "identity_timing_differential"}),
+            "confirmation_required": _groups({"identity_response_differential", "identity_timing_differential"}),
+        }
+    )
+    catalog["account_enumeration"] = account_enumeration
+
+    information_disclosure = dict(catalog["information_disclosure"])
+    information_disclosure.update(
+        {
+            "promotion_required": _groups(
+                {"sensitive_marker", "sensitive_response_observed", "private_field_publicly_observed"},
+                {"stored_evidence", "sensitive_response_observed", "private_field_publicly_observed"},
+                {"sensitive_response_observed", "private_field_publicly_observed"},
+            ),
+            "blocking_contradictions": frozenset({"intended_public_metadata", "redaction_enforced"}),
+            "override_signals": frozenset({"sensitive_response_observed", "private_field_publicly_observed"}),
+            "confirmation_required": _groups({"sensitive_response_observed", "private_field_publicly_observed"}),
+        }
+    )
+    catalog["information_disclosure"] = information_disclosure
+
+    source_map_exposure = dict(catalog["source_map_exposure"])
+    source_map_exposure.update(
+        {
+            "promotion_required": _groups(
+                {"source_map", "source_map_publicly_reachable", "sensitive_source_content_observed"},
+                {"internal_sources", "source_map_publicly_reachable", "sensitive_source_content_observed"},
+                {"source_map_publicly_reachable", "sensitive_source_content_observed"},
+            ),
+            "blocking_contradictions": frozenset({"source_map_not_public"}),
+            "override_signals": frozenset({"source_map_publicly_reachable"}),
+            "confirmation_required": _groups({"source_map_publicly_reachable"}),
+        }
+    )
+    catalog["source_map_exposure"] = source_map_exposure
+
+    secret_exposure = dict(catalog["secret_exposure"])
+    secret_exposure.update(
+        {
+            "promotion_required": _groups(
+                {"secret_pattern", "credential_material_confirmed", "live_secret_context"},
+                {"context", "credential_material_confirmed", "live_secret_context"},
+                {"credential_material_confirmed", "live_secret_context"},
+            ),
+            "blocking_contradictions": frozenset({"placeholder", "intended_public_client_identifier"}),
+            "override_signals": frozenset({"credential_material_confirmed", "live_secret_context"}),
+            "confirmation_required": _groups({"credential_material_confirmed", "live_secret_context"}),
+        }
+    )
+    catalog["secret_exposure"] = secret_exposure

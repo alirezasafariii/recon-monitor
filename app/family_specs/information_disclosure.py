@@ -12,7 +12,7 @@ INFORMATION_DISCLOSURE_STANDARD_SPEC = FamilyStandardSpec(
         "context only; promotion requires stored target evidence that non-public sensitive information crossed its "
         "intended visibility boundary to a public, anonymous or otherwise unauthorized actor/context."
     ),
-    owasp=("A02:2025 Security Misconfiguration", "A10:2025 Mishandling of Exceptional Conditions"),
+    owasp=("A02:2025 Security Misconfiguration",),
     wstg=("WSTG-INFO-05", "WSTG-ERRH-01"),
     cwe=("CWE-209", "CWE-497", "CWE-1295", "CWE-200"),
     capec=(),
@@ -63,12 +63,12 @@ INFORMATION_DISCLOSURE_STANDARD_SPEC = FamilyStandardSpec(
     ),
     writeups=(
         WriteupLesson(
-            id="cwe-200-sensitive-information-exposure",
-            source="MITRE CWE",
-            ref="CWE-200 / Exposure of Sensitive Information to an Unauthorized Actor",
-            url="https://cwe.mitre.org/data/definitions/200.html",
-            relation="visibility_boundary_model",
-            lesson="The reusable detector question is whether data classified as non-public crossed to an actor or control sphere that should not receive it; sensitivity alone is insufficient.",
+            id="owasp-wstg-information-leakage-boundary",
+            source="OWASP WSTG",
+            ref="WSTG-INFO-05 / WSTG-ERRH-01 information leakage boundary",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Web_Page_Content_for_Information_Leakage",
+            relation="historical_knowledge_compatibility",
+            lesson="Information-looking output is a finding only when stored target evidence shows sensitive or private information crossing an unintended visibility boundary.",
             signal_hints=("sensitive_marker", "sensitive_response_observed", "private_field_publicly_observed"),
         ),
         WriteupLesson(
@@ -79,15 +79,6 @@ INFORMATION_DISCLOSURE_STANDARD_SPEC = FamilyStandardSpec(
             relation="sensitive_error_output_case",
             lesson="Error behavior becomes security-relevant when response content exposes sensitive application, environment or user information, not merely because an error occurred.",
             signal_hints=("error_detail_marker", "sensitive_response_observed", "error_detail_exposure_observed"),
-        ),
-        WriteupLesson(
-            id="cwe-497-sensitive-system-information",
-            source="MITRE CWE",
-            ref="CWE-497 / Exposure of Sensitive System Information to an Unauthorized Control Sphere",
-            url="https://cwe.mitre.org/data/definitions/497.html",
-            relation="internal_system_detail_boundary",
-            lesson="Internal paths, package inventories and diagnostic details matter only when they cross the intended trust boundary.",
-            signal_hints=("internal_detail_marker", "sensitive_response_observed"),
         ),
         WriteupLesson(
             id="wstg-error-handling-and-page-content",

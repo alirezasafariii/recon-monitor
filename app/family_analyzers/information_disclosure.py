@@ -15,97 +15,31 @@ from typing import Any, Iterable, Mapping
 
 from core import Database
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
+from family_specs.registry import get_detection_spec
 
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
+from .remaining_common import policy_ready
 
 
 INFORMATION_DISCLOSURE_FAMILY_ANALYZER_VERSION = "1.0.0"
 INFORMATION_DISCLOSURE_FAMILY_ANALYZER_RULE_VERSION = "2026.08.12.1"
 
-INFORMATION_DISCLOSURE_TAXONOMY = {
-    "owasp": ["Information Leakage", "Security Misconfiguration"],
-    "wstg": ["WSTG-ERRH-01", "WSTG-ERRH-02", "WSTG-INFO-05"],
-    "cwe": ["CWE-200"],
-    "related_cwe": ["CWE-209", "CWE-497", "CWE-1295"],
-}
-
-INFORMATION_DISCLOSURE_METHOD = (
+INFORMATION_DISCLOSURE_SPEC = get_detection_spec("information_disclosure")
+INFORMATION_DISCLOSURE_TAXONOMY = INFORMATION_DISCLOSURE_SPEC.taxonomy()
+INFORMATION_DISCLOSURE_METHOD = tuple(step.as_dict() for step in INFORMATION_DISCLOSURE_SPEC.standard.methodology)
+INFORMATION_DISCLOSURE_FALSE_POSITIVE_CHECKS = tuple(INFORMATION_DISCLOSURE_SPEC.standard.false_positive_checks)
+INFORMATION_DISCLOSURE_KNOWLEDGE_PATTERNS = tuple(
     {
-        "id": "INFO-01-surface-classification",
-        "basis": ["CWE-200", "WSTG-INFO-05"],
-        "principle": "Classify debug, error, internal, version, build, configuration and sensitive-looking response markers as surface evidence only until actual visibility and policy are known.",
-    },
-    {
-        "id": "INFO-02-visibility-policy",
-        "basis": ["CWE-200", "CWE-497"],
-        "principle": "Establish whether the observed field or metadata is intended for the current actor/context before treating it as disclosure.",
-    },
-    {
-        "id": "INFO-03-minimal-stored-observation",
-        "basis": ["CWE-200", "WSTG-INFO-05"],
-        "principle": "Use stored response metadata and redacted field/category descriptions only; do not copy credentials, personal values, tokens or unrelated private data into analyzer output.",
-    },
-    {
-        "id": "INFO-04-error-and-debug-boundary",
-        "basis": ["CWE-209", "CWE-1295", "WSTG-ERRH-01", "WSTG-ERRH-02"],
-        "principle": "A stack trace or verbose error is not automatically a vulnerability; direct evidence requires stored sensitive/internal detail exposed outside its intended audience.",
-    },
-    {
-        "id": "INFO-05-policy-differential",
-        "basis": ["CWE-200", "CWE-497"],
-        "principle": "Treat a stored public/anonymous/unauthorized observation of explicitly private or restricted data as target evidence; intended public metadata and enforced redaction are contradictions.",
-    },
-    {
-        "id": "INFO-06-neighbor-family-separation",
-        "basis": ["CWE-200", "WSTG-INFO-05"],
-        "principle": "Source maps, credential material and GraphQL excessive-field exposure retain their specialized family classifications; generic marker overlap does not confirm Information Disclosure.",
-    },
-)
-
-INFORMATION_DISCLOSURE_FALSE_POSITIVE_CHECKS = (
-    "A server/framework/version banner is not automatically sensitive information disclosure.",
-    "A stack trace marker or HTTP error status is only surface evidence unless stored output contains internal or sensitive detail outside its intended audience.",
-    "Field names such as token, secret or api_key are not proof that real credential material was exposed; Secret Exposure remains the specialized family.",
-    "A sourceMappingURL marker remains Source-map Exposure unless independently established as a generic sensitive response disclosure.",
-    "Private data returned to its intended authorized owner is not public disclosure merely because the field is sensitive.",
-    "Documented public metadata and deliberately public diagnostics are not disclosure when the visibility policy says they are public.",
-    "Redacted or filtered sensitive fields are contradiction evidence when redaction is actually observed.",
-    "The analyzer stores categories, field names and booleans only; it does not echo raw sensitive values into evidence text or metadata.",
-)
-
-INFORMATION_DISCLOSURE_KNOWLEDGE_PATTERNS = (
-    {
-        "id": "cwe-200-sensitive-information-exposure",
-        "source": "MITRE CWE",
-        "ref": "CWE-200 / Exposure of Sensitive Information to an Unauthorized Actor",
-        "url": "https://cwe.mitre.org/data/definitions/200.html",
-        "principle": "The core question is whether information classified as sensitive crosses a visibility boundary to an actor who should not receive it.",
-        "signals": ["sensitive_marker", "sensitive_response_observed", "private_field_publicly_observed"],
-    },
-    {
-        "id": "cwe-209-sensitive-error-message",
-        "source": "MITRE CWE",
-        "ref": "CWE-209 / Generation of Error Message Containing Sensitive Information",
-        "url": "https://cwe.mitre.org/data/definitions/209.html",
-        "principle": "Error output becomes security-relevant when it exposes sensitive environment, user or application detail rather than merely signaling failure.",
-        "signals": ["error_detail_marker", "sensitive_response_observed"],
-    },
-    {
-        "id": "cwe-497-sensitive-system-information",
-        "source": "MITRE CWE",
-        "ref": "CWE-497 / Exposure of Sensitive System Information to an Unauthorized Control Sphere",
-        "url": "https://cwe.mitre.org/data/definitions/497.html",
-        "principle": "Internal paths, installed components and diagnostic/system details matter when they leave the intended trust boundary.",
-        "signals": ["internal_detail_marker", "sensitive_response_observed"],
-    },
-    {
-        "id": "wstg-error-handling-and-page-content",
-        "source": "OWASP WSTG",
-        "ref": "WSTG-ERRH-01 / WSTG-ERRH-02 / WSTG-INFO-05",
-        "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/01-Testing_For_Improper_Error_Handling",
-        "principle": "Error output, stack traces, comments and metadata can reveal implementation detail, but sensitivity and intended visibility still require target-specific evaluation.",
-        "signals": ["error_detail_marker", "internal_detail_marker", "sensitive_marker"],
-    },
+        "id": item.id,
+        "source": item.source,
+        "ref": item.ref,
+        "url": item.url,
+        "relation": item.relation,
+        "principle": item.lesson,
+        "signals": list(item.signal_hints),
+        "counts_as_target_evidence": False,
+    }
+    for item in INFORMATION_DISCLOSURE_SPEC.standard.writeups
 )
 
 _SURFACE_PATTERNS: dict[str, tuple[str, ...]] = {
@@ -463,8 +397,9 @@ def analyze_information_disclosure_signal(
         return None
 
     observed = {str(item.get("type") or "") for item in support}
-    confirmation_missing = list(confirmation_gaps("information_disclosure", observed))
-    confirmation_ready = bool(observed.intersection({"sensitive_response_observed", "private_field_publicly_observed"})) and direct
+    state = policy_ready("information_disclosure", support, contradict)
+    confirmation_ready = state["confirmation_ready"]
+    confirmation_missing = [] if confirmation_ready else list(confirmation_gaps("information_disclosure", observed))
 
     neighbor_hints: list[str] = []
     if "credential_like_marker" in markers or any(context["specialized_secret_family_preferred"] for context in contexts):
@@ -489,7 +424,7 @@ def analyze_information_disclosure_signal(
         "observation_context": contexts,
         "neighbor_family_hints": list(dict.fromkeys(neighbor_hints)),
         "structural_marker_and_storage_are_one_evidence_root": True,
-        "promotion_ready_from_stored_target_evidence": direct,
+        "promotion_ready_from_stored_target_evidence": state["promotion_ready"],
         "confirmation_missing": confirmation_missing,
         "confirmation_ready_from_stored_target_evidence": confirmation_ready,
         "knowledge_does_not_change_target_evidence": True,

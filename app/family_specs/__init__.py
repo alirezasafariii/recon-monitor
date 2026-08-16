@@ -23,6 +23,10 @@ from .mass_assignment import MASS_ASSIGNMENT_STANDARD_SPEC
 from .path_traversal import PATH_TRAVERSAL_STANDARD_SPEC
 from .sql_injection import SQL_INJECTION_STANDARD_SPEC
 from .authentication_session import AUTHENTICATION_SESSION_STANDARD_SPEC
+from .account_enumeration import ACCOUNT_ENUMERATION_STANDARD_SPEC
+from .information_disclosure import INFORMATION_DISCLOSURE_STANDARD_SPEC
+from .source_map_exposure import SOURCE_MAP_EXPOSURE_STANDARD_SPEC
+from .secret_exposure import SECRET_EXPOSURE_STANDARD_SPEC
 from .open_redirect import OPEN_REDIRECT_STANDARD_SPEC
 from .postmessage_trust import POSTMESSAGE_TRUST_STANDARD_SPEC
 from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC

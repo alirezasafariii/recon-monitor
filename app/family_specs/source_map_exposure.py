@@ -63,6 +63,15 @@ SOURCE_MAP_EXPOSURE_STANDARD_SPEC = FamilyStandardSpec(
     ),
     writeups=(
         WriteupLesson(
+            id="owasp-wstg-info-05-source-map-exposure",
+            source="OWASP WSTG",
+            ref="WSTG-INFO-05 / Source-map Exposure",
+            url="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Web_Page_Content_for_Information_Leakage",
+            relation="historical_knowledge_compatibility",
+            lesson="A source-map reference is surface only; public reachability of meaningful internal map structure is the decisive exposure condition.",
+            signal_hints=("source_map", "internal_sources", "source_map_publicly_reachable"),
+        ),
+        WriteupLesson(
             id="owasp-wstg-info-05-source-maps",
             source="OWASP WSTG",
             ref="WSTG-INFO-05 / Review Web Page Content for Information Leakage",
