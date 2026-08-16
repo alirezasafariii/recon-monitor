@@ -26,6 +26,7 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
 )
+from progress_tracking import install_progress_tracking
 from validation_executor import execute_validation_runner_contract
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
@@ -53,6 +54,7 @@ _ORIGINAL_BUILD_PARSER = getattr(_base, "_VI_ORIGINAL_BUILD_PARSER", _base.build
 _ORIGINAL_MAIN = getattr(_base, "_VI_ORIGINAL_MAIN", _base.main)
 _base._VI_ORIGINAL_BUILD_PARSER = _ORIGINAL_BUILD_PARSER
 _base._VI_ORIGINAL_MAIN = _ORIGINAL_MAIN
+install_progress_tracking(_base)
 
 
 def _command_parser(parser: Any, command: str) -> Any:
