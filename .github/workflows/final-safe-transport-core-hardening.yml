@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Apply migration anchor fix
+        run: python .github/scripts/fix_final_safe_transport_core_anchor.py
       - name: Apply core transport hardening
         run: python .github/scripts/final_safe_transport_core_hardening.py
       - name: Verify syntax
