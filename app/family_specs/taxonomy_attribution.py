@@ -11,8 +11,8 @@ signals.
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-TAXONOMY_ATTRIBUTION_VERSION = "1.0.0"
-TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.1"
+TAXONOMY_ATTRIBUTION_VERSION = "1.0.1"
+TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.2"
 
 
 @dataclass(frozen=True)
@@ -152,7 +152,29 @@ FAMILY_CWE_ATTRIBUTION: dict[str, tuple[TaxonomyAttributionRule, ...]] = {
 
 
 def rules_for_family(family: str) -> tuple[TaxonomyAttributionRule, ...]:
-    return FAMILY_CWE_ATTRIBUTION.get(str(family), ())
+    """Return explicit rules plus fail-closed manual rules for spec-only CWEs.
+
+    A family spec may intentionally carry broader CWE context than Analysis 6.33
+    had an auto-assignment rule for. Those extra references are never guessed as
+    direct mappings: they become contextual/manual-only until an explicit rule is
+    reviewed and added here.
+    """
+
+    family_name = str(family)
+    explicit = list(FAMILY_CWE_ATTRIBUTION.get(family_name, ()))
+    explicit_refs = {rule.ref for rule in explicit}
+    try:
+        from .registry import FAMILY_STANDARD_SPECS
+
+        standard = FAMILY_STANDARD_SPECS.get(family_name)
+    except (ImportError, AttributeError):
+        standard = None
+    if standard is not None:
+        for ref in standard.cwe:
+            if ref in explicit_refs:
+                continue
+            explicit.append(_cwe(ref, mapping="contextual", auto_assign=False))
+    return tuple(explicit)
 
 
 def resolve_taxonomy_attribution(
@@ -205,7 +227,6 @@ def resolve_taxonomy_attribution(
 def validate_taxonomy_attribution() -> list[str]:
     """Validate coverage and reference drift against canonical family specs."""
 
-    # Local import avoids registry import cycles during family spec construction.
     from .registry import FAMILY_STANDARD_SPECS, MIGRATED_FAMILIES
 
     errors: list[str] = []
