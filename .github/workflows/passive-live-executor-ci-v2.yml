@@ -18,8 +18,10 @@ jobs:
           ref: agent/passive-live-validation-executor-v1
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Apply branch patch
-        run: python tools/passive_executor_branch_patch.py
+      - name: Apply branch patches
+        run: |
+          python tools/passive_executor_branch_patch.py
+          python tools/passive_executor_output_hardening_patch.py
       - name: Compile and targeted tests
         run: |
           python -m py_compile app/validation_executor.py app/recon_monitor.py tests/test_validation_executor.py
@@ -35,7 +37,7 @@ jobs:
           git config user.email "88625680+alirezasafariii@users.noreply.github.com"
           git add MANIFEST.sha256 app/recon_monitor.py app/validation_executor.py tests/test_validation_executor.py
           if ! git diff --cached --quiet; then
-            git commit -m "Integrate bounded passive-live validation executor"
+            git commit -m "Harden passive-live executor output boundary"
             git push origin HEAD:agent/passive-live-validation-executor-v1
           fi
 
