@@ -1,0 +1,224 @@
+name: Passive Live Executor CI
+
+on:
+  push:
+    branches: [agent/passive-live-validation-executor-v1]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/passive-live-validation-executor-v1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Harden executor bookkeeping and contract recheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/validation_executor.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one replacement, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          if 'from validation_runner import snapshot_validation_runner_dry_run' not in text:
+              replace_once(
+                  'from validation_eligibility import snapshot_validation_eligibility\n',
+                  'from validation_eligibility import snapshot_validation_eligibility\n'
+                  'from validation_runner import snapshot_validation_runner_dry_run\n',
+              )
+
+          if 'http_budget_units_consumed = 0' not in text:
+              replace_once(
+                  '    failed_5xx = 0\n\n    try:\n',
+                  '    failed_5xx = 0\n'
+                  '    http_budget_units_consumed = 0\n\n'
+                  '    try:\n',
+              )
+
+          if 'http_budget_units_consumed += 1' not in text:
+              replace_once(
+                  '            budget.consume("http_requests", 1)\n'
+                  '            observation, state = safe_validation._perform_request(request, policy)\n',
+                  '            budget.consume("http_requests", 1)\n'
+                  '            http_budget_units_consumed += 1\n'
+                  '            observation, state = safe_validation._perform_request(request, policy)\n',
+              )
+
+          if 'Fresh Validation Runner dry-run' not in text:
+              replace_once(
+                  '    if str(fresh_decision.get("validation_level") or "") != "passive_live":\n'
+                  '        raise ReconError("Fresh Validation Eligibility no longer permits passive-live validation")\n\n'
+                  '    endpoint = _safe_contract_url(contract, policy)\n',
+                  '    if str(fresh_decision.get("validation_level") or "") != "passive_live":\n'
+                  '        raise ReconError("Fresh Validation Eligibility no longer permits passive-live validation")\n\n'
+                  '    fresh_dry_run = snapshot_validation_runner_dry_run(\n'
+                  '        ctx,\n'
+                  '        evidence_completion_plan=planner,\n'
+                  '        validation_eligibility=fresh_gate,\n'
+                  '        persist=False,\n'
+                  '    )\n'
+                  '    fresh_contract = _contract_by_id(fresh_dry_run, contract_id)\n'
+                  '    for key in ("hypothesis_id", "family", "validation_level", "planning_phase"):\n'
+                  '        if str(contract.get(key) or "") != str(fresh_contract.get(key) or ""):\n'
+                  '            raise ReconError(f"Fresh Validation Runner dry-run contract mismatch: {key}")\n'
+                  '    stored_surface = dict(contract.get("surface") or {})\n'
+                  '    fresh_surface = dict(fresh_contract.get("surface") or {})\n'
+                  '    if (\n'
+                  '        str(stored_surface.get("kind") or "") != str(fresh_surface.get("kind") or "")\n'
+                  '        or str(stored_surface.get("display") or "") != str(fresh_surface.get("display") or "")\n'
+                  '    ):\n'
+                  '        raise ReconError("Fresh Validation Runner dry-run contract surface mismatch")\n'
+                  '    contract = fresh_contract\n\n'
+                  '    endpoint = _safe_contract_url(contract, policy)\n',
+              )
+
+          if '"http_budget_units_consumed": http_budget_units_consumed,' not in text:
+              replace_once(
+                  '            "network_requests_executed": len(observations),\n'
+                  '            "budget_consumed": True,\n',
+                  '            "network_requests_executed": len(observations),\n'
+                  '            "http_budget_units_consumed": http_budget_units_consumed,\n'
+                  '            "budget_consumed": http_budget_units_consumed > 0,\n',
+              )
+              replace_once(
+                  '        "network_requests_executed": len(observations),\n'
+                  '        "budget_consumed": bool(observations),\n',
+                  '        "network_requests_executed": len(observations),\n'
+                  '        "http_budget_units_consumed": http_budget_units_consumed,\n'
+                  '        "budget_consumed": http_budget_units_consumed > 0,\n',
+              )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Add stale-contract regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/test_validation_executor.py')
+          text = path.read_text(encoding='utf-8')
+          marker = '    def test_cors_recipe_uses_only_allowlisted_safe_headers_and_methods(self):\n'
+          if 'test_modified_dry_run_surface_is_rejected_before_transport' not in text:
+              test = '''    def test_modified_dry_run_surface_is_rejected_before_transport(self):
+        _, _, dry, contract_id = self.fx.make_artifacts(passive_plan())
+        dry["contracts"][0]["surface"]["display"] = "https://api.example.test/tampered"
+        (self.fx.run_dir / "validation-runner-dry-run.json").write_text(
+            json_dumps(dry, pretty=True) + "\\n",
+            encoding="utf-8",
+        )
+        with patch("validation_executor.safe_validation._perform_request") as request:
+            with self.assertRaisesRegex(ReconError, "dry-run contract surface mismatch"):
+                self.fx.execute(contract_id)
+        request.assert_not_called()
+        self.assertEqual(self.fx.budget_used(), 0)
+
+'''
+              if marker not in text:
+                  raise SystemExit('test insertion marker not found')
+              text = text.replace(marker, test + marker, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Refresh changed manifest entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          manifest = Path('MANIFEST.sha256')
+          entries = {}
+          for raw in manifest.read_text(encoding='utf-8').splitlines():
+              if not raw.strip():
+                  continue
+              digest, rel = raw.split('  ', 1)
+              entries[rel] = digest
+          for rel in (
+              'app/recon_monitor.py',
+              'app/validation_executor.py',
+              'tests/test_validation_executor.py',
+          ):
+              data = Path(rel).read_bytes()
+              entries[rel] = hashlib.sha256(data).hexdigest()
+          manifest.write_text(
+              ''.join(f'{entries[rel]}  {rel}\n' for rel in sorted(entries)),
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Compile and targeted safety tests
+        run: |
+          python -m py_compile app/validation_executor.py app/recon_monitor.py tests/test_validation_executor.py
+          python tests/test_validation_executor.py -q
+          python tests/test_validation_runner_dry_run.py -q
+          python tests/test_validation_eligibility.py -q
+          python tests/test_evidence_completion_planner.py -q
+
+      - name: Commit integrated product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Alireza Safari"
+          git config user.email "88625680+alirezasafariii@users.noreply.github.com"
+          git add MANIFEST.sha256 app/recon_monitor.py app/validation_executor.py tests/test_validation_executor.py
+          if ! git diff --cached --quiet; then
+            git commit -m "Integrate bounded passive-live validation executor"
+            git push origin HEAD:agent/passive-live-validation-executor-v1
+          fi
+
+  full-ci:
+    needs: integrate
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/passive-live-validation-executor-v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
