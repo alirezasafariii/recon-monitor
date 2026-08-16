@@ -29,6 +29,7 @@ from core import (
 from stages import StageContext
 from analysis_engine import run_analysis
 from collection_quality import snapshot_collection_quality
+from evidence_coverage import snapshot_evidence_coverage
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -253,6 +254,7 @@ def generate_report(
     baseline: bool,
     notification: Mapping[str, Any],
     collection_quality: Mapping[str, Any] | None = None,
+    evidence_coverage: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
@@ -272,6 +274,7 @@ def generate_report(
         (ctx.policy.name, ctx.run_id),
     )]
     quality = dict(collection_quality or {})
+    coverage = dict(evidence_coverage or {})
     report = {
         "schema": 7,
         "recon_monitor_version": APP_VERSION,
@@ -284,6 +287,7 @@ def generate_report(
         "stages": _stage_metrics(ctx),
         "counts": _current_counts(ctx),
         "collection_quality": quality,
+        "evidence_coverage": coverage,
         "changes": {
             "total": len(events),
             "by_severity": {
@@ -323,6 +327,7 @@ def generate_report(
         "stages": report["stages"],
         "counts": report["counts"],
         "collection_quality": quality,
+        "evidence_coverage": coverage,
         "change_summary": {key: value for key, value in report["changes"].items() if key != "events"},
         "intelligence_summary": {
             "javascript_diffs": len(js_diffs),
@@ -334,6 +339,7 @@ def generate_report(
             "report_html": str(ctx.run_dir / "report.html"),
             "events_jsonl": str(ctx.events_path),
             "collection_quality_json": str(ctx.run_dir / "collection-quality.json"),
+            "evidence_coverage_json": str(ctx.run_dir / "evidence-coverage.json"),
             "current_dir": str(ctx.current),
             "changes_dir": str(ctx.changes),
         },
@@ -437,7 +443,47 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
     except Exception as exc:
         ctx.logger.warn("Analysis engine failed without blocking report generation", target=ctx.policy.name, run_id=ctx.run_id, error=str(exc))
         analysis_summary = {"status": "failed", "error": str(exc)}
-    report = generate_report(ctx, baseline, notification, collection_quality)
+    evidence_coverage: dict[str, Any] = {
+        "version": "1.0.0",
+        "status": "unavailable",
+        "family_count": 0,
+        "diagnostic_only": True,
+        "affects_admission": False,
+        "affects_candidate_promotion": False,
+        "reason": "Analysis did not produce an analysis_id.",
+    }
+    analysis_id = str(analysis_summary.get("analysis_id") or "")
+    if analysis_id:
+        try:
+            evidence_coverage = snapshot_evidence_coverage(
+                ctx,
+                analysis_id=analysis_id,
+                collection_quality=collection_quality,
+            )
+        except Exception as exc:
+            ctx.logger.warn(
+                "Evidence coverage snapshot failed without blocking report generation",
+                target=ctx.policy.name,
+                run_id=ctx.run_id,
+                analysis_id=analysis_id,
+                error=str(exc),
+            )
+            evidence_coverage = {
+                "version": "1.0.0",
+                "status": "unavailable",
+                "family_count": 0,
+                "diagnostic_only": True,
+                "affects_admission": False,
+                "affects_candidate_promotion": False,
+                "error": str(exc),
+            }
+    report = generate_report(
+        ctx,
+        baseline,
+        notification,
+        collection_quality,
+        evidence_coverage,
+    )
     return {
         "events": report["changes"]["total"],
         "alerts": notification["new_alerts"],
@@ -446,6 +492,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         "manifest": str(ctx.run_dir / "run-manifest.json"),
         "lifecycle": lifecycle,
         "collection_quality": collection_quality,
+        "evidence_coverage": evidence_coverage,
         "analysis": analysis_summary,
     }
 
