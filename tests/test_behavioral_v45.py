@@ -118,16 +118,47 @@ class BehavioralV45Tests(unittest.TestCase):
             finally:
                 db.close()
 
-    def test_behavioral_candidates_are_unverified_and_capped(self):
+    def test_behavioral_diffs_are_hidden_until_family_admission(self):
         with tempfile.TemporaryDirectory() as td:
             paths, db, _, _, second = self.fixture(td)
             try:
-                candidates = [dict(row) for row in db.all("SELECT * FROM bug_candidates WHERE analysis_id=? AND source_ref LIKE '%diff:%'", (second["analysis_id"],))]
-                self.assertGreaterEqual(len(candidates), 2)
-                self.assertTrue(all(row["analyst_decision"] == "unreviewed" for row in candidates))
-                self.assertTrue(all(int(row["likelihood_score"]) <= 96 for row in candidates))
-                self.assertTrue(any(row["bug_family"] == "authentication_session" for row in candidates))
-                self.assertTrue(any(row["bug_family"] == "information_disclosure" for row in candidates))
+                candidates = [dict(row) for row in db.all(
+                    "SELECT * FROM bug_candidates WHERE analysis_id=? AND (source_ref LIKE 'boundary-diff:%' OR source_ref LIKE 'shape-diff:%' OR source_ref LIKE 'protocol:%')",
+                    (second["analysis_id"],),
+                )]
+                self.assertEqual(candidates, [])
+
+                hypotheses = [dict(row) for row in db.all(
+                    "SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND (source_ref LIKE 'boundary-diff:%' OR source_ref LIKE 'shape-diff:%' OR source_ref LIKE 'protocol:%')",
+                    (second["analysis_id"],),
+                )]
+                self.assertGreaterEqual(len(hypotheses), 2)
+                families = {row["bug_family"] for row in hypotheses}
+                self.assertIn("authentication_session", families)
+                self.assertIn("information_disclosure", families)
+                for row in hypotheses:
+                    admission = json.loads(row["admission_json"])
+                    self.assertFalse(admission["admitted"], row["bug_family"])
+                    self.assertNotEqual(row["state"], "promoted")
+            finally:
+                db.close()
+
+    def test_behavioral_candidate_paths_cannot_bypass_admission(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths, db, _, _, second = self.fixture(td)
+            try:
+                rows = [dict(row) for row in db.all(
+                    "SELECT c.candidate_id,c.source_ref,h.admission_json,h.state "
+                    "FROM bug_candidates c LEFT JOIN analysis_hypotheses h "
+                    "ON h.analysis_id=c.analysis_id AND h.promoted_candidate_id=c.candidate_id "
+                    "WHERE c.analysis_id=? AND (c.source_ref LIKE 'boundary-diff:%' OR c.source_ref LIKE 'shape-diff:%' OR c.source_ref LIKE 'protocol:%')",
+                    (second["analysis_id"],),
+                )]
+                for row in rows:
+                    self.assertTrue(row["admission_json"], row["candidate_id"])
+                    admission = json.loads(row["admission_json"])
+                    self.assertTrue(admission["admitted"], row["candidate_id"])
+                    self.assertEqual(row["state"], "promoted")
             finally:
                 db.close()
 
