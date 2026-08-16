@@ -426,6 +426,44 @@ class PassiveLiveValidationExecutorTests(unittest.TestCase):
         request.assert_not_called()
         self.assertEqual(self.fx.budget_used(), 0)
 
+    def test_response_projection_drops_unknown_fields_and_scrubs_location(self):
+        _, _, _, contract_id = self.fx.make_artifacts(passive_plan())
+
+        def response_with_secret(item, policy):
+            row = self.observation(item)
+            row["headers"]["location"] = "https://api.example.test/login?token=RESPONSE-SECRET#fragment"
+            row["raw_body"] = "RESPONSE-SECRET"
+            row["unexpected_transport_field"] = "RESPONSE-SECRET"
+            return row, "ok"
+
+        with patch(
+            "validation_executor.safe_validation._perform_request",
+            side_effect=response_with_secret,
+        ), patch("validation_executor.time.sleep", return_value=None):
+            result = self.fx.execute(contract_id)
+
+        encoded = json.dumps(result, sort_keys=True)
+        self.assertNotIn("RESPONSE-SECRET", encoded)
+        self.assertNotIn("raw_body", result["observations"][0])
+        self.assertFalse(result["observations"][0]["raw_body_stored"])
+        self.assertNotIn("unexpected_transport_field", result["observations"][0])
+        location = result["observations"][0]["headers"]["location"]
+        self.assertEqual(location, "https://api.example.test/login")
+
+    def test_run_directory_outside_current_output_root_is_rejected(self):
+        _, _, _, contract_id = self.fx.make_artifacts(passive_plan())
+        outside = self.fx.root / "outside-run"
+        outside.mkdir(parents=True, exist_ok=True)
+        self.fx.db.execute(
+            "UPDATE run_targets SET run_dir=? WHERE run_id=? AND target=?",
+            (str(outside), RUN_ID, TARGET),
+        )
+        with patch("validation_executor.safe_validation._perform_request") as request:
+            with self.assertRaisesRegex(ReconError, "outside the current Recon Monitor output root"):
+                self.fx.execute(contract_id)
+        request.assert_not_called()
+        self.assertEqual(self.fx.budget_used(), 0)
+
     def test_cors_recipe_uses_only_allowlisted_safe_headers_and_methods(self):
         cors = passive_plan(family="cors_misconfiguration", hypothesis_id="H-CORS-1")
         _, _, _, contract_id = self.fx.make_artifacts(cors)

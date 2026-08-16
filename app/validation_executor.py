@@ -50,6 +50,18 @@ MAX_EXECUTOR_RUNTIME_SECONDS = 15
 MIN_EXECUTOR_DELAY_SECONDS = 1.0
 ALLOWED_METHODS = {"GET", "HEAD", "OPTIONS"}
 ALLOWED_RECIPE_HEADERS = {"origin", "access-control-request-method", "accept"}
+PERSISTED_RESPONSE_HEADERS = {
+    "content-type",
+    "cache-control",
+    "vary",
+    "age",
+    "etag",
+    "location",
+    "access-control-allow-origin",
+    "access-control-allow-credentials",
+    "allow",
+    "server",
+}
 
 
 class _ExecutionBudget:
@@ -102,6 +114,8 @@ class _ExecutionBudget:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    if path.is_symlink():
+        raise ReconError(f"Refusing symlinked Validation Runner artifact: {path}")
     if not path.exists() or not path.is_file():
         raise ReconError(f"Validation Runner artifact not found: {path}")
     try:
@@ -152,6 +166,14 @@ def _resolve_target_and_run_dir(
     run_dir = Path(raw_dir).expanduser()
     if not run_dir.is_absolute():
         run_dir = (paths.root / run_dir).resolve()
+    run_dir = run_dir.resolve()
+    output_root = paths.output.resolve()
+    try:
+        run_dir.relative_to(output_root)
+    except ValueError as exc:
+        raise ReconError(
+            f"Run directory is outside the current Recon Monitor output root: {run_dir}"
+        ) from exc
     if not run_dir.exists() or not run_dir.is_dir():
         raise ReconError(f"Run directory does not exist: {run_dir}")
     return selected_target, run_dir
@@ -266,8 +288,82 @@ def _validate_recipe(requests: list[dict[str, Any]], expected_url: str) -> list[
     return bounded
 
 
+def _strip_query_fragment(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        parsed = urllib.parse.urlsplit(text)
+    except ValueError:
+        return ""
+    if parsed.scheme or parsed.netloc:
+        if parsed.scheme.lower() not in {"http", "https"}:
+            return ""
+        return urllib.parse.urlunsplit(
+            (parsed.scheme.lower(), parsed.netloc, parsed.path or "/", "", "")
+        )
+    return urllib.parse.urlunsplit(("", "", parsed.path or "", "", ""))
+
+
+def _bounded_int(value: Any, default: int = 0) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return default
+
+
+def _sanitize_observation(observation: Mapping[str, Any]) -> dict[str, Any]:
+    """Project transport output onto a fixed redacted persistence schema."""
+
+    source = dict(observation or {})
+    persisted_headers: dict[str, str] = {}
+    raw_headers = source.get("headers")
+    if isinstance(raw_headers, Mapping):
+        for key, value in raw_headers.items():
+            normalized = str(key or "").strip().lower()
+            if normalized not in PERSISTED_RESPONSE_HEADERS:
+                continue
+            rendered = str(value or "")[:1000]
+            if normalized == "location":
+                rendered = _strip_query_fragment(rendered)
+            persisted_headers[normalized] = rendered
+
+    method = str(source.get("method") or "").upper()
+    if method not in ALLOWED_METHODS:
+        method = ""
+    shape = source.get("response_shape", {})
+    if not isinstance(shape, (dict, list, str, int, float, bool)) and shape is not None:
+        shape = {}
+
+    return {
+        "method": method,
+        "url": _strip_query_fragment(source.get("url")),
+        "status_code": _bounded_int(source.get("status_code")),
+        "headers": persisted_headers,
+        "content_type": str(source.get("content_type") or "")[:500],
+        "response_bytes": _bounded_int(source.get("response_bytes")),
+        "body_sha256": str(source.get("body_sha256") or "")[:128],
+        "response_shape": shape,
+        "shape_hash": str(source.get("shape_hash") or "")[:128],
+        "sensitive_key_names": [
+            str(value)[:240]
+            for value in list(source.get("sensitive_key_names") or [])[:100]
+        ],
+        "sensitive_pattern_categories": [
+            str(value)[:120]
+            for value in list(source.get("sensitive_pattern_categories") or [])[:50]
+        ],
+        "redirect_outside_scope": bool(source.get("redirect_outside_scope")),
+        "raw_body_stored": False,
+        "error": str(source.get("error") or "")[:500],
+        "observed_at": str(source.get("observed_at") or utc_now()),
+    }
+
+
 def _append_execution(run_dir: Path, result: Mapping[str, Any]) -> Path:
     output = run_dir / "validation-runner-executions.jsonl"
+    if output.is_symlink():
+        raise ReconError(f"Refusing symlinked Validation Runner execution log: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("a", encoding="utf-8") as handle:
         handle.write(json_dumps(dict(result)) + "\n")
@@ -440,10 +536,9 @@ def execute_validation_runner_contract(
             budget.consume("http_requests", 1)
             http_budget_units_consumed += 1
             observation, state = safe_validation._perform_request(request, policy)
-            row = dict(observation or {})
+            row = _sanitize_observation(observation or {})
             row["sequence"] = index + 1
-            row["request_purpose"] = str(request.get("purpose") or "")
-            row["raw_body_stored"] = False
+            row["request_purpose"] = str(request.get("purpose") or "")[:500]
             observations.append(row)
 
             status_code = int(row.get("status_code") or 0)
