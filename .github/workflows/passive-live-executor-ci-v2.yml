@@ -1,0 +1,81 @@
+name: Passive Live Executor CI v2
+
+on:
+  push:
+    branches:
+      - agent/passive-live-validation-executor-v1
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/passive-live-validation-executor-v1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply branch patch
+        run: python tools/passive_executor_branch_patch.py
+      - name: Compile and targeted tests
+        run: |
+          python -m py_compile app/validation_executor.py app/recon_monitor.py tests/test_validation_executor.py
+          python tests/test_validation_executor.py -q
+          python tests/test_validation_runner_dry_run.py -q
+          python tests/test_validation_eligibility.py -q
+          python tests/test_evidence_completion_planner.py -q
+      - name: Commit product integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Alireza Safari"
+          git config user.email "88625680+alirezasafariii@users.noreply.github.com"
+          git add MANIFEST.sha256 app/recon_monitor.py app/validation_executor.py tests/test_validation_executor.py
+          if ! git diff --cached --quiet; then
+            git commit -m "Integrate bounded passive-live validation executor"
+            git push origin HEAD:agent/passive-live-validation-executor-v1
+          fi
+
+  full-ci:
+    needs: integrate
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.13"
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/passive-live-validation-executor-v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' -o -name 'targets.json.backup-*' \) -print -quit)"
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI_VERSION="$(./recon-monitor.sh --version)"
+          CORE_VERSION="$(python -c 'import sys; sys.path.insert(0, "app"); from core import APP_VERSION; print(APP_VERSION)')"
+          test "$CLI_VERSION" = "$CORE_VERSION"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
