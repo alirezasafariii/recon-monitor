@@ -32,6 +32,7 @@ from collection_quality import snapshot_collection_quality
 from evidence_coverage import snapshot_evidence_coverage
 from evidence_completion_planner import snapshot_evidence_completion_plan
 from validation_eligibility import snapshot_validation_eligibility
+from validation_runner import snapshot_validation_runner_dry_run
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -259,6 +260,7 @@ def generate_report(
     evidence_coverage: Mapping[str, Any] | None = None,
     evidence_completion_plan: Mapping[str, Any] | None = None,
     validation_eligibility: Mapping[str, Any] | None = None,
+    validation_runner_dry_run: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
@@ -281,6 +283,7 @@ def generate_report(
     coverage = dict(evidence_coverage or {})
     completion_plan = dict(evidence_completion_plan or {})
     eligibility = dict(validation_eligibility or {})
+    runner_dry_run = dict(validation_runner_dry_run or {})
     report = {
         "schema": 7,
         "recon_monitor_version": APP_VERSION,
@@ -296,6 +299,7 @@ def generate_report(
         "evidence_coverage": coverage,
         "evidence_completion_plan": completion_plan,
         "validation_eligibility": eligibility,
+        "validation_runner_dry_run": runner_dry_run,
         "changes": {
             "total": len(events),
             "by_severity": {
@@ -338,6 +342,7 @@ def generate_report(
         "evidence_coverage": coverage,
         "evidence_completion_plan": completion_plan,
         "validation_eligibility": eligibility,
+        "validation_runner_dry_run": runner_dry_run,
         "change_summary": {key: value for key, value in report["changes"].items() if key != "events"},
         "intelligence_summary": {
             "javascript_diffs": len(js_diffs),
@@ -352,6 +357,7 @@ def generate_report(
             "evidence_coverage_json": str(ctx.run_dir / "evidence-coverage.json"),
             "evidence_completion_plan_json": str(ctx.run_dir / "evidence-completion-plan.json"),
             "validation_eligibility_json": str(ctx.run_dir / "validation-eligibility.json"),
+            "validation_runner_dry_run_json": str(ctx.run_dir / "validation-runner-dry-run.json"),
             "current_dir": str(ctx.current),
             "changes_dir": str(ctx.changes),
         },
@@ -560,6 +566,57 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
                 "automatic_execution_allowed": False,
                 "error": str(exc),
             }
+    validation_runner_dry_run: dict[str, Any] = {
+        "version": "0.1.0",
+        "status": "unavailable",
+        "item_count": 0,
+        "contract_count": 0,
+        "mode": "dry_run_only",
+        "execution_enabled": False,
+        "automatic_execution_allowed": False,
+        "executes_validation": False,
+        "network_requests_planned": 0,
+        "network_requests_executed": 0,
+        "budget_reserved": False,
+        "budget_consumed": False,
+        "diagnostic_only": True,
+        "affects_admission": False,
+        "affects_candidate_promotion": False,
+        "reason": "Validation Eligibility Gate did not produce decisions for dry-run review.",
+    }
+    if validation_eligibility.get("decisions"):
+        try:
+            validation_runner_dry_run = snapshot_validation_runner_dry_run(
+                ctx,
+                evidence_completion_plan=evidence_completion_plan,
+                validation_eligibility=validation_eligibility,
+            )
+        except Exception as exc:
+            ctx.logger.warn(
+                "Validation runner dry-run failed without blocking report generation",
+                target=ctx.policy.name,
+                run_id=ctx.run_id,
+                analysis_id=analysis_id,
+                error=str(exc),
+            )
+            validation_runner_dry_run = {
+                "version": "0.1.0",
+                "status": "unavailable",
+                "item_count": 0,
+                "contract_count": 0,
+                "mode": "dry_run_only",
+                "execution_enabled": False,
+                "automatic_execution_allowed": False,
+                "executes_validation": False,
+                "network_requests_planned": 0,
+                "network_requests_executed": 0,
+                "budget_reserved": False,
+                "budget_consumed": False,
+                "diagnostic_only": True,
+                "affects_admission": False,
+                "affects_candidate_promotion": False,
+                "error": str(exc),
+            }
     report = generate_report(
         ctx,
         baseline,
@@ -568,6 +625,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         evidence_coverage,
         evidence_completion_plan,
         validation_eligibility,
+        validation_runner_dry_run,
     )
     return {
         "events": report["changes"]["total"],
@@ -580,6 +638,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         "evidence_coverage": evidence_coverage,
         "evidence_completion_plan": evidence_completion_plan,
         "validation_eligibility": validation_eligibility,
+        "validation_runner_dry_run": validation_runner_dry_run,
         "analysis": analysis_summary,
     }
 
