@@ -28,6 +28,7 @@ from core import (
 )
 from stages import StageContext
 from analysis_engine import run_analysis
+from collection_quality import snapshot_collection_quality
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -247,7 +248,12 @@ def _current_counts(ctx: StageContext) -> dict[str, int]:
     return counts
 
 
-def generate_report(ctx: StageContext, baseline: bool, notification: Mapping[str, Any]) -> dict[str, Any]:
+def generate_report(
+    ctx: StageContext,
+    baseline: bool,
+    notification: Mapping[str, Any],
+    collection_quality: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
     tools = [dict(row) for row in ctx.db.all("SELECT tool,version,path FROM tool_versions WHERE run_id=? ORDER BY tool", (ctx.run_id,))]
@@ -265,6 +271,7 @@ def generate_report(ctx: StageContext, baseline: bool, notification: Mapping[str
         "SELECT url,technology,confidence,confidence_label,evidence_json FROM technology_observations WHERE target=? AND last_run_id=? AND is_current=1 ORDER BY confidence DESC,technology LIMIT 500",
         (ctx.policy.name, ctx.run_id),
     )]
+    quality = dict(collection_quality or {})
     report = {
         "schema": 7,
         "recon_monitor_version": APP_VERSION,
@@ -276,6 +283,7 @@ def generate_report(ctx: StageContext, baseline: bool, notification: Mapping[str
         "policy_hash": ctx.policy.policy_hash(),
         "stages": _stage_metrics(ctx),
         "counts": _current_counts(ctx),
+        "collection_quality": quality,
         "changes": {
             "total": len(events),
             "by_severity": {
@@ -314,6 +322,7 @@ def generate_report(ctx: StageContext, baseline: bool, notification: Mapping[str
         "tools": tools,
         "stages": report["stages"],
         "counts": report["counts"],
+        "collection_quality": quality,
         "change_summary": {key: value for key, value in report["changes"].items() if key != "events"},
         "intelligence_summary": {
             "javascript_diffs": len(js_diffs),
@@ -324,6 +333,7 @@ def generate_report(ctx: StageContext, baseline: bool, notification: Mapping[str
             "report_json": str(ctx.run_dir / "report.json"),
             "report_html": str(ctx.run_dir / "report.html"),
             "events_jsonl": str(ctx.events_path),
+            "collection_quality_json": str(ctx.run_dir / "collection-quality.json"),
             "current_dir": str(ctx.current),
             "changes_dir": str(ctx.changes),
         },
@@ -404,13 +414,30 @@ section{{margin-top:28px}} .scroll{{overflow:auto}} a{{color:var(--accent)}}
 def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
     lifecycle = ctx.db.refresh_asset_lifecycle(ctx.policy.name, ctx.run_id) if ctx.policy.modules.get("subdomains", True) and ctx.db.stage_status(ctx.run_id, ctx.policy.name, "subdomains") == "success" else {}
     notification = create_alerts_and_notify(ctx, baseline)
+    try:
+        collection_quality = snapshot_collection_quality(ctx)
+    except Exception as exc:
+        ctx.logger.warn(
+            "Collection quality snapshot failed without blocking Analysis",
+            target=ctx.policy.name,
+            run_id=ctx.run_id,
+            error=str(exc),
+        )
+        collection_quality = {
+            "version": "1.0.0",
+            "status": "unavailable",
+            "diagnostic_only": True,
+            "affects_admission": False,
+            "affects_candidate_promotion": False,
+            "error": str(exc),
+        }
     analysis_summary: dict[str, Any] = {}
     try:
         analysis_summary = run_analysis(ctx.paths, ctx.db, ctx.run_id, ctx.policy.name, mode="automatic")
     except Exception as exc:
         ctx.logger.warn("Analysis engine failed without blocking report generation", target=ctx.policy.name, run_id=ctx.run_id, error=str(exc))
         analysis_summary = {"status": "failed", "error": str(exc)}
-    report = generate_report(ctx, baseline, notification)
+    report = generate_report(ctx, baseline, notification, collection_quality)
     return {
         "events": report["changes"]["total"],
         "alerts": notification["new_alerts"],
@@ -418,6 +445,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         "report": str(ctx.run_dir / "report.html"),
         "manifest": str(ctx.run_dir / "run-manifest.json"),
         "lifecycle": lifecycle,
+        "collection_quality": collection_quality,
         "analysis": analysis_summary,
     }
 
