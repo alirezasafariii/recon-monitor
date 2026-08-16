@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from pathlib import Path
+import re
 
 ROOT = Path('.')
 
@@ -17,26 +18,23 @@ def replace_once(path: str, old: str, new: str) -> None:
 # Make the core live-request path safe even when safe_validation.py has not been
 # imported. The compatibility module remains a patchable facade for existing
 # callers/tests, but no longer supplies the security property itself.
-replace_once(
-    'app/safe_validation_core.py',
-    'from family_reasoning import FAMILY_REASONING, validation_level_for_family\n',
-    'from family_reasoning import FAMILY_REASONING, validation_level_for_family\nfrom safe_transport import perform_pinned_request\n',
-)
-
 core = ROOT / 'app/safe_validation_core.py'
 text = core.read_text(encoding='utf-8')
-start = text.index('def _perform_request(\n')
-end = text.index('\n\ndef _classify(', start)
-new_function = '''def _perform_request_via_safe_transport(
+if 'from safe_transport import perform_pinned_request\n' not in text:
+    anchor = 'from family_reasoning import FAMILY_REASONING, validation_level_for_family\n'
+    if anchor not in text:
+        raise RuntimeError('safe_validation_core.py: import anchor missing')
+    text = text.replace(anchor, anchor + 'from safe_transport import perform_pinned_request\n', 1)
+
+pattern = re.compile(
+    r'def _perform_request\([^\n]*\) -> tuple\[dict\[str, Any\], str\]:\n.*?\n\ndef _classify\(',
+    re.S,
+)
+new_block = '''def _perform_request_via_safe_transport(
     item: dict[str, Any],
     policy: TargetPolicy,
 ) -> tuple[dict[str, Any], str]:
-    """Canonical core transport hook: resolve once, validate globally routable
-    addresses, pin the connection, disable proxies, and never follow redirects.
-
-    Keeping this helper inside the core means a direct import of
-    ``safe_validation_core`` cannot bypass the pinned transport boundary.
-    """
+    """Canonical core transport hook using the pinned Safe Transport boundary."""
     return perform_pinned_request(
         item,
         policy,
@@ -53,20 +51,23 @@ def _perform_request(
     policy: TargetPolicy,
 ) -> tuple[dict[str, Any], str]:
     return _perform_request_via_safe_transport(item, policy)
-'''
-core.write_text(text[:start] + new_function + text[end:], encoding='utf-8')
 
-# The compatibility facade keeps the historical monkey-patch point used by
-# tests/downstream code, while its default implementation calls the immutable
-# core helper. `_core._perform_request` is still proxied so patching
-# safe_validation._perform_request works as before.
-replace_once(
-    'app/safe_validation.py',
+
+def _classify('''
+text, count = pattern.subn(new_block, text, count=1)
+if count != 1:
+    raise RuntimeError(f'safe_validation_core.py: legacy transport block not found exactly once: {count}')
+core.write_text(text, encoding='utf-8')
+
+# Keep the public compatibility patch point, but make its default implementation
+# delegate to the intrinsic core safe-transport helper.
+facade = ROOT / 'app/safe_validation.py'
+text = facade.read_text(encoding='utf-8')
+text = text.replace(
     'from safe_transport import SAFE_TRANSPORT_VERSION, perform_pinned_request\n',
     'from safe_transport import SAFE_TRANSPORT_VERSION\n',
+    1,
 )
-text_path = ROOT / 'app/safe_validation.py'
-text = text_path.read_text(encoding='utf-8')
 old = '''def _perform_request(
     item: dict[str, Any],
     policy: TargetPolicy,
@@ -89,7 +90,7 @@ new = '''def _perform_request(
 '''
 if old not in text:
     raise RuntimeError('safe_validation.py: transport facade anchor missing')
-text_path.write_text(text.replace(old, new, 1), encoding='utf-8')
+facade.write_text(text.replace(old, new, 1), encoding='utf-8')
 
 TEST = r'''from __future__ import annotations
 
@@ -141,14 +142,24 @@ class SafeValidationCoreTransportHardeningTests(unittest.TestCase):
         self.assertEqual(result, expected)
         helper.assert_called_once_with(item, policy)
 
+    def test_core_source_has_no_second_direct_http_open_path(self):
+        source = (ROOT / "app/safe_validation_core.py").read_text(encoding="utf-8")
+        start = source.index("def _perform_request_via_safe_transport(")
+        end = source.index("\ndef _classify(", start)
+        transport_section = source[start:end]
+        self.assertIn("perform_pinned_request", transport_section)
+        self.assertNotIn("build_opener", transport_section)
+        self.assertNotIn("opener.open", transport_section)
+        self.assertNotIn("getaddrinfo", transport_section)
+
 
 if __name__ == "__main__":
     unittest.main()
 '''
 (ROOT / 'tests/test_safe_validation_core_transport_hardening.py').write_text(TEST, encoding='utf-8')
 
-# Refresh manifest for permanent files only. The temporary migration assets are
-# intentionally not included.
+# Refresh manifest for permanent files only. Temporary workflow/migration assets
+# are intentionally excluded from the release manifest.
 manifest = ROOT / 'MANIFEST.sha256'
 paths: list[str] = []
 for line in manifest.read_text(encoding='utf-8').splitlines():
