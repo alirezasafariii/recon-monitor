@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+
+APP_DIR = Path(__file__).resolve().parents[1] / "app"
+if str(APP_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_DIR))
 
 from core import AppPaths
 from progress_tracking import (
