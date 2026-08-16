@@ -1,0 +1,56 @@
+name: Progress v1 Validation
+
+on:
+  push:
+    branches: [agent/recon-analysis-live-progress-v1]
+    paths:
+      - .ci-progress-v1
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Compile changed Python
+        run: python -m py_compile app/progress_tracking.py app/recon_monitor.py tests/test_progress_tracking.py
+      - name: Verify CLI bootstrap
+        run: ./recon-monitor.sh --version
+      - name: Targeted progress tests
+        run: python -m unittest discover -s tests -p 'test_progress_tracking.py' -v
+      - name: Refresh manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          manifest = Path('MANIFEST.sha256')
+          paths = []
+          for raw in manifest.read_text(encoding='utf-8').splitlines():
+              if not raw.strip():
+                  continue
+              _, path = raw.split('  ', 1)
+              paths.append(path)
+          for path in ('app/progress_tracking.py', 'tests/test_progress_tracking.py'):
+              if path not in paths:
+                  paths.append(path)
+          rows = []
+          for path in sorted(paths):
+              data = Path(path).read_bytes()
+              rows.append(f'{hashlib.sha256(data).hexdigest()}  {path}')
+          manifest.write_text('\n'.join(rows) + '\n', encoding='utf-8')
+          PY
+      - name: Commit refreshed manifest
+        shell: bash
+        run: |
+          if git diff --quiet -- MANIFEST.sha256; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add MANIFEST.sha256
+          git commit -m "Refresh manifest for progress tracking"
+          git push origin HEAD:agent/recon-analysis-live-progress-v1
