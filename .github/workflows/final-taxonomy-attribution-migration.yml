@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Apply migration anchor fix
+        run: python .github/scripts/fix_final_taxonomy_attribution_anchor.py
       - name: Apply structured taxonomy attribution migration
         run: python .github/scripts/final_taxonomy_attribution_migration.py
       - name: Verify Python syntax
