@@ -112,6 +112,50 @@ class CollectionQualityTests(unittest.TestCase):
             self.assertEqual(javascript["errors"], 3)
             self.assertIn("undownloaded_javascript_files", javascript["not_collected"])
 
+    def test_zero_javascript_run_without_errors_is_complete_no_work(self):
+        with tempfile.TemporaryDirectory() as td:
+            ctx = make_ctx(
+                Path(td),
+                {
+                    "dns": {
+                        "metrics": {
+                            "successful_rrtypes": ["A", "AAAA", "CNAME", "NS"],
+                        }
+                    },
+                    "urls": {"metrics": {"urls": 4, "truncated": False}},
+                    "javascript": {
+                        "metrics": {
+                            "files": 0,
+                            "downloaded": 0,
+                        }
+                    },
+                },
+            )
+            result = snapshot_collection_quality(ctx, persist=False)
+            javascript = result["dimensions"]["javascript"]
+            self.assertEqual(javascript["status"], "complete")
+            self.assertEqual(javascript["files_selected"], 0)
+            self.assertEqual(javascript["downloaded"], 0)
+            self.assertEqual(javascript["errors"], 0)
+            self.assertEqual(result["status"], "complete")
+
+    def test_nonempty_javascript_run_without_errors_remains_unknown(self):
+        with tempfile.TemporaryDirectory() as td:
+            ctx = make_ctx(
+                Path(td),
+                {
+                    "javascript": {
+                        "metrics": {
+                            "files": 2,
+                            "downloaded": 2,
+                        }
+                    }
+                },
+            )
+            result = snapshot_collection_quality(ctx, persist=False)
+            javascript = result["dimensions"]["javascript"]
+            self.assertEqual(javascript["status"], "unknown")
+
     def test_historical_success_without_completeness_metrics_is_unknown(self):
         with tempfile.TemporaryDirectory() as td:
             ctx = make_ctx(
