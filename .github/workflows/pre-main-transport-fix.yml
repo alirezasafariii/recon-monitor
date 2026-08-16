@@ -1,0 +1,82 @@
+name: Pre-main Transport Fix
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'Run pre-main transport fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply core transport fix
+        run: python .github/scripts/pre_main_transport_fix.py
+      - name: Verify syntax
+        run: python -m py_compile app/safe_validation_core.py app/safe_transport.py tests/test_merge_hardening_transport.py
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Targeted regression
+        run: python -m unittest tests.test_merge_hardening_transport tests.test_final_hardening_v889 tests.test_safe_validation_v51 -q
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration suite
+        run: python tests/integration_runner.py
+      - name: Commit permanent fix and remove migration harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          rm -f .github/PRE_MAIN_TRANSPORT_FIX_TRIGGER
+          rm -f .github/scripts/pre_main_transport_fix.py
+          rm -f .github/workflows/pre-main-transport-fix.yml
+          git add -A
+          git commit -m 'Harden core safe-validation transport boundary'
+          git push origin HEAD:final-analyzers
+
+  verify:
+    needs: migrate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout permanent branch head
+        run: |
+          git fetch origin final-analyzers
+          git checkout -B final-analyzers origin/final-analyzers
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/PRE_MAIN_TRANSPORT_FIX_TRIGGER
+          test ! -e .github/scripts/pre_main_transport_fix.py
+          test ! -e .github/workflows/pre-main-transport-fix.yml
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' \) -print -quit)"
+      - name: Verify syntax and manifest
+        run: |
+          python -m py_compile app/safe_validation_core.py app/safe_transport.py tests/test_merge_hardening_transport.py
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration suite
+        run: python tests/integration_runner.py
