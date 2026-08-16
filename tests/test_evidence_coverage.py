@@ -241,6 +241,24 @@ class EvidenceCoverageTests(unittest.TestCase):
                 "observed",
             )
 
+    def test_secret_pattern_tracks_javascript_collection_gap(self):
+        with tempfile.TemporaryDirectory() as td:
+            ctx = make_ctx(Path(td))
+            result = snapshot_evidence_coverage(
+                ctx,
+                analysis_id="ANALYSIS-1",
+                collection_quality=quality(javascript="partial"),
+                persist=False,
+            )
+            first_group = result["families"]["secret_exposure"]["promotion_required"][0]
+            signals = signal_map(first_group)
+            self.assertEqual(first_group["status"], "not_collected")
+            self.assertEqual(signals["secret_pattern"]["status"], "not_collected")
+            self.assertEqual(
+                signals["secret_pattern"]["collection_status"]["javascript"],
+                "partial",
+            )
+
     def test_snapshot_is_diagnostic_only_and_persisted(self):
         with tempfile.TemporaryDirectory() as td:
             ctx = make_ctx(Path(td))
