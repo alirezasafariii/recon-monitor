@@ -78,10 +78,14 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
             self.assertEqual(storage_health_snapshot(self.paths, self.db)["estimated_total_bytes"], 1234)
 
     def test_dashboard_get_routes_do_not_implicitly_sync_cases(self) -> None:
-        source = Path(__file__).parents[1].joinpath("app", "dashboard.py").read_text(encoding="utf-8")
+        app = Path(__file__).parents[1].joinpath("app")
+        wrapper_source = app.joinpath("dashboard.py").read_text(encoding="utf-8")
+        source = app.joinpath("dashboard_core.py").read_text(encoding="utf-8")
         overview = source[source.index("    def overview"):source.index("    def workbench")]
         cases = source[source.index("    def cases_page"):source.index("    def case_page")]
         stories = source[source.index("    def security_stories_page"):source.index("    def scope_center_page")]
+        self.assertNotIn("sync_security_cases(db)", wrapper_source)
+        self.assertNotIn("sync_security_stories(db)", wrapper_source)
         self.assertNotIn("sync_security_cases(db)", overview)
         self.assertNotIn("sync_security_cases(db)", cases)
         self.assertNotIn("sync_security_stories(db)", stories)

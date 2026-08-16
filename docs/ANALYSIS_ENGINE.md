@@ -1,21 +1,22 @@
-# Analysis Engine 4.0
+# Analysis Engine 6.0
 
-Analysis Engine 4.0 is an offline, evidence-based layer for authorized attack-surface monitoring. It does not perform AI inference and does not send new network requests during analysis or replay.
+Analysis Engine 6.0 is an offline, evidence-based layer for authorized attack-surface monitoring. It does not send new network requests during analysis or replay. Analysis no longer depends on Alert rows: the first baseline run and later runs both process stored raw Recon, semantic and behavioral observations.
 
 ## Pipeline
 
-1. Load alerts and observations produced by a completed recon run.
+1. Resolve targets from the source run and load stored raw Recon observations plus any change Alerts.
 2. Normalize evidence and create evidence-for / evidence-against records.
 3. Compare category volume with the target's rolling median and MAD baseline.
 4. Apply analyst-feedback statistics from workflow outcomes.
 5. Add business context and temporal context.
 6. Produce an adjusted score and calibrated confidence.
 7. Create a falsifiable hypothesis, safe next action and review playbook.
-8. Cluster similar alerts.
+8. Cluster similar Alerts when present; an Alert-free run continues normally.
 9. Extract endpoint schemas and object identifiers.
 10. Analyze stored JavaScript for static source-to-sink candidates, source-map context, GraphQL operations and secret candidates.
 11. Build API-family relationships and deployment signatures.
-12. Store a versioned analysis run that can be replayed without scanning the target again.
+12. Route raw surfaces through all applicable canonical family analyzers, then apply hypothesis admission and Potential Finding promotion.
+13. Store a versioned analysis run that can be replayed without scanning the target again.
 
 ## Safety model
 
@@ -54,10 +55,10 @@ Analysis Engine 4.0 is an offline, evidence-based layer for authorized attack-su
 - `GET /api/v1/analysis/clusters`
 - `GET /api/v1/analysis/dataflows`
 
-## Database schema 8
+## Database schema 18
 
-Schema 8 adds versioned analysis tables while preserving every schema-7 table. Existing recon data, alerts, notes, tags, evidence and user configuration remain unchanged.
+Version 6.0 uses the existing additive schema 18. No destructive migration or historical-data rewrite is required.
 
-## Version 4.1 candidate layer
+## Candidate layer
 
 After the evidence, endpoint, JavaScript, GraphQL, secret, and source-map stages complete, Bug Candidate Engine maps combinations of independent signals to probable vulnerability families. It keeps likelihood, evidence strength, and impact potential separate, and never automatically confirms a vulnerability. See `BUG_CANDIDATE_ENGINE.md`.

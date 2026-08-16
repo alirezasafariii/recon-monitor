@@ -40,7 +40,7 @@ jobs:
 
       - name: Verify manifest
         shell: bash
-        run: sha256sum -c MANIFEST.sha256
+        run: sha256sum --strict -c MANIFEST.sha256
 
       - name: Verify version consistency
         shell: bash

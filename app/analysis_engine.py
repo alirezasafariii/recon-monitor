@@ -15,11 +15,13 @@ from core import APP_VERSION, AppPaths, Database, json_dumps, parse_int, sha256_
 from bug_candidates import generate_bug_candidates
 from candidate_intelligence import analysis_profile, build_candidate_bundles, enhance_candidates, generate_semantic_intelligence
 from behavioral_intelligence import generate_behavioral_candidates, generate_behavioral_intelligence
+from family_analyzers.secret_exposure import detect_redacted_secret_material
 from security_reasoning import apply_security_reasoning, reasoning_regression_gate
 from product_platform import platform_sync
+from raw_analysis_quality import RAW_ANALYSIS_QUALITY_VERSION, raw_quality_snapshot
 
-ENGINE_VERSION = "5.2.0"
-RULE_VERSION = "2026.08.8.5"
+ENGINE_VERSION = "6.0.0"
+RULE_VERSION = "2026.08.14.6.1"
 
 RULES: dict[str, dict[str, Any]] = {
     "evidence-public-200": {"weight": 8, "description": "Public HTTP 200 observation"},
@@ -432,6 +434,20 @@ def _scan_js_intelligence(paths: AppPaths, db: Database, run_id: str, target: st
         except OSError:
             continue
         compact = text[:5_000_000]
+        for observation in detect_redacted_secret_material(compact):
+            db.execute(
+                "INSERT OR REPLACE INTO secret_intelligence(analysis_id,target,run_id,js_url,secret_kind,value_fingerprint,confidence,assessment,reasons_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    analysis_id, target, run_id, row["url"],
+                    str(observation.get("secret_kind") or "credential_material"),
+                    str(observation.get("value_fingerprint") or ""),
+                    parse_int(observation.get("confidence"), 0),
+                    str(observation.get("assessment") or "candidate"),
+                    json_dumps(observation.get("reasons") if isinstance(observation.get("reasons"), list) else []),
+                    utc_now(),
+                ),
+            )
+            secret_count += 1
         sources = [(name, match.start()) for name, pattern in source_patterns.items() for match in pattern.finditer(compact)]
         sinks = [(name, match.start()) for name, pattern in sink_patterns.items() for match in pattern.finditer(compact)]
         for source_name, source_pos in sources[:200]:
@@ -511,16 +527,88 @@ def _deployment_signatures(db: Database, analysis_id: str, target: str, run_id: 
     return count
 
 
-def _quality_snapshot(db: Database, analysis_id: str, target: str | None = None) -> dict[str, Any]:
+def _quality_snapshot(
+    db: Database,
+    analysis_id: str,
+    target: str | None = None,
+    raw_routing: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Persist backward-compatible Alert feedback plus raw-native diagnostics."""
+
     where=" WHERE target=?" if target else ""; params=(target,) if target else ()
     rows=db.all(f"SELECT category,status,COUNT(*) AS count FROM alerts{where} GROUP BY category,status",params)
     by_category: dict[str,Counter[str]]=defaultdict(Counter)
     for row in rows: by_category[str(row["category"])][str(row["status"])]=int(row["count"])
     total=sum(sum(counter.values()) for counter in by_category.values()); useful=sum(sum(counter[state] for state in USEFUL_STATES) for counter in by_category.values()); noisy=sum(sum(counter[state] for state in NOISY_STATES) for counter in by_category.values())
     unresolved=db.one(f"SELECT COUNT(*) AS count FROM alerts{where + (' AND ' if where else ' WHERE ') }status IN ('new','triaged','acknowledged','investigating')",params)
-    metrics={"alerts":total,"useful":useful,"noisy":noisy,"precision_proxy":round(useful/max(1,useful+noisy),3),"false_positive_proxy":round(noisy/max(1,total),3),"unreviewed_backlog":int(unresolved["count"] if unresolved else 0),"categories":{category:dict(counter) for category,counter in by_category.items()}}
+    raw_quality = raw_quality_snapshot(
+        db,
+        analysis_id,
+        target,
+        raw_routing=raw_routing,
+    )
+    metrics={
+        "quality_engine_version":"2.0.0",
+        "raw_analysis_quality_version":RAW_ANALYSIS_QUALITY_VERSION,
+        "alerts":total,
+        "useful":useful,
+        "noisy":noisy,
+        "precision_proxy":round(useful/max(1,useful+noisy),3),
+        "false_positive_proxy":round(noisy/max(1,total),3),
+        "unreviewed_backlog":int(unresolved["count"] if unresolved else 0),
+        "categories":{category:dict(counter) for category,counter in by_category.items()},
+        "raw_analysis":raw_quality,
+    }
     db.execute("INSERT INTO analysis_quality_snapshots(analysis_id,target,metrics_json,created_at) VALUES(?,?,?,?)",(analysis_id,target or "*",json_dumps(metrics),utc_now()))
     return metrics
+
+
+def _analysis_targets(db: Database, run_id: str, target: str | None) -> list[str]:
+    """Resolve targets from the source run without depending on Alert rows.
+
+    ``run_targets`` is authoritative for normal executions.  The additional
+    run-scoped tables preserve replay/legacy compatibility when a fixture or an
+    older installation does not have a matching ``run_targets`` row.
+    """
+
+    if target:
+        return [target]
+    targets = {
+        str(row["target"])
+        for row in db.all(
+            "SELECT target FROM run_targets WHERE run_id=? ORDER BY target",
+            (run_id,),
+        )
+        if str(row["target"] or "")
+    }
+    for table in (
+        "alerts",
+        "assets",
+        "dns_records",
+        "urls",
+        "js_files",
+        "js_indicators",
+        "fingerprints",
+        "ports",
+        "findings",
+        "endpoint_intelligence",
+        "technology_observations",
+        "change_incidents",
+    ):
+        try:
+            rows = db.all(
+                f"SELECT DISTINCT target FROM {table} WHERE last_run_id=?",
+                (run_id,),
+            )
+        except Exception:
+            # Old/minimal replay databases may omit optional surface tables.
+            continue
+        targets.update(
+            str(row["target"])
+            for row in rows
+            if str(row["target"] or "")
+        )
+    return sorted(targets)
 
 
 def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str | None = None, *, mode: str = "analysis", persist: bool = True, profile: str | None = None) -> dict[str, Any]:
@@ -530,11 +618,10 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
     db.execute("INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,mode,status,started_at) VALUES(?,?,?,?,?,?,?,?)",(analysis_id,run_id,target or "*",ENGINE_VERSION,RULE_VERSION,mode,"running",started))
     for rule_id, rule in RULES.items():
         db.execute("INSERT OR REPLACE INTO analysis_rules(rule_id,rule_version,category,weight,enabled,description,created_at) VALUES(?,?,?,?,1,?,?)",(rule_id,RULE_VERSION,rule_id.split('-',1)[0],int(rule["weight"]),str(rule["description"]),started))
+    targets = _analysis_targets(db, run_id, target)
     params:[Any]=[run_id]; where="last_run_id=?"
     if target: where+=" AND target=?"; params.append(target)
     alerts=db.all(f"SELECT * FROM alerts WHERE {where} ORDER BY risk_score DESC,id",tuple(params))
-    if not alerts:
-        db.execute("UPDATE analysis_runs SET status='success',finished_at=?,summary_json=? WHERE id=?",(utc_now(),json_dumps({"alerts":0}),analysis_id)); return {"analysis_id":analysis_id,"run_id":run_id,"alerts":0,"message":"No alerts found for run"}
     category_counts=Counter(str(row["category"]) for row in alerts)
     cluster_members: dict[str,list[int]]=defaultdict(list)
     adjusted_scores=[]
@@ -567,7 +654,6 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
     for cluster,members in cluster_members.items():
         primary=max(members,key=lambda alert_id: next(parse_int(row["risk_score"],0) for row in alerts if int(row["id"])==alert_id))
         db.execute("INSERT OR REPLACE INTO analysis_clusters(analysis_id,cluster_key,primary_alert_id,member_count,members_json,created_at) VALUES(?,?,?,?,?,?)",(analysis_id,cluster,primary,len(members),json_dumps(members),utc_now()))
-    targets=sorted({str(row["target"]) for row in alerts})
     static={"dataflows":0,"source_maps":0,"secrets":0,"graphql":0,"api_relationships":0,"deployments":0}
     for current_target in targets:
         scan=_scan_js_intelligence(paths,db,run_id,current_target,analysis_id)
@@ -608,8 +694,14 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
     candidate_summary["security_reasoning"] = security_reasoning
     candidate_summary["product_platform"] = product_platform
     candidate_summary["workspace_v7"] = workspace_v7
-    quality=_quality_snapshot(db,analysis_id,target)
-    summary={"alerts":len(alerts),"analysis_profile":profile,"average_original_score":round(sum(parse_int(row["risk_score"],0) for row in alerts)/len(alerts),2),"average_adjusted_score":round(sum(adjusted_scores)/len(adjusted_scores),2),"clusters":len(cluster_members),"duplicate_members":sum(max(0,len(values)-1) for values in cluster_members.values()),"static_intelligence":static,"bug_candidates":candidate_summary,"quality":quality}
+    raw_routing = candidate_summary.get("raw_surface_routing", {})
+    quality=_quality_snapshot(
+        db,
+        analysis_id,
+        target,
+        raw_routing if isinstance(raw_routing, Mapping) else {},
+    )
+    summary={"alerts":len(alerts),"analysis_inputs":"raw_plus_alerts" if alerts else "raw_only","targets_analyzed":targets,"analysis_profile":profile,"average_original_score":round(sum(parse_int(row["risk_score"],0) for row in alerts)/len(alerts),2) if alerts else 0.0,"average_adjusted_score":round(sum(adjusted_scores)/len(adjusted_scores),2) if adjusted_scores else 0.0,"clusters":len(cluster_members),"duplicate_members":sum(max(0,len(values)-1) for values in cluster_members.values()),"static_intelligence":static,"bug_candidates":candidate_summary,"quality":quality}
     previous=db.one("SELECT id,summary_json FROM analysis_runs WHERE source_run_id=? AND id<>? AND status='success' ORDER BY finished_at DESC LIMIT 1",(run_id,analysis_id))
     if previous:
         old=_loads(previous["summary_json"],{}); comparison={"previous_analysis_id":previous["id"],"alert_delta":summary["alerts"]-parse_int(old.get("alerts"),0),"cluster_delta":summary["clusters"]-parse_int(old.get("clusters"),0),"average_score_delta":round(summary["average_adjusted_score"]-float(old.get("average_adjusted_score") or 0),2)}
@@ -660,10 +752,18 @@ def replay_analysis(paths: AppPaths, db: Database, run_id: str, target: str | No
 
 
 def analysis_quality(db: Database, target: str | None = None) -> dict[str, Any]:
-    latest=db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
+    latest=db.one("SELECT id,summary_json FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
     if not latest:
         return {"message":"No completed analysis run"}
-    return _quality_snapshot(db,str(latest["id"]),target)
+    summary = _loads(latest["summary_json"], {})
+    candidate_summary = summary.get("bug_candidates", {}) if isinstance(summary, Mapping) else {}
+    raw_routing = candidate_summary.get("raw_surface_routing", {}) if isinstance(candidate_summary, Mapping) else {}
+    return _quality_snapshot(
+        db,
+        str(latest["id"]),
+        target,
+        raw_routing if isinstance(raw_routing, Mapping) else {},
+    )
 
 
 def calibration_report(db: Database, target: str | None = None) -> dict[str, Any]:
@@ -703,4 +803,3 @@ def feedback_report(db: Database, target: str | None = None) -> dict[str, Any]:
                 "states": dict(counts),
             }
     return {"target": target or "*", "targets": result}
-

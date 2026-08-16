@@ -3,155 +3,38 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
+from correlation_engine import (
+    CORRELATION_ENGINE_VERSION,
+    CORRELATION_RULE_VERSION,
+    build_correlation_context,
+)
+from family_reasoning import (
+    FAMILY_REASONING_RULE_VERSION,
+    FAMILY_REASONING_VERSION,
+    admission_policy_map,
+)
+from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
+from vulnerability_knowledge import (
+    KNOWLEDGE_ENGINE_VERSION,
+    KNOWLEDGE_RULE_VERSION,
+    knowledge_context,
+    knowledge_for_family,
+    retrieve_writeups,
+)
 
-ADMISSION_ENGINE_VERSION = "1.1.0"
-ADMISSION_RULE_VERSION = "2026.08.8.5"
+ADMISSION_ENGINE_VERSION = "2.0.0"
+ADMISSION_RULE_VERSION = "2026.08.10.2"
 
-# External knowledge informs detection criteria only. It is never counted as target evidence.
-KNOWLEDGE_REFERENCES: dict[str, list[dict[str, str]]] = {
-    "broken_object_authorization": [
-        {
-            "source": "OWASP API Security Top 10",
-            "ref": "API1:2023 Broken Object Level Authorization",
-            "url": "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
-            "principle": "An object identifier is only the attack surface; object-level authorization must verify that the logged-in identity may perform the requested action on the requested object.",
-        },
-        {
-            "source": "OWASP WSTG",
-            "ref": "WSTG-APIT-02 / WSTG-ATHZ-04",
-            "url": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/02-API_Broken_Object_Level_Authorization",
-            "principle": "BOLA evidence requires an object reference plus an authorization-boundary comparison; IDs alone do not establish unauthorized access.",
-        },
-        {
-            "source": "MITRE CWE",
-            "ref": "CWE-639",
-            "url": "https://cwe.mitre.org/data/definitions/639.html",
-            "principle": "The weakness requires a user-controlled key to select a record while the authorization decision fails to enforce the caller's entitlement to that record.",
-        },
-        {
-            "source": "GitHub Security Lab",
-            "ref": "GHSL-2026-029 / Spree",
-            "url": "https://securitylab.github.com/advisories/GHSL-2026-029_Spree/",
-            "principle": "A real IDOR may involve a valid object key being accepted without a secondary ownership or access guard that should bind the request to the object.",
-        },
-        {
-            "source": "GitHub Security Lab",
-            "ref": "GHSL-2026-049 / Zammad",
-            "url": "https://securitylab.github.com/advisories/GHSL-2026-049_Zammad/",
-            "principle": "Fetching an object by ID becomes security-relevant when the resulting operation bypasses the role or group boundary that should authorize access to that object.",
-        },
-        {
-            "source": "GitHub Security Lab",
-            "ref": "GHSL-2026-044 / Wekan",
-            "url": "https://securitylab.github.com/advisories/GHSL-2026-044_Wekan/",
-            "principle": "Authorizing a parent object is insufficient when a separately supplied child object identifier is not verified to belong to that parent.",
-        },
-        {
-            "source": "GitHub Security Lab",
-            "ref": "GHSL-2025-130 / Sentry",
-            "url": "https://securitylab.github.com/advisories/GHSL-2025-130_Sentry/",
-            "principle": "A tenant or organization context must be bound to the referenced object; a valid scope on one tenant does not authorize an object belonging to another tenant.",
-        },
-    ],
-    "file_upload": [
-        {
-            "source": "OWASP",
-            "ref": "Unrestricted File Upload",
-            "url": "https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload",
-            "principle": "Upload risk depends on actual file handling, including file metadata, content, storage, and processing behavior.",
-        },
-        {
-            "source": "MITRE CWE",
-            "ref": "CWE-434",
-            "url": "https://cwe.mitre.org/data/definitions/434.html",
-            "principle": "The weakness concerns a product accepting an uploaded file of a dangerous type without sufficient restriction.",
-        },
-        {
-            "source": "PortSwigger Web Security Academy",
-            "ref": "File upload vulnerabilities",
-            "url": "https://portswigger.net/web-security/file-upload",
-            "principle": "A file-upload surface requires an actual upload capability; generic Content-Type metadata alone is not evidence of an upload function.",
-        },
-    ],
-    "path_traversal": [
-        {
-            "source": "OWASP",
-            "ref": "Path Traversal",
-            "url": "https://owasp.org/www-community/attacks/Path_Traversal",
-            "principle": "Path traversal requires attacker-influenced path data to affect access to a file or directory outside the intended location.",
-        },
-        {
-            "source": "MITRE CWE",
-            "ref": "CWE-22",
-            "url": "https://cwe.mitre.org/data/definitions/22.html",
-            "principle": "External input must participate in construction of a pathname whose restriction to an intended directory is not properly enforced.",
-        },
-        {
-            "source": "GitHub Security Lab",
-            "ref": "CVE-2024-36116 / archive path traversal",
-            "url": "https://github.blog/security/vulnerability-research/attacks-on-maven-proxy-repositories/",
-            "principle": "Real path-traversal findings connect attacker-controlled archive or filename data to a filesystem write/read operation, rather than relying on path words alone.",
-        },
-    ],
-}
-
-# Admission is intentionally stricter than hypothesis generation. Signals that fail
-# admission remain persisted in analysis_hypotheses so recall is preserved.
-FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = {
-    "broken_object_authorization": {
-        "required": [
-            {"object_identifier", "graphql_identifier"},
-            {"object_operation", "graphql_operation"},
-            {
-                "cross_identity_object_access",
-                "cross_tenant_object_access",
-                "ownership_mismatch",
-                "parent_child_scope_mismatch",
-                "authorization_response_differential",
-                "object_access_without_secondary_guard",
-                "identity_object_relation_conflict",
-                "unauthorized_object_response",
-            },
-        ],
-        "min_independent_sources": 2,
-        "label": "object reference plus object operation plus object-level authorization-boundary evidence",
-        "blocking_contradictions": {
-            "ownership_enforcement_observed",
-            "cross_context_denied",
-            "scope_binding_observed",
-            "secondary_guard_enforced",
-        },
-        "override_signals": {
-            "cross_identity_object_access",
-            "cross_tenant_object_access",
-            "ownership_mismatch",
-            "parent_child_scope_mismatch",
-            "authorization_response_differential",
-            "object_access_without_secondary_guard",
-            "identity_object_relation_conflict",
-            "unauthorized_object_response",
-        },
-    },
-    "file_upload": {
-        "required": [
-            {"file_input"},
-            {"upload_operation", "import_operation"},
-        ],
-        "min_independent_sources": 2,
-        "label": "actual file input plus an upload/import operation",
-    },
-    "path_traversal": {
-        "required": [
-            {"path_parameter", "filename_field", "storage_path"},
-            {"file_operation", "download_operation", "import_operation", "archive_operation", "upload_operation"},
-        ],
-        "min_independent_sources": 2,
-        "label": "user-influenced path/filename plus a file-system-relevant operation",
-    },
-}
+# Admission is intentionally stricter than hypothesis generation. Signals that
+# fail admission remain persisted in analysis_hypotheses so recall is preserved.
+# External knowledge, historical priors, correlation and LLM context are NEVER
+# consulted while calculating `complete` below. Every known vulnerability family
+# now receives its policy from the single Family Reasoning catalog.
+FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = admission_policy_map()
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -183,8 +66,84 @@ def hypothesis_fingerprint(target: str, family: str, variant: str, endpoint: str
     return sha256_text("|".join([target, family, variant, normalized_endpoint]))
 
 
-def knowledge_for_family(family: str) -> list[dict[str, str]]:
-    return [dict(item) for item in KNOWLEDGE_REFERENCES.get(family, [])]
+def _historical_family_scores(db: Database, target: str) -> dict[str, int]:
+    """Shrink analyst outcomes toward neutral until a family has enough history."""
+    rows = db.all(
+        """SELECT bug_family,analyst_decision,COUNT(*) count
+        FROM bug_candidates
+        WHERE target=? AND analyst_decision<>'unreviewed'
+        GROUP BY bug_family,analyst_decision""",
+        (target,),
+    )
+    decision_weight = {
+        "confirmed_by_analyst": 100,
+        "needs_more_evidence": 70,
+        "duplicate": 30,
+        "rejected": 5,
+        "out_of_scope": 5,
+    }
+    grouped: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for row in rows:
+        grouped[str(row["bug_family"])].append((str(row["analyst_decision"]), int(row["count"] or 0)))
+    result: dict[str, int] = {}
+    for family, values in grouped.items():
+        reviewed = sum(count for _, count in values)
+        if reviewed <= 0:
+            continue
+        weighted = sum(decision_weight.get(decision, 50) * count for decision, count in values) / reviewed
+        reliability = min(1.0, reviewed / 8.0)
+        result[family] = max(0, min(100, int(round(50 + (weighted - 50) * reliability))))
+    return result
+
+
+def _classification_context(
+    family: str,
+    support: Iterable[Mapping[str, Any]],
+    contradict: Iterable[Mapping[str, Any]],
+    *,
+    endpoint: str = "",
+    summary: str = "",
+    historical_scores: Mapping[str, Any] | None = None,
+    correlation_scores: Mapping[str, Any] | None = None,
+    llm_advisory_scores: Mapping[str, Any] | None = None,
+    admission_by_family: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build non-evidentiary taxonomy/writeup/meta-ranking context.
+
+    This function is intentionally called only *after* admission state has been
+    calculated. Its output is persisted for explanation and tagging but never
+    changes required groups, independent source counts, blocking contradictions,
+    or the admitted boolean.
+    """
+    support_items = [dict(item) for item in support]
+    contradict_items = [dict(item) for item in contradict]
+    context = knowledge_context(
+        family,
+        support_items,
+        contradict_items,
+        endpoint=endpoint,
+        summary=summary,
+    )
+    broader_writeups = retrieve_writeups(
+        support_items,
+        contradict_items,
+        endpoint=endpoint,
+        summary=summary,
+        family=None,
+        limit=50,
+    )
+    context["meta_ranker"] = rank_bug_proximity(
+        support_items,
+        contradict_items,
+        context.get("family_rankings", []),
+        broader_writeups,
+        historical_scores=historical_scores,
+        correlation_scores=correlation_scores,
+        llm_advisory_scores=llm_advisory_scores,
+        admission_by_family=admission_by_family,
+        limit=3,
+    )
+    return context
 
 
 def assess_admission(
@@ -201,19 +160,33 @@ def assess_admission(
         for item in support_items
     }
     policy = FAMILY_ADMISSION_POLICIES.get(family)
+
+    # Unknown families fail closed. Candidate generation should never silently
+    # promote a family that has no reviewed evidence contract.
     if not policy:
-        return {
-            "state": "admitted",
-            "admitted": True,
-            "policy": "existing-family-gate",
+        result = {
+            "state": "shadow_signal",
+            "admitted": False,
+            "policy": "missing-family-reasoning-policy",
             "required_satisfied": [],
-            "required_missing": [],
+            "required_missing": [["family reasoning policy"]],
             "independent_sources": len(sources),
-            "decisive_signals": sorted(types),
+            "decisive_signals": [],
             "blocking_contradictions": [],
-            "reason": "No additional family admission policy is defined; existing family-specific reasoning gates remain authoritative.",
-            "knowledge_references": knowledge_for_family(family),
+            "confirmation_required": [],
+            "validation_level": "offline",
+            "reason": "Retained as a hidden hypothesis because no reviewed Family Reasoning policy exists for this family.",
+            "family_reasoning_version": FAMILY_REASONING_VERSION,
+            "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
         }
+        result["knowledge_references"] = knowledge_for_family(family)
+        result["knowledge_context"] = _classification_context(
+            family,
+            support_items,
+            contradict_items,
+            admission_by_family={family: result},
+        )
+        return result
 
     satisfied: list[list[str]] = []
     missing: list[list[str]] = []
@@ -237,7 +210,7 @@ def assess_admission(
         reason = f"Admission complete: {policy.get('label')}."
     elif blocked:
         state = "shadow_contradicted"
-        reason = f"Retained as a hidden hypothesis because stored target evidence supports enforcement: {', '.join(blocking)}."
+        reason = f"Retained as a hidden hypothesis because stored target evidence supports an enforcing or non-vulnerable interpretation: {', '.join(blocking)}."
     elif satisfied:
         state = "shadow_partial"
         reason = f"Retained as a hidden hypothesis: partial evidence for {policy.get('label')}."
@@ -247,7 +220,7 @@ def assess_admission(
     if not source_ok:
         reason += f" Independent-source requirement is not yet met ({len(sources)}/{policy.get('min_independent_sources', 1)})."
 
-    return {
+    result = {
         "state": state,
         "admitted": complete,
         "policy": policy.get("label"),
@@ -256,9 +229,60 @@ def assess_admission(
         "independent_sources": len(sources),
         "decisive_signals": sorted(decisive),
         "blocking_contradictions": blocking,
+        "confirmation_required": [sorted(group) for group in policy.get("confirmation_required", [])],
+        "validation_level": str(policy.get("validation_level") or "offline"),
         "reason": reason,
-        "knowledge_references": knowledge_for_family(family),
+        "family_reasoning_version": FAMILY_REASONING_VERSION,
+        "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
     }
+    result["knowledge_references"] = knowledge_for_family(family)
+    result["knowledge_context"] = _classification_context(
+        family,
+        support_items,
+        contradict_items,
+        admission_by_family={family: result},
+    )
+    return result
+
+
+def _persist_classification_tags(
+    db: Database,
+    *,
+    target: str,
+    entity_type: str,
+    entity_value: str,
+    context: Mapping[str, Any],
+) -> None:
+    """Persist namespaced proximity/taxonomy tags without claiming a finding."""
+    tags = [str(value) for value in context.get("tags", []) if str(value).strip()]
+    rankings = context.get("family_rankings", [])
+    if isinstance(rankings, list):
+        for ranking in rankings[:3]:
+            if not isinstance(ranking, Mapping):
+                continue
+            if int(ranking.get("score") or 0) <= 0:
+                continue
+            family = str(ranking.get("family") or "").strip().replace("_", "-")
+            if family:
+                tags.append(f"near-family:{family}")
+    meta = context.get("meta_ranker", {})
+    if isinstance(meta, Mapping):
+        primary = meta.get("primary")
+        if isinstance(primary, Mapping):
+            family = str(primary.get("family") or "").strip().replace("_", "-")
+            band = str(primary.get("proximity_band") or "").strip().replace("_", "-")
+            priority = str(primary.get("hunt_priority") or "").strip().lower()
+            if family:
+                tags.append(f"proximity-family:{family}")
+            if band:
+                tags.append(f"proximity:{band}")
+            if priority:
+                tags.append(f"hunt-priority:{priority}")
+    for tag in dict.fromkeys(tags):
+        db.execute(
+            "INSERT OR IGNORE INTO entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
+            (target, entity_type, entity_value, tag, utc_now()),
+        )
 
 
 def record_hypothesis(
@@ -298,7 +322,42 @@ def record_hypothesis(
         alert_id = existing["alert_id"] if existing["alert_id"] is not None else alert_id
         source_ref = str(existing["source_ref"] or source_ref)
 
+    # Admission is fixed first from target evidence only.
     assessment = assess_admission(family, support, contradict)
+
+    historical_scores = _historical_family_scores(db, target)
+    correlation_context = build_correlation_context(
+        db,
+        analysis_id=analysis_id,
+        target=target,
+        endpoint=endpoint,
+        alert_id=alert_id,
+        source_ref=source_ref,
+    )
+    correlation_scores = correlation_context.get("family_scores", {})
+
+    # Rebuild retrieval/ranking with endpoint, summary, historical and
+    # cross-surface context only after admission. These remain non-evidentiary.
+    assessment["knowledge_context"] = _classification_context(
+        family,
+        support,
+        contradict,
+        endpoint=endpoint,
+        summary=summary,
+        historical_scores=historical_scores,
+        correlation_scores=correlation_scores,
+        admission_by_family={family: assessment},
+    )
+    assessment["correlation_context"] = correlation_context
+    assessment["knowledge_engine_version"] = KNOWLEDGE_ENGINE_VERSION
+    assessment["knowledge_rule_version"] = KNOWLEDGE_RULE_VERSION
+    assessment["meta_ranker_version"] = META_RANKER_VERSION
+    assessment["meta_ranker_rule_version"] = META_RANKER_RULE_VERSION
+    assessment["correlation_engine_version"] = CORRELATION_ENGINE_VERSION
+    assessment["correlation_rule_version"] = CORRELATION_RULE_VERSION
+    assessment["family_reasoning_version"] = FAMILY_REASONING_VERSION
+    assessment["family_reasoning_rule_version"] = FAMILY_REASONING_RULE_VERSION
+
     state = "promoted" if promoted_candidate_id else assessment["state"]
     hypothesis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"recon-monitor:hypothesis:{analysis_id}:{fingerprint}"))
     now = utc_now()
@@ -316,6 +375,13 @@ def record_hypothesis(
             json_dumps(rule_ids), ADMISSION_RULE_VERSION, seen_count, first_seen, now, promoted_candidate_id, first_seen, now,
         ),
     )
+    _persist_classification_tags(
+        db,
+        target=target,
+        entity_type="analysis_hypothesis",
+        entity_value=hypothesis_id,
+        context=assessment.get("knowledge_context", {}),
+    )
     return {
         "hypothesis_id": hypothesis_id,
         "hypothesis_fingerprint": fingerprint,
@@ -329,10 +395,25 @@ def record_hypothesis(
 
 
 def mark_promoted(db: Database, analysis_id: str, hypothesis_fingerprint_value: str, candidate_id: str) -> None:
+    row = db.one(
+        "SELECT target,admission_json FROM analysis_hypotheses WHERE analysis_id=? AND hypothesis_fingerprint=?",
+        (analysis_id, hypothesis_fingerprint_value),
+    )
     db.execute(
         "UPDATE analysis_hypotheses SET state='promoted',promoted_candidate_id=?,updated_at=? WHERE analysis_id=? AND hypothesis_fingerprint=?",
         (candidate_id, utc_now(), analysis_id, hypothesis_fingerprint_value),
     )
+    if row:
+        admission = _loads(row["admission_json"], {})
+        context = admission.get("knowledge_context", {}) if isinstance(admission, Mapping) else {}
+        if isinstance(context, Mapping):
+            _persist_classification_tags(
+                db,
+                target=str(row["target"]),
+                entity_type="candidate",
+                entity_value=candidate_id,
+                context=context,
+            )
 
 
 def hypothesis_summary(db: Database, analysis_id: str) -> dict[str, Any]:
@@ -349,4 +430,12 @@ def hypothesis_summary(db: Database, analysis_id: str) -> dict[str, Any]:
         "states": counts,
         "engine_version": ADMISSION_ENGINE_VERSION,
         "rule_version": ADMISSION_RULE_VERSION,
+        "family_reasoning_version": FAMILY_REASONING_VERSION,
+        "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
+        "knowledge_engine_version": KNOWLEDGE_ENGINE_VERSION,
+        "knowledge_rule_version": KNOWLEDGE_RULE_VERSION,
+        "meta_ranker_version": META_RANKER_VERSION,
+        "meta_ranker_rule_version": META_RANKER_RULE_VERSION,
+        "correlation_engine_version": CORRELATION_ENGINE_VERSION,
+        "correlation_rule_version": CORRELATION_RULE_VERSION,
     }

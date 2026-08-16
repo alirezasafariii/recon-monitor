@@ -528,6 +528,8 @@ def generate_behavioral_candidates(db: Database, analysis_id: str, run_id: str) 
         family = "websocket_authorization" if protocol == "websocket" else "graphql_authorization" if protocol == "graphql" else "sensitive_caching" if protocol == "cache" else "open_redirect" if protocol == "oauth_oidc" and "callback" in kind else ""
         if not family:
             continue
+        if family in {"graphql_authorization", "websocket_authorization", "sensitive_caching"}:
+            continue
         support = [
             {"type": "protocol_specific_finding", "source": f"{protocol}_engine", "source_group": protocol, "weight": 22, "text": str(row["summary"])},
             {"type": "stored_protocol_evidence", "source": "semantic_intelligence", "source_group": "protocol_evidence", "weight": 10, "text": "The finding is based on stored protocol-specific evidence"},

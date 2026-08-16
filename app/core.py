@@ -25,7 +25,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
-APP_VERSION = "8.5.0"
+APP_VERSION = "8.6.0"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 
@@ -1855,11 +1855,14 @@ class Database:
         return str(row["status"]) if row else None
 
     def target_has_history(self, target: str) -> bool:
-        for table in ("assets", "urls", "js_files", "fingerprints"):
-            row = self.one(f"SELECT 1 FROM {table} WHERE target=? LIMIT 1", (target,))
-            if row:
-                return True
-        return False
+        # A partial/failed first attempt may already have written raw rows, but
+        # those rows are not a trustworthy comparison baseline. Alerting starts
+        # only after this target has completed one successful pipeline run.
+        row = self.one(
+            "SELECT 1 FROM run_targets WHERE target=? AND status='success' LIMIT 1",
+            (target,),
+        )
+        return row is not None
 
     def upsert_asset(self, target: str, host: str, sources: Iterable[str], run_id: str, *, wildcard: bool = False, resolved: bool = False) -> bool:
         now = utc_now()

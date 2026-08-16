@@ -1,4 +1,12 @@
-# راهنمای Recon Monitor 8.4.0
+# راهنمای Recon Monitor 8.6.0
+
+## تحلیل Raw-first و چرخهٔ کم‌نویز Alert در نسخهٔ 8.6.0
+
+Recon Monitor اکنون داده‌های خام Recon را حتی در نبود Alert به موتور canonical شامل ۷۴ خانوادهٔ آسیب‌پذیری می‌رساند. Endpoint Classification، اثرانگشت HTTP/TLS، رکوردهای DNS CNAME، JavaScript معنایی، تاریخچهٔ رفتاری، نگاشت OWASP/WSTG/CWE/CAPEC و بازیابی محدود Write-upها برای ساخت Hypothesisهای خانواده‌ای استفاده می‌شوند. فقط Evidence واقعی تارگت می‌تواند Admission را پاس کند و **Potential Finding** بسازد؛ استانداردها و Write-upها هیچ‌وقت Evidence تارگت محسوب نمی‌شوند.
+
+اولین اسکن اکنون Baseline قطعی است: Recon و Analysis کامل اجرا می‌شوند، Hypothesisها و Potential Findingهای معتبر ذخیره می‌شوند و Baseline ثبت می‌شود، اما هیچ Alert یا Notification ساخته نمی‌شود. Alert از اسکن دوم فعال می‌شود و فقط تغییرات جدید یا معنادار را نشان می‌دهد.
+
+نسخهٔ برنامه **8.6.0** است و Schema دیتابیس همچنان **18** باقی می‌ماند. جزئیات در `MIGRATION-v8.6.0.md` و `docs/VULNERABILITY_INTELLIGENCE_ENGINE.md` آمده است.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

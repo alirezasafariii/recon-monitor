@@ -1,4 +1,12 @@
-# Recon Monitor 8.4.0
+# Recon Monitor 8.6.0
+
+## Raw-first Vulnerability Intelligence & quiet baseline alerts in 8.6.0
+
+Recon Monitor now routes stored raw Recon surfaces into the canonical 74-family vulnerability engine even when a run has no Alert rows. Endpoint classifications, HTTP/TLS fingerprints, DNS CNAME observations, semantic JavaScript, behavioral history, OWASP/WSTG/CWE/CAPEC mappings, and bounded write-up retrieval feed hidden family hypotheses. Only target evidence can satisfy admission and create a **Potential Finding**; taxonomy and write-ups remain non-evidentiary.
+
+The first successful scan is now a strict baseline: full Recon and Analysis still run, hypotheses/Potential Findings are preserved, and the baseline is saved, but no Alert row or notification is created. Alerts become active from the second scan and represent new or materially changed observations only.
+
+Application version is **8.6.0** and database schema remains **18**. See `MIGRATION-v8.6.0.md` and `docs/VULNERABILITY_INTELLIGENCE_ENGINE.md`.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 

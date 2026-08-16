@@ -1,3 +1,15 @@
+# Recon Monitor 8.6.0
+
+- Completed the raw Recon → family hypothesis → admission → Potential Finding path for the canonical 74-family vulnerability engine.
+- Removed the Alert dependency from automatic Analysis; alert-free baseline runs now execute full static, semantic, behavioral, family, reasoning, and workspace pipelines.
+- Made the first successful target scan a strict no-Alert baseline while preserving events, reports, hypotheses, and admitted Potential Findings.
+- Added bounded raw Endpoint/Fingerprint/CNAME family routing with explicit provenance and no synthesized decisive evidence.
+- Failed/partial first attempts no longer count as a completed Alert baseline.
+- Advanced Analysis Engine and Candidate Engine to 6.0.0 with raw-routing observability in the stored analysis summary.
+- Added first-run/second-run Alert lifecycle and raw-only analysis regressions.
+- Fixed strict manifest drift on the active vulnerability-intelligence branch.
+- Application advances to 8.6.0; schema remains 18.
+
 # Recon Monitor 8.5.0
 
 - Added BOLA/IDOR Intelligence 2.0 with recall-preserving object-authorization admission.

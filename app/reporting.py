@@ -91,6 +91,32 @@ def _notification_policy(db: Database, target: str, event_type: str) -> dict[str
 
 def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
+    # The first successful scan establishes the target baseline.  Its change
+    # events remain available in the run report and event-observation history,
+    # but they must not enter the Alert lifecycle.  Otherwise every discovered
+    # surface is mislabeled as a change alert and the second run cannot provide
+    # the low-noise, time-sensitive delta feed that Alerts is intended for.
+    if baseline:
+        return {
+            "events": len(events),
+            "new_alerts": 0,
+            "immediate": 0,
+            "notified": False,
+            "baseline_suppressed": bool(events),
+            "baseline_alerts_created": False,
+            "alerting_active": False,
+            "confirmed_only": bool(
+                ctx.policy.alert.get(
+                    "confirmed_only",
+                    ctx.config.bool("ALERT_CONFIRMED_ONLY", False),
+                )
+            ),
+            "observed_unconfirmed": sum(
+                1
+                for event in events
+                if event.get("confirmation_state") != "confirmed"
+            ),
+        }
     min_score = parse_int(ctx.policy.alert.get("minimum_score"), ctx.config.int("ALERT_MIN_SCORE", 70, 0, 100), 0, 100)
     cooldown = parse_int(ctx.policy.alert.get("cooldown_hours"), ctx.config.int("ALERT_COOLDOWN_HOURS", 24, 0, 720), 0, 720)
     max_items = ctx.config.int("ALERT_ITEM_LIMIT", 15, 1, 100)
@@ -132,8 +158,7 @@ def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any
                 immediate.append(event)
 
     notified = False
-    suppress_baseline = baseline and not ctx.config.bool("ALERT_ON_BASELINE", False)
-    if immediate and not suppress_baseline:
+    if immediate:
         immediate.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
         top = immediate[:max_items]
         message = "\n".join(
@@ -166,7 +191,9 @@ def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any
         "new_alerts": new_alerts,
         "immediate": len(immediate),
         "notified": notified,
-        "baseline_suppressed": suppress_baseline and bool(immediate),
+        "baseline_suppressed": False,
+        "baseline_alerts_created": False,
+        "alerting_active": True,
         "confirmed_only": confirmed_only,
         "observed_unconfirmed": sum(1 for event in events if event.get("confirmation_state") != "confirmed"),
     }
