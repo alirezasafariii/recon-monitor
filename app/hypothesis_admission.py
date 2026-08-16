@@ -17,6 +17,8 @@ from family_reasoning import (
     FAMILY_REASONING_VERSION,
     admission_policy_map,
 )
+from family_evidence_scope import scope_family_evidence
+from researcher_logic import researcher_logic_for_family
 from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
 from vulnerability_knowledge import (
     KNOWLEDGE_ENGINE_VERSION,
@@ -151,11 +153,19 @@ def assess_admission(
     support: Iterable[Mapping[str, Any]],
     contradict: Iterable[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    support_items = [dict(item) for item in support]
-    contradict_items = [dict(item) for item in (contradict or [])]
-    # Only typed target-evidence records participate in admission. Knowledge
-    # projections intentionally have no evidence ``type`` and therefore cannot
-    # increase the independent-source count or satisfy required groups.
+    raw_support_items = [dict(item) for item in support]
+    raw_contradict_items = [dict(item) for item in (contradict or [])]
+    support_scope = scope_family_evidence(
+        family, raw_support_items, annotate_unscoped=False, channel="admission"
+    )
+    contradict_scope = scope_family_evidence(
+        family, raw_contradict_items, annotate_unscoped=False, channel="admission"
+    )
+    support_items = list(support_scope["accepted"])
+    contradict_items = list(contradict_scope["accepted"])
+
+    # Only typed, family-compatible target-evidence records participate in
+    # admission. Knowledge projections intentionally have no evidence ``type``.
     typed_support_items = [
         item for item in support_items if str(item.get("type") or "").strip()
     ]
@@ -169,6 +179,12 @@ def assess_admission(
         for item in typed_support_items
     }
     policy = FAMILY_ADMISSION_POLICIES.get(family)
+    scope_diagnostics = {
+        "version": support_scope["version"],
+        "rule_version": support_scope["rule_version"],
+        "rejected_cross_family_support": int(support_scope["rejected_count"]),
+        "rejected_cross_family_contradictions": int(contradict_scope["rejected_count"]),
+    }
 
     # Unknown families fail closed. Candidate generation should never silently
     # promote a family that has no reviewed evidence contract.
@@ -187,6 +203,7 @@ def assess_admission(
             "reason": "Retained as a hidden hypothesis because no reviewed Family Reasoning policy exists for this family.",
             "family_reasoning_version": FAMILY_REASONING_VERSION,
             "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
+            "evidence_scope": scope_diagnostics,
         }
         result["knowledge_references"] = knowledge_for_family(family)
         result["knowledge_context"] = _classification_context(
@@ -243,7 +260,12 @@ def assess_admission(
         "reason": reason,
         "family_reasoning_version": FAMILY_REASONING_VERSION,
         "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
+        "evidence_scope": scope_diagnostics,
     }
+    try:
+        result["researcher_logic"] = researcher_logic_for_family(family)
+    except KeyError:
+        pass
     result["knowledge_references"] = knowledge_for_family(family)
     result["knowledge_context"] = _classification_context(
         family,
@@ -331,8 +353,24 @@ def record_hypothesis(
         alert_id = existing["alert_id"] if existing["alert_id"] is not None else alert_id
         source_ref = str(existing["source_ref"] or source_ref)
 
+    # Persist only evidence that is unscoped legacy data or explicitly belongs
+    # to this family. Newly stored evidence is namespaced so later correlation or
+    # replay cannot silently rebind it to another vulnerability family.
+    persisted_support_scope = scope_family_evidence(
+        family, support, annotate_unscoped=True, channel="hypothesis_persistence"
+    )
+    persisted_contradict_scope = scope_family_evidence(
+        family, contradict, annotate_unscoped=True, channel="hypothesis_persistence"
+    )
+    support = list(persisted_support_scope["accepted"])
+    contradict = list(persisted_contradict_scope["accepted"])
+
     # Admission is fixed first from target evidence only.
     assessment = assess_admission(family, support, contradict)
+    assessment.setdefault("evidence_scope", {})["quarantined_at_persistence"] = (
+        int(persisted_support_scope["rejected_count"])
+        + int(persisted_contradict_scope["rejected_count"])
+    )
 
     historical_scores = _historical_family_scores(db, target)
     correlation_context = build_correlation_context(
