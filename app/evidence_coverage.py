@@ -81,6 +81,7 @@ _JAVASCRIPT_MARKERS = (
     "message_handler",
     "javascript",
     "source_map",
+    "secret_pattern",
     "navigation_context",
     "client_operation",
     "dom_",
