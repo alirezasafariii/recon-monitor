@@ -11,11 +11,15 @@ pipeline phase weights and are therefore estimates, not time-remaining claims.
 import contextlib
 import datetime as dt
 import json
+import os
+import signal
+import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from core import AppPaths, atomic_write_text, json_dumps, safe_filename, utc_now
+from core import AppPaths, ReconError, atomic_write_text, json_dumps, process_alive, safe_filename, utc_now
 
 PROGRESS_TRACKING_VERSION = "1.0.0"
 PROGRESS_TRACKING_RULE_VERSION = "2026.08.17.1"
@@ -112,8 +116,10 @@ def _health(status: str, heartbeat_at: Any, *, heartbeat_available: bool = True)
     normalized = str(status or "").lower()
     if normalized == "success":
         return "completed", "Completed successfully"
-    if normalized in {"failed", "interrupted"}:
-        return "failed", "Operation stopped with an error" if normalized == "failed" else "Operation was interrupted"
+    if normalized in {"interrupted", "cancelled"}:
+        return "cancelled", "Operation was stopped before completion"
+    if normalized == "failed":
+        return "failed", "Operation stopped with an error"
     if normalized != "running":
         return "unknown", "No active operation"
     if not heartbeat_available:
@@ -171,6 +177,8 @@ class ProgressRecord:
                 "run_id": self.run_id,
                 "target": self.target,
                 "analysis_id": "",
+                "pid": os.getpid(),
+                "process_group_id": os.getpgrp() if hasattr(os, "getpgrp") else None,
                 "status": "running",
                 "phase": phase,
                 "phase_label": label,
@@ -264,6 +272,10 @@ class ProgressRecord:
                 self._data["phase_percent"] = 100.0
                 self._data["phase"] = "completed"
                 self._data["phase_label"] = "Completed"
+            elif normalized in {"interrupted", "cancelled"}:
+                self._data["phase"] = "interrupted"
+                self._data["phase_label"] = "Stopped"
+                self._data["message"] = "Stopped before completion"
             self._data["error"] = str(error or "")[:4000]
             self._data["heartbeat_at"] = now
             self._data["updated_at"] = now
@@ -385,6 +397,13 @@ class AnalysisProgress:
         self.record.finish(status="success")
         self.record.stop_heartbeat()
 
+    def interrupt(self, exc: BaseException | None = None) -> None:
+        detail = "Analysis interrupted by operator"
+        if exc is not None and str(exc):
+            detail = f"{type(exc).__name__}: {exc}"
+        self.record.finish(status="interrupted", error=detail)
+        self.record.stop_heartbeat()
+
     def fail(self, exc: BaseException) -> None:
         self.record.finish(status="failed", error=f"{type(exc).__name__}: {exc}")
         self.record.stop_heartbeat()
@@ -396,6 +415,187 @@ def _current_analysis() -> AnalysisProgress | None:
 
 def _set_current_analysis(value: AnalysisProgress | None) -> None:
     _CURRENT_ANALYSIS.tracker = value
+
+
+def _analysis_process_command(pid: int) -> str:
+    try:
+        completed = subprocess.run(
+            ["ps", "-p", str(int(pid)), "-o", "command="],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2.0,
+        )
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return str(completed.stdout or "").strip()
+
+
+def _analysis_process_matches(command: str, run_id: str, target: str) -> bool:
+    rendered = f" {str(command or '').strip()} "
+    if "recon_monitor.py" not in rendered:
+        return False
+    if " analyze " not in rendered and " analysis replay " not in rendered:
+        return False
+    if run_id and run_id not in rendered:
+        return False
+    if target not in {"", "*"} and target not in rendered:
+        return False
+    return True
+
+
+def _wait_analysis_exit(pid: int, timeout_seconds: float) -> bool:
+    deadline = time.monotonic() + max(0.0, float(timeout_seconds))
+    while time.monotonic() < deadline:
+        if not process_alive(pid):
+            return True
+        time.sleep(0.1)
+    return not process_alive(pid)
+
+
+def _mark_analysis_interrupted(
+    paths: AppPaths,
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    target: str,
+    reason: str,
+) -> None:
+    now = utc_now()
+    db.execute(
+        "UPDATE analysis_runs SET status='interrupted',finished_at=?,error=? "
+        "WHERE id=? AND status='running'",
+        (now, reason[:4000], analysis_id),
+    )
+    with contextlib.suppress(Exception):
+        db.audit(
+            "analysis_interrupted",
+            target=target,
+            entity_type="run",
+            entity_value=run_id,
+            details={"analysis_id": analysis_id, "reason": reason},
+        )
+    record = ProgressRecord(paths, "analysis", run_id, target)
+    data = record.data
+    if data and str(data.get("analysis_id") or "") in {"", analysis_id}:
+        record.bind_analysis_id(analysis_id)
+        record.finish(status="interrupted", error=reason)
+
+
+def stop_analysis(
+    paths: AppPaths,
+    db: Any,
+    *,
+    analysis_id: str = "",
+    run_id: str = "",
+    target: str = "",
+) -> dict[str, Any]:
+    """Stop one running Analysis process after validating its persisted PID."""
+
+    clauses = ["status='running'"]
+    params: list[Any] = []
+    if str(analysis_id or "").strip():
+        clauses.append("id=?")
+        params.append(str(analysis_id).strip())
+    if str(run_id or "").strip():
+        clauses.append("source_run_id=?")
+        params.append(str(run_id).strip())
+    if str(target or "").strip():
+        clauses.append("target=?")
+        params.append(str(target).strip())
+    row = db.one(
+        "SELECT id,source_run_id,target,status,started_at FROM analysis_runs WHERE "
+        + " AND ".join(clauses)
+        + " ORDER BY started_at DESC LIMIT 1",
+        tuple(params),
+    )
+    if not row:
+        raise ReconError("No running Analysis matches the requested selector")
+
+    selected = dict(row)
+    selected_id = str(selected["id"])
+    selected_run = str(selected["source_run_id"])
+    selected_target = str(selected["target"] or "*")
+    stored = _load_json(_progress_path(paths, "analysis", selected_run, selected_target))
+    if not stored:
+        raise ReconError(
+            "This Analysis has no PID metadata (legacy/pre-stop-control run). "
+            "Inspect the process explicitly before stopping it."
+        )
+    bound_analysis = str(stored.get("analysis_id") or "")
+    if bound_analysis and bound_analysis != selected_id:
+        raise ReconError("Progress PID belongs to a different Analysis run; refusing to signal it")
+    try:
+        pid = int(stored.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if pid <= 1:
+        raise ReconError("Running Analysis progress record does not contain a valid PID")
+
+    if not process_alive(pid):
+        reason = "Analysis process was already gone; stale running state repaired by stop command"
+        _mark_analysis_interrupted(
+            paths, db, analysis_id=selected_id, run_id=selected_run,
+            target=selected_target, reason=reason,
+        )
+        return {
+            "analysis_id": selected_id,
+            "run_id": selected_run,
+            "target": selected_target,
+            "pid": pid,
+            "signals_sent": [],
+            "stopped": True,
+            "status": "interrupted",
+            "already_exited": True,
+        }
+
+    command = _analysis_process_command(pid)
+    if not _analysis_process_matches(command, selected_run, selected_target):
+        raise ReconError(
+            f"Refusing to stop PID {pid}: process identity does not match the selected Analysis"
+        )
+
+    signals_sent: list[str] = []
+    try:
+        os.kill(pid, signal.SIGINT)
+        signals_sent.append("SIGINT")
+    except ProcessLookupError:
+        pass
+    except PermissionError as exc:
+        raise ReconError(f"Permission denied while signaling Analysis PID {pid}") from exc
+
+    stopped = _wait_analysis_exit(pid, 1.5)
+    if not stopped:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            signals_sent.append("SIGTERM")
+        except ProcessLookupError:
+            stopped = True
+        except PermissionError as exc:
+            raise ReconError(f"Permission denied while terminating Analysis PID {pid}") from exc
+        if not stopped:
+            stopped = _wait_analysis_exit(pid, 2.5)
+
+    if stopped:
+        reason = "Analysis stopped by operator via " + (" -> ".join(signals_sent) or "process exit")
+        _mark_analysis_interrupted(
+            paths, db, analysis_id=selected_id, run_id=selected_run,
+            target=selected_target, reason=reason,
+        )
+
+    return {
+        "analysis_id": selected_id,
+        "run_id": selected_run,
+        "target": selected_target,
+        "pid": pid,
+        "signals_sent": signals_sent,
+        "stopped": bool(stopped),
+        "status": "interrupted" if stopped else "stop_requested",
+        "command": command,
+    }
 
 
 def _wrap_analysis_phase(module: Any, name: str, phase: str, *, advance_static: bool = False) -> None:
@@ -476,7 +676,10 @@ def _install_analysis_tracking(base: Any) -> None:
             tracker.complete()
             return result
         except BaseException as exc:
-            tracker.fail(exc)
+            if isinstance(exc, KeyboardInterrupt):
+                tracker.interrupt(exc)
+            else:
+                tracker.fail(exc)
             raise
         finally:
             _set_current_analysis(previous)
@@ -788,6 +991,7 @@ def _progress_tone(health: str) -> str:
         "waiting": "amber",
         "stalled": "danger",
         "failed": "danger",
+        "cancelled": "amber",
         "completed": "success",
     }.get(str(health), "neutral")
 
