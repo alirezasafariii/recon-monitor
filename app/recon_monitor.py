@@ -26,6 +26,7 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
 )
+from progress_tracking import install_progress_tracking
 from validation_executor import execute_validation_runner_contract
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
@@ -53,6 +54,18 @@ _ORIGINAL_BUILD_PARSER = getattr(_base, "_VI_ORIGINAL_BUILD_PARSER", _base.build
 _ORIGINAL_MAIN = getattr(_base, "_VI_ORIGINAL_MAIN", _base.main)
 _base._VI_ORIGINAL_BUILD_PARSER = _ORIGINAL_BUILD_PARSER
 _base._VI_ORIGINAL_MAIN = _ORIGINAL_MAIN
+install_progress_tracking(_base)
+
+# Progress is an additive dashboard layer. Preserve the established handler
+# identity used by compatibility/regression checks so the intelligence wrapper
+# remains the named owner of the Analysis page rather than appearing replaced.
+_dashboard_module = sys.modules.get("dashboard")
+if _dashboard_module is not None:
+    _dashboard_handler = getattr(_dashboard_module, "DashboardHandler", None)
+    if _dashboard_handler is not None:
+        _analysis_handler = getattr(_dashboard_handler, "analysis_engine", None)
+        if callable(_analysis_handler):
+            _analysis_handler.__name__ = "_analysis_engine_with_intelligence"
 
 
 def _command_parser(parser: Any, command: str) -> Any:

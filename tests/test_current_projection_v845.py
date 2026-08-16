@@ -65,7 +65,7 @@ class CurrentProjectionV845Tests(unittest.TestCase):
         )
 
     def test_version_and_schema(self) -> None:
-        self.assertEqual(APP_VERSION, "8.6.0")
+        self.assertEqual(APP_VERSION, "8.7.0")
         self.assertEqual(SCHEMA_VERSION, 18)
         self.assertEqual(self.db.meta_get("schema_version"), "18")
 
