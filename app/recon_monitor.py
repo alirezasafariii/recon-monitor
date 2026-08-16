@@ -5,8 +5,9 @@ from __future__ import annotations
 
 The established CLI implementation remains in ``recon_monitor_core``. This
 module preserves every existing command and adds Analysis-only compatibility
-actions for Investigation Queue, offline verified-replay draft collection, and
-human-verified real-world calibration reports.
+actions for Investigation Queue, offline verified-replay draft collection,
+human-verified real-world calibration reports, and explicit Validation Runner
+passive-live execution.
 """
 
 import sys
@@ -25,6 +26,7 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
 )
+from validation_executor import execute_validation_runner_contract
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
     VERIFIED_REPLAY_COLLECTOR_VERSION,
@@ -53,32 +55,49 @@ _base._VI_ORIGINAL_BUILD_PARSER = _ORIGINAL_BUILD_PARSER
 _base._VI_ORIGINAL_MAIN = _ORIGINAL_MAIN
 
 
-def _analysis_parser(parser: Any) -> Any:
+def _command_parser(parser: Any, command: str) -> Any:
     for action in getattr(parser, "_actions", []):
         choices = getattr(action, "choices", None)
-        if isinstance(choices, dict) and "analysis" in choices:
-            return choices["analysis"]
-    raise RuntimeError("Analysis CLI parser is unavailable")
+        if isinstance(choices, dict) and command in choices:
+            return choices[command]
+    raise RuntimeError(f"{command.title()} CLI parser is unavailable")
+
+
+def _analysis_parser(parser: Any) -> Any:
+    return _command_parser(parser, "analysis")
+
+
+def _validation_parser(parser: Any) -> Any:
+    return _command_parser(parser, "validation")
+
+
+def _extend_action_choices(command_parser: Any, *extra_actions: str) -> None:
+    for action in getattr(command_parser, "_actions", []):
+        if getattr(action, "dest", "") != "action":
+            continue
+        choices = list(getattr(action, "choices", []) or [])
+        for extra_action in extra_actions:
+            if extra_action not in choices:
+                choices.append(extra_action)
+        action.choices = choices
+        return
+    raise RuntimeError("CLI action parser is unavailable")
 
 
 def build_parser():
     parser = _ORIGINAL_BUILD_PARSER()
     analysis_parser = _analysis_parser(parser)
-    for action in getattr(analysis_parser, "_actions", []):
-        if getattr(action, "dest", "") != "action":
-            continue
-        choices = list(getattr(action, "choices", []) or [])
-        for extra_action in (
-            "investigation-queue",
-            "verified-replay-drafts",
-            "real-world-calibration",
-        ):
-            if extra_action not in choices:
-                choices.append(extra_action)
-        action.choices = choices
-        break
+    _extend_action_choices(
+        analysis_parser,
+        "investigation-queue",
+        "verified-replay-drafts",
+        "real-world-calibration",
+    )
 
-    existing_dests = {str(getattr(action, "dest", "")) for action in getattr(analysis_parser, "_actions", [])}
+    existing_dests = {
+        str(getattr(action, "dest", ""))
+        for action in getattr(analysis_parser, "_actions", [])
+    }
     if "verified_corpus" not in existing_dests:
         analysis_parser.add_argument(
             "--verified-corpus",
@@ -86,6 +105,25 @@ def build_parser():
             default=[],
             dest="verified_corpus",
             help="Path to a human-verified replay JSONL corpus; repeat for multiple files",
+        )
+
+    validation_parser = _validation_parser(parser)
+    _extend_action_choices(validation_parser, "runner-execute")
+    validation_dests = {
+        str(getattr(action, "dest", ""))
+        for action in getattr(validation_parser, "_actions", [])
+    }
+    if "contract_id" not in validation_dests:
+        validation_parser.add_argument(
+            "--contract-id",
+            default="",
+            help="Validation Runner dry-run contract ID (VDR-...)",
+        )
+    if "target" not in validation_dests:
+        validation_parser.add_argument(
+            "--target",
+            default="",
+            help="Target policy name; required when the scan run contains multiple targets",
         )
     return parser
 
@@ -197,9 +235,53 @@ def real_world_calibration_cli_payload(corpus_paths: Iterable[str]) -> dict[str,
     }
 
 
+def _runner_execute_cli(args: Any) -> dict[str, Any]:
+    if not str(args.run_id or "").strip():
+        raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
+    if not str(args.contract_id or "").strip():
+        raise _base.ReconError("validation runner-execute requires --contract-id VDR-...")
+    if not str(args.confirmation or "").strip():
+        raise _base.ReconError("validation runner-execute requires --confirmation")
+    if not bool(args.allow_live):
+        raise _base.ReconError("validation runner-execute requires --allow-live")
+
+    paths = _base.AppPaths.from_root(_base.ROOT_DIR)
+    paths.ensure()
+    if not paths.config.exists():
+        raise _base.ReconError("config.env not found. Run ./recon-monitor.sh init")
+    config = _base.Config(paths)
+    db = _base.Database(paths.db)
+    try:
+        return execute_validation_runner_contract(
+            paths,
+            config,
+            db,
+            scan_run_id=str(args.run_id),
+            target=str(getattr(args, "target", "") or ""),
+            contract_id=str(args.contract_id),
+            confirmation=str(args.confirmation),
+            allow_live=True,
+            actor="cli",
+        )
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
+
+    if (
+        len(translated) >= 2
+        and translated[0] == "validation"
+        and translated[1] == "runner-execute"
+    ):
+        parser = build_parser()
+        args = parser.parse_args(translated)
+        payload = _runner_execute_cli(args)
+        print(_base.json_dumps(payload, pretty=True))
+        return 0
+
     if len(translated) >= 2 and translated[0] == "analysis" and translated[1] in {
         "investigation-queue",
         "verified-replay-drafts",
