@@ -413,6 +413,19 @@ class PassiveLiveValidationExecutorTests(unittest.TestCase):
         self.assertEqual(payload["http_budget_units_consumed"], 0)
         self.assertEqual(payload["network_requests_executed"], 0)
 
+    def test_modified_dry_run_surface_is_rejected_before_transport(self):
+        _, _, dry, contract_id = self.fx.make_artifacts(passive_plan())
+        dry["contracts"][0]["surface"]["display"] = "https://api.example.test/tampered"
+        (self.fx.run_dir / "validation-runner-dry-run.json").write_text(
+            json_dumps(dry, pretty=True) + "\n",
+            encoding="utf-8",
+        )
+        with patch("validation_executor.safe_validation._perform_request") as request:
+            with self.assertRaisesRegex(ReconError, "dry-run contract surface mismatch"):
+                self.fx.execute(contract_id)
+        request.assert_not_called()
+        self.assertEqual(self.fx.budget_used(), 0)
+
     def test_cors_recipe_uses_only_allowlisted_safe_headers_and_methods(self):
         cors = passive_plan(family="cors_misconfiguration", hypothesis_id="H-CORS-1")
         _, _, _, contract_id = self.fx.make_artifacts(cors)

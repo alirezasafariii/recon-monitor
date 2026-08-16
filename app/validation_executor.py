@@ -40,6 +40,7 @@ from core import (
 from family_reasoning import FAMILY_REASONING, FAMILY_REASONING_RULE_VERSION
 import safe_validation
 from validation_eligibility import snapshot_validation_eligibility
+from validation_runner import snapshot_validation_runner_dry_run
 
 
 VALIDATION_EXECUTOR_VERSION = "1.0.0"
@@ -399,6 +400,25 @@ def execute_validation_runner_contract(
     if str(fresh_decision.get("validation_level") or "") != "passive_live":
         raise ReconError("Fresh Validation Eligibility no longer permits passive-live validation")
 
+    fresh_dry_run = snapshot_validation_runner_dry_run(
+        ctx,
+        evidence_completion_plan=planner,
+        validation_eligibility=fresh_gate,
+        persist=False,
+    )
+    fresh_contract = _contract_by_id(fresh_dry_run, contract_id)
+    for key in ("hypothesis_id", "family", "validation_level", "planning_phase"):
+        if str(contract.get(key) or "") != str(fresh_contract.get(key) or ""):
+            raise ReconError(f"Fresh Validation Runner dry-run contract mismatch: {key}")
+    stored_surface = dict(contract.get("surface") or {})
+    fresh_surface = dict(fresh_contract.get("surface") or {})
+    if (
+        str(stored_surface.get("kind") or "") != str(fresh_surface.get("kind") or "")
+        or str(stored_surface.get("display") or "") != str(fresh_surface.get("display") or "")
+    ):
+        raise ReconError("Fresh Validation Runner dry-run contract surface mismatch")
+    contract = fresh_contract
+
     endpoint = _safe_contract_url(contract, policy)
     allowed, safety_reason = safe_validation._url_safety(endpoint, policy)
     if not allowed:
@@ -412,11 +432,13 @@ def execute_validation_runner_contract(
     stopped_reason = ""
     started_at = utc_now()
     failed_5xx = 0
+    http_budget_units_consumed = 0
 
     try:
         for index, request in enumerate(requests):
             budget.check_runtime()
             budget.consume("http_requests", 1)
+            http_budget_units_consumed += 1
             observation, state = safe_validation._perform_request(request, policy)
             row = dict(observation or {})
             row["sequence"] = index + 1
@@ -460,7 +482,8 @@ def execute_validation_runner_contract(
             "error": str(exc)[:1000],
             "observations": observations,
             "network_requests_executed": len(observations),
-            "budget_consumed": True,
+            "http_budget_units_consumed": http_budget_units_consumed,
+            "budget_consumed": http_budget_units_consumed > 0,
             "raw_bodies_stored": False,
             "typed_evidence_emitted": False,
             "affects_admission": False,
@@ -507,7 +530,8 @@ def execute_validation_runner_contract(
         "observations": observations,
         "network_requests_planned": len(requests),
         "network_requests_executed": len(observations),
-        "budget_consumed": bool(observations),
+        "http_budget_units_consumed": http_budget_units_consumed,
+        "budget_consumed": http_budget_units_consumed > 0,
         "raw_bodies_stored": False,
         "loads_credentials": False,
         "switches_identity": False,
