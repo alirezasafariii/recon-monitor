@@ -42,6 +42,7 @@ jobs:
             app/family_specs/__init__.py \
             app/hypothesis_admission.py \
             docs/FINAL_ANALYZERS_633_GAP_AUDIT.md \
+            tests/test_bola_intelligence_v850.py \
             tests/test_final_taxonomy_attribution.py \
             MANIFEST.sha256
           if ! git diff --cached --quiet; then
