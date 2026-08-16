@@ -30,6 +30,7 @@ from stages import StageContext
 from analysis_engine import run_analysis
 from collection_quality import snapshot_collection_quality
 from evidence_coverage import snapshot_evidence_coverage
+from evidence_completion_planner import snapshot_evidence_completion_plan
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -255,6 +256,7 @@ def generate_report(
     notification: Mapping[str, Any],
     collection_quality: Mapping[str, Any] | None = None,
     evidence_coverage: Mapping[str, Any] | None = None,
+    evidence_completion_plan: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
@@ -275,6 +277,7 @@ def generate_report(
     )]
     quality = dict(collection_quality or {})
     coverage = dict(evidence_coverage or {})
+    completion_plan = dict(evidence_completion_plan or {})
     report = {
         "schema": 7,
         "recon_monitor_version": APP_VERSION,
@@ -288,6 +291,7 @@ def generate_report(
         "counts": _current_counts(ctx),
         "collection_quality": quality,
         "evidence_coverage": coverage,
+        "evidence_completion_plan": completion_plan,
         "changes": {
             "total": len(events),
             "by_severity": {
@@ -328,6 +332,7 @@ def generate_report(
         "counts": report["counts"],
         "collection_quality": quality,
         "evidence_coverage": coverage,
+        "evidence_completion_plan": completion_plan,
         "change_summary": {key: value for key, value in report["changes"].items() if key != "events"},
         "intelligence_summary": {
             "javascript_diffs": len(js_diffs),
@@ -340,6 +345,7 @@ def generate_report(
             "events_jsonl": str(ctx.events_path),
             "collection_quality_json": str(ctx.run_dir / "collection-quality.json"),
             "evidence_coverage_json": str(ctx.run_dir / "evidence-coverage.json"),
+            "evidence_completion_plan_json": str(ctx.run_dir / "evidence-completion-plan.json"),
             "current_dir": str(ctx.current),
             "changes_dir": str(ctx.changes),
         },
@@ -477,12 +483,48 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
                 "affects_candidate_promotion": False,
                 "error": str(exc),
             }
+    evidence_completion_plan: dict[str, Any] = {
+        "version": "1.0.0",
+        "status": "unavailable",
+        "plan_count": 0,
+        "diagnostic_only": True,
+        "affects_admission": False,
+        "affects_candidate_promotion": False,
+        "executes_validation": False,
+        "reason": "Analysis or Evidence Coverage did not produce a usable current snapshot.",
+    }
+    if analysis_id and evidence_coverage.get("families"):
+        try:
+            evidence_completion_plan = snapshot_evidence_completion_plan(
+                ctx,
+                analysis_id=analysis_id,
+                evidence_coverage=evidence_coverage,
+            )
+        except Exception as exc:
+            ctx.logger.warn(
+                "Evidence completion planning failed without blocking report generation",
+                target=ctx.policy.name,
+                run_id=ctx.run_id,
+                analysis_id=analysis_id,
+                error=str(exc),
+            )
+            evidence_completion_plan = {
+                "version": "1.0.0",
+                "status": "unavailable",
+                "plan_count": 0,
+                "diagnostic_only": True,
+                "affects_admission": False,
+                "affects_candidate_promotion": False,
+                "executes_validation": False,
+                "error": str(exc),
+            }
     report = generate_report(
         ctx,
         baseline,
         notification,
         collection_quality,
         evidence_coverage,
+        evidence_completion_plan,
     )
     return {
         "events": report["changes"]["total"],
@@ -493,6 +535,7 @@ def stage_report(ctx: StageContext, baseline: bool) -> dict[str, Any]:
         "lifecycle": lifecycle,
         "collection_quality": collection_quality,
         "evidence_coverage": evidence_coverage,
+        "evidence_completion_plan": evidence_completion_plan,
         "analysis": analysis_summary,
     }
 
