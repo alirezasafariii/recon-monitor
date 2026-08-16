@@ -1,0 +1,77 @@
+name: Final 6.33 Gap Integration
+
+on:
+  push:
+    branches: [final-analyzers]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'Run final 6.33 gap integration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply selected 6.33 gap hardening
+        run: python .github/scripts/final_633_gap_integration.py
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
+      - name: Commit successful integration
+        shell: bash
+        run: |
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add \
+            app/family_evidence_scope.py \
+            app/researcher_logic.py \
+            app/hypothesis_admission.py \
+            docs/FINAL_ANALYZERS_633_GAP_AUDIT.md \
+            tests/test_final_633_gap_integration.py \
+            MANIFEST.sha256
+          if ! git diff --cached --quiet; then
+            git commit -m 'Integrate selected Analysis 6.33 hardening'
+            git push origin HEAD:final-analyzers
+          fi
+
+  verify:
+    needs: migrate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout integrated branch head
+        run: |
+          git fetch origin final-analyzers
+          git checkout -B final-analyzers origin/final-analyzers
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e config.env
+          test ! -e policies/targets.json
+          test -z "$(find . -type d -name __pycache__ -print -quit)"
+          test -z "$(find . -type f \( -name '*.pyc' -o -name '*.db' -o -name '*.db-*' -o -name '*.log' -o -name '*.jsonl' \) -print -quit)"
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
