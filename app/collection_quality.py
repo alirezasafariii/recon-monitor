@@ -209,18 +209,26 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
         return base
 
     metrics = record["metrics"]
-    required = {"files", "downloaded", "errors"}
-    if not required.issubset(metrics):
+    if "files" not in metrics or "downloaded" not in metrics:
         base["status"] = "unknown"
         base["reason"] = (
             "JavaScript stage succeeded but historical metrics do not contain "
-            "files/downloaded/errors completeness metadata."
+            "files/downloaded completeness metadata."
         )
         return base
 
     files = _int(metrics.get("files"))
     downloaded = _int(metrics.get("downloaded"))
-    errors = _int(metrics.get("errors"))
+    no_work = files == 0 and downloaded == 0
+    if "errors" not in metrics and not no_work:
+        base["status"] = "unknown"
+        base["reason"] = (
+            "JavaScript stage succeeded but historical metrics do not contain "
+            "error completeness metadata for a non-empty collection."
+        )
+        return base
+
+    errors = _int(metrics.get("errors"), 0)
     limit = _limit(ctx, "max_js_files")
     truncation_possible = bool(limit and files >= limit)
     reasons: list[str] = []
@@ -248,6 +256,9 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
     if reasons:
         base["status"] = "partial"
         base["reason"] = "; ".join(reasons) + "."
+    elif no_work:
+        base["status"] = "complete"
+        base["reason"] = "JavaScript stage completed successfully with no selected JavaScript files."
     else:
         base["status"] = "complete"
         base["reason"] = "Selected JavaScript collection completed without recorded gaps."
