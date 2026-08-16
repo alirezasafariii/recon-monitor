@@ -26,7 +26,7 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
 )
-from progress_tracking import install_progress_tracking
+from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
@@ -105,6 +105,7 @@ def build_parser():
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "stop",
     )
 
     existing_dests = {
@@ -299,6 +300,7 @@ def main(argv: list[str] | None = None) -> int:
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "stop",
     }:
         parser = build_parser()
         args = parser.parse_args(translated)
@@ -320,6 +322,14 @@ def main(argv: list[str] | None = None) -> int:
                 payload = verified_replay_drafts_cli_payload(
                     db,
                     limit=int(args.limit or 1000),
+                )
+            elif translated[1] == "stop":
+                payload = stop_analysis(
+                    paths,
+                    db,
+                    analysis_id=str(args.analysis_id or ""),
+                    run_id=str(args.run_id or ""),
+                    target=str(args.target or ""),
                 )
             else:
                 payload = investigation_queue_cli_payload(
@@ -347,3 +357,6 @@ if __name__ == "__main__":
     except _base.ReconError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         raise SystemExit(1)
+    except KeyboardInterrupt:
+        print("\n[INFO] Operation interrupted safely.", file=sys.stderr)
+        raise SystemExit(130)

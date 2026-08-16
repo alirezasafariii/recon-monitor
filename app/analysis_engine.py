@@ -722,6 +722,29 @@ def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None 
     """
     try:
         return _run_analysis_impl(paths, db, run_id, target, mode=mode, persist=persist, profile=profile)
+    except KeyboardInterrupt:
+        row = db.one(
+            "SELECT id FROM analysis_runs WHERE source_run_id=? AND target=? AND engine_version=? AND status='running' ORDER BY started_at DESC LIMIT 1",
+            (run_id, target or "*", ENGINE_VERSION),
+        )
+        analysis_id = str(row["id"]) if row else ""
+        error = "KeyboardInterrupt: analysis interrupted by operator"
+        if analysis_id:
+            db.execute(
+                "UPDATE analysis_runs SET status='interrupted',finished_at=?,error=? WHERE id=? AND status='running'",
+                (utc_now(), error, analysis_id),
+            )
+        try:
+            db.audit(
+                "analysis_interrupted",
+                target=target or "*",
+                entity_type="run",
+                entity_value=run_id,
+                details={"analysis_id": analysis_id, "engine_version": ENGINE_VERSION, "error": error},
+            )
+        except Exception:
+            pass
+        raise
     except Exception as exc:
         row = db.one(
             "SELECT id FROM analysis_runs WHERE source_run_id=? AND target=? AND engine_version=? AND status='running' ORDER BY started_at DESC LIMIT 1",
