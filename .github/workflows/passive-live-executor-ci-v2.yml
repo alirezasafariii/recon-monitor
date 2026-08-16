@@ -22,6 +22,7 @@ jobs:
         run: |
           python tools/passive_executor_branch_patch.py
           python tools/passive_executor_output_hardening_patch.py
+          python tools/passive_executor_test_fix_patch.py
       - name: Compile and targeted tests
         run: |
           python -m py_compile app/validation_executor.py app/recon_monitor.py tests/test_validation_executor.py
