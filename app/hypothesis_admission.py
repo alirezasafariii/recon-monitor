@@ -18,6 +18,8 @@ from family_reasoning import (
     admission_policy_map,
 )
 from family_evidence_scope import scope_family_evidence
+from family_specs.registry import get_detection_spec
+from family_specs.taxonomy_attribution import evaluate_taxonomy_attribution
 from researcher_logic import researcher_logic_for_family
 from meta_ranker import META_RANKER_RULE_VERSION, META_RANKER_VERSION, rank_bug_proximity
 from vulnerability_knowledge import (
@@ -28,8 +30,8 @@ from vulnerability_knowledge import (
     retrieve_writeups,
 )
 
-ADMISSION_ENGINE_VERSION = "2.0.0"
-ADMISSION_RULE_VERSION = "2026.08.15.4"
+ADMISSION_ENGINE_VERSION = "2.1.0"
+ADMISSION_RULE_VERSION = "2026.08.16.1"
 
 # Admission is intentionally stricter than hypothesis generation. Signals that
 # fail admission remain persisted in analysis_hypotheses so recall is preserved.
@@ -37,6 +39,21 @@ ADMISSION_RULE_VERSION = "2026.08.15.4"
 # consulted while calculating `complete` below. Every known vulnerability family
 # now receives its policy from the single Family Reasoning catalog.
 FAMILY_ADMISSION_POLICIES: dict[str, dict[str, Any]] = admission_policy_map()
+
+
+def _taxonomy_attribution(
+    family: str,
+    *,
+    admitted: bool,
+    decisive_signals: Iterable[str],
+) -> dict[str, Any] | None:
+    try:
+        spec = get_detection_spec(family)
+    except KeyError:
+        return None
+    return evaluate_taxonomy_attribution(
+        spec, admitted=admitted, decisive_signals=decisive_signals
+    )
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -205,6 +222,11 @@ def assess_admission(
             "family_reasoning_rule_version": FAMILY_REASONING_RULE_VERSION,
             "evidence_scope": scope_diagnostics,
         }
+        taxonomy = _taxonomy_attribution(
+            family, admitted=False, decisive_signals=result["decisive_signals"]
+        )
+        if taxonomy is not None:
+            result["taxonomy_attribution"] = taxonomy
         result["knowledge_references"] = knowledge_for_family(family)
         result["knowledge_context"] = _classification_context(
             family,
@@ -266,6 +288,11 @@ def assess_admission(
         result["researcher_logic"] = researcher_logic_for_family(family)
     except KeyError:
         pass
+    taxonomy = _taxonomy_attribution(
+        family, admitted=complete, decisive_signals=decisive
+    )
+    if taxonomy is not None:
+        result["taxonomy_attribution"] = taxonomy
     result["knowledge_references"] = knowledge_for_family(family)
     result["knowledge_context"] = _classification_context(
         family,

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-FAMILY_SPEC_FRAMEWORK_VERSION = "1.0.0"
+FAMILY_SPEC_FRAMEWORK_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -53,6 +53,43 @@ class WriteupLesson:
 
 
 @dataclass(frozen=True)
+class TaxonomyAttributionRule:
+    """Non-evidentiary policy for attributing one standards reference.
+
+    ``mapping`` describes the relationship to the family. ``auto_assign`` only
+    controls post-admission metadata; it can never satisfy an evidence group.
+    ``when_any`` is evaluated against already-decided target evidence signals.
+    """
+
+    namespace: str
+    ref: str
+    mapping: str
+    auto_assign: bool = False
+    when_any: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        namespace = str(self.namespace or "").strip().lower()
+        if namespace not in {"owasp", "wstg", "cwe", "capec"}:
+            raise ValueError(f"unsupported taxonomy namespace: {self.namespace}")
+        if not str(self.ref or "").strip():
+            raise ValueError("taxonomy attribution ref is required")
+        if self.mapping not in {"direct", "contextual", "methodology"}:
+            raise ValueError(f"invalid taxonomy mapping mode: {self.mapping}")
+        if self.mapping == "methodology" and self.auto_assign:
+            raise ValueError("methodology references cannot be auto-assigned")
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "namespace": str(self.namespace).lower(),
+            "ref": self.ref,
+            "mapping": self.mapping,
+            "auto_assign": bool(self.auto_assign),
+            "when_any": list(self.when_any),
+            "counts_as_target_evidence": False,
+        }
+
+
+@dataclass(frozen=True)
 class FamilyStandardSpec:
     family: str
     version: str
@@ -68,6 +105,7 @@ class FamilyStandardSpec:
     confounders: tuple[str, ...]
     false_positive_checks: tuple[str, ...]
     writeups: tuple[WriteupLesson, ...]
+    taxonomy_attribution: tuple[TaxonomyAttributionRule, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.family or not self.strategy or not self.principle:
@@ -82,6 +120,24 @@ class FamilyStandardSpec:
             raise ValueError(f"{self.family}: at least one curated write-up is required")
         if any(item.counts_as_target_evidence for item in self.writeups):
             raise ValueError(f"{self.family}: external knowledge cannot count as target evidence")
+        if self.taxonomy_attribution:
+            expected = {
+                (namespace, ref)
+                for namespace, refs in self.taxonomy().items()
+                for ref in refs
+            }
+            actual = {
+                (str(item.namespace).lower(), item.ref)
+                for item in self.taxonomy_attribution
+            }
+            if len(actual) != len(self.taxonomy_attribution):
+                raise ValueError(f"{self.family}: duplicate taxonomy attribution rule")
+            if actual != expected:
+                missing = sorted(expected - actual)
+                extra = sorted(actual - expected)
+                raise ValueError(
+                    f"{self.family}: taxonomy attribution coverage drift missing={missing} extra={extra}"
+                )
 
     def taxonomy(self) -> dict[str, list[str]]:
         return {
@@ -90,6 +146,9 @@ class FamilyStandardSpec:
             "cwe": list(self.cwe),
             "capec": list(self.capec),
         }
+
+    def taxonomy_attribution_policy(self) -> list[dict[str, Any]]:
+        return [item.as_dict() for item in self.taxonomy_attribution]
 
 
 @dataclass(frozen=True)
@@ -122,6 +181,9 @@ class FamilyDetectionSpec:
 
     def taxonomy(self) -> dict[str, list[str]]:
         return self.standard.taxonomy()
+
+    def taxonomy_attribution_policy(self) -> list[dict[str, Any]]:
+        return self.standard.taxonomy_attribution_policy()
 
 
 def _groups(value: Any) -> tuple[frozenset[str], ...]:

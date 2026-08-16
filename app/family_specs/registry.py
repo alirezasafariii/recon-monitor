@@ -12,6 +12,7 @@ from typing import Any
 import family_reasoning as _reasoning
 
 from .base import FamilyDetectionSpec, FamilyStandardSpec, compose_detection_spec
+from .taxonomy_attribution import apply_taxonomy_attribution, validate_taxonomy_attribution_spec
 from .broken_function_authorization import BFLA_STANDARD_SPEC
 from .broken_object_authorization import BOLA_STANDARD_SPEC
 from .cors_misconfiguration import CORS_MISCONFIGURATION_STANDARD_SPEC
@@ -31,7 +32,7 @@ from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
 
 
-FAMILY_SPEC_REGISTRY_VERSION = "1.6.0"
+FAMILY_SPEC_REGISTRY_VERSION = "1.7.0"
 MIGRATED_FAMILIES = (
     "broken_object_authorization",
     "broken_function_authorization",
@@ -52,7 +53,7 @@ MIGRATED_FAMILIES = (
     "secret_exposure",
 )
 
-FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
+_RAW_FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     BOLA_STANDARD_SPEC.family: BOLA_STANDARD_SPEC,
     BFLA_STANDARD_SPEC.family: BFLA_STANDARD_SPEC,
     MASS_ASSIGNMENT_STANDARD_SPEC.family: MASS_ASSIGNMENT_STANDARD_SPEC,
@@ -70,6 +71,11 @@ FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
     INFORMATION_DISCLOSURE_STANDARD_SPEC.family: INFORMATION_DISCLOSURE_STANDARD_SPEC,
     SOURCE_MAP_EXPOSURE_STANDARD_SPEC.family: SOURCE_MAP_EXPOSURE_STANDARD_SPEC,
     SECRET_EXPOSURE_STANDARD_SPEC.family: SECRET_EXPOSURE_STANDARD_SPEC,
+}
+
+FAMILY_STANDARD_SPECS: dict[str, FamilyStandardSpec] = {
+    family: apply_taxonomy_attribution(spec)
+    for family, spec in _RAW_FAMILY_STANDARD_SPECS.items()
 }
 
 
@@ -112,6 +118,8 @@ def validate_family_spec_registry() -> list[str]:
             errors.append(f"{family}:missing_writeup")
         if any(item.counts_as_target_evidence for item in spec.standard.writeups):
             errors.append(f"{family}:external_knowledge_counted_as_evidence")
+        for taxonomy_error in validate_taxonomy_attribution_spec(spec):
+            errors.append(f"{family}:{taxonomy_error}")
 
         expected_groups = tuple(
             frozenset(str(item) for item in group)
@@ -153,5 +161,6 @@ def registry_status() -> dict[str, Any]:
         "coverage_mode": "incremental_reference_implementation",
         "migrated_families": list(MIGRATED_FAMILIES),
         "knowledge_is_non_evidentiary": True,
+        "taxonomy_attribution_is_post_admission_only": True,
         "errors": validate_family_spec_registry(),
     }

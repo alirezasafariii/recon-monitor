@@ -3,6 +3,7 @@ from .base import (
     FamilyDetectionSpec,
     FamilyStandardSpec,
     MethodologyStep,
+    TaxonomyAttributionRule,
     WriteupLesson,
     compose_detection_spec,
 )
@@ -31,6 +32,13 @@ from .open_redirect import OPEN_REDIRECT_STANDARD_SPEC
 from .postmessage_trust import POSTMESSAGE_TRUST_STANDARD_SPEC
 from .graphql_authorization import GRAPHQL_AUTHORIZATION_STANDARD_SPEC
 from .ssrf import SSRF_STANDARD_SPEC
+from .taxonomy_attribution import (
+    TAXONOMY_ATTRIBUTION_RULE_VERSION,
+    TAXONOMY_ATTRIBUTION_VERSION,
+    apply_taxonomy_attribution,
+    evaluate_taxonomy_attribution,
+    validate_taxonomy_attribution_spec,
+)
 from .registry import (
     FAMILY_DETECTION_SPECS,
     FAMILY_SPEC_REGISTRY_VERSION,

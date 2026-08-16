@@ -49,12 +49,20 @@ product/evidence runtime or creating a second vulnerability-decision engine.
      dedicated analyzers: passive-only reconstruction, no knowledge-as-evidence,
      and decisive-condition gating.
 
-### Deferred before main merge
+### Integrated after the initial audit
 
-**Structured taxonomy attribution policy** from 6.33 (`direct` vs `contextual`,
-`auto_assign`, `when_any`). The current final spec stores taxonomy IDs but does
-not yet encode per-reference attribution policy. This should be added as a
-metadata/schema migration, not mixed into target-evidence admission.
+**Structured taxonomy attribution policy** is now part of the canonical final
+spec projection. Every migrated OWASP/WSTG/CWE/CAPEC reference receives a
+reviewed `direct`, `contextual`, or `methodology` relationship plus explicit
+`auto_assign` / `when_any` behavior. Assignment runs only after target-evidence
+admission is fixed. WSTG/CAPEC never auto-assign, ambiguous CWE root causes stay
+manual, and standards still contribute zero target evidence.
+
+### Remaining before main merge
+
+No Analysis 6.33 detector/reasoner runtime is intentionally pending. Remaining
+work is merge hardening: feature freeze, final diff review, full CI, and branch
+protection/PR review rather than adding a parallel reasoning engine.
 
 ## Merge principle
 

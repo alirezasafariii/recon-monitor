@@ -1,256 +1,182 @@
 from __future__ import annotations
 
-"""Structured taxonomy attribution for canonical final-analyzer families.
+"""Structured, non-evidentiary taxonomy attribution for final analyzers.
 
-Taxonomy describes and classifies an already-decided target condition. It never
-creates target evidence and never participates in admission. Attribution is
-resolved only after admission from the admitted state plus decisive target
-signals.
+Taxonomy never participates in admission. The evaluator runs only after the
+family evidence contract has decided whether a hypothesis is admitted. WSTG is
+testing methodology, CAPEC is attack-pattern context, OWASP is risk/methodology
+grounding, and CWE is assigned only where a reviewed root-cause policy permits
+it.
 """
 
-from dataclasses import dataclass
+from dataclasses import replace
 from typing import Any, Iterable
 
-TAXONOMY_ATTRIBUTION_VERSION = "1.0.2"
-TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.3"
+from .base import FamilyDetectionSpec, FamilyStandardSpec, TaxonomyAttributionRule
 
+TAXONOMY_ATTRIBUTION_VERSION = "1.0.0"
+TAXONOMY_ATTRIBUTION_RULE_VERSION = "2026.08.16.1"
 
-@dataclass(frozen=True)
-class TaxonomyAttributionRule:
-    kind: str
-    ref: str
-    mapping: str = "direct"
-    auto_assign: bool = True
-    when_any: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        if self.kind not in {"cwe", "owasp", "wstg", "capec"}:
-            raise ValueError(f"unsupported taxonomy kind: {self.kind}")
-        if self.mapping not in {"direct", "contextual"}:
-            raise ValueError(f"unsupported mapping mode: {self.mapping}")
-        if not self.ref:
-            raise ValueError("taxonomy reference is required")
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "kind": self.kind,
-            "ref": self.ref,
-            "mapping": self.mapping,
-            "auto_assign": bool(self.auto_assign),
-            "when_any": list(self.when_any),
-            "counts_as_target_evidence": False,
-        }
-
-
-def _cwe(
-    ref: str,
-    *,
-    mapping: str = "direct",
-    auto_assign: bool = True,
-    when_any: Iterable[str] = (),
-) -> TaxonomyAttributionRule:
-    return TaxonomyAttributionRule(
-        kind="cwe",
-        ref=ref,
-        mapping=mapping,
-        auto_assign=auto_assign,
-        when_any=tuple(str(value) for value in when_any),
-    )
-
-
-# Ported selectively from Analysis 6.33. The canonical final-analyzer spec is
-# authoritative for which references exist; these rules only describe how a
-# matching reference may be attributed after admission.
-FAMILY_CWE_ATTRIBUTION: dict[str, tuple[TaxonomyAttributionRule, ...]] = {
-    "broken_object_authorization": (
-        _cwe("CWE-639"),
-        _cwe("CWE-863", mapping="contextual", auto_assign=False),
+# Conservative defaults: standards are grounding first. CWE auto-assignment is
+# opt-in per reviewed family/reference below.
+_CWE_OVERRIDES: dict[tuple[str, str], tuple[str, bool, tuple[str, ...]]] = {
+    ("broken_object_authorization", "CWE-639"): ("direct", True, ()),
+    ("mass_assignment", "CWE-915"): ("direct", True, ()),
+    ("ssrf", "CWE-918"): ("direct", True, ()),
+    ("file_upload", "CWE-434"): ("direct", True, ()),
+    ("path_traversal", "CWE-22"): ("direct", True, ()),
+    ("sql_injection", "CWE-89"): ("direct", True, ()),
+    ("dom_xss", "CWE-79"): ("direct", True, ()),
+    ("cors_misconfiguration", "CWE-942"): ("direct", True, ()),
+    ("open_redirect", "CWE-601"): ("direct", True, ()),
+    ("account_enumeration", "CWE-204"): ("direct", True, ()),
+    ("postmessage_trust", "CWE-346"): (
+        "direct", True, ("untrusted_message_accepted",)
     ),
-    "broken_function_authorization": (
-        _cwe("CWE-862", mapping="contextual", auto_assign=False),
-        _cwe("CWE-863", mapping="contextual", auto_assign=False),
+    ("graphql_authorization", "CWE-639"): (
+        "direct", True,
+        ("graphql_unauthorized_object_response", "graphql_authorization_differential"),
     ),
-    "mass_assignment": (_cwe("CWE-915"),),
-    "ssrf": (_cwe("CWE-918"),),
-    "file_upload": (_cwe("CWE-434"),),
-    "path_traversal": (_cwe("CWE-22"),),
-    "sql_injection": (_cwe("CWE-89"),),
-    "dom_xss": (_cwe("CWE-79"),),
-    "cors_misconfiguration": (_cwe("CWE-942"),),
-    "authentication_session": (
-        _cwe(
-            "CWE-287",
-            mapping="contextual",
-            auto_assign=True,
-            when_any=(
-                "authentication_boundary_regression",
-                "boundary_regression",
-                "protected_to_public",
-                "session_validation_failure",
-            ),
-        ),
+    ("authentication_session", "CWE-287"): (
+        "contextual", True, ("authentication_state_violation",)
     ),
-    "open_redirect": (_cwe("CWE-601"),),
-    "postmessage_trust": (
-        _cwe(
-            "CWE-940",
-            auto_assign=True,
-            when_any=(
-                "missing_origin_check",
-                "missing_source_window_check",
-                "message_schema_unvalidated",
-            ),
-        ),
-        _cwe(
-            "CWE-346",
-            mapping="contextual",
-            auto_assign=False,
-            when_any=(
-                "missing_origin_check",
-                "wildcard_origin",
-                "missing_source_window_check",
-            ),
-        ),
+    ("authentication_session", "CWE-613"): (
+        "contextual", True, ("session_reuse_after_logout",)
     ),
-    "graphql_authorization": (
-        _cwe("CWE-862", mapping="contextual", auto_assign=False),
-        _cwe("CWE-863", mapping="contextual", auto_assign=False),
+    ("authentication_session", "CWE-640"): (
+        "contextual", True, ("recovery_bypass",)
     ),
-    "account_enumeration": (_cwe("CWE-204"),),
-    "information_disclosure": (
-        _cwe(
-            "CWE-200",
-            mapping="contextual",
-            auto_assign=True,
-            when_any=(
-                "sensitive_fields",
-                "secret_pattern",
-                "debug_information",
-                "sensitive_marker",
-                "sensitive_expansion",
-            ),
-        ),
+    # CWE-384 remains manual: token non-rotation alone does not establish session
+    # fixation without evidence that an attacker can predetermine the session.
+    ("information_disclosure", "CWE-200"): (
+        "contextual", True, ("sensitive_response_observed", "private_field_publicly_observed")
     ),
-    "source_map_exposure": (
-        _cwe(
-            "CWE-200",
-            mapping="contextual",
-            auto_assign=True,
-            when_any=("internal_sources", "source_contents"),
-        ),
+    ("source_map_exposure", "CWE-200"): (
+        "contextual", True, ("source_map_publicly_reachable", "sensitive_source_content_observed")
     ),
-    "secret_exposure": (
-        _cwe(
-            "CWE-798",
-            mapping="contextual",
-            auto_assign=True,
-            when_any=("credential_context", "token_exposure", "non_placeholder_secret"),
-        ),
-        _cwe("CWE-200", mapping="contextual", auto_assign=False),
+    # CWE-798/CWE-321 remain manual because exposed credential material need not
+    # be hard-coded. CWE-200 is safe only after actual exposure admission.
+    ("secret_exposure", "CWE-200"): (
+        "contextual", True, ("credential_material_confirmed", "live_secret_context")
     ),
 }
 
-
-def rules_for_family(family: str) -> tuple[TaxonomyAttributionRule, ...]:
-    """Resolve explicit 6.33 rules against the authoritative final spec.
-
-    Rules for references absent from the final spec are ignored. References in
-    the final spec without a reviewed explicit rule fail closed to
-    contextual/manual-only attribution rather than being guessed as direct.
-    """
-
-    family_name = str(family)
-    explicit_all = list(FAMILY_CWE_ATTRIBUTION.get(family_name, ()))
-    try:
-        from .registry import FAMILY_STANDARD_SPECS
-
-        standard = FAMILY_STANDARD_SPECS.get(family_name)
-    except (ImportError, AttributeError):
-        standard = None
-    if standard is None:
-        return tuple(explicit_all)
-
-    spec_refs = set(standard.cwe)
-    explicit = [rule for rule in explicit_all if rule.ref in spec_refs]
-    explicit_refs = {rule.ref for rule in explicit}
-    for ref in standard.cwe:
-        if ref in explicit_refs:
-            continue
-        explicit.append(_cwe(ref, mapping="contextual", auto_assign=False))
-    return tuple(explicit)
+_OWASP_CONTEXTUAL: set[tuple[str, str]] = {
+    ("account_enumeration", "A07:2025 Authentication Failures"),
+    ("information_disclosure", "A02:2025 Security Misconfiguration"),
+    ("secret_exposure", "A07:2025 Authentication Failures"),
+}
 
 
-def resolve_taxonomy_attribution(
-    family: str,
+def _default_rule(family: str, namespace: str, ref: str) -> TaxonomyAttributionRule:
+    namespace = str(namespace).lower()
+    if namespace == "wstg":
+        return TaxonomyAttributionRule(namespace, ref, "methodology", False, ())
+    if namespace == "capec":
+        return TaxonomyAttributionRule(namespace, ref, "contextual", False, ())
+    if namespace == "owasp":
+        lower = ref.lower()
+        mapping = "methodology" if "cheat sheet" in lower else (
+            "contextual" if (family, ref) in _OWASP_CONTEXTUAL else "direct"
+        )
+        return TaxonomyAttributionRule(namespace, ref, mapping, False, ())
+    override = _CWE_OVERRIDES.get((family, ref))
+    if override:
+        mapping, auto_assign, when_any = override
+        return TaxonomyAttributionRule(namespace, ref, mapping, auto_assign, when_any)
+    return TaxonomyAttributionRule(namespace, ref, "contextual", False, ())
+
+
+def apply_taxonomy_attribution(standard: FamilyStandardSpec) -> FamilyStandardSpec:
+    """Return the canonical spec with complete per-reference policy attached."""
+    rules = tuple(
+        _default_rule(standard.family, namespace, ref)
+        for namespace, refs in standard.taxonomy().items()
+        for ref in refs
+    )
+    return replace(standard, taxonomy_attribution=rules)
+
+
+def evaluate_taxonomy_attribution(
+    spec: FamilyDetectionSpec,
     *,
     admitted: bool,
-    decisive_signals: Iterable[str] = (),
+    decisive_signals: Iterable[str],
 ) -> dict[str, Any]:
-    """Resolve CWE attribution without changing the vulnerability decision."""
+    """Evaluate post-admission taxonomy metadata without changing the decision."""
+    signals = {str(item) for item in decisive_signals if str(item).strip()}
+    assigned: dict[str, list[str]] = {"owasp": [], "wstg": [], "cwe": [], "capec": []}
+    manual_review: list[dict[str, Any]] = []
+    decisions: list[dict[str, Any]] = []
 
-    rules = rules_for_family(family)
-    signals = {str(value) for value in decisive_signals if str(value)}
-    assigned: list[str] = []
-    manual: list[str] = []
-    blocked_by_conditions: list[str] = []
-
-    for rule in rules:
-        if not admitted:
-            continue
-        if not rule.auto_assign:
-            manual.append(rule.ref)
-            continue
+    for rule in spec.standard.taxonomy_attribution:
         conditions = set(rule.when_any)
-        if conditions and not (conditions & signals):
-            blocked_by_conditions.append(rule.ref)
-            continue
-        assigned.append(rule.ref)
-
-    if not admitted:
-        state = "not_admitted"
-    elif assigned:
-        state = "assigned"
-    else:
-        state = "manual_root_cause_review"
+        conditions_met = not conditions or bool(conditions & signals)
+        auto_eligible = bool(admitted and rule.auto_assign and conditions_met)
+        state = "assigned" if auto_eligible else (
+            "not_admitted" if not admitted else (
+                "conditions_not_met" if rule.auto_assign and not conditions_met else "manual_or_grounding_only"
+            )
+        )
+        row = rule.as_dict()
+        row.update({
+            "conditions_met": conditions_met,
+            "state": state,
+        })
+        decisions.append(row)
+        if auto_eligible:
+            assigned[str(rule.namespace).lower()].append(rule.ref)
+        elif admitted and rule.mapping != "methodology":
+            manual_review.append(row)
 
     return {
-        "family": str(family),
         "version": TAXONOMY_ATTRIBUTION_VERSION,
         "rule_version": TAXONOMY_ATTRIBUTION_RULE_VERSION,
-        "role": "classification_only_not_target_evidence",
-        "assigned_cwe": assigned,
-        "manual_review_cwe": manual,
-        "condition_not_met_cwe": blocked_by_conditions,
-        "assignment_state": state,
-        "rules": [rule.as_dict() for rule in rules],
+        "role": "post_admission_metadata_only",
         "counts_as_target_evidence": False,
+        "grounding_taxonomy": spec.taxonomy(),
+        "assigned_taxonomy": assigned,
+        "manual_review": manual_review,
+        "decisions": decisions,
+        "assignment_state": (
+            "assigned" if any(assigned.values()) else (
+                "manual_root_cause_review" if admitted else "not_admitted"
+            )
+        ),
     }
 
 
-def validate_taxonomy_attribution() -> list[str]:
-    """Validate effective policy coverage and reference drift against specs."""
-
-    from .registry import FAMILY_STANDARD_SPECS, MIGRATED_FAMILIES
-
+def validate_taxonomy_attribution_spec(
+    spec: FamilyDetectionSpec,
+) -> list[str]:
     errors: list[str] = []
-    if set(FAMILY_CWE_ATTRIBUTION) != set(MIGRATED_FAMILIES):
-        missing = sorted(set(MIGRATED_FAMILIES) - set(FAMILY_CWE_ATTRIBUTION))
-        extra = sorted(set(FAMILY_CWE_ATTRIBUTION) - set(MIGRATED_FAMILIES))
-        if missing:
-            errors.append(f"missing_family_policy:{','.join(missing)}")
-        if extra:
-            errors.append(f"extra_family_policy:{','.join(extra)}")
+    standard = spec.standard
+    expected = {
+        (namespace, ref)
+        for namespace, refs in standard.taxonomy().items()
+        for ref in refs
+    }
+    actual = {
+        (str(rule.namespace).lower(), rule.ref)
+        for rule in standard.taxonomy_attribution
+    }
+    if expected != actual:
+        errors.append("taxonomy_policy_coverage_drift")
+    if len(actual) != len(standard.taxonomy_attribution):
+        errors.append("duplicate_taxonomy_policy")
 
-    for family in MIGRATED_FAMILIES:
-        spec_refs = set(FAMILY_STANDARD_SPECS[family].cwe)
-        policy_refs = {rule.ref for rule in rules_for_family(family)}
-        if spec_refs != policy_refs:
-            errors.append(
-                f"{family}:cwe_policy_drift:spec={sorted(spec_refs)}:policy={sorted(policy_refs)}"
-            )
-        for rule in rules_for_family(family):
-            if rule.kind != "cwe":
-                errors.append(f"{family}:{rule.ref}:non_cwe_rule_in_cwe_policy")
-            if rule.mapping == "contextual" and rule.auto_assign and not rule.when_any:
-                errors.append(f"{family}:{rule.ref}:contextual_auto_assign_without_condition")
+    allowed_signals = set(spec.override_signals)
+    for group in spec.promotion_required:
+        allowed_signals.update(group)
+    for group in spec.confirmation_required:
+        allowed_signals.update(group)
+
+    for rule in standard.taxonomy_attribution:
+        if rule.mapping == "methodology" and rule.auto_assign:
+            errors.append(f"methodology_auto_assignment:{rule.namespace}:{rule.ref}")
+        if rule.when_any and not set(rule.when_any).issubset(allowed_signals):
+            unknown = sorted(set(rule.when_any) - allowed_signals)
+            errors.append(f"unknown_assignment_signal:{rule.ref}:{','.join(unknown)}")
+        if str(rule.namespace).lower() in {"wstg", "capec"} and rule.auto_assign:
+            errors.append(f"non_root_taxonomy_auto_assignment:{rule.namespace}:{rule.ref}")
     return errors
