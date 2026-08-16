@@ -91,7 +91,7 @@ class BolaIntelligenceV850Tests(unittest.TestCase):
         return self.db.one("SELECT * FROM analysis_hypotheses WHERE analysis_id=? AND bug_family='broken_object_authorization'", (self.analysis_id,))
 
     def test_version_contract(self):
-        self.assertEqual(APP_VERSION, "8.6.0")
+        self.assertEqual(APP_VERSION, "8.7.0")
         self.assertEqual(SCHEMA_VERSION, 18)
         self.assertEqual(BOLA_ENGINE_VERSION, "2.0.0")
         self.assertEqual(BOLA_RULE_VERSION, "2026.08.8.5")

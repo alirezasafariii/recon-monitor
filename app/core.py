@@ -25,7 +25,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
-APP_VERSION = "8.6.0"
+APP_VERSION = "8.7.0"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 
