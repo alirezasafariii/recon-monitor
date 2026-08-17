@@ -114,6 +114,28 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
         stop = source[source.index("def stop_dashboard"):source.index("def restart_dashboard")]
         self.assertIn("_dashboard_process_info(paths, pid)", stop)
 
+    def test_command_center_post_login_path_defers_deep_checks(self) -> None:
+        app = Path(__file__).parents[1].joinpath("app")
+        source = app.joinpath("dashboard_core.py").read_text(encoding="utf-8")
+        start = source.index("    def overview(self) -> None:")
+        end = source.index("    def workbench(self) -> None:", start)
+        overview = source[start:end]
+        self.assertIn("snapshot=_command_center_snapshot(db,target)", overview)
+        self.assertNotIn("operator_diagnostics(", overview)
+        self.assertNotIn("safety_center(", overview)
+        self.assertNotIn("recon_coverage(", overview)
+        self.assertNotIn("target_memory(", overview)
+        self.assertIn("'Platform health','ON DEMAND'", overview)
+        self.assertIn("'Safety gate','ON DEMAND'", overview)
+
+    def test_login_redirects_to_fast_command_center(self) -> None:
+        app = Path(__file__).parents[1].joinpath("app")
+        source = app.joinpath("dashboard_core.py").read_text(encoding="utf-8")
+        start = source.index("    def login_submit(self")
+        end = source.index("    def recon_workspace(self)", start)
+        login = source[start:end]
+        self.assertIn('self.send_header("Location","/")', login)
+
     def test_dashboard_get_routes_do_not_implicitly_sync_cases(self) -> None:
         app = Path(__file__).parents[1].joinpath("app")
         wrapper_source = app.joinpath("dashboard.py").read_text(encoding="utf-8")

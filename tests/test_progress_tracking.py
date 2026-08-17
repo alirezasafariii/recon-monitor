@@ -39,8 +39,10 @@ class FakeDB:
         self.activity = activity
         self.recon = recon
         self.stages = list(stages or [])
+        self.queries = []
 
     def one(self, sql, params=()):
+        self.queries.append(sql)
         if "FROM analysis_runs" in sql:
             return self.analysis
         if "MAX(" in sql:
@@ -93,6 +95,7 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertEqual(_health("running", stale)[0], "stalled")
         self.assertEqual(_health("failed", fresh)[0], "failed")
         self.assertEqual(_health("success", fresh)[0], "completed")
+        self.assertEqual(_health("stale", fresh)[0], "stale")
 
     def test_analysis_phase_weights_cover_full_pipeline_without_time_claims(self):
         self.assertEqual(ANALYSIS_PHASES[0][2], 0.0)
@@ -158,6 +161,71 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertEqual(snapshot["phase"], "alert_enrichment")
         self.assertEqual(snapshot["phase_percent"], 25.0)
         self.assertEqual(snapshot["estimated_percent"], 7.0)
+
+    def test_dashboard_fast_analysis_snapshot_skips_legacy_table_reconstruction(self):
+        analysis = {
+            "id": "analysis-old", "source_run_id": "run-old", "target": "example.com",
+            "status": "running", "started_at": "2026-08-16T20:00:00Z",
+            "finished_at": None, "error": None,
+        }
+        db = FakeDB(analysis=analysis, alerts=500000, results=250000, activity="2026-08-17T01:00:00Z")
+        snapshot = analysis_progress_snapshot(self.paths, db, "example.com", dashboard_fast=True)
+        self.assertEqual(snapshot["visibility"], "legacy")
+        self.assertEqual(snapshot["status"], "stale")
+        self.assertIsNone(snapshot["estimated_percent"])
+        self.assertFalse(any("MAX(" in sql for sql in db.queries))
+        self.assertFalse(any("COUNT(*) count FROM alerts" in sql for sql in db.queries))
+        self.assertFalse(any("COUNT(*) count FROM analysis_results" in sql for sql in db.queries))
+
+    def test_dashboard_fast_ignores_old_stale_running_row_after_newer_stop(self):
+        stale = {
+            "id": "analysis-old", "source_run_id": "run-1", "target": "example.com",
+            "status": "running", "started_at": "2026-08-16T16:10:16Z",
+            "finished_at": None, "error": None,
+        }
+        interrupted = {
+            "id": "analysis-new", "source_run_id": "run-1", "target": "example.com",
+            "status": "interrupted", "started_at": "2026-08-17T00:24:53Z",
+            "finished_at": "2026-08-17T00:25:10Z", "error": "Stopped by operator",
+        }
+
+        class SplitAnalysisDB(FakeDB):
+            def one(self, sql, params=()):
+                self.queries.append(sql)
+                if "FROM analysis_runs" in sql:
+                    return stale if "status='running'" in sql else interrupted
+                return None
+
+        db = SplitAnalysisDB()
+        snapshot = analysis_progress_snapshot(self.paths, db, "example.com", dashboard_fast=True)
+        self.assertEqual(snapshot["analysis_id"], "analysis-new")
+        self.assertEqual(snapshot["status"], "interrupted")
+        self.assertEqual(snapshot["health"], "cancelled")
+
+    def test_dashboard_fast_keeps_verified_live_analysis_running(self):
+        analysis = {
+            "id": "analysis-live", "source_run_id": "run-live", "target": "example.com",
+            "status": "running", "started_at": "2026-08-17T01:00:00Z",
+            "finished_at": None, "error": None,
+        }
+        db = FakeDB(analysis=analysis)
+        record = ProgressRecord(self.paths, "analysis", "run-live", "example.com")
+        record.start(phase="security_reasoning", label="Security reasoning", percent=80)
+        record.bind_analysis_id("analysis-live")
+        snapshot = analysis_progress_snapshot(self.paths, db, "example.com", dashboard_fast=True)
+        self.assertEqual(snapshot["status"], "running")
+        self.assertEqual(snapshot["analysis_id"], "analysis-live")
+        record.stop_heartbeat()
+
+    def test_analysis_dashboard_handler_never_invokes_full_renderer(self):
+        source = (APP_DIR / "progress_tracking.py").read_text(encoding="utf-8")
+        start = source.index("    def analysis_with_progress")
+        end = source.index("    def recon_with_progress")
+        handler = source[start:end]
+        self.assertIn("dashboard_fast=True", handler)
+        self.assertIn("analysis-fast-summary", handler)
+        self.assertNotIn("_capture_dashboard_html", handler)
+        self.assertNotIn("_analysis_dashboard_renderer", handler)
 
     def test_recon_snapshot_combines_stage_heartbeat_and_counter_progress(self):
         now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
