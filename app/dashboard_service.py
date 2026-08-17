@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 import signal
+import shlex
 import socket
 import subprocess
 import sys
@@ -40,13 +41,73 @@ def _alive(pid: int | None) -> bool:
     return True
 
 
-def dashboard_status(paths: AppPaths) -> tuple[bool, str]:
+def _dashboard_process_info(paths: AppPaths, pid: int | None) -> dict[str, Any] | None:
+    """Validate that a PID-file process is this checkout's dashboard foreground process."""
+    if not _alive(pid):
+        return None
+    assert pid is not None
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    command = result.stdout.strip()
+    if not command:
+        return None
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    expected_script = str((paths.app / "recon_monitor.py").resolve())
+    script_indexes = [index for index, value in enumerate(parts) if value == expected_script]
+    if not script_indexes:
+        return None
+    index = script_indexes[-1]
+    tail = parts[index + 1:]
+    if len(tail) < 2 or tail[0:2] != ["dashboard", "foreground"]:
+        return None
+
+    def option(name: str, default: str) -> str:
+        try:
+            option_index = tail.index(name)
+            return tail[option_index + 1]
+        except (ValueError, IndexError):
+            return default
+
+    host = option("--host", "127.0.0.1")
+    try:
+        port = int(option("--port", "8787"))
+    except ValueError:
+        port = 8787
+    return {"pid": pid, "host": host, "port": port, "command": command}
+
+
+def _tracked_dashboard(paths: AppPaths) -> dict[str, Any] | None:
     pid = _read_pid(paths)
-    if _alive(pid):
-        return True, f"Dashboard running (PID {pid})"
+    info = _dashboard_process_info(paths, pid)
+    if info is not None:
+        return info
+    # A live but unrelated/reused PID must never be trusted or signalled.
     with contextlib.suppress(OSError):
         _pid_path(paths).unlink()
-    return False, "Dashboard is not running"
+    return None
+
+
+def dashboard_status(paths: AppPaths) -> tuple[bool, str]:
+    info = _tracked_dashboard(paths)
+    if info is None:
+        return False, "Dashboard is not running"
+    ready = _dashboard_listener_ready(str(info["host"]), int(info["port"]), timeout=0.2)
+    suffix = "" if ready else " (process alive, listener unavailable)"
+    return True, (
+        f"Dashboard running (PID {info['pid']}) at "
+        f"http://{info['host']}:{info['port']}{suffix}"
+    )
 
 
 def _dashboard_listener_ready(host: str, port: int, timeout: float = 0.5) -> bool:
@@ -152,12 +213,26 @@ def start_dashboard(
     allow_remote: bool,
     open_browser: bool = False,
 ) -> int:
-    active, detail = dashboard_status(paths)
-    if active:
-        print(detail)
+    existing = _tracked_dashboard(paths)
+    if existing is not None:
+        existing_host = str(existing["host"])
+        existing_port = int(existing["port"])
+        existing_pid = int(existing["pid"])
+        if existing_host != host or existing_port != port:
+            raise ReconError(
+                f"Dashboard is already running (PID {existing_pid}) at "
+                f"http://{existing_host}:{existing_port}; requested http://{host}:{port}. "
+                "Stop or restart the existing dashboard before changing host/port."
+            )
+        if not _dashboard_listener_ready(host, port, timeout=0.5):
+            raise ReconError(
+                f"Dashboard process PID {existing_pid} exists for http://{host}:{port} "
+                "but is not accepting connections. Run dashboard stop, then start it again."
+            )
+        print(f"Dashboard running (PID {existing_pid}) at http://{host}:{port}")
         if open_browser:
             open_dashboard(host, port)
-        return _read_pid(paths) or 0
+        return existing_pid
 
     listener = _port_listener_details(host, port)
     if listener:
@@ -249,7 +324,8 @@ def start_dashboard(
 
 def stop_dashboard(paths: AppPaths, logger: Logger) -> bool:
     pid = _read_pid(paths)
-    if not _alive(pid):
+    info = _dashboard_process_info(paths, pid)
+    if info is None:
         with contextlib.suppress(OSError):
             _pid_path(paths).unlink()
         print("Dashboard is not running")
