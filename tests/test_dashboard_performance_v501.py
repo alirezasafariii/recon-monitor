@@ -92,6 +92,28 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
         self.assertIn("Deep vulnerability-intelligence correlation is deferred", source)
         self.assertIn("10000", source)
 
+    def test_analysis_summary_never_builds_investigation_queue(self) -> None:
+        app = Path(__file__).parents[1].joinpath("app")
+        wrapper = app.joinpath("dashboard.py").read_text(encoding="utf-8")
+        start = wrapper.index("def _analysis_engine_with_intelligence")
+        end = wrapper.index("def _bug_candidates_with_queue")
+        renderer = wrapper[start:end]
+        self.assertNotIn("_latest_analysis_queue(", renderer)
+        self.assertNotIn("investigation_queue(", renderer)
+        self.assertIn("Fast Analysis summary", renderer)
+        self.assertIn("/potential-findings#investigation-queue", renderer)
+
+    def test_dashboard_pid_file_is_identity_and_port_checked(self) -> None:
+        app = Path(__file__).parents[1].joinpath("app")
+        source = app.joinpath("dashboard_service.py").read_text(encoding="utf-8")
+        self.assertIn("def _dashboard_process_info", source)
+        self.assertIn('tail[0:2] != ["dashboard", "foreground"]', source)
+        self.assertIn("Dashboard is already running (PID", source)
+        self.assertIn("requested http://{host}:{port}", source)
+        self.assertIn("but is not accepting connections", source)
+        stop = source[source.index("def stop_dashboard"):source.index("def restart_dashboard")]
+        self.assertIn("_dashboard_process_info(paths, pid)", stop)
+
     def test_dashboard_get_routes_do_not_implicitly_sync_cases(self) -> None:
         app = Path(__file__).parents[1].joinpath("app")
         wrapper_source = app.joinpath("dashboard.py").read_text(encoding="utf-8")

@@ -24,7 +24,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.2.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.2.1"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -457,12 +457,27 @@ def _investigation_cluster_detail_panel(analysis_id: str, detail: Mapping[str, A
 
 
 def _analysis_engine_with_intelligence(self: Any) -> None:
+    # The Analysis workspace must remain an instant summary surface. Deep
+    # investigation correlation belongs to Potential Findings and is loaded only
+    # when the operator explicitly opens that workspace. This prevents a large
+    # completed/stopped run from blocking /analysis page delivery.
     title, body, status = _capture_html(self, _ORIGINAL_ANALYSIS_ENGINE)
-    analysis_id, queue = _latest_analysis_queue(self, limit=100)
+    deferred = (
+        "<section class='panel' id='vulnerability-intelligence' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Vulnerability Intelligence</h3>"
+        f"<span class='muted small'>Integration {_base._esc(DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION)} · on-demand deep correlation</span></div>"
+        + _base._pill("on demand", "info")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Fast Analysis summary</strong>"
+        "<span>Deep Meta Ranker and cross-surface Investigation Queue correlation is intentionally not computed while opening this page. "
+        "Open Potential Findings when you want the full investigation context.</span></div>"
+        "<p style='margin-top:12px'><a class='button secondary' href='/potential-findings#investigation-queue'>Open Investigation Queue →</a></p>"
+        "</div></section>"
+    )
     body = _insert_before(
         body,
         "<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Invisible Security Intelligence Core</h3>",
-        _analysis_intelligence_panel(analysis_id, queue),
+        deferred,
     )
     self.send_html(title, body, status)
 
