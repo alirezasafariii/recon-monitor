@@ -17,6 +17,7 @@ from progress_tracking import (
     ANALYSIS_PHASES,
     AnalysisProgress,
     ProgressRecord,
+    _analysis_dashboard_renderer,
     _health,
     _progress_panel,
     analysis_progress_snapshot,
@@ -194,7 +195,19 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertIn("42.5%", html)
         self.assertIn("work completion, not time remaining", html)
         self.assertIn("location.reload", html)
+        self.assertIn("10000", html)
         self.assertIn("Security reasoning", html)
+
+    def test_live_analysis_uses_lightweight_renderer_only_while_running(self):
+        default = lambda _self: None
+        lightweight = lambda _self: None
+        dash = SimpleNamespace(_ORIGINAL_ANALYSIS_ENGINE=lightweight)
+        renderer, fast = _analysis_dashboard_renderer(dash, default, {"status": "running"})
+        self.assertIs(renderer, lightweight)
+        self.assertTrue(fast)
+        renderer, fast = _analysis_dashboard_renderer(dash, default, {"status": "success"})
+        self.assertIs(renderer, default)
+        self.assertFalse(fast)
 
     def test_progress_panel_does_not_auto_refresh_completed_operation(self):
         base = SimpleNamespace(_esc=lambda value: str(value), _pill=lambda value, tone="": f"[{value}:{tone}]")

@@ -22,7 +22,7 @@ from typing import Any, Callable, Mapping
 from core import AppPaths, ReconError, atomic_write_text, json_dumps, process_alive, safe_filename, utc_now
 
 PROGRESS_TRACKING_VERSION = "1.0.0"
-PROGRESS_TRACKING_RULE_VERSION = "2026.08.17.1"
+PROGRESS_TRACKING_RULE_VERSION = "2026.08.17.2"
 HEARTBEAT_INTERVAL_SECONDS = 10
 HEALTH_ACTIVE_SECONDS = 35
 HEALTH_WAITING_SECONDS = 120
@@ -1038,7 +1038,7 @@ def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
         if stage_rows else ""
     )
     refresh = (
-        "<script>window.setTimeout(function(){ if(!document.hidden){ window.location.reload(); } }, 5000);</script>"
+        "<script>window.setTimeout(function(){ if(!document.hidden){ window.location.reload(); } }, 10000);</script>"
         if status == "running" else ""
     )
     return (
@@ -1072,6 +1072,15 @@ def _capture_dashboard_html(self: Any, renderer: Callable[[Any], None]) -> tuple
     return str(captured.get("title") or "Recon Monitor"), str(captured.get("body") or ""), int(captured.get("status") or 200)
 
 
+def _analysis_dashboard_renderer(dash: Any, default_renderer: Callable[[Any], None], snapshot: Mapping[str, Any]) -> tuple[Callable[[Any], None], bool]:
+    """Use the lightweight Analysis renderer while live progress is active."""
+    if str(snapshot.get("status") or "").lower() == "running":
+        lightweight = getattr(dash, "_ORIGINAL_ANALYSIS_ENGINE", None)
+        if callable(lightweight):
+            return lightweight, True
+    return default_renderer, False
+
+
 def _install_dashboard_tracking() -> None:
     import dashboard as dash
 
@@ -1082,7 +1091,6 @@ def _install_dashboard_tracking() -> None:
     original_recon = handler.recon_workspace
 
     def analysis_with_progress(self: Any) -> None:
-        title, body, status = _capture_dashboard_html(self, original_analysis)
         params = self.query()
         target = str((params.get("target") or [""])[0]).strip()
         db = self.db()
@@ -1090,8 +1098,19 @@ def _install_dashboard_tracking() -> None:
             snapshot = analysis_progress_snapshot(self.paths, db, target)
         finally:
             db.close()
+
+        renderer, live_fast_path = _analysis_dashboard_renderer(dash, original_analysis, snapshot)
+        title, body, status = _capture_dashboard_html(self, renderer)
         panel = _progress_panel(dash, snapshot, "Live Analysis Progress")
-        self.send_html(title, panel + body, status)
+        deferred = (
+            "<section class='panel' style='margin-top:16px'><div class='panel-body'>"
+            "<div class='callout'><strong>Live view optimized</strong>"
+            "<span>Deep vulnerability-intelligence correlation is deferred while Analysis is running. "
+            "The complete intelligence summary returns automatically after the run finishes.</span></div>"
+            "</div></section>"
+            if live_fast_path else ""
+        )
+        self.send_html(title, panel + deferred + body, status)
 
     def recon_with_progress(self: Any) -> None:
         title, body, status = _capture_dashboard_html(self, original_recon)
