@@ -5,6 +5,7 @@ import html
 import ipaddress
 import json
 import re
+import threading
 import time
 import urllib.parse
 from http import HTTPStatus
@@ -3103,27 +3104,37 @@ def serve_dashboard(paths: AppPaths, config: Config, logger: Logger, host: str =
         raise ReconError("Dashboard refuses non-loopback binding without both --allow-remote and DASHBOARD_ALLOW_REMOTE=yes")
     if not loopback and not config.bool("DASHBOARD_AUTH_ENABLED", False):
         raise ReconError("Dashboard authentication must be enabled before binding to a non-loopback address")
-    # Startup self-check is local and read-mostly. It never probes a target.
-    try:
-        diag_db = Database(paths.db)
-        try:
-            startup = operator_diagnostics(paths, config, diag_db, persist=True)
-        finally:
-            diag_db.close()
-        if startup.get("overall") == "ok":
-            logger.info("Dashboard startup self-check passed", checks=len(startup.get("checks", [])))
-        else:
-            logger.warn("Dashboard startup self-check requires attention", overall=startup.get("overall"), checks=startup.get("checks", []))
-    except Exception as exc:
-        logger.warn("Dashboard startup self-check failed", error_type=type(exc).__name__, error=str(exc)[:400])
     handler = type(
         "ConfiguredDashboardHandler",
         (DashboardHandler,),
         {"db_path": paths.db, "paths": paths, "logger": logger, "config": config},
     )
+    # Bind/listen before diagnostics so background startup readiness does not
+    # depend on database-wide health checks completing within a fixed window.
     server = ThreadingHTTPServer((host, port), handler)
     logger.info("Dashboard started", url=f"http://{host}:{port}", authentication=config.bool("DASHBOARD_AUTH_ENABLED", False))
     print(f"Dashboard: http://{host}:{port}")
+
+    def startup_self_check() -> None:
+        # Local/read-mostly diagnostics use their own connection and never probe a target.
+        try:
+            diag_db = Database(paths.db)
+            try:
+                startup = operator_diagnostics(paths, config, diag_db, persist=True)
+            finally:
+                diag_db.close()
+            if startup.get("overall") == "ok":
+                logger.info("Dashboard startup self-check passed", checks=len(startup.get("checks", [])))
+            else:
+                logger.warn("Dashboard startup self-check requires attention", overall=startup.get("overall"), checks=startup.get("checks", []))
+        except Exception as exc:
+            logger.warn("Dashboard startup self-check failed", error_type=type(exc).__name__, error=str(exc)[:400])
+
+    threading.Thread(
+        target=startup_self_check,
+        name="dashboard-startup-self-check",
+        daemon=True,
+    ).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
