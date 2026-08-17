@@ -1879,26 +1879,28 @@ class DashboardHandler(BaseHTTPRequestHandler):
         db=self.db()
         try:
             targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
+            # Keep the post-login Command Center on a bounded, DB-only fast path.
+            # Deep diagnostics, safety/audit verification, coverage reconstruction and
+            # target-memory synthesis remain available from their dedicated pages.
             snapshot=_command_center_snapshot(db,target)
-            diag=operator_diagnostics(runtime_paths,runtime_config,db,persist=False)
-            safety=safety_center(runtime_paths,runtime_config,db)
-            coverage=recon_coverage(db,target=target,persist=False) if target else None
-            memory=target_memory(db,target=target,persist=False) if target else None
         finally: db.close()
         data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
         controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
         header=_breadcrumb('Workspace','Command Center')+_page_header('Command Center','A decision-first view of what changed, what deserves attention, and the single best next action.',"<form method='post' action='/workspace/sync' style='display:inline'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='/'><button>Refresh intelligence</button></form><a class='button secondary' href='/search?q=*'>Search workspace</a>",f'Recon Monitor {APP_VERSION} · Decision workspace')
         focus_name=_esc(target) if target else 'All authorized targets'
-        hero=f"<section class='workspace-hero'><div class='workspace-hero-copy'><small>Command Center 2.0 · Decision inbox · Security stories · Coverage snapshot</small><strong>{focus_name}</strong><p>Start with the highest-value decision. Recon, analysis, findings and change intelligence stay connected, while low-value inventory stays out of the way.</p></div><div class='workspace-hero-status'><span class='status-dot'></span><span>Workspace</span><strong>{_esc(safety['status'])}</strong></div></section>"
+        hero=f"<section class='workspace-hero'><div class='workspace-hero-copy'><small>Command Center 2.0 · Decision inbox · Security stories · Coverage snapshot</small><strong>{focus_name}</strong><p>Start with the highest-value decision. Recon, analysis, findings and change intelligence stay connected, while low-value inventory stays out of the way.</p></div><div class='workspace-hero-status'><span class='status-dot'></span><span>Workspace</span><strong>FAST VIEW</strong></div></section>"
         kpis="<div class='command-kpi-row'>"+_attention_item('Decisions now',len(decisions),'Ranked actions worth analyst attention','/workbench','info')+_attention_item('High-interest changes',snapshot['high_changes'],'Material changes since the latest baseline',_query_link('/alerts',target=target),'danger')+_attention_item('High-value findings',data['high_value_candidates'],'Unreviewed candidates with priority ≥70',_query_link('/potential-findings',target=target),'orange')+_attention_item('Evidence gaps',data['needs_evidence'],'Cases blocked by missing observations',_query_link('/evidence-gaps',target=target),'amber')+'</div>'
         decision_html=''.join(_command_decision_item(item,idx) for idx,item in enumerate(decisions,1))
         inbox=f"<section class='panel'><div class='panel-head'><div><h3>What needs your attention?</h3><span class='muted small'>Decision inbox · ranked across run health, potential findings, open cases and material surface changes.</span></div><a class='small' href='/workbench'>Full review queue →</a></div><div class='panel-body command-decision-list'>{decision_html or _empty('Nothing urgent is competing for attention','Refresh workspace intelligence or run the next authorized recon.')}</div></section>"
         action=f"<section class='command-primary-action'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><h2>{_esc(next_action.get('title'))}</h2><p>{_esc(next_action.get('detail'))}</p><a class='button' href='{_esc(next_action.get('href') or '/')}'>Open next action →</a></section>"
         latest_run_label=str(latest_run.get('status')) if latest_run else 'No run yet'; latest_run_meta=(str(latest_run.get('finished_at') or latest_run.get('started_at') or '') if latest_run else 'Create a baseline to unlock change intelligence')
         latest_analysis_label=str(latest_analysis.get('id')) if latest_analysis else 'No analysis'; latest_analysis_meta=(str(latest_analysis.get('finished_at') or latest_analysis.get('started_at') or '') if latest_analysis else 'Analysis will appear after collected evidence is processed')
-        pulse_rows=[('Latest recon',latest_run_label,latest_run_meta),('Latest analysis',latest_analysis_label,latest_analysis_meta),('Platform health',str(diag['overall']).upper(),'Subsystem diagnostics'),('Safety gate',str(safety['status']),'Authorization, scope and audit integrity')]
-        if coverage: pulse_rows.append(('Recon confidence',str(coverage['overall'])+'%','Coverage / blind-spot estimate, not a security conclusion'))
-        if memory: pulse_rows.append(('Target memory',str(memory['confidence'])+'%','Persistent target context confidence'))
+        pulse_rows=[
+            ('Latest recon',latest_run_label,latest_run_meta),
+            ('Latest analysis',latest_analysis_label,latest_analysis_meta),
+            ('Platform health','ON DEMAND','Open Diagnostics for a full subsystem check'),
+            ('Safety gate','ON DEMAND','Open Safety Center for authorization, scope and audit integrity'),
+        ]
         pulse=''.join(f"<div class='pulse-row'><div><span>{_esc(label)}</span><small>{_esc(detail)}</small></div><b>{_esc(value)}</b></div>" for label,value,detail in pulse_rows)
         side=f"<aside class='stack'>{action}<section class='panel'><div class='panel-head'><h3>Workspace pulse</h3><a class='small' href='/diagnostics'>Diagnostics</a></div><div class='panel-body command-pulse'>{pulse}</div></section></aside>"
         change_cards=[]

@@ -120,6 +120,8 @@ def _health(status: str, heartbeat_at: Any, *, heartbeat_available: bool = True)
         return "cancelled", "Operation was stopped before completion"
     if normalized == "failed":
         return "failed", "Operation stopped with an error"
+    if normalized == "stale":
+        return "stale", "Stored Analysis state says running, but no matching live process could be verified"
     if normalized != "running":
         return "unknown", "No active operation"
     if not heartbeat_available:
@@ -824,23 +826,86 @@ def _latest_analysis_activity(db: Any, analysis_id: str) -> str:
     return max(candidates, key=lambda value: _parse_time(value) or dt.datetime.min.replace(tzinfo=dt.timezone.utc))
 
 
-def analysis_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[str, Any]:
+def analysis_progress_snapshot(paths: AppPaths, db: Any, target: str = "", *, dashboard_fast: bool = False) -> dict[str, Any]:
     params: tuple[Any, ...] = ()
     where = ""
     if target:
         where = "WHERE target=?"
         params = (target,)
-    row = db.one(
-        f"SELECT id,source_run_id,target,status,started_at,finished_at,error FROM analysis_runs {where} "
-        "ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, COALESCE(finished_at,started_at) DESC LIMIT 1",
-        params,
-    )
+
+    stored: dict[str, Any] = {}
+    live_running = False
+    row = None
+    if dashboard_fast:
+        running_where = "WHERE status='running'"
+        running_params: tuple[Any, ...] = ()
+        if target:
+            running_where += " AND target=?"
+            running_params = (target,)
+        running_row = db.one(
+            f"SELECT id,source_run_id,target,status,started_at,finished_at,error FROM analysis_runs {running_where} "
+            "ORDER BY started_at DESC LIMIT 1",
+            running_params,
+        )
+        if running_row:
+            running_value = dict(running_row)
+            running_run = str(running_value["source_run_id"])
+            running_target = str(running_value["target"] or "*")
+            candidate = _load_json(_progress_path(paths, "analysis", running_run, running_target))
+            bound = str(candidate.get("analysis_id") or "") == str(running_value["id"])
+            try:
+                pid = int(candidate.get("pid") or 0)
+            except (TypeError, ValueError):
+                pid = 0
+            live_running = bool(
+                bound
+                and str(candidate.get("status") or "").lower() == "running"
+                and pid > 1
+                and process_alive(pid)
+            )
+            if live_running:
+                row = running_row
+                stored = candidate
+
+        if row is None:
+            row = db.one(
+                f"SELECT id,source_run_id,target,status,started_at,finished_at,error FROM analysis_runs {where} "
+                "ORDER BY started_at DESC LIMIT 1",
+                params,
+            )
+            if row:
+                latest = dict(row)
+                stored = _load_json(
+                    _progress_path(paths, "analysis", str(latest["source_run_id"]), str(latest["target"] or "*"))
+                )
+    else:
+        row = db.one(
+            f"SELECT id,source_run_id,target,status,started_at,finished_at,error FROM analysis_runs {where} "
+            "ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, COALESCE(finished_at,started_at) DESC LIMIT 1",
+            params,
+        )
+        if row:
+            selected = dict(row)
+            stored = _load_json(
+                _progress_path(paths, "analysis", str(selected["source_run_id"]), str(selected["target"] or "*"))
+            )
+
     if not row:
         return {"kind": "analysis", "status": "not_run", "health": "unknown", "estimated_percent": None}
     value = dict(row)
     run_id = str(value["source_run_id"])
     row_target = str(value["target"] or "*")
-    stored = _load_json(_progress_path(paths, "analysis", run_id, row_target))
+
+    if dashboard_fast and str(value.get("status") or "").lower() == "running" and not live_running:
+        exact_progress = str(stored.get("analysis_id") or "") == str(value["id"])
+        progress_status = str(stored.get("status") or "").lower() if exact_progress else ""
+        if progress_status in {"success", "failed", "interrupted", "cancelled"}:
+            value["status"] = progress_status
+        else:
+            value["status"] = "stale"
+            if not value.get("error"):
+                value["error"] = "Stored Analysis row is marked running, but no matching live Analysis process was verified"
+
     heartbeat_available = bool(stored and str(stored.get("analysis_id") or "") in {"", str(value["id"])})
     payload = {
         "kind": "analysis",
@@ -862,7 +927,7 @@ def analysis_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> di
         "last_progress_at": stored.get("last_progress_at") if heartbeat_available else None,
         "visibility": "live" if heartbeat_available else "legacy",
     }
-    if not heartbeat_available and payload["status"] == "running":
+    if not heartbeat_available and payload["status"] == "running" and not dashboard_fast:
         activity = _latest_analysis_activity(db, str(value["id"]))
         payload["last_progress_at"] = activity or None
         payload["activity_age_seconds"] = _age_seconds(activity)
@@ -993,6 +1058,7 @@ def _progress_tone(health: str) -> str:
         "failed": "danger",
         "cancelled": "amber",
         "completed": "success",
+        "stale": "amber",
     }.get(str(health), "neutral")
 
 
@@ -1095,22 +1161,40 @@ def _install_dashboard_tracking() -> None:
         target = str((params.get("target") or [""])[0]).strip()
         db = self.db()
         try:
-            snapshot = analysis_progress_snapshot(self.paths, db, target)
+            # Dashboard navigation must never perform legacy progress reconstruction
+            # or invoke the historical Analysis renderer. Those paths can aggregate
+            # large evidence/candidate tables on populated databases.
+            snapshot = analysis_progress_snapshot(self.paths, db, target, dashboard_fast=True)
         finally:
             db.close()
 
-        renderer, live_fast_path = _analysis_dashboard_renderer(dash, original_analysis, snapshot)
-        title, body, status = _capture_dashboard_html(self, renderer)
         panel = _progress_panel(dash, snapshot, "Live Analysis Progress")
-        deferred = (
-            "<section class='panel' style='margin-top:16px'><div class='panel-body'>"
-            "<div class='callout'><strong>Live view optimized</strong>"
-            "<span>Deep vulnerability-intelligence correlation is deferred while Analysis is running. "
-            "The complete intelligence summary returns automatically after the run finishes.</span></div>"
-            "</div></section>"
-            if live_fast_path else ""
+        analysis_id = str(snapshot.get("analysis_id") or "")
+        run_id = str(snapshot.get("run_id") or "")
+        row_target = str(snapshot.get("target") or target or "*")
+        status = str(snapshot.get("status") or "not_run")
+        summary = (
+            "<section class='panel' id='analysis-fast-summary' style='margin-top:16px'>"
+            "<div class='panel-head'><div><h3>Analysis workspace</h3>"
+            "<span class='muted small'>Fast status surface · deep summaries are on demand</span></div>"
+            + dash._pill(status)
+            + "</div><div class='panel-body'>"
+            "<div class='attention-grid'>"
+            f"<div class='attention-card'><span>Analysis</span><strong>{dash._esc(analysis_id or '—')}</strong><small>latest tracked analysis</small></div>"
+            f"<div class='attention-card'><span>Source run</span><strong>{dash._esc(run_id or '—')}</strong><small>recon evidence source</small></div>"
+            f"<div class='attention-card'><span>Target</span><strong>{dash._esc(row_target)}</strong><small>analysis scope</small></div>"
+            f"<div class='attention-card'><span>Status</span><strong>{dash._esc(status)}</strong><small>current analysis state</small></div>"
+            "</div>"
+            "<div class='callout' style='margin-top:14px'><strong>Fast Analysis view</strong>"
+            "<span>Deep vulnerability-intelligence correlation is deferred. Evidence totals, candidate aggregation, quality metrics and deep reasoning are intentionally loaded only when you open their dedicated views.</span></div>"
+            "<div class='page-actions' style='margin-top:14px'>"
+            "<a class='button' href='/potential-findings'>Potential Findings</a>"
+            "<a class='button secondary' href='/analysis-quality'>Analysis Quality</a>"
+            "<a class='button secondary' href='/security-reasoning'>Security Reasoning</a>"
+            "<a class='button secondary' href='/candidate-quality'>Candidate Quality</a>"
+            "</div></div></section>"
         )
-        self.send_html(title, panel + deferred + body, status)
+        self.send_html("Analysis", panel + summary)
 
     def recon_with_progress(self: Any) -> None:
         title, body, status = _capture_dashboard_html(self, original_recon)
