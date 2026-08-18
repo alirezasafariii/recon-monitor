@@ -22,7 +22,7 @@ from typing import Any, Callable, Mapping
 from core import AppPaths, ReconError, atomic_write_text, json_dumps, process_alive, safe_filename, utc_now
 
 PROGRESS_TRACKING_VERSION = "1.0.0"
-PROGRESS_TRACKING_RULE_VERSION = "2026.08.17.2"
+PROGRESS_TRACKING_RULE_VERSION = "2026.08.18.1"
 HEARTBEAT_INTERVAL_SECONDS = 10
 HEALTH_ACTIVE_SECONDS = 35
 HEALTH_WAITING_SECONDS = 120
@@ -121,7 +121,7 @@ def _health(status: str, heartbeat_at: Any, *, heartbeat_available: bool = True)
     if normalized == "failed":
         return "failed", "Operation stopped with an error"
     if normalized == "stale":
-        return "stale", "Stored Analysis state says running, but no matching live process could be verified"
+        return "stale", "Stored operation state says running, but no matching live process could be verified"
     if normalized != "running":
         return "unknown", "No active operation"
     if not heartbeat_available:
@@ -962,54 +962,266 @@ def analysis_progress_snapshot(paths: AppPaths, db: Any, target: str = "", *, da
 
 
 def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[str, Any]:
-    params: tuple[Any, ...] = ()
-    where = ""
+    select_sql = (
+        "SELECT rt.run_id,rt.target,rt.status,rt.started_at,rt.finished_at,"
+        "rt.current_stage,rt.run_dir,r.status run_status "
+        "FROM run_targets rt JOIN runs r ON r.id=rt.run_id "
+    )
+
     if target:
-        where = "WHERE rt.target=?"
-        params = (target,)
-    row = db.one(
-        "SELECT rt.run_id,rt.target,rt.status,rt.started_at,rt.finished_at,rt.current_stage,rt.run_dir,r.status run_status "
-        "FROM run_targets rt JOIN runs r ON r.id=rt.run_id " + where +
-        " ORDER BY CASE rt.status WHEN 'running' THEN 0 ELSE 1 END, COALESCE(rt.finished_at,rt.started_at) DESC LIMIT 1",
+        running_where = "WHERE rt.status='running' AND rt.target=?"
+        terminal_where = "WHERE rt.status!='running' AND rt.target=?"
+        params: tuple[Any, ...] = (target,)
+    else:
+        running_where = "WHERE rt.status='running'"
+        terminal_where = "WHERE rt.status!='running'"
+        params = ()
+
+    running_row = db.one(
+        select_sql
+        + running_where
+        + " ORDER BY rt.started_at DESC LIMIT 1",
         params,
     )
+
+    terminal_row = db.one(
+        select_sql
+        + terminal_where
+        + " ORDER BY COALESCE(rt.finished_at,rt.started_at) DESC LIMIT 1",
+        params,
+    )
+
+    if not running_row and not terminal_row:
+        return {
+            "kind": "recon",
+            "status": "not_run",
+            "health": "unknown",
+            "estimated_percent": None,
+            "stages": [],
+        }
+
+    def stored_for(candidate: Any) -> dict[str, Any]:
+        if not candidate:
+            return {}
+        item = dict(candidate)
+        return _load_json(
+            _progress_path(
+                paths,
+                "recon",
+                str(item["run_id"]),
+                str(item["target"]),
+            )
+        )
+
+    def activity_time(candidate: Any, stored_value: Mapping[str, Any]) -> dt.datetime | None:
+        if not candidate:
+            return None
+        item = dict(candidate)
+        values = (
+            stored_value.get("finished_at"),
+            stored_value.get("updated_at"),
+            stored_value.get("heartbeat_at"),
+            item.get("finished_at"),
+            item.get("started_at"),
+        )
+        parsed = [
+            value
+            for value in (_parse_time(raw) for raw in values)
+            if value is not None
+        ]
+        return max(parsed) if parsed else None
+
+    running_stored = stored_for(running_row)
+    running_progress_status = str(
+        running_stored.get("status") or ""
+    ).lower()
+
+    live_running = False
+
+    if running_row:
+        running_value = dict(running_row)
+
+        try:
+            pid = int(running_stored.get("pid") or 0)
+        except (TypeError, ValueError):
+            pid = 0
+
+        record_matches = bool(
+            running_stored
+            and str(running_stored.get("run_id") or "")
+            == str(running_value["run_id"])
+            and str(running_stored.get("target") or "")
+            == str(running_value["target"])
+        )
+
+        live_running = bool(
+            record_matches
+            and running_progress_status == "running"
+            and pid > 1
+            and process_alive(pid)
+        )
+
+    row = None
+    stored: dict[str, Any] = {}
+    status_override = ""
+
+    if live_running:
+        row = running_row
+        stored = running_stored
+
+    elif running_row:
+        terminal_stored = stored_for(terminal_row)
+
+        running_activity = activity_time(
+            running_row,
+            running_stored,
+        )
+
+        terminal_activity = activity_time(
+            terminal_row,
+            terminal_stored,
+        )
+
+        prefer_terminal = bool(
+            terminal_row
+            and (
+                running_activity is None
+                or (
+                    terminal_activity is not None
+                    and terminal_activity >= running_activity
+                )
+            )
+        )
+
+        if prefer_terminal:
+            row = terminal_row
+            stored = terminal_stored
+        else:
+            row = running_row
+            stored = running_stored
+
+            if running_progress_status in {
+                "success",
+                "failed",
+                "interrupted",
+                "cancelled",
+            }:
+                status_override = running_progress_status
+            else:
+                status_override = "stale"
+
+    else:
+        row = terminal_row
+        stored = stored_for(terminal_row)
+
     if not row:
-        return {"kind": "recon", "status": "not_run", "health": "unknown", "estimated_percent": None, "stages": []}
+        return {
+            "kind": "recon",
+            "status": "not_run",
+            "health": "unknown",
+            "estimated_percent": None,
+            "stages": [],
+        }
+
     value = dict(row)
     run_id = str(value["run_id"])
     row_target = str(value["target"])
-    stored = _load_json(_progress_path(paths, "recon", run_id, row_target))
+
     rows = db.all(
-        "SELECT stage,status,started_at,finished_at,heartbeat_at,duration_seconds,metrics_json,error FROM stage_runs "
+        "SELECT stage,status,started_at,finished_at,heartbeat_at,"
+        "duration_seconds,metrics_json,error FROM stage_runs "
         "WHERE run_id=? AND target=? ORDER BY rowid",
         (run_id, row_target),
     )
-    by_stage = {str(item["stage"]): dict(item) for item in rows}
-    current_stage = str(value.get("current_stage") or stored.get("phase") or "")
+
+    by_stage = {
+        str(item["stage"]): dict(item)
+        for item in rows
+    }
+
+    current_stage = str(
+        value.get("current_stage")
+        or stored.get("phase")
+        or ""
+    )
+
     current_row = by_stage.get(current_stage, {})
-    heartbeat_candidates = [stored.get("heartbeat_at"), current_row.get("heartbeat_at")]
+
+    heartbeat_candidates = [
+        stored.get("heartbeat_at"),
+        current_row.get("heartbeat_at"),
+    ]
+
     heartbeat = max(
-        (str(v) for v in heartbeat_candidates if _parse_time(v)),
-        key=lambda v: _parse_time(v) or dt.datetime.min.replace(tzinfo=dt.timezone.utc),
+        (
+            str(item)
+            for item in heartbeat_candidates
+            if _parse_time(item)
+        ),
+        key=lambda item: (
+            _parse_time(item)
+            or dt.datetime.min.replace(
+                tzinfo=dt.timezone.utc
+            )
+        ),
         default="",
     )
-    status = str(value["status"] or value["run_status"] or "")
-    stage_index = RECON_STAGE_INDEX.get(current_stage, 0)
-    estimated_percent: float | None = stored.get("estimated_percent") if stored else None
+
+    status = status_override or str(
+        value.get("status")
+        or value.get("run_status")
+        or ""
+    )
+
+    stage_index = RECON_STAGE_INDEX.get(
+        current_stage,
+        0,
+    )
+
+    estimated_percent: float | None = (
+        stored.get("estimated_percent")
+        if stored
+        else None
+    )
+
     if status == "success":
         estimated_percent = 100.0
     elif estimated_percent is None and stage_index:
-        estimated_percent = round((stage_index - 1) * 100.0 / len(RECON_STAGES), 1)
+        estimated_percent = round(
+            (stage_index - 1)
+            * 100.0
+            / len(RECON_STAGES),
+            1,
+        )
+
     stages: list[dict[str, Any]] = []
-    for index, (name, label) in enumerate(RECON_STAGES, 1):
+
+    for index, (name, label) in enumerate(
+        RECON_STAGES,
+        1,
+    ):
         stage_row = by_stage.get(name, {})
-        stage_status = str(stage_row.get("status") or ("pending" if index >= stage_index else "unknown"))
+
+        stage_status = str(
+            stage_row.get("status")
+            or (
+                "pending"
+                if index >= stage_index
+                else "unknown"
+            )
+        )
+
         phase_percent = None
-        current = total = None
+        current = None
+        total = None
+
         if name == current_stage and stored:
-            phase_percent = stored.get("phase_percent")
+            phase_percent = stored.get(
+                "phase_percent"
+            )
             current = stored.get("current")
             total = stored.get("total")
+
         stages.append({
             "stage": name,
             "label": label,
@@ -1017,12 +1229,41 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
             "phase_percent": phase_percent,
             "current": current,
             "total": total,
-            "heartbeat_at": stage_row.get("heartbeat_at"),
-            "duration_seconds": stage_row.get("duration_seconds"),
-            "error": str(stage_row.get("error") or ""),
+            "heartbeat_at": stage_row.get(
+                "heartbeat_at"
+            ),
+            "duration_seconds": stage_row.get(
+                "duration_seconds"
+            ),
+            "error": str(
+                stage_row.get("error")
+                or ""
+            ),
         })
+
     heartbeat_available = bool(heartbeat)
-    health, health_detail = _health(status, heartbeat, heartbeat_available=heartbeat_available)
+
+    health, health_detail = _health(
+        status,
+        heartbeat,
+        heartbeat_available=heartbeat_available,
+    )
+
+    finished_at = str(
+        value.get("finished_at")
+        or (
+            stored.get("finished_at")
+            if status in {
+                "success",
+                "failed",
+                "interrupted",
+                "cancelled",
+            }
+            else ""
+        )
+        or ""
+    )
+
     return {
         "kind": "recon",
         "run_id": run_id,
@@ -1031,21 +1272,75 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
         "health": health,
         "health_detail": health_detail,
         "estimated_percent": estimated_percent,
-        "phase_percent": stored.get("phase_percent") if stored else None,
+        "phase_percent": (
+            stored.get("phase_percent")
+            if stored
+            else None
+        ),
         "phase": current_stage,
-        "phase_label": RECON_STAGE_LABEL.get(current_stage, current_stage.replace("_", " ").title() if current_stage else "—"),
-        "current": stored.get("current") if stored else None,
-        "total": stored.get("total") if stored else None,
-        "message": stored.get("message") if stored else "",
+        "phase_label": RECON_STAGE_LABEL.get(
+            current_stage,
+            (
+                current_stage
+                .replace("_", " ")
+                .title()
+                if current_stage
+                else "—"
+            ),
+        ),
+        "current": (
+            stored.get("current")
+            if stored
+            else None
+        ),
+        "total": (
+            stored.get("total")
+            if stored
+            else None
+        ),
+        "message": (
+            stored.get("message")
+            if stored
+            else ""
+        ),
         "heartbeat_at": heartbeat or None,
-        "heartbeat_age_seconds": _age_seconds(heartbeat),
-        "last_progress_at": stored.get("last_progress_at") if stored else None,
-        "progress_age_seconds": _age_seconds(stored.get("last_progress_at")) if stored else None,
-        "started_at": str(value.get("started_at") or ""),
-        "finished_at": str(value.get("finished_at") or ""),
-        "elapsed_seconds": _elapsed_seconds(value.get("started_at"), value.get("finished_at") if status != "running" else None),
-        "error": str(current_row.get("error") or ""),
-        "visibility": "live" if stored else "stage_heartbeat_only",
+        "heartbeat_age_seconds": (
+            _age_seconds(heartbeat)
+        ),
+        "last_progress_at": (
+            stored.get("last_progress_at")
+            if stored
+            else None
+        ),
+        "progress_age_seconds": (
+            _age_seconds(
+                stored.get("last_progress_at")
+            )
+            if stored
+            else None
+        ),
+        "started_at": str(
+            value.get("started_at")
+            or ""
+        ),
+        "finished_at": finished_at,
+        "elapsed_seconds": _elapsed_seconds(
+            value.get("started_at"),
+            (
+                finished_at
+                if status != "running"
+                else None
+            ),
+        ),
+        "error": str(
+            current_row.get("error")
+            or ""
+        ),
+        "visibility": (
+            "live"
+            if stored
+            else "stage_heartbeat_only"
+        ),
         "stages": stages,
     }
 
