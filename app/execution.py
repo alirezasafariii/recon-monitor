@@ -3,7 +3,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
 from core import Database, ReconError, TargetPolicy, safe_json_loads, utc_now
@@ -24,6 +24,10 @@ class BudgetManager:
     target: str
     policy: TargetPolicy
     started_monotonic: float
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        repr=False,
+    )
 
     @classmethod
     def create(cls, db: Database, run_id: str, target: str, policy: TargetPolicy) -> "BudgetManager":
@@ -43,11 +47,20 @@ class BudgetManager:
             raise BudgetExceeded("runtime_seconds", elapsed, limit)
 
     def consume(self, metric: str, amount: int = 1) -> tuple[int, int]:
-        self.check_runtime()
-        used, limit_value, allowed = self.db.budget_consume(self.run_id, self.target, metric, amount)
-        if limit_value and not allowed:
-            raise BudgetExceeded(metric, used, limit_value)
-        return used, limit_value
+        # BudgetManager is shared by concurrent stage workers.
+        # Serialize access to the shared Database connection so two workers
+        # cannot open overlapping SQLite transactions on the same connection.
+        with self._lock:
+            self.check_runtime()
+            used, limit_value, allowed = self.db.budget_consume(
+                self.run_id,
+                self.target,
+                metric,
+                amount,
+            )
+            if limit_value and not allowed:
+                raise BudgetExceeded(metric, used, limit_value)
+            return used, limit_value
 
     def snapshot(self) -> dict[str, dict[str, int]]:
         rows = self.db.all(
@@ -74,7 +87,48 @@ class WorkQueue:
         return self._write(lambda db: db.enqueue_work(self.run_id, self.target, self.stage, item_key, payload))
 
     def completed(self, item_key: str) -> bool:
-        return self.db.work_status(self.run_id, self.target, self.stage, item_key) == "completed"
+        return self.db.work_status(
+            self.run_id,
+            self.target,
+            self.stage,
+            item_key,
+        ) == "completed"
+
+    def start(self, work_id: int, worker_id: str = "local") -> None:
+        self._write(
+            lambda db: db.work_start(
+                work_id,
+                worker_id,
+            )
+        )
+
+    def finish(
+        self,
+        work_id: int,
+        result: Mapping[str, Any] | None = None,
+    ) -> None:
+        payload = dict(result or {})
+        self._write(
+            lambda db: db.work_finish(
+                work_id,
+                payload,
+            )
+        )
+
+    def fail(
+        self,
+        work_id: int,
+        error: str,
+        *,
+        retry: bool = True,
+    ) -> None:
+        self._write(
+            lambda db: db.work_fail(
+                work_id,
+                error,
+                retry=retry,
+            )
+        )
 
     def run_item(self, item_key: str, fn: Callable[[], Mapping[str, Any] | None], payload: Mapping[str, Any] | None = None, worker_id: str = "local") -> Mapping[str, Any]:
         work_id = self.enqueue(item_key, payload)
@@ -82,13 +136,13 @@ class WorkQueue:
         if status == "completed":
             row = self.db.one("SELECT result_json FROM work_items WHERE id=?", (work_id,))
             return safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
-        self._write(lambda db: db.work_start(work_id, worker_id))
+        self.start(work_id, worker_id)
         try:
             result = dict(fn() or {})
         except Exception as exc:
-            self._write(lambda db: db.work_fail(work_id, str(exc), retry=True))
+            self.fail(work_id, str(exc), retry=True)
             raise
-        self._write(lambda db: db.work_finish(work_id, result))
+        self.finish(work_id, result)
         return result
 
     def counts(self) -> dict[str, int]:

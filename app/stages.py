@@ -372,6 +372,35 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     }
 
 
+def _katana_candidate_malformed(value: str) -> bool:
+    """Reject structurally malformed crawler URLs without reducing recall.
+
+    Only path/authority backslashes are rejected here. Query-string values are
+    intentionally left untouched because an encoded backslash may be legitimate
+    application data rather than a malformed URL path.
+    """
+    raw = str(value or "").strip()
+
+    if not raw:
+        return True
+
+    try:
+        parsed = urllib.parse.urlsplit(raw)
+    except ValueError:
+        return True
+
+    try:
+        decoded_path = urllib.parse.unquote(parsed.path)
+        decoded_netloc = urllib.parse.unquote(parsed.netloc)
+    except Exception:
+        return True
+
+    return (
+        "\\" in decoded_path
+        or "\\" in decoded_netloc
+    )
+
+
 def stage_urls(ctx: StageContext) -> dict[str, Any]:
     hosts_file = ctx.current / "resolved-hosts.txt"
     hosts = _scope_hosts(ctx.policy, hosts_file.read_text(encoding="utf-8", errors="replace").splitlines() if hosts_file.exists() else ctx.policy.roots)
@@ -382,6 +411,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
 
     candidates: dict[str, set[str]] = {}
+    katana_rejected_malformed = 0
+
     for url in base_urls:
         candidates.setdefault(url + "/" if not url.endswith("/") else url, set()).add("base")
 
@@ -423,10 +454,32 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         if result.returncode not in {0, 1}:
             ctx.logger.warn("katana failed", target=ctx.policy.name, exit=result.returncode)
         if out.exists():
-            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
-                normalized = normalize_url(line)
-                if normalized and ctx.policy.url_in_scope(normalized):
-                    candidates.setdefault(normalized, set()).add("katana")
+            for line in out.read_text(
+                encoding="utf-8",
+                errors="replace",
+            ).splitlines():
+                raw_candidate = line.strip()
+
+                if _katana_candidate_malformed(
+                    raw_candidate
+                ):
+                    katana_rejected_malformed += 1
+                    continue
+
+                normalized = normalize_url(
+                    raw_candidate
+                )
+
+                if (
+                    normalized
+                    and ctx.policy.url_in_scope(
+                        normalized
+                    )
+                ):
+                    candidates.setdefault(
+                        normalized,
+                        set(),
+                    ).add("katana")
 
     urls = sorted(candidates)[: ctx.policy.limits.max_urls]
     if ctx.budget:
@@ -460,7 +513,16 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     write_jsonl(ctx.current / "urls.jsonl", rows)
     atomic_write_text(ctx.current / "urls.txt", "".join(f"{url}\n" for url in urls))
     atomic_write_text(ctx.changes / "new-urls.txt", "".join(f"{url}\n" for url in new_urls))
-    return {"hosts": len(hosts), "urls": len(urls), "new": new_count, "classified_endpoints": classified_count, "truncated": len(candidates) > len(urls)}
+    return {
+        "hosts": len(hosts),
+        "urls": len(urls),
+        "new": new_count,
+        "classified_endpoints": classified_count,
+        "truncated": len(candidates) > len(urls),
+        "katana_rejected_malformed": (
+            katana_rejected_malformed
+        ),
+    }
 
 
 class _ScopedRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -502,14 +564,59 @@ def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]
             return {
                 "url": url,
                 "final_url": final_url,
+                "status_code": int(
+                    getattr(
+                        response,
+                        "status",
+                        0,
+                    )
+                    or 0
+                ),
                 "data": data,
                 "content_type": content_type,
                 "etag": response.headers.get("ETag", ""),
                 "last_modified": response.headers.get("Last-Modified", ""),
                 "duration": time.monotonic() - started,
             }
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, socket.timeout, ValueError) as exc:
-        return {"url": url, "error": str(exc), "duration": time.monotonic() - started}
+    except urllib.error.HTTPError as exc:
+        status_code = int(exc.code or 0)
+        error_text = str(exc)
+
+        # HTTPError can own a response/file object. Close it after extracting
+        # the status/error text so repeated probes and tests do not leak it.
+        with contextlib.suppress(Exception):
+            exc.close()
+
+        # A 404/410 is a definitive HTTP result, not a transport/runtime
+        # failure. Preserve it separately so JavaScript discovery can report
+        # stale/not-found candidates without polluting the error count or
+        # retrying them during resume.
+        if status_code in {404, 410}:
+            return {
+                "url": url,
+                "status_code": status_code,
+                "not_found": True,
+                "duration": time.monotonic() - started,
+            }
+
+        return {
+            "url": url,
+            "status_code": status_code,
+            "error": error_text,
+            "duration": time.monotonic() - started,
+        }
+
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        socket.timeout,
+        ValueError,
+    ) as exc:
+        return {
+            "url": url,
+            "error": str(exc),
+            "duration": time.monotonic() - started,
+        }
 
 
 def _find_source_map_url(js_url: str, text: str) -> str:
@@ -530,14 +637,35 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     if not js_urls:
         for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "new-js-indicators.tsv"):
             atomic_write_text(ctx.changes / filename, "")
-        return {"files": 0, "downloaded": 0, "new": 0, "raw_changed": 0, "semantic_changed": 0, "indicators": 0, "diffs": 0}
+        write_jsonl(
+            ctx.current / "javascript-not-found.jsonl",
+            [],
+        )
+        write_jsonl(
+            ctx.current / "javascript-availability.jsonl",
+            [],
+        )
+        return {
+            "files": 0,
+            "downloaded": 0,
+            "new": 0,
+            "raw_changed": 0,
+            "semantic_changed": 0,
+            "indicators": 0,
+            "diffs": 0,
+            "not_found": 0,
+            "errors": 0,
+            "availability_changes": 0,
+            "reappeared": 0,
+            "disappeared": 0,
+        }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
     work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
     work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "allowed_roots": ctx.policy.roots}) for url in pending_urls}
     for url, work_id in work_ids.items():
-        ctx.db.work_start(work_id, "local-js")
+        work_queue.start(work_id, "local-js")
     results: list[dict[str, Any]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(_download_url, ctx, url, ctx.policy.limits.max_js_bytes): url for url in pending_urls}
@@ -546,7 +674,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             try:
                 result = future.result()
             except Exception as exc:
-                ctx.db.work_fail(work_ids[url], str(exc), retry=True)
+                work_queue.fail(
+                    work_ids[url],
+                    str(exc),
+                    retry=True,
+                )
                 result = {"url": url, "error": str(exc)}
             results.append(result)
             ctx.progress.update(index, len(js_urls), f"downloaded={sum(1 for x in results if 'data' in x)}")
@@ -562,25 +694,263 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     diff_count = 0
     classified_endpoints = 0
     errors: list[dict[str, str]] = []
+    not_found: list[dict[str, Any]] = []
+
+    availability_rows: list[dict[str, Any]] = []
+    availability_changes = 0
+    reappeared = 0
+    disappeared = 0
+
+    def record_availability(
+        url: str,
+        state: str,
+        *,
+        status_code: int = 0,
+        content_type: str = "",
+        error: str = "",
+        raw_hash: str = "",
+        semantic_hash: str = "",
+    ) -> None:
+        nonlocal availability_changes
+        nonlocal reappeared
+        nonlocal disappeared
+
+        history = ctx.db.record_js_availability(
+            ctx.run_id,
+            ctx.policy.name,
+            url,
+            state,
+            status_code=status_code,
+            content_type=content_type,
+            error=error,
+            raw_hash=raw_hash,
+            semantic_hash=semantic_hash,
+        )
+
+        previous = history.get("previous")
+        changed = bool(
+            history.get("changed")
+        )
+
+        previous_state = (
+            str(previous.get("state") or "")
+            if previous
+            else ""
+        )
+
+        previous_status = (
+            int(
+                previous.get("status_code")
+                or 0
+            )
+            if previous
+            else 0
+        )
+
+        availability_rows.append(
+            {
+                "url": url,
+                "state": state,
+                "status_code": int(
+                    status_code or 0
+                ),
+                "content_type": content_type,
+                "error": error,
+                "raw_hash": raw_hash,
+                "semantic_hash": semantic_hash,
+                "previous_run_id": (
+                    str(
+                        previous.get("run_id")
+                        or ""
+                    )
+                    if previous
+                    else ""
+                ),
+                "previous_state": previous_state,
+                "previous_status_code": (
+                    previous_status
+                ),
+                "changed": changed,
+            }
+        )
+
+        if not changed or not previous:
+            return
+
+        availability_changes += 1
+
+        details = {
+            "previous_run_id": str(
+                previous.get("run_id")
+                or ""
+            ),
+            "previous_state": previous_state,
+            "previous_status_code": (
+                previous_status
+            ),
+            "state": state,
+            "status_code": int(
+                status_code or 0
+            ),
+        }
+
+        if (
+            previous_state == "not_found"
+            and state == "live"
+        ):
+            reappeared += 1
+            emit_event(
+                ctx,
+                "js_reappeared",
+                url,
+                "JavaScript asset became reachable",
+                details,
+            )
+
+        elif (
+            previous_state == "live"
+            and state == "not_found"
+        ):
+            disappeared += 1
+            emit_event(
+                ctx,
+                "js_disappeared",
+                url,
+                "JavaScript asset became unavailable",
+                details,
+            )
+
     diff_dir = ctx.changes / "js-diffs"
     diff_dir.mkdir(parents=True, exist_ok=True)
 
     for result in sorted(results, key=lambda x: x["url"]):
         url = result["url"]
         if "data" not in result:
-            errors.append({"url": url, "error": str(result.get("error", "download failed"))})
+            if result.get("not_found"):
+                status_code = int(
+                    result.get("status_code") or 0
+                )
+
+                not_found.append(
+                    {
+                        "url": url,
+                        "status_code": status_code,
+                    }
+                )
+
+                record_availability(
+                    url,
+                    "not_found",
+                    status_code=status_code,
+                )
+
+                if url in work_ids:
+                    work_queue.finish(
+                        work_ids[url],
+                        {
+                            "status": "not_found",
+                            "status_code": status_code,
+                        },
+                    )
+
+                continue
+
+            error_text = str(
+                result.get(
+                    "error",
+                    "download failed",
+                )
+            )
+
+            errors.append(
+                {
+                    "url": url,
+                    "error": error_text,
+                }
+            )
+
+            record_availability(
+                url,
+                "error",
+                status_code=int(
+                    result.get(
+                        "status_code"
+                    )
+                    or 0
+                ),
+                error=error_text,
+            )
+
             if url in work_ids:
-                ctx.db.work_fail(work_ids[url], str(result.get("error", "download failed")), retry=True)
+                work_queue.fail(
+                    work_ids[url],
+                    str(
+                        result.get(
+                            "error",
+                            "download failed",
+                        )
+                    ),
+                    retry=True,
+                )
+
             continue
         data = result["data"]
         content_type = str(result.get("content_type", "")).lower()
-        if content_type and not any(token in content_type for token in ("javascript", "ecmascript", "text/plain", "application/octet-stream", "application/json")):
-            errors.append({"url": url, "error": f"unexpected content-type: {content_type}"})
+        if content_type and not any(
+            token in content_type
+            for token in (
+                "javascript",
+                "ecmascript",
+                "text/plain",
+                "application/octet-stream",
+                "application/json",
+            )
+        ):
+            error_text = (
+                f"unexpected content-type: "
+                f"{content_type}"
+            )
+
+            errors.append(
+                {
+                    "url": url,
+                    "error": error_text,
+                }
+            )
+
+            record_availability(
+                url,
+                "unexpected_content_type",
+                status_code=int(
+                    result.get(
+                        "status_code"
+                    )
+                    or 0
+                ),
+                content_type=content_type,
+                error=error_text,
+            )
+
             continue
         downloaded += 1
         raw_hash = sha256_bytes(data)
         text = data.decode("utf-8", "replace")
-        semantic_hash = sha256_text(semantic_js_normalize(text))
+        semantic_hash = sha256_text(
+            semantic_js_normalize(text)
+        )
+
+        record_availability(
+            url,
+            "live",
+            status_code=int(
+                result.get("status_code")
+                or 0
+            ),
+            content_type=content_type,
+            raw_hash=raw_hash,
+            semantic_hash=semantic_hash,
+        )
+
         current_indicators = extract_js_indicators(text)
         old_row = ctx.db.one(
             "SELECT raw_hash,semantic_hash,blob_path FROM js_files WHERE target=? AND url=?",
@@ -688,13 +1058,40 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                             indicator_count += 1
                             indicator_lines.append(f"source_map_source\t{value}\t{url}")
         if url in work_ids:
-            ctx.db.work_finish(work_ids[url], {"raw_hash": raw_hash, "semantic_hash": semantic_hash, "object_hash": object_hash})
+            work_queue.finish(
+                work_ids[url],
+                {
+                    "raw_hash": raw_hash,
+                    "semantic_hash": semantic_hash,
+                    "object_hash": object_hash,
+                },
+            )
 
     atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
     atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
     atomic_write_text(ctx.changes / "semantic-js-changes.txt", "".join(f"{x}\n" for x in semantic_changes))
     atomic_write_text(ctx.changes / "new-js-indicators.tsv", "".join(f"{x}\n" for x in sorted(indicator_lines)))
-    write_jsonl(ctx.current / "javascript-errors.jsonl", errors)
+    write_jsonl(
+        ctx.current / "javascript-errors.jsonl",
+        errors,
+    )
+    write_jsonl(
+        ctx.current / "javascript-not-found.jsonl",
+        not_found,
+    )
+    write_jsonl(
+        ctx.current / "javascript-availability.jsonl",
+        availability_rows,
+    )
+
+    atomic_write_text(
+        ctx.changes / "not-found-js-files.txt",
+        "".join(
+            f"{row['url']}\n"
+            for row in not_found
+        ),
+    )
+
     return {
         "files": len(js_urls),
         "downloaded": downloaded,
@@ -706,6 +1103,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "diffs": diff_count,
         "source_maps": maps_downloaded,
         "errors": len(errors),
+        "not_found": len(not_found),
+        "availability_changes": (
+            availability_changes
+        ),
+        "reappeared": reappeared,
+        "disappeared": disappeared,
     }
 
 
@@ -747,15 +1150,30 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
     workers = min(10, max(1, ctx.policy.limits.http_workers // 4))
     results: list[dict[str, Any]] = []
     def run(endpoint: str) -> dict[str, Any]:
-        work_id = queue.enqueue(endpoint, {"kind": "http_head", "url": endpoint, "allowed_roots": ctx.policy.roots})
-        ctx.db.work_start(work_id, "local-validation")
+        work_id = queue.enqueue(
+            endpoint,
+            {
+                "kind": "http_head",
+                "url": endpoint,
+                "allowed_roots": ctx.policy.roots,
+            },
+        )
+        queue.start(work_id, "local-validation")
         try:
             result = _safe_validate_endpoint(ctx, endpoint)
-            ctx.db.work_finish(work_id, result)
+            queue.finish(work_id, result)
             return result
         except Exception as exc:
-            ctx.db.work_fail(work_id, str(exc), retry=True)
-            return {"endpoint": endpoint, "error": str(exc), "reachable": False}
+            queue.fail(
+                work_id,
+                str(exc),
+                retry=True,
+            )
+            return {
+                "endpoint": endpoint,
+                "error": str(exc),
+                "reachable": False,
+            }
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         for index, result in enumerate(pool.map(run, pending), 1):
             results.append(result); ctx.progress.update(index, len(pending), f"reachable={sum(1 for r in results if r.get('reachable'))}")
