@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -250,6 +251,217 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertEqual(snapshot["total"], 100)
         self.assertEqual(snapshot["stages"][0]["status"], "success")
         self.assertEqual(snapshot["stages"][1]["status"], "running")
+
+    def test_recon_snapshot_ignores_older_stale_running_row_after_newer_completed_run(self):
+        stale = {
+            "run_id": "run-old",
+            "target": "old.example.com",
+            "status": "running",
+            "started_at": "2026-08-17T04:00:00Z",
+            "finished_at": None,
+            "current_stage": "report",
+            "run_dir": "/tmp/run-old",
+            "run_status": "running",
+        }
+        completed = {
+            "run_id": "run-new",
+            "target": "new.example.com",
+            "status": "success",
+            "started_at": "2026-08-18T04:14:59Z",
+            "finished_at": "2026-08-18T04:30:04Z",
+            "current_stage": "report",
+            "run_dir": "/tmp/run-new",
+            "run_status": "success",
+        }
+
+        class SplitReconDB(FakeDB):
+            def one(self, sql, params=()):
+                self.queries.append(sql)
+                if "FROM run_targets rt JOIN runs" in sql:
+                    if "rt.status='running'" in sql:
+                        return stale
+                    if "rt.status!='running'" in sql:
+                        return completed
+                return None
+
+        record = ProgressRecord(
+            self.paths,
+            "recon",
+            "run-old",
+            "old.example.com",
+        )
+        record.path.write_text(
+            json.dumps({
+                "kind": "recon",
+                "run_id": "run-old",
+                "target": "old.example.com",
+                "pid": 999999,
+                "status": "running",
+                "phase": "report",
+                "phase_label": "Reporting and analysis",
+                "estimated_percent": 88.9,
+                "started_at": "2026-08-17T04:00:00Z",
+                "updated_at": "2026-08-17T10:00:00Z",
+                "heartbeat_at": "2026-08-17T10:00:00Z",
+                "last_progress_at": "2026-08-17T04:30:00Z",
+                "finished_at": None,
+            }),
+            encoding="utf-8",
+        )
+
+        db = SplitReconDB()
+
+        with patch(
+            "progress_tracking.process_alive",
+            return_value=False,
+        ):
+            snapshot = recon_progress_snapshot(
+                self.paths,
+                db,
+            )
+
+        self.assertEqual(
+            snapshot["run_id"],
+            "run-new",
+        )
+        self.assertEqual(
+            snapshot["status"],
+            "success",
+        )
+        self.assertEqual(
+            snapshot["health"],
+            "completed",
+        )
+        self.assertEqual(
+            snapshot["estimated_percent"],
+            100.0,
+        )
+
+    def test_recon_snapshot_keeps_verified_live_running_row(self):
+        running = {
+            "run_id": "run-live",
+            "target": "example.com",
+            "status": "running",
+            "started_at": "2026-08-18T05:00:00Z",
+            "finished_at": None,
+            "current_stage": "dns",
+            "run_dir": "/tmp/run-live",
+            "run_status": "running",
+        }
+        completed = {
+            "run_id": "run-complete",
+            "target": "example.com",
+            "status": "success",
+            "started_at": "2026-08-18T04:00:00Z",
+            "finished_at": "2026-08-18T04:20:00Z",
+            "current_stage": "report",
+            "run_dir": "/tmp/run-complete",
+            "run_status": "success",
+        }
+
+        class SplitReconDB(FakeDB):
+            def one(self, sql, params=()):
+                self.queries.append(sql)
+                if "FROM run_targets rt JOIN runs" in sql:
+                    if "rt.status='running'" in sql:
+                        return running
+                    if "rt.status!='running'" in sql:
+                        return completed
+                return None
+
+        record = ProgressRecord(
+            self.paths,
+            "recon",
+            "run-live",
+            "example.com",
+        )
+        record.start(
+            phase="dns",
+            label="DNS resolution",
+            percent=15,
+        )
+
+        db = SplitReconDB()
+
+        with patch(
+            "progress_tracking.process_alive",
+            return_value=True,
+        ):
+            snapshot = recon_progress_snapshot(
+                self.paths,
+                db,
+                "example.com",
+            )
+
+        self.assertEqual(
+            snapshot["run_id"],
+            "run-live",
+        )
+        self.assertEqual(
+            snapshot["status"],
+            "running",
+        )
+        self.assertEqual(
+            snapshot["health"],
+            "progressing",
+        )
+
+    def test_recon_snapshot_surfaces_newest_dead_running_row_as_stale(self):
+        stale = {
+            "run_id": "run-stale-new",
+            "target": "example.com",
+            "status": "running",
+            "started_at": "2026-08-18T06:00:00Z",
+            "finished_at": None,
+            "current_stage": "report",
+            "run_dir": "/tmp/run-stale-new",
+            "run_status": "running",
+        }
+        completed = {
+            "run_id": "run-complete-old",
+            "target": "example.com",
+            "status": "success",
+            "started_at": "2026-08-18T04:00:00Z",
+            "finished_at": "2026-08-18T04:20:00Z",
+            "current_stage": "report",
+            "run_dir": "/tmp/run-complete-old",
+            "run_status": "success",
+        }
+
+        class SplitReconDB(FakeDB):
+            def one(self, sql, params=()):
+                self.queries.append(sql)
+                if "FROM run_targets rt JOIN runs" in sql:
+                    if "rt.status='running'" in sql:
+                        return stale
+                    if "rt.status!='running'" in sql:
+                        return completed
+                return None
+
+        db = SplitReconDB()
+
+        with patch(
+            "progress_tracking.process_alive",
+            return_value=False,
+        ):
+            snapshot = recon_progress_snapshot(
+                self.paths,
+                db,
+                "example.com",
+            )
+
+        self.assertEqual(
+            snapshot["run_id"],
+            "run-stale-new",
+        )
+        self.assertEqual(
+            snapshot["status"],
+            "stale",
+        )
+        self.assertEqual(
+            snapshot["health"],
+            "stale",
+        )
 
     def test_progress_panel_labels_estimate_and_uses_ajax_refresh_for_running(self):
         base = SimpleNamespace(_esc=lambda value: str(value), _pill=lambda value, tone="": f"[{value}:{tone}]")
