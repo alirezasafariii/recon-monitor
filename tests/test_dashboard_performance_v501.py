@@ -85,6 +85,23 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
         self.assertIn("threading.Thread(", serve)
         self.assertIn('name="dashboard-startup-self-check"', serve)
 
+    def test_health_page_uses_bounded_diagnostics(self) -> None:
+        app = Path(__file__).parents[1].joinpath("app")
+        source = app.joinpath("dashboard_core.py").read_text(encoding="utf-8")
+
+        start = source.index("    def health(self) -> None:")
+        end = source.index("    def report(self, run_id: str) -> None:", start)
+        health = source[start:end]
+
+        self.assertIn(
+            "operator_diagnostics(self.paths, self.config, db, persist=False, deep=False)",
+            health,
+        )
+        self.assertNotIn(
+            "operator_diagnostics(self.paths, self.config, db, persist=False)",
+            health,
+        )
+
     def test_live_analysis_progress_defers_deep_intelligence(self) -> None:
         app = Path(__file__).parents[1].joinpath("app")
         source = app.joinpath("progress_tracking.py").read_text(encoding="utf-8")

@@ -3127,7 +3127,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
     def health(self) -> None:
         db = self.db()
         try:
-            diagnostics = operator_diagnostics(self.paths, self.config, db, persist=False)
+            diagnostics = operator_diagnostics(self.paths, self.config, db, persist=False, deep=False)
             errors = recent_error_events(db, limit=12)
             browser = browser_compatibility(self.headers.get('User-Agent', ''))
         finally:
