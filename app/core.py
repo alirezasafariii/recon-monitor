@@ -668,6 +668,20 @@ class Database:
               last_run_id TEXT,
               PRIMARY KEY(target,url)
             );
+            CREATE TABLE IF NOT EXISTS js_availability_history (
+              run_id TEXT NOT NULL,
+              target TEXT NOT NULL,
+              url TEXT NOT NULL,
+              state TEXT NOT NULL,
+              status_code INTEGER,
+              content_type TEXT NOT NULL DEFAULT '',
+              error TEXT NOT NULL DEFAULT '',
+              raw_hash TEXT NOT NULL DEFAULT '',
+              semantic_hash TEXT NOT NULL DEFAULT '',
+              observed_at TEXT NOT NULL,
+              PRIMARY KEY(run_id,target,url),
+              FOREIGN KEY(run_id) REFERENCES runs(id) ON DELETE CASCADE
+            );
             CREATE TABLE IF NOT EXISTS js_indicators (
               target TEXT NOT NULL,
               js_url TEXT NOT NULL,
@@ -1457,6 +1471,8 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_tags_entity ON entity_tags(target,entity_type,entity_value);
             CREATE INDEX IF NOT EXISTS idx_alert_history_alert ON alert_history(alert_id,created_at);
             CREATE INDEX IF NOT EXISTS idx_js_diffs_target ON js_diffs(target,created_at);
+            CREATE INDEX IF NOT EXISTS idx_js_availability_target
+              ON js_availability_history(target,url,observed_at);
             CREATE INDEX IF NOT EXISTS idx_endpoint_category ON endpoint_intelligence(target,primary_category,confidence);
             CREATE INDEX IF NOT EXISTS idx_technology_confidence ON technology_observations(target,technology,confidence);
             CREATE INDEX IF NOT EXISTS idx_work_items_status ON work_items(run_id,target,stage,status);
@@ -1933,6 +1949,125 @@ class Database:
             (target, url, kind, source, now, now, run_id),
         )
         return row is None
+
+    def record_js_availability(
+        self,
+        run_id: str,
+        target: str,
+        url: str,
+        state: str,
+        *,
+        status_code: int = 0,
+        content_type: str = "",
+        error: str = "",
+        raw_hash: str = "",
+        semantic_hash: str = "",
+    ) -> dict[str, Any]:
+        allowed_states = {
+            "live",
+            "not_found",
+            "error",
+            "unexpected_content_type",
+        }
+
+        if state not in allowed_states:
+            raise ReconError(
+                f"Invalid JS availability state: {state}"
+            )
+
+        previous_row = self.one(
+            """
+            SELECT
+              h.run_id,
+              h.state,
+              h.status_code,
+              h.content_type,
+              h.error,
+              h.raw_hash,
+              h.semantic_hash,
+              h.observed_at
+            FROM js_availability_history h
+            JOIN run_targets rt
+              ON rt.run_id=h.run_id
+             AND rt.target=h.target
+            WHERE h.target=?
+              AND h.url=?
+              AND h.run_id<>?
+              AND rt.status='success'
+            ORDER BY h.observed_at DESC, h.run_id DESC
+            LIMIT 1
+            """,
+            (
+                target,
+                url,
+                run_id,
+            ),
+        )
+
+        previous = (
+            dict(previous_row)
+            if previous_row
+            else None
+        )
+
+        now = utc_now()
+
+        self.execute(
+            """
+            INSERT INTO js_availability_history(
+              run_id,
+              target,
+              url,
+              state,
+              status_code,
+              content_type,
+              error,
+              raw_hash,
+              semantic_hash,
+              observed_at
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(run_id,target,url) DO UPDATE SET
+              state=excluded.state,
+              status_code=excluded.status_code,
+              content_type=excluded.content_type,
+              error=excluded.error,
+              raw_hash=excluded.raw_hash,
+              semantic_hash=excluded.semantic_hash,
+              observed_at=excluded.observed_at
+            """,
+            (
+                run_id,
+                target,
+                url,
+                state,
+                int(status_code or 0),
+                str(content_type or "")[:500],
+                str(error or "")[:2000],
+                str(raw_hash or ""),
+                str(semantic_hash or ""),
+                now,
+            ),
+        )
+
+        changed = bool(
+            previous
+            and (
+                str(previous.get("state") or "")
+                != state
+                or int(
+                    previous.get("status_code")
+                    or 0
+                )
+                != int(status_code or 0)
+            )
+        )
+
+        return {
+            "previous": previous,
+            "changed": changed,
+        }
+
 
     def upsert_js(
         self,
