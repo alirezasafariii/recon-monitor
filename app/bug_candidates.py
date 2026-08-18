@@ -798,63 +798,98 @@ _static_candidates = _static_candidates_with_raw_family_routing
 _ORIGINAL_GENERATE_BUG_CANDIDATES = _core.generate_bug_candidates
 
 
+_CANDIDATE_GENERATION_TRANSACTION_VERSION = "1.0.0"
+
+
 def generate_bug_candidates(
     db: Any,
     analysis_id: str,
     run_id: str,
     target: str | None = None,
 ) -> dict[str, Any]:
-    """Run the canonical engine and expose raw-routing observability."""
+    # Run candidate generation in one explicit SQLite transaction.
+    # Recon Monitor opens SQLite in autocommit mode, so without this wrapper
+    # each hypothesis/tag write becomes its own transaction.
+    lock = getattr(db, "_lock", None)
+    conn = getattr(db, "conn", None)
 
-    result = dict(
-        _ORIGINAL_GENERATE_BUG_CANDIDATES(
-            db,
-            analysis_id,
-            run_id,
-            target,
+    if lock is None or conn is None:
+        raise RuntimeError(
+            "Candidate transaction patch requires Database._lock and Database.conn"
         )
-    )
-    raw_hypotheses = int(
-        db.one(
-            "SELECT COUNT(*) count FROM analysis_hypotheses "
-            "WHERE analysis_id=? AND source_ref LIKE 'raw-%'",
-            (analysis_id,),
-        )["count"]
-    )
-    raw_promoted = int(
-        db.one(
-            "SELECT COUNT(*) count FROM analysis_hypotheses "
-            "WHERE analysis_id=? AND source_ref LIKE 'raw-%' "
-            "AND state='promoted'",
-            (analysis_id,),
-        )["count"]
-    )
-    raw_families = int(
-        db.one(
-            "SELECT COUNT(DISTINCT bug_family) count FROM analysis_hypotheses "
-            "WHERE analysis_id=? AND source_ref LIKE 'raw-%'",
-            (analysis_id,),
-        )["count"]
-    )
-    raw_budget = raw_analysis_budget_snapshot(analysis_id)
-    result["raw_surface_routing"] = {
-        "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
-        "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
-        "hypotheses": raw_hypotheses,
-        "promoted": raw_promoted,
-        "families": raw_families,
-        "surface_limit": _RAW_SURFACE_LIMIT,
-        "active_requests": 0,
-        "analyzer_budget": {
-            "version": str(raw_budget.get("version") or ""),
-            "limit": int(raw_budget.get("limit") or 0),
-            "attempted": int(raw_budget.get("attempted") or 0),
-            "executed": int(raw_budget.get("executed") or 0),
-            "skipped": int(raw_budget.get("skipped") or 0),
-            "exhausted": bool(raw_budget.get("exhausted")),
-            "families": dict(raw_budget.get("families") or {}),
-        },
-    }
+
+    with lock:
+        already_in_transaction = bool(conn.in_transaction)
+
+        if not already_in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+
+        try:
+            result = dict(
+                _ORIGINAL_GENERATE_BUG_CANDIDATES(
+                    db,
+                    analysis_id,
+                    run_id,
+                    target,
+                )
+            )
+
+            raw_hypotheses = int(
+                db.one(
+                    "SELECT COUNT(*) count FROM analysis_hypotheses "
+                    "WHERE analysis_id=? AND source_ref LIKE 'raw-%'",
+                    (analysis_id,),
+                )["count"]
+            )
+
+            raw_promoted = int(
+                db.one(
+                    "SELECT COUNT(*) count FROM analysis_hypotheses "
+                    "WHERE analysis_id=? AND source_ref LIKE 'raw-%' "
+                    "AND state='promoted'",
+                    (analysis_id,),
+                )["count"]
+            )
+
+            raw_families = int(
+                db.one(
+                    "SELECT COUNT(DISTINCT bug_family) count "
+                    "FROM analysis_hypotheses "
+                    "WHERE analysis_id=? AND source_ref LIKE 'raw-%'",
+                    (analysis_id,),
+                )["count"]
+            )
+
+            raw_budget = raw_analysis_budget_snapshot(analysis_id)
+
+            result["raw_surface_routing"] = {
+                "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
+                "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                "hypotheses": raw_hypotheses,
+                "promoted": raw_promoted,
+                "families": raw_families,
+                "surface_limit": _RAW_SURFACE_LIMIT,
+                "active_requests": 0,
+                "analyzer_budget": {
+                    "version": str(raw_budget.get("version") or ""),
+                    "limit": int(raw_budget.get("limit") or 0),
+                    "attempted": int(raw_budget.get("attempted") or 0),
+                    "executed": int(raw_budget.get("executed") or 0),
+                    "skipped": int(raw_budget.get("skipped") or 0),
+                    "exhausted": bool(raw_budget.get("exhausted")),
+                    "families": dict(raw_budget.get("families") or {}),
+                },
+            }
+
+        except Exception:
+            if not already_in_transaction and conn.in_transaction:
+                conn.execute("ROLLBACK")
+            raise
+
+        else:
+            if not already_in_transaction and conn.in_transaction:
+                conn.execute("COMMIT")
+
     return result
 
 __all__ = [name for name in globals() if not name.startswith("__")]

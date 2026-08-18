@@ -11,6 +11,7 @@ phase-one taxonomy is normalized through the canonical OWASP family catalog.
 
 import json
 import re
+from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 from family_reasoning import FAMILY_REASONING, confirmation_gaps
@@ -18,8 +19,16 @@ from family_specs.registry import MIGRATED_FAMILIES, get_detection_spec
 from owasp_family_catalog import CANONICAL_TAXONOMY
 
 
+_NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
+
+
+@lru_cache(maxsize=200_000)
+def _normalize_text(text: str) -> str:
+    return _NORMALIZE_RE.sub("_", text.strip().lower()).strip("_")
+
+
 def normalize(value: Any) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+    return _normalize_text(str(value or ""))
 
 
 def truth(value: Any) -> bool | None:
@@ -56,10 +65,20 @@ def list_value(value: Any) -> list[str]:
     return []
 
 
+@lru_cache(maxsize=8192)
+def _normalized_lookup_keys(keys: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(normalize(key) for key in keys)
+
+
 def scalar(item: Mapping[str, Any], keys: Iterable[str]) -> Any:
-    normalized = {normalize(key): value for key, value in item.items()}
-    for key in keys:
-        value = normalized.get(normalize(key))
+    normalized = {
+        normalize(key): value
+        for key, value in item.items()
+    }
+
+    raw_keys = tuple(str(key) for key in keys)
+    for normalized_key in _normalized_lookup_keys(raw_keys):
+        value = normalized.get(normalized_key)
         if value is not None and str(value).strip() != "":
             return value
     return None
