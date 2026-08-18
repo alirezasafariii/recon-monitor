@@ -1103,10 +1103,7 @@ def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
         + stage_rows + "</tbody></table></div>"
         if stage_rows else ""
     )
-    refresh = (
-        "<script>window.setTimeout(function(){ if(!document.hidden){ window.location.reload(); } }, 10000);</script>"
-        if status == "running" else ""
-    )
+    refresh = ""
     return (
         f"<section class='panel' id='live-progress' style='margin-top:16px'><div class='panel-head'><div><h3>{base._esc(title)}</h3>"
         f"<span class='muted small'>Progress Tracking {PROGRESS_TRACKING_VERSION} · auto-refresh while running</span></div>"
@@ -1155,6 +1152,7 @@ def _install_dashboard_tracking() -> None:
         return
     original_analysis = handler.analysis_engine
     original_recon = handler.recon_workspace
+    original_do_get = handler.do_GET
 
     def analysis_with_progress(self: Any) -> None:
         params = self.query()
@@ -1208,8 +1206,59 @@ def _install_dashboard_tracking() -> None:
         panel = _progress_panel(dash, snapshot, "Live Recon Progress")
         self.send_html(title, panel + body, status)
 
+    def do_get_with_live_progress(self: Any) -> None:
+        path = self.path.split("?", 1)[0]
+
+        if path != "/api/live-progress":
+            return original_do_get(self)
+
+        if not self._require_auth("viewer"):
+            return
+
+        params = self.query()
+        kind = str((params.get("kind") or [""])[0]).strip().lower()
+        target = str((params.get("target") or [""])[0]).strip()
+
+        if kind not in {"recon", "analysis"}:
+            self.send_json(
+                {"error": "kind must be recon or analysis"},
+                status=400,
+            )
+            return
+
+        db = self.db()
+        try:
+            if kind == "analysis":
+                snapshot = analysis_progress_snapshot(
+                    self.paths,
+                    db,
+                    target,
+                    dashboard_fast=True,
+                )
+                title = "Live Analysis Progress"
+            else:
+                snapshot = recon_progress_snapshot(
+                    self.paths,
+                    db,
+                    target,
+                )
+                title = "Live Recon Progress"
+        finally:
+            db.close()
+
+        self.send_json({
+            "kind": kind,
+            "target": target,
+            "status": str(snapshot.get("status") or ""),
+            "health": str(snapshot.get("health") or ""),
+            "estimated_percent": snapshot.get("estimated_percent"),
+            "phase": snapshot.get("phase"),
+            "html": _progress_panel(dash, snapshot, title),
+        })
+
     handler.analysis_engine = analysis_with_progress
     handler.recon_workspace = recon_with_progress
+    handler.do_GET = do_get_with_live_progress
     handler._rm_progress_installed = True
 
 

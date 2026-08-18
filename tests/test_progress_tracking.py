@@ -251,7 +251,7 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertEqual(snapshot["stages"][0]["status"], "success")
         self.assertEqual(snapshot["stages"][1]["status"], "running")
 
-    def test_progress_panel_labels_estimate_and_auto_refresh_for_running(self):
+    def test_progress_panel_labels_estimate_and_uses_ajax_refresh_for_running(self):
         base = SimpleNamespace(_esc=lambda value: str(value), _pill=lambda value, tone="": f"[{value}:{tone}]")
         html = _progress_panel(base, {
             "status": "running", "health": "progressing", "estimated_percent": 42.5,
@@ -260,11 +260,20 @@ class ProgressTrackingTests(unittest.TestCase):
             "health_detail": "Heartbeat is fresh", "message": "Security reasoning",
             "visibility": "live", "stages": [],
         }, "Live Analysis Progress")
+
         self.assertIn("42.5%", html)
         self.assertIn("work completion, not time remaining", html)
-        self.assertIn("location.reload", html)
-        self.assertIn("10000", html)
         self.assertIn("Security reasoning", html)
+
+        # Progress panels no longer reload the entire Dashboard page.
+        self.assertNotIn("location.reload", html)
+        self.assertNotIn("window.location.reload", html)
+
+        # Auto-refresh is owned by the Dashboard's bounded AJAX poller.
+        dashboard_source = (APP_DIR / "dashboard_core.py").read_text(encoding="utf-8")
+        self.assertIn("refreshLiveProgress", dashboard_source)
+        self.assertIn("/api/live-progress", dashboard_source)
+        self.assertIn("setInterval(refreshLiveProgress,5000)", dashboard_source)
 
     def test_live_analysis_uses_lightweight_renderer_only_while_running(self):
         default = lambda _self: None

@@ -9,6 +9,7 @@ target evidence.  Its family scores are advisory priors for Meta Ranker.
 
 import json
 import re
+from functools import lru_cache
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
@@ -44,18 +45,31 @@ def _loads(value: Any, default: Any) -> Any:
     return decoded if isinstance(decoded, type(default)) else default
 
 
+_NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
+_ENDPOINT_PARAM_RE = re.compile(r"([?&][^=&#]+)=([^&#]*)")
+_ENDPOINT_UUID_RE = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
+_ENDPOINT_NUMBER_RE = re.compile(r"(?<![a-z0-9])\d{2,}(?![a-z0-9])")
+_ENDPOINT_SLASH_RE = re.compile(r"/+")
+
+
+@lru_cache(maxsize=200_000)
+def _normalize_text(text: str) -> str:
+    return _NORMALIZE_RE.sub("_", text.strip().lower()).strip("_")
+
+
 def _normalize(value: Any) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+    return _normalize_text(str(value or ""))
 
 
+@lru_cache(maxsize=200_000)
 def normalize_endpoint(value: str) -> str:
     """Normalize dynamic identifiers while preserving resource structure."""
     text = str(value or "").strip().lower()
     text = text.split("#", 1)[0]
-    text = re.sub(r"([?&][^=&#]+)=([^&#]*)", r"\1={value}", text)
-    text = re.sub(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", "{uuid}", text, flags=re.I)
-    text = re.sub(r"(?<![a-z0-9])\d{2,}(?![a-z0-9])", "{n}", text)
-    text = re.sub(r"/+", "/", text)
+    text = _ENDPOINT_PARAM_RE.sub(r"\1={value}", text)
+    text = _ENDPOINT_UUID_RE.sub("{uuid}", text)
+    text = _ENDPOINT_NUMBER_RE.sub("{n}", text)
+    text = _ENDPOINT_SLASH_RE.sub("/", text)
     return text
 
 
@@ -138,6 +152,114 @@ def _cluster_id(target: str, endpoints: Iterable[str], objects: Iterable[str]) -
     return sha256_text("correlation-v2|" + basis)[:24]
 
 
+
+_STATIC_SURFACE_CACHE: dict[
+    tuple[str, str],
+    tuple[dict[str, Any], ...],
+] = {}
+_STATIC_SURFACE_CACHE_LIMIT = 32
+
+
+def _static_surface_templates(
+    db: Database,
+    analysis_id: str,
+    target: str,
+) -> tuple[dict[str, Any], ...]:
+    # Precompute immutable correlation surfaces once per analysis+target.
+    # bug_candidates are deliberately excluded because they evolve.
+    key = (str(analysis_id), str(target))
+    cached = _STATIC_SURFACE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    contracts = _safe_all(
+        db,
+        "SELECT * FROM endpoint_contracts "
+        "WHERE analysis_id=? AND target=? ORDER BY confidence DESC",
+        (analysis_id, target),
+    )
+    relationships = _safe_all(
+        db,
+        "SELECT * FROM parameter_relationships "
+        "WHERE analysis_id=? AND target=?",
+        (analysis_id, target),
+    )
+    boundaries = _safe_all(
+        db,
+        "SELECT * FROM authentication_boundaries "
+        "WHERE analysis_id=? AND target=?",
+        (analysis_id, target),
+    )
+    shapes = _safe_all(
+        db,
+        "SELECT * FROM response_shape_fingerprints "
+        "WHERE analysis_id=? AND target=?",
+        (analysis_id, target),
+    )
+
+    relations_by_endpoint: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in relationships:
+        relations_by_endpoint[
+            normalize_endpoint(str(row.get("endpoint") or ""))
+        ].append(row)
+
+    boundary_by_endpoint = {
+        normalize_endpoint(str(row.get("endpoint") or "")): row
+        for row in boundaries
+    }
+    shape_by_endpoint = {
+        normalize_endpoint(str(row.get("endpoint") or "")): row
+        for row in shapes
+    }
+
+    surfaces: list[dict[str, Any]] = []
+    for contract in contracts:
+        raw_endpoint = str(contract.get("endpoint") or "")
+        normalized = normalize_endpoint(raw_endpoint)
+        rels = relations_by_endpoint.get(normalized, [])
+        boundary = boundary_by_endpoint.get(normalized, {})
+        shape = shape_by_endpoint.get(normalized, {})
+
+        objects = _surface_object_tokens(contract, rels, shape)
+        resources = _endpoint_resource_tokens(raw_endpoint)
+        relation_signatures = _relation_signatures(rels)
+
+        sensitive = {
+            canonical_object_token(
+                str(value).split(".")[-1].replace("[]", "")
+            )
+            for value in _loads(shape.get("sensitive_keys_json"), [])
+        } if shape else set()
+        sensitive = {value for value in sensitive if value}
+
+        surfaces.append({
+            "endpoint": raw_endpoint,
+            "normalized_endpoint": normalized,
+            "alert_id": contract.get("alert_id"),
+            "method": str(contract.get("method") or "UNKNOWN"),
+            "objects": sorted(objects),
+            "resources": sorted(resources),
+            "relations": sorted(relation_signatures),
+            "auth_boundary": str(
+                boundary.get("boundary")
+                or contract.get("auth_boundary")
+                or "unknown"
+            ),
+            "boundary_confidence": int(boundary.get("confidence") or 0),
+            "contract_confidence": int(contract.get("confidence") or 0),
+            "sensitive_tokens": sorted(sensitive),
+        })
+
+    frozen = tuple(surfaces)
+
+    if len(_STATIC_SURFACE_CACHE) >= _STATIC_SURFACE_CACHE_LIMIT:
+        oldest = next(iter(_STATIC_SURFACE_CACHE))
+        _STATIC_SURFACE_CACHE.pop(oldest, None)
+
+    _STATIC_SURFACE_CACHE[key] = frozen
+    return frozen
+
+
 def build_correlation_context(
     db: Database,
     *,
@@ -153,75 +275,42 @@ def build_correlation_context(
     All scores in this object are non-evidentiary correlation priors.  They can
     prioritize investigation but must never satisfy an admission gate.
     """
-    contracts = _safe_all(
+    # Static correlation surfaces are expensive to tokenize and do not
+    # change during candidate generation. Build them once per analysis+target.
+    base_surfaces = _static_surface_templates(
         db,
-        "SELECT * FROM endpoint_contracts WHERE analysis_id=? AND target=? ORDER BY confidence DESC",
-        (analysis_id, target),
+        analysis_id,
+        target,
     )
-    relationships = _safe_all(
-        db,
-        "SELECT * FROM parameter_relationships WHERE analysis_id=? AND target=?",
-        (analysis_id, target),
-    )
-    boundaries = _safe_all(
-        db,
-        "SELECT * FROM authentication_boundaries WHERE analysis_id=? AND target=?",
-        (analysis_id, target),
-    )
-    shapes = _safe_all(
-        db,
-        "SELECT * FROM response_shape_fingerprints WHERE analysis_id=? AND target=?",
-        (analysis_id, target),
-    )
+
+    # Candidate state remains dynamic and is intentionally refreshed.
     candidates = _safe_all(
         db,
-        "SELECT candidate_id,bug_family,endpoint,alert_id,source_ref,investigation_value,candidate_state "
+        "SELECT candidate_id,bug_family,endpoint,alert_id,source_ref,"
+        "investigation_value,candidate_state "
         "FROM bug_candidates WHERE analysis_id=? AND target=?",
         (analysis_id, target),
     )
 
-    relations_by_endpoint: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in relationships:
-        relations_by_endpoint[normalize_endpoint(str(row.get("endpoint") or ""))].append(row)
-    boundary_by_endpoint = {
-        normalize_endpoint(str(row.get("endpoint") or "")): row for row in boundaries
-    }
-    shape_by_endpoint = {
-        normalize_endpoint(str(row.get("endpoint") or "")): row for row in shapes
-    }
     candidates_by_endpoint: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in candidates:
-        candidates_by_endpoint[normalize_endpoint(str(row.get("endpoint") or ""))].append(row)
+        candidates_by_endpoint[
+            normalize_endpoint(str(row.get("endpoint") or ""))
+        ].append(row)
 
-    surfaces: list[dict[str, Any]] = []
-    for contract in contracts:
-        raw_endpoint = str(contract.get("endpoint") or "")
-        normalized = normalize_endpoint(raw_endpoint)
-        rels = relations_by_endpoint.get(normalized, [])
-        boundary = boundary_by_endpoint.get(normalized, {})
-        shape = shape_by_endpoint.get(normalized, {})
-        objects = _surface_object_tokens(contract, rels, shape)
-        resources = _endpoint_resource_tokens(raw_endpoint)
-        relation_signatures = _relation_signatures(rels)
-        sensitive = {
-            canonical_object_token(str(value).split(".")[-1].replace("[]", ""))
-            for value in _loads(shape.get("sensitive_keys_json"), [])
-        } if shape else set()
-        sensitive = {value for value in sensitive if value}
-        surfaces.append({
-            "endpoint": raw_endpoint,
-            "normalized_endpoint": normalized,
-            "alert_id": contract.get("alert_id"),
-            "method": str(contract.get("method") or "UNKNOWN"),
-            "objects": sorted(objects),
-            "resources": sorted(resources),
-            "relations": sorted(relation_signatures),
-            "auth_boundary": str(boundary.get("boundary") or contract.get("auth_boundary") or "unknown"),
-            "boundary_confidence": int(boundary.get("confidence") or 0),
-            "contract_confidence": int(contract.get("confidence") or 0),
-            "sensitive_tokens": sorted(sensitive),
-            "candidates": candidates_by_endpoint.get(normalized, []),
-        })
+    # Preserve original contract order and scoring semantics.
+    surfaces = [
+        {
+            **surface,
+            "candidates": list(
+                candidates_by_endpoint.get(
+                    str(surface.get("normalized_endpoint") or ""),
+                    [],
+                )
+            ),
+        }
+        for surface in base_surfaces
+    ]
 
     seed_norm = normalize_endpoint(endpoint)
     seed_candidates = [

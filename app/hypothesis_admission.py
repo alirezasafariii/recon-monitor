@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
@@ -85,15 +86,32 @@ def hypothesis_fingerprint(target: str, family: str, variant: str, endpoint: str
     return sha256_text("|".join([target, family, variant, normalized_endpoint]))
 
 
+_HISTORICAL_FAMILY_SCORE_CACHE_TTL = 30.0
+_HISTORICAL_FAMILY_SCORE_CACHE: dict[
+    tuple[int, str],
+    tuple[float, dict[str, int]],
+] = {}
+
+
 def _historical_family_scores(db: Database, target: str) -> dict[str, int]:
-    """Shrink analyst outcomes toward neutral until a family has enough history."""
+    # Non-evidentiary analyst-history prior with short read-through cache.
+    key = (id(db), str(target))
+    now = time.monotonic()
+
+    cached = _HISTORICAL_FAMILY_SCORE_CACHE.get(key)
+    if cached is not None:
+        created_at, value = cached
+        if now - created_at < _HISTORICAL_FAMILY_SCORE_CACHE_TTL:
+            return dict(value)
+
     rows = db.all(
-        """SELECT bug_family,analyst_decision,COUNT(*) count
-        FROM bug_candidates
-        WHERE target=? AND analyst_decision<>'unreviewed'
-        GROUP BY bug_family,analyst_decision""",
+        "SELECT bug_family,analyst_decision,COUNT(*) count "
+        "FROM bug_candidates "
+        "WHERE target=? AND analyst_decision<>'unreviewed' "
+        "GROUP BY bug_family,analyst_decision",
         (target,),
     )
+
     decision_weight = {
         "confirmed_by_analyst": 100,
         "needs_more_evidence": 70,
@@ -101,17 +119,53 @@ def _historical_family_scores(db: Database, target: str) -> dict[str, int]:
         "rejected": 5,
         "out_of_scope": 5,
     }
+
     grouped: dict[str, list[tuple[str, int]]] = defaultdict(list)
     for row in rows:
-        grouped[str(row["bug_family"])].append((str(row["analyst_decision"]), int(row["count"] or 0)))
+        grouped[str(row["bug_family"])].append(
+            (
+                str(row["analyst_decision"]),
+                int(row["count"] or 0),
+            )
+        )
+
     result: dict[str, int] = {}
     for family, values in grouped.items():
         reviewed = sum(count for _, count in values)
         if reviewed <= 0:
             continue
-        weighted = sum(decision_weight.get(decision, 50) * count for decision, count in values) / reviewed
+
+        weighted = (
+            sum(
+                decision_weight.get(decision, 50) * count
+                for decision, count in values
+            )
+            / reviewed
+        )
+
         reliability = min(1.0, reviewed / 8.0)
-        result[family] = max(0, min(100, int(round(50 + (weighted - 50) * reliability))))
+
+        result[family] = max(
+            0,
+            min(
+                100,
+                int(round(50 + (weighted - 50) * reliability)),
+            ),
+        )
+
+    _HISTORICAL_FAMILY_SCORE_CACHE[key] = (
+        now,
+        dict(result),
+    )
+
+    if len(_HISTORICAL_FAMILY_SCORE_CACHE) > 64:
+        oldest_key = min(
+            _HISTORICAL_FAMILY_SCORE_CACHE,
+            key=lambda item: _HISTORICAL_FAMILY_SCORE_CACHE[item][0],
+        )
+        if oldest_key != key:
+            _HISTORICAL_FAMILY_SCORE_CACHE.pop(oldest_key, None)
+
     return result
 
 

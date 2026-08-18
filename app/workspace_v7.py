@@ -820,7 +820,7 @@ def import_browser_capture(paths: AppPaths, db: Database, *, target: str, file_p
     return {"target": target, "context": context_label, "imported": imported, "skipped": skipped, "source_file": str(path), "raw_secrets_stored": False}
 
 
-def operator_diagnostics(paths: AppPaths, config: Config, db: Database, *, persist: bool = True) -> dict[str, Any]:
+def _operator_diagnostics_deep(paths: AppPaths, config: Config, db: Database, *, persist: bool = True) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     def add(check_id: str, label: str, status: str, detail: str, action: str = "") -> None:
         checks.append({"id": check_id, "label": label, "status": status, "detail": detail, "recommended_action": action})
@@ -862,6 +862,203 @@ def operator_diagnostics(paths: AppPaths, config: Config, db: Database, *, persi
         db.execute("INSERT INTO operator_diagnostics(diag_id,overall,checks_json,created_at) VALUES(?,?,?,?)", (diag_id, overall, json_dumps(checks), utc_now()))
         result["diag_id"] = diag_id
     return result
+
+
+def operator_diagnostics(
+    paths: AppPaths,
+    config: Config,
+    db: Database,
+    *,
+    persist: bool = True,
+    deep: bool = True,
+) -> dict[str, Any]:
+    """Run bounded or deep Recon Monitor self-diagnostics.
+
+    deep=False is intended for Dashboard/interactive health surfaces.
+    It performs only bounded local checks and never walks the full SQLite
+    b-tree with integrity_check/foreign_key_check.
+
+    deep=True preserves the historical full diagnostic behavior.
+    """
+    if deep:
+        result = _operator_diagnostics_deep(
+            paths,
+            config,
+            db,
+            persist=persist,
+        )
+        if isinstance(result, dict):
+            result.setdefault("mode", "deep")
+        return result
+
+    checks: list[dict[str, Any]] = []
+
+    def add_check(
+        check_id: str,
+        label: str,
+        status: str,
+        detail: str,
+        recommended_action: str = "",
+    ) -> None:
+        checks.append(
+            {
+                "id": check_id,
+                "label": label,
+                "status": status,
+                "detail": detail,
+                "recommended_action": recommended_action,
+            }
+        )
+
+    # 1. Bounded database readability probe.
+    try:
+        probe = db.one("SELECT 1 AS ok")
+        readable = bool(probe and int(probe["ok"]) == 1)
+        add_check(
+            "DB-READ",
+            "Database readability",
+            "ok" if readable else "error",
+            "SQLite connection and bounded read succeeded"
+            if readable
+            else "SQLite bounded read returned an unexpected result",
+            "" if readable else "Run deep diagnostics before further writes.",
+        )
+    except Exception as exc:
+        add_check(
+            "DB-READ",
+            "Database readability",
+            "error",
+            f"{type(exc).__name__}: {str(exc)[:240]}",
+            "Run deep diagnostics and inspect the database before further writes.",
+        )
+
+    # 2. Check only that the core schema surface exists.
+    # This queries sqlite_master only; it does not inspect every database page.
+    try:
+        required_tables = (
+            "schema_meta",
+            "runs",
+            "run_targets",
+            "analysis_runs",
+            "operator_diagnostics",
+        )
+
+        placeholders = ",".join("?" for _ in required_tables)
+
+        rows = db.all(
+            f"SELECT name FROM sqlite_master "
+            f"WHERE type='table' AND name IN ({placeholders})",
+            required_tables,
+        )
+
+        existing = {
+            str(row["name"])
+            for row in rows
+        }
+
+        missing = [
+            name
+            for name in required_tables
+            if name not in existing
+        ]
+
+        if missing:
+            add_check(
+                "DB-SCHEMA",
+                "Core database schema",
+                "error",
+                "Missing core table(s): " + ", ".join(missing),
+                "Run migrations/doctor before running new Recon work.",
+            )
+        else:
+            add_check(
+                "DB-SCHEMA",
+                "Core database schema",
+                "ok",
+                f"Core tables present ({len(existing)}/{len(required_tables)})",
+                "",
+            )
+
+    except Exception as exc:
+        add_check(
+            "DB-SCHEMA",
+            "Core database schema",
+            "error",
+            f"{type(exc).__name__}: {str(exc)[:240]}",
+            "Run deep diagnostics before running new Recon work.",
+        )
+
+    # 3. Confirm the database file itself is present/readable.
+    try:
+        exists = paths.db.is_file()
+        size = paths.db.stat().st_size if exists else 0
+
+        add_check(
+            "DB-FILE",
+            "Database file",
+            "ok" if exists and size > 0 else "error",
+            f"{size} bytes" if exists else "Database file is missing",
+            "" if exists and size > 0 else "Restore or initialize Recon Monitor state.",
+        )
+
+    except Exception as exc:
+        add_check(
+            "DB-FILE",
+            "Database file",
+            "error",
+            f"{type(exc).__name__}: {str(exc)[:240]}",
+            "Inspect the Recon Monitor state directory.",
+        )
+
+    # 4. Authorization/configuration posture.
+    authorized = bool(config.authorized)
+
+    add_check(
+        "AUTH-CONFIG",
+        "Authorization configuration",
+        "ok" if authorized else "warn",
+        "I_HAVE_AUTHORIZATION=yes"
+        if authorized
+        else "Authorization acknowledgement is not enabled",
+        "" if authorized else "Confirm authorization before active testing.",
+    )
+
+    states = {
+        str(item.get("status") or "unknown")
+        for item in checks
+    }
+
+    if "error" in states:
+        overall = "error"
+    elif "warn" in states:
+        overall = "warn"
+    else:
+        overall = "ok"
+
+    result = {
+        "version": WORKSPACE_V7_VERSION,
+        "mode": "light",
+        "overall": overall,
+        "checks": checks,
+        "python": platform.python_version(),
+        "generated_at": utc_now(),
+    }
+
+    if persist:
+        db.execute(
+            "INSERT INTO operator_diagnostics("
+            "diag_id,overall,checks_json,created_at"
+            ") VALUES(?,?,?,?)",
+            (
+                f"diag-light-{uuid.uuid4().hex[:16]}",
+                overall,
+                json_dumps(checks),
+                utc_now(),
+            ),
+        )
+
+    return result
+
 
 
 def safety_center(paths: AppPaths, config: Config, db: Database) -> dict[str, Any]:
