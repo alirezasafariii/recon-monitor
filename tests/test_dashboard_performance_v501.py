@@ -88,9 +88,16 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
     def test_live_analysis_progress_defers_deep_intelligence(self) -> None:
         app = Path(__file__).parents[1].joinpath("app")
         source = app.joinpath("progress_tracking.py").read_text(encoding="utf-8")
+        dashboard_source = app.joinpath("dashboard_core.py").read_text(encoding="utf-8")
+
         self.assertIn('getattr(dash, "_ORIGINAL_ANALYSIS_ENGINE", None)', source)
         self.assertIn("Deep vulnerability-intelligence correlation is deferred", source)
-        self.assertIn("10000", source)
+
+        # Live progress now uses bounded AJAX polling instead of reloading the
+        # entire Dashboard page every ten seconds.
+        self.assertNotIn("window.location.reload", source)
+        self.assertIn("refreshLiveProgress", dashboard_source)
+        self.assertIn("/api/live-progress", dashboard_source)
 
     def test_analysis_summary_never_builds_investigation_queue(self) -> None:
         app = Path(__file__).parents[1].joinpath("app")

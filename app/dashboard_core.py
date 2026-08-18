@@ -978,6 +978,63 @@ commandInput?.addEventListener('keydown',e=>{{if(e.key==='Enter'){{const q=comma
 palette?.addEventListener('click',e=>{{if(e.target===palette)closePalette();}});
 document.addEventListener('keydown',e=>{{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){{e.preventDefault();openPalette();return;}} if(e.key==='Escape'&&palette?.classList.contains('open')){{closePalette();return;}} if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){{e.preventDefault();document.getElementById('globalSearch')?.focus();}}}});
 document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{{await navigator.clipboard.writeText(b.dataset.copy||'');const old=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=old,1200);}}));
+const liveProgressKind=window.location.pathname==='/recon'?'recon':(window.location.pathname==='/analysis'?'analysis':'');
+let liveProgressBusy=false;
+
+async function refreshLiveProgress(){{
+  if(!liveProgressKind||liveProgressBusy||document.visibilityState!=='visible')return;
+
+  const panel=document.getElementById('live-progress');
+  if(!panel)return;
+
+  liveProgressBusy=true;
+  try{{
+    const params=new URLSearchParams();
+    params.set('kind',liveProgressKind);
+
+    const pageParams=new URLSearchParams(window.location.search);
+    const target=pageParams.get('target');
+    if(target)params.set('target',target);
+
+    const response=await fetch(
+      '/api/live-progress?'+params.toString(),
+      {{
+        method:'GET',
+        headers:{{'Accept':'application/json'}},
+        cache:'no-store',
+        credentials:'same-origin'
+      }}
+    );
+
+    if(!response.ok)throw new Error('HTTP '+response.status);
+
+    const contentType=response.headers.get('content-type')||'';
+    if(!contentType.includes('application/json'))throw new Error('Unexpected response type');
+
+    const payload=await response.json();
+    if(!payload.html)return;
+
+    const template=document.createElement('template');
+    template.innerHTML=payload.html.trim();
+    const fresh=template.content.querySelector('#live-progress');
+
+    if(fresh){{
+      panel.replaceWith(fresh);
+    }}
+  }}catch(error){{
+    console.debug('Live progress refresh failed:',error);
+  }}finally{{
+    liveProgressBusy=false;
+  }}
+}}
+
+if(liveProgressKind){{
+  window.setInterval(refreshLiveProgress,5000);
+
+  document.addEventListener('visibilitychange',()=>{{
+    if(document.visibilityState==='visible')refreshLiveProgress();
+  }});
+}}
 </script></body></html>"""
 
 
@@ -2935,7 +2992,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
     def diagnostics_page(self) -> None:
         db=self.db()
         try:
-            data=operator_diagnostics(self.paths,self.config,db,persist=False)
+            data=operator_diagnostics(self.paths,self.config,db,persist=False,deep=False)
             errors=recent_error_events(db,limit=50)
             preview=safe_repair(self.paths,db,dry_run=True,actor='dashboard',max_age_hours=24)
         finally: db.close()
@@ -3118,19 +3175,49 @@ def serve_dashboard(paths: AppPaths, config: Config, logger: Logger, host: str =
     print(f"Dashboard: http://{host}:{port}")
 
     def startup_self_check() -> None:
-        # Local/read-mostly diagnostics use their own connection and never probe a target.
+        # Dashboard uses bounded diagnostics by default. Full database-wide
+        # diagnostics are retained behind explicit operator opt-in.
         try:
             diag_db = Database(paths.db)
             try:
-                startup = operator_diagnostics(paths, config, diag_db, persist=True)
+                deep = config.bool(
+                    "DASHBOARD_DEEP_STARTUP_DIAGNOSTICS",
+                    False,
+                )
+                startup = operator_diagnostics(
+                    paths,
+                    config,
+                    diag_db,
+                    persist=True,
+                    deep=deep,
+                )
             finally:
                 diag_db.close()
-            if startup.get("overall") == "ok":
-                logger.info("Dashboard startup self-check passed", checks=len(startup.get("checks", [])))
+
+            mode = str(startup.get("mode") or ("deep" if deep else "light"))
+            overall = str(startup.get("overall") or "unknown")
+            checks = len(startup.get("checks", []))
+
+            if overall == "ok":
+                logger.info(
+                    "Dashboard startup self-check passed",
+                    mode=mode,
+                    checks=checks,
+                )
             else:
-                logger.warn("Dashboard startup self-check requires attention", overall=startup.get("overall"), checks=startup.get("checks", []))
+                logger.warn(
+                    "Dashboard startup self-check requires attention",
+                    mode=mode,
+                    overall=overall,
+                    checks=checks,
+                )
+
         except Exception as exc:
-            logger.warn("Dashboard startup self-check failed", error_type=type(exc).__name__, error=str(exc)[:400])
+            logger.warn(
+                "Dashboard startup self-check failed",
+                error_type=type(exc).__name__,
+                error=str(exc)[:400],
+            )
 
     threading.Thread(
         target=startup_self_check,
