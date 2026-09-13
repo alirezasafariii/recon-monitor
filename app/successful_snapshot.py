@@ -2,20 +2,21 @@ from __future__ import annotations
 
 """Successful-run comparison snapshots for Recon Monitor.
 
-Collection stages intentionally keep using the established mutable tables during
-an in-progress run so resume and Analysis behavior remain compatible. This
-module adds a commit boundary around the comparison state that drives "new" and
-"changed" decisions:
+Collection keeps using the established mutable tables during an in-progress run
+so resume and Analysis behavior remain compatible. This module adds a separate
+commit boundary for the comparison state that drives "new" and "changed"
+decisions:
 
 * a new run restores the last committed successful snapshot before collection;
-* failed/interrupted runs may mutate the working tables, but those mutations are
-  never promoted to the committed snapshot;
-* a successful target run replaces the committed snapshot atomically;
-* resuming the same run does not restore, so already-completed stage state stays
-  available to the resume path.
+* failed/interrupted runs may mutate working tables, but are never promoted;
+* a successful target run atomically replaces the committed snapshot;
+* resuming the same run keeps its working state and does not restore;
+* an unsafe legacy database is re-baselined instead of guessing through state
+  that may already have been overwritten by a failed run.
 
-Only the four comparison-critical tables covered by this first reliability
-phase are checkpointed: assets, DNS records, URLs, and HTTP fingerprints.
+This first reliability phase deliberately checkpoints only the four tables that
+directly participate in the reproduced failed-run contamination bug: assets,
+DNS records, URLs, and HTTP fingerprints.
 """
 
 from pathlib import Path
@@ -27,16 +28,7 @@ from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
 
 SNAPSHOT_SCHEMA_VERSION = 1
 BOOTSTRAP_META_KEY = "successful_snapshot_bootstrap_v1"
-
-# Deliberately narrow for the first reliability phase. These are the shared
-# tables directly responsible for the failed-run contamination bug that can
-# suppress new/change detection on the next scan.
-TRACKED_TABLES = (
-    "assets",
-    "dns_records",
-    "urls",
-    "fingerprints",
-)
+TRACKED_TABLES = ("assets", "dns_records", "urls", "fingerprints")
 
 
 class SuccessfulSnapshotDatabase(BaseDatabase):
@@ -71,15 +63,12 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             """
         )
         self.execute(
-            "INSERT INTO schema_meta(key,value) VALUES('successful_snapshot_schema_version',?) "
+            "INSERT INTO schema_meta(key,value) "
+            "VALUES('successful_snapshot_schema_version',?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (str(SNAPSHOT_SCHEMA_VERSION),),
         )
 
-        # One-time compatibility bootstrap for databases that already had
-        # successful runs before this boundary existed. Preserve their current
-        # comparison view rather than generating a surprise re-alert storm.
-        # Failed-only targets are intentionally not bootstrapped.
         marker = self.one(
             "SELECT value FROM schema_meta WHERE key=?",
             (BOOTSTRAP_META_KEY,),
@@ -87,16 +76,28 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         if marker is not None:
             return
 
-        latest_by_target: dict[str, str] = {}
-        for row in self.all(
-            "SELECT target,run_id FROM run_targets WHERE status='success' "
-            "ORDER BY target,COALESCE(finished_at,started_at) DESC,run_id DESC"
-        ):
-            target = str(row["target"])
-            if target not in latest_by_target:
-                latest_by_target[target] = str(row["run_id"])
-
-        for target, run_id in latest_by_target.items():
+        # Compatibility bootstrap is intentionally conservative. The current
+        # mutable rows are trustworthy only when the target's latest execution
+        # itself completed successfully and has no explicit failed/interrupted
+        # stage. If the latest execution is partial/failed/running (or report
+        # explicitly failed), we do not fabricate a canonical snapshot. The
+        # next run will be an alert-silent re-baseline and establish one safely.
+        targets = self.all(
+            "SELECT DISTINCT target FROM run_targets ORDER BY target"
+        )
+        for target_row in targets:
+            target = str(target_row["target"])
+            latest = self.one(
+                "SELECT run_id,status FROM run_targets WHERE target=? "
+                "ORDER BY COALESCE(finished_at,started_at) DESC,run_id DESC "
+                "LIMIT 1",
+                (target,),
+            )
+            if latest is None or str(latest["status"]) != "success":
+                continue
+            run_id = str(latest["run_id"])
+            if not self._run_is_snapshot_safe(run_id, target, allow_missing_report=True):
+                continue
             with self.transaction():
                 self._replace_successful_snapshot_no_tx(
                     target,
@@ -109,6 +110,36 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (BOOTSTRAP_META_KEY, utc_now()),
         )
+
+    def _run_is_snapshot_safe(
+        self,
+        run_id: str,
+        target: str,
+        *,
+        allow_missing_report: bool,
+    ) -> bool:
+        failed_stage = self.one(
+            "SELECT 1 FROM stage_runs WHERE run_id=? AND target=? "
+            "AND status IN ('failed','interrupted') LIMIT 1",
+            (run_id, target),
+        )
+        if failed_stage is not None:
+            return False
+        report_status = self.stage_status(run_id, target, "report")
+        if report_status is None:
+            return allow_missing_report
+        return report_status == "success"
+
+    def target_has_history(self, target: str) -> bool:
+        # From this feature onward, alerting eligibility follows a committed
+        # comparison snapshot, not merely the existence of a historical
+        # run_targets row marked success. This also safely re-baselines legacy
+        # targets whose latest mutable state cannot be trusted during upgrade.
+        row = self.one(
+            "SELECT 1 FROM successful_recon_commits WHERE target=? LIMIT 1",
+            (target,),
+        )
+        return row is not None
 
     def _table_columns(self, table_name: str) -> list[str]:
         if table_name not in TRACKED_TABLES:
@@ -135,16 +166,13 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             "DELETE FROM successful_recon_state WHERE target=?",
             (target,),
         )
-
         for table_name in TRACKED_TABLES:
             rows = self.all(
                 f'SELECT * FROM "{table_name}" WHERE target=?',
                 (target,),
             )
             for row in rows:
-                payload = self._row_payload(row)
-                row_json = json_dumps(payload)
-                row_hash = sha256_text(row_json)
+                row_json = json_dumps(self._row_payload(row))
                 self.execute(
                     "INSERT INTO successful_recon_state("
                     "target,table_name,row_hash,row_json,committed_run_id,committed_at"
@@ -152,14 +180,13 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                     (
                         target,
                         table_name,
-                        row_hash,
+                        sha256_text(row_json),
                         row_json,
                         run_id,
                         now,
                     ),
                 )
                 total_rows += 1
-
         self.execute(
             "INSERT INTO successful_recon_commits("
             "target,run_id,committed_at,bootstrap,table_count,row_count"
@@ -186,19 +213,14 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         )
         restored_rows = 0
 
-        # Clearing happens even when no committed snapshot exists. This is the
-        # key first-baseline behavior: rows left by a failed attempt must not be
-        # treated as the baseline of a later run.
+        # Clear the target's mutable comparison view first. If no committed
+        # snapshot exists, the clean view is intentional: prior failed-only
+        # observations must not become the reference for this run.
         for table_name in TRACKED_TABLES:
-            self.execute(
-                f'DELETE FROM "{table_name}" WHERE target=?',
-                (target,),
-            )
-
+            self.execute(f'DELETE FROM "{table_name}" WHERE target=?', (target,))
             if commit is None:
                 continue
-
-            allowed_columns = self._table_columns(table_name)
+            columns_allowed = self._table_columns(table_name)
             snapshot_rows = self.all(
                 "SELECT row_json FROM successful_recon_state "
                 "WHERE target=? AND table_name=? ORDER BY row_hash",
@@ -206,34 +228,24 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             )
             for snapshot_row in snapshot_rows:
                 payload = safe_json_loads(
-                    snapshot_row["row_json"],
-                    {},
-                    expected_type=dict,
+                    snapshot_row["row_json"], {}, expected_type=dict
                 )
                 if str(payload.get("target") or "") != target:
                     raise RuntimeError(
                         f"Snapshot target mismatch for {target}/{table_name}"
                     )
-
-                columns = [
-                    column
-                    for column in allowed_columns
-                    if column in payload
-                ]
+                columns = [c for c in columns_allowed if c in payload]
                 if "target" not in columns:
                     raise RuntimeError(
                         f"Snapshot row lacks target for {target}/{table_name}"
                     )
                 placeholders = ",".join("?" for _ in columns)
                 quoted = ",".join(f'"{column}"' for column in columns)
-                values = [payload[column] for column in columns]
                 self.execute(
-                    f'INSERT INTO "{table_name}"({quoted}) '
-                    f"VALUES({placeholders})",
-                    values,
+                    f'INSERT INTO "{table_name}"({quoted}) VALUES({placeholders})',
+                    [payload[column] for column in columns],
                 )
                 restored_rows += 1
-
         return {
             "tables": len(TRACKED_TABLES),
             "rows": restored_rows,
@@ -277,22 +289,12 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             (run_id, policy.name),
         )
         if existing is not None:
-            # Resume/re-entry of the same run must keep its working state.
-            return super().create_run_target(
-                run_id,
-                policy,
-                run_dir,
-                baseline,
-            )
-
+            # Resume/re-entry of the same run keeps completed-stage working
+            # state. A restore here would erase progress from that same run.
+            return super().create_run_target(run_id, policy, run_dir, baseline)
         with self.transaction():
             self._restore_successful_snapshot_no_tx(policy.name)
-            super().create_run_target(
-                run_id,
-                policy,
-                run_dir,
-                baseline,
-            )
+            super().create_run_target(run_id, policy, run_dir, baseline)
 
     def _snapshot_commit_ready(
         self,
@@ -302,38 +304,17 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
     ) -> bool:
         if status != "success":
             return False
-
-        failed_stage = self.one(
-            "SELECT 1 FROM stage_runs "
-            "WHERE run_id=? AND target=? "
-            "AND status IN ('failed','interrupted') LIMIT 1",
-            (run_id, target),
-        )
-        if failed_stage is not None:
-            return False
-
-        # Production runs always execute report. Keeping None compatible lets
-        # existing maintenance/tests that directly finalize a synthetic target
-        # continue to work, while an explicit report failure can never commit.
-        report_status = self.stage_status(run_id, target, "report")
-        return report_status in {None, "success"}
-
-    def finish_run_target(
-        self,
-        run_id: str,
-        target: str,
-        status: str,
-    ) -> None:
-        commit_ready = self._snapshot_commit_ready(
+        return self._run_is_snapshot_safe(
             run_id,
             target,
-            status,
+            allow_missing_report=True,
         )
+
+    def finish_run_target(self, run_id: str, target: str, status: str) -> None:
+        commit_ready = self._snapshot_commit_ready(run_id, target, status)
         with self.transaction():
             if commit_ready:
                 self._replace_successful_snapshot_no_tx(
-                    target,
-                    run_id,
-                    bootstrap=False,
+                    target, run_id, bootstrap=False
                 )
             super().finish_run_target(run_id, target, status)
