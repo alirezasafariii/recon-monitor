@@ -1,0 +1,123 @@
+name: Temporary Release Doc Sync
+
+on:
+  push:
+    branches: [chore/release-metadata-consistency-20260914]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/release-metadata-consistency-20260914
+          fetch-depth: 0
+
+      - name: Patch current release blocks and refresh manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import sys
+          from pathlib import Path
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / 'app'))
+          from core import APP_VERSION, SCHEMA_VERSION
+
+          marker = f'<!-- recon-monitor-current: app={APP_VERSION} schema={SCHEMA_VERSION} -->'
+
+          def replace_prefix(path: str, anchor: str, replacement: str) -> None:
+              file_path = root / path
+              text = file_path.read_text(encoding='utf-8')
+              index = text.find(anchor)
+              if index < 0:
+                  raise SystemExit(f'anchor not found in {path}: {anchor}')
+              suffix = text[index:]
+              file_path.write_text(replacement.rstrip() + '\n\n' + suffix, encoding='utf-8')
+
+          english = f'''# Recon Monitor {APP_VERSION}
+
+          {marker}
+
+          ## Current release: Evidence Completion & Live Progress
+
+          Recon Monitor {APP_VERSION} makes evidence gaps actionable without weakening canonical Admission and makes long-running Recon/Analysis work observable through explicit progress and health state.
+
+          Current `main` also hardens the reliability boundary around Recon: canonical comparison state is committed only from trustworthy collection, volatile changes use state-version confirmation, Potential Finding notifications are independent and idempotent, and target lifecycle records collection, Analysis, reporting, notification, and baseline validity separately.
+
+          The canonical application version is **{APP_VERSION}** and the core database schema is **{SCHEMA_VERSION}**. `app/core.py` is the source of truth for both values. See `CHANGELOG.md`, `MIGRATION-v{APP_VERSION}.md`, `docs/RELEASE_NOTES_v{APP_VERSION}.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.'''
+
+          persian = f'''# راهنمای Recon Monitor {APP_VERSION}
+
+          {marker}
+
+          ## نسخهٔ فعلی: Evidence Completion و Live Progress
+
+          Recon Monitor {APP_VERSION} شکاف‌های Evidence را بدون تضعیف Admission قابل اقدام می‌کند و برای Recon و Analysis طولانی، Progress و Health صریح ارائه می‌دهد.
+
+          وضعیت فعلی `main` مرز Reliability را نیز سخت‌تر کرده است: State مقایسهٔ Recon فقط از Collection قابل اعتماد commit می‌شود، تغییرات ناپایدار با State Version تأیید می‌شوند، Notification مربوط به Potential Finding از Recon Change Alert مستقل و Idempotent است و Lifecycle تارگت وضعیت Collection، Analysis، Report، Notification و اعتبار Baseline را جداگانه نگه می‌دارد.
+
+          نسخهٔ canonical برنامه **{APP_VERSION}** و Core Schema دیتابیس **{SCHEMA_VERSION}** است. منبع حقیقت هر دو مقدار `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v{APP_VERSION}.md`، `docs/RELEASE_NOTES_v{APP_VERSION}.md` و `docs/ARCHITECTURE.md` مراجعه کن.'''
+
+          replace_prefix(
+              'README.md',
+              '## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0',
+              english,
+          )
+          replace_prefix(
+              'README_FA.md',
+              '## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0',
+              persian,
+          )
+
+          manifest_path = root / 'MANIFEST.sha256'
+          entries: list[str] = []
+          seen: set[str] = set()
+          for raw in manifest_path.read_text(encoding='utf-8').splitlines():
+              line = raw.strip()
+              if not line:
+                  continue
+              _digest, rel = line.split(None, 1)
+              rel = rel.strip()
+              if rel in seen:
+                  raise SystemExit(f'duplicate manifest path: {rel}')
+              seen.add(rel)
+              entries.append(rel)
+
+          for rel in ['tools/check_release_consistency.py']:
+              if rel not in seen:
+                  entries.append(rel)
+                  seen.add(rel)
+
+          rendered: list[str] = []
+          for rel in entries:
+              path = root / rel
+              if not path.is_file():
+                  raise SystemExit(f'manifest path missing: {rel}')
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              rendered.append(f'{digest}  {rel}')
+          manifest_path.write_text('\n'.join(rendered) + '\n', encoding='utf-8')
+          PY
+
+      - name: Commit generated consistency updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README.md README_FA.md MANIFEST.sha256; then
+            echo 'No generated changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md README_FA.md MANIFEST.sha256
+          git commit -m 'docs: sync current release metadata'
+          git push origin HEAD:chore/release-metadata-consistency-20260914
