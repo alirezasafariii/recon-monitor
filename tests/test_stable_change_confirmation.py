@@ -322,7 +322,7 @@ class StableChangeConfirmationTests(unittest.TestCase):
 
     def test_runtime_stage_hooks_are_installed(self) -> None:
         self.assertTrue(getattr(stages, "_STABLE_CONFIRMATION_INSTALLED", False))
-        self.assertIs(stages.emit_event.__module__, sys.modules["stable_confirmation"])
+        self.assertEqual(stages.emit_event.__module__, "stable_confirmation")
 
 
 if __name__ == "__main__":
