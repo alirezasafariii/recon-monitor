@@ -1,0 +1,133 @@
+name: Branch Hygiene
+
+on:
+  # Bootstrap the current cleanup when this workflow first lands on main.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/branch-hygiene.yml']
+  # Keep merged PR head branches from accumulating again.
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete proven-safe stale branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const defaultBranch = context.payload.repository.default_branch || 'main';
+
+            // Conservative one-time cleanup list from the all-branch audit.
+            // A listed branch is deleted only when GitHub confirms that it has
+            // zero commits missing from main. Diverged/R&D/recovery/publish
+            // branches are deliberately excluded from this list.
+            const auditedMergedBranches = [
+              'fix/dashboard-stale-recon-selection-20260818',
+              'fix/explicit-lifecycle-baseline-state-20260914',
+              'fix/finding-notification-pipeline-20260914',
+              'fix/recon-scan-baseline-alerts',
+              'fix/recon-worker-db-serialization-20260818',
+              'fix/report-failure-lifecycle-20260914',
+              'fix/stable-change-confirmation-20260914',
+              'fix/successful-snapshot-boundary-20260914',
+              'final-analyzers',
+              'checkpoint/stage9-success-20260818',
+              'agent/collection-quality-v1',
+              'agent/evidence-coverage-v1',
+              'agent/evidence-completion-planner-v1',
+              'agent/validation-eligibility-gate-v1',
+              'agent/passive-live-validation-executor-v1-clean',
+              'agent/dashboard-analysis-fast-summary-v2',
+              'agent/dashboard-live-performance-v1',
+              'agent/dashboard-login-landing-performance-v3',
+              'agent/analysis-graceful-stop-v1',
+              'bot/analysis-graceful-stop-v1',
+              'agent/vulnerability-intelligence-8.6.0',
+            ];
+
+            const candidates = new Set();
+            if (context.eventName === 'push') {
+              for (const branch of auditedMergedBranches) candidates.add(branch);
+            }
+
+            const pr = context.payload.pull_request;
+            if (pr?.merged === true && pr.head?.repo?.full_name === context.payload.repository.full_name) {
+              candidates.add(pr.head.ref);
+            }
+
+            for (const branch of [...candidates].sort()) {
+              if (!branch || branch === defaultBranch) {
+                core.info(`skip protected/default branch: ${branch || '<empty>'}`);
+                continue;
+              }
+
+              let exists = true;
+              try {
+                await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
+              } catch (error) {
+                if (error.status === 404) {
+                  exists = false;
+                  core.info(`already absent: ${branch}`);
+                } else {
+                  throw error;
+                }
+              }
+              if (!exists) continue;
+
+              const isJustMergedHead = Boolean(
+                pr?.merged === true &&
+                pr.head?.repo?.full_name === context.payload.repository.full_name &&
+                pr.head?.ref === branch
+              );
+
+              let safeToDelete = isJustMergedHead;
+              if (!safeToDelete) {
+                try {
+                  const comparison = await github.rest.repos.compareCommitsWithBasehead({
+                    owner,
+                    repo,
+                    basehead: `${branch}...${defaultBranch}`,
+                  });
+                  // With branch...main, behind_by is the number of commits
+                  // reachable only from the branch. Zero means no unique
+                  // branch commit would be lost by deleting the ref.
+                  safeToDelete = Number(comparison.data.behind_by || 0) === 0;
+                  if (!safeToDelete) {
+                    core.warning(
+                      `preserved ${branch}: ${comparison.data.behind_by} unique commit(s) not in ${defaultBranch}`
+                    );
+                  }
+                } catch (error) {
+                  // No common ancestor or any comparison error is a preserve,
+                  // never a reason to guess and delete.
+                  core.warning(`preserved ${branch}: compare failed (${error.message})`);
+                  continue;
+                }
+              }
+
+              if (!safeToDelete) continue;
+
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
+                core.info(`deleted stale branch: ${branch}`);
+              } catch (error) {
+                // A concurrent cleanup event may have deleted the same ref.
+                if (error.status === 404) {
+                  core.info(`already deleted concurrently: ${branch}`);
+                } else {
+                  throw error;
+                }
+              }
+            }
