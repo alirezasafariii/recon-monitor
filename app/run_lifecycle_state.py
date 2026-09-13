@@ -260,7 +260,7 @@ def derive_overall_status(
         return "partial"
     if analysis_status != "success":
         return "partial"
-    if notification_status == "failed":
+    if notification_status not in {"success", "queued"}:
         return "partial"
     return "success"
 
@@ -322,10 +322,16 @@ def lifecycle_record(db: Any, run_id: str, target: str) -> dict[str, Any] | None
 
 def baseline_commit_eligible(db: Any, run_id: str, target: str) -> bool | None:
     row = db.one(
-        "SELECT baseline_eligible FROM target_run_lifecycle WHERE run_id=? AND target=?",
+        "SELECT baseline_eligible,collection_status,baseline_state "
+        "FROM target_run_lifecycle WHERE run_id=? AND target=?",
         (run_id, target),
     )
     if row is None:
+        return None
+    # A row is created when collection starts. Synthetic/maintenance callers
+    # that never finalize explicit component states retain the previous
+    # compatibility behavior instead of being interpreted as ineligible.
+    if str(row["collection_status"]) == "not_run" and str(row["baseline_state"]) == "pending":
         return None
     return bool(row["baseline_eligible"])
 
@@ -337,7 +343,6 @@ def mark_baseline_committed(db: Any, run_id: str, target: str, reason: str) -> s
     previous = baseline_record(db, target)
     if previous is None:
         state = "established"
-        established_run_id = run_id
         established_at = now
         db.execute(
             "INSERT INTO target_baselines("
@@ -347,7 +352,7 @@ def mark_baseline_committed(db: Any, run_id: str, target: str, reason: str) -> s
             (
                 target,
                 "established",
-                established_run_id,
+                run_id,
                 established_at,
                 run_id,
                 now,
@@ -358,7 +363,6 @@ def mark_baseline_committed(db: Any, run_id: str, target: str, reason: str) -> s
         )
     else:
         state = "refreshed"
-        established_run_id = str(previous["established_run_id"])
         established_at = str(previous["established_at"])
         db.execute(
             "UPDATE target_baselines SET state='established',last_refreshed_run_id=?,"
