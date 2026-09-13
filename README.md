@@ -1,12 +1,14 @@
-# Recon Monitor 8.6.0
+# Recon Monitor 8.7.0
 
-## Raw-first Vulnerability Intelligence & quiet baseline alerts in 8.6.0
+<!-- recon-monitor-current: app=8.7.0 schema=18 -->
 
-Recon Monitor now routes stored raw Recon surfaces into the canonical 74-family vulnerability engine even when a run has no Alert rows. Endpoint classifications, HTTP/TLS fingerprints, DNS CNAME observations, semantic JavaScript, behavioral history, OWASP/WSTG/CWE/CAPEC mappings, and bounded write-up retrieval feed hidden family hypotheses. Only target evidence can satisfy admission and create a **Potential Finding**; taxonomy and write-ups remain non-evidentiary.
+## Current release: Evidence Completion & Live Progress
 
-The first successful scan is now a strict baseline: full Recon and Analysis still run, hypotheses/Potential Findings are preserved, and the baseline is saved, but no Alert row or notification is created. Alerts become active from the second scan and represent new or materially changed observations only.
+Recon Monitor 8.7.0 makes evidence gaps actionable without weakening canonical Admission and makes long-running Recon/Analysis work observable through explicit progress and health state.
 
-Application version is **8.6.0** and database schema remains **18**. See `MIGRATION-v8.6.0.md` and `docs/VULNERABILITY_INTELLIGENCE_ENGINE.md`.
+Current `main` also hardens the reliability boundary around Recon: canonical comparison state is committed only from trustworthy collection, volatile changes use state-version confirmation, Potential Finding notifications are independent and idempotent, and target lifecycle records collection, Analysis, reporting, notification, and baseline validity separately.
+
+The canonical application version is **8.7.0** and the core database schema is **18**. `app/core.py` is the source of truth for both values. See `CHANGELOG.md`, `MIGRATION-v8.7.0.md`, `docs/RELEASE_NOTES_v8.7.0.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 
