@@ -30,20 +30,188 @@ jobs:
           text = adapter.read_text(encoding='utf-8')
           start = text.index('def _persist_evidence(')
           end = text.index('\n\ndef adapt_validation_runner_execution(', start)
-          replacement = '''def _persist_evidence(\n    db: Database,\n    *,\n    execution: Mapping[str, Any],\n    hypothesis: Mapping[str, Any],\n    items: list[dict[str, Any]],\n) -> dict[str, str]:\n    """Persist at most one Evidence Record per execution root and polarity.\n\n    ``evidence_records`` intentionally has a unique (analysis_id, root_fingerprint,\n    polarity) contract. Typed signal granularity belongs in hypothesis evidence;\n    the evidence record is the provenance root that prevents one execution from\n    masquerading as several independent sources.\n    """\n\n    now = utc_now()\n    execution_id = str(execution.get("execution_id") or "")\n    root = sha256_text(\n        "|".join(\n            [\n                "typed-validation-root",\n                execution_id,\n                str(execution.get("family") or ""),\n                str(execution.get("target") or ""),\n            ]\n        )\n    )\n    grouped: dict[str, list[dict[str, Any]]] = {}\n    for item in items:\n        polarity = str(item.get("polarity") or "support")\n        grouped.setdefault(polarity, []).append(item)\n\n    evidence_by_polarity: dict[str, str] = {}\n    for polarity, group in sorted(grouped.items()):\n        signal_types = sorted({str(item.get("type") or "") for item in group if str(item.get("type") or "")})\n        observations = sorted(\n            [\n                {\n                    "sequence": int(item.get("observation_sequence") or 0),\n                    "type": str(item.get("type") or ""),\n                    "observed_at": str(item.get("observed_at") or ""),\n                    "url": str(item.get("url") or ""),\n                    "method": str(item.get("method") or ""),\n                }\n                for item in group\n            ],\n            key=lambda item: (item["sequence"], item["type"], item["url"]),\n        )\n        canonical = {\n            "execution_id": execution_id,\n            "family": str(execution.get("family") or ""),\n            "polarity": polarity,\n            "signal_types": signal_types,\n            "observations": observations,\n            "rule_version": TYPED_EVIDENCE_ADAPTER_RULE_VERSION,\n        }\n        integrity = sha256_text(json_dumps(canonical))\n        evidence_id = "EVD-" + integrity[:16].upper()\n        evidence_by_polarity[polarity] = evidence_id\n        observed_values = [str(item.get("observed_at") or "") for item in group if str(item.get("observed_at") or "")]\n        first_seen = min(observed_values) if observed_values else now\n        last_seen = max(observed_values) if observed_values else now\n        direct = any(str(item.get("type") or "") in _DIRECT_TYPES for item in group)\n        evidence_type = signal_types[0] if len(signal_types) == 1 else "typed_validation_bundle"\n        summary = (\n            f"Typed passive-live {polarity} evidence from one approved execution root: "\n            + ", ".join(signal_types)\n        )[:2000]\n        db.execute(\n            """INSERT OR IGNORE INTO evidence_records(\n            evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,\n            parser_name,parser_version,source_group,root_fingerprint,trust_score,observation_quality,directness,summary,\n            raw_reference,integrity_hash,first_seen,last_seen,created_at\n            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",\n            (\n                evidence_id,\n                str(hypothesis.get("analysis_id") or ""),\n                str(hypothesis.get("source_run_id") or ""),\n                str(hypothesis.get("target") or ""),\n                evidence_type,\n                polarity,\n                "passive_live_validation",\n                "validation_runner",\n                "validation-runner-executions.jsonl",\n                "typed_evidence_adapter",\n                TYPED_EVIDENCE_ADAPTER_VERSION,\n                f"validation_execution:{execution_id}",\n                root,\n                ADAPTER_TRUST_SCORE_CEILING,\n                ADAPTER_OBSERVATION_QUALITY_CEILING,\n                "direct" if direct else "contextual",\n                summary,\n                f"validation_execution:{execution_id}",\n                integrity,\n                first_seen,\n                last_seen,\n                now,\n            ),\n        )\n        stored = db.one(\n            "SELECT evidence_id,integrity_hash FROM evidence_records WHERE analysis_id=? AND root_fingerprint=? AND polarity=?",\n            (str(hypothesis.get("analysis_id") or ""), root, polarity),\n        )\n        if not stored or str(stored["integrity_hash"] or "") != integrity:\n            raise ReconError("Typed evidence root collision or mutable evidence detected")\n        evidence_by_polarity[polarity] = str(stored["evidence_id"] or evidence_id)\n        db.execute("UPDATE evidence_records SET last_seen=? WHERE evidence_id=?", (now, evidence_by_polarity[polarity]))\n    return evidence_by_polarity\n'''
+          replacement = '''def _persist_evidence(
+              db: Database,
+              *,
+              execution: Mapping[str, Any],
+              hypothesis: Mapping[str, Any],
+              items: list[dict[str, Any]],
+          ) -> dict[str, str]:
+              """Persist at most one Evidence Record per execution root and polarity.
+
+              ``evidence_records`` intentionally has a unique (analysis_id, root_fingerprint,
+              polarity) contract. Typed signal granularity belongs in hypothesis evidence;
+              the evidence record is the provenance root that prevents one execution from
+              masquerading as several independent sources.
+              """
+
+              now = utc_now()
+              execution_id = str(execution.get("execution_id") or "")
+              root = sha256_text(
+                  "|".join(
+                      [
+                          "typed-validation-root",
+                          execution_id,
+                          str(execution.get("family") or ""),
+                          str(execution.get("target") or ""),
+                      ]
+                  )
+              )
+              grouped: dict[str, list[dict[str, Any]]] = {}
+              for item in items:
+                  polarity = str(item.get("polarity") or "support")
+                  grouped.setdefault(polarity, []).append(item)
+
+              evidence_by_polarity: dict[str, str] = {}
+              for polarity, group in sorted(grouped.items()):
+                  signal_types = sorted({str(item.get("type") or "") for item in group if str(item.get("type") or "")})
+                  observations = sorted(
+                      [
+                          {
+                              "sequence": int(item.get("observation_sequence") or 0),
+                              "type": str(item.get("type") or ""),
+                              "observed_at": str(item.get("observed_at") or ""),
+                              "url": str(item.get("url") or ""),
+                              "method": str(item.get("method") or ""),
+                          }
+                          for item in group
+                      ],
+                      key=lambda item: (item["sequence"], item["type"], item["url"]),
+                  )
+                  canonical = {
+                      "execution_id": execution_id,
+                      "family": str(execution.get("family") or ""),
+                      "polarity": polarity,
+                      "signal_types": signal_types,
+                      "observations": observations,
+                      "rule_version": TYPED_EVIDENCE_ADAPTER_RULE_VERSION,
+                  }
+                  integrity = sha256_text(json_dumps(canonical))
+                  evidence_id = "EVD-" + integrity[:16].upper()
+                  observed_values = [str(item.get("observed_at") or "") for item in group if str(item.get("observed_at") or "")]
+                  first_seen = min(observed_values) if observed_values else now
+                  last_seen = max(observed_values) if observed_values else now
+                  direct = any(str(item.get("type") or "") in _DIRECT_TYPES for item in group)
+                  evidence_type = signal_types[0] if len(signal_types) == 1 else "typed_validation_bundle"
+                  summary = (
+                      f"Typed passive-live {polarity} evidence from one approved execution root: "
+                      + ", ".join(signal_types)
+                  )[:2000]
+                  db.execute(
+                      """INSERT OR IGNORE INTO evidence_records(
+                      evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,
+                      parser_name,parser_version,source_group,root_fingerprint,trust_score,observation_quality,directness,summary,
+                      raw_reference,integrity_hash,first_seen,last_seen,created_at
+                      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      (
+                          evidence_id,
+                          str(hypothesis.get("analysis_id") or ""),
+                          str(hypothesis.get("source_run_id") or ""),
+                          str(hypothesis.get("target") or ""),
+                          evidence_type,
+                          polarity,
+                          "passive_live_validation",
+                          "validation_runner",
+                          "validation-runner-executions.jsonl",
+                          "typed_evidence_adapter",
+                          TYPED_EVIDENCE_ADAPTER_VERSION,
+                          f"validation_execution:{execution_id}",
+                          root,
+                          ADAPTER_TRUST_SCORE_CEILING,
+                          ADAPTER_OBSERVATION_QUALITY_CEILING,
+                          "direct" if direct else "contextual",
+                          summary,
+                          f"validation_execution:{execution_id}",
+                          integrity,
+                          first_seen,
+                          last_seen,
+                          now,
+                      ),
+                  )
+                  stored = db.one(
+                      "SELECT evidence_id,integrity_hash FROM evidence_records WHERE analysis_id=? AND root_fingerprint=? AND polarity=?",
+                      (str(hypothesis.get("analysis_id") or ""), root, polarity),
+                  )
+                  if not stored or str(stored["integrity_hash"] or "") != integrity:
+                      raise ReconError("Typed evidence root collision or mutable evidence detected")
+                  evidence_by_polarity[polarity] = str(stored["evidence_id"] or evidence_id)
+                  db.execute("UPDATE evidence_records SET last_seen=? WHERE evidence_id=?", (now, evidence_by_polarity[polarity]))
+              return evidence_by_polarity
+          '''
+          # De-indent the embedded function from YAML/Python source indentation.
+          replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
           text = text[:start] + replacement + text[end:]
-          text = text.replace(\n              '''        evidence_ids = _persist_evidence(\n            db,\n            execution=execution,\n            hypothesis=hypothesis,\n            items=all_items,\n        )\n''',\n              '''        evidence_by_polarity = _persist_evidence(\n            db,\n            execution=execution,\n            hypothesis=hypothesis,\n            items=all_items,\n        )\n        evidence_ids = list(evidence_by_polarity.values())\n''',\n              1,\n          )
-          link_start = text.index('        if candidate_id:\n            by_id = {evidence_id: item for evidence_id, item in zip(evidence_ids, all_items)}')
+
+          old_call = '''        evidence_ids = _persist_evidence(
+              db,
+              execution=execution,
+              hypothesis=hypothesis,
+              items=all_items,
+          )
+          '''
+          old_call = '\n'.join(line[4:] if line.startswith('    ') else line for line in old_call.splitlines()) + '\n'
+          new_call = '''        evidence_by_polarity = _persist_evidence(
+              db,
+              execution=execution,
+              hypothesis=hypothesis,
+              items=all_items,
+          )
+              evidence_ids = list(evidence_by_polarity.values())
+          '''
+          new_call = '\n'.join(line[4:] if line.startswith('    ') else line for line in new_call.splitlines()) + '\n'
+          if old_call not in text:
+              raise SystemExit('evidence persistence call not found')
+          text = text.replace(old_call, new_call, 1)
+
+          link_marker = '        if candidate_id:\n            by_id = {evidence_id: item for evidence_id, item in zip(evidence_ids, all_items)}'
+          link_start = text.index(link_marker)
           link_end = text.index('\n\n        status = "applied" if all_items else "no_typed_signal"', link_start)
-          link = '''        if candidate_id:\n            for polarity, evidence_id in sorted(evidence_by_polarity.items()):\n                rooted_items = [\n                    item for item in all_items\n                    if str(item.get("polarity") or "support") == polarity\n                ]\n                max_weight = max(\n                    [abs(int(item.get("weight") or 1)) for item in rooted_items],\n                    default=1,\n                )\n                db.execute(\n                    "INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)",\n                    (\n                        candidate_id,\n                        evidence_id,\n                        polarity,\n                        max(1, min(100, max_weight)),\n                        "typed_validation_adapter",\n                        utc_now(),\n                    ),\n                )\n'''
+          link = '''        if candidate_id:
+              for polarity, evidence_id in sorted(evidence_by_polarity.items()):
+                  rooted_items = [
+                      item for item in all_items
+                      if str(item.get("polarity") or "support") == polarity
+                  ]
+                  max_weight = max(
+                      [abs(int(item.get("weight") or 1)) for item in rooted_items],
+                      default=1,
+                  )
+                  db.execute(
+                      "INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)",
+                      (
+                          candidate_id,
+                          evidence_id,
+                          polarity,
+                          max(1, min(100, max_weight)),
+                          "typed_validation_adapter",
+                          utc_now(),
+                      ),
+                  )
+          '''
+          link = '\n'.join(line[4:] if line.startswith('    ') else line for line in link.splitlines())
           text = text[:link_start] + link + text[link_end:]
           adapter.write_text(text, encoding='utf-8')
 
           test = Path('tests/test_typed_evidence_adapter.py')
           test_text = test.read_text(encoding='utf-8')
-          old = '''        evidence = self.fx.db.one(\n            "SELECT evidence_type,root_fingerprint FROM evidence_records "\n            "WHERE source_kind='passive_live_validation' AND evidence_type='untrusted_origin_allowed'"\n        )\n        self.assertIsNotNone(evidence)\n'''
-          new = '''        evidence = self.fx.db.one(\n            "SELECT evidence_type,root_fingerprint,summary FROM evidence_records "\n            "WHERE source_kind='passive_live_validation' AND polarity='support'"\n        )\n        self.assertIsNotNone(evidence)\n        self.assertIn("untrusted_origin_allowed", str(evidence["summary"]))\n'''
-          if old not in test_text:\n              raise SystemExit('test evidence assertion block not found')\n          test.write_text(test_text.replace(old, new, 1), encoding='utf-8')
+          old = '''        evidence = self.fx.db.one(
+              "SELECT evidence_type,root_fingerprint FROM evidence_records "
+              "WHERE source_kind='passive_live_validation' AND evidence_type='untrusted_origin_allowed'"
+          )
+              self.assertIsNotNone(evidence)
+          '''
+          old = '\n'.join(line[4:] if line.startswith('    ') else line for line in old.splitlines()) + '\n'
+          new = '''        evidence = self.fx.db.one(
+              "SELECT evidence_type,root_fingerprint,summary FROM evidence_records "
+              "WHERE source_kind='passive_live_validation' AND polarity='support'"
+          )
+              self.assertIsNotNone(evidence)
+              self.assertIn("untrusted_origin_allowed", str(evidence["summary"]))
+          '''
+          new = '\n'.join(line[4:] if line.startswith('    ') else line for line in new.splitlines()) + '\n'
+          if old not in test_text:
+              raise SystemExit('test evidence assertion block not found')
+          test.write_text(test_text.replace(old, new, 1), encoding='utf-8')
           PY
       - name: Compile adapter and CLI
         run: python -m py_compile app/typed_evidence_adapter.py app/recon_monitor.py tests/test_typed_evidence_adapter.py
