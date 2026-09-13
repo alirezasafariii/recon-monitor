@@ -198,10 +198,11 @@ class TypedEvidenceAdapterTests(unittest.TestCase):
         )
         self.assertEqual(str(candidate["bug_family"]), "cors_misconfiguration")
         evidence = self.fx.db.one(
-            "SELECT evidence_type,root_fingerprint FROM evidence_records "
-            "WHERE source_kind='passive_live_validation' AND evidence_type='untrusted_origin_allowed'"
+            "SELECT evidence_type,root_fingerprint,summary FROM evidence_records "
+            "WHERE source_kind='passive_live_validation' AND polarity='support'"
         )
         self.assertIsNotNone(evidence)
+        self.assertIn("untrusted_origin_allowed", str(evidence["summary"]))
 
         before_seen = int(
             self.fx.db.one("SELECT seen_count FROM analysis_hypotheses WHERE hypothesis_id=?", (hypothesis["hypothesis_id"],))[0]

@@ -470,7 +470,15 @@ def _persist_evidence(
     execution: Mapping[str, Any],
     hypothesis: Mapping[str, Any],
     items: list[dict[str, Any]],
-) -> list[str]:
+) -> dict[str, str]:
+    """Persist at most one Evidence Record per execution root and polarity.
+
+    ``evidence_records`` intentionally has a unique (analysis_id, root_fingerprint,
+    polarity) contract. Typed signal granularity belongs in hypothesis evidence;
+    the evidence record is the provenance root that prevents one execution from
+    masquerading as several independent sources.
+    """
+
     now = utc_now()
     execution_id = str(execution.get("execution_id") or "")
     root = sha256_text(
@@ -483,24 +491,46 @@ def _persist_evidence(
             ]
         )
     )
-    evidence_ids: list[str] = []
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for item in items:
+        polarity = str(item.get("polarity") or "support")
+        grouped.setdefault(polarity, []).append(item)
+
+    evidence_by_polarity: dict[str, str] = {}
+    for polarity, group in sorted(grouped.items()):
+        signal_types = sorted({str(item.get("type") or "") for item in group if str(item.get("type") or "")})
+        observations = sorted(
+            [
+                {
+                    "sequence": int(item.get("observation_sequence") or 0),
+                    "type": str(item.get("type") or ""),
+                    "observed_at": str(item.get("observed_at") or ""),
+                    "url": str(item.get("url") or ""),
+                    "method": str(item.get("method") or ""),
+                }
+                for item in group
+            ],
+            key=lambda item: (item["sequence"], item["type"], item["url"]),
+        )
         canonical = {
             "execution_id": execution_id,
             "family": str(execution.get("family") or ""),
-            "type": str(item.get("type") or ""),
-            "polarity": str(item.get("polarity") or ""),
-            "sequence": int(item.get("observation_sequence") or 0),
-            "observed_at": str(item.get("observed_at") or ""),
-            "url": str(item.get("url") or ""),
-            "method": str(item.get("method") or ""),
+            "polarity": polarity,
+            "signal_types": signal_types,
+            "observations": observations,
             "rule_version": TYPED_EVIDENCE_ADAPTER_RULE_VERSION,
         }
         integrity = sha256_text(json_dumps(canonical))
         evidence_id = "EVD-" + integrity[:16].upper()
-        evidence_ids.append(evidence_id)
-        observed_at = str(item.get("observed_at") or now)
-        polarity = str(item.get("polarity") or "support")
+        observed_values = [str(item.get("observed_at") or "") for item in group if str(item.get("observed_at") or "")]
+        first_seen = min(observed_values) if observed_values else now
+        last_seen = max(observed_values) if observed_values else now
+        direct = any(str(item.get("type") or "") in _DIRECT_TYPES for item in group)
+        evidence_type = signal_types[0] if len(signal_types) == 1 else "typed_validation_bundle"
+        summary = (
+            f"Typed passive-live {polarity} evidence from one approved execution root: "
+            + ", ".join(signal_types)
+        )[:2000]
         db.execute(
             """INSERT OR IGNORE INTO evidence_records(
             evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,
@@ -512,28 +542,35 @@ def _persist_evidence(
                 str(hypothesis.get("analysis_id") or ""),
                 str(hypothesis.get("source_run_id") or ""),
                 str(hypothesis.get("target") or ""),
-                str(item.get("type") or ""),
+                evidence_type,
                 polarity,
                 "passive_live_validation",
                 "validation_runner",
                 "validation-runner-executions.jsonl",
                 "typed_evidence_adapter",
                 TYPED_EVIDENCE_ADAPTER_VERSION,
-                str(item.get("source_group") or f"validation_execution:{execution_id}"),
+                f"validation_execution:{execution_id}",
                 root,
                 ADAPTER_TRUST_SCORE_CEILING,
                 ADAPTER_OBSERVATION_QUALITY_CEILING,
-                "direct" if str(item.get("type") or "") in _DIRECT_TYPES else "contextual",
-                str(item.get("text") or "")[:2000],
-                f"validation_execution:{execution_id}:observation:{int(item.get('observation_sequence') or 0)}",
+                "direct" if direct else "contextual",
+                summary,
+                f"validation_execution:{execution_id}",
                 integrity,
-                observed_at,
-                observed_at,
+                first_seen,
+                last_seen,
                 now,
             ),
         )
-        db.execute("UPDATE evidence_records SET last_seen=? WHERE evidence_id=?", (now, evidence_id))
-    return evidence_ids
+        stored = db.one(
+            "SELECT evidence_id,integrity_hash FROM evidence_records WHERE analysis_id=? AND root_fingerprint=? AND polarity=?",
+            (str(hypothesis.get("analysis_id") or ""), root, polarity),
+        )
+        if not stored or str(stored["integrity_hash"] or "") != integrity:
+            raise ReconError("Typed evidence root collision or mutable evidence detected")
+        evidence_by_polarity[polarity] = str(stored["evidence_id"] or evidence_id)
+        db.execute("UPDATE evidence_records SET last_seen=? WHERE evidence_id=?", (now, evidence_by_polarity[polarity]))
+    return evidence_by_polarity
 
 
 def adapt_validation_runner_execution(
@@ -602,12 +639,13 @@ def adapt_validation_runner_execution(
 
     family = str(execution.get("family") or "")
     with db.transaction():
-        evidence_ids = _persist_evidence(
+        evidence_by_polarity = _persist_evidence(
             db,
             execution=execution,
             hypothesis=hypothesis,
             items=all_items,
         )
+        evidence_ids = list(evidence_by_polarity.values())
 
         if all_items:
             common = {
@@ -669,17 +707,22 @@ def adapt_validation_runner_execution(
         candidate_id = str(updated.get("promoted_candidate_id") or "")
 
         if candidate_id:
-            by_id = {evidence_id: item for evidence_id, item in zip(evidence_ids, all_items)}
-            for evidence_id in evidence_ids:
-                item = by_id[evidence_id]
-                polarity = str(item.get("polarity") or "support")
+            for polarity, evidence_id in sorted(evidence_by_polarity.items()):
+                rooted_items = [
+                    item for item in all_items
+                    if str(item.get("polarity") or "support") == polarity
+                ]
+                max_weight = max(
+                    [abs(int(item.get("weight") or 1)) for item in rooted_items],
+                    default=1,
+                )
                 db.execute(
                     "INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)",
                     (
                         candidate_id,
                         evidence_id,
                         polarity,
-                        max(1, min(100, abs(int(item.get("weight") or 1)))),
+                        max(1, min(100, max_weight)),
                         "typed_validation_adapter",
                         utc_now(),
                     ),
