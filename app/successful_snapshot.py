@@ -89,7 +89,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             target = str(target_row["target"])
             latest = self.one(
                 "SELECT run_id,status FROM run_targets WHERE target=? "
-                "ORDER BY COALESCE(finished_at,started_at) DESC,run_id DESC "
+                "ORDER BY COALESCE(finished_at,started_at) DESC,rowid DESC "
                 "LIMIT 1",
                 (target,),
             )
