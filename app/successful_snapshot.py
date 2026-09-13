@@ -19,6 +19,7 @@ directly participate in the reproduced failed-run contamination bug: assets,
 DNS records, URLs, and HTTP fingerprints.
 """
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -318,3 +319,17 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                     target, run_id, bootstrap=False
                 )
             super().finish_run_target(run_id, target, status)
+
+
+def _install_runtime_lifecycle_guard() -> None:
+    """Attach strict lifecycle semantics when loaded by recon_monitor_core."""
+
+    runtime = sys.modules.get("recon_monitor_core")
+    if runtime is None or not hasattr(runtime, "Orchestrator"):
+        return
+    from lifecycle_status import install_lifecycle_status_guard
+
+    install_lifecycle_status_guard(vars(runtime))
+
+
+_install_runtime_lifecycle_guard()
