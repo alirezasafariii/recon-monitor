@@ -25,12 +25,14 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           adapter = Path('app/typed_evidence_adapter.py')
           text = adapter.read_text(encoding='utf-8')
           start = text.index('def _persist_evidence(')
           end = text.index('\n\ndef adapt_validation_runner_execution(', start)
-          replacement = '''def _persist_evidence(
+          replacement = dedent('''\
+          def _persist_evidence(
               db: Database,
               *,
               execution: Mapping[str, Any],
@@ -137,81 +139,64 @@ jobs:
                   evidence_by_polarity[polarity] = str(stored["evidence_id"] or evidence_id)
                   db.execute("UPDATE evidence_records SET last_seen=? WHERE evidence_id=?", (now, evidence_by_polarity[polarity]))
               return evidence_by_polarity
-          '''
-          # De-indent the embedded function from YAML/Python source indentation.
-          replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
+          ''')
           text = text[:start] + replacement + text[end:]
 
-          old_call = '''        evidence_ids = _persist_evidence(
-              db,
-              execution=execution,
-              hypothesis=hypothesis,
-              items=all_items,
+          call_start = text.index('        evidence_ids = _persist_evidence(', text.index('def adapt_validation_runner_execution('))
+          call_end = text.index('\n\n        if all_items:', call_start)
+          new_call = (
+              "        evidence_by_polarity = _persist_evidence(\n"
+              "            db,\n"
+              "            execution=execution,\n"
+              "            hypothesis=hypothesis,\n"
+              "            items=all_items,\n"
+              "        )\n"
+              "        evidence_ids = list(evidence_by_polarity.values())"
           )
-          '''
-          old_call = '\n'.join(line[4:] if line.startswith('    ') else line for line in old_call.splitlines()) + '\n'
-          new_call = '''        evidence_by_polarity = _persist_evidence(
-              db,
-              execution=execution,
-              hypothesis=hypothesis,
-              items=all_items,
-          )
-              evidence_ids = list(evidence_by_polarity.values())
-          '''
-          new_call = '\n'.join(line[4:] if line.startswith('    ') else line for line in new_call.splitlines()) + '\n'
-          if old_call not in text:
-              raise SystemExit('evidence persistence call not found')
-          text = text.replace(old_call, new_call, 1)
+          text = text[:call_start] + new_call + text[call_end:]
 
-          link_marker = '        if candidate_id:\n            by_id = {evidence_id: item for evidence_id, item in zip(evidence_ids, all_items)}'
-          link_start = text.index(link_marker)
+          link_start = text.index('        if candidate_id:\n            by_id = ', text.index('def adapt_validation_runner_execution('))
           link_end = text.index('\n\n        status = "applied" if all_items else "no_typed_signal"', link_start)
-          link = '''        if candidate_id:
-              for polarity, evidence_id in sorted(evidence_by_polarity.items()):
-                  rooted_items = [
-                      item for item in all_items
-                      if str(item.get("polarity") or "support") == polarity
-                  ]
-                  max_weight = max(
-                      [abs(int(item.get("weight") or 1)) for item in rooted_items],
-                      default=1,
-                  )
-                  db.execute(
-                      "INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)",
-                      (
-                          candidate_id,
-                          evidence_id,
-                          polarity,
-                          max(1, min(100, max_weight)),
-                          "typed_validation_adapter",
-                          utc_now(),
-                      ),
-                  )
-          '''
-          link = '\n'.join(line[4:] if line.startswith('    ') else line for line in link.splitlines())
+          link = (
+              "        if candidate_id:\n"
+              "            for polarity, evidence_id in sorted(evidence_by_polarity.items()):\n"
+              "                rooted_items = [\n"
+              "                    item for item in all_items\n"
+              "                    if str(item.get(\"polarity\") or \"support\") == polarity\n"
+              "                ]\n"
+              "                max_weight = max(\n"
+              "                    [abs(int(item.get(\"weight\") or 1)) for item in rooted_items],\n"
+              "                    default=1,\n"
+              "                )\n"
+              "                db.execute(\n"
+              "                    \"INSERT OR REPLACE INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)\",\n"
+              "                    (\n"
+              "                        candidate_id,\n"
+              "                        evidence_id,\n"
+              "                        polarity,\n"
+              "                        max(1, min(100, max_weight)),\n"
+              "                        \"typed_validation_adapter\",\n"
+              "                        utc_now(),\n"
+              "                    ),\n"
+              "                )"
+          )
           text = text[:link_start] + link + text[link_end:]
           adapter.write_text(text, encoding='utf-8')
 
           test = Path('tests/test_typed_evidence_adapter.py')
           test_text = test.read_text(encoding='utf-8')
-          old = '''        evidence = self.fx.db.one(
-              "SELECT evidence_type,root_fingerprint FROM evidence_records "
-              "WHERE source_kind='passive_live_validation' AND evidence_type='untrusted_origin_allowed'"
+          q_start = test_text.index('        evidence = self.fx.db.one(', test_text.index('def test_cors_direct_signal'))
+          q_end = test_text.index('\n\n        before_seen', q_start)
+          query = (
+              "        evidence = self.fx.db.one(\n"
+              "            \"SELECT evidence_type,root_fingerprint,summary FROM evidence_records \"\n"
+              "            \"WHERE source_kind='passive_live_validation' AND polarity='support'\"\n"
+              "        )\n"
+              "        self.assertIsNotNone(evidence)\n"
+              "        self.assertIn(\"untrusted_origin_allowed\", str(evidence[\"summary\"]))"
           )
-              self.assertIsNotNone(evidence)
-          '''
-          old = '\n'.join(line[4:] if line.startswith('    ') else line for line in old.splitlines()) + '\n'
-          new = '''        evidence = self.fx.db.one(
-              "SELECT evidence_type,root_fingerprint,summary FROM evidence_records "
-              "WHERE source_kind='passive_live_validation' AND polarity='support'"
-          )
-              self.assertIsNotNone(evidence)
-              self.assertIn("untrusted_origin_allowed", str(evidence["summary"]))
-          '''
-          new = '\n'.join(line[4:] if line.startswith('    ') else line for line in new.splitlines()) + '\n'
-          if old not in test_text:
-              raise SystemExit('test evidence assertion block not found')
-          test.write_text(test_text.replace(old, new, 1), encoding='utf-8')
+          test_text = test_text[:q_start] + query + test_text[q_end:]
+          test.write_text(test_text, encoding='utf-8')
           PY
       - name: Compile adapter and CLI
         run: python -m py_compile app/typed_evidence_adapter.py app/recon_monitor.py tests/test_typed_evidence_adapter.py
