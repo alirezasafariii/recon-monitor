@@ -1,0 +1,69 @@
+name: Temporary Evidence Adapter Verify
+
+on:
+  push:
+    branches: [feat/evidence-adapter-20260914]
+    paths: ['.github/workflows/tmp-evidence-adapter-verify.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/evidence-adapter-20260914
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile adapter and CLI
+        run: python -m py_compile app/typed_evidence_adapter.py app/recon_monitor.py tests/test_typed_evidence_adapter.py
+      - name: Run typed evidence adapter regressions
+        run: python tests/test_typed_evidence_adapter.py -v
+      - name: Verify release metadata remains consistent
+        run: python tools/check_release_consistency.py
+      - name: Finalize branch hygiene and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          manifest = Path('MANIFEST.sha256')
+          paths = [
+              'app/recon_monitor.py',
+              'app/typed_evidence_adapter.py',
+              'docs/TYPED_EVIDENCE_ADAPTER.md',
+              'tests/test_typed_evidence_adapter.py',
+          ]
+          existing = manifest.read_text(encoding='utf-8').splitlines()
+          replacements = {}
+          for rel in paths:
+              digest = hashlib.sha256(Path(rel).read_bytes()).hexdigest()
+              replacements[rel] = f'{digest}  {rel}'
+          out = []
+          seen = set()
+          for line in existing:
+              parts = line.split('  ', 1)
+              rel = parts[1] if len(parts) == 2 else ''
+              if rel in replacements:
+                  out.append(replacements[rel])
+                  seen.add(rel)
+              else:
+                  out.append(line)
+          for rel in paths:
+              if rel not in seen:
+                  out.append(replacements[rel])
+          manifest.write_text('\n'.join(out) + '\n', encoding='utf-8')
+          PY
+          git rm -f .github/workflows/tmp-evidence-adapter-patch.yml .github/workflows/tmp-evidence-adapter-verify.yml
+          sha256sum --strict -c MANIFEST.sha256
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add MANIFEST.sha256
+          git commit -m 'chore: finalize typed evidence adapter manifest'
+          git push
