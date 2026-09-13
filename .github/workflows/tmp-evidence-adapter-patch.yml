@@ -1,0 +1,73 @@
+name: Temporary Evidence Adapter Patch
+
+on:
+  push:
+    branches: [feat/evidence-adapter-20260914]
+    paths: ['.github/workflows/tmp-evidence-adapter-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/evidence-adapter-20260914
+      - name: Apply deterministic integration patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          adapter = Path('app/typed_evidence_adapter.py')
+          text = adapter.read_text(encoding='utf-8')
+          text = text.replace(
+              '_DIRECT_TYPES = frozenset({"untrusted_origin_allowed", "source_map_publicly_reachable"})\n',
+              '_DIRECT_TYPES = frozenset({"untrusted_origin_allowed", "source_map_publicly_reachable"})\n'
+              'PROMOTION_BRIDGE_FAMILIES = frozenset({"cors_misconfiguration", "source_map_exposure"})\n',
+              1,
+          )
+          old = '''        if all_items:\n            # Lazy import avoids adding Candidate Engine import cost/cycles to CLI\n            # startup. This helper records the hypothesis first, then creates a\n            # Potential Finding only when canonical Admission returns admitted.\n            import bug_candidates_family21 as candidate_bridge\n\n            dedicated = {\n                "family": family,\n                "variant": str(hypothesis.get("bug_variant") or "typed_passive_live"),\n                "support": support,\n                "contradict": contradict,\n                "missing": [str(value) for value in _loads(hypothesis.get("missing_evidence_json"), []) if str(value)],\n                "rule_ids": [\n                    *[str(value) for value in _loads(hypothesis.get("rule_ids_json"), []) if str(value)],\n                    "typed-evidence-adapter-passive-live",\n                ],\n                "summary": str(hypothesis.get("summary") or f"{family} hypothesis enriched by typed passive-live evidence."),\n                "direct": any(str(item.get("type") or "") in _DIRECT_TYPES for item in support),\n            }\n            candidate_bridge._promote_static_family_result(\n                db,\n                analysis_id=str(hypothesis.get("analysis_id") or ""),\n                run_id=run_id,\n                target=selected_target,\n                endpoint=str(hypothesis.get("endpoint") or ""),\n                source_ref=str(hypothesis.get("source_ref") or f"validation-execution:{execution_id}"),\n                family=family,\n                dedicated=dedicated,\n                confidence=ADAPTER_CONFIDENCE_CEILING,\n            )\n'''
+          new = '''        if all_items:\n            common = {\n                "analysis_id": str(hypothesis.get("analysis_id") or ""),\n                "source_run_id": run_id,\n                "target": selected_target,\n                "alert_id": hypothesis.get("alert_id"),\n                "asset": str(hypothesis.get("asset") or ""),\n                "endpoint": str(hypothesis.get("endpoint") or ""),\n                "source_ref": str(hypothesis.get("source_ref") or f"validation-execution:{execution_id}"),\n                "family": family,\n                "variant": str(hypothesis.get("bug_variant") or "typed_passive_live"),\n                "support": support,\n                "contradict": contradict,\n                "missing": [str(value) for value in _loads(hypothesis.get("missing_evidence_json"), []) if str(value)],\n                "rule_ids": [\n                    *[str(value) for value in _loads(hypothesis.get("rule_ids_json"), []) if str(value)],\n                    "typed-evidence-adapter-passive-live",\n                ],\n                "summary": str(hypothesis.get("summary") or f"{family} hypothesis enriched by typed passive-live evidence."),\n            }\n            if family in PROMOTION_BRIDGE_FAMILIES:\n                # The bridge itself records the hypothesis first and creates a\n                # Potential Finding only if canonical Admission returns admitted.\n                import bug_candidates_family21 as candidate_bridge\n\n                candidate_bridge._promote_static_family_result(\n                    db,\n                    analysis_id=common["analysis_id"],\n                    run_id=run_id,\n                    target=selected_target,\n                    endpoint=common["endpoint"],\n                    source_ref=common["source_ref"],\n                    family=family,\n                    dedicated={\n                        "family": family,\n                        "variant": common["variant"],\n                        "support": support,\n                        "contradict": contradict,\n                        "missing": common["missing"],\n                        "rule_ids": common["rule_ids"],\n                        "summary": common["summary"],\n                        "direct": any(str(item.get("type") or "") in _DIRECT_TYPES for item in support),\n                    },\n                    confidence=ADAPTER_CONFIDENCE_CEILING,\n                )\n            else:\n                # Cache/disclosure metadata can enrich or contradict a hypothesis\n                # but cannot create a new Potential Finding through this adapter.\n                from hypothesis_admission import record_hypothesis\n\n                record_hypothesis(db, **common)\n'''
+          if old not in text:
+              raise SystemExit('adapter promotion block not found')
+          adapter.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          cli = Path('app/recon_monitor.py')
+          text = cli.read_text(encoding='utf-8')
+          text = text.replace(
+              'from validation_executor import execute_validation_runner_contract\n',
+              'from validation_executor import execute_validation_runner_contract\n'
+              'from typed_evidence_adapter import adapt_validation_runner_execution\n',
+              1,
+          )
+          text = text.replace(
+              '_extend_action_choices(validation_parser, "runner-execute")',
+              '_extend_action_choices(validation_parser, "runner-execute", "runner-adapt")',
+              1,
+          )
+          marker = '''    if "contract_id" not in validation_dests:\n        validation_parser.add_argument(\n            "--contract-id",\n            default="",\n            help="Validation Runner dry-run contract ID (VDR-...)",\n        )\n'''
+          replacement = marker + '''    if "execution_id" not in validation_dests:\n        validation_parser.add_argument(\n            "--execution-id",\n            default="",\n            help="Completed Validation Runner execution ID (VEX-...) to adapt offline",\n        )\n'''
+          if marker not in text:
+              raise SystemExit('CLI parser marker not found')
+          text = text.replace(marker, replacement, 1)
+          marker = '''def main(argv: list[str] | None = None) -> int:\n'''
+          adapt_fn = '''def _runner_adapt_cli(args: Any) -> dict[str, Any]:\n    if not str(args.run_id or "").strip():\n        raise _base.ReconError("validation runner-adapt requires --run-id RUN_ID")\n    if not str(getattr(args, "execution_id", "") or "").strip():\n        raise _base.ReconError("validation runner-adapt requires --execution-id VEX-...")\n\n    paths = _base.AppPaths.from_root(_base.ROOT_DIR)\n    paths.ensure()\n    db = _base.Database(paths.db)\n    try:\n        return adapt_validation_runner_execution(\n            paths,\n            db,\n            scan_run_id=str(args.run_id),\n            target=str(getattr(args, "target", "") or ""),\n            execution_id=str(args.execution_id),\n            actor="cli",\n        )\n    finally:\n        db.close()\n\n\n'''
+          if marker not in text:
+              raise SystemExit('CLI main marker not found')
+          text = text.replace(marker, adapt_fn + marker, 1)
+          execute_block = '''    if (\n        len(translated) >= 2\n        and translated[0] == "validation"\n        and translated[1] == "runner-execute"\n    ):\n        parser = build_parser()\n        args = parser.parse_args(translated)\n        payload = _runner_execute_cli(args)\n        print(_base.json_dumps(payload, pretty=True))\n        return 0\n\n'''
+          adapt_block = execute_block + '''    if (\n        len(translated) >= 2\n        and translated[0] == "validation"\n        and translated[1] == "runner-adapt"\n    ):\n        parser = build_parser()\n        args = parser.parse_args(translated)\n        payload = _runner_adapt_cli(args)\n        print(_base.json_dumps(payload, pretty=True))\n        return 0\n\n'''
+          if execute_block not in text:
+              raise SystemExit('CLI execute dispatch block not found')
+          cli.write_text(text.replace(execute_block, adapt_block, 1), encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/typed_evidence_adapter.py app/recon_monitor.py
+          git commit -m 'feat: integrate offline typed evidence adaptation'
+          git push
