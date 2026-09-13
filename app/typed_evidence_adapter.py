@@ -45,6 +45,7 @@ SUPPORTED_FAMILIES = frozenset(
     }
 )
 _DIRECT_TYPES = frozenset({"untrusted_origin_allowed", "source_map_publicly_reachable"})
+PROMOTION_BRIDGE_FAMILIES = frozenset({"cors_misconfiguration", "source_map_exposure"})
 
 
 def ensure_typed_evidence_adapter_schema(db: Database) -> None:
@@ -609,12 +610,14 @@ def adapt_validation_runner_execution(
         )
 
         if all_items:
-            # Lazy import avoids adding Candidate Engine import cost/cycles to CLI
-            # startup. This helper records the hypothesis first, then creates a
-            # Potential Finding only when canonical Admission returns admitted.
-            import bug_candidates_family21 as candidate_bridge
-
-            dedicated = {
+            common = {
+                "analysis_id": str(hypothesis.get("analysis_id") or ""),
+                "source_run_id": run_id,
+                "target": selected_target,
+                "alert_id": hypothesis.get("alert_id"),
+                "asset": str(hypothesis.get("asset") or ""),
+                "endpoint": str(hypothesis.get("endpoint") or ""),
+                "source_ref": str(hypothesis.get("source_ref") or f"validation-execution:{execution_id}"),
                 "family": family,
                 "variant": str(hypothesis.get("bug_variant") or "typed_passive_live"),
                 "support": support,
@@ -625,19 +628,38 @@ def adapt_validation_runner_execution(
                     "typed-evidence-adapter-passive-live",
                 ],
                 "summary": str(hypothesis.get("summary") or f"{family} hypothesis enriched by typed passive-live evidence."),
-                "direct": any(str(item.get("type") or "") in _DIRECT_TYPES for item in support),
             }
-            candidate_bridge._promote_static_family_result(
-                db,
-                analysis_id=str(hypothesis.get("analysis_id") or ""),
-                run_id=run_id,
-                target=selected_target,
-                endpoint=str(hypothesis.get("endpoint") or ""),
-                source_ref=str(hypothesis.get("source_ref") or f"validation-execution:{execution_id}"),
-                family=family,
-                dedicated=dedicated,
-                confidence=ADAPTER_CONFIDENCE_CEILING,
-            )
+            if family in PROMOTION_BRIDGE_FAMILIES:
+                # The bridge itself records the hypothesis first and creates a
+                # Potential Finding only if canonical Admission returns admitted.
+                import bug_candidates_family21 as candidate_bridge
+
+                candidate_bridge._promote_static_family_result(
+                    db,
+                    analysis_id=common["analysis_id"],
+                    run_id=run_id,
+                    target=selected_target,
+                    endpoint=common["endpoint"],
+                    source_ref=common["source_ref"],
+                    family=family,
+                    dedicated={
+                        "family": family,
+                        "variant": common["variant"],
+                        "support": support,
+                        "contradict": contradict,
+                        "missing": common["missing"],
+                        "rule_ids": common["rule_ids"],
+                        "summary": common["summary"],
+                        "direct": any(str(item.get("type") or "") in _DIRECT_TYPES for item in support),
+                    },
+                    confidence=ADAPTER_CONFIDENCE_CEILING,
+                )
+            else:
+                # Cache/disclosure metadata can enrich or contradict a hypothesis
+                # but cannot create a new Potential Finding through this adapter.
+                from hypothesis_admission import record_hypothesis
+
+                record_hypothesis(db, **common)
 
         updated_row = db.one("SELECT * FROM analysis_hypotheses WHERE hypothesis_id=?", (hypothesis_id,))
         updated = dict(updated_row) if updated_row else hypothesis
