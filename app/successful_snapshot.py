@@ -8,13 +8,14 @@ commit boundary for the comparison state that drives "new" and "changed"
 decisions:
 
 * a new run restores the last committed successful snapshot before collection;
-* failed/interrupted runs may mutate working tables, but are never promoted;
-* a successful target run atomically replaces the committed snapshot;
+* failed/interrupted collection may mutate working tables, but is never promoted;
+* a collection-complete target run atomically replaces the committed snapshot;
+* Analysis/report/notification health is tracked separately from Recon baseline validity;
 * resuming the same run keeps its working state and does not restore;
 * an unsafe legacy database is re-baselined instead of guessing through state
   that may already have been overwritten by a failed run.
 
-This first reliability phase deliberately checkpoints only the four tables that
+This reliability layer deliberately checkpoints only the four tables that
 directly participate in the reproduced failed-run contamination bug: assets,
 DNS records, URLs, and HTTP fingerprints.
 """
@@ -28,6 +29,15 @@ from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
 from finding_notifications import (
     ensure_finding_notification_schema,
     install_finding_notification_pipeline,
+)
+from run_lifecycle_state import (
+    baseline_commit_eligible,
+    begin_target_lifecycle,
+    ensure_lifecycle_schema,
+    has_established_baseline,
+    lifecycle_record,
+    mark_baseline_committed,
+    mark_baseline_not_committed,
 )
 from stable_confirmation import (
     discard_stale_stable_change_runs,
@@ -48,6 +58,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
     def __init__(self, path: Path):
         super().__init__(path)
         self._migrate_successful_snapshot_schema()
+        ensure_lifecycle_schema(self)
         ensure_stable_confirmation_schema(self)
         ensure_finding_notification_schema(self)
 
@@ -144,15 +155,10 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         return report_status == "success"
 
     def target_has_history(self, target: str) -> bool:
-        # From this feature onward, alerting eligibility follows a committed
-        # comparison snapshot, not merely the existence of a historical
-        # run_targets row marked success. This also safely re-baselines legacy
-        # targets whose latest mutable state cannot be trusted during upgrade.
-        row = self.one(
-            "SELECT 1 FROM successful_recon_commits WHERE target=? LIMIT 1",
-            (target,),
-        )
-        return row is not None
+        # Baseline/history eligibility is now explicit and independent from the
+        # aggregate run_targets status. The baseline registry is initialized
+        # from previously trusted successful_recon_commits during migration.
+        return has_established_baseline(self, target)
 
     def _table_columns(self, table_name: str) -> list[str]:
         if table_name not in TRACKED_TABLES:
@@ -304,11 +310,13 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         if existing is not None:
             # Resume/re-entry of the same run keeps completed-stage working
             # state. A restore here would erase progress from that same run.
+            begin_target_lifecycle(self, run_id, policy.name)
             return super().create_run_target(run_id, policy, run_dir, baseline)
         with self.transaction():
             discard_stale_stable_change_runs(self, policy.name, run_id)
             self._restore_successful_snapshot_no_tx(policy.name)
             super().create_run_target(run_id, policy, run_dir, baseline)
+        begin_target_lifecycle(self, run_id, policy.name)
 
     def _snapshot_commit_ready(
         self,
@@ -325,18 +333,41 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         )
 
     def finish_run_target(self, run_id: str, target: str, status: str) -> None:
-        commit_ready = self._snapshot_commit_ready(run_id, target, status)
+        explicit_eligibility = baseline_commit_eligible(self, run_id, target)
+        if explicit_eligibility is None:
+            # Compatibility for synthetic/maintenance callers that finalize a
+            # target without going through the explicit lifecycle recorder.
+            commit_ready = self._snapshot_commit_ready(run_id, target, status)
+        else:
+            commit_ready = explicit_eligibility
+
+        lifecycle = lifecycle_record(self, run_id, target)
+        reason = str((lifecycle or {}).get("baseline_reason") or "collection_complete")
+        confirmation_status = "success" if commit_ready else "failed"
+
         with self.transaction():
-            finalize_stable_change_run(self, run_id, target, status)
+            # Stable change confirmation tracks trusted Recon observations, so
+            # it follows collection/baseline eligibility rather than report or
+            # notification side effects.
+            finalize_stable_change_run(
+                self,
+                run_id,
+                target,
+                confirmation_status,
+            )
             if commit_ready:
                 self._replace_successful_snapshot_no_tx(
                     target, run_id, bootstrap=False
                 )
+                if lifecycle is not None:
+                    mark_baseline_committed(self, run_id, target, reason)
+            elif lifecycle is not None:
+                mark_baseline_not_committed(self, run_id, target, reason)
             super().finish_run_target(run_id, target, status)
 
 
 def _install_runtime_reliability_guards() -> None:
-    """Attach strict lifecycle, confirmation, and finding notification semantics."""
+    """Attach lifecycle, confirmation, and finding notification semantics."""
 
     runtime = sys.modules.get("recon_monitor_core")
     if runtime is None or not hasattr(runtime, "Orchestrator"):
