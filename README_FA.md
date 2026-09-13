@@ -1,12 +1,14 @@
-# راهنمای Recon Monitor 8.6.0
+# راهنمای Recon Monitor 8.7.0
 
-## تحلیل Raw-first و چرخهٔ کم‌نویز Alert در نسخهٔ 8.6.0
+<!-- recon-monitor-current: app=8.7.0 schema=18 -->
 
-Recon Monitor اکنون داده‌های خام Recon را حتی در نبود Alert به موتور canonical شامل ۷۴ خانوادهٔ آسیب‌پذیری می‌رساند. Endpoint Classification، اثرانگشت HTTP/TLS، رکوردهای DNS CNAME، JavaScript معنایی، تاریخچهٔ رفتاری، نگاشت OWASP/WSTG/CWE/CAPEC و بازیابی محدود Write-upها برای ساخت Hypothesisهای خانواده‌ای استفاده می‌شوند. فقط Evidence واقعی تارگت می‌تواند Admission را پاس کند و **Potential Finding** بسازد؛ استانداردها و Write-upها هیچ‌وقت Evidence تارگت محسوب نمی‌شوند.
+## نسخهٔ فعلی: Evidence Completion و Live Progress
 
-اولین اسکن اکنون Baseline قطعی است: Recon و Analysis کامل اجرا می‌شوند، Hypothesisها و Potential Findingهای معتبر ذخیره می‌شوند و Baseline ثبت می‌شود، اما هیچ Alert یا Notification ساخته نمی‌شود. Alert از اسکن دوم فعال می‌شود و فقط تغییرات جدید یا معنادار را نشان می‌دهد.
+Recon Monitor 8.7.0 شکاف‌های Evidence را بدون تضعیف Admission قابل اقدام می‌کند و برای Recon و Analysis طولانی، Progress و Health صریح ارائه می‌دهد.
 
-نسخهٔ برنامه **8.6.0** است و Schema دیتابیس همچنان **18** باقی می‌ماند. جزئیات در `MIGRATION-v8.6.0.md` و `docs/VULNERABILITY_INTELLIGENCE_ENGINE.md` آمده است.
+وضعیت فعلی `main` مرز Reliability را نیز سخت‌تر کرده است: State مقایسهٔ Recon فقط از Collection قابل اعتماد commit می‌شود، تغییرات ناپایدار با State Version تأیید می‌شوند، Notification مربوط به Potential Finding از Recon Change Alert مستقل و Idempotent است و Lifecycle تارگت وضعیت Collection، Analysis، Report، Notification و اعتبار Baseline را جداگانه نگه می‌دارد.
+
+نسخهٔ canonical برنامه **8.7.0** و Core Schema دیتابیس **18** است. منبع حقیقت هر دو مقدار `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.7.0.md`، `docs/RELEASE_NOTES_v8.7.0.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

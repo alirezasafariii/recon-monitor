@@ -1,71 +1,103 @@
-# Recon Monitor 3.0 architecture
+# Recon Monitor architecture
+
+<!-- recon-monitor-current: app=8.7.0 schema=18 -->
+
+Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.7.0** and **18**.
 
 ```text
-Wizard / CLI / Session Dashboard / Token API
-                    |
-             Scope-aware planner
-                    |
-            Run orchestrator + budgets
-                    |
-     +--------------+----------------+
-     |                               |
-Tool-native batch stages       SQLite work queue
-(subdomains, DNS, URLs,        (JavaScript and safe
-fingerprints, active gates)     endpoint validation)
-     |                               |
-     +---------------+---------------+
+Target / Policy / Authorization
+             |
+      Recon Orchestrator
+             |
+  +----------+-----------+
+  |                      |
+Collection stages     Work queues / budgets
+  |                      |
+  +----------+-----------+
+             |
+      Single-writer SQLite
+             |
+   Working Recon observations
+             |
+     Collection completeness
+             |
+  +----------+------------------------------+
+  |                                         |
+Successful Recon snapshot             Downstream processing
+(canonical comparison state)                 |
+  |                                   Analysis / reasoning
+  |                                         |
+Change detection + stable confirmation   Potential Findings
+  |                                         |
+Recon Change Alerts                  Finding Notifications
+  |                                         |
+  +------------------+----------------------+
                      |
-          Database writer / transactions
-                     |
-       SQLite schema 7 (primary database)
-                     |
-  +------------------+---------------------------+
-  |                  |                           |
-CAS object store   Intelligence/event engine   Evidence manifests
-JS/source maps     confidence/risk/incidents   SHA-256 integrity
-  |                  |                           |
-  +------------------+---------------------------+
-                     |
- Reports / Telegram / Dashboard / API / optional
-          PostgreSQL analytics mirror
+            Reports / Dashboard / API
 ```
+
+## Version and schema contract
+
+`app/core.py` is the source of truth for the release-facing metadata:
+
+- `APP_VERSION = "8.7.0"`
+- `SCHEMA_VERSION = 18`
+
+`SCHEMA_VERSION` identifies the **core SQLite schema** created and maintained by `Database.migrate()`. Reliability features added after the core schema-18 migration use additive, independently versioned compatibility schemas rather than pretending to be a new core migration. Their metadata is stored in `schema_meta`, including `successful_snapshot_schema_version`, `stable_confirmation_schema_version`, `finding_notification_schema_version`, and the explicit target-lifecycle metadata key.
+
+This distinction is deliberate: a release may add backward-compatible feature tables without changing the core schema number, but those feature schemas must remain self-versioned and idempotent. A future change that alters the core schema contract must increment `SCHEMA_VERSION` and provide the corresponding migration documentation.
+
+## Execution and lifecycle model
+
+A target run has separate operational truths rather than one overloaded success flag:
+
+- **collection status**: whether Recon collection completed sufficiently to produce a trustworthy comparison snapshot;
+- **analysis status**: whether vulnerability reasoning completed;
+- **report status**: whether report generation completed;
+- **notification status**: whether Potential Finding delivery completed, was queued, or failed;
+- **overall status**: `success`, `partial`, `failed`, or `interrupted` derived from those components.
+
+Baseline eligibility is collection-driven. A complete Recon collection can establish or refresh the canonical comparison snapshot even when Analysis, reporting, or notification later makes the overall target partial. An incomplete collection can never advance the baseline.
+
+## Successful snapshot boundary
+
+The mutable Recon tables remain the working view during a run so existing resume and Analysis behavior stays compatible. Comparison-critical state is separately committed only after collection is trustworthy. The successful snapshot currently covers assets, DNS records, URLs, and HTTP fingerprints.
+
+A fresh run restores the last committed snapshot before collection. Failed or interrupted runs may mutate working rows, but those rows never become the comparison baseline. This prevents a failed run from hiding a later real new asset, DNS rotation, URL, or fingerprint change.
+
+## Stable change confirmation
+
+Volatile DNS and fingerprint changes are confirmed by observed **state version**, not merely by counting emitted change events. For example, `A → B → B` confirms B on the second trustworthy observation, while `A → B → C` starts a new confirmation sequence for C. Provisional confirmation observations are promoted only when Recon collection is baseline-eligible.
+
+## Analysis and Potential Findings
+
+Recon observations feed the analysis/reasoning stack. Potential Findings are evidence-backed security hypotheses and are not equivalent to confirmed vulnerabilities. Canonical Admission remains the authority for determining whether evidence is sufficient to create or promote a Potential Finding.
+
+Finding notifications are independent from Recon Change Alerts. After Analysis, new or materially changed Potential Findings are evaluated with a stable candidate identity and idempotent notification state. Re-observing an unchanged finding does not repeatedly notify; meaningful transitions can create a new notification event.
+
+## Storage and concurrency
+
+SQLite under `state/` remains the transactional source of truth. The database uses WAL mode, busy timeouts, transactions, and a serialized writer path for queued mutation events. Content-addressed evidence and source objects live under the local object store with SHA-256 integrity metadata. PostgreSQL, when configured, is an analytics mirror rather than the primary transactional store.
 
 ## Primary components
 
-- `app/recon_monitor.py`: CLI and orchestration.
-- `app/core.py`: policy, configuration, SQLite schema, audit, lifecycle, correlation, and core models.
-- `app/execution.py`: budgets, persistent work queues, workers, and database writer.
-- `app/stages.py`: authorized data-collection and analysis stages.
+- `app/recon_monitor.py` and `app/recon_monitor_core.py`: CLI and orchestration surface.
+- `app/core.py`: canonical application/core-schema metadata, policy/configuration, SQLite core schema, audit, lifecycle primitives, and shared models.
+- `app/execution.py`: budgets, persistent work queues, workers, and serialized database writer.
+- `app/stages.py`: authorized Recon collection and report-stage execution.
+- `app/successful_snapshot.py`: successful Recon comparison commit boundary and runtime reliability integration.
+- `app/stable_confirmation.py`: state-version confirmation for volatile changes.
+- `app/run_lifecycle_state.py` and `app/lifecycle_status.py`: explicit component lifecycle and baseline eligibility.
+- `app/analysis_engine.py` and family reasoning modules: evidence-driven vulnerability analysis.
+- `app/finding_notifications.py`: idempotent Potential Finding notification lifecycle.
 - `app/storage.py`: content-addressed object storage.
-- `app/plugins.py`: plugin manifests and health registry.
-- `app/dashboard.py` and `app/session_auth.py`: session/RBAC dashboard.
-- `app/api_server.py`: role-aware local API.
-- `app/remote_worker.py`: restricted worker agent.
-- `app/operations.py`: backup, restore, update, rollback, and benchmark.
-- `app/postgres_mirror.py`: optional analytics mirror.
+- `app/dashboard.py`, `app/session_auth.py`, and `app/api_server.py`: local analyst interfaces.
+- `app/operations.py`: backup, restore, update, rollback, and benchmark operations.
 
-## Execution model
+## Safety boundary
 
-A run creates per-target budgets and persistent stage records. JavaScript and endpoint-validation inputs are represented as individual `work_items`, enabling precise retry and resume. Batch-oriented external tools continue to execute as stages because their own internal work partitioning is not safely observable.
+Authorization and target scope are mandatory inputs. Active or live behavior remains explicitly policy- and CLI-gated. Potential Findings are hypotheses, not automatic vulnerability confirmations. Passive-live validation is bounded by its dedicated eligibility and execution gates, and downstream reporting or notification failures do not rewrite the truth of already-completed Recon collection.
 
-The single-writer path serializes queued mutation events. Other read/query operations use short-lived or thread-safe SQLite connections. WAL mode and busy timeouts improve coexistence between CLI, dashboard, API, and background activity.
+## Documentation consistency
 
-## Data model additions in schema 7
-
-- work items and run budgets;
-- ignore rules;
-- correlated change incidents;
-- lifecycle state;
-- endpoint-validation observations;
-- object-store references;
-- evidence-integrity manifests;
-- audit log;
-- saved views;
-- dashboard users and API tokens;
-- remote workers;
-- plugin registry;
-- backup catalog.
-
-## Local-first boundary
-
-SQLite and files under the project directory remain the source of truth. PostgreSQL synchronization is one-way analytics mirroring. The API and dashboard bind to loopback by default. Remote workers only receive supported task types and must validate root scope.
+`tools/check_release_consistency.py` verifies in CI that the CLI, `app/core.py`, README files, this architecture document, CHANGELOG, current migration guide, and current release notes all agree on the application version and core schema version. Historical sections may retain the version/schema values that were correct for those releases.
