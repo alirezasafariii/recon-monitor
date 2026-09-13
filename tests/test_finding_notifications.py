@@ -12,13 +12,16 @@ APP = ROOT / "app"
 if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
+# Exercise the production import path. Importing successful_snapshot directly
+# before recon_monitor_core is an artificial order that bypasses the runtime
+# loader responsible for installing the reliability guards.
+import recon_monitor_core
 from core import APP_VERSION, AppPaths, Config, Database, Logger, utc_now
 from finding_notifications import (
     ensure_finding_notification_schema,
     install_finding_notification_pipeline,
     process_finding_notifications,
 )
-from successful_snapshot import SuccessfulSnapshotDatabase
 
 
 class FindingNotificationTests(unittest.TestCase):
@@ -31,7 +34,7 @@ class FindingNotificationTests(unittest.TestCase):
         self.paths.ensure()
         self.paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\n', encoding="utf-8")
         self.config = Config(self.paths)
-        self.db = SuccessfulSnapshotDatabase(self.paths.db)
+        self.db = recon_monitor_core.Database(self.paths.db)
         self.logger = Logger(self.paths, verbose=False)
 
     def tearDown(self) -> None:
