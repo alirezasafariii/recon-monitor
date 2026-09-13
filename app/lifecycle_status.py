@@ -1,24 +1,32 @@
 from __future__ import annotations
 
-"""Strict target/run lifecycle semantics for Recon Monitor.
+"""Explicit target/run lifecycle semantics for Recon Monitor.
 
-This compatibility layer keeps the established orchestration flow intact while
-fixing one narrow reliability invariant: a failed report stage is a target
-failure, just like a failed collection stage. The successful-snapshot boundary
-already refuses to promote a failed-report run; this layer makes the public
-run_targets/runs status and process exit code agree with that same truth.
+Recon collection, Analysis, report generation, and Potential Finding delivery are
+independent operational components. The aggregate target status is derived from
+those component states, while baseline eligibility is derived only from Recon
+collection completeness.
 """
 
 import contextlib
+import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from run_lifecycle_state import (
+    derive_analysis_status,
+    derive_collection_status,
+    derive_notification_status,
+    derive_overall_status,
+    record_target_lifecycle,
+)
 
-LIFECYCLE_STATUS_VERSION = "1.0.0"
+
+LIFECYCLE_STATUS_VERSION = "2.0.0"
 
 
 def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
-    """Install the strict run lifecycle on the loaded recon core module."""
+    """Install explicit component lifecycle semantics on the loaded runtime."""
 
     orchestrator_cls = namespace["Orchestrator"]
     stages = namespace["STAGES"]
@@ -33,8 +41,12 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
     app_version = namespace["APP_VERSION"]
 
     original_run = orchestrator_cls.run
-    if getattr(original_run, "_strict_lifecycle_status", False):
+    if getattr(original_run, "_lifecycle_status_version", "") == LIFECYCLE_STATUS_VERSION:
         return
+
+    collection_stage_names = tuple(
+        stage_name for stage_name, _label in stages if stage_name != "report"
+    )
 
     def run(
         self: Any,
@@ -82,6 +94,9 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                 if existing:
                     run_dir = Path(str(existing["run_dir"]))
                     baseline = bool(existing["baseline"])
+                    # Resume through the runtime Database so an older in-flight
+                    # target also gets an explicit lifecycle row.
+                    self.db.create_run_target(run_id, policy, run_dir, baseline)
                 else:
                     run_dir = self.paths.output / policy.name / "runs" / run_id
                     baseline = not self.db.target_has_history(policy.name)
@@ -107,15 +122,18 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                     BudgetManager.create(self.db, run_id, policy.name, policy),
                     self.db_writer,
                 )
-                target_failed = False
+
+                collection_failed = False
                 report_ran = False
+                report_metrics: dict[str, Any] = {}
+
                 for stage_index, (stage_name, label) in enumerate(stages, 1):
-                    if target_failed and stage_name != "report":
-                        # Preserve the established partial-reporting behavior:
-                        # after a collection failure skip later collection stages,
-                        # but still attempt the report stage.
+                    if collection_failed and stage_name != "report":
+                        # Keep partial-reporting behavior: stop further target
+                        # collection after a collection failure, but still run
+                        # report for diagnostics and persisted partial evidence.
                         continue
-                    status, _metrics = self._run_stage(
+                    status, metrics = self._run_stage(
                         ctx,
                         stage_name,
                         label,
@@ -128,18 +146,15 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                     )
                     if stage_name == "report":
                         report_ran = True
+                        report_metrics = dict(metrics or {})
+                    elif status != "success":
+                        collection_failed = True
 
-                    # Reliability invariant: no failed stage can yield a
-                    # successful target. This intentionally includes report.
-                    if status != "success":
-                        target_failed = True
-
-                if target_failed and not report_ran:
-                    # Defensive fallback retained from the established flow.
-                    # If normal iteration somehow did not reach report, attempt
-                    # it for partial diagnostics without changing failure truth.
+                if collection_failed and not report_ran:
+                    # Defensive fallback: report failure must never rewrite
+                    # collection truth. Capture metrics if the fallback works.
                     with contextlib.suppress(Exception):
-                        self._run_stage(
+                        _status, metrics = self._run_stage(
                             ctx,
                             "report",
                             stages[-1][1],
@@ -150,11 +165,64 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                             baseline,
                             False,
                         )
+                        report_ran = True
+                        report_metrics = dict(metrics or {})
 
-                target_status = "failed" if target_failed else "success"
-                self.db.finish_run_target(run_id, policy.name, target_status)
-                failures += int(target_failed)
+                collection_status, baseline_reason = derive_collection_status(
+                    self.db,
+                    run_id,
+                    policy.name,
+                    collection_stage_names,
+                )
+                report_status = str(
+                    self.db.stage_status(run_id, policy.name, "report") or "not_run"
+                )
+                analysis_status = derive_analysis_status(
+                    self.db,
+                    run_id,
+                    policy.name,
+                    report_metrics,
+                )
+                notification_status = derive_notification_status(
+                    report_metrics,
+                    analysis_status,
+                )
+                overall_status = derive_overall_status(
+                    collection_status,
+                    analysis_status,
+                    report_status,
+                    notification_status,
+                )
+
+                record_target_lifecycle(
+                    self.db,
+                    run_id,
+                    policy.name,
+                    collection_status=collection_status,
+                    analysis_status=analysis_status,
+                    report_status=report_status,
+                    notification_status=notification_status,
+                    overall_status=overall_status,
+                    baseline_reason=baseline_reason,
+                    details_json=json.dumps(
+                        {
+                            "baseline_requested": bool(baseline),
+                            "report_ran": report_ran,
+                            "collection_stages": list(collection_stage_names),
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                )
+
+                self.db.finish_run_target(run_id, policy.name, overall_status)
+                failures += int(overall_status != "success")
                 self._update_latest_pointers(policy.name, run_dir)
+                print(
+                    f"  Lifecycle: collection={collection_status} "
+                    f"analysis={analysis_status} report={report_status} "
+                    f"notification={notification_status} overall={overall_status}"
+                )
                 print(f"  Results: {run_dir}\n")
 
             status = "success" if failures == 0 else "partial"
@@ -198,7 +266,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                         )
                         self.db.meta_set("last_auto_digest_at", utc_now())
             print(
-                f"Run completed: {status} | failures={failures} | {local_now()}"
+                f"Run completed: {status} | non_success_targets={failures} | {local_now()}"
             )
             return 0 if failures == 0 else 2
         except KeyboardInterrupt:
