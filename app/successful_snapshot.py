@@ -25,6 +25,10 @@ from typing import Any
 
 from core import Database as BaseDatabase
 from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
+from finding_notifications import (
+    ensure_finding_notification_schema,
+    install_finding_notification_pipeline,
+)
 from stable_confirmation import (
     discard_stale_stable_change_runs,
     ensure_stable_confirmation_schema,
@@ -45,6 +49,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         super().__init__(path)
         self._migrate_successful_snapshot_schema()
         ensure_stable_confirmation_schema(self)
+        ensure_finding_notification_schema(self)
 
     def _migrate_successful_snapshot_schema(self) -> None:
         self.conn.executescript(
@@ -331,7 +336,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
 
 
 def _install_runtime_reliability_guards() -> None:
-    """Attach strict lifecycle and stable-confirmation semantics at runtime."""
+    """Attach strict lifecycle, confirmation, and finding notification semantics."""
 
     runtime = sys.modules.get("recon_monitor_core")
     if runtime is None or not hasattr(runtime, "Orchestrator"):
@@ -340,6 +345,7 @@ def _install_runtime_reliability_guards() -> None:
 
     install_lifecycle_status_guard(vars(runtime))
     install_stable_confirmation()
+    install_finding_notification_pipeline()
 
 
 _install_runtime_reliability_guards()
