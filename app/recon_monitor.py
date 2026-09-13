@@ -28,6 +28,7 @@ from real_world_calibration import (
 )
 from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
+from typed_evidence_adapter import adapt_validation_runner_execution
 from verified_replay_collector import (
     VERIFIED_REPLAY_COLLECTOR_RULE_VERSION,
     VERIFIED_REPLAY_COLLECTOR_VERSION,
@@ -122,7 +123,7 @@ def build_parser():
         )
 
     validation_parser = _validation_parser(parser)
-    _extend_action_choices(validation_parser, "runner-execute")
+    _extend_action_choices(validation_parser, "runner-execute", "runner-adapt")
     validation_dests = {
         str(getattr(action, "dest", ""))
         for action in getattr(validation_parser, "_actions", [])
@@ -132,6 +133,12 @@ def build_parser():
             "--contract-id",
             default="",
             help="Validation Runner dry-run contract ID (VDR-...)",
+        )
+    if "execution_id" not in validation_dests:
+        validation_parser.add_argument(
+            "--execution-id",
+            default="",
+            help="Completed Validation Runner execution ID (VEX-...) to adapt offline",
         )
     if "target" not in validation_dests:
         validation_parser.add_argument(
@@ -281,6 +288,28 @@ def _runner_execute_cli(args: Any) -> dict[str, Any]:
         db.close()
 
 
+def _runner_adapt_cli(args: Any) -> dict[str, Any]:
+    if not str(args.run_id or "").strip():
+        raise _base.ReconError("validation runner-adapt requires --run-id RUN_ID")
+    if not str(getattr(args, "execution_id", "") or "").strip():
+        raise _base.ReconError("validation runner-adapt requires --execution-id VEX-...")
+
+    paths = _base.AppPaths.from_root(_base.ROOT_DIR)
+    paths.ensure()
+    db = _base.Database(paths.db)
+    try:
+        return adapt_validation_runner_execution(
+            paths,
+            db,
+            scan_run_id=str(args.run_id),
+            target=str(getattr(args, "target", "") or ""),
+            execution_id=str(args.execution_id),
+            actor="cli",
+        )
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
@@ -293,6 +322,17 @@ def main(argv: list[str] | None = None) -> int:
         parser = build_parser()
         args = parser.parse_args(translated)
         payload = _runner_execute_cli(args)
+        print(_base.json_dumps(payload, pretty=True))
+        return 0
+
+    if (
+        len(translated) >= 2
+        and translated[0] == "validation"
+        and translated[1] == "runner-adapt"
+    ):
+        parser = build_parser()
+        args = parser.parse_args(translated)
+        payload = _runner_adapt_cli(args)
         print(_base.json_dumps(payload, pretty=True))
         return 0
 
