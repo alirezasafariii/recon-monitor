@@ -25,6 +25,12 @@ from typing import Any
 
 from core import Database as BaseDatabase
 from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
+from stable_confirmation import (
+    discard_stale_stable_change_runs,
+    ensure_stable_confirmation_schema,
+    finalize_stable_change_run,
+    install_stable_confirmation,
+)
 
 
 SNAPSHOT_SCHEMA_VERSION = 1
@@ -33,11 +39,12 @@ TRACKED_TABLES = ("assets", "dns_records", "urls", "fingerprints")
 
 
 class SuccessfulSnapshotDatabase(BaseDatabase):
-    """Database with an explicit last-successful comparison-state boundary."""
+    """Database with explicit successful comparison and confirmation boundaries."""
 
     def __init__(self, path: Path):
         super().__init__(path)
         self._migrate_successful_snapshot_schema()
+        ensure_stable_confirmation_schema(self)
 
     def _migrate_successful_snapshot_schema(self) -> None:
         self.conn.executescript(
@@ -294,6 +301,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             # state. A restore here would erase progress from that same run.
             return super().create_run_target(run_id, policy, run_dir, baseline)
         with self.transaction():
+            discard_stale_stable_change_runs(self, policy.name, run_id)
             self._restore_successful_snapshot_no_tx(policy.name)
             super().create_run_target(run_id, policy, run_dir, baseline)
 
@@ -314,6 +322,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
     def finish_run_target(self, run_id: str, target: str, status: str) -> None:
         commit_ready = self._snapshot_commit_ready(run_id, target, status)
         with self.transaction():
+            finalize_stable_change_run(self, run_id, target, status)
             if commit_ready:
                 self._replace_successful_snapshot_no_tx(
                     target, run_id, bootstrap=False
@@ -321,8 +330,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             super().finish_run_target(run_id, target, status)
 
 
-def _install_runtime_lifecycle_guard() -> None:
-    """Attach strict lifecycle semantics when loaded by recon_monitor_core."""
+def _install_runtime_reliability_guards() -> None:
+    """Attach strict lifecycle and stable-confirmation semantics at runtime."""
 
     runtime = sys.modules.get("recon_monitor_core")
     if runtime is None or not hasattr(runtime, "Orchestrator"):
@@ -330,6 +339,7 @@ def _install_runtime_lifecycle_guard() -> None:
     from lifecycle_status import install_lifecycle_status_guard
 
     install_lifecycle_status_guard(vars(runtime))
+    install_stable_confirmation()
 
 
-_install_runtime_lifecycle_guard()
+_install_runtime_reliability_guards()
