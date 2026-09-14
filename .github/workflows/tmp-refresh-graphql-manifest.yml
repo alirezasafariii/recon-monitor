@@ -38,17 +38,29 @@ jobs:
           manifest.write_text('\n'.join(keep) + '\n', encoding='utf-8')
           PY
       - name: Verify changed Python and focused tests
+        id: verify
         run: |
-          python -m py_compile app/graphql_data_exposure_differential.py app/graphql_data_exposure_admission_bridge.py tests/test_graphql_data_exposure_differential_admission.py
-          python -m unittest discover -s tests -p 'test_graphql_data_exposure_differential_admission.py' -v
-          sha256sum --strict -c MANIFEST.sha256 >/dev/null
+          set +e
+          {
+            python -m py_compile app/graphql_data_exposure_differential.py app/graphql_data_exposure_admission_bridge.py tests/test_graphql_data_exposure_differential_admission.py
+            python -m unittest discover -s tests -p 'test_graphql_data_exposure_differential_admission.py' -v
+            sha256sum --strict -c MANIFEST.sha256 >/dev/null
+          } > verify.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat verify.log
+          exit 0
       - name: Finalize branch
+        if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add MANIFEST.sha256
+          git add MANIFEST.sha256 verify.log
           git rm .github/workflows/tmp-refresh-graphql-manifest.yml
           if ! git diff --cached --quiet; then
-            git commit -m 'chore: refresh manifest for GraphQL field-policy review'
+            git commit -m 'chore: capture GraphQL verifier result'
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
+      - name: Fail on verifier error
+        if: steps.verify.outputs.status != '0'
+        run: exit 1
