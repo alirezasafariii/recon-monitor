@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.7.0
+# راهنمای Recon Monitor 8.8.0
 
-<!-- recon-monitor-current: app=8.7.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.0 schema=18 -->
 
-## نسخهٔ فعلی: Evidence Completion و Live Progress
+## نسخهٔ فعلی: Evidence-to-Finding Reliability و Durable Delivery
 
-Recon Monitor 8.7.0 شکاف‌های Evidence را بدون تضعیف Admission قابل اقدام می‌کند و برای Recon و Analysis طولانی، Progress و Health صریح ارائه می‌دهد.
+Recon Monitor 8.8.0 مسیر عملیاتی بین Recon قابل اعتماد، Evidence ساختاریافته، Admission canonical، Potential Finding و Delivery پایدار را کامل می‌کند، بدون اینکه مرز تأیید Vulnerability یا اختیار Admission تضعیف شود.
 
-وضعیت فعلی `main` مرز Reliability را نیز سخت‌تر کرده است: State مقایسهٔ Recon فقط از Collection قابل اعتماد commit می‌شود، تغییرات ناپایدار با State Version تأیید می‌شوند، Notification مربوط به Potential Finding از Recon Change Alert مستقل و Idempotent است و Lifecycle تارگت وضعیت Collection، Analysis، Report، Notification و اعتبار Baseline را جداگانه نگه می‌دارد.
+این نسخه Successful Snapshot و State-Version Confirmation، Typed Evidence آفلاین برای هر ۹ خانوادهٔ `passive_live`، مسیرهای Reviewed Evidence کنترل‌شده، Dispatcher عمومی Reviewed Evidence، Finding Notification Outbox پایدار با Retry/Dead-letter و Transport مشترک برای Finding Notification و Recon Change Alert را اضافه یا یکپارچه می‌کند.
 
-نسخهٔ canonical برنامه **8.7.0** و Core Schema دیتابیس **18** است. منبع حقیقت هر دو مقدار `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.7.0.md`، `docs/RELEASE_NOTES_v8.7.0.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+نسخهٔ canonical برنامه **8.8.0** و Core Schema دیتابیس **18** است. قابلیت‌های Reliability و Notification در صورت نیاز از Compatibility Schemaهای مستقل و Additive استفاده می‌کنند. منبع حقیقت نسخه و Core Schema همچنان `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.0.md`، `docs/RELEASE_NOTES_v8.8.0.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

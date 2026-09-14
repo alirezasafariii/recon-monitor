@@ -1,8 +1,8 @@
 # Recon Monitor architecture
 
-<!-- recon-monitor-current: app=8.7.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.0 schema=18 -->
 
-Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.7.0** and **18**.
+Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.8.0** and **18**.
 
 ```text
 Target / Policy / Authorization
@@ -40,7 +40,7 @@ Recon Change Alerts                  Finding Notifications
 
 `app/core.py` is the source of truth for the release-facing metadata:
 
-- `APP_VERSION = "8.7.0"`
+- `APP_VERSION = "8.8.0"`
 - `SCHEMA_VERSION = 18`
 
 `SCHEMA_VERSION` identifies the **core SQLite schema** created and maintained by `Database.migrate()`. Reliability features added after the core schema-18 migration use additive, independently versioned compatibility schemas rather than pretending to be a new core migration. Their metadata is stored in `schema_meta`, including `successful_snapshot_schema_version`, `stable_confirmation_schema_version`, `finding_notification_schema_version`, and the explicit target-lifecycle metadata key.
@@ -73,7 +73,9 @@ Volatile DNS and fingerprint changes are confirmed by observed **state version**
 
 Recon observations feed the analysis/reasoning stack. Potential Findings are evidence-backed security hypotheses and are not equivalent to confirmed vulnerabilities. Canonical Admission remains the authority for determining whether evidence is sufficient to create or promote a Potential Finding.
 
-Finding notifications are independent from Recon Change Alerts. After Analysis, new or materially changed Potential Findings are evaluated with a stable candidate identity and idempotent notification state. Re-observing an unchanged finding does not repeatedly notify; meaningful transitions can create a new notification event.
+Typed and reviewed evidence are admitted only through explicit offline boundaries. Passive-live observations are adapted without new target traffic, and controlled differential review artifacts are redacted, integrity-checked, provenance-aware, and fail closed on contradictions or missing structural requirements. Reviewed evidence can reach canonical Admission through the generic dispatcher, but the strongest automatic outcome remains a Potential Finding rather than vulnerability confirmation.
+
+Finding notifications are independent from Recon Change Alerts. New or materially changed Potential Findings are queued into a durable outbox, delivered by the scheduled/retry worker, and tracked through queued, retry-pending, delivering, delivered, failed, and dead-letter operational states. Delivery failures do not mutate Candidate or Admission truth. Recon Change Alerts retain their own lifecycle semantics but share the same public `notification_transports` boundary for Telegram and ProjectDiscovery `notify` delivery.
 
 ## Storage and concurrency
 
@@ -89,7 +91,10 @@ SQLite under `state/` remains the transactional source of truth. The database us
 - `app/stable_confirmation.py`: state-version confirmation for volatile changes.
 - `app/run_lifecycle_state.py` and `app/lifecycle_status.py`: explicit component lifecycle and baseline eligibility.
 - `app/analysis_engine.py` and family reasoning modules: evidence-driven vulnerability analysis.
-- `app/finding_notifications.py`: idempotent Potential Finding notification lifecycle.
+- `app/finding_notifications.py`: idempotent Potential Finding notification event lifecycle.
+- `app/finding_notification_outbox.py`: durable queue, retry, lease, delivery, and dead-letter operations for Finding notifications.
+- `app/notification_transports.py`: transport-neutral outbound delivery shared by Finding notifications and Recon Change Alerts.
+- reviewed-evidence adapters/dispatcher: offline controlled review and canonical Admission orchestration without target-side execution.
 - `app/storage.py`: content-addressed object storage.
 - `app/dashboard.py`, `app/session_auth.py`, and `app/api_server.py`: local analyst interfaces.
 - `app/operations.py`: backup, restore, update, rollback, and benchmark operations.

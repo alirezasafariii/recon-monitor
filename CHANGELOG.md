@@ -1,3 +1,52 @@
+# Recon Monitor 8.8.0 — Evidence-to-Finding Reliability & Durable Delivery
+
+Recon Monitor 8.8.0 consolidates the post-8.7 reliability and evidence work into one release: trustworthy Recon snapshot semantics, offline typed/reviewed evidence, canonical Admission orchestration, durable Finding notification delivery, and a shared outbound transport boundary.
+
+## Recon lifecycle and comparison reliability
+
+- Successful Recon snapshots isolate comparison-critical state so failed/interrupted collection cannot become the next baseline.
+- Report-stage failure propagates into the target lifecycle instead of leaving a misleading successful target state.
+- Volatile DNS/fingerprint changes use observed state-version confirmation (`A → B → B` confirms B; `A → B → C` resets confirmation).
+- Target lifecycle and baseline eligibility are explicit; collection truth is kept separate from Analysis, reporting, and notification outcomes.
+- Recon worker/database write paths, JavaScript availability tracking, stale progress reconciliation, Dashboard lifecycle checks, and bounded diagnostics were hardened.
+
+## Typed and reviewed evidence
+
+- Added an offline Typed Evidence Adapter for all nine `passive_live` families. It consumes fresh, redacted, matched observations without performing new target-side requests.
+- CORS and source-map paths can emit their bounded typed promotion signals; the remaining passive-live families remain constrained by their family-specific evidence semantics.
+- Added controlled offline differential/review boundaries for Open Redirect, Account Enumeration, Authentication Session, GraphQL Data Exposure, and Secret/Material Classification.
+- Reviewed artifacts reject raw credentials, cookies/tokens, identities, response bodies, secret material, and other disallowed payloads according to each review contract.
+- Potential Finding remains the strongest automatic outcome. Reviewed/typed evidence does not itself confirm a vulnerability.
+
+## Canonical reviewed-evidence admission
+
+- Added a generic reviewed-evidence Admission framework with integrity, hypothesis, provenance, structural-group, blocker, contradiction, and exactly-once checks.
+- Migrated controlled identity, authentication lifecycle, GraphQL field-policy, and material-classification bridges onto the generic framework.
+- Added a unified reviewed-evidence dispatcher so supported review artifacts enter canonical Admission through one orchestration boundary.
+- Admission remains authoritative; transport or notification outcomes cannot rewrite Candidate/Admission state.
+
+## Durable Finding notification delivery
+
+- Potential Finding notification generation is independent from Recon Change Alerts and uses stable transition identities for new, promoted, reopened, confidence, and material evidence changes.
+- Finding notifications are queued into a durable outbox instead of requiring synchronous delivery.
+- The worker supports bounded retry/backoff, delivery leases, worker run history, scheduled/watch operation, status diagnostics, drain, explicit retry, and dead-letter registration/recovery.
+- Queue observability includes due/retry/delivering/delivered/failed counts, oldest pending age, policy state, last worker run, and dead letters.
+- External notification delivery is at-least-once; internal event/orchestration identity remains idempotent.
+
+## Shared notification transports
+
+- Finding notifications and Recon Change Alerts now share the public `app/notification_transports.py` boundary for Telegram and ProjectDiscovery `notify`.
+- Recon Change Alert baseline suppression, score threshold, cooldown, `confirmed_only`, notification policy, ignored/false-positive filtering, and `last_notified` semantics are unchanged.
+- Recon Change Alerts remain outside the Finding outbox; lifecycle semantics stay separate while transport implementation is consolidated.
+
+## Release governance and compatibility
+
+- Application version advances to **8.8.0**.
+- Core database schema remains **18**; reliability and notification additions use additive, independently versioned feature schemas where required.
+- No destructive database migration is required from 8.7.0.
+- Branch hygiene and release-consistency checks keep merged branches and release-facing metadata bounded and verifiable.
+- Final CI requires strict manifest validation, release/version consistency, the complete unit suite, and integration tests on Python 3.11 and Python 3.13.
+
 # Recon Monitor 8.7.0 — Evidence Completion & Live Progress
 
 Recon Monitor 8.7.0 extends the 8.6 analysis/admission architecture in two directions: it makes evidence gaps actionable without weakening canonical Admission, and it makes long-running Recon/Analysis work observable instead of opaque.
