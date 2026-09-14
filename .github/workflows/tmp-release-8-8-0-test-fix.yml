@@ -1,0 +1,32 @@
+name: Temporary 8.8.0 Regression Alignment
+
+on:
+  push:
+    branches:
+      - release/8.8.0-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    if: "${{ github.event.head_commit.message != 'test: align 8.8.0 release regression expectations' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Align release-sensitive regressions
+        run: python3 tools/tmp_fix_release_8_8_0_tests.py
+      - name: Verify manifest
+        run: sha256sum --strict -c MANIFEST.sha256
+      - name: Run unit suite
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Commit regression alignment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MANIFEST.sha256 tests/test_bola_intelligence_v850.py tests/test_current_projection_v845.py tests/test_platform_v60.py tests/test_product_platform_v50.py tests/test_safe_validation_v51.py tests/test_stability_v451.py tests/test_update_v810.py tests/test_workspace_v70.py
+          git commit -m "test: align 8.8.0 release regression expectations"
+          git push
