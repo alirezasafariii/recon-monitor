@@ -8,8 +8,9 @@ import uuid
 from typing import Any, Callable
 
 from core import Database, utc_now
-from finding_notification_operations import run_finding_notification_worker, worker_due
-from recon_alert_operations import recon_alert_worker_due, run_recon_alert_worker
+from finding_notification_operations import finding_notification_diagnostics, run_finding_notification_worker, worker_due
+from notification_delivery_slo import evaluate_notification_delivery_slo
+from recon_alert_operations import recon_alert_diagnostics, recon_alert_worker_due, run_recon_alert_worker
 
 NOTIFICATION_SUPERVISOR_VERSION = "1.0.0"
 NOTIFICATION_SUPERVISOR_SCHEMA_VERSION = 1
@@ -285,6 +286,16 @@ def _execute_owned_cycle(
             (finished, finished, success_count, finished),
         )
     heartbeat_notification_supervisor(db, owner_id=owner_id, now=finished)
+    supervisor_status = notification_supervisor_status(db, now=finished)
+    slo = evaluate_notification_delivery_slo(
+        db,
+        workers={
+            "finding": finding_notification_diagnostics(db, now=finished),
+            "recon_alert": recon_alert_diagnostics(db, now=finished),
+        },
+        supervisor=supervisor_status,
+        now=finished,
+    )
     return {
         "version": NOTIFICATION_SUPERVISOR_VERSION,
         "status": status,
@@ -292,7 +303,8 @@ def _execute_owned_cycle(
         "owner_id": owner_id,
         "workers": results,
         "error": error,
-        "supervisor": notification_supervisor_status(db, now=finished),
+        "supervisor": supervisor_status,
+        "slo": slo,
     }
 
 

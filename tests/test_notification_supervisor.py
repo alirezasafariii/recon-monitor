@@ -72,6 +72,7 @@ class NotificationSupervisorTests(unittest.TestCase):
         self.assertEqual(calls, ["finding", "recon_alert"])
         self.assertEqual(result["workers"]["finding"]["status"], "failed")
         self.assertEqual(result["workers"]["recon_alert"]["status"], "success")
+        self.assertIn("slo", result)
         status = notification_supervisor_status(self.db, now="2099-02-01T00:00:01Z")
         self.assertEqual(status["last_status"], "partial_failure")
         self.assertEqual(status["worker_failure_count"], 1)

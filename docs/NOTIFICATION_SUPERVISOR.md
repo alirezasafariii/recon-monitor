@@ -58,6 +58,8 @@ Supervisor status includes:
 
 A stale lease becomes claimable after expiry. This provides bounded restart recovery without requiring destructive cleanup.
 
+After each coordinated cycle, the supervisor evaluates Notification Delivery SLOs from the current worker diagnostics and supervisor health. This evaluation records operational breach state only; it does not alter either worker queue or domain truth.
+
 ## Truth boundaries
 
 The supervisor is an execution coordinator only.
