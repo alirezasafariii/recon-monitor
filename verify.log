@@ -1,0 +1,21 @@
+test_confounded_or_missing_policy_context_fails_closed (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_confounded_or_missing_policy_context_fails_closed) ... ok
+test_prior_blocking_control_prevents_bridge (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_prior_blocking_control_prevents_bridge) ... ok
+test_raw_field_values_are_rejected (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_raw_field_values_are_rejected) ... ok
+test_restricted_field_returned_can_create_potential_finding (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_restricted_field_returned_can_create_potential_finding) ... FAIL
+test_review_and_bridge_are_exactly_once_and_mutation_fails_closed (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_review_and_bridge_are_exactly_once_and_mutation_fails_closed) ... ok
+test_role_differential_can_create_potential_finding (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_role_differential_can_create_potential_finding) ... ok
+test_safe_omission_or_authorization_control_does_not_promote (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_safe_omission_or_authorization_control_does_not_promote) ... ok
+test_sources_have_no_network_or_live_graphql_surface (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_sources_have_no_network_or_live_graphql_surface) ... ok
+
+======================================================================
+FAIL: test_restricted_field_returned_can_create_potential_finding (test_graphql_data_exposure_differential_admission.GraphqlDataExposureDifferentialAdmissionTests.test_restricted_field_returned_can_create_potential_finding)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/recon-monitor/recon-monitor/tests/test_graphql_data_exposure_differential_admission.py", line 185, in test_restricted_field_returned_can_create_potential_finding
+    self.assertFalse(hypothesis["assessment"]["admitted"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.795s
+
+FAILED (failures=1)
