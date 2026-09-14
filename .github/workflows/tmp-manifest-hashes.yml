@@ -6,12 +6,61 @@ on:
       - refactor/recon-alert-transport-consolidation-20260914
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  hashes:
+  refresh:
+    if: github.event.head_commit.message != 'chore: refresh manifest for recon alert transport consolidation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Compute changed-file hashes
-        run: sha256sum app/reporting.py tests/test_recon_alert_transport_consolidation.py
+      - name: Refresh changed-file manifest entries
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          manifest_path = Path("MANIFEST.sha256")
+          lines = manifest_path.read_text(encoding="utf-8").splitlines()
+          changed = {
+              "app/reporting.py": hashlib.sha256(Path("app/reporting.py").read_bytes()).hexdigest(),
+              "tests/test_recon_alert_transport_consolidation.py": hashlib.sha256(
+                  Path("tests/test_recon_alert_transport_consolidation.py").read_bytes()
+              ).hexdigest(),
+          }
+
+          rewritten = []
+          seen = set()
+          for line in lines:
+              if "  " not in line:
+                  rewritten.append(line)
+                  continue
+              _digest, path = line.split("  ", 1)
+              if path in changed:
+                  rewritten.append(f"{changed[path]}  {path}")
+                  seen.add(path)
+              else:
+                  rewritten.append(line)
+
+          missing = [(path, digest) for path, digest in changed.items() if path not in seen]
+          if missing:
+              insert_at = next(
+                  (index for index, line in enumerate(rewritten) if "  tools/" in line),
+                  len(rewritten),
+              )
+              for path, digest in sorted(missing):
+                  rewritten.insert(insert_at, f"{digest}  {path}")
+                  insert_at += 1
+
+          manifest_path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+          PY
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Commit manifest refresh
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MANIFEST.sha256
+          git commit -m "chore: refresh manifest for recon alert transport consolidation"
+          git push
