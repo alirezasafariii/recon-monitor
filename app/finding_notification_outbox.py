@@ -3,6 +3,7 @@ from __future__ import annotations
 """Durable, retryable delivery outbox for Potential Finding notifications."""
 
 import datetime as dt
+import uuid
 from collections import defaultdict
 from typing import Any, Callable, Mapping
 
@@ -15,6 +16,7 @@ FINDING_NOTIFICATION_OUTBOX_SCHEMA_VERSION = 1
 EVENT_TYPE = "potential_finding"
 DELIVERABLE_MODES = {"immediate", "digest", "system_warning"}
 DEFAULT_MAX_ATTEMPTS = 8
+LEASE_MINUTES = 5
 _BACKOFF_MINUTES = (1, 5, 15, 60, 180, 360, 720, 720)
 
 
@@ -37,6 +39,16 @@ def _next_attempt(now: str, attempt_count: int) -> str:
     return _iso(_parse_time(now) + dt.timedelta(minutes=_BACKOFF_MINUTES[index]))
 
 
+def _lease_expiry(now: str) -> str:
+    return _iso(_parse_time(now) + dt.timedelta(minutes=LEASE_MINUTES))
+
+
+def _schema_ready(db: Database) -> bool:
+    return db.one(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='finding_notification_outbox'"
+    ) is not None
+
+
 def ensure_finding_notification_outbox_schema(db: Database) -> None:
     db.conn.executescript(
         """
@@ -50,6 +62,8 @@ def ensure_finding_notification_outbox_schema(db: Database) -> None:
           next_attempt_at TEXT NOT NULL,
           last_attempt_at TEXT NOT NULL DEFAULT '',
           last_error TEXT NOT NULL DEFAULT '',
+          lease_id TEXT NOT NULL DEFAULT '',
+          lease_expires_at TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           delivered_at TEXT NOT NULL DEFAULT '',
@@ -57,6 +71,8 @@ def ensure_finding_notification_outbox_schema(db: Database) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_finding_notification_outbox_due
           ON finding_notification_outbox(status,next_attempt_at,target,mode);
+        CREATE INDEX IF NOT EXISTS idx_finding_notification_outbox_lease
+          ON finding_notification_outbox(status,lease_expires_at);
         """
     )
     db.execute(
@@ -65,8 +81,6 @@ def ensure_finding_notification_outbox_schema(db: Database) -> None:
         (str(FINDING_NOTIFICATION_OUTBOX_SCHEMA_VERSION),),
     )
 
-    # Upgrade/backfill: queued Potential Finding events created before the outbox
-    # was installed become due immediately without changing their event identity.
     rows = db.all(
         "SELECT event_id,target,mode,created_at FROM notification_events "
         "WHERE event_type=? AND status='queued' AND mode IN ('immediate','digest','system_warning')",
@@ -92,7 +106,10 @@ def ensure_finding_notification_outbox_schema(db: Database) -> None:
 
 
 def enqueue_finding_notification_event(db: Database, event_id: str) -> dict[str, Any]:
-    ensure_finding_notification_outbox_schema(db)
+    # process_finding_notifications installs the schema before entering Candidate
+    # transactions. Avoid executescript inside an existing transaction.
+    if not _schema_ready(db):
+        ensure_finding_notification_outbox_schema(db)
     row = db.one("SELECT * FROM notification_events WHERE event_id=?", (str(event_id),))
     if row is None:
         raise ReconError("Notification event was not found")
@@ -144,6 +161,7 @@ def outbox_summary(db: Database, *, target: str = "") -> dict[str, Any]:
     return {
         "queued": counts.get("queued", 0),
         "retry_pending": counts.get("retry_pending", 0),
+        "delivering": counts.get("delivering", 0),
         "delivered": counts.get("delivered", 0),
         "failed": counts.get("failed", 0),
     }
@@ -167,40 +185,65 @@ def _message(target: str, mode: str, rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines)[:15000]
 
 
-def _due_rows(
+def _claim_due_rows(
     db: Database,
     *,
     now: str,
     target: str,
     mode: str,
     limit: int,
-) -> list[dict[str, Any]]:
-    clauses = [
-        "o.status IN ('queued','retry_pending')",
-        "o.next_attempt_at<=?",
-        "e.status='queued'",
-        "e.event_type=?",
-    ]
-    params: list[Any] = [now, EVENT_TYPE]
-    if target:
-        clauses.append("o.target=?")
-        params.append(target)
-    if mode:
-        if mode not in DELIVERABLE_MODES:
-            raise ReconError("Delivery mode must be immediate, digest, or system_warning")
-        clauses.append("o.mode=?")
-        params.append(mode)
-    params.append(max(1, min(500, int(limit))))
-    return [
+) -> tuple[str, list[dict[str, Any]]]:
+    if mode and mode not in DELIVERABLE_MODES:
+        raise ReconError("Delivery mode must be immediate, digest, or system_warning")
+    lease_id = "FNW-" + uuid.uuid4().hex
+    lease_expires = _lease_expiry(now)
+
+    with db.transaction():
+        # A worker crash before finalization makes the lease reclaimable.
+        db.execute(
+            "UPDATE finding_notification_outbox SET status='retry_pending',lease_id='',lease_expires_at='',updated_at=? "
+            "WHERE status='delivering' AND lease_expires_at<>'' AND lease_expires_at<=?",
+            (now, now),
+        )
+        clauses = [
+            "o.status IN ('queued','retry_pending')",
+            "o.next_attempt_at<=?",
+            "e.status='queued'",
+            "e.event_type=?",
+        ]
+        params: list[Any] = [now, EVENT_TYPE]
+        if target:
+            clauses.append("o.target=?")
+            params.append(target)
+        if mode:
+            clauses.append("o.mode=?")
+            params.append(mode)
+        params.append(max(1, min(500, int(limit))))
+        candidates = db.all(
+            "SELECT o.event_id FROM finding_notification_outbox o "
+            "JOIN notification_events e ON e.event_id=o.event_id WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY o.next_attempt_at,e.score DESC,e.created_at LIMIT ?",
+            tuple(params),
+        )
+        for row in candidates:
+            db.execute(
+                "UPDATE finding_notification_outbox SET status='delivering',lease_id=?,lease_expires_at=?,updated_at=? "
+                "WHERE event_id=? AND status IN ('queued','retry_pending') AND next_attempt_at<=?",
+                (lease_id, lease_expires, now, str(row["event_id"]), now),
+            )
+
+    rows = [
         dict(row)
         for row in db.all(
             "SELECT o.*,e.score,e.payload_json,e.created_at AS event_created_at "
             "FROM finding_notification_outbox o JOIN notification_events e ON e.event_id=o.event_id "
-            "WHERE " + " AND ".join(clauses) + " "
-            "ORDER BY o.next_attempt_at,e.score DESC,e.created_at LIMIT ?",
-            tuple(params),
+            "WHERE o.status='delivering' AND o.lease_id=? AND e.status='queued' "
+            "ORDER BY o.next_attempt_at,e.score DESC,e.created_at",
+            (lease_id,),
         )
     ]
+    return lease_id, rows
 
 
 def deliver_finding_notification_outbox(
@@ -218,10 +261,17 @@ def deliver_finding_notification_outbox(
 
     ensure_finding_notification_outbox_schema(db)
     current = str(now or utc_now())
-    rows = _due_rows(db, now=current, target=str(target or ""), mode=str(mode or ""), limit=limit)
+    lease_id, rows = _claim_due_rows(
+        db,
+        now=current,
+        target=str(target or ""),
+        mode=str(mode or ""),
+        limit=limit,
+    )
     if not rows:
         return {
             "version": FINDING_NOTIFICATION_OUTBOX_VERSION,
+            "lease_id": lease_id,
             "due": 0,
             "attempted": 0,
             "delivered": 0,
@@ -244,7 +294,7 @@ def deliver_finding_notification_outbox(
         message = _message(batch_target, batch_mode, batch_rows)
         try:
             result = dict(send(config, logger, message))
-        except Exception as exc:  # injected/custom transports still fail closed
+        except Exception as exc:
             result = {"delivered": False, "channel": "", "channels": [], "error": str(exc)}
         delivered = bool(result.get("delivered"))
         channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
@@ -258,9 +308,9 @@ def deliver_finding_notification_outbox(
                 if delivered:
                     db.execute(
                         "UPDATE finding_notification_outbox SET status='delivered',attempt_count=?,"
-                        "last_attempt_at=?,last_error='',updated_at=?,delivered_at=? WHERE event_id=? "
-                        "AND status IN ('queued','retry_pending')",
-                        (attempts, current, current, current, event_id),
+                        "last_attempt_at=?,last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
+                        "WHERE event_id=? AND status='delivering' AND lease_id=?",
+                        (attempts, current, current, current, event_id, lease_id),
                     )
                     db.execute(
                         "UPDATE notification_events SET status='delivered',delivered_at=? "
@@ -280,9 +330,9 @@ def deliver_finding_notification_outbox(
                 next_status = "failed" if terminal else "retry_pending"
                 db.execute(
                     "UPDATE finding_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,"
-                    "last_attempt_at=?,last_error=?,updated_at=? WHERE event_id=? "
-                    "AND status IN ('queued','retry_pending')",
-                    (next_status, attempts, next_attempt, current, error, current, event_id),
+                    "last_attempt_at=?,last_error=?,lease_id='',lease_expires_at='',updated_at=? "
+                    "WHERE event_id=? AND status='delivering' AND lease_id=?",
+                    (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
                 )
                 if terminal:
                     db.execute(
@@ -311,6 +361,7 @@ def deliver_finding_notification_outbox(
 
     return {
         "version": FINDING_NOTIFICATION_OUTBOX_VERSION,
+        "lease_id": lease_id,
         "due": len(rows),
         "attempted": len(rows),
         "delivered": delivered_count,
@@ -345,7 +396,8 @@ def requeue_failed_finding_notifications(
             value = str(row["event_id"])
             db.execute(
                 "UPDATE finding_notification_outbox SET status='retry_pending',attempt_count=0,"
-                "next_attempt_at=?,last_attempt_at='',last_error='',updated_at=?,delivered_at='' WHERE event_id=?",
+                "next_attempt_at=?,last_attempt_at='',last_error='',lease_id='',lease_expires_at='',"
+                "updated_at=?,delivered_at='' WHERE event_id=?",
                 (now, now, value),
             )
             db.execute(
