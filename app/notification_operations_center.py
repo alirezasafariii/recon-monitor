@@ -13,6 +13,7 @@ from finding_notification_operations import (
     retry_dead_letters,
     run_finding_notification_worker,
 )
+from notification_supervisor import notification_supervisor_status
 from recon_alert_operations import (
     configure_recon_alert_worker,
     drain_recon_alert_outbox,
@@ -22,7 +23,7 @@ from recon_alert_operations import (
     run_recon_alert_worker,
 )
 
-NOTIFICATION_OPERATIONS_CENTER_VERSION = "1.0.0"
+NOTIFICATION_OPERATIONS_CENTER_VERSION = "1.1.0"
 _WORKERS = {"finding", "recon_alert"}
 _ACTIONS = {"configure", "retry", "run", "drain"}
 
@@ -55,6 +56,7 @@ def notification_delivery_operations(db: Database, *, now: str = "") -> dict[str
     current = str(now or utc_now())
     finding = _worker_snapshot("finding", finding_notification_diagnostics(db, now=current))
     recon = _worker_snapshot("recon_alert", recon_alert_diagnostics(db, now=current))
+    supervisor = notification_supervisor_status(db, now=current)
     workers = [finding, recon]
     warnings: list[str] = []
     for item in workers:
@@ -65,9 +67,14 @@ def notification_delivery_operations(db: Database, *, now: str = "") -> dict[str
             warnings.append(f"{label} worker is disabled while delivery backlog remains queued.")
         if _last_run_health(item) == "failed":
             warnings.append(f"{label} worker's latest recorded run failed.")
+    if str(supervisor.get("state") or "") == "degraded":
+        warnings.append("Notification supervisor is degraded; inspect its latest error and worker results.")
+    if not bool(supervisor.get("enabled", True)) and any(int(item.get("due_now", 0) or 0) for item in workers):
+        warnings.append("Notification supervisor is disabled while delivery work is due.")
     return {
         "version": NOTIFICATION_OPERATIONS_CENTER_VERSION,
         "generated_at": current,
+        "supervisor": supervisor,
         "workers": {"finding": finding, "recon_alert": recon},
         "queue_depth": sum(int(item.get("queue_depth", 0) or 0) for item in workers),
         "due_now": sum(int(item.get("due_now", 0) or 0) for item in workers),
