@@ -1,0 +1,54 @@
+name: Temporary fix Recon Alert outbox integration
+
+on:
+  push:
+    branches: [agent/recon-alert-outbox-v890]
+    paths:
+      - '.github/workflows/tmp-fix-recon-alert-outbox.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/recon-alert-outbox-v890
+          fetch-depth: 0
+
+      - name: Fix outbox insert and apply integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/recon_alert_outbox.py')
+          text = path.read_text(encoding='utf-8')
+          old = ") VALUES(?,?,?,?, 'queued',0,?,?,?,?,?,?)"
+          new = ") VALUES(?,?,?,?,'queued',0,?,?,?,?,?)"
+          if old not in text:
+              raise SystemExit('outbox insert anchor not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python tools/tmp_apply_recon_alert_outbox.py
+
+      - name: Compile and run focused tests
+        run: |
+          python -m py_compile app/recon_alert_outbox.py tools/deliver_recon_alerts.py app/reporting.py
+          python -m unittest tests.test_recon_alert_outbox tests.test_recon_alert_transport_consolidation
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Remove temporary integration tooling
+        run: |
+          git rm tools/tmp_apply_recon_alert_outbox.py
+          git rm .github/workflows/tmp-apply-recon-alert-outbox.yml
+          git rm .github/workflows/tmp-fix-recon-alert-outbox.yml
+
+      - name: Commit integrated feature
+        run: |
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add app/recon_alert_outbox.py app/reporting.py tests/test_recon_alert_transport_consolidation.py MANIFEST.sha256
+          git commit -m 'feat: integrate durable Recon Alert delivery'
+          git push origin HEAD:agent/recon-alert-outbox-v890
