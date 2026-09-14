@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   refresh:
-    if: github.event.head_commit.message != 'chore: refresh manifest for recon alert transport consolidation'
+    if: "${{ github.event.head_commit.message != 'chore: refresh manifest for recon alert transport consolidation' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
