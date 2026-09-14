@@ -17,7 +17,7 @@ from finding_notification_outbox import (
     deliver_finding_notification_outbox,
     requeue_failed_finding_notifications,
 )
-from finding_notifications import process_finding_notifications
+from finding_notifications import ensure_finding_notification_schema, process_finding_notifications
 
 
 class FindingNotificationOutboxTests(unittest.TestCase):
@@ -30,6 +30,9 @@ class FindingNotificationOutboxTests(unittest.TestCase):
         self.paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\n', encoding="utf-8")
         self.config = Config(self.paths)
         self.db = Database(self.paths.db)
+        # Production initializes notification reference/outbox state before a new
+        # Candidate can be created. Preserve that ordering in this direct fixture.
+        ensure_finding_notification_schema(self.db)
         self.logger = Logger(self.paths, verbose=False)
 
     def tearDown(self) -> None:
