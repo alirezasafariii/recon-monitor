@@ -195,6 +195,22 @@ def adapt_differential_evidence(
         for item in _loads(hypothesis.get("supporting_evidence_json"), [])
         if isinstance(item, Mapping)
     ]
+    existing_types = {
+        str(item.get("type") or "")
+        for item in support
+        if str(item.get("type") or "")
+    }
+    source_ready = bool(
+        existing_types & {"redirect_parameter", "dataflow_source", "source_sink"}
+    )
+    sink_ready = bool(
+        existing_types & {"navigation_context", "dataflow_sink", "source_sink"}
+    )
+    if not source_ready or not sink_ready:
+        raise ReconError(
+            "Differential Evidence requires existing structural Open Redirect source and navigation sink evidence"
+        )
+
     contradict = [
         dict(item)
         for item in _loads(hypothesis.get("contradicting_evidence_json"), [])
