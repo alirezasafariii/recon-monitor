@@ -135,14 +135,11 @@ def _notification_context(ctx: Any, *, target: str, run_id: str) -> Any:
     )
 
 
-def _matching_events(db: Database, candidate_id: str, transitions: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    event_ids = [
-        str(item.get("event_id") or "")
-        for item in transitions
-        if str(item.get("candidate_id") or "") == candidate_id and str(item.get("event_id") or "")
-    ]
+def _event_rows(db: Database, event_ids: list[str]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for event_id in dict.fromkeys(event_ids):
+        if not event_id:
+            continue
         row = db.one(
             "SELECT event_id,status,mode,score,delivered_at FROM notification_events WHERE event_id=?",
             (event_id,),
@@ -211,8 +208,23 @@ def dispatch_reviewed_evidence(
         for item in list(notification_result.get("transitions") or [])
         if isinstance(item, Mapping) and str(item.get("candidate_id") or "") == candidate_id
     ]
-    events = _matching_events(db, candidate_id, matching_transitions) if candidate_id else []
-    event_ids = [str(item.get("event_id") or "") for item in events]
+    current_event_ids = [
+        str(item.get("event_id") or "")
+        for item in matching_transitions
+        if str(item.get("event_id") or "")
+    ]
+    previous_event_ids = safe_json_loads(
+        previous_map.get("event_ids_json"), [], expected_type=list
+    )
+    event_ids = list(
+        dict.fromkeys(
+            [
+                *[str(item) for item in previous_event_ids if str(item)],
+                *current_event_ids,
+            ]
+        )
+    )
+    events = _event_rows(db, event_ids) if candidate_id else []
 
     bridge_status = str(bridge_result.get("status") or "")
     notification_status = str(notification_result.get("status") or "not_applicable")
