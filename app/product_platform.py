@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from core import APP_VERSION, AppPaths, Database, ReconError, json_dumps, parse_int, safe_json_loads, utc_now
+from notification_operations_center import notification_delivery_operations
 
 PLATFORM_VERSION = "6.0.5"
 
@@ -687,6 +688,7 @@ def operations_center(paths: AppPaths, db: Database, *, refresh: bool = False, d
     failed_stages = parse_int((db.one("SELECT COUNT(*) count FROM stage_runs WHERE status='failed'") or {"count": 0})["count"], 0)
     schedules = [dict(row) for row in db.all("SELECT * FROM schedule_policies ORDER BY target")]
     notifications = [dict(row) for row in db.all("SELECT * FROM notification_policies ORDER BY target,event_type")]
+    delivery_workers = notification_delivery_operations(db)
     plugin_key = f"plugins:{paths.root}"
     plugins = None if refresh else _memo_get(plugin_key, 60)
     if plugins is None:
@@ -705,6 +707,10 @@ def operations_center(paths: AppPaths, db: Database, *, refresh: bool = False, d
     if quality.get("health_score", 100) < 60: score -= 10
     degraded_plugins = sum(1 for item in plugins if not item.get("ok"))
     score -= min(10, degraded_plugins * 2)
+    delivery_dead_letters = int(delivery_workers.get("dead_letter_open", 0) or 0)
+    paused_delivery_workers = sum(1 for item in delivery_workers.get("workers", {}).values() if item.get("state") == "paused_with_backlog")
+    score -= min(15, delivery_dead_letters * 3)
+    score -= min(10, paused_delivery_workers * 5)
     score = max(0, min(100, score))
     warnings = []
     if not backups: warnings.append("No catalogued backup exists.")
@@ -712,7 +718,8 @@ def operations_center(paths: AppPaths, db: Database, *, refresh: bool = False, d
     warnings.extend(completeness.get("warnings", []))
     warnings.extend(quality.get("warnings", [])[:3])
     if degraded_plugins: warnings.append(f"{degraded_plugins} plugin(s) are degraded or invalid.")
-    payload = {"program_health_score": score, "database": integrity, "failed_stages": failed_stages, "latest_run": latest_run, "run_completeness": completeness, "engine_quality": quality, "scope": scope, "storage": storage, "backups": backups, "schedules": schedules, "notifications": notifications, "plugins": plugins, "warnings": warnings, "generated_at": utc_now(), "deep_check": deep_check}
+    warnings.extend(delivery_workers.get("warnings", []))
+    payload = {"program_health_score": score, "database": integrity, "failed_stages": failed_stages, "latest_run": latest_run, "run_completeness": completeness, "engine_quality": quality, "scope": scope, "storage": storage, "backups": backups, "schedules": schedules, "notifications": notifications, "delivery_workers": delivery_workers, "plugins": plugins, "warnings": warnings, "generated_at": utc_now(), "deep_check": deep_check}
     return _memo_set(cache_key, payload)
 
 def set_schedule_policy(db: Database, target: str, cadence: str, *, enabled: bool = True, max_runtime_minutes: int = 120, request_budget: int = 10000, quiet_hours: str = "", actor: str = "admin") -> dict[str, Any]:

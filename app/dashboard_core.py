@@ -27,7 +27,7 @@ from safe_validation import (
 )
 from product_platform import (
     CASE_STATES, RULE_STATES, NOTIFICATION_MODES, build_report_draft, build_validation_package,
-    case_detail, engine_quality, engine_quality_snapshot, list_cases, list_stories, operations_center, platform_sync, rule_governance,
+    case_detail, engine_quality, engine_quality_snapshot, invalidate_platform_cache, list_cases, list_stories, operations_center, platform_sync, rule_governance,
     run_completeness, run_completeness_snapshot, scope_center, set_case_state, set_notification_policy, set_rule_state, set_schedule_policy,
     storage_health, storage_health_snapshot, sync_security_cases, sync_security_stories,
 )
@@ -48,6 +48,7 @@ from dashboard_auth import verify_basic_header
 from session_auth import parse_session, create_session, destroy_session, verify_user, session_cookie, expired_cookie, ROLE_LEVEL
 from evidence import build_evidence_export
 from plugins import PluginManager
+from notification_operations_center import combined_dead_letters, notification_delivery_action
 
 ALERT_STATUSES = [
     "new", "triaged", "acknowledged", "investigating", "interesting",
@@ -1423,6 +1424,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if path == "/rules/state":
                 set_rule_state(db,str((data.get("rule_id") or [""])[0]),str((data.get("rule_version") or [""])[0]),str((data.get("state") or ["draft"])[0]),actor=actor,note=str((data.get("note") or [""])[0]))
                 self.redirect('/rules'); return
+            if path == "/notification-workers/action":
+                action=str((data.get("action") or [""])[0]).strip().lower()
+                enabled_raw=str((data.get("enabled") or [""])[0]).strip().lower()
+                interval_raw=str((data.get("interval_seconds") or [""])[0]).strip()
+                batch_raw=str((data.get("batch_limit") or [""])[0]).strip()
+                notification_delivery_action(
+                    worker=str((data.get("worker") or [""])[0]),
+                    action=action,
+                    config=self.config,
+                    logger=self.logger,
+                    db=db,
+                    enabled=(enabled_raw in {"1","true","yes","on"}) if action == "configure" and enabled_raw else None,
+                    interval_seconds=parse_int(interval_raw,60,60,3600) if interval_raw else None,
+                    batch_limit=parse_int(batch_raw,100,1,500) if batch_raw else None,
+                    event_id=str((data.get("event_id") or [""])[0]),
+                    target=str((data.get("target") or [""])[0]),
+                    max_batches=parse_int((data.get("max_batches") or [20])[0],20,1,100),
+                )
+                invalidate_platform_cache()
+                self.redirect('/operations-center'); return
             if path == "/schedules/set":
                 set_schedule_policy(db,str((data.get("target") or [""])[0]),str((data.get("cadence") or [""])[0]),enabled=str((data.get("enabled") or ["true"])[0]).lower()=="true",max_runtime_minutes=parse_int((data.get("max_runtime") or [120])[0],120),request_budget=parse_int((data.get("request_budget") or [10000])[0],10000),quiet_hours=str((data.get("quiet_hours") or [""])[0]),actor=actor)
                 self.redirect('/operations-center'); return
@@ -2265,17 +2286,37 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             refresh=str((self.query().get('refresh')or['0'])[0]).lower() in {'1','true','yes'}
             data=operations_center(self.paths,db,refresh=refresh,deep_check=refresh)
+            dead_letters=combined_dead_letters(db,limit=50)
         finally: db.close()
         completeness=data.get('run_completeness',{}); storage=data.get('storage',{}); quality=data.get('engine_quality',{})
+        delivery=data.get('delivery_workers',{}); workers=delivery.get('workers',{})
         warnings=''.join(f"<div class='callout'><strong>Attention</strong><span>{_esc(item)}</span></div>" for item in data.get('warnings',[])) or _empty('No operational warning')
         dims=completeness.get('dimensions',{})
         stage_rows=''.join(f"<tr><td>{_esc(stage)}</td><td>{_pill(info.get('status'))}</td><td>{info.get('score',0)}%</td><td>{info.get('records',0)}</td></tr>" for stage,info in dims.items())
         backups=''.join(f"<tr><td><code>{_esc(row['backup_id'])}</code></td><td>{_esc(row['created_at'])}</td><td>{_esc(row['verified_at'] or 'not verified')}</td><td>{row['size']}</td></tr>" for row in data.get('backups',[]))
         schedules=''.join(f"<tr><td>{_esc(row['target'])}</td><td>{_esc(row['cadence'])}</td><td>{_pill('active' if row['enabled'] else 'disabled')}</td><td>{row['request_budget']}</td><td>{row['max_runtime_minutes']} min</td></tr>" for row in data.get('schedules',[]))
-        header=_page_header('Operations center','Program health, data completeness, backup readiness, schedules, notifications and storage are grouped in one operational view.',"<a class='button secondary' href='/operations-center?refresh=1'>Run deep refresh</a><a class='button secondary' href='/storage-health'>Storage health</a><a class='button' href='/scope-center'>Scope center</a>",f'Recon Monitor {APP_VERSION} · Cached daily operations')
-        metrics="<div class='metrics-grid'>"+_metric_card('Program health',data.get('program_health_score',0),'Database, runs, backups and engine quality','success' if data.get('program_health_score',0)>=75 else 'amber')+_metric_card('Run completeness',f"{completeness.get('score',0)}%",data.get('latest_run') or 'No run','info')+_metric_card('Engine health',quality.get('health_score',0),'Quality and backlog health','purple')+_metric_card('Failed stages',data.get('failed_stages',0),'Historical failed stage records','danger' if data.get('failed_stages',0) else 'success')+_metric_card('Storage',f"{round(storage.get('estimated_total_bytes',0)/1024/1024,1)} MB",'Estimated managed data','blue')+_metric_card('Backups',len(data.get('backups',[])),'Catalogued recent backups','orange')+"</div>"
+        header=_page_header('Operations center','Program health plus a unified control plane for Finding and Recon Alert delivery. Queue and lifecycle state remain independent.',"<a class='button secondary' href='/operations-center?refresh=1'>Run deep refresh</a><a class='button secondary' href='/storage-health'>Storage health</a><a class='button' href='/scope-center'>Scope center</a>",f'Recon Monitor {APP_VERSION} · Cached daily operations')
+        metrics="<div class='metrics-grid'>"+_metric_card('Program health',data.get('program_health_score',0),'Database, runs, backups, delivery and engine quality','success' if data.get('program_health_score',0)>=75 else 'amber')+_metric_card('Delivery backlog',delivery.get('queue_depth',0),f"{delivery.get('due_now',0)} due now",'amber' if delivery.get('due_now',0) else 'success')+_metric_card('Dead letters',delivery.get('dead_letter_open',0),'Finding + Recon Alert delivery','danger' if delivery.get('dead_letter_open',0) else 'success')+_metric_card('Run completeness',f"{completeness.get('score',0)}%",data.get('latest_run') or 'No run','info')+_metric_card('Engine health',quality.get('health_score',0),'Quality and backlog health','purple')+_metric_card('Failed stages',data.get('failed_stages',0),'Historical failed stage records','danger' if data.get('failed_stages',0) else 'success')+_metric_card('Storage',f"{round(storage.get('estimated_total_bytes',0)/1024/1024,1)} MB",'Estimated managed data','blue')+_metric_card('Backups',len(data.get('backups',[])),'Catalogued recent backups','orange')+"</div>"
+
+        def worker_panel(key,label):
+            worker=dict(workers.get(key) or {}); policy=dict(worker.get('policy') or {}); last=dict(worker.get('last_worker_run') or {})
+            enabled=bool(policy.get('enabled',True)); state=str(worker.get('state') or 'unknown')
+            enabled_options=("<option value='true' selected>Enabled</option><option value='false'>Disabled</option>" if enabled else "<option value='true'>Enabled</option><option value='false' selected>Disabled</option>")
+            summary="<div class='metrics-grid'>"+_metric_card('Queue',worker.get('queue_depth',0),f"{worker.get('due_now',0)} due now",'amber' if worker.get('due_now',0) else 'success')+_metric_card('Retry pending',worker.get('retry_pending',0),'Awaiting next attempt','amber' if worker.get('retry_pending',0) else 'neutral')+_metric_card('Dead letters',worker.get('dead_letter_open',0),'Needs operator review','danger' if worker.get('dead_letter_open',0) else 'success')+_metric_card('Delivered',worker.get('delivered',0),'Durably finalized deliveries','blue')+"</div>"
+            configure=f"<form method='post' action='/notification-workers/action' class='stack'><input type='hidden' name='worker' value='{_esc(key)}'><input type='hidden' name='action' value='configure'><label>Worker state<br><select name='enabled'>{enabled_options}</select></label><label>Interval seconds<br><input type='number' name='interval_seconds' min='60' max='3600' value='{_esc(policy.get('interval_seconds',60))}'></label><label>Batch limit<br><input type='number' name='batch_limit' min='1' max='500' value='{_esc(policy.get('batch_limit',100))}'></label><button class='secondary'>Save worker policy</button></form>"
+            actions=f"<div class='stack'><form method='post' action='/notification-workers/action'><input type='hidden' name='worker' value='{_esc(key)}'><input type='hidden' name='action' value='run'><button>Run one pass now</button></form><form method='post' action='/notification-workers/action'><input type='hidden' name='worker' value='{_esc(key)}'><input type='hidden' name='action' value='drain'><input type='hidden' name='max_batches' value='20'><input type='hidden' name='batch_limit' value='{_esc(policy.get('batch_limit',100))}'><button class='secondary'>Bounded drain</button></form><form method='post' action='/notification-workers/action'><input type='hidden' name='worker' value='{_esc(key)}'><input type='hidden' name='action' value='retry'><button class='secondary'>Retry all dead letters</button></form></div>"
+            last_text=(f"{last.get('status','unknown')} · {last.get('finished_at') or last.get('started_at') or 'time unavailable'}" if last else 'No recorded worker run yet')
+            return f"<article class='panel'><div class='panel-head'><div><h3>{_esc(label)}</h3><span class='muted small'>Independent durable queue · {_esc(last_text)}</span></div>{_pill(state,'danger' if state=='degraded' else 'amber' if state in {'work_due','paused_with_backlog'} else 'success')}</div><div class='panel-body'>{summary}<div class='two-col' style='margin-top:14px'>{configure}<section><h4>Operator actions</h4>{actions}<p class='muted small'>External delivery is at-least-once. Actions do not change Candidate, Admission or Recon Alert eligibility truth.</p></section></div></div></article>"
+
+        worker_html="<section class='panel' style='margin-top:16px'><div class='panel-head'><div><h3>Delivery workers</h3><span class='muted small'>One control plane; separate Finding and Recon Alert queues.</span></div>{_pill('independent state','info')}</div><div class='panel-body stack'>"+worker_panel('finding','Finding delivery')+worker_panel('recon_alert','Recon Alert delivery')+"</div></section>"
+        dead_rows=[]
+        for row in dead_letters:
+            worker=str(row.get('worker') or ''); label='Finding' if worker=='finding' else 'Recon Alert'; context=row.get('mode') or row.get('run_id') or ''
+            retry=f"<form method='post' action='/notification-workers/action'><input type='hidden' name='worker' value='{_esc(worker)}'><input type='hidden' name='action' value='retry'><input type='hidden' name='event_id' value='{_esc(row.get('event_id',''))}'><button class='secondary'>Retry</button></form>"
+            dead_rows.append(f"<tr><td>{_esc(label)}</td><td><code>{_esc(row.get('event_id',''))}</code></td><td>{_esc(row.get('target',''))}</td><td>{_esc(context)}</td><td>{_esc(row.get('attempt_count',0))}</td><td>{_esc(row.get('last_error',''))}</td><td>{_esc(row.get('dead_lettered_at',''))}</td><td>{retry}</td></tr>")
+        dead_table=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Dead-letter registry</h3><span class='muted small'>{len(dead_letters)} open event(s)</span></div><div class='table-wrap'><table><thead><tr><th>Worker</th><th>Event</th><th>Target</th><th>Context</th><th>Attempts</th><th>Last error</th><th>Dead-lettered</th><th></th></tr></thead><tbody>{''.join(dead_rows) or '<tr><td colspan=8>No open delivery dead letters</td></tr>'}</tbody></table></div></section>"
         forms="<div class='two-col' style='margin-top:16px'><section class='panel'><div class='panel-head'><h3>Schedule policy</h3></div><div class='panel-body'><form method='post' action='/schedules/set' class='stack'><label>Target<br><input name='target' required></label><label>Cadence<br><input name='cadence' placeholder='weekly or Mon,Thu 03:00' required></label><label>Request budget<br><input type='number' name='request_budget' value='10000'></label><label>Maximum runtime (minutes)<br><input type='number' name='max_runtime' value='120'></label><label>Quiet hours<br><input name='quiet_hours' placeholder='22:00-07:00'></label><input type='hidden' name='enabled' value='true'><button>Save policy</button></form></div></section><section class='panel'><div class='panel-head'><h3>Notification policy</h3></div><div class='panel-body'><form method='post' action='/notifications/set' class='stack'><label>Target<br><input name='target' value='*' required></label><label>Event type<br><input name='event_type' placeholder='strong_candidate' required></label><label>Mode<br>{_select('mode',NOTIFICATION_MODES,'digest','Select mode')}</label><label>Minimum score<br><input type='number' name='minimum_score' value='70'></label><button>Save policy</button></form></div></section></div>"
-        body=header+metrics+f"<div class='two-col' style='margin-top:16px'><section class='panel'><div class='panel-head'><h3>Operational attention</h3></div><div class='panel-body stack'>{warnings}</div></section><section class='panel'><div class='panel-head'><h3>Latest run completeness</h3></div><div class='table-wrap'><table><thead><tr><th>Stage</th><th>Status</th><th>Coverage</th><th>Records</th></tr></thead><tbody>{stage_rows or '<tr><td colspan=4>No stage data</td></tr>'}</tbody></table></div></section></div><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Backup readiness</h3></div><div class='table-wrap'><table><thead><tr><th>Backup</th><th>Created</th><th>Verified</th><th>Bytes</th></tr></thead><tbody>{backups or '<tr><td colspan=4>No catalogued backups</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Configured schedules</h3></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Cadence</th><th>Status</th><th>Budget</th><th>Runtime</th></tr></thead><tbody>{schedules or '<tr><td colspan=5>No schedule policies</td></tr>'}</tbody></table></div></section>"+forms
+        body=header+metrics+worker_html+dead_table+f"<div class='two-col' style='margin-top:16px'><section class='panel'><div class='panel-head'><h3>Operational attention</h3></div><div class='panel-body stack'>{warnings}</div></section><section class='panel'><div class='panel-head'><h3>Latest run completeness</h3></div><div class='table-wrap'><table><thead><tr><th>Stage</th><th>Status</th><th>Coverage</th><th>Records</th></tr></thead><tbody>{stage_rows or '<tr><td colspan=4>No stage data</td></tr>'}</tbody></table></div></section></div><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Backup readiness</h3></div><div class='table-wrap'><table><thead><tr><th>Backup</th><th>Created</th><th>Verified</th><th>Bytes</th></tr></thead><tbody>{backups or '<tr><td colspan=4>No catalogued backups</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Configured schedules</h3></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Cadence</th><th>Status</th><th>Budget</th><th>Runtime</th></tr></thead><tbody>{schedules or '<tr><td colspan=5>No schedule policies</td></tr>'}</tbody></table></div></section>"+forms
         self.send_html('Operations center',body)
 
     def storage_health_page(self) -> None:
