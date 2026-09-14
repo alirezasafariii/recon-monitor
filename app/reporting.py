@@ -27,6 +27,7 @@ from collection_quality import snapshot_collection_quality
 from evidence_coverage import snapshot_evidence_coverage
 from evidence_completion_planner import snapshot_evidence_completion_plan
 from notification_transports import deliver_notification_message
+from recon_alert_outbox import deliver_recon_alert_outbox, enqueue_recon_alert_event
 from validation_eligibility import snapshot_validation_eligibility
 from validation_runner import snapshot_validation_runner_dry_run
 
@@ -77,6 +78,8 @@ def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any
             "new_alerts": 0,
             "immediate": 0,
             "notified": False,
+            "queued": 0,
+            "delivery": {"due": 0, "attempted": 0, "delivered": 0, "retry_pending": 0, "failed": 0, "batches": []},
             "baseline_suppressed": bool(events),
             "baseline_alerts_created": False,
             "alerting_active": False,
@@ -133,33 +136,57 @@ def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any
                 immediate.append(event)
 
     notified = False
+    queued = 0
+    delivery: dict[str, Any] = {
+        "due": 0,
+        "attempted": 0,
+        "delivered": 0,
+        "retry_pending": 0,
+        "failed": 0,
+        "batches": [],
+    }
     if immediate:
         immediate.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
-        top = immediate[:max_items]
-        message = "\n".join(
-            [
-                f"🚨 Recon Monitor {APP_VERSION}",
-                f"Target: {ctx.policy.name}",
-                f"Run: {ctx.run_id}",
-                f"Time: {local_now()}",
-                f"High-priority changes: {len(immediate)}",
-                "",
-                *_event_lines(top, max_items),
-            ]
+        for event in immediate:
+            payload = {
+                "category": str(event.get("category") or "security_change"),
+                "severity": str(event.get("severity") or "INFO"),
+                "risk_score": int(event.get("risk_score") or 0),
+                "title": str(event.get("title") or "Recon change"),
+                "item": str(event.get("item") or ""),
+                "change_class": str(event.get("change_class") or event.get("category") or "change"),
+                "confirmation_state": str(event.get("confirmation_state") or "confirmed"),
+            }
+            queued_event = enqueue_recon_alert_event(
+                ctx.db,
+                alert_id=int(event["alert_id"]),
+                target=ctx.policy.name,
+                run_id=ctx.run_id,
+                payload=payload,
+            )
+            if queued_event.get("queued") and not queued_event.get("deduplicated"):
+                queued += 1
+
+        # Preserve immediate best-effort behavior while making failure durable.
+        # Target-wide claiming also retries any older due Alert occurrence for
+        # this target; batching remains separated by run_id inside the outbox.
+        delivery = deliver_recon_alert_outbox(
+            config=ctx.config,
+            logger=ctx.logger,
+            db=ctx.db,
+            target=ctx.policy.name,
+            limit=max(50, min(500, len(immediate))),
+            transport=deliver_notification_message,
         )
-        if len(immediate) > len(top):
-            message += f"\n• … and {len(immediate) - len(top)} more"
-        delivery = deliver_notification_message(ctx.config, ctx.logger, message)
-        notified = bool(delivery.get("delivered"))
-        if notified:
-            for event in immediate:
-                ctx.db.mark_alert_notified(int(event["alert_id"]))
+        notified = int(delivery.get("delivered", 0) or 0) > 0
 
     return {
         "events": len(events),
         "new_alerts": new_alerts,
         "immediate": len(immediate),
         "notified": notified,
+        "queued": queued,
+        "delivery": delivery,
         "baseline_suppressed": False,
         "baseline_alerts_created": False,
         "alerting_active": True,

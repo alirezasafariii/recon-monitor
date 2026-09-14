@@ -114,7 +114,11 @@ class ReconAlertTransportConsolidationTests(unittest.TestCase):
             with patch.object(reporting, "deliver_notification_message", return_value=failed) as retry_send:
                 retry = create_alerts_and_notify(ctx, baseline=False)
             self.assertEqual(retry["immediate"], 1)
-            retry_send.assert_called_once()
+            self.assertEqual(retry["queued"], 0)
+            retry_send.assert_not_called()
+            outbox = db.one("SELECT status,attempt_count FROM recon_alert_notification_outbox")
+            self.assertEqual(outbox["status"], "retry_pending")
+            self.assertEqual(outbox["attempt_count"], 1)
         finally:
             db.close()
             temp.cleanup()
