@@ -7,14 +7,13 @@ import time
 import uuid
 from typing import Any, Callable, Mapping
 
-from core import Database, ReconError, parse_int, utc_now
+from core import Database, ReconError, utc_now
 from finding_notification_outbox import (
     DELIVERABLE_MODES,
     deliver_finding_notification_outbox,
     ensure_finding_notification_outbox_schema,
     requeue_failed_finding_notifications,
 )
-
 
 FINDING_NOTIFICATION_OPERATIONS_VERSION = "1.0.0"
 FINDING_NOTIFICATION_OPERATIONS_SCHEMA_VERSION = 1
@@ -100,6 +99,17 @@ def ensure_finding_notification_operations_schema(db: Database) -> None:
     _sync_dead_letters(db)
 
 
+def worker_policy(db: Database) -> dict[str, Any]:
+    ensure_finding_notification_operations_schema(db)
+    row = db.one("SELECT * FROM finding_notification_worker_policy WHERE singleton=1")
+    return {
+        "enabled": bool(int(row["enabled"])),
+        "interval_seconds": int(row["interval_seconds"]),
+        "batch_limit": int(row["batch_limit"]),
+        "updated_at": str(row["updated_at"]),
+    }
+
+
 def configure_finding_notification_worker(
     db: Database,
     *,
@@ -109,28 +119,22 @@ def configure_finding_notification_worker(
 ) -> dict[str, Any]:
     ensure_finding_notification_operations_schema(db)
     current = dict(db.one("SELECT * FROM finding_notification_worker_policy WHERE singleton=1"))
-    new_enabled = int(bool(enabled)) if enabled is not None else int(current["enabled"])
-    new_interval = (
+    value_enabled = int(bool(enabled)) if enabled is not None else int(current["enabled"])
+    value_interval = (
         max(MIN_INTERVAL_SECONDS, min(MAX_INTERVAL_SECONDS, int(interval_seconds)))
         if interval_seconds is not None
         else int(current["interval_seconds"])
     )
-    new_limit = (
+    value_limit = (
         max(1, min(500, int(batch_limit)))
         if batch_limit is not None
         else int(current["batch_limit"])
     )
-    now = utc_now()
     db.execute(
         "UPDATE finding_notification_worker_policy SET enabled=?,interval_seconds=?,batch_limit=?,updated_at=? "
         "WHERE singleton=1",
-        (new_enabled, new_interval, new_limit, now),
+        (value_enabled, value_interval, value_limit, utc_now()),
     )
-    return worker_policy(db)
-
-
-def worker_policy(db: Database) -> dict[str, Any]:
-    ensure_finding_notification_operations_schema(db)
     row = db.one("SELECT * FROM finding_notification_worker_policy WHERE singleton=1")
     return {
         "enabled": bool(int(row["enabled"])),
@@ -145,12 +149,11 @@ def _sync_dead_letters(db: Database) -> int:
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='finding_notification_dead_letters'"
     ) is None:
         return 0
-    rows = db.all(
-        "SELECT event_id,target,mode,attempt_count,last_error,updated_at FROM finding_notification_outbox "
-        "WHERE status='failed'"
-    )
     inserted = 0
-    for row in rows:
+    for row in db.all(
+        "SELECT event_id,target,mode,attempt_count,last_error,updated_at "
+        "FROM finding_notification_outbox WHERE status='failed'"
+    ):
         existing = db.one(
             "SELECT resolved_at FROM finding_notification_dead_letters WHERE event_id=?",
             (str(row["event_id"]),),
@@ -183,9 +186,7 @@ def finding_notification_diagnostics(db: Database, *, now: str = "") -> dict[str
     current = str(now or utc_now())
     counts = {
         str(row["status"]): int(row["n"])
-        for row in db.all(
-            "SELECT status,COUNT(*) AS n FROM finding_notification_outbox GROUP BY status"
-        )
+        for row in db.all("SELECT status,COUNT(*) AS n FROM finding_notification_outbox GROUP BY status")
     }
     due = db.one(
         "SELECT COUNT(*) AS n FROM finding_notification_outbox o "
@@ -197,20 +198,22 @@ def finding_notification_diagnostics(db: Database, *, now: str = "") -> dict[str
         "SELECT MIN(created_at) AS oldest FROM finding_notification_outbox "
         "WHERE status IN ('queued','retry_pending','delivering')"
     )
-    open_dead = db.one(
-        "SELECT COUNT(*) AS n FROM finding_notification_dead_letters WHERE resolved_at=''"
-    )
-    last_run = db.one(
-        "SELECT * FROM finding_notification_worker_runs ORDER BY started_at DESC LIMIT 1"
-    )
-    policy = worker_policy(db)
+    oldest_map = dict(oldest) if oldest else {}
+    oldest_at = str(oldest_map.get("oldest") or "")
+    open_dead = db.one("SELECT COUNT(*) AS n FROM finding_notification_dead_letters WHERE resolved_at='' ")
+    last_run = db.one("SELECT * FROM finding_notification_worker_runs ORDER BY started_at DESC LIMIT 1")
+    policy_row = db.one("SELECT * FROM finding_notification_worker_policy WHERE singleton=1")
+    policy = {
+        "enabled": bool(int(policy_row["enabled"])),
+        "interval_seconds": int(policy_row["interval_seconds"]),
+        "batch_limit": int(policy_row["batch_limit"]),
+        "updated_at": str(policy_row["updated_at"]),
+    }
     return {
         "version": FINDING_NOTIFICATION_OPERATIONS_VERSION,
         "generated_at": current,
         "policy": policy,
-        "queue_depth": counts.get("queued", 0)
-        + counts.get("retry_pending", 0)
-        + counts.get("delivering", 0),
+        "queue_depth": counts.get("queued", 0) + counts.get("retry_pending", 0) + counts.get("delivering", 0),
         "due_now": int(due["n"] if due else 0),
         "queued": counts.get("queued", 0),
         "retry_pending": counts.get("retry_pending", 0),
@@ -218,10 +221,8 @@ def finding_notification_diagnostics(db: Database, *, now: str = "") -> dict[str
         "delivered": counts.get("delivered", 0),
         "failed": counts.get("failed", 0),
         "dead_letter_open": int(open_dead["n"] if open_dead else 0),
-        "oldest_pending_at": str((oldest or {}).get("oldest") or ""),
-        "oldest_pending_age_seconds": _age_seconds(
-            str((oldest or {}).get("oldest") or ""), now=current
-        ),
+        "oldest_pending_at": oldest_at,
+        "oldest_pending_age_seconds": _age_seconds(oldest_at, now=current),
         "last_worker_run": dict(last_run) if last_run else {},
     }
 
@@ -256,28 +257,24 @@ def retry_dead_letters(
     selected = list_dead_letters(db, target=target, limit=500)
     if event_id:
         selected = [row for row in selected if str(row["event_id"]) == str(event_id)]
-    if not selected:
-        return 0
     count = 0
-    now = utc_now()
-    with db.transaction():
-        for row in selected:
-            value = str(row["event_id"])
-            requeued = requeue_failed_finding_notifications(db, event_id=value)
-            if not requeued:
-                continue
-            db.execute(
-                "UPDATE finding_notification_dead_letters SET resolved_at=?,resolution=? WHERE event_id=?",
-                (now, str(resolution or "operator_retry"), value),
-            )
-            count += 1
+    for row in selected:
+        value = str(row["event_id"])
+        # The outbox requeue helper owns its transaction; do not nest it inside
+        # an operations transaction.
+        if not requeue_failed_finding_notifications(db, event_id=value):
+            continue
+        db.execute(
+            "UPDATE finding_notification_dead_letters SET resolved_at=?,resolution=? WHERE event_id=?",
+            (utc_now(), str(resolution or "operator_retry"), value),
+        )
+        count += 1
     return count
 
 
 def _last_completed_run(db: Database) -> dict[str, Any]:
     row = db.one(
-        "SELECT * FROM finding_notification_worker_runs WHERE finished_at<>'' "
-        "ORDER BY finished_at DESC LIMIT 1"
+        "SELECT * FROM finding_notification_worker_runs WHERE finished_at<>'' ORDER BY finished_at DESC LIMIT 1"
     )
     return dict(row) if row else {}
 
@@ -286,7 +283,13 @@ def worker_due(db: Database, *, now: str = "") -> dict[str, Any]:
     ensure_finding_notification_operations_schema(db)
     current_text = str(now or utc_now())
     current = _parse_time(current_text)
-    policy = worker_policy(db)
+    policy_row = db.one("SELECT * FROM finding_notification_worker_policy WHERE singleton=1")
+    policy = {
+        "enabled": bool(int(policy_row["enabled"])),
+        "interval_seconds": int(policy_row["interval_seconds"]),
+        "batch_limit": int(policy_row["batch_limit"]),
+        "updated_at": str(policy_row["updated_at"]),
+    }
     last = _last_completed_run(db)
     if not policy["enabled"]:
         return {"due": False, "reason": "disabled", "next_due_at": "", "policy": policy}
@@ -328,7 +331,6 @@ def run_finding_notification_worker(
             "next_due_at": str(due_state["next_due_at"]),
             "diagnostics": finding_notification_diagnostics(db, now=current),
         }
-
     policy = due_state["policy"]
     batch_limit = max(1, min(500, int(limit or policy["batch_limit"])))
     before = finding_notification_diagnostics(db, now=current)
@@ -350,7 +352,7 @@ def run_finding_notification_worker(
             transport=transport,
         )
         _sync_dead_letters(db)
-        finished = utc_now() if not now else current
+        finished = current if now else utc_now()
         db.execute(
             "UPDATE finding_notification_worker_runs SET status='success',attempted=?,delivered=?,"
             "retry_pending=?,failed=?,finished_at=? WHERE worker_run_id=?",
@@ -371,10 +373,9 @@ def run_finding_notification_worker(
             "diagnostics": finding_notification_diagnostics(db, now=finished),
         }
     except Exception as exc:
-        finished = utc_now() if not now else current
+        finished = current if now else utc_now()
         db.execute(
-            "UPDATE finding_notification_worker_runs SET status='failed',error=?,finished_at=? "
-            "WHERE worker_run_id=?",
+            "UPDATE finding_notification_worker_runs SET status='failed',error=?,finished_at=? WHERE worker_run_id=?",
             (str(exc), finished, run_id),
         )
         _sync_dead_letters(db)
@@ -391,10 +392,7 @@ def drain_finding_notification_outbox(
     transport: Callable[[Any, Any, str], Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     ensure_finding_notification_operations_schema(db)
-    batches = 0
-    attempted = 0
-    delivered = 0
-    failed = 0
+    batches = attempted = delivered = failed = 0
     while batches < max(1, min(100, int(max_batches))):
         result = run_finding_notification_worker(
             config=config,
@@ -433,11 +431,9 @@ def watch_finding_notification_worker(
     sleep: Callable[[float], None] = time.sleep,
     max_cycles: int = 0,
 ) -> dict[str, Any]:
-    """Run the queue-centric scheduler loop. ``max_cycles`` is mainly for deterministic tests."""
-
+    """Run the queue-centric scheduler loop. ``max_cycles`` supports deterministic tests."""
     ensure_finding_notification_operations_schema(db)
-    cycles = 0
-    executed = 0
+    cycles = executed = 0
     while True:
         if stop and stop():
             break
