@@ -1,0 +1,17 @@
+name: Temporary Manifest Hashes
+
+on:
+  push:
+    branches:
+      - refactor/recon-alert-transport-consolidation-20260914
+
+permissions:
+  contents: read
+
+jobs:
+  hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute changed-file hashes
+        run: sha256sum app/reporting.py tests/test_recon_alert_transport_consolidation.py
