@@ -37,3 +37,8 @@ Operations Center includes one control-plane view for durable Finding and Recon 
 ## Notification supervisor
 
 The Unified Notification Supervisor is the execution coordinator above those two independent workers. It has a database-backed single-instance lease, renewable heartbeat, crash/restart recovery, per-cycle history, failure isolation, and earliest-next-due visibility. Operations Center consumes this supervisor health alongside the existing worker diagnostics. See `docs/NOTIFICATION_SUPERVISOR.md`.
+
+
+## Delivery SLOs
+
+Operations Center evaluates configurable delivery SLOs for oldest pending age, queue backlog, dead letters, supervisor heartbeat freshness, and consecutive worker/supervisor failures. Breaches have durable open/resolved lifecycle state, severity, duration, occurrence counts, transition history, deduplication, and cooldown. SLO state is operational only and never rewrites Finding, Admission, Recon Alert, retry, or successful-delivery truth. See `docs/NOTIFICATION_DELIVERY_SLO.md`.

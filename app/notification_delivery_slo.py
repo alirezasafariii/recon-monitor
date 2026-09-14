@@ -120,7 +120,7 @@ def ensure_notification_delivery_slo_schema(db: Database) -> None:
         "singleton,enabled,pending_warning_seconds,pending_critical_seconds,backlog_warning,backlog_critical,"
         "dead_letter_warning,dead_letter_critical,heartbeat_warning_seconds,heartbeat_critical_seconds,"
         "failure_warning_count,failure_critical_count,cooldown_seconds,updated_at"
-        ") VALUES(1,1,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ") VALUES(1,1,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             DEFAULT_PENDING_WARNING_SECONDS,
             DEFAULT_PENDING_CRITICAL_SECONDS,
@@ -315,7 +315,7 @@ def _apply_metric(
             "breach_key,scope,metric,status,severity,value,warning_threshold,critical_threshold,summary,"
             "opened_at,last_seen_at,resolved_at,duration_seconds,occurrences,last_transition_at,last_event_at,"
             "cooldown_until,updated_at"
-            ") VALUES(?,?,?,'open',?,?,?,?,?,?,?,'',0,1,?,?,?,?,?)",
+            ") VALUES(?,?,?,'open',?,?,?,?,?,?,?,'',0,1,?,?,?,?)",
             (
                 breach_key, scope, metric, severity, int(value), int(warning_threshold), int(critical_threshold),
                 summary, now, now, now, now, cooldown_until, now,

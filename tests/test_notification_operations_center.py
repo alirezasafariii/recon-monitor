@@ -97,6 +97,7 @@ class NotificationOperationsCenterTests(unittest.TestCase):
         self._recon_event()
         status = notification_delivery_operations(self.db, now="2099-01-01T00:00:00Z")
         self.assertEqual(set(status["workers"]), {"finding", "recon_alert"})
+        self.assertIn("slo", status)
         self.assertIn("supervisor", status)
         self.assertEqual(status["supervisor"]["last_status"], "never_run")
         self.assertEqual(status["queue_depth"], 2)
@@ -164,6 +165,7 @@ class NotificationOperationsCenterTests(unittest.TestCase):
         status = operations_center(self.paths, self.db, refresh=True, deep_check=False)
         delivery = status["delivery_workers"]
         self.assertEqual(set(delivery["workers"]), {"finding", "recon_alert"})
+        self.assertIn("slo", delivery)
         self.assertEqual(delivery["queue_depth"], 2)
 
     def test_dashboard_operations_page_renders_both_workers(self) -> None:
@@ -180,6 +182,7 @@ class NotificationOperationsCenterTests(unittest.TestCase):
         self.assertEqual(captured["title"], "Operations center")
         self.assertIn("Delivery workers", body)
         self.assertIn("Notification supervisor", body)
+        self.assertIn("Delivery SLOs", body)
         self.assertIn("Finding delivery", body)
         self.assertIn("Recon Alert delivery", body)
         self.assertIn("Dead-letter", body)
