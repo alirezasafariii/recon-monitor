@@ -21,6 +21,7 @@ Safety/trust properties:
 
 import datetime as dt
 import json
+import urllib.parse
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -28,8 +29,8 @@ from core import Database, ReconError, json_dumps, sha256_text, utc_now
 from family_reasoning import FAMILY_REASONING
 
 
-TYPED_EVIDENCE_ADAPTER_VERSION = "1.0.0"
-TYPED_EVIDENCE_ADAPTER_RULE_VERSION = "2026.09.14.1"
+TYPED_EVIDENCE_ADAPTER_VERSION = "1.1.0"
+TYPED_EVIDENCE_ADAPTER_RULE_VERSION = "2026.09.14.2"
 TYPED_EVIDENCE_ADAPTER_SCHEMA_VERSION = 1
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 ADAPTER_CONFIDENCE_CEILING = 85
@@ -38,10 +39,15 @@ ADAPTER_OBSERVATION_QUALITY_CEILING = 90
 CONTROLLED_CORS_ORIGIN = "https://safe-validation.invalid"
 SUPPORTED_FAMILIES = frozenset(
     {
-        "cors_misconfiguration",
-        "sensitive_caching",
+        "authentication_session",
+        "account_enumeration",
+        "open_redirect",
         "information_disclosure",
         "source_map_exposure",
+        "secret_exposure",
+        "graphql_data_exposure",
+        "cors_misconfiguration",
+        "sensitive_caching",
     }
 )
 _DIRECT_TYPES = frozenset({"untrusted_origin_allowed", "source_map_publicly_reachable"})
@@ -387,12 +393,281 @@ def _source_map_signals(
     return support, contradict
 
 
+
+_AUTH_SURFACE_MARKERS = (
+    "login", "signin", "sign-in", "logout", "signout", "session", "token",
+    "oauth", "saml", "sso", "password", "reset", "recover", "recovery",
+    "otp", "mfa", "2fa", "webauthn", "passkey", "account",
+)
+_SECRET_HINTS = (
+    "secret", "token", "credential", "password", "api_key", "apikey",
+    "private_key", "access_key", "client_secret", "refresh_token",
+)
+
+
+def _url_parts(
+    observation: Mapping[str, Any],
+) -> tuple[str, urllib.parse.SplitResult | None]:
+    value = str(observation.get("url") or "").strip()
+    if not value:
+        return "", None
+    try:
+        return value, urllib.parse.urlsplit(value)
+    except ValueError:
+        return value, None
+
+
+def _authentication_session_signals(
+    execution: Mapping[str, Any],
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    support: list[dict[str, Any]] = []
+    for observation in observations:
+        url, parsed = _url_parts(observation)
+        surface = (parsed.path if parsed else url).lower()
+        if any(marker in surface for marker in _AUTH_SURFACE_MARKERS):
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "authentication_surface",
+                    polarity="support",
+                    weight=18,
+                    text=(
+                        "The approved passive-live observation targets a client-visible "
+                        "authentication/session surface."
+                    ),
+                ),
+            )
+        if str(observation.get("method") or "").strip():
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "client_operation",
+                    polarity="support",
+                    weight=10,
+                    text=(
+                        "The approved passive-live artifact records a concrete client-visible "
+                        "HTTP operation for the authentication/session surface."
+                    ),
+                ),
+            )
+        if int(observation.get("status_code") or 0) in {401, 403}:
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "auth_boundary",
+                    polarity="support",
+                    weight=14,
+                    text=(
+                        "The anonymous passive-live request was denied with an authentication/"
+                        "authorization status, establishing a boundary surface but not a lifecycle weakness."
+                    ),
+                ),
+            )
+    return support, []
+
+
+def _account_enumeration_signals(
+    execution: Mapping[str, Any],
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    support: list[dict[str, Any]] = []
+    for observation in observations:
+        url, parsed = _url_parts(observation)
+        surface = (parsed.path if parsed else url).lower()
+        if any(marker in surface for marker in _AUTH_SURFACE_MARKERS):
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "authentication_surface",
+                    polarity="support",
+                    weight=14,
+                    text=(
+                        "The approved passive-live observation reaches an authentication/account "
+                        "surface relevant to enumeration analysis."
+                    ),
+                ),
+            )
+        if str(observation.get("method") or "").strip():
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "client_operation",
+                    polarity="support",
+                    weight=8,
+                    text=(
+                        "The artifact records one bounded client operation; no real-user identity "
+                        "comparison is inferred."
+                    ),
+                ),
+            )
+    # One anonymous request cannot establish identity lookup or a response/timing
+    # differential. Those signals require explicitly controlled identities.
+    return support, []
+
+
+def _open_redirect_signals(
+    execution: Mapping[str, Any],
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    support: list[dict[str, Any]] = []
+    for observation in observations:
+        headers = _headers(observation)
+        location = str(headers.get("location") or "").strip()
+        status = int(observation.get("status_code") or 0)
+        if location and 300 <= status < 400:
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "navigation_context",
+                    polarity="support",
+                    weight=16,
+                    text=(
+                        "The approved passive-live response exposes an HTTP redirect/navigation "
+                        "context through a Location header."
+                    ),
+                ),
+            )
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "dataflow_sink",
+                    polarity="support",
+                    weight=10,
+                    text=(
+                        "A redirect Location sink is present, but the adapter does not infer that "
+                        "a user-controlled external destination was accepted."
+                    ),
+                ),
+            )
+    return support, []
+
+
+def _secret_exposure_signals(
+    execution: Mapping[str, Any],
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    support: list[dict[str, Any]] = []
+    for observation in observations:
+        keys, categories = _sensitive_metadata(observation)
+        normalized = [
+            value.lower().replace("-", "_")
+            for value in [*keys, *categories]
+        ]
+        if not any(
+            any(hint in value for hint in _SECRET_HINTS)
+            for value in normalized
+        ):
+            continue
+        _append_unique(
+            support,
+            _signal(
+                execution,
+                observation,
+                "secret_pattern",
+                polarity="support",
+                weight=20,
+                text=(
+                    "Redacted response metadata contains a credential/secret-like field or "
+                    "pattern category; no secret value is retained or validated."
+                ),
+            ),
+        )
+        _append_unique(
+            support,
+            _signal(
+                execution,
+                observation,
+                "context",
+                polarity="support",
+                weight=12,
+                text=(
+                    "The secret-like marker occurs in a bounded stored response-shape context "
+                    "from the approved passive-live observation."
+                ),
+            ),
+        )
+    # Never synthesize credential_material_confirmed/live_secret_context from
+    # field names or redacted categories alone.
+    return support, []
+
+
+def _graphql_data_exposure_signals(
+    execution: Mapping[str, Any],
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    support: list[dict[str, Any]] = []
+    for observation in observations:
+        url, parsed = _url_parts(observation)
+        surface = (parsed.path if parsed else url).lower()
+        if "graphql" not in surface:
+            continue
+        keys, categories = _sensitive_metadata(observation)
+        if keys or categories:
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "sensitive_fields",
+                    polarity="support",
+                    weight=18,
+                    text=(
+                        "Redacted GraphQL response-shape metadata contains sensitive-looking "
+                        "fields/categories; field authorization is not inferred."
+                    ),
+                ),
+            )
+        if str(observation.get("method") or "").strip():
+            _append_unique(
+                support,
+                _signal(
+                    execution,
+                    observation,
+                    "client_operation",
+                    polarity="support",
+                    weight=10,
+                    text=(
+                        "The approved passive-live artifact records a concrete GraphQL endpoint "
+                        "operation without inferring resolver/field authorization policy."
+                    ),
+                ),
+            )
+    # Never synthesize sensitive_graphql_response_observed or an authorization
+    # differential without an explicit expected-field policy and controlled role.
+    return support, []
+
+
 def _derive_signals(
     execution: Mapping[str, Any],
     observations: list[dict[str, Any]],
     existing_support_types: set[str],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     family = str(execution.get("family") or "")
+    if family == "authentication_session":
+        return _authentication_session_signals(execution, observations)
+    if family == "account_enumeration":
+        return _account_enumeration_signals(execution, observations)
+    if family == "open_redirect":
+        return _open_redirect_signals(execution, observations)
+    if family == "secret_exposure":
+        return _secret_exposure_signals(execution, observations)
+    if family == "graphql_data_exposure":
+        return _graphql_data_exposure_signals(execution, observations)
     if family == "cors_misconfiguration":
         return _cors_signals(execution, observations)
     if family == "sensitive_caching":

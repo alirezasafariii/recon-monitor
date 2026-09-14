@@ -382,6 +382,110 @@ class TypedEvidenceAdapterTests(unittest.TestCase):
         with self.assertRaises(ReconError):
             self.adapt("VEX-MUTABLE-1")
 
+    def test_remaining_core_passive_live_families_are_enrichment_only(self):
+        cases = [
+            (
+                "authentication_session",
+                "VEX-AUTH-1",
+                "https://api.example.test/session",
+                self.fx.observation("https://api.example.test/session", status=401),
+                {"authentication_surface", "client_operation", "auth_boundary"},
+                {
+                    "session_reuse_after_logout",
+                    "token_not_rotated",
+                    "recovery_bypass",
+                    "authentication_state_violation",
+                },
+            ),
+            (
+                "account_enumeration",
+                "VEX-ENUM-1",
+                "https://api.example.test/login",
+                self.fx.observation("https://api.example.test/login", status=200),
+                {"authentication_surface", "client_operation"},
+                {
+                    "identity_lookup",
+                    "identity_response_differential",
+                    "identity_timing_differential",
+                },
+            ),
+            (
+                "open_redirect",
+                "VEX-REDIRECT-1",
+                "https://api.example.test/redirect",
+                self.fx.observation(
+                    "https://api.example.test/redirect",
+                    status=302,
+                    headers={"location": "/home"},
+                ),
+                {"navigation_context", "dataflow_sink"},
+                {"external_destination_accepted", "navigation_validation_absent"},
+            ),
+            (
+                "secret_exposure",
+                "VEX-SECRET-1",
+                "https://api.example.test/config",
+                self.fx.observation(
+                    "https://api.example.test/config",
+                    sensitive_keys=["client_secret"],
+                    sensitive_categories=["credential"],
+                ),
+                {"secret_pattern", "context"},
+                {"credential_material_confirmed", "live_secret_context"},
+            ),
+            (
+                "graphql_data_exposure",
+                "VEX-GQL-DATA-1",
+                "https://api.example.test/graphql",
+                self.fx.observation(
+                    "https://api.example.test/graphql",
+                    sensitive_keys=["viewer.email"],
+                ),
+                {"sensitive_fields", "client_operation"},
+                {
+                    "sensitive_graphql_response_observed",
+                    "field_authorization_differential",
+                },
+            ),
+        ]
+        for family, execution_id, endpoint, observation, expected, forbidden in cases:
+            with self.subTest(family=family):
+                hypothesis = self.fx.hypothesis(family, endpoint)
+                self.fx.write_execution(
+                    execution_id=execution_id,
+                    hypothesis_id=hypothesis["hypothesis_id"],
+                    family=family,
+                    endpoint=endpoint,
+                    observations=[observation],
+                )
+                result = self.adapt(execution_id)
+                observed = set(result["support_types"])
+                self.assertTrue(expected.issubset(observed), (family, observed))
+                self.assertTrue(forbidden.isdisjoint(observed), (family, observed))
+                self.assertFalse(result["admitted"])
+                self.assertEqual(result["candidate_id"], "")
+                self.assertFalse(result["vulnerability_confirmed"])
+
+    def test_core_passive_live_family_coverage_is_explicit(self):
+        from typed_evidence_adapter import PROMOTION_BRIDGE_FAMILIES, SUPPORTED_FAMILIES
+
+        expected = {
+            "authentication_session",
+            "account_enumeration",
+            "open_redirect",
+            "information_disclosure",
+            "source_map_exposure",
+            "secret_exposure",
+            "graphql_data_exposure",
+            "cors_misconfiguration",
+            "sensitive_caching",
+        }
+        self.assertTrue(expected.issubset(SUPPORTED_FAMILIES))
+        self.assertEqual(
+            PROMOTION_BRIDGE_FAMILIES,
+            {"cors_misconfiguration", "source_map_exposure"},
+        )
+
     def test_adapter_source_has_no_transport_surface(self):
         source = (ROOT / "app" / "typed_evidence_adapter.py").read_text(encoding="utf-8")
         for forbidden in ("urllib.request", "requests.", "socket.", "_perform_request(", "urlopen("):
