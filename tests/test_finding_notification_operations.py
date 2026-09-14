@@ -61,6 +61,12 @@ class FindingNotificationOperationsTests(unittest.TestCase):
             ),
         )
         enqueue_finding_notification_event(self.db, event_id)
+        # Production enqueue uses the current clock. Tests pin both the event and
+        # outbox timestamps so scheduler/due assertions are deterministic.
+        self.db.execute(
+            "UPDATE finding_notification_outbox SET next_attempt_at=?,created_at=?,updated_at=? WHERE event_id=?",
+            (created_at, created_at, created_at, event_id),
+        )
 
     @staticmethod
     def _success(config, logger, message: str):
