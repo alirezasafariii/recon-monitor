@@ -3,8 +3,6 @@ from __future__ import annotations
 import html
 import json
 import shutil
-import subprocess
-from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from core import (
@@ -13,9 +11,7 @@ from core import (
     Config,
     Database,
     Logger,
-    ReconError,
     TargetPolicy,
-    TelegramNotifier,
     atomic_write_text,
     json_dumps,
     local_now,
@@ -23,7 +19,6 @@ from core import (
     read_jsonl,
     safe_json_loads,
     split_message,
-    tool_path,
     utc_now,
 )
 from stages import StageContext
@@ -31,6 +26,7 @@ from analysis_engine import run_analysis
 from collection_quality import snapshot_collection_quality
 from evidence_coverage import snapshot_evidence_coverage
 from evidence_completion_planner import snapshot_evidence_completion_plan
+from notification_transports import deliver_notification_message
 from validation_eligibility import snapshot_validation_eligibility
 from validation_runner import snapshot_validation_runner_dry_run
 
@@ -59,33 +55,6 @@ def _notification_due(old: Mapping[str, Any] | None, cooldown_hours: int) -> boo
     return (dt.datetime.now(dt.timezone.utc) - then).total_seconds() >= cooldown_hours * 3600
 
 
-def _send_notify_cli(config: Config, logger: Logger, message: str) -> bool:
-    provider_config = config.get("NOTIFY_PROVIDER_CONFIG")
-    if not provider_config or not tool_path("notify"):
-        return False
-    path = Path(provider_config).expanduser()
-    if not path.exists():
-        logger.warn("Notify provider config not found", path=str(path))
-        return False
-    try:
-        proc = subprocess.run(
-            ["notify", "-silent", "-bulk", "-char-limit", "3500", "-provider-config", str(path)],
-            input=message,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=60,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.warn("Notify CLI failed", error=str(exc))
-        return False
-    if proc.returncode != 0:
-        logger.warn("Notify CLI returned an error", output=proc.stdout[-500:])
-        return False
-    return True
-
-
-
 def _notification_policy(db: Database, target: str, event_type: str) -> dict[str, Any] | None:
     row = db.one(
         "SELECT * FROM notification_policies WHERE enabled=1 AND ((target=? AND event_type=?) OR (target=? AND event_type='*') OR (target='*' AND event_type=?) OR (target='*' AND event_type='*')) "
@@ -93,6 +62,7 @@ def _notification_policy(db: Database, target: str, event_type: str) -> dict[str
         (target, event_type, target, event_type, target, event_type),
     )
     return dict(row) if row else None
+
 
 def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any]:
     events = list(read_jsonl(ctx.events_path))
@@ -179,14 +149,8 @@ def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any
         )
         if len(immediate) > len(top):
             message += f"\n• … and {len(immediate) - len(top)} more"
-        telegram = TelegramNotifier(ctx.config, ctx.logger)
-        telegram_ok = False
-        try:
-            telegram_ok = telegram.send(message) if telegram.ready else False
-        except ReconError as exc:
-            ctx.logger.warn("Telegram notification failed", error=str(exc))
-        notify_ok = _send_notify_cli(ctx.config, ctx.logger, message)
-        notified = telegram_ok or notify_ok
+        delivery = deliver_notification_message(ctx.config, ctx.logger, message)
+        notified = bool(delivery.get("delivered"))
         if notified:
             for event in immediate:
                 ctx.db.mark_alert_notified(int(event["alert_id"]))
@@ -664,9 +628,5 @@ def send_daily_digest(paths: AppPaths, config: Config, db: Database, logger: Log
     if len(rows) > 30:
         lines.append(f"• … and {len(rows)-30} more")
     message = "\n".join(lines)
-    telegram = TelegramNotifier(config, logger)
-    sent = False
-    if telegram.ready:
-        sent = telegram.send(message)
-    sent = _send_notify_cli(config, logger, message) or sent
-    return {"alerts": len(rows), "sent": sent}
+    delivery = deliver_notification_message(config, logger, message)
+    return {"alerts": len(rows), "sent": bool(delivery.get("delivered"))}
