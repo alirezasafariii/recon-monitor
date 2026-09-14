@@ -84,7 +84,8 @@ class NotificationDeliverySLOTests(unittest.TestCase):
         open_rows = {row["breach_key"]: row for row in status["open_breaches"]}
         self.assertEqual(open_rows["finding:pending_age_seconds"]["severity"], "critical")
         self.assertEqual(open_rows["finding:pending_age_seconds"]["value"], 1200)
-        self.assertEqual(status["emitted_events"][0]["transition"], "opened")
+        pending_events = [e for e in status["emitted_events"] if e["breach_key"] == "finding:pending_age_seconds"]
+        self.assertEqual([e["transition"] for e in pending_events], ["opened"])
 
         self.db.execute(
             "UPDATE finding_notification_outbox SET status='delivered',updated_at=? WHERE event_id=?",
@@ -111,7 +112,8 @@ class NotificationDeliverySLOTests(unittest.TestCase):
         event_id = self._finding_event("slo-dedup")
         first = self._snapshot("2026-09-14T00:10:00Z")
         second = self._snapshot("2026-09-14T00:11:00Z")
-        self.assertEqual(len(first["emitted_events"]), 1)
+        first_pending = [e for e in first["emitted_events"] if e["breach_key"] == "finding:pending_age_seconds"]
+        self.assertEqual([e["transition"] for e in first_pending], ["opened"])
         self.assertEqual(second["emitted_events"], [])
 
         self.db.execute("UPDATE finding_notification_outbox SET status='delivered' WHERE event_id=?", (event_id,))
@@ -126,7 +128,7 @@ class NotificationDeliverySLOTests(unittest.TestCase):
         row = next(row for row in reopened["open_breaches"] if row["breach_key"] == "finding:pending_age_seconds")
         self.assertEqual(row["occurrences"], 2)
         transitions = [row["transition"] for row in list_notification_delivery_slo_events(self.db)]
-        self.assertEqual(transitions.count("opened"), 1)
+        self.assertEqual(transitions.count("opened"), 2)
         self.assertEqual(transitions.count("reopened"), 0)
 
     def test_supervisor_stale_heartbeat_is_critical_only_when_supervision_is_relevant(self) -> None:
