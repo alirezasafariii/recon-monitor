@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from change_alerts import CHANGE_CATEGORIES
+
 from core import (
     AppPaths,
     CommandRunner,
@@ -82,6 +84,8 @@ class StageContext:
 
 
 def emit_event(ctx: StageContext, category: str, item: str, title: str, details: Mapping[str, Any] | None = None) -> None:
+    if category not in CHANGE_CATEGORIES:
+        return
     details = dict(details or {})
     ignore_rule = ctx.db.ignore_match(ctx.policy.name, category, item) or ctx.db.ignore_match(ctx.policy.name, "any", item)
     if ignore_rule:
@@ -1180,8 +1184,10 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
     now = utc_now()
     for result in results:
         if result.get("skipped"): continue
+        previous = ctx.db.one("SELECT status_code,content_type,reachable FROM endpoint_validations WHERE target=? AND endpoint=? AND resolved_url=?", (ctx.policy.name, result.get("endpoint", ""), result.get("resolved_url", "")))
+        changed = previous is None or any(previous[key] != result.get(key, 0 if key != "content_type" else "") for key in ("status_code", "content_type", "reachable"))
         ctx.db.execute("INSERT INTO endpoint_validations(target,endpoint,resolved_url,method,status_code,content_type,reachable,confidence,checked_at,last_run_id,error) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(target,endpoint,resolved_url) DO UPDATE SET method=excluded.method,status_code=excluded.status_code,content_type=excluded.content_type,reachable=excluded.reachable,confidence=excluded.confidence,checked_at=excluded.checked_at,last_run_id=excluded.last_run_id,error=excluded.error", (ctx.policy.name,result.get("endpoint",""),result.get("resolved_url",""),result.get("method","HEAD"),result.get("status_code",0),result.get("content_type",""),int(bool(result.get("reachable"))),result.get("confidence",0),now,ctx.run_id,result.get("error","")))
-        if result.get("reachable") and int(result.get("status_code",0)) in {200,201,202,204,401,403,405}:
+        if changed and result.get("reachable") and int(result.get("status_code",0)) in {200,201,202,204,401,403,405}:
             emit_event(ctx, "validated_endpoint", str(result.get("resolved_url")), "Extracted endpoint validated", result)
     write_jsonl(ctx.current / "endpoint-validations.jsonl", results)
     return {"candidates": len(rows), "checked": len(results), "reachable": sum(1 for r in results if r.get("reachable")), "errors": sum(1 for r in results if r.get("error"))}

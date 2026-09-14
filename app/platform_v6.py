@@ -18,6 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
+from change_alerts import FINDING_NOTIFICATION_TYPES
+
 from core import (
     APP_VERSION,
     AppPaths,
@@ -894,6 +896,8 @@ def queue_notification(db: Database, event: dict[str, Any], *, target: str = "*"
         if score < parse_int(policy["minimum_score"], 0):
             mode = "silent"
             reason = "below notification policy threshold"
+    if event_type in FINDING_NOTIFICATION_TYPES:
+        mode, reason = "silent", "Findings are analysis-only; alerts describe observed surface changes"
     canonical = {k: event.get(k) for k in sorted(event) if k not in {"timestamp", "created_at", "updated_at"}}
     fingerprint = sha256_text(f"{target}|{event_type}|{json_dumps(canonical)}")
     cutoff = (dt.datetime.now(UTC) - dt.timedelta(hours=24)).isoformat().replace("+00:00", "Z")
@@ -911,7 +915,12 @@ def queue_notification(db: Database, event: dict[str, Any], *, target: str = "*"
 def deliver_notifications(paths: AppPaths, config: Config, db: Database, *, mode: str = "immediate", limit: int = 50, dry_run: bool = False) -> dict[str, Any]:
     if mode not in {"immediate", "digest", "system_warning"}:
         raise ReconError("Delivery mode must be immediate, digest, or system_warning")
-    rows = [dict(row) for row in db.all("SELECT * FROM notification_events WHERE status='queued' AND mode=? ORDER BY score DESC,created_at LIMIT ?", (mode, parse_int(limit, 50, 1, 500)))]
+    excluded = sorted(FINDING_NOTIFICATION_TYPES)
+    placeholders = ",".join("?" for _ in excluded)
+    rows = [dict(row) for row in db.all(
+        f"SELECT * FROM notification_events WHERE status='queued' AND mode=? AND event_type NOT IN ({placeholders}) ORDER BY score DESC,created_at LIMIT ?",
+        (mode, *excluded, parse_int(limit, 50, 1, 500)),
+    )]
     if not rows:
         return {"mode": mode, "queued": 0, "delivered": 0, "dry_run": dry_run}
     lines = [f"Recon Monitor {APP_VERSION} — {mode.replace('_', ' ').title()}"]

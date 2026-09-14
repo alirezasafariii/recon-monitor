@@ -4,37 +4,11 @@
 
 Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.7.0** and **18**.
 
-```text
-Target / Policy / Authorization
-             |
-      Recon Orchestrator
-             |
-  +----------+-----------+
-  |                      |
-Collection stages     Work queues / budgets
-  |                      |
-  +----------+-----------+
-             |
-      Single-writer SQLite
-             |
-   Working Recon observations
-             |
-     Collection completeness
-             |
-  +----------+------------------------------+
-  |                                         |
-Successful Recon snapshot             Downstream processing
-(canonical comparison state)                 |
-  |                                   Analysis / reasoning
-  |                                         |
-Change detection + stable confirmation   Potential Findings
-  |                                         |
-Recon Change Alerts                  Finding Notifications
-  |                                         |
-  +------------------+----------------------+
-                     |
-            Reports / Dashboard / API
-```
+Authorized collection produces working observations. Complete collection commits
+the successful comparison snapshot; state-version comparison produces Recon
+Change Alerts only after a baseline exists. Analysis independently produces
+Potential Findings for the Dashboard and reports. Finding discovery, promotion
+and confidence changes never queue or send notifications.
 
 ## Version and schema contract
 
@@ -54,7 +28,7 @@ A target run has separate operational truths rather than one overloaded success 
 - **collection status**: whether Recon collection completed sufficiently to produce a trustworthy comparison snapshot;
 - **analysis status**: whether vulnerability reasoning completed;
 - **report status**: whether report generation completed;
-- **notification status**: whether Potential Finding delivery completed, was queued, or failed;
+- **notification status**: the compatibility finding-notification status (finding delivery is disabled);
 - **overall status**: `success`, `partial`, `failed`, or `interrupted` derived from those components.
 
 Baseline eligibility is collection-driven. A complete Recon collection can establish or refresh the canonical comparison snapshot even when Analysis, reporting, or notification later makes the overall target partial. An incomplete collection can never advance the baseline.
@@ -73,7 +47,7 @@ Volatile DNS and fingerprint changes are confirmed by observed **state version**
 
 Recon observations feed the analysis/reasoning stack. Potential Findings are evidence-backed security hypotheses and are not equivalent to confirmed vulnerabilities. Canonical Admission remains the authority for determining whether evidence is sufficient to create or promote a Potential Finding.
 
-Finding notifications are independent from Recon Change Alerts. After Analysis, new or materially changed Potential Findings are evaluated with a stable candidate identity and idempotent notification state. Re-observing an unchanged finding does not repeatedly notify; meaningful transitions can create a new notification event.
+Potential Findings are retained in Analysis and the Dashboard without notifications. Discovery, promotion, increased confidence and analyst confirmation do not create notification events. Only observed Recon surface changes feed the change-alert lifecycle.
 
 ## Storage and concurrency
 
@@ -89,7 +63,7 @@ SQLite under `state/` remains the transactional source of truth. The database us
 - `app/stable_confirmation.py`: state-version confirmation for volatile changes.
 - `app/run_lifecycle_state.py` and `app/lifecycle_status.py`: explicit component lifecycle and baseline eligibility.
 - `app/analysis_engine.py` and family reasoning modules: evidence-driven vulnerability analysis.
-- `app/finding_notifications.py`: idempotent Potential Finding notification lifecycle.
+- `app/finding_notifications.py`: historical finding-state compatibility; finding queueing and delivery are disabled.
 - `app/storage.py`: content-addressed object storage.
 - `app/dashboard.py`, `app/session_auth.py`, and `app/api_server.py`: local analyst interfaces.
 - `app/operations.py`: backup, restore, update, rollback, and benchmark operations.
@@ -101,3 +75,17 @@ Authorization and target scope are mandatory inputs. Active or live behavior rem
 ## Documentation consistency
 
 `tools/check_release_consistency.py` verifies in CI that the CLI, `app/core.py`, README files, this architecture document, CHANGELOG, current migration guide, and current release notes all agree on the application version and core schema version. Historical sections may retain the version/schema values that were correct for those releases.
+
+## Change-only notification contract
+
+The first scan establishes a quiet baseline. Subsequent alerts describe observed
+surface changes, subject to existing severity and stable-confirmation policies.
+New, promoted, stronger or analyst-confirmed Potential Findings remain available
+in Analysis and the Dashboard, but never trigger notifications. Existing finding
+policies cannot enable their delivery. Historical queued finding notifications
+and Nuclei finding alert rows are excluded from immediate and digest delivery;
+historical records themselves are preserved. Operational health messages remain
+separate from finding discovery.
+
+Runtime reliability guards are installed explicitly when the CLI package loads,
+including when the snapshot module was imported first by a library caller.

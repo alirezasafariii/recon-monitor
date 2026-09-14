@@ -6,7 +6,7 @@
 
 Recon Monitor 8.7.0 makes evidence gaps actionable without weakening canonical Admission and makes long-running Recon/Analysis work observable through explicit progress and health state.
 
-Current `main` also hardens the reliability boundary around Recon: canonical comparison state is committed only from trustworthy collection, volatile changes use state-version confirmation, Potential Finding notifications are independent and idempotent, and target lifecycle records collection, Analysis, reporting, notification, and baseline validity separately.
+Current `main` also hardens the reliability boundary around Recon: canonical comparison state is committed only from trustworthy collection, volatile changes use state-version confirmation, alerts are limited to observed surface changes from the second scan onward; Potential Findings never trigger notifications, and target lifecycle records collection, Analysis, reporting, notification, and baseline validity separately.
 
 The canonical application version is **8.7.0** and the core database schema is **18**. `app/core.py` is the source of truth for both values. See `CHANGELOG.md`, `MIGRATION-v8.7.0.md`, `docs/RELEASE_NOTES_v8.7.0.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 

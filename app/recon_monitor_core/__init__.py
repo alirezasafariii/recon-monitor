@@ -30,3 +30,8 @@ finally:
 from successful_snapshot import SuccessfulSnapshotDatabase as _SnapshotDatabase
 
 Database = _SnapshotDatabase
+
+# The snapshot module may already be cached by a library caller. Install the
+# runtime guard explicitly instead of depending on module import order.
+from successful_snapshot import _install_runtime_reliability_guards
+_install_runtime_reliability_guards()

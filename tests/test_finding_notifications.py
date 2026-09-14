@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -136,86 +138,99 @@ class FindingNotificationTests(unittest.TestCase):
             policy=SimpleNamespace(name=self.TARGET),
         )
 
-    def test_baseline_allows_new_potential_finding_notification(self) -> None:
+    def test_new_promoted_and_stronger_findings_never_notify(self) -> None:
+        cases = [("possible", 40), ("plausible", 70), ("strong_candidate", 90), ("confirmed_by_analyst", 100)]
+        with patch("finding_notifications.TelegramNotifier") as telegram, patch("reporting._send_notify_cli") as notify:
+            for index, (state, score) in enumerate(cases):
+                run_id, analysis_id = f"RUN-{index}", f"AN-{index}"
+                self._analysis(analysis_id, run_id)
+                self._candidate(analysis_id, run_id, f"C-{index}", state=state, likelihood=score, investigation=score)
+                result = process_finding_notifications(self._ctx(run_id), {"analysis_id": analysis_id}, baseline=index == 0)
+                self.assertEqual(result["queued"], 0)
+                self.assertEqual(result["delivery"]["delivered"], 0)
+                self.assertTrue(result["baseline_suppresses_findings"])
+            telegram.assert_not_called()
+            notify.assert_not_called()
+        self.assertEqual(self.db.one("SELECT COUNT(*) n FROM notification_events")["n"], 0)
+        self.assertEqual(self.db.one("SELECT COUNT(*) n FROM bug_candidates")["n"], 4)
+
+    def test_baseline_plausible_finding_stays_silent(self) -> None:
         self._analysis("AN-1", "RUN-1")
         self._candidate("AN-1", "RUN-1", "C-1")
+        result = process_finding_notifications(self._ctx("RUN-1"), {"analysis_id": "AN-1"}, baseline=True)
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["skipped_policy"], 1)
+        self.assertIsNotNone(self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id='C-1'"))
 
-        result = process_finding_notifications(
-            self._ctx("RUN-1"),
-            {"analysis_id": "AN-1", "status": "success"},
-            baseline=True,
-        )
+    def test_existing_immediate_policy_cannot_enable_finding_delivery(self) -> None:
+        from finding_notifications import _policy
+        from platform_v6 import queue_notification
+        now = utc_now()
+        self.db.execute("INSERT INTO notification_policies(target,event_type,mode,minimum_score,enabled,created_at,updated_at) VALUES(?,?,'immediate',0,1,?,?)", (self.TARGET, 'potential_finding', now, now))
+        self.assertEqual(_policy(self.db, self.TARGET)[0], 'silent')
+        for event_type in ('potential_finding', 'high_value_case', 'nuclei_finding'):
+            result = queue_notification(self.db, {'event_type': event_type, 'title': 'Finding', 'score': 100}, target=self.TARGET)
+            self.assertEqual(result['mode'], 'silent')
 
-        self.assertEqual(result["queued"], 1)
-        self.assertTrue(result["baseline"])
-        self.assertFalse(result["baseline_suppresses_findings"])
-        self.assertEqual(result["transitions"][0]["transition"], "new")
-        row = self.db.one("SELECT * FROM notification_events WHERE event_type='potential_finding'")
-        self.assertIsNotNone(row)
-        self.assertEqual(str(row["mode"]), "immediate")
-        self.assertEqual(str(row["status"]), "queued")
+    def test_legacy_queued_findings_cannot_be_delivered(self) -> None:
+        from finding_notifications import _deliver_pending
+        from platform_v6 import queue_notification, deliver_notifications
+        from core import json_dumps
+        self._analysis('AN-1', 'RUN-1')
+        queued = queue_notification(self.db, {'event_type': 'potential_finding', 'score': 100, 'title': 'Finding'}, target=self.TARGET)
+        self.db.execute("UPDATE notification_events SET mode='immediate' WHERE event_id=?", (queued['event_id'],))
+        # Even legacy finding rows at the front of the queue must not block
+        # delivery of legitimate operational messages after the LIMIT.
+        queue_notification(self.db, {'event_type': 'run_failure', 'title': 'run failure', 'score': 90}, target=self.TARGET)
+        self.db.execute("UPDATE notification_events SET mode='immediate' WHERE event_type='run_failure'")
+        with patch('finding_notifications.TelegramNotifier') as telegram, patch('reporting._send_notify_cli') as notify:
+            self.assertEqual(_deliver_pending(self._ctx('RUN-1'))['delivered'], 0)
+            telegram.assert_not_called(); notify.assert_not_called()
+        preview = deliver_notifications(self.paths, self.config, self.db, mode='immediate', limit=1, dry_run=True)
+        self.assertEqual(preview['queued'], 1)
+        self.assertNotIn('Finding', preview['message'])
 
-    def test_same_finding_on_later_analysis_is_exactly_once(self) -> None:
-        self._analysis("AN-1", "RUN-1")
-        self._candidate("AN-1", "RUN-1", "C-1")
-        first = process_finding_notifications(
-            self._ctx("RUN-1"), {"analysis_id": "AN-1"}
-        )
-        self.assertEqual(first["queued"], 1)
+    def test_nuclei_events_are_not_change_alerts_even_from_legacy_files(self) -> None:
+        import stages
+        from reporting import create_alerts_and_notify, send_daily_digest
+        from core import TargetPolicy, json_dumps
+        self._analysis('AN-1', 'RUN-1')
+        ctx = self._ctx('RUN-1')
+        ctx.policy = TargetPolicy.from_dict({'name': self.TARGET, 'roots': [self.TARGET], 'alert': {'minimum_score': 0}})
+        ctx.events_path = self.paths.output / 'events.jsonl'
+        stages.emit_event(ctx, 'nuclei_finding', self.TARGET, 'Finding', {})
+        self.assertFalse(ctx.events_path.exists())
+        event = {'dedup_key': 'legacy-finding', 'category': 'nuclei_finding', 'risk_score': 100, 'severity': 'CRITICAL', 'title': 'Finding', 'item': self.TARGET, 'details': {}}
+        ctx.events_path.write_text(json_dumps(event) + '\n')
+        self.assertEqual(create_alerts_and_notify(ctx, False)['new_alerts'], 0)
+        self.db.upsert_alert(self.TARGET, 'legacy', 'nuclei_finding', 'CRITICAL', 100, 'Finding', self.TARGET, {}, 'RUN-1')
+        with patch('reporting._send_notify_cli') as notify:
+            self.assertFalse(send_daily_digest(self.paths, self.config, self.db, self.logger)['sent'])
+            notify.assert_not_called()
 
-        self._analysis("AN-2", "RUN-2")
-        self._candidate("AN-2", "RUN-2", "C-2")
-        second = process_finding_notifications(
-            self._ctx("RUN-2"), {"analysis_id": "AN-2"}
-        )
+    def test_unchanged_endpoint_is_not_a_second_scan_change(self) -> None:
+        from core import TargetPolicy, Progress
+        from stages import StageContext, stage_endpoint_validation
+        self._analysis('AN-1', 'RUN-1')
+        self._analysis('AN-2', 'RUN-2')
+        endpoint = 'https://example.test/api/items'
+        policy = TargetPolicy.from_dict({'name': self.TARGET, 'roots': [self.TARGET], 'modules': {'endpoint_validation': True}})
+        self.db.upsert_endpoint_intelligence(self.TARGET, endpoint, 'url', {}, 'test', 'RUN-1')
+        result = {'endpoint': endpoint, 'resolved_url': endpoint, 'method': 'HEAD', 'status_code': 200, 'content_type': 'application/json', 'reachable': True}
+        contexts = []
+        with patch('stages._safe_validate_endpoint', return_value=result):
+            for run in ('RUN-1', 'RUN-2'):
+                ctx = StageContext(self.paths, self.config, policy, self.db, self.logger, None, Progress(False), run, self.paths.output / run, False)
+                stage_endpoint_validation(ctx)
+                contexts.append(ctx)
+        self.assertTrue(contexts[0].events_path.exists())
+        self.assertFalse(contexts[1].events_path.exists())
 
-        self.assertEqual(second["queued"], 0)
-        self.assertEqual(second["skipped_unchanged"], 1)
-        count = self.db.one(
-            "SELECT COUNT(*) count FROM notification_events WHERE event_type='potential_finding'"
-        )
-        self.assertEqual(int(count["count"]), 1)
-
-    def test_material_confidence_increase_creates_second_transition(self) -> None:
-        self._analysis("AN-1", "RUN-1")
-        self._candidate("AN-1", "RUN-1", "C-1", likelihood=62, investigation=65)
-        process_finding_notifications(self._ctx("RUN-1"), {"analysis_id": "AN-1"})
-
-        self._analysis("AN-2", "RUN-2")
-        self._candidate("AN-2", "RUN-2", "C-2", likelihood=74, investigation=77)
-        result = process_finding_notifications(
-            self._ctx("RUN-2"), {"analysis_id": "AN-2"}
-        )
-
-        self.assertEqual(result["queued"], 1)
-        self.assertEqual(result["transitions"][0]["transition"], "confidence_increased")
-        rows = self.db.all(
-            "SELECT transition_type FROM finding_notification_transitions "
-            "WHERE target=? AND candidate_fingerprint=? ORDER BY created_at,rowid",
-            (self.TARGET, self.FP),
-        )
-        self.assertEqual([str(row["transition_type"]) for row in rows], ["new", "confidence_increased"])
-
-    def test_ineligible_possible_candidate_notifies_when_promoted(self) -> None:
-        self._analysis("AN-1", "RUN-1")
-        self._candidate(
-            "AN-1", "RUN-1", "C-1", state="possible", likelihood=45, evidence=35, investigation=52
-        )
-        first = process_finding_notifications(
-            self._ctx("RUN-1"), {"analysis_id": "AN-1"}
-        )
-        self.assertEqual(first["queued"], 0)
-        self.assertEqual(first["skipped_ineligible"], 1)
-
-        self._analysis("AN-2", "RUN-2")
-        self._candidate(
-            "AN-2", "RUN-2", "C-2", state="plausible", likelihood=62, evidence=50, investigation=66
-        )
-        second = process_finding_notifications(
-            self._ctx("RUN-2"), {"analysis_id": "AN-2"}
-        )
-        self.assertEqual(second["queued"], 1)
-        self.assertEqual(second["transitions"][0]["transition"], "promoted")
+    def test_guard_installation_is_independent_of_import_order(self) -> None:
+        for imports in ('import successful_snapshot; import recon_monitor_core', 'import recon_monitor_core; import successful_snapshot'):
+            code = "import sys; sys.path.insert(0, 'app'); " + imports + "; import stages; assert stages._STABLE_CONFIRMATION_INSTALLED; assert recon_monitor_core.Orchestrator.run._strict_lifecycle_status"
+            result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_upgrade_bootstrap_does_not_realert_existing_candidate(self) -> None:
         temp = tempfile.TemporaryDirectory()
@@ -287,7 +302,7 @@ class FindingNotificationTests(unittest.TestCase):
             )
             result = process_finding_notifications(ctx, {"analysis_id": "AN-OLD"})
             self.assertEqual(result["queued"], 0)
-            self.assertEqual(result["skipped_unchanged"], 1)
+            self.assertEqual(result["skipped_policy"], 1)
             count = db.one("SELECT COUNT(*) count FROM notification_events WHERE event_type='potential_finding'")
             self.assertEqual(int(count["count"]), 0)
             db.close()

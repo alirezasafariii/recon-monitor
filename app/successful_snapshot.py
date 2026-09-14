@@ -369,14 +369,14 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
 def _install_runtime_reliability_guards() -> None:
     """Attach lifecycle, confirmation, and finding notification semantics."""
 
+    install_stable_confirmation()
+    install_finding_notification_pipeline()
     runtime = sys.modules.get("recon_monitor_core")
     if runtime is None or not hasattr(runtime, "Orchestrator"):
         return
     from lifecycle_status import install_lifecycle_status_guard
 
     install_lifecycle_status_guard(vars(runtime))
-    install_stable_confirmation()
-    install_finding_notification_pipeline()
 
 
 _install_runtime_reliability_guards()

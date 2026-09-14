@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from change_alerts import CHANGE_CATEGORIES
+
 from core import (
     APP_VERSION,
     AppPaths,
@@ -95,7 +97,7 @@ def _notification_policy(db: Database, target: str, event_type: str) -> dict[str
     return dict(row) if row else None
 
 def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any]:
-    events = list(read_jsonl(ctx.events_path))
+    events = [event for event in read_jsonl(ctx.events_path) if event.get("category") in CHANGE_CATEGORIES]
     # The first successful scan establishes the target baseline.  Its change
     # events remain available in the run report and event-observation history,
     # but they must not enter the Alert lifecycle.  Otherwise every discovered
@@ -655,7 +657,7 @@ def send_daily_digest(paths: AppPaths, config: Config, db: Database, logger: Log
         """,
         (since,),
     )
-    rows = [row for row in rows if (lambda policy: policy is None or str(policy.get("mode")) == "digest")(_notification_policy(db, str(row["target"]), str(row["category"] or "security_change")))]
+    rows = [row for row in rows if row["category"] in CHANGE_CATEGORIES and (lambda policy: policy is None or str(policy.get("mode")) == "digest")(_notification_policy(db, str(row["target"]), str(row["category"] or "security_change")))]
     if not rows:
         return {"alerts": 0, "sent": False}
     lines = [f"📋 Recon Monitor digest — last {hours}h", f"Generated: {local_now()}", ""]

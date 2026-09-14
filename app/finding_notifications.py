@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-"""Idempotent Potential Finding notification pipeline.
+"""Compatibility state for Analysis findings; finding delivery is disabled.
 
-Recon Change Alerts and Potential Finding notifications are intentionally
-separate streams.  This module runs after automatic Analysis has finished and
-queues notifications only for new or materially stronger Potential Findings.
-
-The notification reference state is keyed by the stable candidate fingerprint,
-not by analysis_id/candidate_id.  Existing installations are bootstrapped from
-their latest historical candidate state so enabling this feature does not create
-an alert storm for old findings.
+Only observed Recon surface changes are alert triggers. Historical finding state
+is retained for compatibility, but new, promoted or stronger candidates never
+queue or deliver notifications, including on a baseline scan.
 """
 
 import sys
@@ -102,22 +97,8 @@ def _eligible(candidate: Mapping[str, Any]) -> bool:
 
 
 def _policy(db: Database, target: str) -> tuple[str, int]:
-    row = db.one(
-        "SELECT * FROM notification_policies WHERE enabled=1 AND ("
-        "(target=? AND event_type=?) OR (target=? AND event_type='*') OR "
-        "(target='*' AND event_type=?) OR (target='*' AND event_type='*')) "
-        "ORDER BY CASE WHEN target=? THEN 0 ELSE 1 END,"
-        "CASE WHEN event_type=? THEN 0 ELSE 1 END LIMIT 1",
-        (target, EVENT_TYPE, target, EVENT_TYPE, target, EVENT_TYPE),
-    )
-    if row is None:
-        # Potential Findings are already admission-filtered Analysis output, so
-        # the default operational behavior is same-run notification.
-        return "immediate", 0
-    mode = str(row["mode"] or "immediate")
-    if mode not in {"immediate", "digest", "system_warning", "silent"}:
-        mode = "immediate"
-    return mode, parse_int(row["minimum_score"], 0, 0, 100)
+    # Product invariant; an existing notification policy cannot opt findings in.
+    return "silent", 0
 
 
 def ensure_finding_notification_schema(db: Database) -> None:
@@ -403,68 +384,9 @@ def _queue_transition(
 
 
 def _deliver_pending(ctx: Any, limit: int = 50) -> dict[str, Any]:
-    rows = [
-        dict(row)
-        for row in ctx.db.all(
-            "SELECT * FROM notification_events WHERE target=? AND event_type=? "
-            "AND status='queued' AND mode='immediate' ORDER BY score DESC,created_at LIMIT ?",
-            (ctx.policy.name, EVENT_TYPE, max(1, min(200, int(limit)))),
-        )
-    ]
-    if not rows:
-        return {"queued": 0, "delivered": 0, "error": ""}
-
-    lines = [
-        f"🚨 Recon Monitor {APP_VERSION} — Potential Findings",
-        f"Target: {ctx.policy.name}",
-        f"Run: {ctx.run_id}",
-        "",
-    ]
-    for row in rows:
-        payload = safe_json_loads(row["payload_json"], {}, expected_type=dict)
-        lines.append(
-            f"• [{row['score']}] [{payload.get('transition','new')}] "
-            f"{payload.get('bug_family') or 'candidate'} — "
-            f"{payload.get('title') or 'Potential Finding'}"
-            + (f" @ {payload.get('endpoint')}" if payload.get("endpoint") else "")
-        )
-    message = "\n".join(lines)[:15000]
-
-    telegram_ok = False
-    notify_ok = False
-    error = ""
-    try:
-        notifier = TelegramNotifier(ctx.config, ctx.logger)
-        telegram_ok = notifier.send(message) if notifier.ready else False
-    except Exception as exc:
-        error = str(exc)
-        ctx.logger.warn("Potential Finding Telegram notification failed", error=str(exc))
-    try:
-        # Reuse the established notify-cli transport without coupling this
-        # pipeline to Recon Change Alert lifecycle or alert rows.
-        import reporting
-
-        notify_ok = bool(reporting._send_notify_cli(ctx.config, ctx.logger, message))
-    except Exception as exc:
-        error = error or str(exc)
-        ctx.logger.warn("Potential Finding notify-cli delivery failed", error=str(exc))
-
-    delivered = len(rows) if (telegram_ok or notify_ok) else 0
-    if delivered:
-        now = utc_now()
-        channel = "telegram+notify" if telegram_ok and notify_ok else "telegram" if telegram_ok else "notify"
-        with ctx.db.transaction():
-            for row in rows:
-                ctx.db.execute(
-                    "UPDATE notification_events SET status='delivered',delivered_at=? WHERE event_id=? AND status='queued'",
-                    (now, str(row["event_id"])),
-                )
-                ctx.db.execute(
-                    "INSERT INTO notification_deliveries(event_id,channel,status,error,created_at) "
-                    "VALUES(?,?, 'delivered','',?)",
-                    (str(row["event_id"]), channel, now),
-                )
-    return {"queued": len(rows), "delivered": delivered, "error": error}
+    # Preserve historical queued records without sending them through a second
+    # transport path. General notification delivery also excludes findings.
+    return {"queued": 0, "delivered": 0, "error": "", "suppressed": True}
 
 
 def process_finding_notifications(
@@ -473,11 +395,7 @@ def process_finding_notifications(
     *,
     baseline: bool = False,
 ) -> dict[str, Any]:
-    """Queue material Potential Finding transitions after Analysis.
-
-    `baseline` is reported for observability only.  It does not suppress this
-    stream; baseline suppression applies to Recon Change Alerts, not findings.
-    """
+    """Retain observation state without notifying about Analysis conclusions."""
 
     ensure_finding_notification_schema(ctx.db)
     analysis = dict(analysis_summary or {})
@@ -567,7 +485,7 @@ def process_finding_notifications(
         "status": "success" if analysis_id else "no_analysis",
         "analysis_id": analysis_id,
         "baseline": bool(baseline),
-        "baseline_suppresses_findings": False,
+        "baseline_suppresses_findings": True,
         "candidates": len(candidates),
         "queued": queued,
         "deduplicated": deduplicated,
@@ -607,7 +525,7 @@ def install_finding_notification_pipeline() -> None:
                 "status": "failed",
                 "error": str(exc),
                 "baseline": bool(baseline),
-                "baseline_suppresses_findings": False,
+                "baseline_suppresses_findings": True,
                 "queued": 0,
                 "delivery": {"queued": 0, "delivered": 0, "error": str(exc)},
             }

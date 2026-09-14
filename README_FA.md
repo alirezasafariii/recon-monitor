@@ -6,7 +6,7 @@
 
 Recon Monitor 8.7.0 شکاف‌های Evidence را بدون تضعیف Admission قابل اقدام می‌کند و برای Recon و Analysis طولانی، Progress و Health صریح ارائه می‌دهد.
 
-وضعیت فعلی `main` مرز Reliability را نیز سخت‌تر کرده است: State مقایسهٔ Recon فقط از Collection قابل اعتماد commit می‌شود، تغییرات ناپایدار با State Version تأیید می‌شوند، Notification مربوط به Potential Finding از Recon Change Alert مستقل و Idempotent است و Lifecycle تارگت وضعیت Collection، Analysis، Report، Notification و اعتبار Baseline را جداگانه نگه می‌دارد.
+وضعیت فعلی `main` مرز Reliability را نیز سخت‌تر کرده است: State مقایسهٔ Recon فقط از Collection قابل اعتماد commit می‌شود، تغییرات ناپایدار با State Version تأیید می‌شوند، آلارم فقط تغییرات مشاهده‌شده از اسکن دوم به بعد را اعلام می‌کند و Potential Finding هیچ اعلان جداگانه‌ای ندارد و Lifecycle تارگت وضعیت Collection، Analysis، Report، Notification و اعتبار Baseline را جداگانه نگه می‌دارد.
 
 نسخهٔ canonical برنامه **8.7.0** و Core Schema دیتابیس **18** است. منبع حقیقت هر دو مقدار `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.7.0.md`، `docs/RELEASE_NOTES_v8.7.0.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
