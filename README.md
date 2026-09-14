@@ -1,14 +1,14 @@
-# Recon Monitor 8.7.0
+# Recon Monitor 8.8.0
 
-<!-- recon-monitor-current: app=8.7.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.0 schema=18 -->
 
-## Current release: Evidence Completion & Live Progress
+## Current release: Evidence-to-Finding Reliability & Durable Delivery
 
-Recon Monitor 8.7.0 makes evidence gaps actionable without weakening canonical Admission and makes long-running Recon/Analysis work observable through explicit progress and health state.
+Recon Monitor 8.8.0 closes the operational path from trustworthy Recon observations to canonical Potential Findings and durable external delivery without weakening Admission or vulnerability-confirmation boundaries.
 
-Current `main` also hardens the reliability boundary around Recon: canonical comparison state is committed only from trustworthy collection, volatile changes use state-version confirmation, Potential Finding notifications are independent and idempotent, and target lifecycle records collection, Analysis, reporting, notification, and baseline validity separately.
+The release adds successful-snapshot and state-version reliability, offline Typed Evidence adapters for all nine `passive_live` families, controlled reviewed-evidence admission paths, a generic reviewed-evidence dispatcher, durable Finding notification outbox/retry/dead-letter operations, and one shared transport boundary for Finding notifications and Recon Change Alerts.
 
-The canonical application version is **8.7.0** and the core database schema is **18**. `app/core.py` is the source of truth for both values. See `CHANGELOG.md`, `MIGRATION-v8.7.0.md`, `docs/RELEASE_NOTES_v8.7.0.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
+The canonical application version is **8.8.0** and the core database schema is **18**. Reliability and notification features use additive, independently versioned compatibility schemas where needed. `app/core.py` remains the source of truth for the release-facing application and core-schema values. See `CHANGELOG.md`, `MIGRATION-v8.8.0.md`, `docs/RELEASE_NOTES_v8.8.0.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 
