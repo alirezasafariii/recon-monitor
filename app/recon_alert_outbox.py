@@ -142,7 +142,7 @@ def enqueue_recon_alert_event(
     db.execute(
         "INSERT INTO recon_alert_notification_outbox("
         "event_id,alert_id,target,run_id,status,attempt_count,max_attempts,next_attempt_at,payload_json,created_at,updated_at"
-        ") VALUES(?,?,?,?, 'queued',0,?,?,?,?,?,?)",
+        ") VALUES(?,?,?,?,'queued',0,?,?,?,?,?)",
         (
             event_id,
             int(alert_id),
