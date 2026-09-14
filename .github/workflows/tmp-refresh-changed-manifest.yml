@@ -1,0 +1,63 @@
+name: Temporary changed-file verification
+
+on:
+  push:
+    branches:
+      - feat/lifecycle-differential-review-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refresh changed file hashes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, subprocess
+          manifest = Path('MANIFEST.sha256')
+          lines = manifest.read_text().splitlines()
+          entries = {}
+          order = []
+          for line in lines:
+              if '  ' not in line:
+                  continue
+              digest, path = line.split('  ', 1)
+              entries[path] = digest
+              order.append(path)
+          changed = subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/main...HEAD'], text=True
+          ).splitlines()
+          excluded = {'MANIFEST.sha256', '.github/workflows/tmp-refresh-changed-manifest.yml'}
+          for path in changed:
+              if path in excluded:
+                  continue
+              p = Path(path)
+              if not p.is_file():
+                  continue
+              entries[path] = hashlib.sha256(p.read_bytes()).hexdigest()
+              if path not in order:
+                  order.append(path)
+          manifest.write_text('\n'.join(f'{entries[p]}  {p}' for p in order) + '\n')
+          PY
+      - name: Verify changed Python and focused tests
+        run: |
+          python -m py_compile $(git diff --name-only origin/main...HEAD -- '*.py')
+          python -m unittest discover tests -p 'test_*differential*admission*.py'
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Finalize branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/tmp-refresh-changed-manifest.yml
+          git add MANIFEST.sha256
+          git commit -m 'chore: refresh manifest for lifecycle differential'
+          git push
