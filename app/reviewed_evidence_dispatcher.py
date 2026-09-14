@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-"""Unified reviewed-evidence dispatch into Admission and finding notifications.
+"""Unified reviewed-evidence dispatch into Admission and finding notification queueing.
 
-This module performs no target-side collection or validation. It consumes only
-review IDs produced by existing offline reviewers, delegates Admission to the
-established family bridges, and then runs the existing Potential Finding
-notification pipeline. Notification state is initialized before Admission so a
-newly promoted Candidate is not mistaken for pre-existing bootstrap state.
+This module performs no target-side collection, validation, or notification
+transport I/O. It consumes only review IDs produced by existing offline
+reviewers, delegates Admission to established family bridges, and queues
+Potential Finding notification events into the durable outbox. Notification
+state is initialized before Admission so a newly promoted Candidate is not
+mistaken for pre-existing bootstrap state.
 """
 
 from types import SimpleNamespace
@@ -16,7 +17,7 @@ from core import Database, ReconError, json_dumps, safe_json_loads, sha256_text,
 from finding_notifications import ensure_finding_notification_schema, process_finding_notifications
 
 
-REVIEWED_EVIDENCE_DISPATCHER_VERSION = "1.0.0"
+REVIEWED_EVIDENCE_DISPATCHER_VERSION = "1.1.0"
 REVIEWED_EVIDENCE_DISPATCHER_SCHEMA_VERSION = 1
 
 _KIND_PREFIXES = {
@@ -111,10 +112,7 @@ def _bridge(kind: str) -> Callable[[Database, str, str], dict[str, Any]]:
 
 def _source_run_id(db: Database, analysis_id: str, candidate_id: str) -> str:
     if candidate_id:
-        row = db.one(
-            "SELECT source_run_id FROM bug_candidates WHERE candidate_id=?",
-            (candidate_id,),
-        )
+        row = db.one("SELECT source_run_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
         if row and str(row["source_run_id"] or ""):
             return str(row["source_run_id"])
     if analysis_id:
@@ -141,7 +139,11 @@ def _event_rows(db: Database, event_ids: list[str]) -> list[dict[str, Any]]:
         if not event_id:
             continue
         row = db.one(
-            "SELECT event_id,status,mode,score,delivered_at FROM notification_events WHERE event_id=?",
+            "SELECT e.event_id,e.status,e.mode,e.score,e.delivered_at,"
+            "COALESCE(o.status,'') AS outbox_status,COALESCE(o.attempt_count,0) AS attempt_count,"
+            "COALESCE(o.next_attempt_at,'') AS next_attempt_at,COALESCE(o.last_error,'') AS last_error "
+            "FROM notification_events e LEFT JOIN finding_notification_outbox o ON o.event_id=e.event_id "
+            "WHERE e.event_id=?",
             (event_id,),
         )
         if row:
@@ -156,13 +158,7 @@ def dispatch_reviewed_evidence(
     review_kind: str = "",
     actor: str = "analyst",
 ) -> dict[str, Any]:
-    """Dispatch one immutable reviewed-evidence record through the existing pipeline.
-
-    Event creation remains idempotent in ``finding_notifications``. The dispatcher
-    intentionally re-runs notification processing on repeated calls so a queued
-    event whose transport previously failed can be retried without creating a
-    duplicate transition or Candidate.
-    """
+    """Dispatch immutable reviewed evidence through Admission and durable queueing."""
 
     review_id = str(review_id or "").strip()
     if not review_id:
@@ -171,8 +167,6 @@ def dispatch_reviewed_evidence(
     db: Database = ctx.db
 
     ensure_reviewed_evidence_dispatcher_schema(db)
-    # Critical ordering: bootstrap historical notification state before a bridge
-    # can create a new Candidate from this reviewed evidence.
     ensure_finding_notification_schema(db)
 
     dispatch_key = "RED-" + sha256_text(f"{kind}|{review_id}")[:24].upper()
@@ -194,7 +188,7 @@ def dispatch_reviewed_evidence(
         "queued": 0,
         "deduplicated": 0,
         "transitions": [],
-        "delivery": {"queued": 0, "delivered": 0, "error": ""},
+        "delivery": {"queued": 0, "delivered": 0, "error": "", "deferred": True},
     }
     if candidate_id and analysis_id and target:
         notification_result = process_finding_notifications(
@@ -213,9 +207,7 @@ def dispatch_reviewed_evidence(
         for item in matching_transitions
         if str(item.get("event_id") or "")
     ]
-    previous_event_ids = safe_json_loads(
-        previous_map.get("event_ids_json"), [], expected_type=list
-    )
+    previous_event_ids = safe_json_loads(previous_map.get("event_ids_json"), [], expected_type=list)
     event_ids = list(
         dict.fromkeys(
             [
@@ -283,6 +275,7 @@ def dispatch_reviewed_evidence(
                 "notification_status": notification_status,
                 "event_ids": event_ids,
                 "attempts": attempts,
+                "notification_delivery_deferred_to_outbox_worker": bool(candidate_id),
                 "target_network_requests_executed": 0,
                 "vulnerability_confirmed": False,
             },
@@ -305,6 +298,7 @@ def dispatch_reviewed_evidence(
         "candidate_transitions": matching_transitions,
         "notification_events": events,
         "target_network_requests_executed": 0,
-        "notification_delivery_may_use_configured_outbound_transports": bool(candidate_id),
+        "notification_delivery_may_use_configured_outbound_transports": False,
+        "notification_delivery_deferred_to_outbox_worker": bool(candidate_id),
         "vulnerability_confirmed": False,
     }
