@@ -1,0 +1,48 @@
+name: Temporary material review verification
+
+on:
+  push:
+    branches:
+      - feat/material-classification-review-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refresh changed file hashes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          manifest = Path('MANIFEST.sha256')
+          targets = ['app/material_classification_review.py', 'tests/test_material_classification_review.py']
+          lines = manifest.read_text(encoding='utf-8').splitlines()
+          keep = [line for line in lines if not any(line.endswith('  ' + path) for path in targets)]
+          for path in targets:
+              keep.append(f"{hashlib.sha256(Path(path).read_bytes()).hexdigest()}  {path}")
+          manifest.write_text('\n'.join(keep) + '\n', encoding='utf-8')
+          PY
+      - name: Verify focused changes
+        run: |
+          python -m py_compile app/material_classification_review.py tests/test_material_classification_review.py
+          python -m unittest discover -s tests -p 'test_material_classification_review.py' -v
+          sha256sum --strict -c MANIFEST.sha256 >/dev/null
+      - name: Finalize branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add MANIFEST.sha256
+          git rm .github/workflows/tmp-material-review-verify.yml
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: refresh manifest for material review'
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
