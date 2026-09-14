@@ -1,0 +1,54 @@
+name: Temporary reviewed material admission verification
+
+on:
+  push:
+    branches:
+      - feat/material-review-admission-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refresh changed file hashes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          paths = [
+              'app/material_classification_admission_bridge.py',
+              'tests/test_material_classification_admission_bridge.py',
+          ]
+          manifest = Path('MANIFEST.sha256')
+          lines = manifest.read_text(encoding='utf-8').splitlines()
+          keep = [line for line in lines if not any(line.endswith('  ' + path) for path in paths)]
+          for path in paths:
+              digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              keep.append(f'{digest}  {path}')
+          manifest.write_text('\n'.join(keep) + '\n', encoding='utf-8')
+          PY
+      - name: Verify focused bridge
+        run: |
+          python -m py_compile app/material_classification_admission_bridge.py tests/test_material_classification_admission_bridge.py
+          PYTHONPATH=app python -m unittest discover -s tests -p 'test_material_classification_review.py'
+          PYTHONPATH=app python -m unittest discover -s tests -p 'test_material_classification_admission_bridge.py'
+          PYTHONPATH=app python -m unittest discover -s tests -p 'test_reviewed_evidence_admission.py'
+          sha256sum --strict -c MANIFEST.sha256
+      - name: Finalize branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add MANIFEST.sha256
+          git rm .github/workflows/tmp-material-admission-verify.yml
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: refresh manifest for material admission bridge'
+            git push
+          fi
