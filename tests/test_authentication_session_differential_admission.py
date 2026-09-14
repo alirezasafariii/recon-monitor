@@ -41,7 +41,7 @@ class AuthSessionLifecycleFixture:
     def close(self):
         self.db.close()
 
-    def hypothesis(self, *, structural=True, blocking=False):
+    def hypothesis(self, *, structural=True, blocking=False, variant="auth_lifecycle"):
         support = []
         if structural:
             support = [
@@ -81,7 +81,7 @@ class AuthSessionLifecycleFixture:
             endpoint=ENDPOINT,
             source_ref="fixture:auth-lifecycle",
             family="authentication_session",
-            variant="auth_lifecycle",
+            variant=variant,
             support=support,
             contradict=contradict,
             missing=["controlled lifecycle comparison"],
@@ -224,7 +224,7 @@ class AuthenticationSessionDifferentialAdmissionTests(unittest.TestCase):
         self.assertTrue(promoted["admitted"])
         self.assertTrue(promoted["candidate_id"])
 
-        other = self.fx.hypothesis()
+        other = self.fx.hypothesis(variant="auth_lifecycle_rotation_safe")
         safe = self.fx.review(
             other["hypothesis_id"],
             lifecycle_id="ASL-ROTATION-SAFE",
@@ -326,14 +326,18 @@ class AuthenticationSessionDifferentialAdmissionTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "not_eligible")
 
-        no_structure = self.fx.hypothesis(structural=False)
+        no_structure = self.fx.hypothesis(
+            structural=False, variant="auth_lifecycle_no_structure"
+        )
         self.fx.review(no_structure["hypothesis_id"], lifecycle_id="ASL-NO-STRUCTURE")
         result = apply_authentication_session_admission(
             self.fx.db, lifecycle_id="ASL-NO-STRUCTURE", actor="test"
         )
         self.assertEqual(result["status"], "not_eligible")
 
-        blocked = self.fx.hypothesis(blocking=True)
+        blocked = self.fx.hypothesis(
+            blocking=True, variant="auth_lifecycle_blocked"
+        )
         self.fx.review(blocked["hypothesis_id"], lifecycle_id="ASL-PRIOR-BLOCK")
         result = apply_authentication_session_admission(
             self.fx.db, lifecycle_id="ASL-PRIOR-BLOCK", actor="test"
