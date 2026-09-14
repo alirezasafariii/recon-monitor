@@ -182,7 +182,8 @@ class GraphqlDataExposureDifferentialAdmissionTests(unittest.TestCase):
 
     def test_restricted_field_returned_can_create_potential_finding(self):
         hypothesis = self.fx.hypothesis(tag="single")
-        self.assertFalse(hypothesis["assessment"]["admitted"])
+        self.assertTrue(hypothesis["assessment"]["admitted"])
+        self.assertEqual(int(self.fx.db.one("SELECT COUNT(*) FROM bug_candidates")[0]), 0)
         review = self.fx.review(
             hypothesis["hypothesis_id"], comparison_id="GQLD-SINGLE-PROMOTE"
         )
