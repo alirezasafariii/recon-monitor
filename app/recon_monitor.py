@@ -6,8 +6,8 @@ from __future__ import annotations
 The established CLI implementation remains in ``recon_monitor_core``. This
 module preserves every existing command and adds Analysis-only compatibility
 actions for Investigation Queue, offline verified-replay draft collection,
-human-verified real-world calibration reports, and explicit Validation Runner
-passive-live execution.
+human-verified real-world calibration reports, explicit Validation Runner
+passive-live execution, and offline Differential Evidence adaptation.
 """
 
 import sys
@@ -20,6 +20,7 @@ from correlation_engine import (
     CORRELATION_RULE_VERSION,
     investigation_queue,
 )
+from differential_evidence_adapter import adapt_differential_evidence
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 from real_world_calibration import (
     REAL_WORLD_CALIBRATION_RULE_VERSION,
@@ -123,7 +124,12 @@ def build_parser():
         )
 
     validation_parser = _validation_parser(parser)
-    _extend_action_choices(validation_parser, "runner-execute", "runner-adapt")
+    _extend_action_choices(
+        validation_parser,
+        "runner-execute",
+        "runner-adapt",
+        "differential-adapt",
+    )
     validation_dests = {
         str(getattr(action, "dest", ""))
         for action in getattr(validation_parser, "_actions", [])
@@ -139,6 +145,12 @@ def build_parser():
             "--execution-id",
             default="",
             help="Completed Validation Runner execution ID (VEX-...) to adapt offline",
+        )
+    if "evidence_file" not in validation_dests:
+        validation_parser.add_argument(
+            "--evidence-file",
+            default="",
+            help="Local analyst-verified Differential Evidence v2 JSON artifact",
         )
     if "target" not in validation_dests:
         validation_parser.add_argument(
@@ -310,6 +322,24 @@ def _runner_adapt_cli(args: Any) -> dict[str, Any]:
         db.close()
 
 
+def _differential_adapt_cli(args: Any) -> dict[str, Any]:
+    evidence_file = str(getattr(args, "evidence_file", "") or "").strip()
+    if not evidence_file:
+        raise _base.ReconError("validation differential-adapt requires --evidence-file PATH")
+
+    paths = _base.AppPaths.from_root(_base.ROOT_DIR)
+    paths.ensure()
+    db = _base.Database(paths.db)
+    try:
+        return adapt_differential_evidence(
+            db,
+            artifact_path=evidence_file,
+            actor="cli",
+        )
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
@@ -333,6 +363,17 @@ def main(argv: list[str] | None = None) -> int:
         parser = build_parser()
         args = parser.parse_args(translated)
         payload = _runner_adapt_cli(args)
+        print(_base.json_dumps(payload, pretty=True))
+        return 0
+
+    if (
+        len(translated) >= 2
+        and translated[0] == "validation"
+        and translated[1] == "differential-adapt"
+    ):
+        parser = build_parser()
+        args = parser.parse_args(translated)
+        payload = _differential_adapt_cli(args)
         print(_base.json_dumps(payload, pretty=True))
         return 0
 

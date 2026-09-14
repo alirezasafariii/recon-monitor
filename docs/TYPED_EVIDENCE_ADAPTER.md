@@ -33,6 +33,12 @@ Version 1.1 covers all nine `passive_live` families in the core Family Reasoning
 
 Only CORS and source-map adapters remain promotion-capable in version 1.1, and only when Canonical Admission is satisfied. The other seven adapters are enrichment/contradiction-only and cannot create a new Potential Finding through this adapter.
 
+## Differential Evidence v2
+
+Some families require expected-vs-observed evidence that cannot be inferred safely from one passive metadata response. `validation differential-adapt` is a separate offline path for analyst-verified Differential Evidence v2 artifacts.
+
+The first supported differential promotion path is `open_redirect`. It requires an existing structural hypothesis containing both a redirect source and navigation sink, plus a fresh verified artifact showing the reserved controlled destination was accepted. The differential adapter does not generate requests, follow redirects, connect to the destination, or mark a vulnerability confirmed. It only adds a separate provenance root and then delegates the decision to Canonical Admission. See `docs/DIFFERENTIAL_EVIDENCE_V2.md`.
+
 ## Evidence identity and independence
 
 Every signal derived from one Validation Runner execution uses a single evidence root (`validation_execution:<execution_id>`). Multiple signal types from the same request sequence therefore cannot manufacture independent-source count.
@@ -41,8 +47,12 @@ Typed `evidence_records` use deterministic IDs and retain the execution ID, cont
 
 Applying an unchanged execution twice is idempotent. If an already-adapted execution artifact later changes, adaptation fails closed rather than accepting mutable evidence.
 
+Differential Evidence v2 uses its own stable `DEV-*` identity and evidence root. Reapplying an unchanged differential artifact is idempotent; changing an already-applied artifact fails closed.
+
 ## Freshness and failure behavior
 
 By default, an execution must be no older than 24 hours when it is adapted. Stale, malformed, duplicated, mismatched, non-completed, non-redacted, or unsupported-family artifacts fail before typed evidence is persisted.
 
-The feature uses an additive compatibility table, `typed_evidence_adapter_runs`, with independent metadata key `typed_evidence_adapter_schema_version`. It does not change the core SQLite `SCHEMA_VERSION`.
+Differential artifacts use the same default 24-hour freshness window and additionally require explicit analyst verification, structural hypothesis context, no stored raw body, and an assertion that the external redirect was neither followed nor contacted.
+
+The typed adapter uses additive compatibility table `typed_evidence_adapter_runs`. Differential Evidence v2 uses `differential_evidence_adapter_runs`. Both maintain independent schema metadata and do not change the core SQLite `SCHEMA_VERSION`.
