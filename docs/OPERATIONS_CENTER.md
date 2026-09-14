@@ -32,4 +32,8 @@ Storage Health reports database, object store, outputs, reports, logs, and backu
 
 ## Delivery workers
 
-Operations Center now includes one control-plane view for durable Finding and Recon Alert delivery. It shows queue depth, due-now work, retry backlog, dead letters, worker policy, and the latest worker run for both queues. Operators can configure, run, bounded-drain, and retry each worker independently. The two outboxes and their domain lifecycle semantics remain separate. See `docs/NOTIFICATION_OPERATIONS_CENTER.md`.
+Operations Center includes one control-plane view for durable Finding and Recon Alert delivery. It shows queue depth, due-now work, retry backlog, dead letters, worker policy, and the latest worker run for both queues. Operators can configure, run, bounded-drain, and retry each worker independently. The two outboxes and their domain lifecycle semantics remain separate. See `docs/NOTIFICATION_OPERATIONS_CENTER.md`.
+
+## Notification supervisor
+
+The Unified Notification Supervisor is the execution coordinator above those two independent workers. It has a database-backed single-instance lease, renewable heartbeat, crash/restart recovery, per-cycle history, failure isolation, and earliest-next-due visibility. Operations Center consumes this supervisor health alongside the existing worker diagnostics. See `docs/NOTIFICATION_SUPERVISOR.md`.
