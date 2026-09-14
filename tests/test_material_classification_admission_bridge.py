@@ -142,7 +142,7 @@ class MaterialClassificationAdmissionBridgeTests(unittest.TestCase):
         self.assertFalse(result["raw_value_stored"])
 
         candidate = self.fx.db.one(
-            "SELECT bug_family FROM bug_candidates WHERE id=?",
+            "SELECT bug_family FROM bug_candidates WHERE candidate_id=?",
             (result["candidate_id"],),
         )
         self.assertEqual(str(candidate["bug_family"]), "secret_exposure")
