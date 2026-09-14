@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -14,6 +13,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, utc_now
+from finding_notification_outbox import deliver_finding_notification_outbox
 from graphql_data_exposure_differential import review_graphql_data_exposure_artifact
 from hypothesis_admission import record_hypothesis
 from material_classification_review import review_material_classification_artifact
@@ -23,14 +23,6 @@ from reviewed_evidence_dispatcher import dispatch_reviewed_evidence
 RUN_ID = "RUN-DISPATCH-1"
 ANALYSIS_ID = "AN-DISPATCH-1"
 TARGET = "example.test"
-
-
-class _FakeTelegramNotifier:
-    def __init__(self, config, logger):
-        self.ready = True
-
-    def send(self, message: str) -> bool:
-        return True
 
 
 class DispatcherFixture:
@@ -57,11 +49,20 @@ class DispatcherFixture:
         self.db.close()
 
     def ctx(self):
-        return SimpleNamespace(
-            paths=self.paths,
+        return SimpleNamespace(paths=self.paths, config=self.config, db=self.db, logger=self.logger)
+
+    @staticmethod
+    def success_transport(config, logger, message: str):
+        return {"delivered": True, "channel": "fixture", "channels": ["fixture"], "error": ""}
+
+    def deliver(self):
+        return deliver_finding_notification_outbox(
             config=self.config,
-            db=self.db,
             logger=self.logger,
+            db=self.db,
+            target=TARGET,
+            transport=self.success_transport,
+            now="2099-01-01T00:00:00Z",
         )
 
     def material_hypothesis(self, tag: str):
@@ -77,20 +78,8 @@ class DispatcherFixture:
             family="secret_exposure",
             variant="material_surface",
             support=[
-                {
-                    "type": "secret_pattern",
-                    "source": "fixture",
-                    "source_group": f"pattern:{tag}",
-                    "weight": 20,
-                    "text": "Redacted material-shaped indicator.",
-                },
-                {
-                    "type": "context",
-                    "source": "fixture",
-                    "source_group": f"client:{tag}",
-                    "weight": 18,
-                    "text": "Client-delivered source context.",
-                },
+                {"type": "secret_pattern", "source": "fixture", "source_group": f"pattern:{tag}", "weight": 20, "text": "Redacted material-shaped indicator."},
+                {"type": "context", "source": "fixture", "source_group": f"client:{tag}", "weight": 18, "text": "Client-delivered source context."},
             ],
             contradict=[],
             missing=["reviewed redacted structure"],
@@ -122,9 +111,7 @@ class DispatcherFixture:
         }
         path = self.root / f"{review_id}.json"
         path.write_text(json_dumps(payload, pretty=True) + "\n", encoding="utf-8")
-        return review_material_classification_artifact(
-            self.db, artifact_path=path, actor="test"
-        )
+        return review_material_classification_artifact(self.db, artifact_path=path, actor="test")
 
     def graphql_hypothesis(self, tag: str):
         return record_hypothesis(
@@ -139,27 +126,9 @@ class DispatcherFixture:
             family="graphql_data_exposure",
             variant="sensitive_fields_with_policy_context",
             support=[
-                {
-                    "type": "sensitive_fields",
-                    "source": "graphql_intelligence",
-                    "source_group": f"graphql_static:{tag}",
-                    "weight": 20,
-                    "text": "Controlled fixture identifies sensitive field metadata.",
-                },
-                {
-                    "type": "client_operation",
-                    "source": "graphql_intelligence",
-                    "source_group": f"graphql_operation:{tag}",
-                    "weight": 14,
-                    "text": "Controlled fixture identifies a client operation.",
-                },
-                {
-                    "type": "field_policy_context",
-                    "source": "stored_security_policy",
-                    "source_group": f"graphql_policy:{tag}",
-                    "weight": 15,
-                    "text": "Controlled fixture records documented field policy.",
-                },
+                {"type": "sensitive_fields", "source": "graphql_intelligence", "source_group": f"graphql_static:{tag}", "weight": 20, "text": "Controlled fixture identifies sensitive field metadata."},
+                {"type": "client_operation", "source": "graphql_intelligence", "source_group": f"graphql_operation:{tag}", "weight": 14, "text": "Controlled fixture identifies a client operation."},
+                {"type": "field_policy_context", "source": "stored_security_policy", "source_group": f"graphql_policy:{tag}", "weight": 15, "text": "Controlled fixture records documented field policy."},
             ],
             contradict=[],
             missing=["controlled field-policy response comparison"],
@@ -181,13 +150,7 @@ class DispatcherFixture:
             "policy_source_fingerprint": "d" * 64,
             "policy_documented": True,
             "restricted_fields": ["ssn"],
-            "tested_role": {
-                "role_class": "restricted_test_role",
-                "controlled_test_role": True,
-                "observed_fields": ["id", "ssn"],
-                "raw_field_values_stored": False,
-                "raw_body_stored": False,
-            },
+            "tested_role": {"role_class": "restricted_test_role", "controlled_test_role": True, "observed_fields": ["id", "ssn"], "raw_field_values_stored": False, "raw_body_stored": False},
             "reference_role_authorized_for_restricted_fields": False,
             "field_authorization_observed": False,
             "observed_at": utc_now(),
@@ -205,9 +168,7 @@ class DispatcherFixture:
         }
         path = self.root / f"{comparison_id}.json"
         path.write_text(json_dumps(payload, pretty=True) + "\n", encoding="utf-8")
-        return review_graphql_data_exposure_artifact(
-            self.db, artifact_path=path, actor="test"
-        )
+        return review_graphql_data_exposure_artifact(self.db, artifact_path=path, actor="test")
 
 
 class ReviewedEvidenceDispatcherTests(unittest.TestCase):
@@ -219,51 +180,43 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
         self.fx.close()
         self.temp.cleanup()
 
-    def _dispatch_with_delivery(self, review_id: str, review_kind: str = ""):
-        import reporting
+    def _dispatch(self, review_id: str, review_kind: str = ""):
+        return dispatch_reviewed_evidence(
+            self.fx.ctx(), review_id=review_id, review_kind=review_kind, actor="test"
+        )
 
-        with mock.patch("finding_notifications.TelegramNotifier", _FakeTelegramNotifier), mock.patch.object(
-            reporting, "_send_notify_cli", return_value=False
-        ):
-            return dispatch_reviewed_evidence(
-                self.fx.ctx(),
-                review_id=review_id,
-                review_kind=review_kind,
-                actor="test",
-            )
-
-    def test_material_review_promotes_and_delivers_exactly_once(self) -> None:
+    def test_material_review_queues_then_worker_delivers_exactly_once(self) -> None:
         hypothesis = self.fx.material_hypothesis("material")
         review_id = "MCR-DISPATCH-MATERIAL"
         review = self.fx.review_material(hypothesis["hypothesis_id"], review_id)
         self.assertEqual(review["signal_type"], "credential_material_confirmed")
         self.assertEqual(int(self.fx.db.one("SELECT COUNT(*) FROM bug_candidates")[0]), 0)
 
-        first = self._dispatch_with_delivery(review_id)
+        first = self._dispatch(review_id)
         self.assertEqual(first["review_kind"], "material_classification")
         self.assertEqual(first["status"], "completed")
         self.assertTrue(first["candidate_id"])
         self.assertEqual(first["candidate_transitions"][0]["transition"], "new")
         self.assertEqual(len(first["notification_events"]), 1)
-        self.assertEqual(str(first["notification_events"][0]["status"]), "delivered")
+        self.assertEqual(str(first["notification_events"][0]["status"]), "queued")
+        self.assertEqual(str(first["notification_events"][0]["outbox_status"]), "queued")
+        self.assertTrue(first["notification_delivery_deferred_to_outbox_worker"])
+        self.assertFalse(first["notification_delivery_may_use_configured_outbound_transports"])
         self.assertFalse(first["vulnerability_confirmed"])
-        self.assertEqual(first["target_network_requests_executed"], 0)
 
-        second = self._dispatch_with_delivery(review_id)
+        delivery = self.fx.deliver()
+        self.assertEqual(delivery["delivered"], 1)
+        second = self._dispatch(review_id)
         self.assertTrue(second["replayed"])
         self.assertEqual(second["attempts"], 2)
         self.assertEqual(second["candidate_id"], first["candidate_id"])
         self.assertEqual(second["bridge"]["status"], "already_applied")
         self.assertEqual(second["candidate_transitions"], [])
         self.assertEqual(len(second["notification_events"]), 1)
-        self.assertEqual(
-            str(second["notification_events"][0]["event_id"]),
-            str(first["notification_events"][0]["event_id"]),
-        )
+        self.assertEqual(str(second["notification_events"][0]["status"]), "delivered")
+        self.assertEqual(str(second["notification_events"][0]["outbox_status"]), "delivered")
 
-        events = self.fx.db.one(
-            "SELECT COUNT(*) AS n FROM notification_events WHERE event_type='potential_finding'"
-        )
+        events = self.fx.db.one("SELECT COUNT(*) AS n FROM notification_events WHERE event_type='potential_finding'")
         deliveries = self.fx.db.one("SELECT COUNT(*) AS n FROM notification_deliveries")
         dispatcher = self.fx.db.one(
             "SELECT attempts,event_ids_json,status FROM reviewed_evidence_dispatch_runs WHERE review_id=?",
@@ -275,18 +228,19 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
         self.assertEqual(str(dispatcher["status"]), "completed")
         self.assertEqual(len(json.loads(str(dispatcher["event_ids_json"]))), 1)
 
-    def test_graphql_review_uses_same_dispatcher_and_notifies(self) -> None:
+    def test_graphql_review_uses_same_queue_and_worker(self) -> None:
         hypothesis = self.fx.graphql_hypothesis("graphql")
         review_id = "GQLD-DISPATCH-GRAPHQL"
         review = self.fx.review_graphql(hypothesis["hypothesis_id"], review_id)
         self.assertEqual(review["signal_type"], "sensitive_graphql_response_observed")
 
-        result = self._dispatch_with_delivery(review_id)
+        result = self._dispatch(review_id)
         self.assertEqual(result["review_kind"], "graphql_data_exposure")
         self.assertEqual(result["status"], "completed")
         self.assertTrue(result["candidate_id"])
         self.assertEqual(result["candidate_transitions"][0]["transition"], "new")
-        self.assertEqual(len(result["notification_events"]), 1)
+        self.assertEqual(str(result["notification_events"][0]["status"]), "queued")
+        self.assertEqual(self.fx.deliver()["delivered"], 1)
         candidate = self.fx.db.one(
             "SELECT bug_family FROM bug_candidates WHERE candidate_id=?",
             (result["candidate_id"],),
@@ -302,11 +256,21 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
                 actor="test",
             )
 
-    def test_dispatcher_source_has_no_target_network_client(self) -> None:
+    def test_dispatcher_source_has_no_target_or_transport_network_client(self) -> None:
         source = (ROOT / "app/reviewed_evidence_dispatcher.py").read_text(encoding="utf-8").lower()
-        for forbidden in ("urllib.request", "requests.", "socket.", "urlopen(", "http.client", "aiohttp"):
+        for forbidden in (
+            "urllib.request",
+            "requests.",
+            "socket.",
+            "urlopen(",
+            "http.client",
+            "aiohttp",
+            "telegramnotifier",
+            "_send_notify_cli",
+            "subprocess.run",
+        ):
             self.assertNotIn(forbidden, source)
-        self.assertIn("notification_delivery_may_use_configured_outbound_transports", source)
+        self.assertIn("notification_delivery_deferred_to_outbox_worker", source)
 
 
 if __name__ == "__main__":
