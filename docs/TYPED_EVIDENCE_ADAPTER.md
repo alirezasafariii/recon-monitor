@@ -17,16 +17,21 @@ The Typed Evidence Adapter is the explicit offline boundary between bounded Vali
 
 The adapter does not confirm vulnerabilities. A Potential Finding can be created only after the derived evidence is passed through the existing Family Reasoning / Canonical Admission path.
 
-## Initial family coverage
+## Core passive-live family coverage
 
-Version 1.0 supports four `passive_live` families:
+Version 1.1 covers all nine `passive_live` families in the core Family Reasoning catalog:
 
 - `cors_misconfiguration`: a controlled Origin accepted by the stored CORS policy can become `untrusted_origin_allowed`; credentialed cross-origin readability is never inferred.
 - `source_map_exposure`: `source_map_publicly_reachable` is emitted only when the approved anonymous `.map` observation has source-map structure and independent stored evidence already establishes internal source structure.
-- `sensitive_caching`: cache headers, sensitive response-shape markers, private/no-store controls, and user-specific `Vary` controls are typed, but this adapter does not synthesize shared-cache or cross-user exposure.
-- `information_disclosure`: redacted sensitive-key/category markers can enrich the hypothesis, but visibility-boundary exposure is not inferred from field names alone.
+- `sensitive_caching`: cache headers, sensitive response-shape markers, private/no-store controls, and user-specific `Vary` controls are typed, but shared-cache or cross-user exposure is never synthesized.
+- `information_disclosure`: redacted sensitive-key/category markers enrich the hypothesis, but visibility-boundary exposure is not inferred from field names alone.
+- `authentication_session`: authentication surfaces, concrete operations, and anonymous 401/403 boundaries are typed; lifecycle violations, token-rotation failures, recovery bypasses, and post-logout reuse are never inferred.
+- `account_enumeration`: authentication/account surface and operation context are typed; identity lookup and response/timing differential require controlled identities and are never synthesized from one request.
+- `open_redirect`: stored 3xx `Location` behavior can establish navigation/sink context; acceptance of a user-controlled external destination is never inferred.
+- `secret_exposure`: redacted credential-like field/category metadata can establish `secret_pattern` and contextual evidence; credential completeness or liveness is never inferred or validated online.
+- `graphql_data_exposure`: redacted sensitive-looking fields on a GraphQL endpoint can establish structural field/operation evidence; excessive exposure or field-authorization differential is never inferred without an explicit policy boundary.
 
-Only CORS and source-map adapters are promotion-capable in this version, and only when Canonical Admission is satisfied. Caching and information-disclosure adaptation may strengthen, weaken, or preserve a hypothesis but cannot create a new Potential Finding through this adapter.
+Only CORS and source-map adapters remain promotion-capable in version 1.1, and only when Canonical Admission is satisfied. The other seven adapters are enrichment/contradiction-only and cannot create a new Potential Finding through this adapter.
 
 ## Evidence identity and independence
 
