@@ -55,6 +55,12 @@ jobs:
               'agent/analysis-graceful-stop-v1',
               'bot/analysis-graceful-stop-v1',
               'agent/vulnerability-intelligence-8.6.0',
+              'agent/behavioral-admission-hardening',
+              'agent/create-analysis-stop-bot-pr',
+              'agent/promotion-reconciliation',
+              'agent/validation-runner-dry-run-v0-clean',
+              'ops/publish-v8.8.0-20260914',
+              'ops/safe-branch-cleanup-20260914',
             ];
 
             const candidates = new Set();
