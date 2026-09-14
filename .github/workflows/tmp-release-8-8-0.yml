@@ -1,4 +1,4 @@
-name: Temporary 8.8.0 Release Consolidator
+name: Temporary 8.8.0 Release Cleanup
 
 on:
   push:
@@ -9,21 +9,15 @@ permissions:
   contents: write
 
 jobs:
-  consolidate:
-    if: "${{ github.event.head_commit.message != 'chore: consolidate 8.8.0 release metadata' }}"
+  cleanup:
+    if: "${{ github.event.head_commit.message != 'chore: remove temporary 8.8.0 release tooling' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare release files
-        run: python3 tools/tmp_prepare_release_8_8_0.py
-      - name: Verify manifest
-        run: sha256sum --strict -c MANIFEST.sha256
-      - name: Verify release consistency
-        run: python3 tools/check_release_consistency.py
-      - name: Commit release consolidation
+      - name: Remove temporary release tooling
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/core.py README.md README_FA.md CHANGELOG.md docs/ARCHITECTURE.md MIGRATION-v8.8.0.md docs/RELEASE_NOTES_v8.8.0.md MANIFEST.sha256
-          git commit -m "chore: consolidate 8.8.0 release metadata"
+          git rm tools/tmp_prepare_release_8_8_0.py .github/workflows/tmp-release-8-8-0.yml
+          git commit -m "chore: remove temporary 8.8.0 release tooling"
           git push
