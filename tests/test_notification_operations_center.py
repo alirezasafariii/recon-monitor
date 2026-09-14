@@ -11,12 +11,14 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from core import AppPaths, Config, Database, Logger, ReconError, json_dumps, utc_now
+from dashboard import DashboardHandler
 from finding_notification_outbox import enqueue_finding_notification_event
 from notification_operations_center import (
     combined_dead_letters,
     notification_delivery_action,
     notification_delivery_operations,
 )
+from product_platform import operations_center
 from recon_alert_outbox import enqueue_recon_alert_event
 
 
@@ -153,6 +155,32 @@ class NotificationOperationsCenterTests(unittest.TestCase):
         self.assertEqual(len(remaining), 1)
         self.assertEqual(remaining[0]["worker"], "recon_alert")
         self.assertEqual(remaining[0]["event_id"], recon_id)
+
+    def test_product_operations_payload_embeds_delivery_workers(self) -> None:
+        self._finding_event()
+        self._recon_event()
+        status = operations_center(self.paths, self.db, refresh=True, deep_check=False)
+        delivery = status["delivery_workers"]
+        self.assertEqual(set(delivery["workers"]), {"finding", "recon_alert"})
+        self.assertEqual(delivery["queue_depth"], 2)
+
+    def test_dashboard_operations_page_renders_both_workers(self) -> None:
+        self._finding_event()
+        self._recon_event()
+        handler = object.__new__(DashboardHandler)
+        handler.paths = self.paths
+        handler.db_path = self.paths.db
+        handler.query = lambda: {}
+        captured: dict[str, object] = {}
+        handler.send_html = lambda title, body, status=200: captured.update(title=title, body=body, status=status)
+        handler.operations_center_page()
+        body = str(captured["body"])
+        self.assertEqual(captured["title"], "Operations center")
+        self.assertIn("Delivery workers", body)
+        self.assertIn("Finding delivery", body)
+        self.assertIn("Recon Alert delivery", body)
+        self.assertIn("Dead-letter", body)
+        self.assertIn("/notification-workers/action", body)
 
     def test_invalid_dispatch_is_rejected(self) -> None:
         with self.assertRaises(ReconError):
