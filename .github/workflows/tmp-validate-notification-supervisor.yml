@@ -1,0 +1,136 @@
+name: Temporary validate notification supervisor
+
+on:
+  push:
+    branches: [agent/unified-notification-supervisor-v890]
+    paths: [.github/workflows/tmp-validate-notification-supervisor.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unified-notification-supervisor-v890
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Integrate supervisor health into Operations Center
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          dashboard = Path('app/dashboard_core.py')
+          text = dashboard.read_text(encoding='utf-8')
+          delivery_anchor = "        delivery=data.get('delivery_workers',{}); workers=delivery.get('workers',{})\n"
+          supervisor_line = "        supervisor=dict(delivery.get('supervisor') or {})\n"
+          if supervisor_line not in text:
+              if delivery_anchor not in text:
+                  raise SystemExit('dashboard delivery anchor missing')
+              text = text.replace(delivery_anchor, delivery_anchor + supervisor_line, 1)
+
+          backlog_card = "_metric_card('Delivery backlog',delivery.get('queue_depth',0),f\"{delivery.get('due_now',0)} due now\",'amber' if delivery.get('due_now',0) else 'success')+"
+          supervisor_card = "_metric_card('Notification supervisor',supervisor.get('state','unknown'),f\"last: {supervisor.get('last_status','never_run')}\",'danger' if supervisor.get('state')=='degraded' else 'amber' if supervisor.get('state')=='disabled' else 'success')+"
+          if supervisor_card not in text:
+              if backlog_card not in text:
+                  raise SystemExit('dashboard backlog metric anchor missing')
+              text = text.replace(backlog_card, supervisor_card + backlog_card, 1)
+
+          worker_anchor = "        worker_html=\"<section class='panel' style='margin-top:16px'><div class='panel-head'><div><h3>Delivery workers</h3>"
+          supervisor_block = '''        supervisor_html=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><div><h3>Notification supervisor</h3><span class='muted small'>Single-instance coordinator for the two independent delivery workers.</span></div>{_pill(supervisor.get('state','unknown'),'danger' if supervisor.get('state')=='degraded' else 'amber' if supervisor.get('state')=='disabled' else 'success')}</div><div class='panel-body'><div class='metrics-grid'>"+_metric_card('Last status',supervisor.get('last_status','never_run'),'Latest coordinated cycle','danger' if supervisor.get('last_status') in {'failed','partial_failure'} else 'success')+_metric_card('Heartbeat age',f"{supervisor.get('heartbeat_age_seconds',0)}s",supervisor.get('heartbeat_at') or 'No heartbeat yet','info')+_metric_card('Next due',supervisor.get('next_due_at') or '—','Earliest worker schedule','blue')+_metric_card('Cycles',supervisor.get('cycle_count',0),f"{supervisor.get('worker_failure_count',0)} worker failure(s)",'amber' if supervisor.get('worker_failure_count',0) else 'success')+f"</div><p class='muted small' style='margin-top:12px'>Lease: {'active · '+str(supervisor.get('lease_expires_at') or '') if supervisor.get('lease_active') else 'not held'} · Last success: {_esc(supervisor.get('last_success_at') or 'never')} · Last error: {_esc(supervisor.get('last_error_at') or 'none')}</p></div></section>"\n'''
+          if '        supervisor_html=f"<section' not in text:
+              if worker_anchor not in text:
+                  raise SystemExit('dashboard worker panel anchor missing')
+              text = text.replace(worker_anchor, supervisor_block + worker_anchor, 1)
+
+          body_anchor = "        body=header+metrics+worker_html+dead_table+"
+          if "        body=header+metrics+supervisor_html+worker_html+dead_table+" not in text:
+              if body_anchor not in text:
+                  raise SystemExit('dashboard body anchor missing')
+              text = text.replace(body_anchor, "        body=header+metrics+supervisor_html+worker_html+dead_table+", 1)
+          dashboard.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/test_notification_operations_center.py')
+          text = tests.read_text(encoding='utf-8')
+          snapshot_anchor = '        self.assertEqual(set(status["workers"]), {"finding", "recon_alert"})\n'
+          snapshot_extra = '        self.assertIn("supervisor", status)\n        self.assertEqual(status["supervisor"]["last_status"], "never_run")\n'
+          if snapshot_extra not in text:
+              if snapshot_anchor not in text:
+                  raise SystemExit('snapshot assertion anchor missing')
+              text = text.replace(snapshot_anchor, snapshot_anchor + snapshot_extra, 1)
+          render_anchor = '        self.assertIn("Delivery workers", body)\n'
+          render_extra = '        self.assertIn("Notification supervisor", body)\n'
+          if render_extra not in text:
+              if render_anchor not in text:
+                  raise SystemExit('render assertion anchor missing')
+              text = text.replace(render_anchor, render_anchor + render_extra, 1)
+          tests.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run focused validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile app/notification_supervisor.py app/notification_operations_center.py app/dashboard_core.py tools/notification_worker.py
+          python -m unittest discover -s tests -p 'test_notification_supervisor.py' -q
+          python -m unittest discover -s tests -p 'test_notification_operations_center.py' -q
+          python -m unittest discover -s tests -p 'test_finding_notification_operations.py' -q
+          python -m unittest discover -s tests -p 'test_recon_alert_operations.py' -q
+          PYTHONPATH=app python -m unittest discover -s tests -p 'test_dashboard_performance_v501.py' -q
+
+      - name: Remove temporary workflow and update manifest minimally
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/tmp-validate-notification-supervisor.yml
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          manifest = Path('MANIFEST.sha256')
+          paths = [
+              'app/dashboard_core.py',
+              'app/notification_operations_center.py',
+              'app/notification_supervisor.py',
+              'tools/notification_worker.py',
+              'tests/test_notification_supervisor.py',
+              'tests/test_notification_operations_center.py',
+              'docs/NOTIFICATION_SUPERVISOR.md',
+              'docs/OPERATIONS_CENTER.md',
+          ]
+          lines = manifest.read_text(encoding='utf-8').splitlines()
+          positions = {}
+          for i, line in enumerate(lines):
+              if '  ' in line:
+                  positions[line.split('  ', 1)[1]] = i
+          for path in paths:
+              digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              line = f'{digest}  {path}'
+              if path in positions:
+                  lines[positions[path]] = line
+              else:
+                  positions[path] = len(lines)
+                  lines.append(line)
+          manifest.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Commit validated feature tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Alireza Safari'
+          git config user.email '88625680+alirezasafariii@users.noreply.github.com'
+          git add app/dashboard_core.py tests/test_notification_operations_center.py MANIFEST.sha256 .github/workflows/tmp-validate-notification-supervisor.yml
+          git commit -m 'feat: integrate notification supervisor operations visibility'
+          git push origin HEAD:agent/unified-notification-supervisor-v890
