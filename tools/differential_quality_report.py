@@ -27,10 +27,17 @@ def run_report() -> dict[str, int | float]:
     expected_signal_cases = 0
     unexpected_signal_cases = 0
     false_positive_cases = 0
+    schema_errors = 0
 
     for fixture in FIXTURES.glob("*.json"):
         total += 1
         case = json.loads(fixture.read_text(encoding="utf-8"))
+
+        if "before" not in case or "after" not in case:
+            schema_errors += 1
+            failed += 1
+            continue
+
         signals = analyzer.compare(case.get("before"), case.get("after"))
         actual = {signal.signal_type for signal in signals}
         expected = _expected_signals(case)
@@ -57,6 +64,7 @@ def run_report() -> dict[str, int | float]:
         "expected_signal_cases": expected_signal_cases,
         "unexpected_signal_cases": unexpected_signal_cases,
         "false_positive_cases": false_positive_cases,
+        "schema_errors": schema_errors,
         "precision": precision,
     }
 
