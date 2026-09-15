@@ -11,7 +11,7 @@ from typing import Any, Mapping
 from differential_analysis import DifferentialAnalyzer
 
 
-DIFFERENTIAL_SIGNAL_VERSION = "0.1.0"
+DIFFERENTIAL_SIGNAL_VERSION = "0.2.0"
 
 
 def enrich_analysis_context(
@@ -30,8 +30,11 @@ def enrich_analysis_context(
         "differential_signals": [
             {
                 "type": signal.signal_type,
-                "severity": signal.severity,
+                "signal_strength": signal.signal_strength,
+                "category": signal.category,
                 "confidence": signal.confidence,
+                "evidence": signal.evidence,
+                "requires_validation": signal.requires_validation,
                 "details": signal.details,
             }
             for signal in signals
