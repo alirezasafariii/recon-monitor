@@ -15,7 +15,7 @@ from app.differential_analysis import DifferentialAnalyzer
 FIXTURES = Path(__file__).parent.parent / "tests" / "differential_regression" / "fixtures"
 
 
-def run_report() -> dict[str, int]:
+def run_report() -> dict[str, int | float]:
     analyzer = DifferentialAnalyzer()
     total = 0
     passed = 0
@@ -42,12 +42,20 @@ def run_report() -> dict[str, int]:
         else:
             passed += 1
 
+    precision_denominator = expected_signal_cases + unexpected_signal_cases
+    precision = (
+        expected_signal_cases / precision_denominator
+        if precision_denominator
+        else 1.0
+    )
+
     return {
         "total": total,
         "passed": passed,
         "failed": failed,
         "expected_signal_cases": expected_signal_cases,
         "unexpected_signal_cases": unexpected_signal_cases,
+        "precision": round(precision, 3),
     }
 
 
