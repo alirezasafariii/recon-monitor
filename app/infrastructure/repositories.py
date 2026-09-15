@@ -21,9 +21,41 @@ class SQLiteFindingRepository:
         return dict(row) if row else None
 
     def save(self, finding: dict[str, Any]) -> str:
-        raise NotImplementedError(
-            "Pending migration of existing findings INSERT/UPSERT semantics from core.py"
+        self._gateway.execute(
+            """
+            INSERT INTO findings(
+                target,
+                dedup_key,
+                template_id,
+                name,
+                severity,
+                matched_at,
+                details_json,
+                first_seen,
+                last_seen,
+                last_run_id
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(target,dedup_key)
+            DO UPDATE SET
+                last_seen=excluded.last_seen,
+                last_run_id=excluded.last_run_id,
+                details_json=excluded.details_json
+            """,
+            (
+                finding.get("target"),
+                finding.get("dedup_key"),
+                finding.get("template_id"),
+                finding.get("name"),
+                finding.get("severity"),
+                finding.get("matched_at"),
+                finding.get("details_json"),
+                finding.get("first_seen"),
+                finding.get("last_seen"),
+                finding.get("last_run_id"),
+            ),
         )
+        return str(finding.get("dedup_key") or "")
 
 
 class SQLiteEvidenceRepository:
