@@ -28,6 +28,12 @@ SENSITIVE_ENDPOINT_HINTS = {
     "auth",
 }
 
+BENIGN_RESPONSE_FIELDS = {
+    "request_id",
+    "trace_id",
+    "timestamp",
+}
+
 
 @dataclass(slots=True)
 class DifferentialSignal:
@@ -69,6 +75,7 @@ class DifferentialAnalyzer:
 
     def _response_change(self, previous, current):
         added = sorted(set(current.get("response_keys", [])) - set(previous.get("response_keys", [])))
+        added = [field for field in added if field.lower() not in BENIGN_RESPONSE_FIELDS]
         if not added:
             return []
 
