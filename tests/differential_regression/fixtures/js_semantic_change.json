@@ -1,0 +1,19 @@
+{
+  "name": "javascript_sensitive_reference_change",
+  "before": {
+    "references": [
+      "/api/profile"
+    ]
+  },
+  "after": {
+    "references": [
+      "/api/profile",
+      "/api/admin/export"
+    ]
+  },
+  "expected": {
+    "signals": [
+      "new_sensitive_reference"
+    ]
+  }
+}
