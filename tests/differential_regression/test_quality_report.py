@@ -14,6 +14,14 @@ def load_fixture(name: str):
         return json.load(f)
 
 
+def expected_signals_for(case: dict) -> set[str]:
+    if "expected_signals" in case:
+        return set(case["expected_signals"])
+
+    expected = case.get("expected", {})
+    return set(expected.get("signals", []))
+
+
 def test_differential_regression_fixtures():
     analyzer = DifferentialAnalyzer()
 
@@ -22,7 +30,7 @@ def test_differential_regression_fixtures():
         signals = analyzer.compare(case["before"], case["after"])
         signal_types = {signal.signal_type for signal in signals}
 
-        expected = set(case.get("expected_signals", []))
+        expected = expected_signals_for(case)
         assert expected.issubset(signal_types), fixture.name
 
         if not expected:
