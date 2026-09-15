@@ -1,0 +1,17 @@
+{
+  "name": "normal_header_change",
+  "before": {
+    "headers": {
+      "cache-control": "no-cache"
+    }
+  },
+  "after": {
+    "headers": {
+      "cache-control": "max-age=3600",
+      "x-request-id": "abc123"
+    }
+  },
+  "expected": {
+    "signals": []
+  }
+}

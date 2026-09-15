@@ -1,0 +1,14 @@
+{
+  "name": "build_hash_only_change",
+  "before": {
+    "asset": "app.js?v=100",
+    "semantic_content": "unchanged"
+  },
+  "after": {
+    "asset": "app.js?v=101",
+    "semantic_content": "unchanged"
+  },
+  "expected": {
+    "signals": []
+  }
+}
