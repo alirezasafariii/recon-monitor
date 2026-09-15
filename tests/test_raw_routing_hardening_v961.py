@@ -96,7 +96,7 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
             self.assertGreater(budget["executed"], 0)
             self.assertEqual(budget["skipped"], 0)
             self.assertFalse(budget["exhausted"])
-            self.assertGreaterEqual(budget["limit"], 100_000)
+            self.assertEqual(budget["limit"], 0)
             self.assertEqual(
                 db.one(
                     "SELECT COUNT(*) count FROM bug_candidates WHERE analysis_id=?",
@@ -213,7 +213,7 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
         self.assertEqual(status["pending_count"], 0)
         self.assertFalse(status["generic_family_analyzer_fallback"])
         self.assertTrue(budget["raw_context_only"])
-        self.assertGreaterEqual(budget["invocation_limit_per_analysis"], 100_000)
+        self.assertEqual(budget["invocation_limit_per_analysis"], 0)
 
 
 if __name__ == "__main__":

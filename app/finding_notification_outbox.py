@@ -260,115 +260,12 @@ def deliver_finding_notification_outbox(
     """Deliver due outbox rows; delivery failure never mutates Candidate state."""
 
     ensure_finding_notification_outbox_schema(db)
-    current = str(now or utc_now())
-    lease_id, rows = _claim_due_rows(
-        db,
-        now=current,
-        target=str(target or ""),
-        mode=str(mode or ""),
-        limit=limit,
-    )
-    if not rows:
-        return {
-            "version": FINDING_NOTIFICATION_OUTBOX_VERSION,
-            "lease_id": lease_id,
-            "due": 0,
-            "attempted": 0,
-            "delivered": 0,
-            "retry_pending": 0,
-            "failed": 0,
-            "batches": [],
-        }
-
-    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        groups[(str(row.get("target") or ""), str(row.get("mode") or ""))].append(row)
-
-    send = transport or deliver_notification_message
-    delivered_count = 0
-    retry_count = 0
-    failed_count = 0
-    batches: list[dict[str, Any]] = []
-
-    for (batch_target, batch_mode), batch_rows in groups.items():
-        message = _message(batch_target, batch_mode, batch_rows)
-        try:
-            result = dict(send(config, logger, message))
-        except Exception as exc:
-            result = {"delivered": False, "channel": "", "channels": [], "error": str(exc)}
-        delivered = bool(result.get("delivered"))
-        channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
-        error = str(result.get("error") or "")
-
-        with db.transaction():
-            for row in batch_rows:
-                event_id = str(row["event_id"])
-                attempts = int(row.get("attempt_count") or 0) + 1
-                max_attempts = max(1, int(row.get("max_attempts") or DEFAULT_MAX_ATTEMPTS))
-                if delivered:
-                    db.execute(
-                        "UPDATE finding_notification_outbox SET status='delivered',attempt_count=?,"
-                        "last_attempt_at=?,last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
-                        "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                        (attempts, current, current, current, event_id, lease_id),
-                    )
-                    db.execute(
-                        "UPDATE notification_events SET status='delivered',delivered_at=? "
-                        "WHERE event_id=? AND status='queued'",
-                        (current, event_id),
-                    )
-                    db.execute(
-                        "INSERT INTO notification_deliveries(event_id,channel,status,error,created_at) "
-                        "VALUES(?,?,'delivered','',?)",
-                        (event_id, channel, current),
-                    )
-                    delivered_count += 1
-                    continue
-
-                terminal = attempts >= max_attempts
-                next_attempt = current if terminal else _next_attempt(current, attempts)
-                next_status = "failed" if terminal else "retry_pending"
-                db.execute(
-                    "UPDATE finding_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,"
-                    "last_attempt_at=?,last_error=?,lease_id='',lease_expires_at='',updated_at=? "
-                    "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                    (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
-                )
-                if terminal:
-                    db.execute(
-                        "UPDATE notification_events SET status='failed' WHERE event_id=? AND status='queued'",
-                        (event_id,),
-                    )
-                    failed_count += 1
-                else:
-                    retry_count += 1
-                db.execute(
-                    "INSERT INTO notification_deliveries(event_id,channel,status,error,created_at) "
-                    "VALUES(?,?,'failed',?,?)",
-                    (event_id, channel, error, current),
-                )
-
-        batches.append(
-            {
-                "target": batch_target,
-                "mode": batch_mode,
-                "events": len(batch_rows),
-                "delivered": delivered,
-                "channel": channel,
-                "error": error,
-            }
-        )
-
-    return {
-        "version": FINDING_NOTIFICATION_OUTBOX_VERSION,
-        "lease_id": lease_id,
-        "due": len(rows),
-        "attempted": len(rows),
-        "delivered": delivered_count,
-        "retry_pending": retry_count,
-        "failed": failed_count,
-        "batches": batches,
-    }
+    from change_alerts import suppress_finding_delivery
+    suppress_finding_delivery(db)
+    return {"version": FINDING_NOTIFICATION_OUTBOX_VERSION, "lease_id": "",
+            "due": 0, "attempted": 0, "delivered": 0, "retry_pending": 0,
+            "failed": 0, "batches": [], "disabled": True,
+            "reason": "Only observed Recon changes generate outbound alerts."}
 
 
 def requeue_failed_finding_notifications(

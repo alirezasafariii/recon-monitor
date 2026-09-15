@@ -1,5 +1,7 @@
 # Unified Reviewed-Evidence Dispatcher
 
+> Updated policy: Finding delivery is disabled. Candidates and reviewed evidence are preserved; pending legacy finding events are suppressed. The finding worker is retained for compatibility and performs no transport I/O. Historical delivery descriptions below are superseded by [REVIEW_COMPLETION.md](REVIEW_COMPLETION.md).
+
 The reviewed-evidence dispatcher is the single operational entrypoint for moving an already-reviewed offline evidence record through the existing family Admission bridge and then through the Potential Finding notification pipeline.
 
 ## Supported review kinds

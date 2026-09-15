@@ -1,5 +1,8 @@
 # Recon Monitor 8.8.0
 
+> Current notification policy: only observed Recon changes after the baseline generate outbound alerts. Potential Findings remain in Analysis and never trigger transport delivery, including legacy queued findings. See [review completion](docs/REVIEW_COMPLETION.md) for replay migration and delivery guarantees.
+
+
 <!-- recon-monitor-current: app=8.8.0 schema=18 -->
 
 ## Current release: Evidence-to-Finding Reliability & Durable Delivery

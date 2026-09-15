@@ -107,39 +107,17 @@ class FindingNotificationOperationsTests(unittest.TestCase):
         self.assertEqual(status["oldest_pending_age_seconds"], 3600)
         self.assertEqual(status["dead_letter_open"], 0)
 
-    def test_terminal_failure_becomes_dead_letter_and_retry_resolves_it(self) -> None:
+    def test_legacy_failed_findings_are_quarantined(self):
         self._event("notify-dead")
-        self.db.execute(
-            "UPDATE finding_notification_outbox SET max_attempts=1 WHERE event_id='notify-dead'"
-        )
-        failed = run_finding_notification_worker(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            force=True,
-            now="2026-09-14T01:00:00Z",
-            transport=self._failure,
-        )
-        self.assertEqual(failed["delivery"]["failed"], 1)
-        dead = list_dead_letters(self.db)
-        self.assertEqual(len(dead), 1)
-        self.assertEqual(dead[0]["event_id"], "notify-dead")
-        self.assertEqual(dead[0]["last_error"], "offline")
-        self.assertEqual(finding_notification_diagnostics(self.db)["dead_letter_open"], 1)
-
-        self.assertEqual(retry_dead_letters(self.db, event_id="notify-dead"), 1)
+        self.db.execute("UPDATE finding_notification_outbox SET status='failed' WHERE event_id='notify-dead'")
+        result = run_finding_notification_worker(config=self.config, logger=self.logger, db=self.db, force=True,
+            now="2099-01-01T00:00:00Z", transport=lambda *_: self.fail("Finding transport must never run"))
+        self.assertEqual(result["delivery"]["delivered"], 0)
+        self.assertEqual(self.db.one("SELECT status FROM finding_notification_outbox WHERE event_id='notify-dead'")[0], "suppressed")
         self.assertEqual(list_dead_letters(self.db), [])
-        delivered = run_finding_notification_worker(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            force=True,
-            now="2099-01-01T00:00:00Z",
-            transport=self._success,
-        )
-        self.assertEqual(delivered["delivery"]["delivered"], 1)
 
-    def test_drain_processes_multiple_batches(self) -> None:
+
+    def test_drain_suppresses_legacy_finding_batches(self) -> None:
         for index in range(5):
             self._event(f"notify-drain-{index}")
         result = drain_finding_notification_outbox(
@@ -150,9 +128,9 @@ class FindingNotificationOperationsTests(unittest.TestCase):
             max_batches=10,
             transport=self._success,
         )
-        self.assertEqual(result["delivered"], 5)
+        self.assertEqual(result["delivered"], 0)
         self.assertEqual(result["diagnostics"]["queue_depth"], 0)
-        self.assertGreaterEqual(result["batches"], 3)
+        self.assertEqual(result["batches"], 1)
 
     def test_watch_scheduler_executes_then_obeys_interval(self) -> None:
         self._event("notify-watch")

@@ -1,5 +1,7 @@
 # Finding Notification Worker Operations
 
+> Updated policy: Finding delivery is disabled. Candidates and reviewed evidence are preserved; pending legacy finding events are suppressed. The finding worker is retained for compatibility and performs no transport I/O. Historical delivery descriptions below are superseded by [REVIEW_COMPLETION.md](REVIEW_COMPLETION.md).
+
 Potential Finding delivery is queue-centric and independent from Recon Change Alerts and target scan cadence.
 
 ## Operational model

@@ -90,6 +90,14 @@ def ensure_recon_alert_outbox_schema(db: Database) -> None:
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (str(RECON_ALERT_OUTBOX_SCHEMA_VERSION),),
     )
+    from change_alerts import CHANGE_CATEGORIES
+    allowed = ','.join('?' for _ in CHANGE_CATEGORIES)
+    db.execute(
+        "UPDATE recon_alert_notification_outbox SET status='suppressed',lease_id='',lease_expires_at='' "
+        "WHERE status<>'delivered' AND alert_id IN "
+        f"(SELECT id FROM alerts WHERE category NOT IN ({allowed}))",
+        tuple(sorted(CHANGE_CATEGORIES)),
+    )
 
 
 def unresolved_recon_alert_delivery(db: Database, alert_id: int) -> dict[str, Any] | None:
@@ -115,6 +123,9 @@ def enqueue_recon_alert_event(
     if not _schema_ready(db):
         ensure_recon_alert_outbox_schema(db)
 
+    from change_alerts import CHANGE_CATEGORIES
+    if payload.get("category") not in CHANGE_CATEGORIES:
+        return {"event_id": "", "queued": False, "status": "suppressed", "deduplicated": False}
     event_id = _event_id(int(alert_id), str(run_id))
     existing = db.one("SELECT * FROM recon_alert_notification_outbox WHERE event_id=?", (event_id,))
     if existing is not None:
@@ -192,7 +203,7 @@ def _message(target: str, run_id: str, rows: list[dict[str, Any]]) -> str:
         f"High-priority changes: {len(ordered)}",
         "",
     ]
-    for row in ordered[:100]:
+    for row in ordered:
         payload = safe_json_loads(row.get("payload_json"), {}, expected_type=dict)
         lines.append(
             f"• [{payload.get('severity', 'INFO')}] "
@@ -200,9 +211,7 @@ def _message(target: str, run_id: str, rows: list[dict[str, Any]]) -> str:
             f"{payload.get('confirmation_state', 'confirmed')}] "
             f"{payload.get('title', 'Recon change')}: {payload.get('item', '')}"
         )
-    if len(ordered) > 100:
-        lines.append(f"• … and {len(ordered) - 100} more")
-    return "\n".join(lines)[:15000]
+    return "\n".join(lines)
 
 
 def _claim_due_rows(
@@ -285,9 +294,9 @@ def deliver_recon_alert_outbox(
             "batches": [],
         }
 
-    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        groups[(str(row.get("target") or ""), str(row.get("run_id") or ""))].append(row)
+        groups[(str(row.get("target") or ""), str(row.get("run_id") or ""), str(row["event_id"]))].append(row)
 
     send = transport or deliver_notification_message
     delivered_count = 0
@@ -295,58 +304,71 @@ def deliver_recon_alert_outbox(
     failed_count = 0
     batches: list[dict[str, Any]] = []
 
-    for (batch_target, batch_run_id), batch_rows in groups.items():
-        try:
-            result = dict(send(config, logger, _message(batch_target, batch_run_id, batch_rows)))
-        except Exception as exc:
-            result = {"delivered": False, "channel": "", "channels": [], "error": str(exc)}
-        delivered = bool(result.get("delivered"))
-        channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
-        error = str(result.get("error") or "")
+    from notification_leases import maintain_recon_lease
+    with maintain_recon_lease(db, lease_id, enabled=not bool(now)):
+        for (batch_target, batch_run_id, _event_id), batch_rows in groups.items():
+            current = str(now or utc_now())
+            batch_rows = [row for row in batch_rows if db.one(
+                "SELECT 1 FROM recon_alert_notification_outbox WHERE event_id=? AND status='delivering' "
+                "AND lease_id=? AND lease_expires_at>?", (row["event_id"], lease_id, current))]
+            if not batch_rows:
+                continue
+            try:
+                result = dict(send(config, logger, _message(batch_target, batch_run_id, batch_rows)))
+            except Exception as exc:
+                result = {"delivered": False, "channel": "", "channels": [], "error": str(exc)}
+            delivered = bool(result.get("delivered"))
+            channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
+            error = str(result.get("error") or "")
 
-        with db.transaction():
-            for row in batch_rows:
-                event_id = str(row["event_id"])
-                attempts = int(row.get("attempt_count") or 0) + 1
-                max_attempts = max(1, int(row.get("max_attempts") or DEFAULT_MAX_ATTEMPTS))
-                if delivered:
+            current = str(now or utc_now())
+            with db.transaction():
+                for row in batch_rows:
+                    if not db.one("SELECT 1 FROM recon_alert_notification_outbox WHERE event_id=? "
+                                  "AND status='delivering' AND lease_id=? AND lease_expires_at>?",
+                                  (row["event_id"], lease_id, current)):
+                        continue
+                    event_id = str(row["event_id"])
+                    attempts = int(row.get("attempt_count") or 0) + 1
+                    max_attempts = max(1, int(row.get("max_attempts") or DEFAULT_MAX_ATTEMPTS))
+                    if delivered:
+                        db.execute(
+                            "UPDATE recon_alert_notification_outbox SET status='delivered',attempt_count=?,last_attempt_at=?,"
+                            "last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
+                            "WHERE event_id=? AND status='delivering' AND lease_id=?",
+                            (attempts, current, current, current, event_id, lease_id),
+                        )
+                        db.execute(
+                            "UPDATE alerts SET last_notified=? WHERE id=?",
+                            (current, int(row["alert_id"])),
+                        )
+                        delivered_count += 1
+                        continue
+
+                    terminal = attempts >= max_attempts
+                    next_status = "failed" if terminal else "retry_pending"
+                    next_attempt = current if terminal else _next_attempt(current, attempts)
                     db.execute(
-                        "UPDATE recon_alert_notification_outbox SET status='delivered',attempt_count=?,last_attempt_at=?,"
-                        "last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
+                        "UPDATE recon_alert_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,last_attempt_at=?,"
+                        "last_error=?,lease_id='',lease_expires_at='',updated_at=? "
                         "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                        (attempts, current, current, current, event_id, lease_id),
+                        (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
                     )
-                    db.execute(
-                        "UPDATE alerts SET last_notified=? WHERE id=?",
-                        (current, int(row["alert_id"])),
-                    )
-                    delivered_count += 1
-                    continue
+                    if terminal:
+                        failed_count += 1
+                    else:
+                        retry_count += 1
 
-                terminal = attempts >= max_attempts
-                next_status = "failed" if terminal else "retry_pending"
-                next_attempt = current if terminal else _next_attempt(current, attempts)
-                db.execute(
-                    "UPDATE recon_alert_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,last_attempt_at=?,"
-                    "last_error=?,lease_id='',lease_expires_at='',updated_at=? "
-                    "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                    (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
-                )
-                if terminal:
-                    failed_count += 1
-                else:
-                    retry_count += 1
-
-        batches.append(
-            {
-                "target": batch_target,
-                "run_id": batch_run_id,
-                "events": len(batch_rows),
-                "delivered": delivered,
-                "channel": channel,
-                "error": error,
-            }
-        )
+            batches.append(
+                {
+                    "target": batch_target,
+                    "run_id": batch_run_id,
+                    "events": len(batch_rows),
+                    "delivered": delivered,
+                    "channel": channel,
+                    "error": error,
+                }
+            )
 
     return {
         "version": RECON_ALERT_OUTBOX_VERSION,

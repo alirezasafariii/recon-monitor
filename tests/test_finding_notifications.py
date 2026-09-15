@@ -136,32 +136,24 @@ class FindingNotificationTests(unittest.TestCase):
             policy=SimpleNamespace(name=self.TARGET),
         )
 
-    def test_baseline_allows_new_potential_finding_notification(self) -> None:
+    def test_baseline_preserves_candidate_without_notification(self):
         self._analysis("AN-1", "RUN-1")
         self._candidate("AN-1", "RUN-1", "C-1")
+        result = process_finding_notifications(self._ctx("RUN-1"), {"analysis_id": "AN-1"}, baseline=True)
+        self.assertEqual(result["queued"], 0)
+        self.assertTrue(result["baseline_suppresses_findings"])
+        self.assertEqual(result["transitions"], [])
+        self.assertIsNone(self.db.one("SELECT * FROM notification_events WHERE event_type='potential_finding'"))
+        self.assertIsNotNone(self.db.one("SELECT * FROM bug_candidates WHERE candidate_id='C-1'"))
 
-        result = process_finding_notifications(
-            self._ctx("RUN-1"),
-            {"analysis_id": "AN-1", "status": "success"},
-            baseline=True,
-        )
 
-        self.assertEqual(result["queued"], 1)
-        self.assertTrue(result["baseline"])
-        self.assertFalse(result["baseline_suppresses_findings"])
-        self.assertEqual(result["transitions"][0]["transition"], "new")
-        row = self.db.one("SELECT * FROM notification_events WHERE event_type='potential_finding'")
-        self.assertIsNotNone(row)
-        self.assertEqual(str(row["mode"]), "immediate")
-        self.assertEqual(str(row["status"]), "queued")
-
-    def test_same_finding_on_later_analysis_is_exactly_once(self) -> None:
+    def test_same_finding_on_later_analysis_remains_silent(self) -> None:
         self._analysis("AN-1", "RUN-1")
         self._candidate("AN-1", "RUN-1", "C-1")
         first = process_finding_notifications(
             self._ctx("RUN-1"), {"analysis_id": "AN-1"}
         )
-        self.assertEqual(first["queued"], 1)
+        self.assertEqual(first["queued"], 0)
 
         self._analysis("AN-2", "RUN-2")
         self._candidate("AN-2", "RUN-2", "C-2")
@@ -170,13 +162,13 @@ class FindingNotificationTests(unittest.TestCase):
         )
 
         self.assertEqual(second["queued"], 0)
-        self.assertEqual(second["skipped_unchanged"], 1)
+        self.assertEqual(second["skipped_policy"], 1)
         count = self.db.one(
             "SELECT COUNT(*) count FROM notification_events WHERE event_type='potential_finding'"
         )
-        self.assertEqual(int(count["count"]), 1)
+        self.assertEqual(int(count["count"]), 0)
 
-    def test_material_confidence_increase_creates_second_transition(self) -> None:
+    def test_material_confidence_increase_remains_silent(self) -> None:
         self._analysis("AN-1", "RUN-1")
         self._candidate("AN-1", "RUN-1", "C-1", likelihood=62, investigation=65)
         process_finding_notifications(self._ctx("RUN-1"), {"analysis_id": "AN-1"})
@@ -187,16 +179,16 @@ class FindingNotificationTests(unittest.TestCase):
             self._ctx("RUN-2"), {"analysis_id": "AN-2"}
         )
 
-        self.assertEqual(result["queued"], 1)
-        self.assertEqual(result["transitions"][0]["transition"], "confidence_increased")
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["transitions"], [])
         rows = self.db.all(
             "SELECT transition_type FROM finding_notification_transitions "
             "WHERE target=? AND candidate_fingerprint=? ORDER BY created_at,rowid",
             (self.TARGET, self.FP),
         )
-        self.assertEqual([str(row["transition_type"]) for row in rows], ["new", "confidence_increased"])
+        self.assertEqual([str(row["transition_type"]) for row in rows], [])
 
-    def test_ineligible_possible_candidate_notifies_when_promoted(self) -> None:
+    def test_candidate_promotion_remains_silent(self) -> None:
         self._analysis("AN-1", "RUN-1")
         self._candidate(
             "AN-1", "RUN-1", "C-1", state="possible", likelihood=45, evidence=35, investigation=52
@@ -214,8 +206,8 @@ class FindingNotificationTests(unittest.TestCase):
         second = process_finding_notifications(
             self._ctx("RUN-2"), {"analysis_id": "AN-2"}
         )
-        self.assertEqual(second["queued"], 1)
-        self.assertEqual(second["transitions"][0]["transition"], "promoted")
+        self.assertEqual(second["queued"], 0)
+        self.assertEqual(second["transitions"], [])
 
     def test_upgrade_bootstrap_does_not_realert_existing_candidate(self) -> None:
         temp = tempfile.TemporaryDirectory()
@@ -287,7 +279,7 @@ class FindingNotificationTests(unittest.TestCase):
             )
             result = process_finding_notifications(ctx, {"analysis_id": "AN-OLD"})
             self.assertEqual(result["queued"], 0)
-            self.assertEqual(result["skipped_unchanged"], 1)
+            self.assertEqual(result["skipped_policy"], 1)
             count = db.one("SELECT COUNT(*) count FROM notification_events WHERE event_type='potential_finding'")
             self.assertEqual(int(count["count"]), 0)
             db.close()

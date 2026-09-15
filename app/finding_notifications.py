@@ -94,20 +94,7 @@ def _eligible(candidate: Mapping[str, Any]) -> bool:
 
 
 def _policy(db: Database, target: str) -> tuple[str, int]:
-    row = db.one(
-        "SELECT * FROM notification_policies WHERE enabled=1 AND ("
-        "(target=? AND event_type=?) OR (target=? AND event_type='*') OR "
-        "(target='*' AND event_type=?) OR (target='*' AND event_type='*')) "
-        "ORDER BY CASE WHEN target=? THEN 0 ELSE 1 END,"
-        "CASE WHEN event_type=? THEN 0 ELSE 1 END LIMIT 1",
-        (target, EVENT_TYPE, target, EVENT_TYPE, target, EVENT_TYPE),
-    )
-    if row is None:
-        return "immediate", 0
-    mode = str(row["mode"] or "immediate")
-    if mode not in {"immediate", "digest", "system_warning", "silent"}:
-        mode = "immediate"
-    return mode, parse_int(row["minimum_score"], 0, 0, 100)
+    return "silent", 0
 
 
 def ensure_finding_notification_schema(db: Database) -> None:
@@ -375,14 +362,16 @@ def _queue_transition(
 def _deliver_pending(ctx: Any, limit: int = 50) -> dict[str, Any]:
     """Compatibility shim: report processing no longer performs outbound I/O."""
 
+    from change_alerts import suppress_finding_delivery
+    suppress_finding_delivery(ctx.db)
     summary = outbox_summary(ctx.db, target=ctx.policy.name)
     pending = int(summary.get("queued", 0)) + int(summary.get("retry_pending", 0))
     return {
         "queued": pending,
         "delivered": 0,
         "error": "",
-        "deferred": True,
-        "worker_required": True,
+        "deferred": False,
+        "worker_required": False,
         "outbox": summary,
     }
 
@@ -479,7 +468,7 @@ def process_finding_notifications(
         "status": "success" if analysis_id else "no_analysis",
         "analysis_id": analysis_id,
         "baseline": bool(baseline),
-        "baseline_suppresses_findings": False,
+        "baseline_suppresses_findings": True,
         "candidates": len(candidates),
         "queued": queued,
         "deduplicated": deduplicated,
@@ -520,20 +509,20 @@ def install_finding_notification_pipeline() -> None:
                 "status": "failed",
                 "error": str(exc),
                 "baseline": bool(baseline),
-                "baseline_suppresses_findings": False,
+                "baseline_suppresses_findings": True,
                 "queued": 0,
                 "delivery": {
                     "queued": 0,
                     "delivered": 0,
                     "error": str(exc),
-                    "deferred": True,
-                    "worker_required": True,
+                    "deferred": False,
+                    "worker_required": False,
                 },
             }
         result = dict(result)
         result["finding_notifications"] = finding_result
         result["finding_notified"] = False
-        result["finding_notification_delivery_deferred"] = True
+        result["finding_notification_delivery_deferred"] = False
         return result
 
     stage_report_with_finding_notifications.__name__ = original.__name__

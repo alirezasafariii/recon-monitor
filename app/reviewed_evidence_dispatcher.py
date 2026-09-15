@@ -188,7 +188,7 @@ def dispatch_reviewed_evidence(
         "queued": 0,
         "deduplicated": 0,
         "transitions": [],
-        "delivery": {"queued": 0, "delivered": 0, "error": "", "deferred": True},
+        "delivery": {"queued": 0, "delivered": 0, "error": "", "deferred": False},
     }
     if candidate_id and analysis_id and target:
         notification_result = process_finding_notifications(
@@ -275,7 +275,7 @@ def dispatch_reviewed_evidence(
                 "notification_status": notification_status,
                 "event_ids": event_ids,
                 "attempts": attempts,
-                "notification_delivery_deferred_to_outbox_worker": bool(candidate_id),
+                "notification_delivery_deferred_to_outbox_worker": False,
                 "target_network_requests_executed": 0,
                 "vulnerability_confirmed": False,
             },
@@ -299,6 +299,6 @@ def dispatch_reviewed_evidence(
         "notification_events": events,
         "target_network_requests_executed": 0,
         "notification_delivery_may_use_configured_outbound_transports": False,
-        "notification_delivery_deferred_to_outbox_worker": bool(candidate_id),
+        "notification_delivery_deferred_to_outbox_worker": False,
         "vulnerability_confirmed": False,
     }

@@ -1,5 +1,7 @@
 # Unified Notification Supervisor
 
+> Updated policy: Finding delivery is disabled. Candidates and reviewed evidence are preserved; pending legacy finding events are suppressed. The finding worker is retained for compatibility and performs no transport I/O. Historical delivery descriptions below are superseded by [REVIEW_COMPLETION.md](REVIEW_COMPLETION.md).
+
 Recon Monitor runs Finding delivery and Recon Alert delivery as separate durable workers. The Unified Notification Supervisor coordinates when those workers are invoked without merging their queues, identifiers, retry state, dead letters, or domain lifecycle truth.
 
 ## Runtime model

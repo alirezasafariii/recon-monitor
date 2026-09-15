@@ -721,7 +721,11 @@ def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None 
     with a bounded error message and audit entry.
     """
     try:
-        return _run_analysis_impl(paths, db, run_id, target, mode=mode, persist=persist, profile=profile)
+        from analysis_input_snapshot import analysis_inputs
+        with analysis_inputs(paths, db, run_id, target, replay=mode == "replay") as snapshot:
+            result = _run_analysis_impl(paths, db, run_id, target, mode=mode, persist=persist, profile=profile)
+            result["input_snapshot"] = snapshot
+            return result
     except KeyboardInterrupt:
         row = db.one(
             "SELECT id FROM analysis_runs WHERE source_run_id=? AND target=? AND engine_version=? AND status='running' ORDER BY started_at DESC LIMIT 1",

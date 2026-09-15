@@ -1,5 +1,7 @@
 # Finding Notification Outbox
 
+> Updated policy: Finding delivery is disabled. Candidates and reviewed evidence are preserved; pending legacy finding events are suppressed. The finding worker is retained for compatibility and performs no transport I/O. Historical delivery descriptions below are superseded by [REVIEW_COMPLETION.md](REVIEW_COMPLETION.md).
+
 Potential Finding notification delivery is separated from Analysis, Canonical Admission, Candidate creation, and reviewed-evidence dispatch.
 
 ## Pipeline

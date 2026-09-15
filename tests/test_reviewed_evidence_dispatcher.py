@@ -185,7 +185,7 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
             self.fx.ctx(), review_id=review_id, review_kind=review_kind, actor="test"
         )
 
-    def test_material_review_queues_then_worker_delivers_exactly_once(self) -> None:
+    def test_material_review_promotes_exactly_once_without_notification(self) -> None:
         hypothesis = self.fx.material_hypothesis("material")
         review_id = "MCR-DISPATCH-MATERIAL"
         review = self.fx.review_material(hypothesis["hypothesis_id"], review_id)
@@ -196,25 +196,20 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
         self.assertEqual(first["review_kind"], "material_classification")
         self.assertEqual(first["status"], "completed")
         self.assertTrue(first["candidate_id"])
-        self.assertEqual(first["candidate_transitions"][0]["transition"], "new")
-        self.assertEqual(len(first["notification_events"]), 1)
-        self.assertEqual(str(first["notification_events"][0]["status"]), "queued")
-        self.assertEqual(str(first["notification_events"][0]["outbox_status"]), "queued")
-        self.assertTrue(first["notification_delivery_deferred_to_outbox_worker"])
+        self.assertEqual(len(first["notification_events"]), 0)
+        self.assertFalse(first["notification_delivery_deferred_to_outbox_worker"])
         self.assertFalse(first["notification_delivery_may_use_configured_outbound_transports"])
         self.assertFalse(first["vulnerability_confirmed"])
 
         delivery = self.fx.deliver()
-        self.assertEqual(delivery["delivered"], 1)
+        self.assertEqual(delivery["delivered"], 0)
         second = self._dispatch(review_id)
         self.assertTrue(second["replayed"])
         self.assertEqual(second["attempts"], 2)
         self.assertEqual(second["candidate_id"], first["candidate_id"])
         self.assertEqual(second["bridge"]["status"], "already_applied")
         self.assertEqual(second["candidate_transitions"], [])
-        self.assertEqual(len(second["notification_events"]), 1)
-        self.assertEqual(str(second["notification_events"][0]["status"]), "delivered")
-        self.assertEqual(str(second["notification_events"][0]["outbox_status"]), "delivered")
+        self.assertEqual(len(second["notification_events"]), 0)
 
         events = self.fx.db.one("SELECT COUNT(*) AS n FROM notification_events WHERE event_type='potential_finding'")
         deliveries = self.fx.db.one("SELECT COUNT(*) AS n FROM notification_deliveries")
@@ -222,13 +217,13 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
             "SELECT attempts,event_ids_json,status FROM reviewed_evidence_dispatch_runs WHERE review_id=?",
             (review_id,),
         )
-        self.assertEqual(int(events["n"]), 1)
-        self.assertEqual(int(deliveries["n"]), 1)
+        self.assertEqual(int(events["n"]), 0)
+        self.assertEqual(int(deliveries["n"]), 0)
         self.assertEqual(int(dispatcher["attempts"]), 2)
         self.assertEqual(str(dispatcher["status"]), "completed")
-        self.assertEqual(len(json.loads(str(dispatcher["event_ids_json"]))), 1)
+        self.assertEqual(len(json.loads(str(dispatcher["event_ids_json"]))), 0)
 
-    def test_graphql_review_uses_same_queue_and_worker(self) -> None:
+    def test_graphql_review_promotes_without_notification(self) -> None:
         hypothesis = self.fx.graphql_hypothesis("graphql")
         review_id = "GQLD-DISPATCH-GRAPHQL"
         review = self.fx.review_graphql(hypothesis["hypothesis_id"], review_id)
@@ -238,9 +233,7 @@ class ReviewedEvidenceDispatcherTests(unittest.TestCase):
         self.assertEqual(result["review_kind"], "graphql_data_exposure")
         self.assertEqual(result["status"], "completed")
         self.assertTrue(result["candidate_id"])
-        self.assertEqual(result["candidate_transitions"][0]["transition"], "new")
-        self.assertEqual(str(result["notification_events"][0]["status"]), "queued")
-        self.assertEqual(self.fx.deliver()["delivered"], 1)
+        self.assertEqual(self.fx.deliver()["delivered"], 0)
         candidate = self.fx.db.one(
             "SELECT bug_family FROM bug_candidates WHERE candidate_id=?",
             (result["candidate_id"],),

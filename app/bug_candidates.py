@@ -78,7 +78,8 @@ _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
 RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.1.0"
 RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.08.14.2"
-_RAW_SURFACE_LIMIT = 5000
+_RAW_SURFACE_LIMIT = 0  # Complete inventory; zero means no truncation.
+_RAW_PAGE_SIZE = 500
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
 # raw surface does not belong to them. Phase-two's larger catalog is pre-routed
@@ -172,6 +173,17 @@ def _phase2_families_for_surface(
     return tuple(selected)
 
 
+def _paged_raw_rows(db, sql, params):
+    """Fetch the entire ordered inventory in bounded SQLite pages."""
+    rows = []
+    cursor = db.execute(sql, params)
+    while True:
+        page = cursor.fetchmany(_RAW_PAGE_SIZE)
+        if not page:
+            return rows
+        rows.extend(page)
+
+
 def _raw_surface_rows(
     db: Any,
     *,
@@ -184,27 +196,27 @@ def _raw_surface_rows(
         target_clause = " AND target=?"
         params.append(target)
 
-    endpoint_rows = db.all(
+    endpoint_rows = _paged_raw_rows(db,
         "SELECT * FROM endpoint_intelligence WHERE last_run_id=?"
-        f"{target_clause} ORDER BY confidence DESC,target,endpoint LIMIT {_RAW_SURFACE_LIMIT}",
+        f"{target_clause} ORDER BY confidence DESC,target,endpoint",
         tuple(params),
     )
-    fingerprint_rows = db.all(
+    fingerprint_rows = _paged_raw_rows(db,
         "SELECT * FROM fingerprints WHERE last_run_id=?"
-        f"{target_clause} ORDER BY target,url LIMIT {_RAW_SURFACE_LIMIT}",
+        f"{target_clause} ORDER BY target,url",
         tuple(params),
     )
-    validation_rows = db.all(
+    validation_rows = _paged_raw_rows(db,
         "SELECT * FROM endpoint_validations WHERE last_run_id=?"
-        f"{target_clause} ORDER BY confidence DESC,target,endpoint LIMIT {_RAW_SURFACE_LIMIT}",
+        f"{target_clause} ORDER BY confidence DESC,target,endpoint",
         tuple(params),
     )
-    finding_rows = db.all(
+    finding_rows = _paged_raw_rows(db,
         "SELECT * FROM findings WHERE last_run_id=?"
         f"{target_clause} ORDER BY "
         "CASE LOWER(severity) WHEN 'critical' THEN 5 WHEN 'high' THEN 4 "
         "WHEN 'medium' THEN 3 WHEN 'low' THEN 2 ELSE 1 END DESC,target,matched_at "
-        f"LIMIT {_RAW_SURFACE_LIMIT}",
+        "",
         tuple(params),
     )
     fingerprints = {
@@ -447,10 +459,10 @@ def _raw_surface_rows(
 
     # DNS CNAME observations are routed narrowly to Subdomain Takeover. They
     # establish dependency context only; claimability is never inferred.
-    dns_rows = db.all(
+    dns_rows = _paged_raw_rows(db,
         "SELECT target,host,rrtype,value FROM dns_records "
         "WHERE last_run_id=? AND is_current=1 AND rrtype='CNAME'"
-        f"{target_clause} ORDER BY target,host LIMIT {_RAW_SURFACE_LIMIT}",
+        f"{target_clause} ORDER BY target,host",
         tuple(params),
     )
     for raw in dns_rows:
@@ -479,7 +491,7 @@ def _raw_surface_rows(
     # Explicit stored findings receive priority, then the remaining bounded raw
     # inventory. Duplicate endpoints are still allowed across source kinds so
     # record_hypothesis can merge independent evidence roots by family/variant.
-    return (priority_surfaces + surfaces)[:_RAW_SURFACE_LIMIT]
+    return priority_surfaces + surfaces
 
 
 def _raw_surface_family_candidates(

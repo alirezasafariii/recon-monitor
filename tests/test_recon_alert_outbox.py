@@ -188,8 +188,8 @@ class ReconAlertOutboxTests(unittest.TestCase):
             transport=transport,
         )
         self.assertEqual(result["delivered"], 2)
-        self.assertEqual(len(calls), 1)
-        self.assertIn("High-priority changes: 2", calls[0])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all("High-priority changes: 1" in message for message in calls))
         rows = self.db.all("SELECT last_notified FROM alerts ORDER BY id")
         self.assertTrue(all(row["last_notified"] for row in rows))
 
