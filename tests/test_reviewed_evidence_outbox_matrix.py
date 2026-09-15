@@ -280,7 +280,7 @@ class ReviewedEvidenceOutboxMatrixTests(unittest.TestCase):
     def _success_transport(config, logger, message: str):
         return {"delivered": True, "channel": "fixture", "channels": ["fixture"], "error": ""}
 
-    def test_all_four_review_families_queue_and_deliver_through_one_outbox(self) -> None:
+    def test_all_four_review_families_promote_without_outbound_delivery(self) -> None:
         review_ids = [
             self._review_account(),
             self._review_auth(),
@@ -297,13 +297,11 @@ class ReviewedEvidenceOutboxMatrixTests(unittest.TestCase):
         for review_id in review_ids:
             result = dispatch_reviewed_evidence(self._ctx(), review_id=review_id, actor="test")
             self.assertTrue(result["candidate_id"])
-            self.assertTrue(result["notification_delivery_deferred_to_outbox_worker"])
-            self.assertEqual(str(result["notification_events"][0]["status"]), "queued")
-            self.assertEqual(str(result["notification_events"][0]["outbox_status"]), "queued")
+            self.assertFalse(result["notification_delivery_deferred_to_outbox_worker"])
             candidate_ids.append(result["candidate_id"])
 
-        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_events WHERE event_type='potential_finding'")["n"]), 4)
-        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM finding_notification_outbox WHERE status='queued'")["n"]), 4)
+        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_events WHERE event_type='potential_finding'")["n"]), 0)
+        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM finding_notification_outbox WHERE status='queued'")["n"]), 0)
         self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries")["n"]), 0)
 
         worker = deliver_finding_notification_outbox(
@@ -314,9 +312,9 @@ class ReviewedEvidenceOutboxMatrixTests(unittest.TestCase):
             transport=self._success_transport,
             now="2099-01-01T00:00:00Z",
         )
-        self.assertEqual(worker["delivered"], 4)
-        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM finding_notification_outbox WHERE status='delivered'")["n"]), 4)
-        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE status='delivered'")["n"]), 4)
+        self.assertEqual(worker["delivered"], 0)
+        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM finding_notification_outbox WHERE status='delivered'")["n"]), 0)
+        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE status='delivered'")["n"]), 0)
         rows = self.db.all(
             "SELECT bug_family FROM bug_candidates WHERE candidate_id IN (?,?,?,?)",
             tuple(candidate_ids),
@@ -332,7 +330,7 @@ class ReviewedEvidenceOutboxMatrixTests(unittest.TestCase):
             now="2099-01-01T01:00:00Z",
         )
         self.assertEqual(replay["due"], 0)
-        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE status='delivered'")["n"]), 4)
+        self.assertEqual(int(self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE status='delivered'")["n"]), 0)
 
 
 if __name__ == "__main__":

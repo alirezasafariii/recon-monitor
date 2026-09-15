@@ -1,5 +1,8 @@
 # راهنمای Recon Monitor 8.8.0
 
+> سیاست فعلی اعلان: فقط تغییرات مشاهده‌شده پس از baseline اعلان بیرونی می‌سازند. یافته‌های احتمالی در بخش تحلیل باقی می‌مانند و حتی صف قدیمی آن‌ها ارسال نمی‌شود. جزئیات snapshot بازتحلیل و اصلاحات در [راهنمای اصلاحات](docs/REVIEW_COMPLETION.md) آمده است.
+
+
 <!-- recon-monitor-current: app=8.8.0 schema=18 -->
 
 ## نسخهٔ فعلی: Evidence-to-Finding Reliability و Durable Delivery

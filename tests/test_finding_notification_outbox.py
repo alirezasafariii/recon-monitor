@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -156,143 +157,57 @@ class FindingNotificationOutboxTests(unittest.TestCase):
     def _failure_transport(config, logger, message: str):
         return {"delivered": False, "channel": "fixture", "channels": [], "error": "transport_down"}
 
-    def test_queue_is_durable_and_worker_delivers_exactly_once(self) -> None:
-        event_id, _candidate_id = self._queue("success")
-        event = self.db.one("SELECT status FROM notification_events WHERE event_id=?", (event_id,))
-        outbox = self.db.one("SELECT status,attempt_count FROM finding_notification_outbox WHERE event_id=?", (event_id,))
-        deliveries = self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE event_id=?", (event_id,))
-        self.assertEqual(str(event["status"]), "queued")
-        self.assertEqual(str(outbox["status"]), "queued")
-        self.assertEqual(int(outbox["attempt_count"]), 0)
-        self.assertEqual(int(deliveries["n"]), 0)
+    def test_immediate_cannot_enable_finding_delivery(self):
+        self._set_policy('immediate')
+        run_id, analysis_id, candidate_id = self._analysis_candidate('immediate')
+        result = process_finding_notifications(self._ctx(run_id), {"analysis_id": analysis_id})
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["transitions"], [])
+        with patch("finding_notification_outbox.deliver_notification_message") as send:
+            delivered = deliver_finding_notification_outbox(config=self.config, logger=self.logger, db=self.db, mode='immediate')
+            send.assert_not_called()
+        self.assertEqual(delivered["delivered"], 0)
+        self.assertIsNotNone(self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,)))
 
-        first = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            target=self.TARGET,
-            transport=self._success_transport,
-            now="2099-01-01T00:00:00Z",
-        )
-        self.assertEqual(first["delivered"], 1)
-        second = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            target=self.TARGET,
-            transport=self._success_transport,
-            now="2099-01-01T00:10:00Z",
-        )
-        self.assertEqual(second["due"], 0)
-        event = self.db.one("SELECT status FROM notification_events WHERE event_id=?", (event_id,))
-        outbox = self.db.one("SELECT status,attempt_count FROM finding_notification_outbox WHERE event_id=?", (event_id,))
-        deliveries = self.db.one("SELECT COUNT(*) AS n FROM notification_deliveries WHERE event_id=?", (event_id,))
-        self.assertEqual(str(event["status"]), "delivered")
-        self.assertEqual(str(outbox["status"]), "delivered")
-        self.assertEqual(int(outbox["attempt_count"]), 1)
-        self.assertEqual(int(deliveries["n"]), 1)
 
-    def test_failure_uses_backoff_then_retry_without_candidate_rollback(self) -> None:
-        event_id, candidate_id = self._queue("retry")
-        first = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            transport=self._failure_transport,
-            now="2099-01-01T00:00:00Z",
-        )
-        self.assertEqual(first["retry_pending"], 1)
-        outbox = self.db.one(
-            "SELECT status,attempt_count,next_attempt_at,last_error FROM finding_notification_outbox WHERE event_id=?",
-            (event_id,),
-        )
-        self.assertEqual(str(outbox["status"]), "retry_pending")
-        self.assertEqual(int(outbox["attempt_count"]), 1)
-        self.assertEqual(str(outbox["next_attempt_at"]), "2099-01-01T00:01:00Z")
-        self.assertEqual(str(outbox["last_error"]), "transport_down")
-        event = self.db.one("SELECT status FROM notification_events WHERE event_id=?", (event_id,))
-        candidate = self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
-        self.assertEqual(str(event["status"]), "queued")
-        self.assertIsNotNone(candidate)
+    def test_digest_cannot_enable_finding_delivery(self):
+        self._set_policy('digest')
+        run_id, analysis_id, candidate_id = self._analysis_candidate('digest')
+        result = process_finding_notifications(self._ctx(run_id), {"analysis_id": analysis_id})
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["transitions"], [])
+        with patch("finding_notification_outbox.deliver_notification_message") as send:
+            delivered = deliver_finding_notification_outbox(config=self.config, logger=self.logger, db=self.db, mode='digest')
+            send.assert_not_called()
+        self.assertEqual(delivered["delivered"], 0)
+        self.assertIsNotNone(self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,)))
 
-        too_soon = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            transport=self._success_transport,
-            now="2099-01-01T00:00:30Z",
-        )
-        self.assertEqual(too_soon["due"], 0)
-        retried = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            transport=self._success_transport,
-            now="2099-01-01T00:01:00Z",
-        )
-        self.assertEqual(retried["delivered"], 1)
-        outbox = self.db.one("SELECT status,attempt_count FROM finding_notification_outbox WHERE event_id=?", (event_id,))
-        deliveries = self.db.all(
-            "SELECT status FROM notification_deliveries WHERE event_id=? ORDER BY id",
-            (event_id,),
-        )
-        self.assertEqual(str(outbox["status"]), "delivered")
-        self.assertEqual(int(outbox["attempt_count"]), 2)
-        self.assertEqual([str(row["status"]) for row in deliveries], ["failed", "delivered"])
 
-    def test_terminal_failure_can_be_manually_requeued(self) -> None:
-        event_id, _candidate_id = self._queue("terminal")
-        self.db.execute(
-            "UPDATE finding_notification_outbox SET max_attempts=1 WHERE event_id=?",
-            (event_id,),
-        )
-        failed = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            transport=self._failure_transport,
-            now="2099-01-01T00:00:00Z",
-        )
-        self.assertEqual(failed["failed"], 1)
-        event = self.db.one("SELECT status FROM notification_events WHERE event_id=?", (event_id,))
-        self.assertEqual(str(event["status"]), "failed")
+    def test_system_warning_cannot_enable_finding_delivery(self):
+        self._set_policy('system_warning')
+        run_id, analysis_id, candidate_id = self._analysis_candidate('system_warning')
+        result = process_finding_notifications(self._ctx(run_id), {"analysis_id": analysis_id})
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["transitions"], [])
+        with patch("finding_notification_outbox.deliver_notification_message") as send:
+            delivered = deliver_finding_notification_outbox(config=self.config, logger=self.logger, db=self.db, mode='system_warning')
+            send.assert_not_called()
+        self.assertEqual(delivered["delivered"], 0)
+        self.assertIsNotNone(self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,)))
 
-        self.assertEqual(requeue_failed_finding_notifications(self.db, event_id=event_id), 1)
-        delivered = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            transport=self._success_transport,
-            now="2099-01-01T00:10:00Z",
-        )
-        self.assertEqual(delivered["delivered"], 1)
-        event = self.db.one("SELECT status FROM notification_events WHERE event_id=?", (event_id,))
-        self.assertEqual(str(event["status"]), "delivered")
 
-    def test_digest_and_system_warning_are_worker_modes(self) -> None:
-        digest_id, _ = self._queue("digest", mode="digest")
-        digest = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            mode="digest",
-            transport=self._success_transport,
-            now="2099-01-01T00:00:00Z",
-        )
-        self.assertEqual(digest["delivered"], 1)
-        self.assertEqual(str(self.db.one("SELECT status FROM notification_events WHERE event_id=?", (digest_id,))["status"]), "delivered")
+    def test_silent_cannot_enable_finding_delivery(self):
+        self._set_policy('silent')
+        run_id, analysis_id, candidate_id = self._analysis_candidate('silent')
+        result = process_finding_notifications(self._ctx(run_id), {"analysis_id": analysis_id})
+        self.assertEqual(result["queued"], 0)
+        self.assertEqual(result["transitions"], [])
+        with patch("finding_notification_outbox.deliver_notification_message") as send:
+            delivered = deliver_finding_notification_outbox(config=self.config, logger=self.logger, db=self.db, mode='silent')
+            send.assert_not_called()
+        self.assertEqual(delivered["delivered"], 0)
+        self.assertIsNotNone(self.db.one("SELECT candidate_id FROM bug_candidates WHERE candidate_id=?", (candidate_id,)))
 
-        warning_id, _ = self._queue("warning", mode="system_warning")
-        warning = deliver_finding_notification_outbox(
-            config=self.config,
-            logger=self.logger,
-            db=self.db,
-            mode="system_warning",
-            transport=self._success_transport,
-            now="2099-01-01T00:00:00Z",
-        )
-        self.assertEqual(warning["delivered"], 1)
-        self.assertEqual(str(self.db.one("SELECT status FROM notification_events WHERE event_id=?", (warning_id,))["status"]), "delivered")
 
     def test_silent_policy_creates_no_event_or_outbox_row(self) -> None:
         self._set_policy("silent")

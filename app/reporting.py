@@ -66,7 +66,8 @@ def _notification_policy(db: Database, target: str, event_type: str) -> dict[str
 
 
 def create_alerts_and_notify(ctx: StageContext, baseline: bool) -> dict[str, Any]:
-    events = list(read_jsonl(ctx.events_path))
+    from change_alerts import CHANGE_CATEGORIES
+    events = [event for event in read_jsonl(ctx.events_path) if event.get("category") in CHANGE_CATEGORIES]
     # The first successful scan establishes the target baseline.  Its change
     # events remain available in the run report and event-observation history,
     # but they must not enter the Alert lifecycle.  Otherwise every discovered
@@ -253,7 +254,8 @@ def generate_report(
     validation_eligibility: Mapping[str, Any] | None = None,
     validation_runner_dry_run: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    events = list(read_jsonl(ctx.events_path))
+    from change_alerts import CHANGE_CATEGORIES
+    events = [event for event in read_jsonl(ctx.events_path) if event.get("category") in CHANGE_CATEGORIES]
     events.sort(key=lambda x: int(x.get("risk_score", 0)), reverse=True)
     tools = [dict(row) for row in ctx.db.all("SELECT tool,version,path FROM tool_versions WHERE run_id=? ORDER BY tool", (ctx.run_id,))]
     js_diffs = [dict(row) for row in ctx.db.all(
@@ -646,6 +648,8 @@ def send_daily_digest(paths: AppPaths, config: Config, db: Database, logger: Log
         """,
         (since,),
     )
+    from change_alerts import CHANGE_CATEGORIES
+    rows = [row for row in rows if row["category"] in CHANGE_CATEGORIES]
     rows = [row for row in rows if (lambda policy: policy is None or str(policy.get("mode")) == "digest")(_notification_policy(db, str(row["target"]), str(row["category"] or "security_change")))]
     if not rows:
         return {"alerts": 0, "sent": False}

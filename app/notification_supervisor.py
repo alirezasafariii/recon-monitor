@@ -231,6 +231,7 @@ def _execute_owned_cycle(
     owner_id: str,
     trigger: str,
     now: str,
+    fixed_clock: bool = False,
 ) -> dict[str, Any]:
     state = db.one("SELECT enabled FROM notification_supervisor_state WHERE singleton=1")
     if not bool(int(state["enabled"])):
@@ -252,7 +253,8 @@ def _execute_owned_cycle(
         ("finding", run_finding_notification_worker),
         ("recon_alert", run_recon_alert_worker),
     ):
-        heartbeat_notification_supervisor(db, owner_id=owner_id, now=now)
+        if not heartbeat_notification_supervisor(db, owner_id=owner_id, now=now if fixed_clock else utc_now()):
+            raise RuntimeError("Notification supervisor lease lost")
         try:
             result = runner(config=config, logger=logger, db=db, trigger="supervisor", force=False, now=now)
             results[name] = result
@@ -262,7 +264,7 @@ def _execute_owned_cycle(
             message = f"{name}: {type(exc).__name__}: {exc}"
             results[name] = {"status": "failed", "error": str(exc)}
             failures.append(message)
-    finished = now if now else utc_now()
+    finished = now if fixed_clock else utc_now()
     status = "partial_failure" if failures else "success"
     error = " | ".join(failures)
     finding_status = str(dict(results.get("finding") or {}).get("status") or "")
@@ -335,6 +337,7 @@ def run_notification_supervisor_cycle(
             owner_id=owner,
             trigger=trigger,
             now=current,
+            fixed_clock=bool(now),
         )
     finally:
         release_notification_supervisor_lease(db, owner_id=owner, now=current if now else utc_now())
@@ -375,7 +378,8 @@ def watch_notification_supervisor(
             if max_cycles and cycles >= max_cycles:
                 break
             policy = dict(db.one("SELECT poll_seconds,lease_seconds FROM notification_supervisor_state WHERE singleton=1"))
-            heartbeat_notification_supervisor(db, owner_id=owner, lease_seconds=int(policy["lease_seconds"]))
+            if not heartbeat_notification_supervisor(db, owner_id=owner, lease_seconds=int(policy["lease_seconds"])):
+                raise RuntimeError("Notification supervisor lease lost")
             sleep(max(MIN_POLL_SECONDS, min(MAX_POLL_SECONDS, int(policy["poll_seconds"]))))
         return {
             "status": "stopped",

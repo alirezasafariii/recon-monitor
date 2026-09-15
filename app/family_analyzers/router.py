@@ -42,7 +42,7 @@ from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
 FAMILY_ANALYZER_ROUTER_VERSION = "4.2.0"
 RAW_ANALYZER_BUDGET_VERSION = "1.0.0"
-RAW_ANALYZER_INVOCATION_LIMIT = 200_000
+RAW_ANALYZER_INVOCATION_LIMIT = 0  # No silent partial analysis by default.
 _RAW_BUDGET_CACHE_MAX = 64
 _RAW_BUDGETS: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
@@ -123,7 +123,7 @@ def _consume_raw_budget(context: Any, family: str) -> bool:
         return True
     state = _budget_state(analysis_id)
     state["attempted"] += 1
-    if int(state["executed"]) >= int(RAW_ANALYZER_INVOCATION_LIMIT):
+    if RAW_ANALYZER_INVOCATION_LIMIT > 0 and int(state["executed"]) >= int(RAW_ANALYZER_INVOCATION_LIMIT):
         state["skipped"] += 1
         state["exhausted"] = True
         if not state["audit_emitted"]:

@@ -6,6 +6,7 @@ import signal
 import sys
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
@@ -70,7 +71,7 @@ class AnalysisStopTests(unittest.TestCase):
 
     def test_keyboard_interrupt_finalizes_analysis_row(self):
         db = InterruptDB()
-        with patch.object(analysis_engine, "_run_analysis_impl", side_effect=KeyboardInterrupt):
+        with patch("analysis_input_snapshot.analysis_inputs", return_value=nullcontext({})), patch.object(analysis_engine, "_run_analysis_impl", side_effect=KeyboardInterrupt):
             with self.assertRaises(KeyboardInterrupt):
                 analysis_engine.run_analysis(self.paths, db, "run-int", "example.com")
         self.assertTrue(any("status='interrupted'" in sql for sql, _ in db.executed))
