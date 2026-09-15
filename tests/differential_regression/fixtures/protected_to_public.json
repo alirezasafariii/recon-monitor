@@ -1,0 +1,15 @@
+{
+  "name": "protected_to_public",
+  "before": {
+    "status_code": 403,
+    "auth_state": "protected"
+  },
+  "after": {
+    "status_code": 200,
+    "auth_state": "public"
+  },
+  "expected_signals": [
+    "protected_to_public_transition",
+    "auth_boundary_change"
+  ]
+}
