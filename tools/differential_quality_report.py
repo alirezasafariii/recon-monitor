@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Lightweight regression quality report for differential analysis.
+"""Regression quality report for differential analysis.
 
 This tool is intentionally read-only. It evaluates regression fixtures without
 changing scoring or producing findings.
@@ -20,6 +20,8 @@ def run_report() -> dict[str, int]:
     total = 0
     passed = 0
     failed = 0
+    expected_signal_cases = 0
+    unexpected_signal_cases = 0
 
     for fixture in FIXTURES.glob("*.json"):
         total += 1
@@ -28,15 +30,24 @@ def run_report() -> dict[str, int]:
         actual = {signal.signal_type for signal in signals}
         expected = set(case.get("expected_signals", case.get("expected", {}).get("signals", [])))
 
-        if expected.issubset(actual):
-            passed += 1
-        else:
+        if expected:
+            expected_signal_cases += 1
+            if expected.issubset(actual):
+                passed += 1
+            else:
+                failed += 1
+        elif actual:
+            unexpected_signal_cases += 1
             failed += 1
+        else:
+            passed += 1
 
     return {
         "total": total,
         "passed": passed,
         "failed": failed,
+        "expected_signal_cases": expected_signal_cases,
+        "unexpected_signal_cases": unexpected_signal_cases,
     }
 
 
