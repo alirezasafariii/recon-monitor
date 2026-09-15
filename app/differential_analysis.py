@@ -11,6 +11,24 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 
+SENSITIVE_FIELDS = {
+    "password",
+    "token",
+    "secret",
+    "api_key",
+    "credential",
+    "email",
+}
+
+SENSITIVE_ENDPOINT_HINTS = {
+    "admin",
+    "export",
+    "payment",
+    "upload",
+    "auth",
+}
+
+
 @dataclass(slots=True)
 class DifferentialSignal:
     signal_type: str
@@ -51,20 +69,27 @@ class DifferentialAnalyzer:
 
     def _response_change(self, previous, current):
         added = sorted(set(current.get("response_keys", [])) - set(previous.get("response_keys", [])))
-        if added:
-            return [DifferentialSignal("response_structure_change", "medium", 0.7, "data_exposure", [f"new_fields:{','.join(added)}"], True, {"new_fields": added})]
-        return []
+        if not added:
+            return []
+
+        sensitive = [field for field in added if field.lower() in SENSITIVE_FIELDS]
+        if sensitive:
+            return [DifferentialSignal("sensitive_data_exposure", "high", 0.85, "data_exposure", [f"sensitive_fields:{','.join(sensitive)}"], True, {"new_fields": sensitive})]
+
+        return [DifferentialSignal("response_structure_change", "medium", 0.7, "data_exposure", [f"new_fields:{','.join(added)}"], True, {"new_fields": added})]
 
     def _endpoint_change(self, previous, current):
         if not previous.get("exists") and current.get("exists"):
-            return [DifferentialSignal("new_endpoint_exposure", "medium", 0.75, "attack_surface", [f"path:{current.get('path', 'unknown')}"], True, {"path": current.get("path")})]
+            path = current.get("path", "unknown")
+            sensitive = any(token in path.lower() for token in SENSITIVE_ENDPOINT_HINTS)
+            return [DifferentialSignal("new_sensitive_endpoint" if sensitive else "new_endpoint_detected", "high" if sensitive else "low", 0.8 if sensitive else 0.6, "attack_surface", [f"path:{path}"], True, {"path": path})]
         return []
 
     def _javascript_change(self, previous, current):
         before = set(previous.get("references", []))
         after = set(current.get("references", []))
         added = sorted(after - before)
-        sensitive = [path for path in added if any(token in path.lower() for token in ("admin", "export", "payment"))]
+        sensitive = [path for path in added if any(token in path.lower() for token in SENSITIVE_ENDPOINT_HINTS)]
         if sensitive:
             return [DifferentialSignal("new_sensitive_reference", "medium", 0.8, "attack_surface", [f"reference:{path}" for path in sensitive], True, {"references": sensitive})]
         return []
