@@ -24,3 +24,6 @@ def test_differential_regression_fixtures():
 
         expected = set(case.get("expected_signals", []))
         assert expected.issubset(signal_types), fixture.name
+
+        if not expected:
+            assert not signal_types, fixture.name
