@@ -15,6 +15,10 @@ from app.differential_analysis import DifferentialAnalyzer
 FIXTURES = Path(__file__).parent.parent / "tests" / "differential_regression" / "fixtures"
 
 
+def _expected_signals(case: dict) -> set[str]:
+    return set(case.get("expected_signals", case.get("expected", {}).get("signals", [])))
+
+
 def run_report() -> dict[str, int | float]:
     analyzer = DifferentialAnalyzer()
     total = 0
@@ -22,13 +26,14 @@ def run_report() -> dict[str, int | float]:
     failed = 0
     expected_signal_cases = 0
     unexpected_signal_cases = 0
+    false_positive_cases = 0
 
     for fixture in FIXTURES.glob("*.json"):
         total += 1
         case = json.loads(fixture.read_text(encoding="utf-8"))
         signals = analyzer.compare(case.get("before"), case.get("after"))
         actual = {signal.signal_type for signal in signals}
-        expected = set(case.get("expected_signals", case.get("expected", {}).get("signals", [])))
+        expected = _expected_signals(case)
 
         if expected:
             expected_signal_cases += 1
@@ -38,16 +43,12 @@ def run_report() -> dict[str, int | float]:
                 failed += 1
         elif actual:
             unexpected_signal_cases += 1
+            false_positive_cases += 1
             failed += 1
         else:
             passed += 1
 
-    precision_denominator = expected_signal_cases + unexpected_signal_cases
-    precision = (
-        expected_signal_cases / precision_denominator
-        if precision_denominator
-        else 1.0
-    )
+    precision = round((total - false_positive_cases) / total, 3) if total else 1.0
 
     return {
         "total": total,
@@ -55,7 +56,8 @@ def run_report() -> dict[str, int | float]:
         "failed": failed,
         "expected_signal_cases": expected_signal_cases,
         "unexpected_signal_cases": unexpected_signal_cases,
-        "precision": round(precision, 3),
+        "false_positive_cases": false_positive_cases,
+        "precision": precision,
     }
 
 
