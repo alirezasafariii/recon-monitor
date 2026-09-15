@@ -1,0 +1,12 @@
+{
+  "name": "sensitive_field_exposure",
+  "before": {
+    "response_keys": ["id", "name"]
+  },
+  "after": {
+    "response_keys": ["id", "name", "token", "email"]
+  },
+  "expected": {
+    "signals": ["sensitive_data_exposure"]
+  }
+}
