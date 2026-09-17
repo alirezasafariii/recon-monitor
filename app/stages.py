@@ -902,7 +902,7 @@ def _prepare_javascript_derived_differentials(
     if not callable(replace_state):
         return signals, meta
 
-    specs: list[tuple[str, bool, dict[str, dict[str, Any]], str]] = []
+    specs: list[tuple[str, bool, dict[str, dict[str, Any]]]] = []
 
     source_items: dict[str, dict[str, Any]] = {}
     for row in source_map_rows:
@@ -926,7 +926,7 @@ def _prepare_javascript_derived_differentials(
             for key in sorted(source_items)[:DERIVED_RECON_STATE_LIMIT]
         }
         meta["truncated_sets"] += 1
-    specs.append(("source_map_source", source_maps_complete, source_items, "source_map_change"))
+    specs.append(("source_map_source", source_maps_complete, source_items))
 
     chunk_items: dict[str, dict[str, Any]] = {}
     for row in chunk_edge_rows:
@@ -942,9 +942,9 @@ def _prepare_javascript_derived_differentials(
             for key in sorted(chunk_items)[:DERIVED_RECON_STATE_LIMIT]
         }
         meta["truncated_sets"] += 1
-    specs.append(("javascript_chunk", chunks_complete, chunk_items, "javascript_chunk_change"))
+    specs.append(("javascript_chunk", chunks_complete, chunk_items))
 
-    for state_type, complete, items, category in specs:
+    for state_type, complete, items in specs:
         if not complete:
             continue
         diff = replace_state(ctx.run_id, ctx.policy.name, state_type, items)
