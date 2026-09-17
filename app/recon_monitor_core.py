@@ -122,12 +122,12 @@ from setup_wizard import (  # noqa: E402
 
 STAGES = [
     ("subdomains", "Subdomain discovery and source attribution"),
-    ("dns", "DNS resolution, wildcard filtering, and history"),
-    ("urls", "Historical URLs and authorized crawling"),
+    ("dns", "DNS resolution, wildcard classification, and history"),
+    ("ports", "Optional authorized port monitoring"),
+    ("urls", "Live-origin probing, historical URLs, and authorized crawling"),
     ("javascript", "JavaScript and source-map analysis"),
     ("endpoint_validation", "Safe in-scope endpoint validation"),
     ("fingerprint", "HTTP, TLS-adjacent, and content fingerprinting"),
-    ("ports", "Optional authorized port monitoring"),
     ("nuclei", "Optional allowlisted active checks"),
     ("report", "Risk scoring, reports, retention state, and notifications"),
 ]
