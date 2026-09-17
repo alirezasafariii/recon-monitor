@@ -815,15 +815,16 @@ def _resolve_source_map_source(source_map_url: str, source_root: str, source_nam
         return ""
 
     root = str(source_root or "").strip()
+    base_url = source_map_url
     if root:
         parsed_root = urllib.parse.urlsplit(root)
         if parsed_root.scheme and parsed_root.scheme.lower() not in {"http", "https"}:
             return ""
         if not root.endswith("/"):
             root += "/"
-        name = urllib.parse.urljoin(root, name)
+        base_url = urllib.parse.urljoin(source_map_url, root)
 
-    candidate = urllib.parse.urljoin(source_map_url, name)
+    candidate = urllib.parse.urljoin(base_url, name)
     return normalize_url_preserving_semantics(candidate) or ""
 
 
