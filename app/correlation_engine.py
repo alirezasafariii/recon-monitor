@@ -531,6 +531,81 @@ def correlation_family_scores(
     )
 
 
+def _derived_change_queue_context(
+    admission: Mapping[str, Any],
+    primary: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project persisted P4 advisory context into a bounded queue explanation."""
+    knowledge = admission.get("knowledge_context")
+    knowledge_map = knowledge if isinstance(knowledge, Mapping) else {}
+    stored = admission.get("derived_change_advisory")
+    if not isinstance(stored, Mapping):
+        stored = knowledge_map.get("derived_change_context")
+    stored_map = stored if isinstance(stored, Mapping) else {}
+
+    components = primary.get("components")
+    component_map = components if isinstance(components, Mapping) else {}
+    score_value = component_map.get("derived_change")
+    if score_value is None:
+        score_value = stored_map.get("score")
+    try:
+        score = _clamp(float(score_value or 0))
+    except (TypeError, ValueError):
+        score = 0
+
+    matches: list[dict[str, Any]] = []
+    raw_matches = stored_map.get("matches")
+    if isinstance(raw_matches, list):
+        for raw in raw_matches[:20]:
+            if not isinstance(raw, Mapping):
+                continue
+            try:
+                match_score = _clamp(float(raw.get("score") or 0))
+            except (TypeError, ValueError):
+                match_score = 0
+            reasons = raw.get("reasons")
+            matches.append(
+                {
+                    "signal_type": str(raw.get("signal_type") or "")[:120],
+                    "state_type": str(raw.get("state_type") or "")[:120],
+                    "change": str(raw.get("change") or "")[:40],
+                    "item": str(raw.get("item") or "")[:1000],
+                    "item_key": str(raw.get("item_key") or "")[:2000],
+                    "baseline_run_id": str(raw.get("baseline_run_id") or "")[:200],
+                    "score": match_score,
+                    "reasons": [
+                        str(value)[:500]
+                        for value in reasons[:4]
+                        if str(value).strip()
+                    ] if isinstance(reasons, list) else [],
+                }
+            )
+
+    try:
+        matched_signal_count = max(
+            len(matches),
+            min(5000, max(0, int(stored_map.get("matched_signal_count") or 0))),
+        )
+    except (TypeError, ValueError):
+        matched_signal_count = len(matches)
+
+    return {
+        "score": score,
+        "change_linked": bool(score and matches),
+        "matched_signal_count": matched_signal_count,
+        "signal_types": sorted(
+            {
+                str(row.get("signal_type") or "")
+                for row in matches
+                if str(row.get("signal_type") or "").strip()
+            }
+        ),
+        "matches": matches,
+        "source_run_id": str(stored_map.get("source_run_id") or "")[:200],
+        "advisory_only": True,
+    }
+
+
 def investigation_queue(
     db: Database,
     analysis_id: str,
@@ -559,6 +634,7 @@ def investigation_queue(
         primary = meta.get("primary") if isinstance(meta, Mapping) else None
         if not isinstance(primary, Mapping):
             continue
+        derived_change = _derived_change_queue_context(admission, primary)
         context = build_correlation_context(
             db,
             analysis_id=analysis_id,
@@ -589,6 +665,13 @@ def investigation_queue(
                 "target_evidence_confidence": evidence,
                 "hunt_priority": str(primary.get("hunt_priority") or "NOISE"),
                 "cluster_strength": cluster_strength,
+                "derived_change_score": int(derived_change["score"]),
+                "derived_change_matched_signals": int(derived_change["matched_signal_count"]),
+                "derived_change_signal_types": [],
+                "derived_change_matches": [],
+                "derived_change_source_run_ids": [],
+                "change_linked": bool(derived_change["change_linked"]),
+                "derived_change_advisory_only": True,
                 "endpoints": [],
                 "hypothesis_ids": [],
                 "families": {},
@@ -602,6 +685,42 @@ def investigation_queue(
         item["bug_proximity_score"] = max(int(item["bug_proximity_score"]), proximity)
         item["target_evidence_confidence"] = max(int(item["target_evidence_confidence"]), evidence)
         item["cluster_strength"] = max(int(item["cluster_strength"]), cluster_strength)
+        item["derived_change_score"] = max(
+            int(item.get("derived_change_score") or 0),
+            int(derived_change["score"]),
+        )
+        item["derived_change_matched_signals"] = max(
+            int(item.get("derived_change_matched_signals") or 0),
+            int(derived_change["matched_signal_count"]),
+        )
+        item["change_linked"] = bool(
+            item.get("change_linked") or derived_change["change_linked"]
+        )
+        source_run_id = str(derived_change.get("source_run_id") or "")
+        if source_run_id and source_run_id not in item["derived_change_source_run_ids"]:
+            item["derived_change_source_run_ids"].append(source_run_id)
+        for signal_type in derived_change.get("signal_types", []):
+            if signal_type and signal_type not in item["derived_change_signal_types"]:
+                item["derived_change_signal_types"].append(signal_type)
+        for match in derived_change.get("matches", []):
+            if not isinstance(match, Mapping):
+                continue
+            identity = (
+                str(match.get("signal_type") or ""),
+                str(match.get("item_key") or ""),
+                str(match.get("change") or ""),
+            )
+            existing_identities = {
+                (
+                    str(existing.get("signal_type") or ""),
+                    str(existing.get("item_key") or ""),
+                    str(existing.get("change") or ""),
+                )
+                for existing in item["derived_change_matches"]
+                if isinstance(existing, Mapping)
+            }
+            if identity not in existing_identities:
+                item["derived_change_matches"].append(dict(match))
         endpoint_value = str(row.get("endpoint") or "")
         if endpoint_value and endpoint_value not in item["endpoints"]:
             item["endpoints"].append(endpoint_value)
@@ -628,6 +747,20 @@ def investigation_queue(
         ]
         item["endpoints"] = item["endpoints"][:12]
         item["hypothesis_ids"] = item["hypothesis_ids"][:50]
+        item["derived_change_signal_types"] = sorted(
+            item["derived_change_signal_types"]
+        )[:12]
+        item["derived_change_source_run_ids"] = item[
+            "derived_change_source_run_ids"
+        ][:8]
+        item["derived_change_matches"] = sorted(
+            item["derived_change_matches"],
+            key=lambda row: (
+                int(row.get("score") or 0),
+                str(row.get("signal_type") or ""),
+            ),
+            reverse=True,
+        )[:8]
     queue.sort(
         key=lambda item: (
             int(item["queue_score"]),
