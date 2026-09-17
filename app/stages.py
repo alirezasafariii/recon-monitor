@@ -882,9 +882,6 @@ def _extract_js_chunk_references(js_url: str, text: str) -> list[str]:
 
 
 DERIVED_RECON_STATE_LIMIT = 20000
-DERIVED_RECON_EVENT_LIMIT = 500
-
-
 def _prepare_javascript_derived_differentials(
     ctx: StageContext,
     source_map_rows: Iterable[Mapping[str, Any]],
@@ -900,7 +897,6 @@ def _prepare_javascript_derived_differentials(
         "prepared_sets": 0,
         "initialized_sets": 0,
         "truncated_sets": 0,
-        "events_emitted": 0,
     }
     signals: list[dict[str, Any]] = []
     if not callable(replace_state):
@@ -981,23 +977,6 @@ def _prepare_javascript_derived_differentials(
                     "after": after,
                 }
                 signals.append(signal)
-                if meta["events_emitted"] < DERIVED_RECON_EVENT_LIMIT:
-                    emit_event(
-                        ctx,
-                        category,
-                        item,
-                        (
-                            "Source-map source changed"
-                            if state_type == "source_map_source"
-                            else "JavaScript chunk reference changed"
-                        ),
-                        {
-                            **signal,
-                            "stable_key": item_key,
-                            "typed_differential": True,
-                        },
-                    )
-                    meta["events_emitted"] += 1
 
     signals.sort(key=lambda row: (row["state_type"], row["change"], row["item_key"]))
     return signals, meta
@@ -1064,7 +1043,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "derived_differentials": len(derived_signals),
             "derived_sets_prepared": int(derived_meta.get("prepared_sets", 0)),
             "derived_sets_initialized": int(derived_meta.get("initialized_sets", 0)),
-            "derived_events_emitted": int(derived_meta.get("events_emitted", 0)),
         }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
@@ -1697,7 +1675,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "derived_sets_prepared": int(derived_meta.get("prepared_sets", 0)),
         "derived_sets_initialized": int(derived_meta.get("initialized_sets", 0)),
         "derived_sets_truncated": int(derived_meta.get("truncated_sets", 0)),
-        "derived_events_emitted": int(derived_meta.get("events_emitted", 0)),
         "errors": len(errors),
         "not_found": len(not_found),
         "availability_changes": (
