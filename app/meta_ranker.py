@@ -20,8 +20,8 @@ from typing import Any, Iterable, Mapping
 from calibration_engine import calibration_for_score
 from decision_readiness import decision_readiness
 
-META_RANKER_VERSION = "1.2.0"
-META_RANKER_RULE_VERSION = "2026.08.13.3"
+META_RANKER_VERSION = "1.3.0"
+META_RANKER_RULE_VERSION = "2026.09.18.1"
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "target_evidence": 0.40,
@@ -29,6 +29,7 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     "writeup_similarity": 0.15,
     "historical_feedback": 0.07,
     "correlation": 0.05,
+    "derived_change": 0.08,
     "llm_advisory": 0.03,
 }
 
@@ -182,6 +183,7 @@ def rank_bug_proximity(
     *,
     historical_scores: Mapping[str, Any] | None = None,
     correlation_scores: Mapping[str, Any] | None = None,
+    derived_change_scores: Mapping[str, Any] | None = None,
     llm_advisory_scores: Mapping[str, Any] | None = None,
     admission_by_family: Mapping[str, Any] | None = None,
     calibration_profile: Mapping[str, Any] | None = None,
@@ -208,6 +210,8 @@ def rank_bug_proximity(
         families |= {str(value) for value in historical_scores}
     if correlation_scores:
         families |= {str(value) for value in correlation_scores}
+    if derived_change_scores:
+        families |= {str(value) for value in derived_change_scores}
     if llm_advisory_scores:
         families |= {str(value) for value in llm_advisory_scores}
 
@@ -230,6 +234,7 @@ def rank_bug_proximity(
         writeup_score = writeup_scores.get(family)
         historical_score = _optional_score(historical_scores, family)
         correlation_score = _optional_score(correlation_scores, family)
+        derived_change_score = _optional_score(derived_change_scores, family)
         llm_score = _optional_score(llm_advisory_scores, family)
 
         components: dict[str, int | None] = {
@@ -238,6 +243,7 @@ def rank_bug_proximity(
             "writeup_similarity": writeup_score,
             "historical_feedback": historical_score,
             "correlation": correlation_score,
+            "derived_change": derived_change_score,
             "llm_advisory": llm_score,
         }
         proximity = _weighted_score(components)
@@ -289,6 +295,8 @@ def rank_bug_proximity(
             why.append(f"historical analyst prior: {historical_score}/100 (non-evidentiary)")
         if correlation_score is not None:
             why.append(f"related-surface correlation: {correlation_score}/100 (non-evidentiary)")
+        if derived_change_score is not None:
+            why.append(f"recent derived Recon change affinity: {derived_change_score}/100 (non-evidentiary)")
         if llm_score is not None:
             why.append(f"LLM advisory: {llm_score}/100 (non-evidentiary)")
         if calibration.get("available"):
@@ -345,6 +353,8 @@ def rank_bug_proximity(
             "decision_readiness_is_advisory_only": True,
             "decision_readiness_cannot_satisfy_admission_or_confirmation": True,
             "knowledge_cannot_satisfy_admission": True,
+            "derived_change_is_advisory_only": True,
+            "derived_change_cannot_change_target_evidence_or_admission": True,
             "llm_is_advisory_only": True,
             "calibration_is_advisory_only": True,
             "calibration_cannot_change_evidence_or_admission": True,

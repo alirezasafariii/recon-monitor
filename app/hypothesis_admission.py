@@ -8,6 +8,11 @@ from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, sha256_text, utc_now
+from derived_change_advisory import (
+    DERIVED_CHANGE_ADVISORY_RULE_VERSION,
+    DERIVED_CHANGE_ADVISORY_VERSION,
+    derived_change_advisory_context,
+)
 from correlation_engine import (
     CORRELATION_ENGINE_VERSION,
     CORRELATION_RULE_VERSION,
@@ -178,6 +183,8 @@ def _classification_context(
     summary: str = "",
     historical_scores: Mapping[str, Any] | None = None,
     correlation_scores: Mapping[str, Any] | None = None,
+    derived_change_scores: Mapping[str, Any] | None = None,
+    derived_change_context: Mapping[str, Any] | None = None,
     llm_advisory_scores: Mapping[str, Any] | None = None,
     admission_by_family: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -212,10 +219,13 @@ def _classification_context(
         broader_writeups,
         historical_scores=historical_scores,
         correlation_scores=correlation_scores,
+        derived_change_scores=derived_change_scores,
         llm_advisory_scores=llm_advisory_scores,
         admission_by_family=admission_by_family,
         limit=3,
     )
+    if isinstance(derived_change_context, Mapping):
+        context["derived_change_context"] = dict(derived_change_context)
     return context
 
 
@@ -572,6 +582,16 @@ def record_hypothesis(
         source_ref=source_ref,
     )
     correlation_scores = correlation_context.get("family_scores", {})
+    derived_context = derived_change_advisory_context(
+        db,
+        source_run_id=source_run_id,
+        target=target,
+        family=family,
+        endpoint=endpoint,
+        source_ref=source_ref,
+        summary=summary,
+    )
+    derived_change_scores = derived_context.get("family_scores", {})
 
     # Rebuild retrieval/ranking with endpoint, summary, historical and
     # cross-surface context only after admission. These remain non-evidentiary.
@@ -583,15 +603,20 @@ def record_hypothesis(
         summary=summary,
         historical_scores=historical_scores,
         correlation_scores=correlation_scores,
+        derived_change_scores=derived_change_scores,
+        derived_change_context=derived_context,
         admission_by_family={family: assessment},
     )
     assessment["correlation_context"] = correlation_context
+    assessment["derived_change_advisory"] = derived_context
     assessment["knowledge_engine_version"] = KNOWLEDGE_ENGINE_VERSION
     assessment["knowledge_rule_version"] = KNOWLEDGE_RULE_VERSION
     assessment["meta_ranker_version"] = META_RANKER_VERSION
     assessment["meta_ranker_rule_version"] = META_RANKER_RULE_VERSION
     assessment["correlation_engine_version"] = CORRELATION_ENGINE_VERSION
     assessment["correlation_rule_version"] = CORRELATION_RULE_VERSION
+    assessment["derived_change_advisory_version"] = DERIVED_CHANGE_ADVISORY_VERSION
+    assessment["derived_change_advisory_rule_version"] = DERIVED_CHANGE_ADVISORY_RULE_VERSION
     assessment["family_reasoning_version"] = FAMILY_REASONING_VERSION
     assessment["family_reasoning_rule_version"] = FAMILY_REASONING_RULE_VERSION
 

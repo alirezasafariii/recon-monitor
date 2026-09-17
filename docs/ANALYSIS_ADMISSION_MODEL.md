@@ -42,6 +42,19 @@ The current admission knowledge set includes:
 
 Knowledge references are persisted in the hypothesis record for auditability, but they are kept separate from `supporting_evidence_json` and `evidence_records`.
 
+## Derived Recon change context
+
+Successful-run source-map and JavaScript chunk differentials may be attached to a
+hypothesis after Admission has already been calculated. This context is
+non-evidentiary: it can raise or lower investigation priority in Meta Ranker, but
+it cannot add a required evidence type, create an independent evidence source,
+change `target_evidence_confidence`, satisfy Admission, or confirm a
+vulnerability.
+
+Automatic Analysis reads this context only when every Recon collection stage for
+the same source run completed successfully. Incomplete runs, unrelated changes,
+invalid artifact identity, and missing change artifacts fail closed to no prior.
+
 ## File upload admission
 
 A generic `Content-Type`, a word such as `file`, or an endpoint contract alone is a useful clue but does not establish an upload surface.
