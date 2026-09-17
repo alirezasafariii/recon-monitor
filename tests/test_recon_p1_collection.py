@@ -139,6 +139,7 @@ class ReconP1CollectionTests(unittest.TestCase):
         url_source = inspect.getsource(stage_urls)
         self.assertIn('"port-web-origins.txt"', port_source)
         self.assertIn('"port-web-origins.txt"', url_source)
+        self.assertIn('"origin_redirects_outside_scope"', url_source)
         probe_pos = url_source.index("_probe_live_origins")
         katana_pos = url_source.index('tool_path("katana")')
         self.assertLess(probe_pos, katana_pos)
