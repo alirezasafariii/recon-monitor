@@ -76,14 +76,19 @@ class KatanaCandidateHygieneTests(
             "_katana_candidate_malformed"
         )
 
-        normalize_pos = source.index(
-            "normalize_url",
+        add_pos = source.index(
+            'add_candidate(raw_candidate, "katana")',
             hygiene_pos,
         )
 
         self.assertLess(
             hygiene_pos,
-            normalize_pos,
+            add_pos,
+        )
+
+        self.assertIn(
+            "normalize_url_preserving_semantics",
+            source,
         )
 
         self.assertIn(
