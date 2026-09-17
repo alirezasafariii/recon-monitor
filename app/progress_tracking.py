@@ -29,12 +29,12 @@ HEALTH_WAITING_SECONDS = 120
 
 RECON_STAGES: tuple[tuple[str, str], ...] = (
     ("subdomains", "Subdomain discovery"),
-    ("dns", "DNS resolution"),
-    ("urls", "URL collection"),
+    ("dns", "DNS resolution and wildcard classification"),
+    ("ports", "Authorized port monitoring"),
+    ("urls", "Origin probing and URL collection"),
     ("javascript", "JavaScript analysis"),
     ("endpoint_validation", "Endpoint validation"),
     ("fingerprint", "HTTP fingerprinting"),
-    ("ports", "Port monitoring"),
     ("nuclei", "Allowlisted active checks"),
     ("report", "Reporting and analysis"),
 )
