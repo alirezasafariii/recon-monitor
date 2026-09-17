@@ -15,14 +15,16 @@ decisions:
 * an unsafe legacy database is re-baselined instead of guessing through state
   that may already have been overwritten by a failed run.
 
-This reliability layer deliberately checkpoints only the four tables that
-directly participate in the reproduced failed-run contamination bug: assets,
-DNS records, URLs, and HTTP fingerprints.
+The mutable comparison view still checkpoints the four core tables that
+directly participate in baseline comparisons: assets, DNS records, URLs, and
+HTTP fingerprints. Derived Recon sets that should not be restored into mutable
+core tables (for example source-map sources and JavaScript chunk references)
+use a separate prepare/promote boundary in the same successful-run contract.
 """
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from core import Database as BaseDatabase
 from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
@@ -47,7 +49,7 @@ from stable_confirmation import (
 )
 
 
-SNAPSHOT_SCHEMA_VERSION = 1
+SNAPSHOT_SCHEMA_VERSION = 2
 BOOTSTRAP_META_KEY = "successful_snapshot_bootstrap_v1"
 TRACKED_TABLES = ("assets", "dns_records", "urls", "fingerprints")
 
@@ -84,6 +86,47 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             );
             CREATE INDEX IF NOT EXISTS idx_successful_recon_state_target_table
               ON successful_recon_state(target,table_name);
+
+            CREATE TABLE IF NOT EXISTS successful_recon_derived_sets (
+              target TEXT NOT NULL,
+              state_type TEXT NOT NULL,
+              committed_run_id TEXT NOT NULL,
+              committed_at TEXT NOT NULL,
+              row_count INTEGER NOT NULL DEFAULT 0,
+              PRIMARY KEY(target,state_type)
+            );
+            CREATE TABLE IF NOT EXISTS successful_recon_derived_state (
+              target TEXT NOT NULL,
+              state_type TEXT NOT NULL,
+              item_key TEXT NOT NULL,
+              item_hash TEXT NOT NULL,
+              item_json TEXT NOT NULL,
+              committed_run_id TEXT NOT NULL,
+              committed_at TEXT NOT NULL,
+              PRIMARY KEY(target,state_type,item_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_successful_recon_derived_state_target_type
+              ON successful_recon_derived_state(target,state_type);
+
+            CREATE TABLE IF NOT EXISTS working_recon_derived_sets (
+              run_id TEXT NOT NULL,
+              target TEXT NOT NULL,
+              state_type TEXT NOT NULL,
+              row_count INTEGER NOT NULL DEFAULT 0,
+              prepared_at TEXT NOT NULL,
+              PRIMARY KEY(run_id,target,state_type)
+            );
+            CREATE TABLE IF NOT EXISTS working_recon_derived_state (
+              run_id TEXT NOT NULL,
+              target TEXT NOT NULL,
+              state_type TEXT NOT NULL,
+              item_key TEXT NOT NULL,
+              item_hash TEXT NOT NULL,
+              item_json TEXT NOT NULL,
+              PRIMARY KEY(run_id,target,state_type,item_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_working_recon_derived_state_run_target
+              ON working_recon_derived_state(run_id,target,state_type);
             """
         )
         self.execute(
@@ -271,12 +314,186 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             "has_snapshot": int(commit is not None),
         }
 
+    def replace_recon_derived_working_state(
+        self,
+        run_id: str,
+        target: str,
+        state_type: str,
+        items: Mapping[str, Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        """Prepare one complete derived Recon set and diff it against the last successful set."""
+        normalized_type = str(state_type or "").strip()
+        if not normalized_type or len(normalized_type) > 100:
+            raise ValueError("Invalid derived Recon state type")
+        if len(items) > 50000:
+            raise ValueError("Derived Recon state exceeds the 50000-item safety limit")
+
+        current: dict[str, dict[str, Any]] = {}
+        for raw_key, raw_payload in items.items():
+            item_key = str(raw_key or "").strip()
+            if not item_key or len(item_key) > 2000:
+                raise ValueError("Invalid derived Recon item key")
+            payload = dict(raw_payload)
+            current[item_key] = payload
+
+        baseline_set = self.one(
+            "SELECT committed_run_id FROM successful_recon_derived_sets "
+            "WHERE target=? AND state_type=?",
+            (target, normalized_type),
+        )
+        previous_rows = self.all(
+            "SELECT item_key,item_hash,item_json FROM successful_recon_derived_state "
+            "WHERE target=? AND state_type=? ORDER BY item_key",
+            (target, normalized_type),
+        )
+        previous: dict[str, tuple[str, dict[str, Any]]] = {}
+        for row in previous_rows:
+            payload = safe_json_loads(row["item_json"], {}, expected_type=dict)
+            previous[str(row["item_key"])] = (str(row["item_hash"]), payload)
+
+        now = utc_now()
+        with self.transaction():
+            self.execute(
+                "DELETE FROM working_recon_derived_state "
+                "WHERE run_id=? AND target=? AND state_type=?",
+                (run_id, target, normalized_type),
+            )
+            self.execute(
+                "INSERT INTO working_recon_derived_sets("
+                "run_id,target,state_type,row_count,prepared_at"
+                ") VALUES(?,?,?,?,?) "
+                "ON CONFLICT(run_id,target,state_type) DO UPDATE SET "
+                "row_count=excluded.row_count,prepared_at=excluded.prepared_at",
+                (run_id, target, normalized_type, len(current), now),
+            )
+            for item_key in sorted(current):
+                item_json = json_dumps(current[item_key])
+                self.execute(
+                    "INSERT INTO working_recon_derived_state("
+                    "run_id,target,state_type,item_key,item_hash,item_json"
+                    ") VALUES(?,?,?,?,?,?)",
+                    (
+                        run_id,
+                        target,
+                        normalized_type,
+                        item_key,
+                        sha256_text(item_json),
+                        item_json,
+                    ),
+                )
+
+        baseline_exists = baseline_set is not None
+        if not baseline_exists:
+            return {
+                "state_type": normalized_type,
+                "baseline_exists": False,
+                "baseline_run_id": "",
+                "current_count": len(current),
+                "added": [],
+                "removed": [],
+                "changed": [],
+            }
+
+        added: list[dict[str, Any]] = []
+        removed: list[dict[str, Any]] = []
+        changed: list[dict[str, Any]] = []
+        for item_key in sorted(set(current) - set(previous)):
+            added.append({"item_key": item_key, "after": current[item_key]})
+        for item_key in sorted(set(previous) - set(current)):
+            removed.append({"item_key": item_key, "before": previous[item_key][1]})
+        for item_key in sorted(set(current) & set(previous)):
+            item_json = json_dumps(current[item_key])
+            item_hash = sha256_text(item_json)
+            if item_hash != previous[item_key][0]:
+                changed.append(
+                    {
+                        "item_key": item_key,
+                        "before": previous[item_key][1],
+                        "after": current[item_key],
+                    }
+                )
+
+        return {
+            "state_type": normalized_type,
+            "baseline_exists": True,
+            "baseline_run_id": str(baseline_set["committed_run_id"]),
+            "current_count": len(current),
+            "added": added,
+            "removed": removed,
+            "changed": changed,
+        }
+
+    def _discard_derived_working_state_no_tx(self, run_id: str, target: str) -> None:
+        self.execute(
+            "DELETE FROM working_recon_derived_state WHERE run_id=? AND target=?",
+            (run_id, target),
+        )
+        self.execute(
+            "DELETE FROM working_recon_derived_sets WHERE run_id=? AND target=?",
+            (run_id, target),
+        )
+
+    def _promote_derived_working_state_no_tx(self, run_id: str, target: str) -> dict[str, int]:
+        sets = self.all(
+            "SELECT state_type,row_count FROM working_recon_derived_sets "
+            "WHERE run_id=? AND target=? ORDER BY state_type",
+            (run_id, target),
+        )
+        now = utc_now()
+        promoted_rows = 0
+        for set_row in sets:
+            state_type = str(set_row["state_type"])
+            self.execute(
+                "DELETE FROM successful_recon_derived_state "
+                "WHERE target=? AND state_type=?",
+                (target, state_type),
+            )
+            rows = self.all(
+                "SELECT item_key,item_hash,item_json FROM working_recon_derived_state "
+                "WHERE run_id=? AND target=? AND state_type=? ORDER BY item_key",
+                (run_id, target, state_type),
+            )
+            for row in rows:
+                self.execute(
+                    "INSERT INTO successful_recon_derived_state("
+                    "target,state_type,item_key,item_hash,item_json,committed_run_id,committed_at"
+                    ") VALUES(?,?,?,?,?,?,?)",
+                    (
+                        target,
+                        state_type,
+                        str(row["item_key"]),
+                        str(row["item_hash"]),
+                        str(row["item_json"]),
+                        run_id,
+                        now,
+                    ),
+                )
+                promoted_rows += 1
+            self.execute(
+                "INSERT INTO successful_recon_derived_sets("
+                "target,state_type,committed_run_id,committed_at,row_count"
+                ") VALUES(?,?,?,?,?) "
+                "ON CONFLICT(target,state_type) DO UPDATE SET "
+                "committed_run_id=excluded.committed_run_id,"
+                "committed_at=excluded.committed_at,row_count=excluded.row_count",
+                (target, state_type, run_id, now, len(rows)),
+            )
+        self._discard_derived_working_state_no_tx(run_id, target)
+        return {"sets": len(sets), "rows": promoted_rows}
+
     def successful_snapshot_status(self, target: str) -> dict[str, Any]:
         row = self.one(
             "SELECT target,run_id,committed_at,bootstrap,table_count,row_count "
             "FROM successful_recon_commits WHERE target=?",
             (target,),
         )
+        derived = self.one(
+            "SELECT COUNT(*) AS set_count,COALESCE(SUM(row_count),0) AS row_count "
+            "FROM successful_recon_derived_sets WHERE target=?",
+            (target,),
+        )
+        derived_set_count = int(derived["set_count"] or 0) if derived else 0
+        derived_row_count = int(derived["row_count"] or 0) if derived else 0
         if row is None:
             return {
                 "target": target,
@@ -285,6 +502,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                 "bootstrap": False,
                 "table_count": 0,
                 "row_count": 0,
+                "derived_set_count": derived_set_count,
+                "derived_row_count": derived_row_count,
             }
         return {
             "target": target,
@@ -294,6 +513,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             "bootstrap": bool(row["bootstrap"]),
             "table_count": int(row["table_count"]),
             "row_count": int(row["row_count"]),
+            "derived_set_count": derived_set_count,
+            "derived_row_count": derived_row_count,
         }
 
     def create_run_target(
@@ -314,6 +535,14 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             return super().create_run_target(run_id, policy, run_dir, baseline)
         with self.transaction():
             discard_stale_stable_change_runs(self, policy.name, run_id)
+            self.execute(
+                "DELETE FROM working_recon_derived_state WHERE target=?",
+                (policy.name,),
+            )
+            self.execute(
+                "DELETE FROM working_recon_derived_sets WHERE target=?",
+                (policy.name,),
+            )
             self._restore_successful_snapshot_no_tx(policy.name)
             super().create_run_target(run_id, policy, run_dir, baseline)
         begin_target_lifecycle(self, run_id, policy.name)
@@ -359,10 +588,13 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                 self._replace_successful_snapshot_no_tx(
                     target, run_id, bootstrap=False
                 )
+                self._promote_derived_working_state_no_tx(run_id, target)
                 if lifecycle is not None:
                     mark_baseline_committed(self, run_id, target, reason)
-            elif lifecycle is not None:
-                mark_baseline_not_committed(self, run_id, target, reason)
+            else:
+                self._discard_derived_working_state_no_tx(run_id, target)
+                if lifecycle is not None:
+                    mark_baseline_not_committed(self, run_id, target, reason)
             super().finish_run_target(run_id, target, status)
 
 
