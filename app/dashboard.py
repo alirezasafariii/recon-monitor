@@ -321,6 +321,13 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
     if status == "unavailable":
         return ""
     if status != "started":
+        guidance = workflow.get("change_guidance") if isinstance(workflow.get("change_guidance"), Mapping) else {}
+        change_preview = ""
+        if bool(guidance.get("available")):
+            change_preview = (
+                "<div class='callout' style='margin-top:12px'><strong>Change-aware start context</strong>"
+                "<span>This cluster is linked to recent Recon change provenance. Starting the investigation will place review-only change tasks ahead of existing evidence-gap tasks, without changing evidence coverage, Admission, or validation eligibility.</span></div>"
+            )
         return (
             "<section class='panel' id='investigation-workflow' style='margin-top:18px'>"
             "<div class='panel-head'><div><h4>Investigation Workflow</h4>"
@@ -328,7 +335,8 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
             + _base._pill("not started", "neutral")
             + "</div><div class='panel-body'>"
             "<div class='callout'><strong>Turn this dossier into analyst work</strong><span>Start Investigation links this cluster to the existing Security Case, Evidence Gap, Case Autopilot and Safe Validation engines. It does not confirm the vulnerability and does not run validation.</span></div>"
-            "<form method='post' action='/investigation/start' style='margin-top:14px'>"
+            + change_preview
+            + "<form method='post' action='/investigation/start' style='margin-top:14px'>"
             f"<input type='hidden' name='analysis_id' value='{_base._esc(analysis_id)}'>"
             f"<input type='hidden' name='cluster_id' value='{_base._esc(item.get('cluster_id') or '')}'>"
             f"<input type='hidden' name='target' value='{_base._esc(item.get('target') or '')}'>"
@@ -342,6 +350,7 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
     gap = workflow.get("evidence") if isinstance(workflow.get("evidence"), Mapping) else {}
     autopilot = workflow.get("autopilot") if isinstance(workflow.get("autopilot"), Mapping) else {}
     validation = workflow.get("validation") if isinstance(workflow.get("validation"), Mapping) else {}
+    guidance = workflow.get("change_guidance") if isinstance(workflow.get("change_guidance"), Mapping) else {}
     case_id = str(workflow.get("case_id") or case.get("case_id") or "")
     coverage = _base.parse_int(gap.get("coverage"), 0, 0, 100)
     missing_count = _base.parse_int(gap.get("missing_count"), 0, 0, 999)
@@ -349,6 +358,31 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
     level = str(validation.get("recommended_level") or "offline")
     executable = bool(validation.get("executable_in_this_release"))
     primary_candidate_count = _base.parse_int(workflow.get("primary_candidate_count"), 0, 0, 999)
+    change_score = _base.parse_int(guidance.get("score"), 0, 0, 100)
+    prioritized_requirements = [
+        row
+        for row in guidance.get("prioritized_requirements", [])
+        if isinstance(row, Mapping)
+    ]
+    prioritized_text = " · ".join(
+        str(row.get("label") or row.get("key") or "")
+        for row in prioritized_requirements[:4]
+        if str(row.get("label") or row.get("key") or "").strip()
+    )
+    change_guidance_html = ""
+    if bool(guidance.get("available")):
+        change_guidance_html = (
+            "<div class='callout' style='margin-top:14px'><strong>Change-aware task ordering — advisory only</strong>"
+            f"<span>Recent Recon change affinity is {change_score}/100. "
+            + (
+                "Existing missing requirements prioritized for review: "
+                + _base._esc(prioritized_text)
+                + ". "
+                if prioritized_text
+                else ""
+            )
+            + "Evidence coverage and Autopilot readiness are unchanged by this context, and no validation is triggered automatically.</span></div>"
+        )
 
     requirement_rows = "".join(
         f"<tr><td>{_base._esc(row.get('label') or row.get('key') or '')}</td><td>{_base._pill(row.get('status') or 'missing','success' if row.get('status') == 'present' else 'amber')}</td><td>{_base._esc(row.get('why') or '')}</td></tr>"
@@ -356,7 +390,17 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
     ) or "<tr><td colspan='3' class='muted'>No evidence requirements are available.</td></tr>"
     tasks = [row for row in autopilot.get("tasks", []) if isinstance(row, Mapping)]
     task_rows = "".join(
-        f"<li><strong>#{_base._esc(row.get('rank') or '')}</strong> {_base._esc(row.get('title') or '')}</li>"
+        "<li><strong>#"
+        + _base._esc(row.get("rank") or "")
+        + "</strong> "
+        + (
+            _base._pill("change-guided", "info")
+            if bool(row.get("advisory_only"))
+            else ""
+        )
+        + " "
+        + _base._esc(row.get("title") or "")
+        + "</li>"
         for row in tasks[:8]
     ) or "<li>No additional evidence task is currently required; review the dossier and record a decision.</li>"
     reasons = "".join(f"<li>{_base._esc(value)}</li>" for value in validation.get("reasons", [])[:6]) or "<li>No additional validation eligibility reason recorded.</li>"
@@ -383,15 +427,25 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
         f"<div class='attention-card'><span>Missing evidence</span><strong>{missing_count}</strong><small>requirements still open</small></div>"
         f"<div class='attention-card'><span>Autopilot readiness</span><strong>{autopilot_score}%</strong><small>workflow readiness, not vulnerability confidence</small></div>"
         f"<div class='attention-card'><span>Validation</span><strong>{_base._esc(level.replace('_',' '))}</strong><small>{'plan may be created; execution stays gated' if executable else 'manual or controlled only'}</small></div>"
+        f"<div class='attention-card'><span>Recent change</span><strong>{change_score}%</strong><small>advisory task-ordering context only</small></div>"
         "</div>"
-        "<div class='grid two' style='margin-top:16px'>"
+        + change_guidance_html
+        + "<div class='grid two' style='margin-top:16px'>"
         f"<section><h4>Next Best Actions</h4><ol>{task_rows}</ol>"
         "<form method='post' action='/investigation/refresh' style='margin-top:12px'>"
         f"<input type='hidden' name='case_id' value='{_base._esc(case_id)}'><input type='hidden' name='return' value='{_base._esc(return_href)}'>"
         "<button type='submit' class='secondary'>Refresh Evidence Plan</button></form></section>"
         f"<section><h4>Safe Validation Eligibility</h4><p>{_base._pill(level)}</p><ul>{reasons}</ul>{validation_action}</section>"
         "</div>"
-        "<section style='margin-top:18px'><h4>Evidence Readiness</h4><div class='table-wrap'><table><thead><tr><th>Requirement</th><th>Status</th><th>Why it matters</th></tr></thead><tbody>"
+        "<section style='margin-top:18px'><h4>Evidence Readiness</h4>"
+        + (
+            "<p class='muted small'><strong>Change-prioritized gaps:</strong> "
+            + _base._esc(prioritized_text)
+            + ". These remain missing until target evidence satisfies them.</p>"
+            if prioritized_text
+            else ""
+        )
+        + "<div class='table-wrap'><table><thead><tr><th>Requirement</th><th>Status</th><th>Why it matters</th></tr></thead><tbody>"
         + requirement_rows + "</tbody></table></div></section>"
         "<section style='margin-top:18px'><h4>Analyst Decision</h4>"
         "<div class='callout'><strong>Feedback loop</strong><span>Decisions are applied only to promoted Potential Findings in the cluster's primary family. Those reviewed outcomes feed the historical prior on subsequent Meta Ranker runs; hidden proximity-only hypotheses are never promoted by this action.</span></div>"

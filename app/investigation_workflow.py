@@ -20,7 +20,7 @@ from safe_validation import validation_eligibility
 from workspace_v7 import case_autopilot, evidence_gap_for_case
 
 
-INVESTIGATION_WORKFLOW_VERSION = "1.0.0"
+INVESTIGATION_WORKFLOW_VERSION = "1.1.0"
 CLUSTER_CASE_PREFIX = "investigation-cluster:"
 CLUSTER_DECISIONS = (
     "needs_more_evidence",
@@ -122,11 +122,357 @@ def _cluster_candidates(
     return out
 
 
-def _workflow_snapshot_for_case(db: Database, case: Mapping[str, Any]) -> dict[str, Any]:
+def _queue_item_for_case(db: Database, case: Mapping[str, Any]) -> dict[str, Any]:
+    case_key = str(case.get("case_key") or "")
+    analysis_id = str(case.get("analysis_id") or "")
+    target = str(case.get("target") or "")
+    if not analysis_id or not case_key.startswith(CLUSTER_CASE_PREFIX):
+        return {}
+    cluster_id = case_key[len(CLUSTER_CASE_PREFIX):]
+    if not cluster_id:
+        return {}
+    try:
+        return _queue_item(
+            db,
+            analysis_id=analysis_id,
+            cluster_id=cluster_id,
+            target=target,
+        )
+    except ReconError:
+        return {}
+
+
+def _change_guidance(
+    item: Mapping[str, Any],
+    gap: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Prioritize analyst review from P5 change provenance without creating evidence."""
+    score = parse_int(item.get("derived_change_score"), 0, 0, 100)
+    raw_matches = item.get("derived_change_matches")
+    matches = [
+        dict(row)
+        for row in raw_matches[:12]
+        if isinstance(row, Mapping)
+    ] if isinstance(raw_matches, list) else []
+    matches = [
+        row
+        for row in matches
+        if str(row.get("signal_type") or "").strip()
+        and str(row.get("item") or "").strip()
+    ]
+
+    base = {
+        "available": bool(score and matches),
+        "score": score,
+        "matched_signal_count": parse_int(
+            item.get("derived_change_matched_signals"),
+            len(matches),
+            0,
+            5000,
+        ),
+        "signal_types": sorted(
+            {
+                str(row.get("signal_type") or "")
+                for row in matches
+                if str(row.get("signal_type") or "").strip()
+            }
+        )[:12],
+        "prioritized_requirements": [],
+        "tasks": [],
+        "why_now": [],
+        "advisory_only": True,
+        "safety": {
+            "counts_as_evidence": False,
+            "changes_evidence_coverage": False,
+            "changes_admission": False,
+            "changes_validation_eligibility": False,
+            "can_execute_validation": False,
+            "network_requests": False,
+        },
+    }
+    if not base["available"]:
+        return base
+
+    requirements = [
+        dict(row)
+        for row in gap.get("requirements", [])
+        if isinstance(row, Mapping)
+        and str(row.get("status") or "") == "missing"
+    ]
+    missing_by_key = {
+        str(row.get("key") or ""): row
+        for row in requirements
+        if str(row.get("key") or "").strip()
+    }
+    family = str(item.get("primary_family") or "")
+    focus: list[str] = []
+
+    signal_types = set(base["signal_types"])
+    if any(value.startswith("source_map_source_") for value in signal_types):
+        focus.extend(["expected_behavior", "endpoint", "auth_boundary", "evidence"])
+    if any(value.startswith("javascript_chunk_") for value in signal_types):
+        focus.extend(["endpoint", "evidence", "comparable_response"])
+    if family == "broken_object_authorization":
+        focus.extend(["ownership_map", "second_identity", "comparable_response"])
+    elif family == "broken_function_authorization":
+        focus.extend(["role_map", "authenticated_context", "comparable_response"])
+    elif family == "graphql_authorization":
+        focus.extend(["operation_context", "auth_boundary", "comparable_response"])
+    elif family == "websocket_authorization":
+        focus.extend(["channel_context", "auth_boundary", "comparable_response"])
+
+    focus.extend(str(row.get("key") or "") for row in requirements)
+    prioritized: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for key in focus:
+        if not key or key in seen_keys or key not in missing_by_key:
+            continue
+        seen_keys.add(key)
+        row = missing_by_key[key]
+        prioritized.append(
+            {
+                "key": key,
+                "label": str(row.get("label") or key),
+                "why": str(row.get("why") or ""),
+                "status": "missing",
+            }
+        )
+        if len(prioritized) >= 5:
+            break
+    base["prioritized_requirements"] = prioritized
+
+    tasks: list[dict[str, Any]] = []
+    for row in matches[:2]:
+        signal_type = str(row.get("signal_type") or "")
+        change = str(row.get("change") or "")
+        changed_item = str(row.get("item") or "")[:240]
+        reasons = [
+            str(value)[:500]
+            for value in row.get("reasons", [])[:3]
+            if str(value).strip()
+        ] if isinstance(row.get("reasons"), list) else []
+
+        if signal_type.startswith("source_map_source_"):
+            if change == "added":
+                title = (
+                    f"Review newly surfaced source module {changed_item} and map any "
+                    "endpoint or security-boundary changes to existing case evidence."
+                )
+            elif change == "removed":
+                title = (
+                    f"Review removed source module {changed_item} as a deployment/code-move "
+                    "signal before assuming any endpoint or control disappeared."
+                )
+            else:
+                title = (
+                    f"Review changed source module {changed_item} against the current "
+                    "hypothesis and document which security assumptions actually changed."
+                )
+        elif signal_type.startswith("javascript_chunk_"):
+            if change == "added":
+                title = (
+                    f"Review newly referenced JavaScript chunk {changed_item} using existing "
+                    "artifacts and map any new endpoint/auth-flow references."
+                )
+            elif change == "removed":
+                title = (
+                    f"Review removed JavaScript chunk reference {changed_item}; verify code "
+                    "movement or deprecation from stored artifacts before treating the surface as gone."
+                )
+            else:
+                title = (
+                    f"Review changed JavaScript chunk reference {changed_item} and map affected "
+                    "client-side routes or auth flows from stored artifacts."
+                )
+        else:
+            title = (
+                f"Review recent Recon change {changed_item} as a pointer for the current "
+                "investigation without treating it as target evidence."
+            )
+        tasks.append(
+            {
+                "rank": len(tasks) + 1,
+                "type": "change_review",
+                "title": title,
+                "status": "open",
+                "advisory_only": True,
+                "signal_type": signal_type,
+                "item": changed_item,
+                "item_key": str(row.get("item_key") or "")[:2000],
+                "reasons": reasons,
+            }
+        )
+        base["why_now"].extend(reasons)
+
+    if prioritized:
+        first = prioritized[0]
+        tasks.append(
+            {
+                "rank": len(tasks) + 1,
+                "type": "evidence_priority",
+                "title": (
+                    "Use the recent change only to prioritize this existing evidence gap: "
+                    f"{first['label']}."
+                ),
+                "status": "open",
+                "advisory_only": True,
+                "requirement_key": first["key"],
+                "reasons": [first["why"]] if first["why"] else [],
+            }
+        )
+
+    base["tasks"] = tasks[:3]
+    base["why_now"] = list(dict.fromkeys(base["why_now"]))[:8]
+    return base
+
+
+def _merge_change_guidance(
+    gap: Mapping[str, Any],
+    autopilot: Mapping[str, Any],
+    guidance: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    gap_out = dict(gap)
+    autopilot_out = dict(autopilot)
+    prioritized = [
+        dict(row)
+        for row in guidance.get("prioritized_requirements", [])
+        if isinstance(row, Mapping)
+    ]
+    gap_out["change_prioritized_requirements"] = prioritized
+    gap_out["change_aware_next_actions"] = [
+        str(row.get("title") or "")
+        for row in guidance.get("tasks", [])
+        if isinstance(row, Mapping) and str(row.get("title") or "").strip()
+    ]
+    gap_out["change_advisory_score"] = int(guidance.get("score") or 0)
+    gap_out["change_context_is_advisory_only"] = True
+
+    merged: list[dict[str, Any]] = []
+    seen_titles: set[str] = set()
+    for raw in list(guidance.get("tasks", [])) + list(autopilot.get("tasks", [])):
+        if not isinstance(raw, Mapping):
+            continue
+        task = dict(raw)
+        title = str(task.get("title") or "").strip()
+        if not title or title in seen_titles:
+            continue
+        seen_titles.add(title)
+        task["rank"] = len(merged) + 1
+        merged.append(task)
+    autopilot_out["tasks"] = merged
+    autopilot_out["change_guidance"] = dict(guidance)
+    autopilot_out["change_aware"] = bool(guidance.get("available"))
+    autopilot_out["change_context_does_not_change_autopilot_score"] = True
+    return gap_out, autopilot_out
+
+
+def _persist_change_advisory_tasks(
+    db: Database,
+    case_id: str,
+    guidance: Mapping[str, Any],
+    *,
+    actor: str,
+) -> None:
+    db.execute(
+        "DELETE FROM case_autopilot_tasks WHERE case_id=? AND task_id LIKE 'task-change-%'",
+        (case_id,),
+    )
+    tasks = [
+        dict(row)
+        for row in guidance.get("tasks", [])
+        if isinstance(row, Mapping)
+        and str(row.get("title") or "").strip()
+    ]
+    if not tasks:
+        return
+
+    db.execute(
+        "UPDATE case_autopilot_tasks SET rank=rank+? "
+        "WHERE case_id=? AND status='open'",
+        (len(tasks), case_id),
+    )
+    now = utc_now()
+    for index, task in enumerate(tasks, start=1):
+        identity = "|".join(
+            [
+                case_id,
+                str(task.get("type") or ""),
+                str(task.get("signal_type") or ""),
+                str(task.get("item_key") or ""),
+                str(task.get("requirement_key") or ""),
+                str(task.get("title") or ""),
+            ]
+        )
+        task_id = "task-change-" + hashlib.sha256(
+            identity.encode("utf-8", "replace")
+        ).hexdigest()[:16]
+        details = {
+            "source": "derived_change_advisory",
+            "advisory_only": True,
+            "counts_as_evidence": False,
+            "changes_evidence_coverage": False,
+            "changes_admission": False,
+            "can_execute_validation": False,
+            "signal_type": task.get("signal_type"),
+            "item": task.get("item"),
+            "item_key": task.get("item_key"),
+            "requirement_key": task.get("requirement_key"),
+            "reasons": task.get("reasons", []),
+        }
+        db.execute(
+            "INSERT OR REPLACE INTO case_autopilot_tasks("
+            "task_id,case_id,task_type,title,rank,status,details_json,created_at,updated_at"
+            ") VALUES(?,?,?,?,?,'open',?,?,?)",
+            (
+                task_id,
+                case_id,
+                str(task.get("type") or "change_review"),
+                str(task.get("title") or ""),
+                index,
+                json_dumps(details),
+                now,
+                now,
+            ),
+        )
+
+    db.execute(
+        "INSERT INTO security_case_events("
+        "case_id,event_type,actor,details_json,created_at"
+        ") VALUES(?,?,?,?,?)",
+        (
+            case_id,
+            "investigation_change_guidance_refreshed",
+            actor,
+            json_dumps(
+                {
+                    "advisory_score": int(guidance.get("score") or 0),
+                    "task_count": len(tasks),
+                    "prioritized_requirements": [
+                        str(row.get("key") or "")
+                        for row in guidance.get("prioritized_requirements", [])
+                        if isinstance(row, Mapping)
+                    ],
+                    "status": "advisory_only_not_evidence",
+                }
+            ),
+            now,
+        ),
+    )
+
+
+def _workflow_snapshot_for_case(
+    db: Database,
+    case: Mapping[str, Any],
+    *,
+    item: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     case_id = str(case.get("case_id") or "")
     detail = case_detail(db, case_id)
     gap = evidence_gap_for_case(db, case_id, persist=False)
     autopilot = case_autopilot(db, case_id, actor="investigation-preview", persist=False)
+    queue_item = dict(item) if isinstance(item, Mapping) else _queue_item_for_case(db, case)
+    guidance = _change_guidance(queue_item, gap) if queue_item else _change_guidance({}, gap)
+    gap, autopilot = _merge_change_guidance(gap, autopilot, guidance)
     eligibility = validation_eligibility(db, case_id)
     family = str(case.get("primary_family") or "")
     primary_candidates = [
@@ -140,6 +486,7 @@ def _workflow_snapshot_for_case(db: Database, case: Mapping[str, Any]) -> dict[s
         "evidence": gap,
         "autopilot": autopilot,
         "validation": eligibility,
+        "change_guidance": guidance,
         "candidate_count": len(detail.get("candidates", [])),
         "primary_candidate_count": len(primary_candidates),
         "primary_candidate_ids": [str(row.get("candidate_id") or "") for row in primary_candidates],
@@ -147,6 +494,9 @@ def _workflow_snapshot_for_case(db: Database, case: Mapping[str, Any]) -> dict[s
             "case_does_not_confirm_vulnerability": True,
             "confirmation_requires_promoted_primary_family_candidate": True,
             "safe_validation_remains_approval_gated": True,
+            "change_context_is_advisory_only": True,
+            "change_context_does_not_change_evidence_coverage": True,
+            "change_context_cannot_trigger_validation": True,
         },
     }
 
@@ -161,19 +511,24 @@ def cluster_workflow_snapshot(
     cluster_id = str(item.get("cluster_id") or "")
     case = find_cluster_case(db, target=target, cluster_id=cluster_id)
     if not case:
+        guidance = _change_guidance(item, {"requirements": []})
         return {
             "status": "not_started",
             "case_id": cluster_case_id(target, cluster_id),
             "candidate_count": 0,
             "primary_candidate_count": 0,
             "analysis_id": analysis_id,
+            "change_guidance": guidance,
             "safety": {
                 "case_does_not_confirm_vulnerability": True,
                 "confirmation_requires_promoted_primary_family_candidate": True,
                 "safe_validation_remains_approval_gated": True,
+                "change_context_is_advisory_only": True,
+                "change_context_does_not_change_evidence_coverage": True,
+                "change_context_cannot_trigger_validation": True,
             },
         }
-    return _workflow_snapshot_for_case(db, case)
+    return _workflow_snapshot_for_case(db, case, item=item)
 
 
 def ensure_cluster_case(
@@ -306,22 +661,56 @@ def ensure_cluster_case(
         details={"cluster_id": cluster_value, "analysis_id": analysis_id, "candidate_count": len(candidates)},
     )
 
-    # Persist the initial evidence/autopilot snapshot, but do not execute validation.
+    # Persist the initial evidence/autopilot snapshot, then add review-only
+    # change-aware tasks. Neither path executes validation.
     case_autopilot(db, case_id, actor=actor, persist=True)
+    gap_preview = evidence_gap_for_case(db, case_id, persist=False)
+    guidance = _change_guidance(queue_item, gap_preview)
+    _persist_change_advisory_tasks(
+        db,
+        case_id,
+        guidance,
+        actor=actor,
+    )
     case = db.one("SELECT * FROM security_cases WHERE case_id=?", (case_id,))
-    return _workflow_snapshot_for_case(db, dict(case) if case else {"case_id": case_id, "primary_family": family})
+    return _workflow_snapshot_for_case(
+        db,
+        dict(case) if case else {"case_id": case_id, "primary_family": family},
+        item=queue_item,
+    )
 
 
 def refresh_case_workflow(db: Database, case_id: str, *, actor: str = "analyst") -> dict[str, Any]:
     case = db.one("SELECT * FROM security_cases WHERE case_id=?", (case_id,))
     if not case:
         raise ReconError(f"Security case not found: {case_id}")
+    case_dict = dict(case)
     case_autopilot(db, case_id, actor=actor, persist=True)
+    queue_item = _queue_item_for_case(db, case_dict)
+    gap_preview = evidence_gap_for_case(db, case_id, persist=False)
+    guidance = _change_guidance(queue_item, gap_preview) if queue_item else _change_guidance({}, gap_preview)
+    _persist_change_advisory_tasks(
+        db,
+        case_id,
+        guidance,
+        actor=actor,
+    )
     db.execute(
         "INSERT INTO security_case_events(case_id,event_type,actor,details_json,created_at) VALUES(?,?,?,?,?)",
-        (case_id, "investigation_workflow_refreshed", actor, "{}", utc_now()),
+        (
+            case_id,
+            "investigation_workflow_refreshed",
+            actor,
+            json_dumps(
+                {
+                    "change_aware": bool(guidance.get("available")),
+                    "change_advisory_score": int(guidance.get("score") or 0),
+                }
+            ),
+            utc_now(),
+        ),
     )
-    return _workflow_snapshot_for_case(db, dict(case))
+    return _workflow_snapshot_for_case(db, case_dict, item=queue_item or None)
 
 
 def record_cluster_decision(
