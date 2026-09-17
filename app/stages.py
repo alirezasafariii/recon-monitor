@@ -264,9 +264,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     successful_rrtypes: set[str] = set()
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
+    wildcard_classification_complete = False
 
     filtered_hosts = set(hosts)
     if tool_path("dnsx"):
+        wildcard_classification_complete = True
         filtered_hosts = set()
         for root in ctx.policy.roots:
             root_hosts = [host for host in hosts if host == root or host.endswith("." + root)]
@@ -289,6 +291,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             if result.returncode == 0 and root_output.exists():
                 filtered_hosts.update(_scope_hosts(ctx.policy, root_output.read_text(encoding="utf-8", errors="replace").splitlines()))
             else:
+                wildcard_classification_complete = False
                 filtered_hosts.update(root_hosts)
         wildcard_candidates = set(hosts) - filtered_hosts
         filtered_hosts.update(ctx.policy.roots)
@@ -352,6 +355,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             ctx.db.upsert_edge(ctx.policy.name, "host", host, relation, destination_type, value, ctx.run_id, {"rrtype": rrtype})
     for host in wildcard_candidates:
         ctx.db.execute("UPDATE assets SET wildcard=1,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
+    if wildcard_classification_complete:
+        for host in sorted(set(hosts) - wildcard_candidates):
+            ctx.db.execute("UPDATE assets SET wildcard=0,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
     ctx.db.finalize_dns_current(ctx.policy.name, ctx.run_id, successful_rrtypes)
 
     for host, rrtype, value in sorted(new_records):
@@ -376,6 +382,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "removed_records": len(removed_records),
         "wildcard_candidates": len(wildcard_candidates),
         "wildcard_resolved": len(wildcard_candidates & resolved_hosts),
+        "wildcard_classification_complete": wildcard_classification_complete,
         "successful_rrtypes": sorted(successful_rrtypes),
     }
 
