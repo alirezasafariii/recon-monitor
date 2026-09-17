@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+import urllib.parse
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -59,7 +60,7 @@ class ReconP1CollectionTests(unittest.TestCase):
             "https://c.example.com/": {"base"},
         }
         selected = _select_diverse_urls(candidates, 3)
-        hosts = {__import__("urllib.parse").parse.urlsplit(url).hostname for url in selected}
+        hosts = {urllib.parse.urlsplit(url).hostname for url in selected}
         self.assertEqual(hosts, {"a.example.com", "b.example.com", "c.example.com"})
 
     def test_sensitive_live_path_wins_within_same_host(self) -> None:
