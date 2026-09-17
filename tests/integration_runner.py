@@ -2,6 +2,7 @@
 from __future__ import annotations
 import contextlib,json,sys,tempfile,threading
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'app'))
 from core import AppPaths,Config,Database,TargetPolicy
@@ -29,7 +30,9 @@ def main():
             run='integration';run_dir=paths.output/'fixture'/'runs'/run;run_dir.mkdir(parents=True);db.create_run_target(run,policy,run_dir,False) if False else None
             endpoint=f'http://127.0.0.1:{port}/api/admin/export';classification={'primary_category':'admin','confidence':90,'categories':['admin'],'reasons':['fixture']};db.upsert_endpoint_intelligence('fixture',endpoint,'absolute_url',classification,'fixture.js',run)
             budget=BudgetManager.create(db,run,'fixture',policy);ctx=StageContext(paths,Config(paths),policy,db,Stub(),Runner(),Stub(),run,run_dir,False,budget)
-            metrics=stage_endpoint_validation(ctx);row=db.one('SELECT status_code,reachable FROM endpoint_validations WHERE target=?',('fixture',))
+            with patch('safe_transport.resolve_public_addresses',return_value=(True,['127.0.0.1'])):
+                metrics=stage_endpoint_validation(ctx)
+            row=db.one('SELECT status_code,reachable FROM endpoint_validations WHERE target=?',('fixture',))
             assert metrics['reachable']==1 and int(row['status_code'])==401 and int(row['reachable'])==1
             db.close();print(json.dumps({'ok':True,'endpoint_validation':metrics,'status_code':401},indent=2));return 0
     finally:server.shutdown();server.server_close()
