@@ -14,6 +14,7 @@ from typing import Any, Callable, Mapping
 
 import dashboard_core as _base
 from correlation_engine import CORRELATION_ENGINE_VERSION, build_correlation_context, investigation_queue
+from derived_change_advisory import DERIVED_CHANGE_ADVISORY_VERSION
 from investigation_workflow import (
     INVESTIGATION_WORKFLOW_VERSION,
     cluster_workflow_snapshot,
@@ -24,7 +25,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.2.1"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.3.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -133,6 +134,7 @@ def _analysis_intelligence_panel(analysis_id: str, queue: list[dict[str, Any]]) 
     avg_evidence = round(sum(_base.parse_int(x.get("target_evidence_confidence"), 0, 0, 100) for x in queue) / count) if count else 0
     strong = sum(_base.parse_int(x.get("cluster_strength"), 0, 0, 100) >= 60 for x in queue)
     high = sum(str(x.get("hunt_priority") or "").upper() == "HIGH" for x in queue)
+    change_linked = sum(bool(x.get("change_linked")) for x in queue)
     rows = "".join(
         f"<tr><td>{_base._esc(family.replace('_',' '))}</td><td><strong>{score}</strong></td><td>{clusters}</td></tr>"
         for family, score, clusters in _family_summary(queue)
@@ -143,14 +145,15 @@ def _analysis_intelligence_panel(analysis_id: str, queue: list[dict[str, Any]]) 
         _base._metric_card("Average target evidence", f"{avg_evidence}%", "Uses target observations only", "success" if avg_evidence >= 60 else "amber"),
         _base._metric_card("Strong correlations", strong, "Clusters with cross-surface strength ≥60", "orange"),
         _base._metric_card("High hunt priority", high, "Prioritized for analyst attention, not confirmation", "danger" if high else "neutral"),
+        _base._metric_card("Change-linked clusters", change_linked, "Recent source-map/chunk change affinity; advisory only", "info" if change_linked else "neutral"),
     ]) + "</div>"
     return (
         "<section class='panel' id='vulnerability-intelligence' style='margin-top:16px'>"
         "<div class='panel-head'><div><h3>Vulnerability Intelligence</h3>"
-        f"<span class='muted small'>Meta Ranker {_base._esc(META_RANKER_VERSION)} · Correlation Engine {_base._esc(CORRELATION_ENGINE_VERSION)}</span></div>"
+        f"<span class='muted small'>Meta Ranker {_base._esc(META_RANKER_VERSION)} · Correlation Engine {_base._esc(CORRELATION_ENGINE_VERSION)} · Change Advisory {_base._esc(DERIVED_CHANGE_ADVISORY_VERSION)}</span></div>"
         + _base._pill("advisory context", "info")
         + "</div><div class='panel-body'>" + metrics
-        + "<div class='callout' style='margin-top:14px'><strong>Evidence boundary preserved</strong><span>Bug proximity and cross-surface correlation rank where to investigate. They cannot satisfy admission, create an independent evidence root, raise target-evidence confidence, or confirm a vulnerability.</span></div>"
+        + "<div class='callout' style='margin-top:14px'><strong>Evidence boundary preserved</strong><span>Bug proximity, cross-surface correlation and recent derived Recon changes rank where to investigate. Derived changes are advisory only: they cannot satisfy admission, create an independent evidence root, raise target-evidence confidence, or confirm a vulnerability.</span></div>"
         + "<div class='table-wrap' style='margin-top:14px'><table><thead><tr><th>Leading family</th><th>Proximity</th><th>Clusters</th></tr></thead><tbody>"
         + (rows or "<tr><td colspan='3'>No ranked family context is available yet.</td></tr>")
         + "</tbody></table></div></div></section>"
@@ -171,9 +174,28 @@ def _queue_item_card(item: dict[str, Any]) -> str:
     proximity = _base.parse_int(item.get("bug_proximity_score"), 0, 0, 100)
     evidence = _base.parse_int(item.get("target_evidence_confidence"), 0, 0, 100)
     cluster = _base.parse_int(item.get("cluster_strength"), 0, 0, 100)
+    derived_change = _base.parse_int(item.get("derived_change_score"), 0, 0, 100)
     priority = str(item.get("hunt_priority") or "NOISE").upper()
     endpoints = [str(v) for v in item.get("endpoints", []) if str(v).strip()]
     why = "".join(f"<li>{_base._esc(v)}</li>" for v in item.get("why", [])[:4]) or "<li>No additional ranking explanation recorded.</li>"
+    change_matches = [
+        row
+        for row in item.get("derived_change_matches", [])
+        if isinstance(row, Mapping)
+    ][:4]
+    change_reasons = "".join(
+        "<li><code>"
+        + _base._esc(str(row.get("signal_type") or "derived_change"))
+        + "</code> "
+        + _base._esc(str(row.get("item") or "changed artifact"))
+        + (
+            " — " + _base._esc("; ".join(str(value) for value in row.get("reasons", [])[:2]))
+            if isinstance(row.get("reasons"), list) and row.get("reasons")
+            else ""
+        )
+        + "</li>"
+        for row in change_matches
+    ) or "<li>No matched derived Recon change is attached to this cluster.</li>"
     families = " ".join(
         _base._pill(f"{str(row.get('family') or '').replace('_',' ')} {_base.parse_int(row.get('score'),0,0,100)}")
         for row in item.get("families", [])[:3] if isinstance(row, Mapping)
@@ -186,12 +208,12 @@ def _queue_item_card(item: dict[str, Any]) -> str:
     return (
         f"<article class='candidate-card investigation-queue-card' data-cluster-id='{_base._esc(item.get('cluster_id') or '')}'>"
         f"<div class='candidate-accent tone-{_base._tone(priority)}'></div><div class='candidate-main'>"
-        f"<div class='candidate-heading'><div><div class='candidate-kicker'>{_base._pill(priority)}{_base._pill('not confirmed','neutral')}<span>{_base._esc(item.get('target') or '')}</span></div>"
+        f"<div class='candidate-heading'><div><div class='candidate-kicker'>{_base._pill(priority)}{_base._pill('not confirmed','neutral')}{_base._pill('change-linked','info') if derived_change else ''}<span>{_base._esc(item.get('target') or '')}</span></div>"
         f"<h3>{_base._esc(item.get('primary_bug') or item.get('primary_family') or 'Investigation cluster')}</h3>"
         f"<div class='muted small'>{''.join(f'<code>{_base._esc(v)}</code> ' for v in endpoints[:4])}</div></div>"
         f"<div class='investigation-score'><span>Queue</span><strong>{queue_score}</strong></div></div>"
-        f"<div class='score-triad'><div><span>Bug proximity</span><strong class='tone-purple'>{proximity}</strong></div><div><span>Target evidence</span><strong class='tone-info'>{evidence}</strong></div><div><span>Cluster strength</span><strong class='tone-orange'>{cluster}</strong></div><div><span>Surfaces</span><strong class='tone-success'>{len(endpoints)}</strong></div></div>"
-        f"<div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div></div>"
+        f"<div class='score-triad'><div><span>Bug proximity</span><strong class='tone-purple'>{proximity}</strong></div><div><span>Target evidence</span><strong class='tone-info'>{evidence}</strong></div><div><span>Cluster strength</span><strong class='tone-orange'>{cluster}</strong></div><div><span>Recent change</span><strong class='tone-info'>{derived_change}</strong></div><div><span>Surfaces</span><strong class='tone-success'>{len(endpoints)}</strong></div></div>"
+        f"<div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div><div><strong>Recent Recon change</strong><ul>{change_reasons}</ul><p class='muted small'>Change affinity is non-evidentiary and is already reflected inside bug proximity; it is not counted again in Queue score.</p></div></div>"
         "<div class='next-step'><span>Interpretation</span><p>This cluster is an investigation priority only. Review the underlying Potential Findings and target evidence before any vulnerability claim.</p></div>"
         f"</div><a class='candidate-open' href='{_base._esc(_cluster_href(item))}'>Open cluster →</a></article>"
     )
@@ -200,6 +222,7 @@ def _queue_item_card(item: dict[str, Any]) -> str:
 def _investigation_queue_panel(analysis_id: str, queue: list[dict[str, Any]]) -> str:
     high = sum(str(x.get("hunt_priority") or "").upper() == "HIGH" for x in queue)
     strong = sum(_base.parse_int(x.get("cluster_strength"), 0, 0, 100) >= 60 for x in queue)
+    change_linked = sum(bool(x.get("change_linked")) for x in queue)
     content = "".join(_queue_item_card(item) for item in queue[:8]) or _base._empty(
         "No investigation clusters match this view",
         "Potential Findings remain available below. A cluster appears here only when a persisted Meta Ranker result can be correlated across the selected analysis context.",
@@ -211,8 +234,9 @@ def _investigation_queue_panel(analysis_id: str, queue: list[dict[str, Any]]) ->
         f"<div class='attention-card'><span>Clusters</span><strong>{len(queue)}</strong><small>deduplicated work items</small></div>"
         f"<div class='attention-card'><span>High priority</span><strong>{high}</strong><small>hunt priority HIGH</small></div>"
         f"<div class='attention-card'><span>Strong correlation</span><strong>{strong}</strong><small>cluster strength ≥60</small></div>"
+        f"<div class='attention-card'><span>Change-linked</span><strong>{change_linked}</strong><small>recent source-map/chunk affinity</small></div>"
         f"<div class='attention-card'><span>Analysis</span><strong>{_base._esc(analysis_id[:8] if analysis_id else '—')}</strong><small>latest completed analysis</small></div>"
-        "</div><div class='callout' style='margin-top:14px'><strong>What this queue changes</strong><span>Related hypotheses are collapsed into analyst-sized clusters and ranked by proximity, target evidence, cluster strength and hunt priority. The complete Potential Findings inventory remains below and unchanged.</span></div>"
+        "</div><div class='callout' style='margin-top:14px'><strong>What this queue changes</strong><span>Related hypotheses are collapsed into analyst-sized clusters and ranked by proximity, target evidence, cluster strength and hunt priority. Recent derived Recon changes are shown as advisory provenance and are already represented inside proximity, so they are not double-counted. The complete Potential Findings inventory remains below and unchanged.</span></div>"
         f"<div class='stack' style='margin-top:16px'>{content}</div></div></section>"
     )
 
@@ -430,8 +454,25 @@ def _investigation_cluster_detail_panel(analysis_id: str, detail: Mapping[str, A
     labels = {
         "target_evidence": "Target evidence", "profile_compatibility": "Profile compatibility",
         "writeup_similarity": "Writeup similarity", "historical_feedback": "Historical feedback",
-        "correlation": "Cross-surface correlation", "llm_advisory": "LLM advisory",
+        "correlation": "Cross-surface correlation", "derived_change": "Recent Recon change affinity",
+        "llm_advisory": "LLM advisory",
     }
+    derived_change = _base.parse_int(item.get("derived_change_score"), 0, 0, 100)
+    change_rows = "".join(
+        "<tr><td><code>"
+        + _base._esc(str(row.get("signal_type") or "derived_change"))
+        + "</code></td><td>"
+        + _base._esc(str(row.get("change") or ""))
+        + "</td><td><code>"
+        + _base._esc(str(row.get("item") or ""))
+        + "</code></td><td>"
+        + str(_base.parse_int(row.get("score"), 0, 0, 100))
+        + "</td><td>"
+        + _base._esc("; ".join(str(value) for value in row.get("reasons", [])[:4]) if isinstance(row.get("reasons"), list) else "")
+        + "</td></tr>"
+        for row in item.get("derived_change_matches", [])[:12]
+        if isinstance(row, Mapping)
+    ) or "<tr><td colspan='5' class='muted'>No matched derived Recon change is attached to this cluster.</td></tr>"
     component_rows = "".join(
         f"<tr><td>{_base._esc(labels[key])}</td><td><strong>{_base.parse_int(components[key],0,0,100)}</strong></td><td>{_base._pill('target evidence' if key == 'target_evidence' else 'non-evidentiary','success' if key == 'target_evidence' else 'neutral')}</td></tr>"
         for key in labels if components.get(key) is not None
@@ -443,13 +484,14 @@ def _investigation_cluster_detail_panel(analysis_id: str, detail: Mapping[str, A
         f"<h3>{_base._esc(item.get('primary_bug') or family or 'Investigation cluster')}</h3><span class='muted small'>{_base._esc(target)} · {_base._esc(family.replace('_',' '))}</span></div>"
         + _base._pill(priority) + _base._pill("not confirmed", "neutral")
         + "</div><div class='panel-body'>"
-        f"<div class='score-triad'><div><span>Queue score</span><strong>{_base.parse_int(item.get('queue_score'),0,0,100)}</strong></div><div><span>Bug proximity</span><strong class='tone-purple'>{_base.parse_int(item.get('bug_proximity_score'),0,0,100)}</strong></div><div><span>Target evidence</span><strong class='tone-info'>{_base.parse_int(item.get('target_evidence_confidence'),0,0,100)}</strong></div><div><span>Cluster strength</span><strong class='tone-orange'>{_base.parse_int(item.get('cluster_strength'),0,0,100)}</strong></div></div>"
-        "<div class='callout' style='margin-top:14px'><strong>Investigation dossier — not a vulnerability verdict</strong><span>This view collects stored evidence, correlated surfaces and ranking context in one place. Only target observations can support admission or analyst confirmation; knowledge, history, correlation and LLM advice remain advisory.</span></div>"
+        f"<div class='score-triad'><div><span>Queue score</span><strong>{_base.parse_int(item.get('queue_score'),0,0,100)}</strong></div><div><span>Bug proximity</span><strong class='tone-purple'>{_base.parse_int(item.get('bug_proximity_score'),0,0,100)}</strong></div><div><span>Target evidence</span><strong class='tone-info'>{_base.parse_int(item.get('target_evidence_confidence'),0,0,100)}</strong></div><div><span>Cluster strength</span><strong class='tone-orange'>{_base.parse_int(item.get('cluster_strength'),0,0,100)}</strong></div><div><span>Recent change</span><strong class='tone-info'>{derived_change}</strong></div></div>"
+        "<div class='callout' style='margin-top:14px'><strong>Investigation dossier — not a vulnerability verdict</strong><span>This view collects stored evidence, correlated surfaces, recent Recon change provenance and ranking context in one place. Only target observations can support admission or analyst confirmation; knowledge, history, correlation, derived changes and LLM advice remain advisory.</span></div>"
         + _workflow_panel(analysis_id, item, workflow)
         + f"<div class='grid two' style='margin-top:16px'><section><h4>Closest bug families</h4><p>{family_tags}</p><h4>Why the ranker cares</h4><ul>{why}</ul></section><section><h4>Missing evidence</h4><ul>{missing}</ul><h4>Decisive target signals</h4><p>{decisive}</p></section></div>"
         + "<section style='margin-top:18px'><h4>Related Potential Findings</h4><div class='table-wrap'><table><thead><tr><th>ID</th><th>Family</th><th>Endpoint</th><th>State</th><th>Analyst</th><th>Investigation</th><th>Summary</th></tr></thead><tbody>" + cand_rows + "</tbody></table></div></section>"
         + "<section style='margin-top:18px'><h4>Member hypotheses</h4><div class='table-wrap'><table><thead><tr><th>ID</th><th>Family</th><th>Endpoint</th><th>State</th><th>Summary</th></tr></thead><tbody>" + hyp_rows + "</tbody></table></div></section>"
         + "<section style='margin-top:18px'><h4>Evidence dossier</h4><div class='table-wrap'><table><thead><tr><th>Role</th><th>Type</th><th>Source</th><th>Observation</th><th>Weight</th></tr></thead><tbody>" + evidence_rows + "</tbody></table></div></section>"
+        + "<section style='margin-top:18px'><h4>Recent Recon change context</h4><div class='callout'><strong>Advisory only</strong><span>This provenance can reprioritize review through Meta Ranker, but it cannot satisfy Admission or increase target-evidence confidence. Queue score does not count it a second time.</span></div><div class='table-wrap' style='margin-top:10px'><table><thead><tr><th>Signal</th><th>Change</th><th>Item</th><th>Affinity</th><th>Reason</th></tr></thead><tbody>" + change_rows + "</tbody></table></div></section>"
         + f"<div class='grid two' style='margin-top:18px'><section><h4>Auth-boundary differentials</h4><ul>{differentials}</ul></section><section><h4>Meta Ranker components</h4><div class='table-wrap'><table><thead><tr><th>Component</th><th>Score</th><th>Role</th></tr></thead><tbody>{component_rows}</tbody></table></div></section></div>"
         + "<section style='margin-top:18px'><h4>Correlated surfaces</h4><div class='table-wrap'><table><thead><tr><th>Endpoint</th><th>Method</th><th>Auth boundary</th><th>Correlation</th><th>Reason</th></tr></thead><tbody>" + surface_rows + "</tbody></table></div></section>"
         + "</div></section>"
