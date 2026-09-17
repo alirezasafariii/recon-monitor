@@ -566,6 +566,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     wildcard_live = sum(
         1 for url in base_urls if (urllib.parse.urlsplit(url).hostname or "") in wildcard_hosts
     )
+    origin_redirects_outside_scope = sum(
+        1 for row in origin_results if row.get("redirect_outside_scope")
+    )
 
     # Recon evidence keeps a security-preserving URL form while the database
     # continues to receive a canonical comparison key.
@@ -681,6 +684,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "candidate_origins": len(candidate_base_urls),
         "live_origins": len(base_urls),
         "wildcard_live_origins": wildcard_live,
+        "origin_redirects_outside_scope": origin_redirects_outside_scope,
         "urls": len(urls),
         "selected_hosts": len(selected_hosts),
         "canonical_urls": len({canonical_urls[url] for url in urls}),
