@@ -16,6 +16,7 @@ if str(APP) not in sys.path:
 from core import TargetPolicy
 from stages import (
     _origin_probe_one,
+    _probe_live_origins,
     _select_diverse_urls,
     _web_origin_for_port,
     stage_dns,
@@ -106,6 +107,24 @@ class ReconP1CollectionTests(unittest.TestCase):
         self.assertTrue(result["redirect_outside_scope"])
         self.assertEqual(result["dns_rebinding_protection"], "resolution_pinned")
         self.assertEqual(ctx.budget.used, 1)
+
+    def test_out_of_scope_redirect_is_not_a_crawl_origin(self) -> None:
+        ctx = _ctx()
+
+        def fake_probe(_ctx, url):
+            return {
+                "url": url,
+                "status_code": 302,
+                "live": True,
+                "redirect_outside_scope": True,
+            }
+
+        with patch("stages._origin_probe_one", side_effect=fake_probe):
+            live, rows = _probe_live_origins(ctx, ["https://app.example.com"])
+
+        self.assertEqual(live, [])
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0]["redirect_outside_scope"])
 
     def test_dns_wildcards_are_classified_but_still_queried(self) -> None:
         source = inspect.getsource(stage_dns)
