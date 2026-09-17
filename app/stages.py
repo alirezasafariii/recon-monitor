@@ -802,7 +802,83 @@ def _find_source_map_url(js_url: str, text: str) -> str:
     if not matches:
         return ""
     candidate = urllib.parse.urljoin(js_url, matches[-1].strip().strip("\"'"))
-    return normalize_url(candidate) or ""
+    return normalize_url_preserving_semantics(candidate) or ""
+
+
+def _resolve_source_map_source(source_map_url: str, source_root: str, source_name: str) -> str:
+    """Resolve HTTP(S) source-map entries without treating virtual schemes as network URLs."""
+    name = str(source_name or "").strip()
+    if not name:
+        return ""
+    parsed_name = urllib.parse.urlsplit(name)
+    if parsed_name.scheme and parsed_name.scheme.lower() not in {"http", "https"}:
+        return ""
+
+    root = str(source_root or "").strip()
+    base_url = source_map_url
+    if root:
+        parsed_root = urllib.parse.urlsplit(root)
+        if parsed_root.scheme and parsed_root.scheme.lower() not in {"http", "https"}:
+            return ""
+        if not root.endswith("/"):
+            root += "/"
+        base_url = urllib.parse.urljoin(source_map_url, root)
+
+    candidate = urllib.parse.urljoin(base_url, name)
+    return normalize_url_preserving_semantics(candidate) or ""
+
+
+def _source_map_entries(source_map_url: str, source_map: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Return bounded source metadata, including hashes for embedded sourcesContent."""
+    sources = source_map.get("sources")
+    if not isinstance(sources, list):
+        return []
+    raw_contents = source_map.get("sourcesContent")
+    contents = raw_contents if isinstance(raw_contents, list) else []
+    source_root = str(source_map.get("sourceRoot") or "")[:1000]
+    entries: list[dict[str, Any]] = []
+    for index, raw_name in enumerate(sources[:5000]):
+        source_name = str(raw_name or "").strip().replace("\r", " ").replace("\n", " ").replace("\t", " ")[:1000]
+        if not source_name:
+            continue
+        embedded_content = ""
+        if index < len(contents) and isinstance(contents[index], str):
+            embedded_content = str(contents[index])
+        content_bytes = embedded_content.encode("utf-8") if embedded_content else b""
+        entries.append(
+            {
+                "source_index": index,
+                "source_name": source_name,
+                "source_root": source_root,
+                "source_identity": f"{source_map_url}#{index}:{source_name}",
+                "resolved_source_url": _resolve_source_map_source(source_map_url, source_root, source_name),
+                "embedded": bool(embedded_content),
+                "content_size": len(content_bytes),
+                "content_hash": sha256_bytes(content_bytes) if content_bytes else "",
+                "semantic_hash": sha256_text(semantic_js_normalize(embedded_content)) if embedded_content else "",
+                "embedded_content": embedded_content,
+            }
+        )
+    return entries
+
+
+def _extract_js_chunk_references(js_url: str, text: str) -> list[str]:
+    """Extract quoted JavaScript chunk/module references without fetching them."""
+    matches = re.findall(
+        r"""["']([^"'\\\r\n]{1,1000}\.(?:m?js)(?:[?#][^"'\\\r\n]*)?)["']""",
+        text,
+        flags=re.IGNORECASE,
+    )
+    chunks: set[str] = set()
+    for raw in matches[:10000]:
+        value = str(raw or "").strip()
+        if not value or value.lower().startswith(("data:", "blob:", "javascript:")):
+            continue
+        candidate = urllib.parse.urljoin(js_url, value)
+        normalized = normalize_url_preserving_semantics(candidate)
+        if normalized and normalized != normalize_url_preserving_semantics(js_url):
+            chunks.add(normalized)
+    return sorted(chunks)[:2000]
 
 
 def stage_javascript(ctx: StageContext) -> dict[str, Any]:
@@ -823,6 +899,14 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             ctx.current / "javascript-availability.jsonl",
             [],
         )
+        write_jsonl(
+            ctx.current / "source-map-sources.jsonl",
+            [],
+        )
+        write_jsonl(
+            ctx.current / "javascript-chunk-edges.jsonl",
+            [],
+        )
         return {
             "files": 0,
             "downloaded": 0,
@@ -836,6 +920,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "availability_changes": 0,
             "reappeared": 0,
             "disappeared": 0,
+            "source_maps": 0,
+            "source_map_sources": 0,
+            "embedded_sources": 0,
+            "embedded_source_indicators": 0,
+            "chunk_edges": 0,
         }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
@@ -873,6 +962,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     classified_endpoints = 0
     errors: list[dict[str, str]] = []
     not_found: list[dict[str, Any]] = []
+    source_map_rows: list[dict[str, Any]] = []
+    chunk_edge_rows: list[dict[str, str]] = []
+    source_map_sources = 0
+    embedded_sources = 0
+    embedded_source_indicators = 0
 
     availability_rows: list[dict[str, Any]] = []
     availability_changes = 0
@@ -1222,19 +1316,153 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     details["endpoint_classification"] = classification
                 emit_event(ctx, "js_indicator", f"{kind}:{value}@{url}", "New JavaScript intelligence", details)
 
+        for chunk_url in _extract_js_chunk_references(url, text):
+            if not ctx.policy.url_in_scope(chunk_url):
+                continue
+            chunk_edge_rows.append({"js_url": url, "chunk_url": chunk_url})
+            if ctx.policy.analysis.get("asset_graph", True):
+                ctx.db.upsert_edge(
+                    ctx.policy.name,
+                    "javascript",
+                    url,
+                    "references_chunk",
+                    "javascript",
+                    chunk_url,
+                    ctx.run_id,
+                    {"discovery": "static_string"},
+                )
+
         if source_map_url and ctx.policy.url_in_scope(source_map_url) and ctx.policy.raw.get("javascript", {}).get("download_source_maps", True):
             map_result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
             if "data" in map_result:
                 map_data = map_result["data"]
-                map_hash, map_path, _ = ContentAddressedStore(ctx.paths, ctx.db).put(map_data, content_type="application/json")
+                map_hash, map_path, _ = store.put(map_data, content_type="application/json")
                 maps_downloaded += 1
+                if ctx.policy.analysis.get("asset_graph", True):
+                    ctx.db.upsert_edge(
+                        ctx.policy.name,
+                        "javascript",
+                        url,
+                        "has_source_map",
+                        "source_map",
+                        source_map_url,
+                        ctx.run_id,
+                        {"content_hash": map_hash, "blob_path": str(map_path)},
+                    )
                 with contextlib.suppress(json.JSONDecodeError):
                     source_map = json.loads(map_data.decode("utf-8", "replace"))
-                    for source_name in source_map.get("sources", [])[:5000]:
-                        value = str(source_name)[:500]
-                        if ctx.db.upsert_js_indicator(ctx.policy.name, url, "source_map_source", value, False, ctx.run_id):
-                            indicator_count += 1
-                            indicator_lines.append(f"source_map_source\t{value}\t{url}")
+                    if isinstance(source_map, dict):
+                        entries = _source_map_entries(source_map_url, source_map)
+                        source_map_sources += len(entries)
+                        for entry in entries:
+                            embedded_content = str(entry.pop("embedded_content", "") or "")
+                            source_name = str(entry["source_name"])
+                            source_identity = str(entry["source_identity"])
+                            resolved_source_url = str(entry.get("resolved_source_url") or "")
+                            source_value = source_name[:500]
+                            if ctx.db.upsert_js_indicator(ctx.policy.name, url, "source_map_source", source_value, False, ctx.run_id):
+                                indicator_count += 1
+                                indicator_lines.append(f"source_map_source\t{source_value}\t{url}")
+
+                            if embedded_content:
+                                embedded_sources += 1
+                                source_bytes = embedded_content.encode("utf-8")
+                                source_hash, source_path, _ = store.put(source_bytes, content_type="text/plain")
+                                entry["object_hash"] = source_hash
+                                entry["blob_path"] = str(source_path)
+                                embedded_indicators = extract_js_indicators(embedded_content)
+                                embedded_source_indicators += len(embedded_indicators)
+                                for kind, value, redacted in embedded_indicators:
+                                    is_new_indicator = ctx.db.upsert_js_indicator(
+                                        ctx.policy.name,
+                                        url,
+                                        kind,
+                                        value,
+                                        redacted,
+                                        ctx.run_id,
+                                    )
+                                    classification: dict[str, Any] | None = None
+                                    if kind in {"endpoint", "absolute_url", "graphql_operation"}:
+                                        classification = classify_endpoint(
+                                            value,
+                                            kind=kind,
+                                            context={
+                                                "redacted": redacted,
+                                                "source_map_source": source_name,
+                                            },
+                                        )
+                                        if ctx.db.upsert_endpoint_intelligence(
+                                            ctx.policy.name,
+                                            value,
+                                            kind,
+                                            classification,
+                                            source_identity,
+                                            ctx.run_id,
+                                        ):
+                                            classified_endpoints += 1
+                                    if ctx.policy.analysis.get("asset_graph", True):
+                                        metadata: dict[str, Any] = {
+                                            "redacted": redacted,
+                                            "embedded_source": True,
+                                        }
+                                        if classification:
+                                            metadata["classification"] = classification
+                                        ctx.db.upsert_edge(
+                                            ctx.policy.name,
+                                            "source_map_source",
+                                            source_identity,
+                                            "references",
+                                            kind,
+                                            value,
+                                            ctx.run_id,
+                                            metadata,
+                                        )
+                                    if is_new_indicator:
+                                        indicator_count += 1
+                                        indicator_lines.append(f"{kind}\t{value}\t{source_identity}")
+                                        details = {
+                                            "kind": kind,
+                                            "value": value,
+                                            "js_url": url,
+                                            "redacted": redacted,
+                                            "source_map_url": source_map_url,
+                                            "source_map_source": source_name,
+                                            "embedded_source": True,
+                                        }
+                                        if classification:
+                                            details["endpoint_classification"] = classification
+                                        emit_event(
+                                            ctx,
+                                            "js_indicator",
+                                            f"{kind}:{value}@{source_identity}",
+                                            "New embedded source-map intelligence",
+                                            details,
+                                        )
+
+                            if ctx.policy.analysis.get("asset_graph", True):
+                                ctx.db.upsert_edge(
+                                    ctx.policy.name,
+                                    "source_map",
+                                    source_map_url,
+                                    "contains_source",
+                                    "source_map_source",
+                                    source_identity,
+                                    ctx.run_id,
+                                    {
+                                        "source_name": source_name,
+                                        "resolved_source_url": resolved_source_url,
+                                        "embedded": bool(entry.get("embedded")),
+                                        "content_hash": str(entry.get("content_hash") or ""),
+                                    },
+                                )
+                            source_map_rows.append(
+                                {
+                                    "js_url": url,
+                                    "source_map_url": source_map_url,
+                                    "source_map_hash": map_hash,
+                                    **entry,
+                                }
+                            )
         if url in work_ids:
             work_queue.finish(
                 work_ids[url],
@@ -1261,6 +1489,14 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         ctx.current / "javascript-availability.jsonl",
         availability_rows,
     )
+    write_jsonl(
+        ctx.current / "source-map-sources.jsonl",
+        source_map_rows,
+    )
+    write_jsonl(
+        ctx.current / "javascript-chunk-edges.jsonl",
+        sorted(chunk_edge_rows, key=lambda row: (row["js_url"], row["chunk_url"])),
+    )
 
     atomic_write_text(
         ctx.changes / "not-found-js-files.txt",
@@ -1280,6 +1516,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "classified_endpoints": classified_endpoints,
         "diffs": diff_count,
         "source_maps": maps_downloaded,
+        "source_map_sources": source_map_sources,
+        "embedded_sources": embedded_sources,
+        "embedded_source_indicators": embedded_source_indicators,
+        "chunk_edges": len(chunk_edge_rows),
         "errors": len(errors),
         "not_found": len(not_found),
         "availability_changes": (
