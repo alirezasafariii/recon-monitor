@@ -881,6 +881,128 @@ def _extract_js_chunk_references(js_url: str, text: str) -> list[str]:
     return sorted(chunks)[:2000]
 
 
+DERIVED_RECON_STATE_LIMIT = 20000
+DERIVED_RECON_EVENT_LIMIT = 500
+
+
+def _prepare_javascript_derived_differentials(
+    ctx: StageContext,
+    source_map_rows: Iterable[Mapping[str, Any]],
+    chunk_edge_rows: Iterable[Mapping[str, Any]],
+    *,
+    source_maps_complete: bool,
+    chunks_complete: bool,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Prepare successful-snapshot-backed typed diffs for P2 JavaScript evidence."""
+    replace_state = getattr(ctx.db, "replace_recon_derived_working_state", None)
+    meta: dict[str, Any] = {
+        "supported": callable(replace_state),
+        "prepared_sets": 0,
+        "initialized_sets": 0,
+        "truncated_sets": 0,
+        "events_emitted": 0,
+    }
+    signals: list[dict[str, Any]] = []
+    if not callable(replace_state):
+        return signals, meta
+
+    specs: list[tuple[str, bool, dict[str, dict[str, Any]], str]] = []
+
+    source_items: dict[str, dict[str, Any]] = {}
+    for row in source_map_rows:
+        item_key = str(row.get("source_identity") or "").strip()
+        if not item_key:
+            continue
+        source_items[item_key] = {
+            "js_url": str(row.get("js_url") or ""),
+            "source_map_url": str(row.get("source_map_url") or ""),
+            "source_name": str(row.get("source_name") or ""),
+            "source_root": str(row.get("source_root") or ""),
+            "resolved_source_url": str(row.get("resolved_source_url") or ""),
+            "embedded": bool(row.get("embedded")),
+            "content_hash": str(row.get("content_hash") or ""),
+            "semantic_hash": str(row.get("semantic_hash") or ""),
+            "source_map_hash": str(row.get("source_map_hash") or ""),
+        }
+    if len(source_items) > DERIVED_RECON_STATE_LIMIT:
+        source_items = {
+            key: source_items[key]
+            for key in sorted(source_items)[:DERIVED_RECON_STATE_LIMIT]
+        }
+        meta["truncated_sets"] += 1
+    specs.append(("source_map_source", source_maps_complete, source_items, "source_map_change"))
+
+    chunk_items: dict[str, dict[str, Any]] = {}
+    for row in chunk_edge_rows:
+        js_url = str(row.get("js_url") or "").strip()
+        chunk_url = str(row.get("chunk_url") or "").strip()
+        if not js_url or not chunk_url:
+            continue
+        item_key = sha256_text(json_dumps([js_url, chunk_url]))
+        chunk_items[item_key] = {"js_url": js_url, "chunk_url": chunk_url}
+    if len(chunk_items) > DERIVED_RECON_STATE_LIMIT:
+        chunk_items = {
+            key: chunk_items[key]
+            for key in sorted(chunk_items)[:DERIVED_RECON_STATE_LIMIT]
+        }
+        meta["truncated_sets"] += 1
+    specs.append(("javascript_chunk", chunks_complete, chunk_items, "javascript_chunk_change"))
+
+    for state_type, complete, items, category in specs:
+        if not complete:
+            continue
+        diff = replace_state(ctx.run_id, ctx.policy.name, state_type, items)
+        meta["prepared_sets"] += 1
+        if not bool(diff.get("baseline_exists")):
+            meta["initialized_sets"] += 1
+            continue
+        baseline_run_id = str(diff.get("baseline_run_id") or "")
+        for change in ("added", "removed", "changed"):
+            for row in diff.get(change, []):
+                item_key = str(row.get("item_key") or "")
+                before = dict(row.get("before") or {})
+                after = dict(row.get("after") or {})
+                payload = after or before
+                item = str(
+                    payload.get("source_name")
+                    or payload.get("chunk_url")
+                    or item_key
+                )
+                signal = {
+                    "signal_type": f"{state_type}_{change}",
+                    "state_type": state_type,
+                    "change": change,
+                    "item_key": item_key,
+                    "item": item,
+                    "baseline_run_id": baseline_run_id,
+                    "run_id": ctx.run_id,
+                    "target": ctx.policy.name,
+                    "before": before,
+                    "after": after,
+                }
+                signals.append(signal)
+                if meta["events_emitted"] < DERIVED_RECON_EVENT_LIMIT:
+                    emit_event(
+                        ctx,
+                        category,
+                        item,
+                        (
+                            "Source-map source changed"
+                            if state_type == "source_map_source"
+                            else "JavaScript chunk reference changed"
+                        ),
+                        {
+                            **signal,
+                            "stable_key": item_key,
+                            "typed_differential": True,
+                        },
+                    )
+                    meta["events_emitted"] += 1
+
+    signals.sort(key=lambda row: (row["state_type"], row["change"], row["item_key"]))
+    return signals, meta
+
+
 def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     urls_path = ctx.current / "urls.txt"
     urls: list[str] = []
@@ -888,6 +1010,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         urls = [line.strip() for line in urls_path.read_text(encoding="utf-8", errors="replace").splitlines()]
     js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})[: ctx.policy.limits.max_js_files]
     atomic_write_text(ctx.current / "javascript-urls.txt", "".join(f"{url}\n" for url in js_urls))
+    source_map_collection_enabled = bool(
+        ctx.policy.raw.get("javascript", {}).get("download_source_maps", True)
+    )
     if not js_urls:
         for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "new-js-indicators.tsv"):
             atomic_write_text(ctx.changes / filename, "")
@@ -907,6 +1032,17 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             ctx.current / "javascript-chunk-edges.jsonl",
             [],
         )
+        derived_signals, derived_meta = _prepare_javascript_derived_differentials(
+            ctx,
+            [],
+            [],
+            source_maps_complete=source_map_collection_enabled,
+            chunks_complete=True,
+        )
+        write_jsonl(
+            ctx.changes / "recon-derived-differentials.jsonl",
+            derived_signals,
+        )
         return {
             "files": 0,
             "downloaded": 0,
@@ -925,11 +1061,16 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "embedded_sources": 0,
             "embedded_source_indicators": 0,
             "chunk_edges": 0,
+            "derived_differentials": len(derived_signals),
+            "derived_sets_prepared": int(derived_meta.get("prepared_sets", 0)),
+            "derived_sets_initialized": int(derived_meta.get("initialized_sets", 0)),
+            "derived_events_emitted": int(derived_meta.get("events_emitted", 0)),
         }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
     work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
+    fresh_full_js_pass = len(pending_urls) == len(js_urls)
     work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "allowed_roots": ctx.policy.roots}) for url in pending_urls}
     for url, work_id in work_ids.items():
         work_queue.start(work_id, "local-js")
@@ -967,6 +1108,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     source_map_sources = 0
     embedded_sources = 0
     embedded_source_indicators = 0
+    source_map_attempts = 0
+    source_map_failures = 0
 
     availability_rows: list[dict[str, Any]] = []
     availability_changes = 0
@@ -1332,7 +1475,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     {"discovery": "static_string"},
                 )
 
-        if source_map_url and ctx.policy.url_in_scope(source_map_url) and ctx.policy.raw.get("javascript", {}).get("download_source_maps", True):
+        if source_map_url and ctx.policy.url_in_scope(source_map_url) and source_map_collection_enabled:
+            source_map_attempts += 1
             map_result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
             if "data" in map_result:
                 map_data = map_result["data"]
@@ -1349,6 +1493,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         ctx.run_id,
                         {"content_hash": map_hash, "blob_path": str(map_path)},
                     )
+                try:
+                    parsed_source_map = json.loads(map_data.decode("utf-8", "replace"))
+                except json.JSONDecodeError:
+                    parsed_source_map = None
+                if not isinstance(parsed_source_map, dict):
+                    source_map_failures += 1
                 with contextlib.suppress(json.JSONDecodeError):
                     source_map = json.loads(map_data.decode("utf-8", "replace"))
                     if isinstance(source_map, dict):
@@ -1463,6 +1613,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                                     **entry,
                                 }
                             )
+            else:
+                source_map_failures += 1
         if url in work_ids:
             work_queue.finish(
                 work_ids[url],
@@ -1498,6 +1650,25 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         sorted(chunk_edge_rows, key=lambda row: (row["js_url"], row["chunk_url"])),
     )
 
+    chunks_complete = fresh_full_js_pass and not errors
+    source_maps_complete = (
+        fresh_full_js_pass
+        and not errors
+        and source_map_collection_enabled
+        and source_map_failures == 0
+    )
+    derived_signals, derived_meta = _prepare_javascript_derived_differentials(
+        ctx,
+        source_map_rows,
+        chunk_edge_rows,
+        source_maps_complete=source_maps_complete,
+        chunks_complete=chunks_complete,
+    )
+    write_jsonl(
+        ctx.changes / "recon-derived-differentials.jsonl",
+        derived_signals,
+    )
+
     atomic_write_text(
         ctx.changes / "not-found-js-files.txt",
         "".join(
@@ -1520,6 +1691,13 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "embedded_sources": embedded_sources,
         "embedded_source_indicators": embedded_source_indicators,
         "chunk_edges": len(chunk_edge_rows),
+        "source_map_attempts": source_map_attempts,
+        "source_map_failures": source_map_failures,
+        "derived_differentials": len(derived_signals),
+        "derived_sets_prepared": int(derived_meta.get("prepared_sets", 0)),
+        "derived_sets_initialized": int(derived_meta.get("initialized_sets", 0)),
+        "derived_sets_truncated": int(derived_meta.get("truncated_sets", 0)),
+        "derived_events_emitted": int(derived_meta.get("events_emitted", 0)),
         "errors": len(errors),
         "not_found": len(not_found),
         "availability_changes": (
