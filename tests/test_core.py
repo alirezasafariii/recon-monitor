@@ -21,6 +21,7 @@ from core import (  # noqa: E402
     explain_risk,
     extract_js_indicators,
     normalize_url,
+    normalize_url_preserving_semantics,
     risk_score,
     semantic_js_normalize,
     sha256_text,
@@ -32,6 +33,16 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(normalize_url("HTTPS://Example.COM:443//a//#frag"), "https://example.com/a/")
         self.assertEqual(normalize_url("http://example.com:8080/a?x=1#z"), "http://example.com:8080/a?x=1")
         self.assertIsNone(normalize_url("javascript:alert(1)"))
+    def test_security_preserving_url_normalization(self) -> None:
+        self.assertEqual(
+            normalize_url_preserving_semantics("HTTPS://Example.COM:443//api/a%2Fb?ref=one&x=2&x=1#frag"),
+            "https://example.com//api/a%2Fb?ref=one&x=2&x=1",
+        )
+        self.assertEqual(
+            normalize_url_preserving_semantics("https://example.com/a//b?source=app&utm_source=keep-as-evidence"),
+            "https://example.com/a//b?source=app&utm_source=keep-as-evidence",
+        )
+        self.assertIsNone(normalize_url_preserving_semantics("javascript:alert(1)"))
 
     def test_scope(self) -> None:
         policy = TargetPolicy.from_dict(

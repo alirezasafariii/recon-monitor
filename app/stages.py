@@ -34,6 +34,7 @@ from core import (
     json_dumps,
     normalize_host,
     normalize_url,
+    normalize_url_preserving_semantics,
     query_host_records_fallback,
     read_jsonl,
     safe_filename,
@@ -47,6 +48,7 @@ from core import (
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
+from safe_transport import perform_pinned_request
 
 
 @dataclass(slots=True)
@@ -410,11 +412,23 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     base_path = ctx.current / "base-urls.txt"
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
 
+    # Recon evidence keeps a security-preserving URL form while the database
+    # continues to receive a canonical comparison key. This prevents encoded
+    # delimiters, duplicate slashes, query order, and application parameters
+    # from being destroyed before downstream analysis can inspect them.
     candidates: dict[str, set[str]] = {}
+    canonical_urls: dict[str, str] = {}
     katana_rejected_malformed = 0
 
+    def add_candidate(value: str, source: str) -> None:
+        raw_url = normalize_url_preserving_semantics(value)
+        if not raw_url or not ctx.policy.url_in_scope(raw_url):
+            return
+        candidates.setdefault(raw_url, set()).add(source)
+        canonical_urls[raw_url] = normalize_url(raw_url) or raw_url
+
     for url in base_urls:
-        candidates.setdefault(url + "/" if not url.endswith("/") else url, set()).add("base")
+        add_candidate(url + "/" if not url.endswith("/") else url, "base")
 
     if tool_path("waybackurls"):
         out = ctx.current / "wayback-urls.txt"
@@ -430,9 +444,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             ctx.logger.warn("waybackurls failed", target=ctx.policy.name, exit=result.returncode)
         if out.exists():
             for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
-                normalized = normalize_url(line)
-                if normalized and ctx.policy.url_in_scope(normalized):
-                    candidates.setdefault(normalized, set()).add("wayback")
+                add_candidate(line, "wayback")
 
     if tool_path("katana"):
         out = ctx.current / "katana-urls.txt"
@@ -454,32 +466,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         if result.returncode not in {0, 1}:
             ctx.logger.warn("katana failed", target=ctx.policy.name, exit=result.returncode)
         if out.exists():
-            for line in out.read_text(
-                encoding="utf-8",
-                errors="replace",
-            ).splitlines():
+            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
                 raw_candidate = line.strip()
-
-                if _katana_candidate_malformed(
-                    raw_candidate
-                ):
+                if _katana_candidate_malformed(raw_candidate):
                     katana_rejected_malformed += 1
                     continue
-
-                normalized = normalize_url(
-                    raw_candidate
-                )
-
-                if (
-                    normalized
-                    and ctx.policy.url_in_scope(
-                        normalized
-                    )
-                ):
-                    candidates.setdefault(
-                        normalized,
-                        set(),
-                    ).add("katana")
+                add_candidate(raw_candidate, "katana")
 
     urls = sorted(candidates)[: ctx.policy.limits.max_urls]
     if ctx.budget:
@@ -490,25 +482,41 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     classified_count = 0
     rows: list[dict[str, Any]] = []
     new_urls: list[str] = []
-    for index, url in enumerate(urls, 1):
-        kind = classify_url(url)
-        source = ",".join(sorted(candidates[url]))
-        is_new = ctx.db.upsert_url(ctx.policy.name, url, kind, source, ctx.run_id)
-        endpoint_classification = classify_endpoint(url, kind="url")
+    for index, raw_url in enumerate(urls, 1):
+        canonical_url = canonical_urls[raw_url]
+        kind = classify_url(raw_url)
+        source_list = sorted(candidates[raw_url])
+        source = ",".join(source_list)
+        is_new = ctx.db.upsert_url(ctx.policy.name, canonical_url, kind, source, ctx.run_id)
+        endpoint_classification = classify_endpoint(raw_url, kind="url")
         if kind == "api" or endpoint_classification.get("primary_category") != "general":
-            if ctx.db.upsert_endpoint_intelligence(ctx.policy.name, url, "url", endpoint_classification, source, ctx.run_id):
+            if ctx.db.upsert_endpoint_intelligence(ctx.policy.name, raw_url, "url", endpoint_classification, source, ctx.run_id):
                 classified_count += 1
         if ctx.policy.analysis.get("asset_graph", True):
-            host = urllib.parse.urlsplit(url).hostname or ""
-            ctx.db.upsert_edge(ctx.policy.name, "host", host, "serves", "url", url, ctx.run_id, {"kind": kind, "sources": sorted(candidates[url])})
-        rows.append({"url": url, "kind": kind, "sources": sorted(candidates[url])})
+            host = urllib.parse.urlsplit(raw_url).hostname or ""
+            ctx.db.upsert_edge(
+                ctx.policy.name, "host", host, "serves", "url", raw_url, ctx.run_id,
+                {"kind": kind, "sources": source_list, "canonical_url": canonical_url},
+            )
+        rows.append({
+            "url": raw_url,
+            "raw_url": raw_url,
+            "canonical_url": canonical_url,
+            "kind": kind,
+            "sources": source_list,
+        })
         if is_new:
             new_count += 1
-            new_urls.append(url)
-            event_details: dict[str, Any] = {"kind": kind, "sources": sorted(candidates[url])}
+            new_urls.append(raw_url)
+            event_details: dict[str, Any] = {
+                "kind": kind,
+                "sources": source_list,
+                "raw_url": raw_url,
+                "canonical_url": canonical_url,
+            }
             if kind == "api" or endpoint_classification.get("primary_category") != "general":
                 event_details["endpoint_classification"] = endpoint_classification
-            emit_event(ctx, "new_url", url, "New URL discovered", event_details)
+            emit_event(ctx, "new_url", raw_url, "New URL discovered", event_details)
         ctx.progress.update(index, len(urls), f"new={new_count}")
     write_jsonl(ctx.current / "urls.jsonl", rows)
     atomic_write_text(ctx.current / "urls.txt", "".join(f"{url}\n" for url in urls))
@@ -516,12 +524,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     return {
         "hosts": len(hosts),
         "urls": len(urls),
+        "canonical_urls": len({canonical_urls[url] for url in urls}),
+        "raw_variants": len(urls),
         "new": new_count,
         "classified_endpoints": classified_count,
         "truncated": len(candidates) > len(urls),
-        "katana_rejected_malformed": (
-            katana_rejected_malformed
-        ),
+        "katana_rejected_malformed": katana_rejected_malformed,
     }
 
 
@@ -1113,78 +1121,168 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
 
 
 
-def _safe_validate_endpoint(ctx: StageContext, endpoint: str) -> dict[str, Any]:
-    candidates: list[str] = []
-    normalized = normalize_url(endpoint)
-    if normalized and ctx.policy.url_in_scope(normalized):
-        candidates.append(normalized)
-    elif endpoint.startswith("/"):
+def _endpoint_candidate_urls(ctx: StageContext, endpoint: str, sources: Iterable[str] = ()) -> list[tuple[str, str, str]]:
+    candidates: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+
+    def add(value: str, method: str, source: str = "") -> None:
+        normalized = normalize_url_preserving_semantics(value)
+        if not normalized or not ctx.policy.url_in_scope(normalized) or normalized in seen:
+            return
+        seen.add(normalized)
+        candidates.append((normalized, method, source))
+
+    add(endpoint, "absolute_endpoint")
+
+    # Relative references extracted from JavaScript must be resolved against
+    # the document/chunk origin that exposed them, not blindly against the
+    # policy root. endpoint_intelligence.sources_json already retains that
+    # provenance for JavaScript-derived indicators.
+    if not normalize_url_preserving_semantics(endpoint):
+        for source in sources:
+            source_url = normalize_url_preserving_semantics(str(source))
+            if not source_url or not ctx.policy.url_in_scope(source_url):
+                continue
+            add(urllib.parse.urljoin(source_url, endpoint), "source_origin", source_url)
+
+    # Root fallback preserves previous behaviour for endpoints whose collector
+    # did not retain an absolute source URL.
+    if not candidates and endpoint.startswith("/"):
         for root in ctx.policy.roots:
-            candidates.append(normalize_url(f"https://{root}{endpoint}") or "")
-    candidates = [url for url in candidates if url and ctx.policy.url_in_scope(url)]
+            add(f"https://{root}{endpoint}", "root_fallback", root)
+
+    return candidates
+
+
+def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[str] = ()) -> dict[str, Any]:
+    candidates = _endpoint_candidate_urls(ctx, endpoint, sources)
     if not candidates:
         return {"endpoint": endpoint, "skipped": "not a safe in-scope HTTP endpoint"}
-    last_error = ""
-    for url in candidates[:3]:
+
+    last_result: dict[str, Any] = {}
+    for url, resolution_method, resolution_source in candidates[:3]:
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
-        request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "Recon-Monitor/3.0", **ctx.policy.headers})
-        try:
-            with urllib.request.urlopen(request, timeout=min(10, ctx.policy.limits.timeout_seconds)) as response:
-                status = int(getattr(response, "status", 0) or 0)
-                ctype = str(response.headers.get("Content-Type", ""))[:200]
-                return {"endpoint": endpoint, "resolved_url": url, "method": "HEAD", "status_code": status, "content_type": ctype, "reachable": True, "confidence": 90}
-        except urllib.error.HTTPError as exc:
-            status = int(exc.code or 0)
-            return {"endpoint": endpoint, "resolved_url": url, "method": "HEAD", "status_code": status, "content_type": str(exc.headers.get("Content-Type", ""))[:200] if exc.headers else "", "reachable": True, "confidence": 80}
-        except Exception as exc:
-            last_error = str(exc)
-    return {"endpoint": endpoint, "resolved_url": candidates[0], "method": "HEAD", "status_code": 0, "content_type": "", "reachable": False, "confidence": 30, "error": last_error}
+
+        def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+            content_type = ""
+            if headers:
+                with contextlib.suppress(Exception):
+                    content_type = str(headers.get("Content-Type", ""))[:200]
+            reachable = bool(status)
+            confidence = 90 if 200 <= int(status or 0) < 400 else 80 if reachable else 30
+            return {
+                "endpoint": endpoint,
+                "resolved_url": observed_url,
+                "method": method,
+                "status_code": int(status or 0),
+                "content_type": content_type,
+                "reachable": reachable,
+                "confidence": confidence,
+                "error": "" if reachable else str(error or ""),
+            }
+
+        result, transport_status = perform_pinned_request(
+            {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+            ctx.policy,
+            safe_methods={"HEAD"},
+            url_safety=lambda candidate, policy: (
+                bool(policy.url_in_scope(candidate)),
+                "outside_scope" if not policy.url_in_scope(candidate) else "",
+            ),
+            observation=observation,
+            max_response_bytes=0,
+            validation_version="recon-endpoint-1",
+        )
+        result["resolution_method"] = resolution_method
+        result["resolution_source"] = resolution_source
+        result["transport_status"] = transport_status
+        last_result = result
+        if result.get("reachable") or transport_status == "stopped_for_safety":
+            return result
+
+    return last_result or {
+        "endpoint": endpoint,
+        "resolved_url": candidates[0][0],
+        "method": "HEAD",
+        "status_code": 0,
+        "content_type": "",
+        "reachable": False,
+        "confidence": 30,
+        "error": "endpoint validation failed",
+    }
+
 
 def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
     if not ctx.policy.modules.get("endpoint_validation", False):
         return {"skipped": "disabled"}
-    rows = ctx.db.all("SELECT endpoint,kind,confidence FROM endpoint_intelligence WHERE target=? ORDER BY confidence DESC LIMIT ?", (ctx.policy.name, min(1000, ctx.policy.limits.max_urls)))
+    rows = ctx.db.all(
+        "SELECT endpoint,kind,confidence,sources_json FROM endpoint_intelligence WHERE target=? ORDER BY confidence DESC LIMIT ?",
+        (ctx.policy.name, min(1000, ctx.policy.limits.max_urls)),
+    )
     queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "endpoint-validation-items", ctx.db_writer)
-    pending = [str(r["endpoint"]) for r in rows if not queue.completed(str(r["endpoint"]))]
+    pending: list[tuple[str, list[str]]] = []
+    for row in rows:
+        endpoint = str(row["endpoint"])
+        if queue.completed(endpoint):
+            continue
+        try:
+            raw_sources = json.loads(str(row["sources_json"] or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raw_sources = []
+        sources = [str(value) for value in raw_sources] if isinstance(raw_sources, list) else []
+        pending.append((endpoint, sources))
+
     workers = min(10, max(1, ctx.policy.limits.http_workers // 4))
     results: list[dict[str, Any]] = []
-    def run(endpoint: str) -> dict[str, Any]:
+
+    def run(item: tuple[str, list[str]]) -> dict[str, Any]:
+        endpoint, sources = item
         work_id = queue.enqueue(
             endpoint,
             {
                 "kind": "http_head",
                 "url": endpoint,
+                "sources": sources,
                 "allowed_roots": ctx.policy.roots,
             },
         )
         queue.start(work_id, "local-validation")
         try:
-            result = _safe_validate_endpoint(ctx, endpoint)
+            result = _safe_validate_endpoint(ctx, endpoint, sources)
             queue.finish(work_id, result)
             return result
         except Exception as exc:
-            queue.fail(
-                work_id,
-                str(exc),
-                retry=True,
-            )
-            return {
-                "endpoint": endpoint,
-                "error": str(exc),
-                "reachable": False,
-            }
+            queue.fail(work_id, str(exc), retry=True)
+            return {"endpoint": endpoint, "error": str(exc), "reachable": False}
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         for index, result in enumerate(pool.map(run, pending), 1):
-            results.append(result); ctx.progress.update(index, len(pending), f"reachable={sum(1 for r in results if r.get('reachable'))}")
+            results.append(result)
+            ctx.progress.update(index, len(pending), f"reachable={sum(1 for r in results if r.get('reachable'))}")
+
     now = utc_now()
     for result in results:
-        if result.get("skipped"): continue
-        ctx.db.execute("INSERT INTO endpoint_validations(target,endpoint,resolved_url,method,status_code,content_type,reachable,confidence,checked_at,last_run_id,error) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(target,endpoint,resolved_url) DO UPDATE SET method=excluded.method,status_code=excluded.status_code,content_type=excluded.content_type,reachable=excluded.reachable,confidence=excluded.confidence,checked_at=excluded.checked_at,last_run_id=excluded.last_run_id,error=excluded.error", (ctx.policy.name,result.get("endpoint",""),result.get("resolved_url",""),result.get("method","HEAD"),result.get("status_code",0),result.get("content_type",""),int(bool(result.get("reachable"))),result.get("confidence",0),now,ctx.run_id,result.get("error","")))
-        if result.get("reachable") and int(result.get("status_code",0)) in {200,201,202,204,401,403,405}:
+        if result.get("skipped"):
+            continue
+        ctx.db.execute(
+            "INSERT INTO endpoint_validations(target,endpoint,resolved_url,method,status_code,content_type,reachable,confidence,checked_at,last_run_id,error) VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(target,endpoint,resolved_url) DO UPDATE SET method=excluded.method,status_code=excluded.status_code,content_type=excluded.content_type,reachable=excluded.reachable,confidence=excluded.confidence,checked_at=excluded.checked_at,last_run_id=excluded.last_run_id,error=excluded.error",
+            (
+                ctx.policy.name, result.get("endpoint", ""), result.get("resolved_url", ""),
+                result.get("method", "HEAD"), result.get("status_code", 0), result.get("content_type", ""),
+                int(bool(result.get("reachable"))), result.get("confidence", 0), now, ctx.run_id, result.get("error", ""),
+            ),
+        )
+        if result.get("reachable") and int(result.get("status_code", 0)) in {200, 201, 202, 204, 401, 403, 405}:
             emit_event(ctx, "validated_endpoint", str(result.get("resolved_url")), "Extracted endpoint validated", result)
     write_jsonl(ctx.current / "endpoint-validations.jsonl", results)
-    return {"candidates": len(rows), "checked": len(results), "reachable": sum(1 for r in results if r.get("reachable")), "errors": sum(1 for r in results if r.get("error"))}
+    return {
+        "candidates": len(rows),
+        "checked": len(results),
+        "reachable": sum(1 for r in results if r.get("reachable")),
+        "errors": sum(1 for r in results if r.get("error")),
+    }
 
 def _tls_certificate_info(url: str, timeout: float = 5.0) -> dict[str, Any]:
     parsed = urllib.parse.urlsplit(url)
@@ -1273,7 +1371,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     args = [
         "httpx", "-l", str(base_path), "-silent", "-json", "-duc", "-no-color",
         "-sc", "-cl", "-ct", "-location", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
-        "-hash", "sha256", "-jarm", "-http2", "-include-chain", "-fr",
+        "-hash", "sha256", "-jarm", "-http2", "-include-chain",
         "-t", str(ctx.policy.limits.http_threads),
         "-rl", str(ctx.policy.limits.request_rate),
         "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 20))),

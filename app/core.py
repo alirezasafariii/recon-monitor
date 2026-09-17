@@ -165,6 +165,37 @@ def valid_domain(value: str) -> bool:
     )
 
 
+def normalize_url_preserving_semantics(value: str) -> str | None:
+    """Normalize only URL authority while preserving security-significant path/query bytes.
+
+    This form is intended for recon evidence and request targets. It strips the
+    fragment and normalizes scheme/host/default ports, but deliberately does not
+    decode the path, collapse duplicate slashes, sort query parameters, or drop
+    query keys. Use normalize_url separately for canonical comparison keys.
+    """
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError:
+        return None
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    host = normalize_host(parsed.hostname)
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    netloc = host
+    if ":" in host and not host.startswith("["):
+        netloc = f"[{host}]"
+    if port is not None and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
+        netloc = f"{netloc}:{port}"
+    path = parsed.path or "/"
+    return urllib.parse.urlunsplit((scheme, netloc, path, parsed.query, ""))
+
 def normalize_url(value: str, *, drop_tracking: bool = True) -> str | None:
     """Canonicalize an HTTP(S) URL for stable comparison.
 
