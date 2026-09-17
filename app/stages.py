@@ -292,8 +292,13 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 filtered_hosts.update(root_hosts)
         wildcard_candidates = set(hosts) - filtered_hosts
         filtered_hosts.update(ctx.policy.roots)
-        query_input = ctx.current / "dns-filtered-hosts.txt"
-        atomic_write_text(query_input, "".join(f"{host}\n" for host in sorted(filtered_hosts)))
+        # Keep the non-wildcard set as classification metadata for stability
+        # logic, but query every discovered host. Wildcard DNS is a property,
+        # not a reason to discard a potentially distinct virtual host.
+        filtered_path = ctx.current / "dns-filtered-hosts.txt"
+        atomic_write_text(filtered_path, "".join(f"{host}\n" for host in sorted(filtered_hosts)))
+        query_input = ctx.current / "dns-query-hosts.txt"
+        atomic_write_text(query_input, "".join(f"{host}\n" for host in sorted(hosts)))
 
         root_query_input = ctx.current / "dns-root-hosts.txt"
         atomic_write_text(root_query_input, "".join(f"{root}\n" for root in ctx.policy.roots))
@@ -309,7 +314,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 timeout=ctx.policy.limits.timeout_seconds,
                 output_path=out,
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
-                line_callback=lambda _line, count, t=rrtype: ctx.progress.update(count, len(filtered_hosts), f"query {t}"),
+                line_callback=lambda _line, count, t=rrtype: ctx.progress.update(count, len(hosts), f"query {t}"),
             )
             if result.returncode != 0:
                 ctx.logger.warn("dnsx query failed; previous records of this type will not be retired", target=ctx.policy.name, rrtype=rrtype, exit=result.returncode)
@@ -370,6 +375,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "new_records": len(new_records),
         "removed_records": len(removed_records),
         "wildcard_candidates": len(wildcard_candidates),
+        "wildcard_resolved": len(wildcard_candidates & resolved_hosts),
         "successful_rrtypes": sorted(successful_rrtypes),
     }
 
@@ -403,19 +409,160 @@ def _katana_candidate_malformed(value: str) -> bool:
     )
 
 
+_URL_PRIORITY_TOKENS = {
+    "admin", "api", "auth", "oauth", "login", "graphql", "export", "upload",
+    "payment", "billing", "debug", "internal", "private", "account", "user",
+}
+
+
+def _url_candidate_priority(url: str, sources: set[str]) -> int:
+    parsed = urllib.parse.urlsplit(url)
+    path_query = f"{parsed.path}?{parsed.query}".lower()
+    kind = classify_url(url)
+    score = len(sources) * 4
+    if "katana" in sources:
+        score += 30
+    if "wayback" in sources:
+        score += 14
+    if "base" in sources:
+        score += 4
+    if kind == "api":
+        score += 32
+    elif kind == "javascript":
+        score += 14
+    if parsed.query:
+        score += 10
+    if any(token in path_query for token in _URL_PRIORITY_TOKENS):
+        score += 24
+    score += min(8, len([part for part in parsed.path.split("/") if part]))
+    return score
+
+
+def _select_diverse_urls(candidates: Mapping[str, set[str]], limit: int) -> list[str]:
+    """Deterministically preserve host diversity before spending the URL budget."""
+    if limit <= 0:
+        return []
+    by_host: dict[str, list[str]] = {}
+    for url in candidates:
+        parsed = urllib.parse.urlsplit(url)
+        host_key = parsed.hostname or parsed.netloc or url
+        by_host.setdefault(host_key, []).append(url)
+    for host, values in by_host.items():
+        values.sort(key=lambda url: (-_url_candidate_priority(url, candidates[url]), url))
+    host_order = sorted(
+        by_host,
+        key=lambda host: (-_url_candidate_priority(by_host[host][0], candidates[by_host[host][0]]), host),
+    )
+    selected: list[str] = []
+    offsets = {host: 0 for host in host_order}
+    while len(selected) < limit:
+        progressed = False
+        for host in host_order:
+            offset = offsets[host]
+            values = by_host[host]
+            if offset >= len(values):
+                continue
+            selected.append(values[offset])
+            offsets[host] = offset + 1
+            progressed = True
+            if len(selected) >= limit:
+                break
+        if not progressed:
+            break
+    return selected
+
+
+def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
+    if ctx.budget:
+        ctx.budget.consume("http_requests", 1)
+
+    def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+        content_type = ""
+        location = ""
+        if headers:
+            with contextlib.suppress(Exception):
+                content_type = str(headers.get("Content-Type", ""))[:200]
+                location = str(headers.get("Location", ""))[:1000]
+        return {
+            "url": observed_url,
+            "method": method,
+            "status_code": int(status or 0),
+            "content_type": content_type,
+            "location": location,
+            "live": bool(status),
+            "error": "" if status else str(error or ""),
+        }
+
+    result, transport_status = perform_pinned_request(
+        {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+        ctx.policy,
+        safe_methods={"HEAD"},
+        url_safety=lambda candidate, policy: (
+            bool(policy.url_in_scope(candidate)),
+            "outside_scope" if not policy.url_in_scope(candidate) else "",
+        ),
+        observation=observation,
+        max_response_bytes=0,
+        validation_version="recon-origin-probe-1",
+    )
+    result["transport_status"] = transport_status
+    result["live"] = bool(result.get("status_code"))
+    return result
+
+
+def _probe_live_origins(ctx: StageContext, urls: Iterable[str]) -> tuple[list[str], list[dict[str, Any]]]:
+    ordered = list(dict.fromkeys(str(url) for url in urls if str(url).strip()))
+    if not ordered:
+        return [], []
+    workers = min(20, max(1, ctx.policy.limits.http_workers // 2))
+    results: list[dict[str, Any]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        for index, result in enumerate(pool.map(lambda url: _origin_probe_one(ctx, url), ordered), 1):
+            results.append(result)
+            ctx.progress.update(index, len(ordered), f"origin-probe live={sum(1 for row in results if row.get('live'))}")
+    live = [str(row["url"]) for row in results if row.get("live") and ctx.policy.url_in_scope(str(row.get("url") or ""))]
+    return list(dict.fromkeys(live)), results
+
+
 def stage_urls(ctx: StageContext) -> dict[str, Any]:
     hosts_file = ctx.current / "resolved-hosts.txt"
     hosts = _scope_hosts(ctx.policy, hosts_file.read_text(encoding="utf-8", errors="replace").splitlines() if hosts_file.exists() else ctx.policy.roots)
     if not hosts:
         hosts = list(ctx.policy.roots)
-    base_urls = sorted({f"https://{host}" for host in hosts} | {f"http://{host}" for host in hosts})
+
+    candidate_base_urls = {f"https://{host}" for host in hosts} | {f"http://{host}" for host in hosts}
+    port_origins_path = ctx.current / "port-web-origins.txt"
+    if port_origins_path.exists():
+        for value in port_origins_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            normalized = normalize_url_preserving_semantics(value)
+            if normalized and ctx.policy.url_in_scope(normalized):
+                candidate_base_urls.add(normalized.rstrip("/"))
+    candidate_base_urls = set(sorted(candidate_base_urls))
+    candidate_base_path = ctx.current / "candidate-base-urls.txt"
+    atomic_write_text(candidate_base_path, "".join(f"{url}\n" for url in sorted(candidate_base_urls)))
+
+    origin_probe_enabled = bool(ctx.policy.raw.get("urls", {}).get("origin_probe", True))
+    if origin_probe_enabled:
+        base_urls, origin_results = _probe_live_origins(ctx, sorted(candidate_base_urls))
+    else:
+        base_urls = sorted(candidate_base_urls)
+        origin_results = [{"url": url, "live": True, "transport_status": "probe_disabled"} for url in base_urls]
     base_path = ctx.current / "base-urls.txt"
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
+    write_jsonl(ctx.current / "origin-probe.jsonl", origin_results)
+
+    wildcard_hosts_path = ctx.current / "wildcard-candidates.txt"
+    wildcard_hosts = set(
+        _scope_hosts(ctx.policy, wildcard_hosts_path.read_text(encoding="utf-8", errors="replace").splitlines())
+        if wildcard_hosts_path.exists()
+        else []
+    )
+    wildcard_live = sum(
+        1 for url in base_urls if (urllib.parse.urlsplit(url).hostname or "") in wildcard_hosts
+    )
 
     # Recon evidence keeps a security-preserving URL form while the database
-    # continues to receive a canonical comparison key. This prevents encoded
-    # delimiters, duplicate slashes, query order, and application parameters
-    # from being destroyed before downstream analysis can inspect them.
+    # continues to receive a canonical comparison key.
     candidates: dict[str, set[str]] = {}
     canonical_urls: dict[str, str] = {}
     katana_rejected_malformed = 0
@@ -446,7 +593,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
                 add_candidate(line, "wayback")
 
-    if tool_path("katana"):
+    katana_observed = 0
+    if tool_path("katana") and base_urls:
         out = ctx.current / "katana-urls.txt"
         args = [
             "katana", "-list", str(base_path), "-silent", "-duc", "-jc",
@@ -463,6 +611,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "urls"),
             line_callback=lambda _line, count: ctx.progress.update(count, 0, "katana crawling"),
         )
+        katana_observed = int(getattr(result, "lines", 0) or 0)
         if result.returncode not in {0, 1}:
             ctx.logger.warn("katana failed", target=ctx.policy.name, exit=result.returncode)
         if out.exists():
@@ -473,11 +622,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     continue
                 add_candidate(raw_candidate, "katana")
 
-    urls = sorted(candidates)[: ctx.policy.limits.max_urls]
-    if ctx.budget:
-        # Katana request counts are not emitted consistently; account for the
-        # observable crawl output as a conservative request estimate.
-        ctx.budget.consume("http_requests", max(len(base_urls), min(len(urls), ctx.policy.limits.max_http_requests)))
+    urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
+    if ctx.budget and katana_observed:
+        ctx.budget.consume("http_requests", min(katana_observed, ctx.policy.limits.max_http_requests))
     new_count = 0
     classified_count = 0
     rows: list[dict[str, Any]] = []
@@ -504,6 +651,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             "canonical_url": canonical_url,
             "kind": kind,
             "sources": source_list,
+            "selection_priority": _url_candidate_priority(raw_url, candidates[raw_url]),
         })
         if is_new:
             new_count += 1
@@ -521,9 +669,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     write_jsonl(ctx.current / "urls.jsonl", rows)
     atomic_write_text(ctx.current / "urls.txt", "".join(f"{url}\n" for url in urls))
     atomic_write_text(ctx.changes / "new-urls.txt", "".join(f"{url}\n" for url in new_urls))
+    selected_hosts = {(urllib.parse.urlsplit(url).hostname or "") for url in urls}
     return {
         "hosts": len(hosts),
+        "candidate_origins": len(candidate_base_urls),
+        "live_origins": len(base_urls),
+        "wildcard_live_origins": wildcard_live,
         "urls": len(urls),
+        "selected_hosts": len(selected_hosts),
         "canonical_urls": len({canonical_urls[url] for url in urls}),
         "raw_variants": len(urls),
         "new": new_count,
@@ -1459,6 +1612,24 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots"))}
 
 
+_HTTP_WEB_PORTS = {80, 3000, 5000, 8000, 8008, 8080, 8888}
+_HTTPS_WEB_PORTS = {443, 4443, 8443, 9443, 10443}
+
+
+def _web_origin_for_port(host: str, port: int) -> str:
+    host = normalize_host(host)
+    if not host or port <= 0:
+        return ""
+    if port in _HTTPS_WEB_PORTS:
+        scheme = "https"
+    elif port in _HTTP_WEB_PORTS:
+        scheme = "http"
+    else:
+        return ""
+    display_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    default = (scheme == "http" and port == 80) or (scheme == "https" and port == 443)
+    return f"{scheme}://{display_host}" if default else f"{scheme}://{display_host}:{port}"
+
 def stage_ports(ctx: StageContext) -> dict[str, Any]:
     if not ctx.policy.modules.get("ports"):
         return {"skipped": "disabled"}
@@ -1486,6 +1657,7 @@ def stage_ports(ctx: StageContext) -> dict[str, Any]:
         raise StageError(f"naabu failed with exit code {result.returncode}", exit_code=result.returncode)
     new_ports = 0
     total = 0
+    web_origins: set[str] = set()
     for row in read_jsonl(out):
         host = normalize_host(str(row.get("host") or row.get("input") or ""))
         ip = str(row.get("ip") or "")
@@ -1496,11 +1668,16 @@ def stage_ports(ctx: StageContext) -> dict[str, Any]:
         if not port or (host and not ctx.policy.host_in_scope(host) and host not in ctx.policy.roots):
             continue
         total += 1
+        if protocol.lower() == "tcp":
+            origin = _web_origin_for_port(host, port)
+            if origin and ctx.policy.url_in_scope(origin):
+                web_origins.add(origin)
         if ctx.db.upsert_port(ctx.policy.name, host, ip, port, protocol, ctx.run_id):
             new_ports += 1
             emit_event(ctx, "new_port", f"{host}:{port}/{protocol}", "New open port", {"host": host, "ip": ip, "port": port, "protocol": protocol})
     ctx.db.finalize_ports_current(ctx.policy.name, ctx.run_id)
-    return {"open_ports": total, "new": new_ports, "ports": ports}
+    atomic_write_text(ctx.current / "port-web-origins.txt", "".join(f"{url}\n" for url in sorted(web_origins)))
+    return {"open_ports": total, "new": new_ports, "ports": ports, "web_origins": len(web_origins)}
 
 
 def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
