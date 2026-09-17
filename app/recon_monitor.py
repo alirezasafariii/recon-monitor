@@ -20,6 +20,10 @@ from correlation_engine import (
     CORRELATION_RULE_VERSION,
     investigation_queue,
 )
+from derived_change_advisory import (
+    DERIVED_CHANGE_ADVISORY_RULE_VERSION,
+    DERIVED_CHANGE_ADVISORY_VERSION,
+)
 from differential_evidence_adapter import adapt_differential_evidence
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 from real_world_calibration import (
@@ -37,7 +41,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.2.0"
+INVESTIGATION_CLI_VERSION = "1.3.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -203,11 +207,18 @@ def investigation_queue_cli_payload(
                 "version": CORRELATION_ENGINE_VERSION,
                 "rule_version": CORRELATION_RULE_VERSION,
             },
+            "derived_change_advisory": {
+                "version": DERIVED_CHANGE_ADVISORY_VERSION,
+                "rule_version": DERIVED_CHANGE_ADVISORY_RULE_VERSION,
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
             "queue_is_not_vulnerability_confirmation": True,
             "correlation_cannot_satisfy_admission": True,
+            "derived_change_is_advisory_only": True,
+            "derived_change_cannot_satisfy_admission": True,
+            "derived_change_is_not_double_counted_in_queue_score": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
