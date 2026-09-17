@@ -920,13 +920,14 @@ def _prepare_javascript_derived_differentials(
             "semantic_hash": str(row.get("semantic_hash") or ""),
             "source_map_hash": str(row.get("source_map_hash") or ""),
         }
-    if len(source_items) > DERIVED_RECON_STATE_LIMIT:
-        source_items = {
-            key: source_items[key]
-            for key in sorted(source_items)[:DERIVED_RECON_STATE_LIMIT]
-        }
+    source_items_bounded = len(source_items) <= DERIVED_RECON_STATE_LIMIT
+    if not source_items_bounded:
         meta["truncated_sets"] += 1
-    specs.append(("source_map_source", source_maps_complete, source_items))
+    specs.append((
+        "source_map_source",
+        source_maps_complete and source_items_bounded,
+        source_items,
+    ))
 
     chunk_items: dict[str, dict[str, Any]] = {}
     for row in chunk_edge_rows:
@@ -936,13 +937,14 @@ def _prepare_javascript_derived_differentials(
             continue
         item_key = sha256_text(json_dumps([js_url, chunk_url]))
         chunk_items[item_key] = {"js_url": js_url, "chunk_url": chunk_url}
-    if len(chunk_items) > DERIVED_RECON_STATE_LIMIT:
-        chunk_items = {
-            key: chunk_items[key]
-            for key in sorted(chunk_items)[:DERIVED_RECON_STATE_LIMIT]
-        }
+    chunk_items_bounded = len(chunk_items) <= DERIVED_RECON_STATE_LIMIT
+    if not chunk_items_bounded:
         meta["truncated_sets"] += 1
-    specs.append(("javascript_chunk", chunks_complete, chunk_items))
+    specs.append((
+        "javascript_chunk",
+        chunks_complete and chunk_items_bounded,
+        chunk_items,
+    ))
 
     for state_type, complete, items in specs:
         if not complete:
