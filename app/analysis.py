@@ -34,6 +34,40 @@ def _run_dirs(db: Database, run_id: str, target: str | None = None) -> dict[str,
     return {str(row["target"]): Path(str(row["run_dir"])) for row in rows}
 
 
+def _source_map_state(path: Path) -> set[str]:
+    state: set[str] = set()
+    for row in read_jsonl(path):
+        identity = str(row.get("source_identity") or "").strip()
+        if not identity:
+            continue
+        state.add(
+            json_dumps(
+                {
+                    "source_identity": identity,
+                    "js_url": str(row.get("js_url") or ""),
+                    "source_map_url": str(row.get("source_map_url") or ""),
+                    "source_name": str(row.get("source_name") or ""),
+                    "resolved_source_url": str(row.get("resolved_source_url") or ""),
+                    "embedded": bool(row.get("embedded")),
+                    "content_hash": str(row.get("content_hash") or ""),
+                    "semantic_hash": str(row.get("semantic_hash") or ""),
+                    "source_map_hash": str(row.get("source_map_hash") or ""),
+                }
+            )
+        )
+    return state
+
+
+def _javascript_chunk_state(path: Path) -> set[str]:
+    state: set[str] = set()
+    for row in read_jsonl(path):
+        js_url = str(row.get("js_url") or "").strip()
+        chunk_url = str(row.get("chunk_url") or "").strip()
+        if js_url and chunk_url:
+            state.add(json_dumps({"js_url": js_url, "chunk_url": chunk_url}))
+    return state
+
+
 def _snapshot(run_dir: Path) -> dict[str, set[str]]:
     current = run_dir / "current"
     subdomains = _text_set(current / "subdomains.txt")
@@ -51,7 +85,17 @@ def _snapshot(run_dir: Path) -> dict[str, set[str]]:
                 values = [values]
             for value in values if isinstance(values, list) else []:
                 dns.add(f"{host}\t{value}")
-    return {"subdomains": subdomains, "urls": urls, "javascript": javascript, "live_http": live_http, "dns": dns}
+    source_map_sources = _source_map_state(current / "source-map-sources.jsonl")
+    javascript_chunks = _javascript_chunk_state(current / "javascript-chunk-edges.jsonl")
+    return {
+        "subdomains": subdomains,
+        "urls": urls,
+        "javascript": javascript,
+        "live_http": live_http,
+        "dns": dns,
+        "source_map_sources": source_map_sources,
+        "javascript_chunks": javascript_chunks,
+    }
 
 
 def compare_runs(paths: AppPaths, db: Database, old_run: str, new_run: str, target: str | None = None) -> dict[str, Any]:
@@ -60,7 +104,18 @@ def compare_runs(paths: AppPaths, db: Database, old_run: str, new_run: str, targ
     targets = sorted(set(old_dirs) | set(new_dirs))
     result: dict[str, Any] = {"old_run": old_run, "new_run": new_run, "targets": {}}
     for name in targets:
-        old = _snapshot(old_dirs[name]) if name in old_dirs else {key: set() for key in ("subdomains", "urls", "javascript", "live_http", "dns")}
+        old = _snapshot(old_dirs[name]) if name in old_dirs else {
+            key: set()
+            for key in (
+                "subdomains",
+                "urls",
+                "javascript",
+                "live_http",
+                "dns",
+                "source_map_sources",
+                "javascript_chunks",
+            )
+        }
         new = _snapshot(new_dirs[name]) if name in new_dirs else {key: set() for key in old}
         categories: dict[str, Any] = {}
         for key in old:
