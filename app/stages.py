@@ -520,7 +520,13 @@ def _probe_live_origins(ctx: StageContext, urls: Iterable[str]) -> tuple[list[st
         for index, result in enumerate(pool.map(lambda url: _origin_probe_one(ctx, url), ordered), 1):
             results.append(result)
             ctx.progress.update(index, len(ordered), f"origin-probe live={sum(1 for row in results if row.get('live'))}")
-    live = [str(row["url"]) for row in results if row.get("live") and ctx.policy.url_in_scope(str(row.get("url") or ""))]
+    live = [
+        str(row["url"])
+        for row in results
+        if row.get("live")
+        and not row.get("redirect_outside_scope")
+        and ctx.policy.url_in_scope(str(row.get("url") or ""))
+    ]
     return list(dict.fromkeys(live)), results
 
 
