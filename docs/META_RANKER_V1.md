@@ -26,6 +26,7 @@ confidence or satisfy admission:
 - writeup similarity;
 - historical analyst feedback;
 - candidate/surface correlation;
+- successful-run derived Recon change affinity;
 - LLM advisory scores.
 
 ## V1 component weights
@@ -39,6 +40,7 @@ The default proximity weights are:
 | writeup similarity | 15% | no |
 | historical feedback | 7% | no |
 | related-surface correlation | 5% | no |
+| derived Recon change affinity | 8% | no |
 | LLM advisory | 3% | no |
 
 Missing optional components are excluded rather than replaced with an invented
@@ -53,6 +55,9 @@ Meta Ranker therefore applies hard caps:
 - target evidence below `25` => proximity cannot exceed `55`;
 - no strong family signal and weak evidence => proximity cannot exceed `69`;
 - family contradictions reduce both target-evidence confidence and proximity;
+- derived Recon change affinity is considered only for collection-complete source
+  runs, is surface-matched, and has no path into target-evidence confidence or
+  Canonical Admission;
 - LLM advisory has no path into target-evidence confidence and has only a small
   proximity weight.
 
@@ -69,7 +74,15 @@ signals as non-evidentiary priors:
 1. **historical analyst prior** — reviewed outcomes for the same target/family,
    shrunk toward neutral until enough reviews exist;
 2. **related-surface correlation** — already-promoted candidates sharing the
-   current endpoint, alert, or source reference.
+   current endpoint, alert, or source reference;
+3. **derived Recon change affinity** — P3 source-map/chunk typed differentials
+   from the same collection-complete source run when they match the hypothesis
+   endpoint or source reference.
+
+The derived-change adapter fails closed if any Recon collection stage is
+incomplete, the artifact is missing/oversized/symlinked, row identity does not
+match the source run and target, or the change is unrelated to the hypothesis
+surface. The adapter performs no network I/O.
 
 The resulting object is persisted under:
 
