@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "aliases": {
+    "npm:bootstrap": ["bootstrap", "twitter bootstrap"],
+    "npm:jquery": ["jquery", "jquery.js"],
+    "npm:lodash": ["lodash", "lodash.js"]
+  }
+}
