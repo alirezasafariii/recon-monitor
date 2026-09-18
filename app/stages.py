@@ -26,7 +26,6 @@ from core import (
     classify_url,
     explain_risk,
     extract_js_indicators,
-    header_args,
     json_dumps,
     normalize_host,
     normalize_url,
@@ -129,6 +128,17 @@ def emit_event(ctx: StageContext, category: str, item: str, title: str, details:
 
 def _scope_hosts(policy: TargetPolicy, hosts: Iterable[str]) -> list[str]:
     return sorted({host for value in hosts if (host := normalize_host(value)) and policy.host_in_scope(host)})
+
+
+def _policy_headers_for_url(policy: TargetPolicy, url: str) -> dict[str, str]:
+    """Return policy headers only for encrypted, in-process target transport."""
+    try:
+        parsed = urllib.parse.urlsplit(str(url or ""))
+    except ValueError:
+        return {}
+    if parsed.scheme.lower() != "https":
+        return {}
+    return {str(key): str(value) for key, value in policy.headers.items()}
 
 
 def _parse_subfinder_row(row: Mapping[str, Any]) -> tuple[str, set[str]]:
@@ -582,7 +592,7 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
         }
 
     result, transport_status = perform_pinned_request(
-        {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+        {"method": "HEAD", "url": url, "headers": _policy_headers_for_url(ctx.policy, url)},
         ctx.policy,
         safe_methods={"HEAD"},
         url_safety=lambda candidate, policy: (
@@ -607,7 +617,7 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
         fallback_headers = {
-            **ctx.policy.headers,
+            **_policy_headers_for_url(ctx.policy, url),
             "Range": "bytes=0-0",
         }
         get_result, get_transport_status = perform_pinned_request(
@@ -803,8 +813,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     )
                 ),
             ]
-            for key, value in ctx.policy.headers.items():
-                args.extend(["-H", f"{key}: {value}"])
+            # Policy credentials never cross into an external crawler.
             result = ctx.runner.run(
                 args,
                 timeout=ctx.policy.limits.timeout_seconds,
@@ -915,7 +924,7 @@ def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]
             "USER_AGENT",
             "ReconMonitor/3.0 authorized security monitoring",
         ),
-        **ctx.policy.headers,
+        **_policy_headers_for_url(ctx.policy, url),
     }
     started = time.monotonic()
 
@@ -1978,7 +1987,7 @@ def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[
             }
 
         result, transport_status = perform_pinned_request(
-            {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+            {"method": "HEAD", "url": url, "headers": _policy_headers_for_url(ctx.policy, url)},
             ctx.policy,
             safe_methods={"HEAD"},
             url_safety=lambda candidate, policy: (
@@ -2189,7 +2198,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 20))),
         "-retries", "1",
     ]
-    args.extend(header_args(ctx.policy.headers))
+    # Policy credentials are confined to the in-process pinned transport.
     if ctx.policy.modules.get("screenshots"):
         screenshot_dir = ctx.run_dir / "screenshots"
         screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -2208,7 +2217,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
             "-sc", "-cl", "-ct", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
             "-t", str(ctx.policy.limits.http_threads), "-rl", str(ctx.policy.limits.request_rate),
             "-timeout", "10", "-retries", "1",
-        ] + header_args(ctx.policy.headers)
+        ]
         result = ctx.runner.run(
             args,
             timeout=ctx.policy.limits.timeout_seconds,
@@ -2366,7 +2375,7 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         "-pt", "http,ssl,dns", "-dut", "-jsonl", "-silent", "-nc", "-duc",
         "-rl", str(ctx.policy.limits.nuclei_rate), "-bs", "5", "-c", "5", "-o", str(out),
     ]
-    args.extend(header_args(ctx.policy.headers))
+    # Do not delegate policy credentials to external active tools.
     result = ctx.runner.run(
         args,
         timeout=ctx.policy.limits.timeout_seconds,
