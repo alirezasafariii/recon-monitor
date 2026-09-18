@@ -13,8 +13,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-SEMANTIC_ENGINE_VERSION = "5.0.1"
-SEMANTIC_RULE_VERSION = "2026.08.8.1"
+SEMANTIC_ENGINE_VERSION = "5.1.0"
+SEMANTIC_RULE_VERSION = "2026.09.18.1"
 PROFILES = {
     "quiet": {"minimum_sources": 3, "minimum_evidence": 62, "minimum_likelihood": 50, "stale_days": 21},
     "balanced": {"minimum_sources": 2, "minimum_evidence": 42, "minimum_likelihood": 32, "stale_days": 30},
