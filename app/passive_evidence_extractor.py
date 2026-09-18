@@ -19,8 +19,8 @@ import re
 import urllib.parse
 from typing import Any, Mapping
 
-PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.4.0"
-PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.5"
+PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.5.0"
+PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.6"
 
 _BACKUP_SUFFIXES = (
     ".bak",
@@ -105,6 +105,41 @@ _DIRECTORY_INDEX_TITLE_RE = re.compile(
     r"^(?:index of(?: /|$)|directory listing for\b)",
     re.I,
 )
+_CLOUD_XML_CONTENT_TYPES = (
+    "application/xml",
+    "text/xml",
+    "application/x-xml",
+)
+_CLOUD_SENSITIVE_EXACT_NAMES = frozenset(
+    {
+        ".env",
+        ".env.local",
+        ".env.production",
+        "credentials",
+        "credentials.json",
+        "secret.json",
+        "secrets.json",
+        "id_rsa",
+        "id_dsa",
+        "id_ed25519",
+        "terraform.tfstate",
+        "terraform.tfstate.backup",
+    }
+)
+_CLOUD_SENSITIVE_SUFFIXES = (
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".kdbx",
+    ".sql",
+    ".dump",
+    ".bak",
+    ".backup",
+    ".tfstate",
+    ".sqlite",
+    ".sqlite3",
+)
 
 _ALLOWED_DERIVED_SIGNALS = frozenset(
     {
@@ -133,6 +168,10 @@ _ALLOWED_DERIVED_SIGNALS = frozenset(
         "stale_api_host_publicly_reachable",
         "debug_endpoint_restricted",
         "version_decommissioned",
+        "cloud_object_listing_public_observed",
+        "sensitive_cloud_object_publicly_readable_observed",
+        "cloud_storage_private_policy_observed",
+        "signed_access_required",
     }
 )
 
@@ -914,6 +953,267 @@ def _derive_misconfiguration_and_inventory_evidence(
             )
 
 
+def _cloud_storage_location(endpoint: str) -> dict[str, Any]:
+    try:
+        parsed = urllib.parse.urlsplit(str(endpoint or ""))
+    except ValueError:
+        return {}
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return {}
+
+    host = (parsed.hostname or "").lower()
+    path_parts = [
+        urllib.parse.unquote(part)
+        for part in parsed.path.split("/")
+        if part
+    ]
+    provider = ""
+    container = ""
+    object_key = ""
+
+    # AWS S3 API endpoints. Website endpoints are intentionally excluded
+    # because public HTML hosting is not equivalent to storage-policy exposure.
+    if ".s3-website" not in host and ".s3-website." not in host:
+        if host == "s3.amazonaws.com" or (
+            host.startswith("s3.") and host.endswith(".amazonaws.com")
+        ) or (
+            host.startswith("s3-") and host.endswith(".amazonaws.com")
+        ):
+            if path_parts:
+                provider = "aws_s3"
+                container = path_parts[0]
+                object_key = "/".join(path_parts[1:])
+        else:
+            match = re.fullmatch(
+                r"(?P<bucket>.+)\.s3(?:[.-][a-z0-9-]+)?\.amazonaws\.com",
+                host,
+                re.I,
+            )
+            if match:
+                provider = "aws_s3"
+                container = str(match.group("bucket") or "")
+                object_key = "/".join(path_parts)
+
+    # Google Cloud Storage XML/API host forms.
+    if not provider:
+        if host == "storage.googleapis.com":
+            if path_parts:
+                provider = "gcs"
+                container = path_parts[0]
+                object_key = "/".join(path_parts[1:])
+        else:
+            match = re.fullmatch(
+                r"(?P<bucket>.+)\.storage\.googleapis\.com",
+                host,
+                re.I,
+            )
+            if match:
+                provider = "gcs"
+                container = str(match.group("bucket") or "")
+                object_key = "/".join(path_parts)
+
+    # Azure Blob Storage account/container/blob layout.
+    if not provider:
+        match = re.fullmatch(
+            r"(?P<account>[^.]+)\.blob\.core\.windows\.net",
+            host,
+            re.I,
+        )
+        if match and path_parts:
+            provider = "azure_blob"
+            container = path_parts[0]
+            object_key = "/".join(path_parts[1:])
+
+    if not provider or not container:
+        return {}
+
+    query = {
+        str(key).lower(): [str(item) for item in values]
+        for key, values in urllib.parse.parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        ).items()
+    }
+    return {
+        "provider": provider,
+        "host": host,
+        "container": container,
+        "object_key": object_key,
+        "query": query,
+        "container_root": not bool(object_key),
+    }
+
+
+def _cloud_signed_access(location: Mapping[str, Any]) -> bool:
+    provider = str(location.get("provider") or "")
+    query = location.get("query")
+    if not isinstance(query, Mapping):
+        return False
+    keys = {str(key).lower() for key in query}
+    if provider == "aws_s3":
+        return "x-amz-signature" in keys or (
+            "x-amz-credential" in keys and "x-amz-algorithm" in keys
+        )
+    if provider == "gcs":
+        return "x-goog-signature" in keys or (
+            "googleaccessid" in keys and "signature" in keys
+        )
+    if provider == "azure_blob":
+        return "sig" in keys and bool(
+            keys & {"sv", "se", "sp", "sr"}
+        )
+    return False
+
+
+def _cloud_sensitive_object(object_key: str) -> bool:
+    normalized = urllib.parse.unquote(str(object_key or "")).strip().lower()
+    if not normalized:
+        return False
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in _CLOUD_SENSITIVE_EXACT_NAMES:
+        return True
+    if basename.endswith(_CLOUD_SENSITIVE_SUFFIXES):
+        return True
+    return False
+
+
+def _cloud_listing_response(
+    location: Mapping[str, Any],
+    *,
+    status: int,
+    content_type: str,
+) -> bool:
+    if status != 200 or not bool(location.get("container_root")):
+        return False
+    if not any(marker in content_type for marker in _CLOUD_XML_CONTENT_TYPES):
+        return False
+
+    provider = str(location.get("provider") or "")
+    query = location.get("query")
+    query_map = dict(query) if isinstance(query, Mapping) else {}
+    if provider in {"aws_s3", "gcs"}:
+        return True
+    if provider == "azure_blob":
+        return (
+            "restype" in query_map
+            and any(
+                str(value).lower() == "container"
+                for value in query_map.get("restype", [])
+            )
+            and "comp" in query_map
+            and any(
+                str(value).lower() == "list"
+                for value in query_map.get("comp", [])
+            )
+        )
+    return False
+
+
+def _derive_cloud_storage_evidence(
+    enriched: dict[str, Any],
+    sources: dict[str, list[str]],
+    *,
+    endpoint: str,
+    status: int,
+    content_type: str,
+    content_length: int,
+) -> None:
+    location = _cloud_storage_location(endpoint)
+    if not location:
+        return
+
+    signed = _cloud_signed_access(location)
+    if signed:
+        _set_signal(
+            enriched,
+            sources,
+            "signed_access_required",
+            "stored_cloud_storage_url",
+            "stored_signed_access_parameters",
+        )
+        _record_passive_condition(
+            enriched,
+            "signed_access_required",
+            endpoint=endpoint,
+            provider=location.get("provider"),
+            container=location.get("container"),
+            status_code=status,
+        )
+        return
+
+    if status in {401, 403}:
+        _set_signal(
+            enriched,
+            sources,
+            "cloud_storage_private_policy_observed",
+            "stored_cloud_storage_url",
+            "stored_http_status",
+        )
+        _record_passive_condition(
+            enriched,
+            "cloud_storage_private_policy_observed",
+            endpoint=endpoint,
+            provider=location.get("provider"),
+            container=location.get("container"),
+            status_code=status,
+        )
+        return
+
+    if _cloud_listing_response(
+        location,
+        status=status,
+        content_type=content_type,
+    ):
+        _set_signal(
+            enriched,
+            sources,
+            "cloud_object_listing_public_observed",
+            "stored_cloud_storage_url",
+            "stored_http_status",
+            "stored_response_metadata",
+        )
+        _record_passive_condition(
+            enriched,
+            "cloud_object_listing_public_observed",
+            endpoint=endpoint,
+            provider=location.get("provider"),
+            container=location.get("container"),
+            status_code=status,
+            content_type=content_type,
+        )
+
+    object_key = str(location.get("object_key") or "")
+    if not object_key or not _cloud_sensitive_object(object_key):
+        return
+    if status not in {200, 206}:
+        return
+    if any(marker in content_type for marker in _HTML_CONTENT_TYPES):
+        return
+    if not content_type and content_length <= 0:
+        return
+
+    _set_signal(
+        enriched,
+        sources,
+        "sensitive_cloud_object_publicly_readable_observed",
+        "stored_cloud_storage_url",
+        "stored_http_status",
+        "stored_response_metadata",
+        "sensitive_object_path_semantics",
+    )
+    _record_passive_condition(
+        enriched,
+        "sensitive_cloud_object_publicly_readable_observed",
+        endpoint=endpoint,
+        provider=location.get("provider"),
+        container=location.get("container"),
+        object_key=object_key[:500],
+        status_code=status,
+        content_type=content_type,
+        content_length=content_length,
+    )
+
+
 def _derive_dependency_advisory_evidence(
     enriched: dict[str, Any],
     sources: dict[str, list[str]],
@@ -984,6 +1284,14 @@ def extract_passive_family_evidence(
         sources,
     )
     if _stored_response_observed(enriched, status):
+        _derive_cloud_storage_evidence(
+            enriched,
+            sources,
+            endpoint=endpoint,
+            status=status,
+            content_type=content_type,
+            content_length=content_length,
+        )
         _derive_backup_evidence(
             enriched,
             sources,
@@ -1060,6 +1368,15 @@ def extract_passive_family_evidence(
         "absence_of_dependency_match_means_safe": False,
         "passive_condition_count": len(
             enriched.get("passive_condition_details") or {}
+        ),
+        "cloud_storage_evidence_derived": any(
+            signal in sources
+            for signal in (
+                "cloud_object_listing_public_observed",
+                "sensitive_cloud_object_publicly_readable_observed",
+                "cloud_storage_private_policy_observed",
+                "signed_access_required",
+            )
         ),
         "direct_conditions_require_concrete_stored_observation": True,
         "exploit_or_impact_confirmation_synthesized": False,
