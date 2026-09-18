@@ -15,8 +15,8 @@ union branch is unsupported; a conjunction is never partially evaluated.
 import re
 from typing import Iterable
 
-DEPENDENCY_VERSION_RANGE_VERSION = "1.0.0"
-DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.18.1"
+DEPENDENCY_VERSION_RANGE_VERSION = "1.1.0"
+DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.18.2"
 
 SEMVER_ECOSYSTEMS = frozenset(
     {
@@ -47,6 +47,20 @@ _SEMVER_RE = re.compile(
     r"(?:-([0-9A-Za-z.-]+))?"
     r"(?:\+([0-9A-Za-z.-]+))?$"
 )
+_LOOSE_SEMVER_LABEL_RE = re.compile(
+    r"^v?(\d+(?:\.\d+){0,2})"
+    r"(?:[-._]?([A-Za-z][0-9A-Za-z.-]*))"
+    r"(?:\+([0-9A-Za-z.-]+))?$",
+    re.I,
+)
+_PEP440_IMPLICIT_POST_RE = re.compile(
+    r"^v?(\d+(?:\.\d+)*)-(\d+(?:\.\d+)*)$",
+    re.I,
+)
+_PEP440_P_POST_RE = re.compile(
+    r"^v?(\d+(?:\.\d+)*)(?:[._-]?p)(\d+(?:\.\d+)*)$",
+    re.I,
+)
 _PEP440_RE = re.compile(
     r"^v?"
     r"(?:(\d+)!)?"
@@ -63,9 +77,7 @@ _RUBYGEMS_RE = re.compile(
     re.I,
 )
 _MAVEN_RE = re.compile(
-    r"^v?(\d+(?:\.\d+)*)"
-    r"(?:(?:[._-]?)(alpha|a|beta|b|milestone|m|rc|cr|snapshot|ga|final|release|sp)"
-    r"(?:[._-]?)(\d*))?$",
+    r"^v?(\d+(?:\.\d+)*)(?:[._-](.+))?$",
     re.I,
 )
 _WILDCARD_RE = re.compile(
@@ -124,18 +136,48 @@ def _compare_release(left: tuple[int, ...], right: tuple[int, ...]) -> int:
 
 
 def _semver_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
-    match = _SEMVER_RE.fullmatch(str(value or "").strip())
-    if not match:
+    text = str(value or "").strip()
+    match = _SEMVER_RE.fullmatch(text)
+    if match:
+        release = tuple(int(match.group(index)) for index in (1, 2, 3))
+        # Relative to a stable release with the same numeric release:
+        # prerelease < stable; build metadata does not affect precedence.
+        relative_to_stable = -1 if match.group(4) else 0
+        return release, relative_to_stable
+
+    loose = _LOOSE_SEMVER_LABEL_RE.fullmatch(text)
+    if not loose:
         return None
-    release = tuple(int(match.group(index)) for index in (1, 2, 3))
-    # Relative to a stable release with the same numeric release:
-    # prerelease < stable; build metadata does not affect precedence.
-    relative_to_stable = -1 if match.group(4) else 0
-    return release, relative_to_stable
+    release = tuple(int(part) for part in loose.group(1).split("."))
+    release = release + (0,) * (3 - len(release))
+    label = str(loose.group(2) or "").lower()
+    pre_match = re.match(
+        r"^(alpha|a|beta|b|rc|pre|preview|dev|milestone|m)(?:[._-]?\d.*)?$",
+        label,
+        re.I,
+    )
+    if pre_match:
+        return release, -1
+    post_match = re.match(r"^(patch|p|pl)(?:[._-]?\d.*)?$", label, re.I)
+    if post_match:
+        return release, 1
+    return None
 
 
 def _pep440_boundary(value: str) -> tuple[int, tuple[int, ...], int] | None:
-    match = _PEP440_RE.fullmatch(str(value or "").strip())
+    text = str(value or "").strip()
+
+    implicit_post = _PEP440_IMPLICIT_POST_RE.fullmatch(text)
+    if implicit_post:
+        release = tuple(int(part) for part in implicit_post.group(1).split("."))
+        return 0, release, 1
+
+    p_post = _PEP440_P_POST_RE.fullmatch(text)
+    if p_post:
+        release = tuple(int(part) for part in p_post.group(1).split("."))
+        return 0, release, 1
+
+    match = _PEP440_RE.fullmatch(text)
     if not match:
         return None
     epoch = int(match.group(1) or 0)
@@ -151,14 +193,25 @@ def _pep440_boundary(value: str) -> tuple[int, tuple[int, ...], int] | None:
         relative_to_stable = 0
     return epoch, release, relative_to_stable
 
-
 def _rubygems_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
-    match = _RUBYGEMS_RE.fullmatch(str(value or "").strip())
-    if not match:
+    text = str(value or "").strip()
+    match = _RUBYGEMS_RE.fullmatch(text)
+    if match:
+        release = tuple(int(part) for part in match.group(1).split("."))
+        relative_to_stable = -1 if match.group(2) else 0
+        return release, relative_to_stable
+
+    broad = re.fullmatch(
+        r"^v?(\d+(?:\.\d+)*)(?:[._-](.*[A-Za-z].*))$",
+        text,
+        re.I,
+    )
+    if not broad:
         return None
-    release = tuple(int(part) for part in match.group(1).split("."))
-    relative_to_stable = -1 if match.group(2) else 0
-    return release, relative_to_stable
+    release = tuple(int(part) for part in broad.group(1).split("."))
+    # Gem::Version considers alphabetic segments prerelease markers relative
+    # to the corresponding numeric release.
+    return release, -1
 
 
 def _maven_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
@@ -167,14 +220,26 @@ def _maven_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
         return None
     release = tuple(int(part) for part in match.group(1).split("."))
     qualifier = str(match.group(2) or "").lower()
-    if not qualifier or qualifier in _MAVEN_EQUAL:
+    if not qualifier:
+        return release, 0
+
+    qualifier_head_match = re.match(r"^([a-z]+)", qualifier, re.I)
+    qualifier_head = (
+        qualifier_head_match.group(1).lower()
+        if qualifier_head_match
+        else qualifier
+    )
+    if qualifier_head in _MAVEN_EQUAL:
         relative_to_stable = 0
-    elif qualifier in _MAVEN_PRE:
+    elif qualifier_head in _MAVEN_PRE:
         relative_to_stable = -1
-    elif qualifier in _MAVEN_POST:
+    elif qualifier_head in _MAVEN_POST:
         relative_to_stable = 1
     else:
-        return None
+        # Maven ComparableVersion sorts unknown qualifiers after the exact
+        # release qualifier. Relative to an observed stable numeric release,
+        # such a qualifier is later.
+        relative_to_stable = 1
     return release, relative_to_stable
 
 
