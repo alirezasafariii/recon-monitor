@@ -25,6 +25,7 @@ from typing import Any, Iterable, Mapping
 
 from calibration_engine import confusion_metrics
 from family_reasoning import FAMILY_ORDER
+from real_world_corpus_v1_family_match import resolve_source_family
 
 SOURCE_ATTESTED_VERSION = "1.0.0"
 SOURCE_ATTESTED_RULE_VERSION = "2026.09.18.1"
@@ -158,27 +159,19 @@ def _attestation_check(
     if _text(feasibility.get("capture_feasibility")) != "strong_revision_boundary":
         reasons.append("not_strong_revision_boundary")
 
-    hints = [
-        _text(value)
-        for value in feasibility.get("family_hints", []) or []
-        if _text(value)
-    ]
-    if len(hints) != 1:
-        reasons.append("family_hint_not_unambiguous")
-        family = ""
-    else:
-        family = hints[0]
-        if family not in CANONICAL_FAMILIES:
-            reasons.append("family_hint_not_canonical")
-
-    taxonomy = feasibility.get("source_taxonomy_match")
-    taxonomy = taxonomy if isinstance(taxonomy, Mapping) else {}
-    targeted_family = _text(taxonomy.get("family_target"))
-    if targeted_family and family and targeted_family != family:
-        reasons.append("targeted_family_conflicts_with_unique_cwe_hint")
-
     advisory = source_pack.get("advisory_snapshot")
     advisory = advisory if isinstance(advisory, Mapping) else {}
+    family_resolution = resolve_source_family(feasibility, advisory)
+    family = _text(family_resolution.get("family"))
+    if not family_resolution.get("resolved"):
+        reasons.extend(
+            str(value)
+            for value in family_resolution.get("reasons", []) or []
+            if str(value) not in reasons
+        )
+    if family and family not in CANONICAL_FAMILIES:
+        reasons.append("resolved_family_not_canonical")
+
     if _text(advisory.get("ghsa_id")).upper() != source_root:
         reasons.append("advisory_root_mismatch")
     if advisory.get("withdrawn_at"):
@@ -259,6 +252,10 @@ def _attestation_check(
         "parent_sha": parent_sha,
         "fix_sha": fix_sha,
         "advisory_cwes": sorted(advisory_cwes),
+        "family_resolution_basis": _text(family_resolution.get("basis")),
+        "family_resolution_semantic_matches": list(
+            family_resolution.get("semantic_matches", []) or []
+        ),
     }
 
 
@@ -329,6 +326,10 @@ def build_source_attested_cases(
             "advisory_cwes": list(check["advisory_cwes"]),
             "revision_pair_sha256": pair_hash,
             "patch_set_sha256": patch_set_hash,
+            "family_resolution_basis": check["family_resolution_basis"],
+            "family_resolution_semantic_matches": list(
+                check["family_resolution_semantic_matches"]
+            ),
             "attestation_basis": [
                 "github_reviewed_advisory",
                 "published_not_withdrawn",
@@ -336,7 +337,7 @@ def build_source_attested_cases(
                 "exact_fix_commit_directly_referenced",
                 "exact_single_parent_revision_pair_captured",
                 "complete_patch_hash_set",
-                "unambiguous_canonical_cwe_family_hint",
+                "conservative_canonical_family_resolution",
             ],
             "score_status": "awaiting_current_engine_replay",
             "decision_readiness_score": None,
