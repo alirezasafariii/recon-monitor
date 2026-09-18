@@ -20,7 +20,7 @@ from dashboard import (
     _origin_matches_request,
     _origin_matches_loopback_server,
 )
-from session_auth import Session, create_session, session_cookie
+from session_auth import Session, create_session, create_user, session_cookie
 from http.server import ThreadingHTTPServer
 
 
@@ -35,6 +35,7 @@ class DashboardCsrfV601Tests(unittest.TestCase):
             'DASHBOARD_TRUST_PROXY_HEADERS="no"\n',
             encoding="utf-8",
         )
+        create_user(self.paths, "analyst", "test-password-12345", "analyst")
 
     def tearDown(self) -> None:
         self.temp.cleanup()
