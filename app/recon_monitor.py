@@ -75,6 +75,11 @@ from real_world_corpus_v1_coverage_expander import (
     coverage_inventory,
     expand_coverage,
 )
+from real_world_corpus_v1_primary_sources import (
+    PRIMARY_SOURCE_COVERAGE_RULE_VERSION,
+    PRIMARY_SOURCE_COVERAGE_VERSION,
+    load_primary_source_file,
+)
 from real_world_corpus_v1_source_attested import (
     SOURCE_ATTESTED_RULE_VERSION,
     SOURCE_ATTESTED_VERSION,
@@ -218,6 +223,13 @@ def build_parser():
             default="",
             dest="corpus_revision_pairs",
             help="Override Corpus V1 exact revision-pair JSON",
+        )
+    if "corpus_primary_sources" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-primary-sources",
+            default="",
+            dest="corpus_primary_sources",
+            help="Override Corpus V1 primary-source family coverage JSON",
         )
     if "corpus_scores" not in existing_dests:
         analysis_parser.add_argument(
@@ -650,6 +662,7 @@ def _corpus_v1_default_artifacts(args: Any) -> dict[str, str]:
     feasibility = str(getattr(args, "corpus_feasibility", "") or "").strip()
     source_evidence = str(getattr(args, "corpus_source_evidence", "") or "").strip()
     revision_pairs = str(getattr(args, "corpus_revision_pairs", "") or "").strip()
+    primary_sources = str(getattr(args, "corpus_primary_sources", "") or "").strip()
     return {
         "feasibility": feasibility
         or str(root / "benchmarks" / "real_world" / "v1" / "source_feasibility_final.json"),
@@ -657,6 +670,8 @@ def _corpus_v1_default_artifacts(args: Any) -> dict[str, str]:
         or str(root / "benchmarks" / "real_world" / "v1" / "public_source_evidence.json"),
         "revision_pairs": revision_pairs
         or str(root / "benchmarks" / "real_world" / "v1" / "revision_pair_evidence.json"),
+        "primary_sources": primary_sources
+        or str(root / "benchmarks" / "real_world" / "v1" / "primary_source_family_coverage.json"),
     }
 
 
@@ -668,6 +683,7 @@ def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
         source_evidence_path=artifacts["source_evidence"],
         revision_pairs_path=artifacts["revision_pairs"],
     )
+    primary_source_result = load_primary_source_file(artifacts["primary_sources"])
     quota = max(
         1,
         int(
@@ -678,6 +694,7 @@ def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
     inventory = coverage_inventory(
         feasibility,
         attestation=source_result["attestation"],
+        primary_sources=primary_source_result,
         quota=quota,
     )
     output = str(getattr(args, "coverage_output", "") or "").strip()
@@ -693,6 +710,10 @@ def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
             "version": COVERAGE_EXPANDER_VERSION,
             "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
         },
+        "primary_source_engine": {
+            "version": PRIMARY_SOURCE_COVERAGE_VERSION,
+            "rule_version": PRIMARY_SOURCE_COVERAGE_RULE_VERSION,
+        },
         "source_artifacts": artifacts,
         "coverage_output": output or None,
         "inventory": inventory,
@@ -701,10 +722,16 @@ def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
             for key, value in source_result["attestation"].items()
             if key not in {"records", "excluded"}
         },
+        "primary_source_coverage": {
+            key: value
+            for key, value in primary_source_result.items()
+            if key not in {"records", "rejected"}
+        },
         "safety": {
             "all_74_canonical_families_tracked": len(inventory["families"]) == 74,
             "no_network_required_for_status": True,
             "no_labels_created_by_coverage_inventory": True,
+            "primary_source_coverage_is_not_runtime_target_evidence": True,
             "no_production_activation": True,
         },
     }
