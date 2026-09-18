@@ -7,7 +7,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from dependency_range_coverage import audit_catalog, classify_range_syntax
+from dependency_range_coverage import (
+    audit_catalog,
+    classify_range_syntax,
+    unsupported_reason,
+)
 
 
 class DependencyRangeCoverageTests(unittest.TestCase):
@@ -17,6 +21,20 @@ class DependencyRangeCoverageTests(unittest.TestCase):
         self.assertEqual(classify_range_syntax("~> 2.2.0", "rubygems"), "rubygems_pessimistic")
         self.assertEqual(classify_range_syntax("[1.0,2.0)", "maven"), "maven_interval")
         self.assertEqual(classify_range_syntax(">=1,<2 || >=3,<4", "npm"), "union")
+
+    def test_unsupported_reason_identifies_noncanonical_boundaries(self):
+        self.assertEqual(
+            unsupported_reason("< 0.8.3ubuntu7.5", "pip"),
+            "distro_revision_outside_pep440",
+        )
+        self.assertEqual(
+            unsupported_reason("< 2020-09-14", "composer"),
+            "date_version_outside_canonical_ecosystem_grammar",
+        )
+        self.assertEqual(
+            unsupported_reason("<= 2024.92.x-dev", "composer"),
+            "composer_branch_alias",
+        )
 
     def test_audit_preserves_partial_and_none_counts(self):
         payload = {
