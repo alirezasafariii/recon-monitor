@@ -1024,15 +1024,51 @@ def seed_retention_policies(db: Database) -> int:
     return count
 
 
+def _retention_protected_paths(paths: AppPaths, db: Database) -> set[str]:
+    root = paths.root.resolve()
+    protected: set[str] = set()
+
+    def add_path(raw: Any) -> None:
+        text = str(raw or "").strip()
+        if not text or text.startswith(("http://", "https://")):
+            return
+        path = Path(text)
+        if not path.is_absolute():
+            path = root / path
+        try:
+            resolved = path.resolve()
+            resolved.relative_to(root)
+        except (OSError, ValueError):
+            return
+        protected.add(str(resolved))
+
+    for row in db.all("SELECT blob_path FROM js_files WHERE COALESCE(blob_path,'')<>''"):
+        add_path(row["blob_path"])
+
+    for row in db.all(
+        "SELECT metadata_json FROM asset_edges "
+        "WHERE metadata_json LIKE '%blob_path%'"
+    ):
+        payload = _loads(row["metadata_json"], {})
+        if isinstance(payload, dict):
+            add_path(payload.get("blob_path"))
+
+    for row in db.all(
+        "SELECT package_json FROM validation_packages "
+        "UNION ALL SELECT body_json FROM report_drafts"
+    ):
+        text = str(row[0] or "")
+        for match in re.findall(r"(?:/[^\"']+)", text):
+            add_path(match)
+
+    return protected
+
+
 def retention_preview(paths: AppPaths, db: Database, *, persist: bool = True) -> dict[str, Any]:
     seed_retention_policies(db)
     policies = {str(row["category"]): dict(row) for row in db.all("SELECT * FROM retention_policies")}
     candidates: list[dict[str, Any]] = []
-    protected_paths: set[str] = set()
-    for row in db.all("SELECT package_json FROM validation_packages UNION ALL SELECT body_json FROM report_drafts"):
-        text = str(row[0] or "")
-        for match in re.findall(r"(?:/[^\"']+)", text):
-            protected_paths.add(match)
+    protected_paths = _retention_protected_paths(paths, db)
 
     def add_files(base: Path, category: str, days: int) -> None:
         if not base.exists() or days <= 0:
@@ -1047,7 +1083,7 @@ def retention_preview(paths: AppPaths, db: Database, *, persist: bool = True) ->
                 continue
             if stat.st_mtime >= cutoff:
                 continue
-            protected = str(path) in protected_paths or "confirmed" in path.name.lower()
+            protected = str(path.resolve()) in protected_paths or "confirmed" in path.name.lower()
             candidates.append(
                 {
                     "category": category,
@@ -1069,7 +1105,7 @@ def retention_preview(paths: AppPaths, db: Database, *, persist: bool = True) ->
         cutoff_dt = dt.datetime.now(UTC) - dt.timedelta(days=cas_days)
         for item in cas_store.retention_candidates(cutoff=cutoff_dt):
             path = Path(str(item["path"]))
-            protected = str(path) in protected_paths
+            protected = str(path.resolve()) in protected_paths
             candidates.append(
                 {
                     "category": "raw_http_artifacts",
@@ -1165,6 +1201,7 @@ def apply_retention(paths: AppPaths, db: Database, preview_id: str, *, actor: st
     skipped: list[dict[str, Any]] = []
     cas_store = ContentAddressedStore(paths, db)
     root = paths.root.resolve()
+    protected_paths = _retention_protected_paths(paths, db)
 
     for item in preview.get("candidates", []):
         if item.get("protected"):
@@ -1173,6 +1210,14 @@ def apply_retention(paths: AppPaths, db: Database, preview_id: str, *, actor: st
         try:
             resolved = path.resolve()
             resolved.relative_to(root)
+            if str(resolved) in protected_paths:
+                skipped.append(
+                    {
+                        "path": str(path),
+                        "reason": "referenced_path",
+                    }
+                )
+                continue
 
             if str(item.get("storage_kind") or "") == "cas_object":
                 outcome = cas_store.delete_if_unreferenced(
