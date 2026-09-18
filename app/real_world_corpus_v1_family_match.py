@@ -25,8 +25,10 @@ CANONICAL_FAMILIES = frozenset(str(value) for value in FAMILY_ORDER)
 _MANUAL_TERMS = {
     "business_logic": (
         "business logic",
+        "business logic flaw",
         "workflow bypass",
         "workflow logic",
+        "workflow validation bypass",
         "logic flaw",
     ),
     "security_misconfiguration": (
@@ -47,23 +49,35 @@ _MANUAL_TERMS = {
         "method tampering",
         "http method authorization",
         "method authorization",
+        "http method override",
+        "method override",
+        "arbitrary http method",
+        "method dispatch",
     ),
     "ssi_injection": (
         "ssi injection",
         "server side include",
         "server-side include",
+        "server side includes",
+        "server-side includes",
+        "ssi directive",
     ),
     "host_header_injection": (
         "host header injection",
         "unvalidated host header",
         "host header poisoning",
         "host header manipulation",
+        "host header validation",
+        "host header",
     ),
     "client_side_resource_manipulation": (
         "client-side resource manipulation",
         "client side resource manipulation",
         "external resource selection",
         "resource url manipulation",
+        "untrusted resource url",
+        "external script url",
+        "external stylesheet url",
     ),
     "xssi": (
         "cross-site script inclusion",
@@ -80,14 +94,17 @@ _MANUAL_TERMS = {
     "subdomain_takeover": (
         "subdomain takeover",
         "dangling dns",
+        "dangling cname",
         "unclaimed service",
         "unclaimed subdomain",
     ),
     "backup_unreferenced_file_exposure": (
         "backup file exposure",
-        "backup file",
+        "backup file disclosure",
+        "backup file publicly",
         "unreferenced file",
         "public backup",
+        "exposed backup",
     ),
     "path_confusion": (
         "path confusion",
