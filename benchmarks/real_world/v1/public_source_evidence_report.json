@@ -1,0 +1,36 @@
+{
+  "boundary_reference_failure_count": 1,
+  "candidate_revision_pair_count": 66,
+  "capture_set_sha256": "7d55f14f9ec42ed758f7ac6d80ea1555aa0acf47744f196d6f2414d3c80478ea",
+  "captured_source_count": 100,
+  "evaluation_kind": "real_world_corpus_v1_public_source_evidence_capture",
+  "failure_count": 0,
+  "failures": [],
+  "gates": {
+    "all_100_sources_captured": true,
+    "all_advisory_snapshots_unique": true,
+    "no_human_labels_created": true,
+    "no_scoring_executed": true,
+    "no_target_contact_performed": true
+  },
+  "human_labels_created": false,
+  "human_verified_record_count": 0,
+  "literal_sparse_noisy_evidence_count": 100,
+  "next_transition": "controlled_source_replay_batches_and_human_boundary_adjudication",
+  "passed": true,
+  "planned_variant_evidence_counts": {
+    "candidate_fix_revision_captured": 70,
+    "candidate_vulnerable_parent_revision_captured": 66,
+    "control_contract_ready_observation_pending": 100,
+    "literal_public_advisory_snapshot_captured": 100,
+    "patched_version_boundary_captured_requires_source_replay": 30,
+    "vulnerable_version_boundary_captured_requires_source_replay": 34
+  },
+  "rule_version": "2026.08.14.9",
+  "scoring_executed": false,
+  "source_count": 100,
+  "status": "public_source_capture_complete",
+  "target_contact_performed": false,
+  "unique_advisory_snapshot_count": 100,
+  "version": "1.0.0"
+}
