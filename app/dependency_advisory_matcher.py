@@ -24,8 +24,8 @@ from dependency_version_ranges import (
     version_matches_range,
 )
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.1.0"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.5"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.2.0"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.6"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -235,6 +235,41 @@ def _catalog_index(
     return _catalog_index_cached(*_catalog_cache_key(path))
 
 
+def _candidate_ecosystems(
+    rows: Iterable[Mapping[str, Any]],
+) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                str(row.get("ecosystem") or "").strip().lower()
+                for row in rows
+                if str(row.get("ecosystem") or "").strip()
+            }
+        )
+    )
+
+
+def _select_ecosystem_rows(
+    rows: Iterable[Mapping[str, Any]],
+    ecosystem_hint: str = "",
+) -> tuple[tuple[Mapping[str, Any], ...], tuple[str, ...], bool]:
+    candidates = tuple(rows)
+    ecosystems = _candidate_ecosystems(candidates)
+    hint = str(ecosystem_hint or "").strip().lower()
+    if hint:
+        return (
+            tuple(
+                row
+                for row in candidates
+                if str(row.get("ecosystem") or "").strip().lower() == hint
+            ),
+            ecosystems,
+            False,
+        )
+    ambiguous = len(ecosystems) > 1
+    return (() if ambiguous else candidates, ecosystems, ambiguous)
+
+
 def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
     selected = Path(path) if path else _DEFAULT_CATALOG
     catalog = _load_catalog(selected)
@@ -256,6 +291,12 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
         for item in catalog.get("advisories", []) or []
         if isinstance(item, Mapping)
     }
+    index = _catalog_index(selected)
+    ambiguous_aliases = sorted(
+        alias
+        for alias, rows in index.items()
+        if len(_candidate_ecosystems(rows)) > 1
+    )
     return {
         "matcher_version": DEPENDENCY_ADVISORY_MATCHER_VERSION,
         "rule_version": DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION,
@@ -267,6 +308,8 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
         "advisory_count": validation["advisory_count"],
         "product_count": len(products),
         "ecosystems": ecosystems,
+        "cross_ecosystem_ambiguous_alias_count": len(ambiguous_aliases),
+        "cross_ecosystem_ambiguous_alias_sample": ambiguous_aliases[:20],
         "supported_range_count": validation["supported_range_count"],
         "partially_supported_range_count": validation[
             "partially_supported_range_count"
@@ -292,6 +335,7 @@ def match_versioned_technology(
     technology: str,
     *,
     catalog_path: str | Path | None = None,
+    ecosystem_hint: str = "",
 ) -> dict[str, Any]:
     parsed = parse_versioned_technology(technology)
     catalog = _load_catalog(catalog_path)
@@ -306,6 +350,10 @@ def match_versioned_technology(
         "catalog_source_sync_complete": bool(source_snapshot.get("sync_complete")),
         "technology": parsed or {},
         "version_exact": bool(parsed),
+        "ecosystem_hint": str(ecosystem_hint or "").strip().lower(),
+        "candidate_ecosystems": [],
+        "identity_ambiguous": False,
+        "abstained_due_to_ecosystem_ambiguity": False,
         "matches": [],
         "catalog_is_exhaustive": False,
         "absence_of_match_means_safe": False,
@@ -318,7 +366,16 @@ def match_versioned_technology(
     version = parsed["version"]
     matches: list[dict[str, Any]] = []
     index = _catalog_index(catalog_path)
-    for raw in index.get(name, ()):
+    selected_rows, candidate_ecosystems, ambiguous = _select_ecosystem_rows(
+        index.get(name, ()),
+        ecosystem_hint,
+    )
+    result["candidate_ecosystems"] = list(candidate_ecosystems)
+    result["identity_ambiguous"] = ambiguous
+    result["abstained_due_to_ecosystem_ambiguity"] = ambiguous
+    if ambiguous:
+        return result
+    for raw in selected_rows:
         matched_range = next(
             (
                 str(expression)
@@ -369,6 +426,7 @@ def match_technologies(
     index = _catalog_index(catalog_path)
     exact: list[dict[str, Any]] = []
     matches: list[dict[str, Any]] = []
+    ambiguity_abstentions: list[dict[str, Any]] = []
     seen_matches: set[tuple[str, str, str, str]] = set()
     for raw in technologies:
         technology = (
@@ -376,14 +434,42 @@ def match_technologies(
             if isinstance(raw, Mapping)
             else str(raw or "")
         ).strip()
+        ecosystem_hint = (
+            str(
+                raw.get("ecosystem")
+                or raw.get("package_ecosystem")
+                or raw.get("dependency_ecosystem")
+                or ""
+            ).strip().lower()
+            if isinstance(raw, Mapping)
+            else ""
+        )
         if not technology:
             continue
         parsed = parse_versioned_technology(technology)
         if not parsed:
             continue
-        exact.append(dict(parsed))
+        selected_rows, candidate_ecosystems, ambiguous = _select_ecosystem_rows(
+            index.get(parsed["name"], ()),
+            ecosystem_hint,
+        )
+        exact_item = dict(parsed)
+        exact_item["ecosystem_hint"] = ecosystem_hint
+        exact_item["candidate_ecosystems"] = list(candidate_ecosystems)
+        exact_item["identity_ambiguous"] = ambiguous
+        exact.append(exact_item)
+        if ambiguous:
+            ambiguity_abstentions.append(
+                {
+                    "technology": technology,
+                    "name": parsed["name"],
+                    "version": parsed["version"],
+                    "candidate_ecosystems": list(candidate_ecosystems),
+                }
+            )
+            continue
         component_matches: list[dict[str, Any]] = []
-        for advisory in index.get(parsed["name"], ()):
+        for advisory in selected_rows:
             matched_range = next(
                 (
                     str(expression)
@@ -443,6 +529,8 @@ def match_technologies(
         "versioned_components": exact,
         "matches": matches,
         "match_count": len(matches),
+        "ecosystem_ambiguity_abstention_count": len(ambiguity_abstentions),
+        "ecosystem_ambiguity_abstentions": ambiguity_abstentions[:50],
         "catalog_is_exhaustive": False,
         "absence_of_match_means_safe": False,
         "network_requests": 0,
