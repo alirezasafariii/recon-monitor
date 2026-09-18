@@ -23,13 +23,14 @@ from investigation_workflow import (
     INVESTIGATION_WORKFLOW_VERSION,
     cluster_workflow_snapshot,
     ensure_cluster_case,
+    record_change_task_feedback,
     record_cluster_decision,
     refresh_case_workflow,
 )
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.4.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.5.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -257,6 +258,19 @@ def _change_guidance_evaluation_panel(evaluation: Mapping[str, Any]) -> str:
             return "—"
         return str(round(float(value), 2))
 
+    guided_task_count = int(guided.get("guided_task_count") or 0)
+    task_feedback_metrics = ""
+    if guided_task_count:
+        task_feedback_metrics = (
+            "<div class='attention-grid' style='margin-top:14px'>"
+            f"<div class='attention-card'><span>Guided tasks</span><strong>{guided_task_count}</strong><small>explicit change-guided task records</small></div>"
+            f"<div class='attention-card'><span>Outcome recorded</span><strong>{pct(guided.get('guided_task_terminal_rate'))}</strong><small>completed or skipped only</small></div>"
+            f"<div class='attention-card'><span>Useful</span><strong>{pct(guided.get('guided_task_useful_rate'))}</strong><small>of tasks with explicit usefulness feedback</small></div>"
+            f"<div class='attention-card'><span>Noisy</span><strong>{pct(guided.get('guided_task_noisy_rate'))}</strong><small>of tasks with explicit usefulness feedback</small></div>"
+            f"<div class='attention-card'><span>Task outcome time</span><strong>{hours(guided.get('median_time_to_guided_task_outcome_hours'))}</strong><small>median explicit terminal update</small></div>"
+            "</div>"
+        )
+
     comparison = ""
     if ready:
         deltas = evaluation.get("directional_deltas_guided_minus_control")
@@ -287,14 +301,15 @@ def _change_guidance_evaluation_panel(evaluation: Mapping[str, Any]) -> str:
         + _base._pill("comparison ready" if ready else "sample building", "info" if ready else "neutral")
         + "</div><div class='panel-body'>"
         "<div class='callout'><strong>Observational, not causal</strong>"
-        "<span>This panel measures persisted workflow outcomes only. Cohorts are not randomized, task completion is not inferred, and these metrics never auto-tune ranking, Evidence Gap, Admission, validation, or task ordering.</span></div>"
-        "<div class='table-wrap' style='margin-top:14px'><table>"
+        "<span>This panel measures persisted workflow outcomes only. Change-task completion/skip and useful/neutral/noisy ratings are counted only when an analyst records them explicitly; task disappearance is never treated as completion. These metrics never auto-tune ranking, Evidence Gap, Admission, validation, or task ordering.</span></div>"
+        + task_feedback_metrics
+        + "<div class='table-wrap' style='margin-top:14px'><table>"
         "<thead><tr><th>Cohort</th><th>Cases</th><th>Evidence gain</th><th>Median coverage Δ</th><th>Time to first gain</th><th>Decision rate</th><th>Time to decision</th><th>Rejected/duplicate</th></tr></thead><tbody>"
         f"<tr><td>Change-guided</td><td>{int(guided.get('case_count') or 0)}</td><td>{pct(guided.get('evidence_gain_rate'))}</td><td>{number(guided.get('median_coverage_delta'))}</td><td>{hours(guided.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(guided.get('decision_rate'))}</td><td>{hours(guided.get('median_time_to_decision_hours'))}</td><td>{pct(guided.get('rejected_or_duplicate_rate'))}</td></tr>"
         f"<tr><td>Non-guided</td><td>{int(control.get('case_count') or 0)}</td><td>{pct(control.get('evidence_gain_rate'))}</td><td>{number(control.get('median_coverage_delta'))}</td><td>{hours(control.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(control.get('decision_rate'))}</td><td>{hours(control.get('median_time_to_decision_hours'))}</td><td>{pct(control.get('rejected_or_duplicate_rate'))}</td></tr>"
         "</tbody></table></div>"
         + comparison
-        + "<p class='muted small' style='margin-top:12px'>Evidence gain means the latest persisted Evidence Gap coverage is higher than the first persisted snapshot. A lower time delta is not automatically better, and no cohort is labeled a winner.</p>"
+        + "<p class='muted small' style='margin-top:12px'>Evidence gain means the latest persisted Evidence Gap coverage is higher than the first persisted snapshot. Task usefulness rates use only explicit analyst feedback; missing ratings remain unknown. A lower time delta is not automatically better, and no cohort is labeled a winner.</p>"
         "</div></section>"
     )
 
@@ -469,18 +484,73 @@ def _workflow_panel(analysis_id: str, item: Mapping[str, Any], workflow: Mapping
         for row in gap.get("requirements", []) if isinstance(row, Mapping)
     ) or "<tr><td colspan='3' class='muted'>No evidence requirements are available.</td></tr>"
     tasks = [row for row in autopilot.get("tasks", []) if isinstance(row, Mapping)]
-    task_rows = "".join(
-        "<li><strong>#"
-        + _base._esc(row.get("rank") or "")
-        + "</strong> "
-        + (
-            _base._pill("change-guided", "info")
-            if bool(row.get("advisory_only"))
-            else ""
+
+    def task_row_html(row: Mapping[str, Any]) -> str:
+        advisory = bool(row.get("advisory_only"))
+        status_value = str(row.get("status") or "open")
+        usefulness = str(row.get("feedback_usefulness") or "")
+        note = str(row.get("feedback_note") or "")
+        task_id = str(row.get("task_id") or "")
+        lifecycle = ""
+        if advisory:
+            lifecycle = (
+                " "
+                + _base._pill(status_value, "success" if status_value == "completed" else ("neutral" if status_value == "skipped" else "info"))
+                + (
+                    " " + _base._pill(usefulness, "success" if usefulness == "useful" else ("danger" if usefulness == "noisy" else "neutral"))
+                    if usefulness
+                    else ""
+                )
+            )
+            if task_id:
+                if status_value == "open":
+                    status_control = (
+                        "<label class='muted small'>Outcome "
+                        "<select name='task_status'><option value='completed'>Completed</option>"
+                        "<option value='skipped'>Skipped</option></select></label>"
+                    )
+                    button = "Record task outcome"
+                else:
+                    status_control = (
+                        f"<input type='hidden' name='task_status' value='{_base._esc(status_value)}'>"
+                        f"<span class='muted small'>Outcome locked: {_base._esc(status_value)}</span>"
+                    )
+                    button = "Update usefulness"
+                usefulness_options = "".join(
+                    f"<option value='{value}'{' selected' if usefulness == value else ''}>{label}</option>"
+                    for value, label in (
+                        ("useful", "Useful"),
+                        ("neutral", "Neutral"),
+                        ("noisy", "Noisy"),
+                    )
+                )
+                lifecycle += (
+                    "<form method='post' action='/investigation/task-feedback' style='margin-top:8px'>"
+                    f"<input type='hidden' name='case_id' value='{_base._esc(case_id)}'>"
+                    f"<input type='hidden' name='task_id' value='{_base._esc(task_id)}'>"
+                    f"<input type='hidden' name='return' value='{_base._esc(return_href)}'>"
+                    + status_control
+                    + "<label class='muted small'> Usefulness <select name='usefulness'>"
+                    + usefulness_options
+                    + "</select></label>"
+                    + f"<label class='muted small'> Note <input name='note' maxlength='1000' value='{_base._esc(note)}' placeholder='Optional analyst note'></label>"
+                    + f"<button type='submit' class='secondary'>{button}</button>"
+                    + "<div class='muted small'>Feedback is observational only; it does not become target evidence or tune the system automatically.</div>"
+                    + "</form>"
+                )
+        return (
+            "<li><strong>#"
+            + _base._esc(row.get("rank") or "")
+            + "</strong> "
+            + (_base._pill("change-guided", "info") if advisory else "")
+            + " "
+            + _base._esc(row.get("title") or "")
+            + lifecycle
+            + "</li>"
         )
-        + " "
-        + _base._esc(row.get("title") or "")
-        + "</li>"
+
+    task_rows = "".join(
+        task_row_html(row)
         for row in tasks[:8]
     ) or "<li>No additional evidence task is currently required; review the dossier and record a decision.</li>"
     reasons = "".join(f"<li>{_base._esc(value)}</li>" for value in validation.get("reasons", [])[:6]) or "<li>No additional validation eligibility reason recorded.</li>"
@@ -707,7 +777,12 @@ def _safe_return(value: str, fallback: str = "/potential-findings") -> str:
 
 def _do_post_with_investigation(self: Any) -> None:
     path = urllib.parse.urlsplit(self.path).path
-    if path not in {"/investigation/start", "/investigation/refresh", "/investigation/decision"}:
+    if path not in {
+        "/investigation/start",
+        "/investigation/refresh",
+        "/investigation/task-feedback",
+        "/investigation/decision",
+    }:
         _ORIGINAL_DO_POST(self)
         return
 
@@ -740,6 +815,16 @@ def _do_post_with_investigation(self: Any) -> None:
             )
         elif path == "/investigation/refresh":
             refresh_case_workflow(db, str((data.get("case_id") or [""])[0]), actor=actor)
+        elif path == "/investigation/task-feedback":
+            record_change_task_feedback(
+                db,
+                str((data.get("case_id") or [""])[0]),
+                str((data.get("task_id") or [""])[0]),
+                status=str((data.get("task_status") or [""])[0]),
+                usefulness=str((data.get("usefulness") or [""])[0]),
+                note=str((data.get("note") or [""])[0])[:1000],
+                actor=actor,
+            )
         else:
             record_cluster_decision(
                 db,

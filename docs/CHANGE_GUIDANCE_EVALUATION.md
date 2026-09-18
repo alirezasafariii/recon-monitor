@@ -13,8 +13,11 @@ For each Investigation Queue case, the evaluator derives:
 - Time from investigation start to the first analyst decision.
 - Analyst decision outcome mix.
 - Whether the case had persisted `task-change-*` / Derived Change Advisory workflow guidance.
+- Explicit change-task terminal outcome (`completed` or `skipped`).
+- Explicit analyst usefulness feedback (`useful`, `neutral`, or `noisy`).
+- Time from investigation start to an explicit terminal change-task update.
 
-The cohort report compares change-guided and non-guided cases using descriptive metrics such as evidence-gain rate, median coverage delta, time to first evidence gain, decision rate, time to decision, and rejected/duplicate rate.
+The cohort report compares change-guided and non-guided cases using descriptive metrics such as evidence-gain rate, median coverage delta, time to first evidence gain, decision rate, time to decision, and rejected/duplicate rate. For the change-guided cohort it also reports explicit task terminal rate, feedback coverage, useful/neutral/noisy rates, and median time to task outcome.
 
 ## Comparison gate
 
@@ -27,7 +30,7 @@ The threshold is a presentation safety gate, not a claim of statistical signific
 This evaluator does **not**:
 
 - randomize or assign cases to cohorts;
-- infer task completion from task disappearance;
+- infer task completion from task disappearance or task regeneration;
 - establish causal impact;
 - select a winning workflow;
 - auto-tune Meta Ranker, Investigation Queue, Evidence Gap, Admission, or validation;
@@ -35,6 +38,6 @@ This evaluator does **not**:
 - change analyst decisions;
 - perform network requests.
 
-Change-guided cases are selected by available change provenance, so cohort composition can differ materially. Time metrics are emitted only when the corresponding persisted event or Evidence Gap snapshot exists.
+Change-guided cases are selected by available change provenance, so cohort composition can differ materially. Task lifecycle metrics count only explicit analyst-recorded terminal states and usefulness ratings; missing ratings remain unknown. Time metrics are emitted only when the corresponding persisted event, Evidence Gap snapshot, or terminal task update exists.
 
 The dashboard, API, and CLI expose these limitations alongside the metrics.
