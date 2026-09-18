@@ -420,7 +420,7 @@ def _change_guidance_policy_proposal_panel(
         + "</select></label>"
         "</div>"
         "<label>Candidate after JSON<textarea name='after_json' rows='4' required "
-        "placeholder='Example: {"derived_change_weight":0.06}'></textarea></label>"
+        "placeholder='Example: {&quot;derived_change_weight&quot;:0.06}'></textarea></label>"
         "<label>Rationale<textarea name='rationale' rows='3' maxlength='4000' required></textarea></label>"
         "<label>Rollback plan<textarea name='rollback_plan' rows='3' maxlength='4000' required "
         "placeholder='Describe exactly how the separate implementation would be reverted.'></textarea></label>"
