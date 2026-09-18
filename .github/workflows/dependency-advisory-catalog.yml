@@ -9,6 +9,7 @@ on:
     paths:
       - app/dependency_advisory_catalog_sync.py
       - app/dependency_advisory_matcher.py
+      - app/dependency_version_ranges.py
       - data/dependency_advisory_aliases.json
       - tests/test_dependency_advisory_matcher.py
       - tests/test_dependency_advisory_catalog_*.py
