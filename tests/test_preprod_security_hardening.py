@@ -198,6 +198,57 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_expired_remote_work_lease_is_reclaimed_without_touching_local_work(self):
+        temp, paths, db = self.project()
+        try:
+            remote_id = db.enqueue_work(
+                "run",
+                "example.test",
+                "remote",
+                "remote-item",
+                {"kind": "http_head"},
+            )
+            local_id = db.enqueue_work(
+                "run",
+                "example.test",
+                "local",
+                "local-item",
+                {"kind": "http_head"},
+            )
+            expired = "2000-01-01T00:00:00Z"
+            self.assertTrue(
+                db.work_start(
+                    remote_id,
+                    "worker-a",
+                    lease_token_hash=hashlib.sha256(b"lease").hexdigest(),
+                    lease_expires_at=expired,
+                )
+            )
+            self.assertTrue(db.work_start(local_id, "local-worker"))
+            reclaimed = db.reclaim_expired_work_leases(
+                "2026-09-18T00:00:00Z"
+            )
+            self.assertEqual(reclaimed, 1)
+            remote = db.one(
+                "SELECT status,worker_id,lease_token_hash,lease_expires_at "
+                "FROM work_items WHERE id=?",
+                (remote_id,),
+            )
+            local = db.one(
+                "SELECT status,worker_id,lease_token_hash,lease_expires_at "
+                "FROM work_items WHERE id=?",
+                (local_id,),
+            )
+            self.assertEqual(remote["status"], "retry_pending")
+            self.assertIsNone(remote["worker_id"])
+            self.assertIsNone(remote["lease_token_hash"])
+            self.assertIsNone(remote["lease_expires_at"])
+            self.assertEqual(local["status"], "running")
+            self.assertEqual(local["worker_id"], "local-worker")
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_remote_download_uses_shared_pinned_transport(self):
         transport_result = {
             "final_url": "https://cdn.example.test/app.js",
