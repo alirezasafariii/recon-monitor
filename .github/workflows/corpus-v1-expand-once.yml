@@ -26,7 +26,7 @@ jobs:
           PYTHONPATH: app
         run: |
           set +e
-          python app/real_world_corpus_v1_coverage_expander.py             --quota 1             --max-pages-per-family 12             --output coverage_expansion.json
+          python app/real_world_corpus_v1_coverage_expander.py             --quota 1             --max-pages-per-family 20             --output coverage_expansion.json
           code=$?
           python - <<'PY'
           import json
@@ -39,6 +39,14 @@ jobs:
               "missing_families": p["missing_families_after"],
               "selected": p["selected_candidate_count"],
           }, sort_keys=True))
+          for family, diag in sorted(p.get("family_diagnostics", {}).items()):
+              if not diag.get("selected_count"):
+                  print("COVERAGE_DIAG=" + json.dumps({
+                      "family": family,
+                      "pages": diag.get("pages_fetched"),
+                      "rejected": diag.get("rejected_counts"),
+                  }, sort_keys=True))
+          print("COVERAGE_SWEEP=" + json.dumps(p.get("semantic_sweep", {}), sort_keys=True))
           for row in p.get("selected", []):
               print("COVERAGE_SELECTED=" + json.dumps({
                   "family": row.get("family_target"),
