@@ -120,7 +120,7 @@ class ContentAddressedStore:
         owner_key = str(key or "").strip()
         if not owner_kind or not owner_key:
             raise ValueError("CAS references require owner_kind and owner_key")
-        return owner_kind[:80], owner_key[:4000]
+        return owner_kind[:80], owner_key
 
     def _refresh_counts_locked(self, digests: set[str] | None = None) -> None:
         if digests:
@@ -188,6 +188,8 @@ class ContentAddressedStore:
             if str(key or "").strip() and str(digest or "").strip()
         }
         prefix = str(owner_prefix or "")
+        if prefix and any(not key.startswith(prefix) for key in desired):
+            raise ValueError("CAS reference owner is outside the requested owner_prefix")
         with _CAS_LOCK, self.db._lock:
             self.db.conn.execute("BEGIN IMMEDIATE")
             try:
