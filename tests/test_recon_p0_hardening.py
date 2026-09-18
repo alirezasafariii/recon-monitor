@@ -14,7 +14,13 @@ if str(APP) not in sys.path:
 
 from core import TargetPolicy, normalize_url, normalize_url_preserving_semantics
 import stages
-from stages import _endpoint_candidate_urls, _safe_validate_endpoint, stage_fingerprint, stage_urls
+from stages import (
+    _endpoint_candidate_urls,
+    _httpx_record,
+    _safe_validate_endpoint,
+    stage_fingerprint,
+    stage_urls,
+)
 
 
 class _Budget:
@@ -95,6 +101,39 @@ class ReconP0HardeningTests(unittest.TestCase):
         source = inspect.getsource(stage_fingerprint)
         self.assertNotIn('" -fr"', source)
         self.assertNotIn('"-fr"', source)
+
+    def test_fingerprint_requests_response_headers_without_persisting_sensitive_headers(self) -> None:
+        source = inspect.getsource(stage_fingerprint)
+        self.assertIn('"-irh"', source)
+
+        url, record = _httpx_record(
+            {
+                "url": "https://example.com/",
+                "status_code": 200,
+                "content_type": "text/html",
+                "header": {
+                    "Content-Security-Policy": "default-src 'self'",
+                    "Strict-Transport-Security": "max-age=31536000",
+                    "X-Frame-Options": "DENY",
+                    "Set-Cookie": "session=secret",
+                    "Authorization": "Bearer secret",
+                    "X-Internal-Debug": "sensitive",
+                },
+            }
+        )
+        self.assertEqual(url, "https://example.com/")
+        self.assertTrue(record["response_headers_observed"])
+        self.assertEqual(
+            record["response_headers"]["x-frame-options"],
+            "DENY",
+        )
+        self.assertIn(
+            "strict-transport-security",
+            record["response_headers"],
+        )
+        self.assertNotIn("set-cookie", record["response_headers"])
+        self.assertNotIn("authorization", record["response_headers"])
+        self.assertNotIn("x-internal-debug", record["response_headers"])
 
     def test_raw_url_evidence_keeps_security_significant_semantics(self) -> None:
         raw = normalize_url_preserving_semantics(
