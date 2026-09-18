@@ -60,7 +60,10 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
         self.assertNotIn("REAL_QUERY", encoded)
         self.assertIn("Authorization: <redacted>", encoded)
         self.assertIn("Accept: application/json", encoded)
-        self.assertIn("redact_command_args(args)", inspect.getsource(CommandRunner.run))
+        source = inspect.getsource(CommandRunner.run)
+        self.assertIn("redact_command_args(args)", source)
+        self.assertNotIn('" ".join(args)', source)
+        self.assertGreaterEqual(source.count("command=display_command"), 3)
 
     def test_disable_user_revokes_existing_session(self):
         temp, paths, db = self.project()
