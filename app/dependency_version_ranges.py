@@ -15,8 +15,8 @@ union branch is unsupported; a conjunction is never partially evaluated.
 import re
 from typing import Iterable
 
-DEPENDENCY_VERSION_RANGE_VERSION = "1.1.0"
-DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.18.2"
+DEPENDENCY_VERSION_RANGE_VERSION = "1.2.0"
+DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.18.3"
 
 SEMVER_ECOSYSTEMS = frozenset(
     {
@@ -49,6 +49,12 @@ _SEMVER_RE = re.compile(
 )
 _LOOSE_SEMVER_LABEL_RE = re.compile(
     r"^v?(\d+(?:\.\d+){0,2})"
+    r"(?:[-._]?([A-Za-z][0-9A-Za-z.-]*))"
+    r"(?:\+([0-9A-Za-z.-]+))?$",
+    re.I,
+)
+_COMPOSER_LABEL_RE = re.compile(
+    r"^v?(\d+(?:\.\d+){0,3})"
     r"(?:[-._]?([A-Za-z][0-9A-Za-z.-]*))"
     r"(?:\+([0-9A-Za-z.-]+))?$",
     re.I,
@@ -164,6 +170,23 @@ def _semver_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
     return None
 
 
+def _composer_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
+    match = _COMPOSER_LABEL_RE.fullmatch(str(value or "").strip())
+    if not match:
+        return None
+    release = tuple(int(part) for part in match.group(1).split("."))
+    label = str(match.group(2) or "").lower()
+    if re.match(
+        r"^(alpha|a|beta|b|rc|pre|preview|dev)(?:[._-]?\d.*)?$",
+        label,
+        re.I,
+    ):
+        return release, -1
+    if re.match(r"^(patch|p|pl)(?:[._-]?\d.*)?$", label, re.I):
+        return release, 1
+    return None
+
+
 def _pep440_boundary(value: str) -> tuple[int, tuple[int, ...], int] | None:
     text = str(value or "").strip()
 
@@ -253,6 +276,15 @@ def _compare_stable_observed_to_boundary(
         return _compare_release(observed, boundary_release)
 
     ecosystem = normalize_ecosystem(ecosystem)
+    if ecosystem == "composer":
+        parsed = _composer_boundary(boundary_text)
+        if parsed is not None:
+            release, relative = parsed
+            release_cmp = _compare_release(observed, release)
+            if release_cmp:
+                return release_cmp
+            return -relative
+
     if ecosystem in SEMVER_ECOSYSTEMS:
         parsed = _semver_boundary(boundary_text)
         if parsed is None:
