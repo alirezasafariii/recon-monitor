@@ -143,6 +143,63 @@ class ReconFinalTransportHardeningTests(unittest.TestCase):
         )
         self.assertEqual(len(result["transport_hops"]), 2)
 
+    def test_cross_origin_redirect_strips_sensitive_headers(self) -> None:
+        headers = {
+            "Authorization": "Bearer secret",
+            "Cookie": "session=secret",
+            "X-API-Key": "secret-key",
+            "Accept-Language": "en",
+        }
+        sanitized = safe_transport._redirect_headers(
+            headers,
+            previous_url="https://a.example.test/start",
+            next_url="https://b.example.test/final",
+        )
+        self.assertNotIn("Authorization", sanitized)
+        self.assertNotIn("Cookie", sanitized)
+        self.assertNotIn("X-API-Key", sanitized)
+        self.assertEqual(sanitized["Accept-Language"], "en")
+
+        same_origin = safe_transport._redirect_headers(
+            headers,
+            previous_url="https://a.example.test/start",
+            next_url="https://a.example.test/final",
+        )
+        self.assertEqual(same_origin["Authorization"], "Bearer secret")
+        self.assertEqual(same_origin["Cookie"], "session=secret")
+
+    def test_https_to_http_redirect_is_blocked_before_second_connect(self) -> None:
+        redirect = urllib.error.HTTPError(
+            "https://a.example.test/start",
+            302,
+            "Found",
+            {"Location": "http://a.example.test/plain"},
+            io.BytesIO(b""),
+        )
+        with (
+            mock.patch.object(
+                safe_transport,
+                "resolve_public_addresses",
+                return_value=(True, ["93.184.216.34"]),
+            ) as resolver,
+            mock.patch.object(
+                safe_transport,
+                "build_pinned_opener",
+                return_value=_Opener(redirect),
+            ) as opener,
+        ):
+            result = safe_transport.perform_pinned_download(
+                "https://a.example.test/start",
+                _Policy(),
+                headers={"Authorization": "Bearer secret"},
+                max_response_bytes=1000,
+            )
+
+        self.assertEqual(result["transport_status"], "stopped_for_safety")
+        self.assertEqual(result["error"], "redirect_scheme_downgrade_blocked")
+        self.assertEqual(resolver.call_count, 1)
+        self.assertEqual(opener.call_count, 1)
+
     def test_pinned_download_blocks_out_of_scope_redirect_before_second_resolution(self) -> None:
         redirect = urllib.error.HTTPError(
             "https://a.example.test/app.js",
