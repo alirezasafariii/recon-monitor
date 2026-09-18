@@ -26,7 +26,12 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         self.assertEqual(parsed["version"], "3.4.1")
         self.assertIsNone(parse_versioned_technology("jQuery"))
         self.assertIsNone(parse_versioned_technology("jQuery:latest"))
-        self.assertIsNone(parse_versioned_technology("jQuery:3.5.0-beta.1"))
+        prerelease = parse_versioned_technology("jQuery:3.5.0-beta.1")
+        self.assertEqual(prerelease["name"], "jquery")
+        self.assertEqual(prerelease["version"], "3.5.0-beta.1")
+        build = parse_versioned_technology("jQuery:3.5.0+build.7")
+        self.assertEqual(build["version"], "3.5.0+build.7")
+        self.assertIsNone(parse_versioned_technology("jQuery:3.5.0 beta 1"))
 
     def test_range_matching_is_deterministic(self):
         self.assertTrue(version_matches_range("3.4.1", ">=1.2,<3.5.0"))
@@ -34,6 +39,96 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         self.assertTrue(version_matches_range("4.17.23", ">=4.0.0,<=4.17.23"))
         self.assertFalse(version_matches_range("4.18.0", ">=4.0.0,<=4.17.23"))
         self.assertFalse(version_matches_range("4.17.21-beta.1", "<4.18.0"))
+
+    def test_prerelease_catalog_match_requires_explicit_prerelease_range(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "catalog.json"
+            payload = {
+                "version": "test",
+                "generated_at": "2026-09-19T00:00:00Z",
+                "completeness": "fixture",
+                "runtime_role": "positive_match_only",
+                "source_snapshot": {"sync_complete": True},
+                "advisories": [
+                    {
+                        "id": "GHSA-TEST-TEST-TEST",
+                        "cve": "",
+                        "product": "demo",
+                        "ecosystem": "npm",
+                        "aliases": ["demo"],
+                        "source_type": "github_reviewed_advisory",
+                        "review_status": "reviewed",
+                        "source_url": "https://github.com/advisories/GHSA-TEST-TEST-TEST",
+                        "severity": "high",
+                        "published_at": "2026-09-19T00:00:00Z",
+                        "updated_at": "2026-09-19T00:00:00Z",
+                        "reviewed_at": "2026-09-19T00:00:00Z",
+                        "affected_ranges": [
+                            ">= 1.2.3-beta.1, < 1.2.3"
+                        ],
+                        "patched_versions": ["1.2.3"],
+                        "withdrawn_at": "",
+                    }
+                ],
+            }
+            path.write_text(json.dumps(payload), encoding="utf-8")
+
+            matched = match_versioned_technology(
+                "demo:1.2.3-beta.2",
+                catalog_path=path,
+                ecosystem_hint="npm",
+            )
+            self.assertTrue(matched["version_exact"])
+            self.assertEqual(
+                [row["advisory_id"] for row in matched["matches"]],
+                ["GHSA-TEST-TEST-TEST"],
+            )
+
+            before_range = match_versioned_technology(
+                "demo:1.2.3-alpha.9",
+                catalog_path=path,
+                ecosystem_hint="npm",
+            )
+            self.assertEqual(before_range["matches"], [])
+
+    def test_plain_stable_range_does_not_admit_prerelease_component(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "catalog.json"
+            payload = {
+                "version": "test",
+                "generated_at": "2026-09-19T00:00:00Z",
+                "completeness": "fixture",
+                "runtime_role": "positive_match_only",
+                "source_snapshot": {"sync_complete": True},
+                "advisories": [
+                    {
+                        "id": "GHSA-STABLE-ONLY-TEST",
+                        "cve": "",
+                        "product": "demo",
+                        "ecosystem": "npm",
+                        "aliases": ["demo"],
+                        "source_type": "github_reviewed_advisory",
+                        "review_status": "reviewed",
+                        "source_url": "https://github.com/advisories/GHSA-STABLE-ONLY-TEST",
+                        "severity": "high",
+                        "published_at": "2026-09-19T00:00:00Z",
+                        "updated_at": "2026-09-19T00:00:00Z",
+                        "reviewed_at": "2026-09-19T00:00:00Z",
+                        "affected_ranges": [">= 1.0.0, < 2.0.0"],
+                        "patched_versions": ["2.0.0"],
+                        "withdrawn_at": "",
+                    }
+                ],
+            }
+            path.write_text(json.dumps(payload), encoding="utf-8")
+
+            outcome = match_versioned_technology(
+                "demo:1.5.0-beta.1",
+                catalog_path=path,
+                ecosystem_hint="npm",
+            )
+            self.assertTrue(outcome["version_exact"])
+            self.assertEqual(outcome["matches"], [])
 
     def test_full_catalog_positive_matches_keep_positive_only_semantics(self):
         jquery = match_versioned_technology("jQuery:3.4.1")
