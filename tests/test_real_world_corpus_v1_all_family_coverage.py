@@ -70,6 +70,41 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
             if row["discovery_mode"] == "semantic":
                 self.assertTrue(row["semantic_terms"], row["family"])
 
+    def test_primary_source_boundary_is_visible_but_does_not_satisfy_discovery_quota(self):
+        primary_sources = {
+            "records": [
+                {
+                    "source_id": "primary-subdomain-takeover",
+                    "family": "subdomain_takeover",
+                    "coverage_level": "primary_source_configuration_boundary",
+                }
+            ]
+        }
+        inventory = coverage_inventory(
+            {"sources": []},
+            primary_sources=primary_sources,
+            quota=1,
+        )
+        row = next(
+            item
+            for item in inventory["families"]
+            if item["family"] == "subdomain_takeover"
+        )
+        self.assertEqual(row["primary_source_boundary_count"], 1)
+        self.assertEqual(
+            row["primary_source_coverage_levels"],
+            ["primary_source_configuration_boundary"],
+        )
+        self.assertTrue(row["coverage_tiers"]["primary_source_boundary"])
+        self.assertFalse(row["coverage_tiers"]["targeted_discovery"])
+        self.assertFalse(row["quota_met"])
+        self.assertEqual(inventory["tier_family_counts"]["primary_source_boundary"], 1)
+        self.assertTrue(
+            inventory["coverage_semantics"][
+                "primary_source_boundary_does_not_satisfy_discovery_quota"
+            ]
+        )
+
     def test_unique_cwe_candidate_can_be_matched_without_semantic_guess(self):
         raw = _advisory(
             "Object access control weakness in a REST API",
