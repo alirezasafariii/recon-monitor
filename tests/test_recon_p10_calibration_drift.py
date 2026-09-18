@@ -237,7 +237,7 @@ class ReconP10CalibrationDriftTests(unittest.TestCase):
         )
         self.assertEqual(
             by_signal["source_map_source_removed"]["drift_status"],
-            "insufficient history",
+            "insufficient_history",
         )
         self.assertFalse(
             by_signal["source_map_source_removed"]["history_sufficient"]
@@ -317,7 +317,7 @@ class ReconP10CalibrationDriftTests(unittest.TestCase):
             "source_map_source_changed",
             "noise increase watch",
             "utility decline watch",
-            "insufficient_history",
+            "insufficient history",
         ):
             self.assertIn(text, html)
 
