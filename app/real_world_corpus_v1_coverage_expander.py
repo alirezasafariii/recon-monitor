@@ -175,8 +175,9 @@ def candidate_family_match(
     expected_cwes = {str(value).upper() for value in canonical.get(family, ())}
     advisory_cwes = _raw_advisory_cwes(raw)
     matched_cwes = sorted(expected_cwes & advisory_cwes)
-    text = _raw_text(raw)
-    semantic = semantic_matches(family, text)
+    summary_text = _text(raw.get("summary"))
+    full_text = _raw_text(raw)
+    semantic = semantic_matches(family, summary_text)
 
     if matched_cwes:
         unique_cwes = [
@@ -196,7 +197,7 @@ def candidate_family_match(
             competitors.update(cwe_owners().get(cwe, ()))
         competitors.discard(family)
         competing_semantics = {
-            other: semantic_matches(other, text)
+            other: semantic_matches(other, summary_text)
             for other in sorted(competitors)
         }
         competing_semantics = {
@@ -220,7 +221,7 @@ def candidate_family_match(
         }
 
     if not expected_cwes:
-        semantic_candidates = semantic_family_candidates(text)
+        semantic_candidates = semantic_family_candidates(summary_text)
         matches = semantic_candidates.get(family, [])
         competing = {
             other: values
