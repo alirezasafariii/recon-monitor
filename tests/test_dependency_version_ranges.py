@@ -103,6 +103,78 @@ class DependencyVersionRangeTests(unittest.TestCase):
             version_matches_range("2.0.0", "[1.0.0,2.0.0)", "maven")
         )
 
+    def test_composer_and_go_legacy_prerelease_labels(self):
+        self.assertTrue(
+            range_expression_supported("< 4.1-Beta.1", "composer")
+        )
+        self.assertTrue(
+            version_matches_range("4.0.9", "< 4.1-Beta.1", "composer")
+        )
+        self.assertFalse(
+            version_matches_range("4.1.0", "< 4.1-Beta.1", "composer")
+        )
+        self.assertTrue(
+            range_expression_supported(">= 9.0.0RC1, < 9.5.1", "composer")
+        )
+        self.assertTrue(
+            version_matches_range("9.0.0", ">= 9.0.0RC1, < 9.5.1", "composer")
+        )
+        self.assertTrue(
+            range_expression_supported(">= 3.0-beta1, < 7.5.15", "go")
+        )
+        self.assertTrue(
+            range_expression_supported(">= 9.6.0b1, < 9.6.3", "go")
+        )
+
+    def test_maven_comparable_version_qualifier_classes(self):
+        self.assertTrue(
+            range_expression_supported("< 1.209.v862c6e5fb", "maven")
+        )
+        self.assertTrue(
+            version_matches_range("1.209", "< 1.209.v862c6e5fb", "maven")
+        )
+        self.assertTrue(
+            version_matches_range("31.9.9", "< 32.0.0-android", "maven")
+        )
+        self.assertTrue(
+            range_expression_supported(
+                ">= 8.0.0-M1, < 8.0.0-M9.2",
+                "maven",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "8.0.0",
+                ">= 8.0.0-M1, < 8.0.0-M9.2",
+                "maven",
+            )
+        )
+
+    def test_pep440_implicit_post_and_legacy_p_suffixes(self):
+        self.assertTrue(
+            range_expression_supported("<= 2.6.11-1", "pip")
+        )
+        self.assertTrue(
+            version_matches_range("2.6.11", "<= 2.6.11-1", "pip")
+        )
+        self.assertTrue(
+            range_expression_supported(">= 0.7.6, < 0.7.11p3", "pip")
+        )
+        self.assertTrue(
+            version_matches_range("0.7.11", "< 0.7.11p3", "pip")
+        )
+
+    def test_rubygems_multi_segment_prerelease_labels(self):
+        self.assertTrue(
+            range_expression_supported("<= 1.0.0.rc1.0", "rubygems")
+        )
+        self.assertFalse(
+            version_matches_range("1.0.0", "<= 1.0.0.rc1.0", "rubygems")
+        )
+        self.assertTrue(
+            range_expression_supported("= 2.0.0.pre.rc1", "rubygems")
+        )
+
     def test_unknown_ecosystem_or_unrecognized_suffix_fails_closed(self):
         self.assertFalse(
             range_expression_supported("< 1.2.3-rc1", "unknown")
