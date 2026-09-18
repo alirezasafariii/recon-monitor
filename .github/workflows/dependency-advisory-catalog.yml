@@ -1,0 +1,93 @@
+name: Dependency Advisory Catalog Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - app/dependency_advisory_catalog_sync.py
+      - app/dependency_advisory_matcher.py
+      - data/dependency_advisory_aliases.json
+      - .github/workflows/dependency-advisory-catalog.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependency-advisory-catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Synchronize full reviewed advisory catalog
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python app/dependency_advisory_catalog_sync.py             --output data/dependency_advisory_catalog.json             --aliases data/dependency_advisory_aliases.json             --github-token "$GITHUB_TOKEN"             --update-manifest
+
+      - name: Validate catalog and focused tests
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "app")
+          from dependency_advisory_matcher import catalog_status
+          status = catalog_status("data/dependency_advisory_catalog.json")
+          assert status["integrity_valid"]
+          assert status["source_sync_complete"]
+          assert status["advisory_count"] > 0
+          print(status)
+          PY
+          python -m unittest discover -s tests -p 'test_dependency_advisory_catalog_*.py' -q
+          python -m unittest discover -s tests -p 'test_dependency_advisory_matcher.py' -q
+          sha256sum --strict -c MANIFEST.sha256
+
+      - name: Publish automation branch when catalog changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/dependency_advisory_catalog.json MANIFEST.sha256; then
+            echo "Catalog is already current."
+            exit 0
+          fi
+
+          BRANCH="automation/dependency-advisory-catalog"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add data/dependency_advisory_catalog.json MANIFEST.sha256
+          git commit -m "chore: sync GitHub reviewed advisory catalog"
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+      - name: Open or refresh catalog pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH="automation/dependency-advisory-catalog"
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "No automation branch was produced."
+            exit 0
+          fi
+          if gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Catalog pull request is already open."
+            exit 0
+          fi
+          gh pr create             --repo "$GITHUB_REPOSITORY"             --base main             --head "$BRANCH"             --title "chore: sync GitHub reviewed advisory catalog"             --body "Automated full GitHub-reviewed dependency advisory snapshot. Runtime Analysis remains offline; catalog misses do not imply safety."             || echo "::warning::Automation branch was pushed, but repository settings did not allow GitHub Actions to open the PR."

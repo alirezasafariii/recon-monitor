@@ -53,6 +53,22 @@ from derived_change_advisory import (
     DERIVED_CHANGE_ADVISORY_VERSION,
 )
 from differential_evidence_adapter import adapt_differential_evidence
+from dependency_advisory_catalog_sync import (
+    DEFAULT_ALIASES as DEFAULT_DEPENDENCY_ADVISORY_ALIASES,
+    DEFAULT_MANIFEST as DEFAULT_DEPENDENCY_ADVISORY_MANIFEST,
+    DEFAULT_OUTPUT as DEFAULT_DEPENDENCY_ADVISORY_CATALOG,
+    DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION,
+    DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION,
+    sync_catalog as sync_dependency_advisory_catalog,
+    sync_summary as dependency_advisory_sync_summary,
+    update_manifest_entry as update_dependency_advisory_manifest,
+    write_catalog_atomic as write_dependency_advisory_catalog,
+)
+from dependency_advisory_matcher import (
+    DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION,
+    DEPENDENCY_ADVISORY_MATCHER_VERSION,
+    catalog_status as dependency_advisory_catalog_status,
+)
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 from real_world_calibration import (
     REAL_WORLD_CALIBRATION_RULE_VERSION,
@@ -98,7 +114,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.9.0"
+INVESTIGATION_CLI_VERSION = "2.0.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -173,6 +189,8 @@ def build_parser():
         "corpus-v1-auto-evaluate",
         "corpus-v1-coverage-status",
         "corpus-v1-expand-coverage",
+        "advisory-catalog-status",
+        "advisory-catalog-sync",
         "stop",
     )
 
@@ -281,7 +299,43 @@ def build_parser():
             "--github-token",
             default="",
             dest="github_token",
-            help="GitHub token for all-family public advisory coverage expansion",
+            help="GitHub token for public advisory catalog/corpus operations",
+        )
+    if "advisory_catalog" not in existing_dests:
+        analysis_parser.add_argument(
+            "--advisory-catalog",
+            default="",
+            dest="advisory_catalog",
+            help="Dependency advisory catalog path for offline status",
+        )
+    if "advisory_catalog_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--advisory-catalog-output",
+            default="",
+            dest="advisory_catalog_output",
+            help="Output path for a synchronized dependency advisory catalog",
+        )
+    if "advisory_aliases" not in existing_dests:
+        analysis_parser.add_argument(
+            "--advisory-aliases",
+            default="",
+            dest="advisory_aliases",
+            help="Dependency advisory package alias registry JSON",
+        )
+    if "advisory_max_pages" not in existing_dests:
+        analysis_parser.add_argument(
+            "--advisory-max-pages",
+            type=int,
+            default=0,
+            dest="advisory_max_pages",
+            help="0 traverses the full reviewed-advisory cursor; positive values cap sync for diagnostics",
+        )
+    if "advisory_update_manifest" not in existing_dests:
+        analysis_parser.add_argument(
+            "--advisory-update-manifest",
+            action="store_true",
+            dest="advisory_update_manifest",
+            help="Refresh MANIFEST.sha256 after writing the synchronized catalog",
         )
 
     validation_parser = _validation_parser(parser)
@@ -797,6 +851,77 @@ def corpus_v1_expand_coverage_cli_payload(args: Any) -> dict[str, Any]:
     }
 
 
+def advisory_catalog_status_cli_payload(args: Any) -> dict[str, Any]:
+    selected = str(getattr(args, "advisory_catalog", "") or "").strip()
+    if not selected:
+        selected = str(DEFAULT_DEPENDENCY_ADVISORY_CATALOG)
+    status = dependency_advisory_catalog_status(selected)
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "advisory-catalog-status",
+        "matcher": {
+            "version": DEPENDENCY_ADVISORY_MATCHER_VERSION,
+            "rule_version": DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION,
+        },
+        "status": status,
+        "safety": {
+            "network_requests": 0,
+            "target_contact_performed": False,
+            "catalog_miss_means_safe": False,
+            "catalog_is_not_target_evidence": True,
+        },
+    }
+
+
+def advisory_catalog_sync_cli_payload(args: Any) -> dict[str, Any]:
+    output = str(getattr(args, "advisory_catalog_output", "") or "").strip()
+    if not output:
+        output = str(DEFAULT_DEPENDENCY_ADVISORY_CATALOG)
+    aliases = str(getattr(args, "advisory_aliases", "") or "").strip()
+    if not aliases:
+        aliases = str(DEFAULT_DEPENDENCY_ADVISORY_ALIASES)
+    token = (
+        str(getattr(args, "github_token", "") or "").strip()
+        or os.environ.get("GITHUB_TOKEN", "")
+    )
+    payload = sync_dependency_advisory_catalog(
+        token=token,
+        alias_path=aliases,
+        max_pages=max(
+            0,
+            int(getattr(args, "advisory_max_pages", 0) or 0),
+        ),
+    )
+    written = write_dependency_advisory_catalog(output, payload)
+    if bool(getattr(args, "advisory_update_manifest", False)):
+        update_dependency_advisory_manifest(
+            DEFAULT_DEPENDENCY_ADVISORY_MANIFEST,
+            file_path=written,
+            root=_base.ROOT_DIR,
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "advisory-catalog-sync",
+        "engine": {
+            "version": DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION,
+            "rule_version": DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION,
+        },
+        "catalog_output": str(written),
+        "alias_registry": aliases,
+        "manifest_updated": bool(
+            getattr(args, "advisory_update_manifest", False)
+        ),
+        "summary": dependency_advisory_sync_summary(payload),
+        "safety": {
+            "network_scope": "github_public_advisory_api_only",
+            "target_contact_performed": False,
+            "runtime_scan_network_dependency_added": False,
+            "catalog_miss_means_safe": False,
+            "production_thresholds_changed": False,
+        },
+    }
+
+
 def _runner_execute_cli(args: Any) -> dict[str, Any]:
     if not str(args.run_id or "").strip():
         raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
@@ -915,6 +1040,8 @@ def main(argv: list[str] | None = None) -> int:
         "corpus-v1-auto-evaluate",
         "corpus-v1-coverage-status",
         "corpus-v1-expand-coverage",
+        "advisory-catalog-status",
+        "advisory-catalog-sync",
         "stop",
     }:
         parser = build_parser()
@@ -949,6 +1076,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if translated[1] == "corpus-v1-expand-coverage":
             payload = corpus_v1_expand_coverage_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "advisory-catalog-status":
+            payload = advisory_catalog_status_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "advisory-catalog-sync":
+            payload = advisory_catalog_sync_cli_payload(args)
             print(_base.json_dumps(payload, pretty=True))
             return 0
 
