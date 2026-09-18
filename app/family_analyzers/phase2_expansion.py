@@ -120,13 +120,53 @@ def analyze_phase2_family(
 
     for evidence_type in spec["unsafe"]:
         if _truth(details, evidence_type):
-            add_unique(support, {
+            item: dict[str, Any] = {
                 "type": evidence_type,
                 "source": "stored_target_evidence",
                 "source_group": "stored_target_evidence",
                 "weight": 30,
                 "text": f"Stored target evidence records {evidence_type.replace('_', ' ')}.",
-            })
+            }
+            if (
+                family == "dependency_supply_chain"
+                and evidence_type == "known_vulnerable_component_match_observed"
+            ):
+                raw_matches = details.get("dependency_advisory_matches")
+                advisory_matches = (
+                    [
+                        {
+                            key: value
+                            for key, value in dict(match).items()
+                            if key in {
+                                "advisory_id",
+                                "cve",
+                                "product",
+                                "version",
+                                "matched_range",
+                                "patched_versions",
+                                "source_type",
+                                "review_status",
+                                "source_url",
+                            }
+                        }
+                        for match in raw_matches[:20]
+                        if isinstance(match, Mapping)
+                    ]
+                    if isinstance(raw_matches, list)
+                    else []
+                )
+                item["advisory_matches"] = advisory_matches
+                if advisory_matches:
+                    ids = ", ".join(
+                        str(match.get("advisory_id") or "")
+                        for match in advisory_matches[:4]
+                        if str(match.get("advisory_id") or "")
+                    )
+                    item["text"] = (
+                        "Stored exact component version matches source-attributed "
+                        f"dependency advisory metadata{f' ({ids})' if ids else ''}."
+                    )
+            add_unique(support, item)
 
     for evidence_type in spec["contradictions"]:
         if _truth(details, evidence_type):
@@ -243,6 +283,14 @@ def analyze_phase2_family(
         base=24,
         extra_meta={
             "runtime_observation_count": len(runtime),
+            "dependency_advisory_match_count": (
+                len(details.get("dependency_advisory_matches") or [])
+                if family == "dependency_supply_chain"
+                and isinstance(details.get("dependency_advisory_matches"), list)
+                else 0
+            ),
+            "dependency_catalog_is_exhaustive": False,
+            "absence_of_dependency_match_means_safe": False,
             "bridge_context_signals": sorted(set(bridged_context_types)),
             "payload_generated": False,
             "active_request_performed": False,
