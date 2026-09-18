@@ -163,3 +163,11 @@ release checks when a minimum full-coverage threshold is desired.
 A `partial` union means at least one union branch is fully understood. Runtime
 matching may return a positive result only from such a fully understood branch;
 unsupported conjunction clauses are never partially evaluated.
+
+
+Current synchronized catalog audit on this branch reports 64,857 stored affected
+ranges: 64,841 fully supported and 16 intentionally unsupported
+(99.9753% full coverage). The remaining expressions are noncanonical or
+ecosystem-mismatched forms such as distro revision suffixes in PyPI entries,
+date-like versions, Composer branch aliases, and opaque legacy suffixes. They
+remain fail-closed rather than being assigned guessed ordering semantics.
