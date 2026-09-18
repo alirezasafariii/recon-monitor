@@ -185,7 +185,7 @@ class DependencyAdvisoryCatalogSyncTests(unittest.TestCase):
             self.assertEqual(len(matched["matches"]), 1)
             self.assertEqual(
                 matched["matches"][0]["advisory_id"],
-                "GHSA-6789-cfgh-jmpq",
+                "GHSA-6789-CFGH-JMPQ",
             )
             self.assertTrue(matched["catalog_source_sync_complete"])
 
