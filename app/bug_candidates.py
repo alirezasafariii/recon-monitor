@@ -198,6 +198,19 @@ def _phase2_families_for_surface(
     return tuple(selected)
 
 
+def _stored_fingerprint_response_headers(
+    fingerprint: Mapping[str, Any],
+) -> tuple[dict[str, str], bool]:
+    raw = _core._loads(fingerprint.get("response_headers_json"), {})
+    headers = {
+        str(key).strip().lower(): str(value).strip()
+        for key, value in raw.items()
+        if str(key).strip() and str(value).strip()
+    } if isinstance(raw, Mapping) else {}
+    observed = bool(_core.parse_int(fingerprint.get("response_headers_observed"), 0))
+    return headers, observed
+
+
 def _raw_surface_rows(
     db: Any,
     *,
@@ -312,6 +325,12 @@ def _raw_surface_rows(
         details["technologies"] = _core._loads(
             fingerprint.get("technologies_json"), []
         )
+        response_headers, response_headers_observed = _stored_fingerprint_response_headers(
+            fingerprint
+        )
+        if response_headers_observed:
+            details["response_headers"] = response_headers
+            details["response_headers_observed"] = True
         priority_surfaces.append(
             {
                 "target": current_target,
@@ -380,6 +399,12 @@ def _raw_surface_rows(
         details["technologies"] = _core._loads(
             fingerprint.get("technologies_json"), []
         )
+        response_headers, response_headers_observed = _stored_fingerprint_response_headers(
+            fingerprint
+        )
+        if response_headers_observed:
+            details["response_headers"] = response_headers
+            details["response_headers_observed"] = True
         surfaces.append(
             {
                 "target": current_target,
@@ -448,11 +473,16 @@ def _raw_surface_rows(
             )
             if fingerprint.get(key) not in (None, "")
         }
+        response_headers, response_headers_observed = _stored_fingerprint_response_headers(
+            fingerprint
+        )
         details.update(
             {
                 "technologies": _core._loads(
                     fingerprint.get("technologies_json"), []
                 ),
+                "response_headers": response_headers if response_headers_observed else {},
+                "response_headers_observed": response_headers_observed,
                 "raw_surface_observation": True,
                 "active_request_performed": False,
             }
