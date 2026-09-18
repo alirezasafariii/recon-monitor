@@ -13,15 +13,17 @@ import hashlib
 from typing import Any, Mapping
 
 from bug_candidates import set_bug_candidate_decision
-from core import Database, ReconError, json_dumps, parse_int, utc_now
+from core import Database, ReconError, json_dumps, parse_int, safe_json_loads, utc_now
 from correlation_engine import investigation_queue
 from product_platform import case_detail, set_case_state
 from safe_validation import validation_eligibility
 from workspace_v7 import case_autopilot, evidence_gap_for_case
 
 
-INVESTIGATION_WORKFLOW_VERSION = "1.1.0"
+INVESTIGATION_WORKFLOW_VERSION = "1.2.0"
 CLUSTER_CASE_PREFIX = "investigation-cluster:"
+CHANGE_TASK_TERMINAL_STATUSES = ("completed", "skipped")
+CHANGE_TASK_USEFULNESS = ("useful", "neutral", "noisy")
 CLUSTER_DECISIONS = (
     "needs_more_evidence",
     "confirmed_by_analyst",
@@ -366,6 +368,221 @@ def _merge_change_guidance(
     return gap_out, autopilot_out
 
 
+def _change_task_id(case_id: str, task: Mapping[str, Any]) -> str:
+    identity = "|".join(
+        [
+            case_id,
+            str(task.get("type") or ""),
+            str(task.get("signal_type") or ""),
+            str(task.get("item_key") or ""),
+            str(task.get("requirement_key") or ""),
+            str(task.get("title") or ""),
+        ]
+    )
+    return "task-change-" + hashlib.sha256(
+        identity.encode("utf-8", "replace")
+    ).hexdigest()[:16]
+
+
+def _change_task_lifecycle_rows(db: Database, case_id: str) -> dict[str, dict[str, Any]]:
+    rows: dict[str, dict[str, Any]] = {}
+    for row in db.all(
+        "SELECT task_id,task_type,title,rank,status,details_json,created_at,updated_at "
+        "FROM case_autopilot_tasks WHERE case_id=? AND task_id LIKE 'task-change-%' "
+        "ORDER BY rank,created_at",
+        (case_id,),
+    ):
+        item = dict(row)
+        details = safe_json_loads(
+            item.get("details_json"),
+            {},
+            expected_type=dict,
+        )
+        feedback = (
+            dict(details.get("analyst_feedback"))
+            if isinstance(details.get("analyst_feedback"), Mapping)
+            else {}
+        )
+        rows[str(item.get("task_id") or "")] = {
+            "task_id": str(item.get("task_id") or ""),
+            "type": str(item.get("task_type") or ""),
+            "title": str(item.get("title") or ""),
+            "rank": int(item.get("rank") or 0),
+            "status": str(item.get("status") or "open"),
+            "feedback_usefulness": str(feedback.get("usefulness") or ""),
+            "feedback_note": str(feedback.get("note") or ""),
+            "feedback_actor": str(feedback.get("actor") or ""),
+            "feedback_recorded_at": str(feedback.get("recorded_at") or ""),
+            "updated_at": str(item.get("updated_at") or ""),
+            "details": details,
+        }
+    return rows
+
+
+def _apply_change_task_lifecycle(
+    db: Database,
+    case_id: str,
+    guidance: Mapping[str, Any],
+    autopilot: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    lifecycle = _change_task_lifecycle_rows(db, case_id)
+    guidance_out = dict(guidance)
+    autopilot_out = dict(autopilot)
+
+    guidance_tasks: list[dict[str, Any]] = []
+    for raw in guidance.get("tasks", []):
+        if not isinstance(raw, Mapping):
+            continue
+        task = dict(raw)
+        task_id = _change_task_id(case_id, task)
+        persisted = lifecycle.get(task_id, {})
+        task["task_id"] = task_id
+        task["status"] = str(persisted.get("status") or task.get("status") or "open")
+        task["feedback_usefulness"] = str(persisted.get("feedback_usefulness") or "")
+        task["feedback_note"] = str(persisted.get("feedback_note") or "")
+        guidance_tasks.append(task)
+    guidance_out["tasks"] = guidance_tasks
+
+    autopilot_tasks: list[dict[str, Any]] = []
+    for raw in autopilot.get("tasks", []):
+        if not isinstance(raw, Mapping):
+            continue
+        task = dict(raw)
+        if bool(task.get("advisory_only")):
+            task_id = _change_task_id(case_id, task)
+            persisted = lifecycle.get(task_id, {})
+            task["task_id"] = task_id
+            task["status"] = str(persisted.get("status") or task.get("status") or "open")
+            task["feedback_usefulness"] = str(persisted.get("feedback_usefulness") or "")
+            task["feedback_note"] = str(persisted.get("feedback_note") or "")
+        autopilot_tasks.append(task)
+    autopilot_out["tasks"] = autopilot_tasks
+
+    lifecycle_rows = sorted(
+        lifecycle.values(),
+        key=lambda row: (int(row.get("rank") or 0), str(row.get("task_id") or "")),
+    )
+    return guidance_out, autopilot_out, lifecycle_rows
+
+
+def record_change_task_feedback(
+    db: Database,
+    case_id: str,
+    task_id: str,
+    *,
+    status: str,
+    usefulness: str,
+    note: str = "",
+    actor: str = "analyst",
+) -> dict[str, Any]:
+    case_value = str(case_id or "").strip()
+    task_value = str(task_id or "").strip()
+    status_value = str(status or "").strip().lower()
+    usefulness_value = str(usefulness or "").strip().lower()
+    if not case_value or not task_value:
+        raise ReconError("Change-guided task case and task ids are required")
+    if not task_value.startswith("task-change-"):
+        raise ReconError("Only change-guided tasks accept this feedback action")
+    if status_value not in CHANGE_TASK_TERMINAL_STATUSES:
+        raise ReconError(f"Unsupported change-guided task status: {status_value}")
+    if usefulness_value not in CHANGE_TASK_USEFULNESS:
+        raise ReconError(f"Unsupported change-guided usefulness rating: {usefulness_value}")
+
+    case = db.one("SELECT target FROM security_cases WHERE case_id=?", (case_value,))
+    if not case:
+        raise ReconError(f"Security case not found: {case_value}")
+    row = db.one(
+        "SELECT task_id,status,details_json FROM case_autopilot_tasks "
+        "WHERE case_id=? AND task_id=?",
+        (case_value, task_value),
+    )
+    if not row:
+        raise ReconError("Change-guided task not found for this case")
+    details = safe_json_loads(row["details_json"], {}, expected_type=dict)
+    if (
+        str(details.get("source") or "") != "derived_change_advisory"
+        or not bool(details.get("advisory_only"))
+    ):
+        raise ReconError("Task is not a Derived Change Advisory review task")
+
+    current_status = str(row["status"] or "open")
+    if current_status in CHANGE_TASK_TERMINAL_STATUSES and current_status != status_value:
+        raise ReconError(
+            f"Terminal change-guided task cannot transition from {current_status} to {status_value}"
+        )
+    if current_status not in ("open", *CHANGE_TASK_TERMINAL_STATUSES):
+        raise ReconError(f"Unsupported existing task status: {current_status}")
+
+    now = utc_now()
+    clean_note = str(note or "").strip()[:1000]
+    details["analyst_feedback"] = {
+        "status": status_value,
+        "usefulness": usefulness_value,
+        "note": clean_note,
+        "actor": str(actor or "analyst")[:200],
+        "recorded_at": now,
+    }
+    details["feedback_is_target_evidence"] = False
+    details["feedback_can_auto_tune"] = False
+    db.execute(
+        "UPDATE case_autopilot_tasks SET status=?,details_json=?,updated_at=? "
+        "WHERE case_id=? AND task_id=?",
+        (status_value, json_dumps(details), now, case_value, task_value),
+    )
+    event_details = {
+        "task_id": task_value,
+        "task_status": status_value,
+        "usefulness": usefulness_value,
+        "note": clean_note,
+        "signal_type": str(details.get("signal_type") or ""),
+        "item_key": str(details.get("item_key") or ""),
+        "status": "analyst_feedback_observational_only",
+        "counts_as_evidence": False,
+        "can_auto_tune": False,
+    }
+    db.execute(
+        "INSERT INTO security_case_events("
+        "case_id,event_type,actor,details_json,created_at"
+        ") VALUES(?,?,?,?,?)",
+        (
+            case_value,
+            "investigation_change_task_feedback",
+            str(actor or "analyst")[:200],
+            json_dumps(event_details),
+            now,
+        ),
+    )
+    db.audit(
+        "investigation_change_task_feedback",
+        actor=str(actor or "analyst")[:200],
+        target=str(case["target"] or ""),
+        entity_type="case_autopilot_task",
+        entity_value=task_value,
+        details={
+            "case_id": case_value,
+            "task_status": status_value,
+            "usefulness": usefulness_value,
+            "counts_as_evidence": False,
+            "can_auto_tune": False,
+        },
+    )
+    return {
+        "case_id": case_value,
+        "task_id": task_value,
+        "status": status_value,
+        "usefulness": usefulness_value,
+        "note": clean_note,
+        "updated_at": now,
+        "safety": {
+            "counts_as_target_evidence": False,
+            "changes_admission": False,
+            "changes_validation_eligibility": False,
+            "auto_tuning": False,
+            "network_requests": False,
+        },
+    }
+
+
 def _persist_change_advisory_tasks(
     db: Database,
     case_id: str,
@@ -373,8 +590,11 @@ def _persist_change_advisory_tasks(
     *,
     actor: str,
 ) -> None:
+    # Refresh open advisory tasks only. Terminal analyst outcomes are preserved
+    # across workflow refreshes so lifecycle feedback cannot be erased.
     db.execute(
-        "DELETE FROM case_autopilot_tasks WHERE case_id=? AND task_id LIKE 'task-change-%'",
+        "DELETE FROM case_autopilot_tasks "
+        "WHERE case_id=? AND task_id LIKE 'task-change-%' AND status='open'",
         (case_id,),
     )
     tasks = [
@@ -393,19 +613,13 @@ def _persist_change_advisory_tasks(
     )
     now = utc_now()
     for index, task in enumerate(tasks, start=1):
-        identity = "|".join(
-            [
-                case_id,
-                str(task.get("type") or ""),
-                str(task.get("signal_type") or ""),
-                str(task.get("item_key") or ""),
-                str(task.get("requirement_key") or ""),
-                str(task.get("title") or ""),
-            ]
+        task_id = _change_task_id(case_id, task)
+        existing = db.one(
+            "SELECT status FROM case_autopilot_tasks WHERE case_id=? AND task_id=?",
+            (case_id, task_id),
         )
-        task_id = "task-change-" + hashlib.sha256(
-            identity.encode("utf-8", "replace")
-        ).hexdigest()[:16]
+        if existing and str(existing["status"] or "") in CHANGE_TASK_TERMINAL_STATUSES:
+            continue
         details = {
             "source": "derived_change_advisory",
             "advisory_only": True,
@@ -473,6 +687,12 @@ def _workflow_snapshot_for_case(
     queue_item = dict(item) if isinstance(item, Mapping) else _queue_item_for_case(db, case)
     guidance = _change_guidance(queue_item, gap) if queue_item else _change_guidance({}, gap)
     gap, autopilot = _merge_change_guidance(gap, autopilot, guidance)
+    guidance, autopilot, change_task_lifecycle = _apply_change_task_lifecycle(
+        db,
+        case_id,
+        guidance,
+        autopilot,
+    )
     eligibility = validation_eligibility(db, case_id)
     family = str(case.get("primary_family") or "")
     primary_candidates = [
@@ -487,6 +707,7 @@ def _workflow_snapshot_for_case(
         "autopilot": autopilot,
         "validation": eligibility,
         "change_guidance": guidance,
+        "change_task_lifecycle": change_task_lifecycle,
         "candidate_count": len(detail.get("candidates", [])),
         "primary_candidate_count": len(primary_candidates),
         "primary_candidate_ids": [str(row.get("candidate_id") or "") for row in primary_candidates],
@@ -497,6 +718,8 @@ def _workflow_snapshot_for_case(
             "change_context_is_advisory_only": True,
             "change_context_does_not_change_evidence_coverage": True,
             "change_context_cannot_trigger_validation": True,
+            "change_task_feedback_is_observational_only": True,
+            "change_task_feedback_cannot_auto_tune": True,
         },
     }
 
@@ -526,6 +749,8 @@ def cluster_workflow_snapshot(
                 "change_context_is_advisory_only": True,
                 "change_context_does_not_change_evidence_coverage": True,
                 "change_context_cannot_trigger_validation": True,
+                "change_task_feedback_is_observational_only": True,
+                "change_task_feedback_cannot_auto_tune": True,
             },
         }
     return _workflow_snapshot_for_case(db, case, item=item)
