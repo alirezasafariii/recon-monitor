@@ -32,8 +32,8 @@ from dependency_advisory_matcher import (
     validate_catalog_payload,
 )
 
-DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION = "1.0.1"
-DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION = "2026.09.18.2"
+DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION = "1.1.0"
+DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION = "2026.09.18.3"
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_REVIEWED_ADVISORY_API = "https://api.github.com/advisories"
 CATALOG_SCHEMA_VERSION = "2.0.0"
@@ -204,7 +204,7 @@ def _normalize_advisory_rows(
         entry["affected_ranges"] = sorted(entry["affected_ranges"])
         entry["patched_versions"] = sorted(entry["patched_versions"])
         entry["range_match_supported"] = any(
-            range_expression_supported(expression)
+            range_expression_supported(expression, ecosystem)
             for expression in entry["affected_ranges"]
         )
         normalized.append(entry)
@@ -283,7 +283,10 @@ def build_catalog_from_pages(
                     }
                     existing[field] = sorted(values)
                 existing["range_match_supported"] = any(
-                    range_expression_supported(expression)
+                    range_expression_supported(
+                        expression,
+                        str(existing.get("ecosystem") or ""),
+                    )
                     for expression in existing["affected_ranges"]
                 )
                 if _text(entry.get("updated_at")) > _text(existing.get("updated_at")):
