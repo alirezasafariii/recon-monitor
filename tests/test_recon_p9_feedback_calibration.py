@@ -211,8 +211,8 @@ class ReconP9FeedbackCalibrationTests(unittest.TestCase):
             "do not tune production",
             "source_map_source_changed",
             "javascript_chunk_added",
-            "utility_watch",
-            "noise_watch",
+            "utility watch",
+            "noise watch",
             "no production activation path exists",
         ):
             self.assertIn(text, html)
