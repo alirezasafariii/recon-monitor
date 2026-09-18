@@ -11,6 +11,11 @@ import urllib.parse
 from typing import Any
 
 import api_server_core as _base
+from change_guidance_evaluation import (
+    CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
+    CHANGE_GUIDANCE_EVALUATION_VERSION,
+    change_guidance_evaluation,
+)
 from correlation_engine import (
     CORRELATION_ENGINE_VERSION,
     CORRELATION_RULE_VERSION,
@@ -23,7 +28,7 @@ from derived_change_advisory import (
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 
 
-INVESTIGATION_API_VERSION = "1.1.0"
+INVESTIGATION_API_VERSION = "1.2.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -70,12 +75,28 @@ def investigation_queue_payload(
         if selected_analysis
         else []
     )
+    if hasattr(db, "all") and hasattr(db, "one"):
+        evaluation = change_guidance_evaluation(
+            db,
+            target=str(target or "").strip(),
+            limit=500,
+        )
+    else:
+        evaluation = {
+            "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
+            "rule_version": CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
+            "case_count": 0,
+            "comparison_ready": False,
+            "unavailable": True,
+            "reason": "database evaluation interface unavailable",
+        }
     return {
         "api_version": INVESTIGATION_API_VERSION,
         "analysis_id": selected_analysis,
         "target": str(target or "").strip() or None,
         "count": len(items),
         "items": items,
+        "change_guidance_evaluation": evaluation,
         "engines": {
             "meta_ranker": {
                 "version": META_RANKER_VERSION,
@@ -89,6 +110,10 @@ def investigation_queue_payload(
                 "version": DERIVED_CHANGE_ADVISORY_VERSION,
                 "rule_version": DERIVED_CHANGE_ADVISORY_RULE_VERSION,
             },
+            "change_guidance_evaluation": {
+                "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
+                "rule_version": CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
@@ -97,6 +122,9 @@ def investigation_queue_payload(
             "derived_change_is_advisory_only": True,
             "derived_change_cannot_satisfy_admission": True,
             "derived_change_is_not_double_counted_in_queue_score": True,
+            "change_guidance_evaluation_is_observational_only": True,
+            "change_guidance_evaluation_is_non_causal": True,
+            "change_guidance_evaluation_cannot_auto_tune": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
