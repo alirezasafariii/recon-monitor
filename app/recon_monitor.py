@@ -10,7 +10,10 @@ human-verified real-world calibration reports, explicit Validation Runner
 passive-live execution, and offline Differential Evidence adaptation.
 """
 
+import json
+import os
 import sys
+from pathlib import Path
 from typing import Any, Iterable
 
 import recon_monitor_core as _base
@@ -63,6 +66,14 @@ from real_world_corpus_v1_bridge import (
     load_review_files as load_corpus_v1_review_files,
     render_jsonl as render_corpus_v1_jsonl,
     review_readiness as corpus_v1_review_readiness,
+)
+from real_world_corpus_v1_coverage_expander import (
+    COVERAGE_EXPANDER_RULE_VERSION,
+    COVERAGE_EXPANDER_VERSION,
+    DEFAULT_FAMILY_QUOTA,
+    DEFAULT_MAX_PAGES_PER_FAMILY,
+    coverage_inventory,
+    expand_coverage,
 )
 from real_world_corpus_v1_source_attested import (
     SOURCE_ATTESTED_RULE_VERSION,
@@ -155,6 +166,8 @@ def build_parser():
         "corpus-v1-review-status",
         "corpus-v1-finalize",
         "corpus-v1-auto-evaluate",
+        "corpus-v1-coverage-status",
+        "corpus-v1-expand-coverage",
         "stop",
     )
 
@@ -227,6 +240,36 @@ def build_parser():
             default="",
             dest="blind_replay_output",
             help="Optional label/family-blind replay manifest for a current-engine scorer",
+        )
+    if "coverage_quota" not in existing_dests:
+        analysis_parser.add_argument(
+            "--coverage-quota",
+            type=int,
+            default=DEFAULT_FAMILY_QUOTA,
+            dest="coverage_quota",
+            help="Independent source-origin quota per canonical vulnerability family",
+        )
+    if "coverage_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--coverage-output",
+            default="",
+            dest="coverage_output",
+            help="Write all-family coverage inventory or expansion result as JSON",
+        )
+    if "max_pages_per_family" not in existing_dests:
+        analysis_parser.add_argument(
+            "--max-pages-per-family",
+            type=int,
+            default=DEFAULT_MAX_PAGES_PER_FAMILY,
+            dest="max_pages_per_family",
+            help="Maximum GitHub reviewed-advisory pages to inspect per family",
+        )
+    if "github_token" not in existing_dests:
+        analysis_parser.add_argument(
+            "--github-token",
+            default="",
+            dest="github_token",
+            help="GitHub token for all-family public advisory coverage expansion",
         )
 
     validation_parser = _validation_parser(parser)
@@ -602,6 +645,131 @@ def corpus_v1_auto_evaluate_cli_payload(args: Any) -> dict[str, Any]:
     return payload
 
 
+def _corpus_v1_default_artifacts(args: Any) -> dict[str, str]:
+    root = _base.ROOT_DIR
+    feasibility = str(getattr(args, "corpus_feasibility", "") or "").strip()
+    source_evidence = str(getattr(args, "corpus_source_evidence", "") or "").strip()
+    revision_pairs = str(getattr(args, "corpus_revision_pairs", "") or "").strip()
+    return {
+        "feasibility": feasibility
+        or str(root / "benchmarks" / "real_world" / "v1" / "source_feasibility_final.json"),
+        "source_evidence": source_evidence
+        or str(root / "benchmarks" / "real_world" / "v1" / "public_source_evidence.json"),
+        "revision_pairs": revision_pairs
+        or str(root / "benchmarks" / "real_world" / "v1" / "revision_pair_evidence.json"),
+    }
+
+
+def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
+    artifacts = _corpus_v1_default_artifacts(args)
+    feasibility = json.loads(Path(artifacts["feasibility"]).read_text(encoding="utf-8"))
+    source_result = run_source_attested_evaluation(
+        feasibility_path=artifacts["feasibility"],
+        source_evidence_path=artifacts["source_evidence"],
+        revision_pairs_path=artifacts["revision_pairs"],
+    )
+    quota = max(
+        1,
+        int(
+            getattr(args, "coverage_quota", DEFAULT_FAMILY_QUOTA)
+            or DEFAULT_FAMILY_QUOTA
+        ),
+    )
+    inventory = coverage_inventory(
+        feasibility,
+        attestation=source_result["attestation"],
+        quota=quota,
+    )
+    output = str(getattr(args, "coverage_output", "") or "").strip()
+    if output:
+        Path(output).write_text(
+            json.dumps(inventory, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-coverage-status",
+        "engine": {
+            "version": COVERAGE_EXPANDER_VERSION,
+            "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
+        },
+        "source_artifacts": artifacts,
+        "coverage_output": output or None,
+        "inventory": inventory,
+        "source_attestation": {
+            key: value
+            for key, value in source_result["attestation"].items()
+            if key not in {"records", "excluded"}
+        },
+        "safety": {
+            "all_74_canonical_families_tracked": len(inventory["families"]) == 74,
+            "no_network_required_for_status": True,
+            "no_labels_created_by_coverage_inventory": True,
+            "no_production_activation": True,
+        },
+    }
+
+
+def corpus_v1_expand_coverage_cli_payload(args: Any) -> dict[str, Any]:
+    artifacts = _corpus_v1_default_artifacts(args)
+    feasibility = json.loads(Path(artifacts["feasibility"]).read_text(encoding="utf-8"))
+    quota = max(
+        1,
+        int(
+            getattr(args, "coverage_quota", DEFAULT_FAMILY_QUOTA)
+            or DEFAULT_FAMILY_QUOTA
+        ),
+    )
+    token = (
+        str(getattr(args, "github_token", "") or "").strip()
+        or os.environ.get("GITHUB_TOKEN", "")
+    )
+    result = expand_coverage(
+        feasibility,
+        token=token,
+        quota=quota,
+        max_pages_per_family=max(
+            1,
+            int(
+                getattr(
+                    args,
+                    "max_pages_per_family",
+                    DEFAULT_MAX_PAGES_PER_FAMILY,
+                )
+                or DEFAULT_MAX_PAGES_PER_FAMILY
+            ),
+        ),
+    )
+    output = str(getattr(args, "coverage_output", "") or "").strip()
+    if output:
+        Path(output).write_text(
+            json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-expand-coverage",
+        "engine": {
+            "version": COVERAGE_EXPANDER_VERSION,
+            "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
+        },
+        "source_artifacts": artifacts,
+        "coverage_output": output or None,
+        "quota": quota,
+        "represented_family_count_before": int(
+            result["represented_family_count_before"]
+        ),
+        "represented_family_count_after": int(
+            result["represented_family_count_after"]
+        ),
+        "missing_family_count_after": int(result["missing_family_count_after"]),
+        "missing_families_after": list(result["missing_families_after"]),
+        "selected_candidate_count": int(result["selected_candidate_count"]),
+        "all_families_represented": bool(result["all_families_represented"]),
+        "production_activation_performed": False,
+    }
+
+
 def _runner_execute_cli(args: Any) -> dict[str, Any]:
     if not str(args.run_id or "").strip():
         raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
@@ -718,6 +886,8 @@ def main(argv: list[str] | None = None) -> int:
         "corpus-v1-review-status",
         "corpus-v1-finalize",
         "corpus-v1-auto-evaluate",
+        "corpus-v1-coverage-status",
+        "corpus-v1-expand-coverage",
         "stop",
     }:
         parser = build_parser()
@@ -744,6 +914,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if translated[1] == "corpus-v1-auto-evaluate":
             payload = corpus_v1_auto_evaluate_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-coverage-status":
+            payload = corpus_v1_coverage_status_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-expand-coverage":
+            payload = corpus_v1_expand_coverage_cli_payload(args)
             print(_base.json_dumps(payload, pretty=True))
             return 0
 
