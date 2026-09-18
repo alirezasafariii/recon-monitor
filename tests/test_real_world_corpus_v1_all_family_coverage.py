@@ -4,12 +4,14 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
+import real_world_corpus_v1_coverage_expander as coverage_expander
 from real_world_corpus_v1_coverage_expander import (
     candidate_family_match,
     coverage_inventory,
@@ -100,6 +102,32 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         raw = _advisory("A security vulnerability can affect cached responses")
         match = candidate_family_match(raw, "web_cache_poisoning")
         self.assertFalse(match["matched"])
+
+    @patch.object(coverage_expander, "_api_get_json")
+    def test_sparse_family_seed_is_fetched_and_still_must_match(self, api_get):
+        api_get.return_value = {
+            "ghsa_id": "GHSA-7GCC-R8M5-44QM",
+            "summary": "Koa has Host Header Injection in redirect generation",
+            "withdrawn_at": None,
+            "source_code_location": "https://github.com/koajs/koa",
+            "html_url": "https://github.com/advisories/GHSA-7gcc-r8m5-44qm",
+            "repository_advisory_url": "https://api.github.com/repos/koajs/koa/security-advisories/GHSA-7gcc-r8m5-44qm",
+            "cwes": [],
+            "references": [
+                "https://github.com/koajs/koa/commit/" + "f" * 40,
+            ],
+        }
+        result = coverage_expander.discover_reviewed_seeds(
+            "host_header_injection",
+            exposed={"roots": set(), "projects": set(), "urls": set(), "identifiers": set()},
+            token="token",
+            needed=1,
+            used_roots=set(),
+            used_projects=set(),
+        )
+        self.assertEqual(result["selected_count"], 1)
+        self.assertEqual(result["selected"][0]["family_target"], "host_header_injection")
+        api_get.assert_called_once()
 
     def test_source_resolver_uses_unique_target_cwe_when_hint_is_missing(self):
         feasibility = {
