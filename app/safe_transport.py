@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable
 
-SAFE_TRANSPORT_VERSION = "1.1.0"
+SAFE_TRANSPORT_VERSION = "1.2.0"
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -160,6 +160,7 @@ def perform_pinned_request(
     observation: Callable[[str, str, int, Any, bytes, str], dict[str, Any]],
     max_response_bytes: int,
     validation_version: str,
+    timeout_seconds: float = 8.0,
 ) -> tuple[dict[str, Any], str]:
     """Execute one bounded request against a prevalidated pinned address."""
     method = str(item.get("method") or "GET").upper()
@@ -194,7 +195,10 @@ def perform_pinned_request(
     opener = build_pinned_opener(pinned_ip)
 
     try:
-        with opener.open(request, timeout=8) as response:
+        with opener.open(
+            request,
+            timeout=max(1.0, min(float(timeout_seconds), 60.0)),
+        ) as response:
             body = response.read(max_response_bytes + 1) if method != "HEAD" else b""
             if len(body) > max_response_bytes:
                 result = observation(
