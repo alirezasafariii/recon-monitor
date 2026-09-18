@@ -25,6 +25,10 @@ from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_VERSION,
     change_guidance_evaluation,
 )
+from change_guidance_review_packet import (
+    CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
+    change_guidance_review_packets,
+)
 from correlation_engine import CORRELATION_ENGINE_VERSION, build_correlation_context, investigation_queue
 from derived_change_advisory import DERIVED_CHANGE_ADVISORY_VERSION
 from investigation_workflow import (
@@ -38,7 +42,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.7.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.8.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -299,6 +303,68 @@ def _change_guidance_calibration_panel(report: Mapping[str, Any]) -> str:
         + rows
         + "</tbody></table></div>"
         f"<p class='muted small' style='margin-top:12px'>A signal remains <code>insufficient_feedback</code> until at least {int(report.get('minimum_feedback_per_signal') or 5)} explicit ratings exist. Ratings are subjective workflow telemetry, not vulnerability labels, and no production activation path exists in this report.</p>"
+        "</div></section>"
+    )
+
+
+def _change_guidance_review_packet_panel(report: Mapping[str, Any]) -> str:
+    packets = [
+        row for row in report.get("packets", [])
+        if isinstance(row, Mapping)
+    ] if isinstance(report, Mapping) else []
+    if not packets:
+        return (
+            "<section class='panel' id='change-guidance-review-packets' style='margin-top:16px'>"
+            "<div class='panel-head'><div><h3>Change-guidance Review Packets</h3>"
+            f"<span class='muted small'>Human review {_base._esc(CHANGE_GUIDANCE_REVIEW_PACKET_VERSION)}</span></div>"
+            + _base._pill("human review only", "neutral")
+            + "</div><div class='panel-body'>"
+            + _base._empty(
+                "No review packet yet",
+                "Calibration and longitudinal history must be available before a human policy-review packet can be assembled.",
+            )
+            + "</div></section>"
+        )
+
+    def pct(value: Any) -> str:
+        if value is None:
+            return "—"
+        return f"{round(float(value) * 100, 1)}%"
+
+    def tone(status: str) -> str:
+        return "success" if status == "ready_for_manual_review" else "neutral"
+
+    rows = "".join(
+        "<tr>"
+        f"<td><code>{_base._esc(row.get('proposal_id') or '')}</code></td>"
+        f"<td><code>{_base._esc(row.get('signal_type') or '')}</code></td>"
+        f"<td>{_base._pill(str(row.get('review_status') or ''), tone(str(row.get('review_status') or '')))}</td>"
+        f"<td>{_base._pill(str(row.get('proposal_direction') or ''), 'info')}</td>"
+        f"<td>{_base._esc((row.get('calibration') or {}).get('shadow_status') or '')}<br><span class='muted small'>useful {pct((row.get('calibration') or {}).get('useful_rate'))} · noisy {pct((row.get('calibration') or {}).get('noisy_rate'))}</span></td>"
+        f"<td>{_base._esc((row.get('drift') or {}).get('drift_status') or '')}<br><span class='muted small'>useful Δ {pct((row.get('drift') or {}).get('useful_rate_delta_recent_minus_previous'))} · noisy Δ {pct((row.get('drift') or {}).get('noisy_rate_delta_recent_minus_previous'))}</span></td>"
+        f"<td>{_base._esc(row.get('review_rationale') or '')}</td>"
+        "</tr>"
+        for row in packets[:50]
+    )
+    return (
+        "<section class='panel' id='change-guidance-review-packets' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Change-guidance Review Packets</h3>"
+        f"<span class='muted small'>Human review {_base._esc(CHANGE_GUIDANCE_REVIEW_PACKET_VERSION)} · deterministic non-executable proposals</span></div>"
+        + _base._pill("human review only", "info")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Proposal is not a policy change</strong>"
+        "<span>Packets combine shadow calibration and longitudinal drift into a review artifact. They contain no numeric weight, threshold, patch, or activation action. Any production change requires a separate explicit code/config proposal, tests, review, and merge.</span></div>"
+        "<div class='attention-grid' style='margin-top:14px'>"
+        f"<div class='attention-card'><span>Packets</span><strong>{int(report.get('packet_count') or 0)}</strong><small>bounded review artifacts</small></div>"
+        f"<div class='attention-card'><span>Ready for review</span><strong>{int(report.get('ready_for_manual_review_count') or 0)}</strong><small>human review only</small></div>"
+        f"<div class='attention-card'><span>Collect more data</span><strong>{int(report.get('collect_more_data_count') or 0)}</strong><small>sample/history gate not met</small></div>"
+        "</div>"
+        "<div class='table-wrap' style='margin-top:14px'><table><thead><tr>"
+        "<th>Proposal</th><th>Signal</th><th>Status</th><th>Direction</th><th>Calibration</th><th>Drift</th><th>Rationale</th>"
+        "</tr></thead><tbody>"
+        + rows
+        + "</tbody></table></div>"
+        "<p class='muted small' style='margin-top:12px'>A ready packet is still non-executable. It cannot modify ranking, Queue score, task ordering, Evidence Gap, Admission, or validation, and it cannot make network requests.</p>"
         "</div></section>"
     )
 
@@ -894,6 +960,13 @@ def _bug_candidates_with_queue(self: Any) -> None:
         evaluation = change_guidance_evaluation(db, target=target, limit=500)
         calibration = change_guidance_calibration_report(db, target=target, limit=5000)
         drift = change_guidance_drift_report(db, target=target, window_days=30, limit=5000)
+        review_packets = change_guidance_review_packets(
+            db,
+            target=target,
+            max_packets=100,
+            calibration_report=calibration,
+            drift_report=drift,
+        )
     finally:
         db.close()
     if family:
@@ -920,6 +993,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
+    fragments.append(_change_guidance_review_packet_panel(review_packets))
     fragments.append(_change_guidance_drift_panel(drift))
     fragments.append(_change_guidance_calibration_panel(calibration))
     fragments.append(_change_guidance_evaluation_panel(evaluation))
