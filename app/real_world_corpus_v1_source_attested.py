@@ -58,6 +58,11 @@ def _canonical_hash(value: Any) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _blind_case_id(source_project: str, revision_sha: str) -> str:
+    material = f"{_text(source_project).lower()}|{_text(revision_sha).lower()}"
+    return "SA-" + hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
+
+
 def _score(value: Any) -> int | None:
     try:
         number = int(round(float(value)))
@@ -340,7 +345,7 @@ def build_source_attested_cases(
         }
         positive = {
             **common,
-            "id": f"source-attested:{root}:positive",
+            "id": _blind_case_id(check["source_project"], check["parent_sha"]),
             "variant": "positive",
             "label": True,
             "revision_sha": check["parent_sha"],
@@ -349,7 +354,7 @@ def build_source_attested_cases(
         }
         negative = {
             **common,
-            "id": f"source-attested:{root}:secure-negative",
+            "id": _blind_case_id(check["source_project"], check["fix_sha"]),
             "variant": "secure_negative",
             "label": False,
             "revision_sha": check["fix_sha"],
@@ -386,9 +391,64 @@ def build_source_attested_cases(
             "labels_do_not_create_target_evidence": True,
             "labels_are_not_activation_eligible": True,
             "scores_are_not_fabricated_from_labels": True,
+            "score_case_ids_do_not_encode_label_or_variant": True,
             "production_activation_is_never_performed": True,
         },
     }
+
+
+def blind_replay_manifest(
+    attested_records: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Return a scorer-facing manifest with ground-truth fields removed."""
+
+    rows: list[dict[str, Any]] = []
+    for raw in attested_records:
+        row = dict(raw)
+        case_id = _text(row.get("id"))
+        project = _text(row.get("source_project"))
+        revision = _text(row.get("revision_sha"))
+        if not case_id or not project or not revision:
+            continue
+        rows.append({
+            "case_id": case_id,
+            "source_project": project,
+            "revision_sha": revision,
+            "scoring_instruction": "score_all_canonical_families_without_ground_truth",
+        })
+    return {
+        "version": SOURCE_ATTESTED_VERSION,
+        "rule_version": SOURCE_ATTESTED_RULE_VERSION,
+        "case_count": len(rows),
+        "cases": rows,
+        "ground_truth_fields_removed": [
+            "label",
+            "variant",
+            "family",
+            "source_root",
+            "advisory_cwes",
+            "source_attestation",
+            "revision_pair_sha256",
+            "patch_set_sha256",
+        ],
+        "safety": {
+            "label_blind": True,
+            "family_blind": True,
+            "advisory_blind": True,
+            "opaque_case_ids": True,
+        },
+    }
+
+
+def write_blind_replay_manifest(
+    path: str | Path,
+    attested_records: Iterable[Mapping[str, Any]],
+) -> None:
+    payload = blind_replay_manifest(attested_records)
+    Path(path).write_text(
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def load_score_rows(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
@@ -716,6 +776,8 @@ __all__ = [
     "DEFAULT_THRESHOLD",
     "DEFAULT_HOLDOUT_PERCENT",
     "build_source_attested_cases",
+    "blind_replay_manifest",
+    "write_blind_replay_manifest",
     "load_score_rows",
     "attach_current_engine_scores",
     "source_attested_evaluation_report",
