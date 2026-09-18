@@ -80,8 +80,8 @@ _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
 _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
-RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.1.0"
-RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.08.14.2"
+RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.2.0"
+RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.18.1"
 _RAW_SURFACE_LIMIT = 5000
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
