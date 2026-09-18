@@ -1707,14 +1707,19 @@ class Database:
 
     @contextlib.contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        self.conn.execute("BEGIN IMMEDIATE")
-        try:
-            yield self.conn
-        except Exception:
-            self.conn.execute("ROLLBACK")
-            raise
-        else:
-            self.conn.execute("COMMIT")
+        # Keep the connection lock for the entire transaction. Without this,
+        # another thread using the same Database instance can execute statements
+        # inside this transaction and accidentally commit or roll back work that
+        # belongs to a different operation.
+        with self._lock:
+            self.conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield self.conn
+            except Exception:
+                self.conn.execute("ROLLBACK")
+                raise
+            else:
+                self.conn.execute("COMMIT")
 
     def execute(self, sql: str, params: Sequence[Any] = ()) -> sqlite3.Cursor:
         with self._lock:
@@ -1730,23 +1735,72 @@ class Database:
 
     def audit(self, action: str, *, actor: str = "system", target: str = "", entity_type: str = "", entity_value: str = "", details: Mapping[str, Any] | None = None) -> None:
         created = utc_now()
-        record = {"created_at": created, "actor": actor, "action": action, "target": target, "entity_type": entity_type, "entity_value": entity_value, "details": dict(details or {})}
-        cursor = self.execute(
-            "INSERT INTO audit_log(actor,action,target,entity_type,entity_value,details_json,created_at) VALUES(?,?,?,?,?,?,?)",
-            (actor, action, target or None, entity_type or None, entity_value or None, json_dumps(details or {}), created),
-        )
-        audit_id = int(cursor.lastrowid or 0)
+        record = {
+            "created_at": created,
+            "actor": actor,
+            "action": action,
+            "target": target,
+            "entity_type": entity_type,
+            "entity_value": entity_value,
+            "details": dict(details or {}),
+        }
         event_json = json_dumps(record)
-        previous_row = self.one("SELECT event_hash FROM audit_integrity ORDER BY audit_id DESC LIMIT 1")
-        previous_hash = str(previous_row["event_hash"]) if previous_row else ""
-        event_hash = sha256_text(previous_hash + "|" + event_json)
-        self.execute(
-            "INSERT OR REPLACE INTO audit_integrity(audit_id,previous_hash,event_hash,event_json,created_at) VALUES(?,?,?,?,?)",
-            (audit_id, previous_hash, event_hash, event_json, created),
-        )
-        audit_path = self.path.parent / "audit.jsonl"
-        with audit_path.open("a", encoding="utf-8") as handle:
-            handle.write(event_json + "\n")
+
+        # audit_log and audit_integrity form one logical append. BEGIN IMMEDIATE
+        # serializes the chain head across independent SQLite connections, while
+        # _lock prevents another thread sharing this connection from interleaving.
+        # When audit() is called inside an existing Database.transaction(), that
+        # outer transaction already owns both protections and this append joins it.
+        with self._lock:
+            owns_transaction = not self.conn.in_transaction
+            if owns_transaction:
+                self.conn.execute("BEGIN IMMEDIATE")
+            try:
+                cursor = self.conn.execute(
+                    "INSERT INTO audit_log(actor,action,target,entity_type,entity_value,details_json,created_at) VALUES(?,?,?,?,?,?,?)",
+                    (
+                        actor,
+                        action,
+                        target or None,
+                        entity_type or None,
+                        entity_value or None,
+                        json_dumps(details or {}),
+                        created,
+                    ),
+                )
+                audit_id = int(cursor.lastrowid or 0)
+                previous_row = self.conn.execute(
+                    "SELECT event_hash FROM audit_integrity ORDER BY audit_id DESC LIMIT 1"
+                ).fetchone()
+                previous_hash = (
+                    str(previous_row["event_hash"])
+                    if previous_row
+                    else ""
+                )
+                event_hash = sha256_text(previous_hash + "|" + event_json)
+                self.conn.execute(
+                    "INSERT INTO audit_integrity(audit_id,previous_hash,event_hash,event_json,created_at) VALUES(?,?,?,?,?)",
+                    (
+                        audit_id,
+                        previous_hash,
+                        event_hash,
+                        event_json,
+                        created,
+                    ),
+                )
+                if owns_transaction:
+                    self.conn.execute("COMMIT")
+            except Exception:
+                if owns_transaction and self.conn.in_transaction:
+                    self.conn.execute("ROLLBACK")
+                raise
+
+            # audit.jsonl is a human-readable mirror. The SQLite audit tables are
+            # the transactional source of truth and verify_audit_chain() reads
+            # them. Keep mirror writes serialized for threads sharing this DB.
+            audit_path = self.path.parent / "audit.jsonl"
+            with audit_path.open("a", encoding="utf-8") as handle:
+                handle.write(event_json + "\n")
 
     def budget_init(self, run_id: str, target: str, limits: Mapping[str, int]) -> None:
         now = utc_now()
