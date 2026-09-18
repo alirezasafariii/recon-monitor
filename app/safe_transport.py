@@ -237,6 +237,47 @@ def perform_pinned_request(
 
 
 _REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+_SENSITIVE_REDIRECT_HEADERS = {
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "x-api-key",
+    "api-key",
+    "x-auth-token",
+}
+
+
+def _effective_port(parsed: urllib.parse.SplitResult) -> int:
+    return parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+
+
+def _same_origin(left: str, right: str) -> bool:
+    try:
+        a=urllib.parse.urlsplit(left)
+        b=urllib.parse.urlsplit(right)
+        return (
+            a.scheme.lower()==b.scheme.lower()
+            and (a.hostname or "").lower()==(b.hostname or "").lower()
+            and _effective_port(a)==_effective_port(b)
+        )
+    except ValueError:
+        return False
+
+
+def _redirect_headers(
+    headers: dict[str, str],
+    *,
+    previous_url: str,
+    next_url: str,
+) -> dict[str, str]:
+    if _same_origin(previous_url,next_url):
+        return dict(headers)
+    return {
+        str(key):str(value)
+        for key,value in headers.items()
+        if str(key).strip().lower() not in _SENSITIVE_REDIRECT_HEADERS
+    }
 
 
 def _header_dict(headers: Any) -> dict[str, str]:
@@ -307,6 +348,7 @@ def perform_pinned_download(
     """
     original_url = str(url or "").strip()
     current_url = original_url
+    active_headers = {str(k): str(v) for k, v in dict(headers or {}).items()}
     max_bytes = max(0, int(max_response_bytes))
     redirect_limit = max(0, min(int(max_redirects), 10))
     hop_log: list[dict[str, Any]] = []
@@ -360,7 +402,7 @@ def perform_pinned_download(
             "User-Agent": user_agent,
             "Accept": "*/*",
         }
-        request_headers.update({str(k): str(v) for k, v in dict(headers or {}).items()})
+        request_headers.update(active_headers)
         request = urllib.request.Request(
             url=current_url,
             headers=request_headers,
@@ -451,6 +493,12 @@ def perform_pinned_download(
             if status_code in _REDIRECT_STATUSES and location:
                 next_url = urllib.parse.urljoin(current_url, location)
                 in_scope = bool(policy.url_in_scope(next_url))
+                current_parts = urllib.parse.urlsplit(current_url)
+                next_parts = urllib.parse.urlsplit(next_url)
+                downgrade = (
+                    current_parts.scheme.lower()=="https"
+                    and next_parts.scheme.lower()=="http"
+                )
                 hop_log.append(
                     {
                         "url": current_url,
@@ -459,7 +507,15 @@ def perform_pinned_download(
                         "status_code": status_code,
                         "location": location,
                         "next_url": next_url,
-                        "result": "redirect_in_scope" if in_scope else "redirect_outside_scope",
+                        "result": (
+                            "redirect_scheme_downgrade"
+                            if downgrade
+                            else (
+                                "redirect_in_scope"
+                                if in_scope
+                                else "redirect_outside_scope"
+                            )
+                        ),
                     }
                 )
                 with contextlib.suppress(Exception):
@@ -477,6 +533,18 @@ def perform_pinned_download(
                         transport_hops=hop_log,
                         redirect_outside_scope=True,
                     )
+                if downgrade:
+                    return _transport_result(
+                        original_url=original_url,
+                        final_url=current_url,
+                        status_code=status_code,
+                        headers=response_headers,
+                        error="redirect_scheme_downgrade_blocked",
+                        transport_status="stopped_for_safety",
+                        resolved_addresses=addresses,
+                        pinned_address=pinned_ip,
+                        transport_hops=hop_log,
+                    )
                 if redirect_index >= redirect_limit:
                     return _transport_result(
                         original_url=original_url,
@@ -489,6 +557,11 @@ def perform_pinned_download(
                         pinned_address=pinned_ip,
                         transport_hops=hop_log,
                     )
+                active_headers = _redirect_headers(
+                    active_headers,
+                    previous_url=current_url,
+                    next_url=next_url,
+                )
                 current_url = next_url
                 continue
 
