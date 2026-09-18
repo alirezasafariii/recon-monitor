@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 import os
@@ -38,20 +39,84 @@ from platform_v6 import (
     security_posture, set_revalidation_policy, set_retention_policy, validation_intelligence, verify_audit_chain,
 )
 
-ROLE_LEVEL={"viewer":10,"analyst":20,"worker":20,"lead_analyst":25,"admin":30}
+ROLE_LEVEL={"viewer":10,"analyst":20,"lead_analyst":25,"admin":30}
+API_ROLES={*ROLE_LEVEL,"worker"}
+API_SCOPES={"read","write","validation","operations","admin","worker"}
+ROLE_ALLOWED_SCOPES={
+    "viewer":{"read"},
+    "analyst":{"read","write","validation"},
+    "lead_analyst":{"read","write","validation","operations"},
+    "admin":set(API_SCOPES),
+    "worker":{"worker"},
+}
+ROLE_DEFAULT_SCOPES={
+    "viewer":["read"],
+    "analyst":["read","write"],
+    "lead_analyst":["read","write","validation","operations"],
+    "admin":["read","write","validation","operations","admin","worker"],
+    "worker":["worker"],
+}
+WORKER_CAPABILITIES={"http_head","download_url"}
+WORK_LEASE_SECONDS=120
+OPERATIONS_POST_PATHS={
+    "/api/v1/suite/revalidation",
+    "/api/v1/suite/revalidation-process",
+    "/api/v1/suite/scheduled-run",
+    "/api/v1/suite/schedule-sync",
+    "/api/v1/suite/notification-deliver",
+    "/api/v1/suite/security-posture",
+    "/api/v1/suite/retention-policy",
+    "/api/v1/suite/retention-preview",
+    "/api/v1/suite/retention-apply",
+    "/api/v1/suite/template-apply",
+}
+
+
+def _role_allows(role: str, required: str) -> bool:
+    if required=="worker":
+        return role in {"worker","admin"}
+    if role=="worker":
+        return False
+    return ROLE_LEVEL.get(role,0)>=ROLE_LEVEL.get(required,999)
+
+
+def _request_scope(method: str, path: str) -> str:
+    if path.startswith("/api/v1/work/") or path.startswith("/api/v1/workers/"):
+        return "worker"
+    if method=="POST" and path.startswith("/api/v1/validation/"):
+        return "validation"
+    if method=="POST" and path in OPERATIONS_POST_PATHS:
+        return "operations"
+    return "read" if method=="GET" else "write"
+
+
+def _bearer_token_hash(header: str) -> str:
+    if not header.startswith("Bearer "):
+        return ""
+    token=header[7:].strip()
+    return hashlib.sha256(token.encode()).hexdigest() if token else ""
 
 
 def create_token(db: Database, name: str, role: str, scopes: list[str] | None = None, expires_days: int = 90) -> str:
-    if role not in ROLE_LEVEL: raise ReconError("Invalid API role")
-    allowed={"read","write","validation","operations","admin","worker"}
-    scopes=[str(s).strip().lower() for s in (scopes or (["read"] if role=="viewer" else ["read","write"])) if str(s).strip()]
-    if any(scope not in allowed for scope in scopes): raise ReconError("Invalid API token scope")
-    import datetime as _dt
+    if role not in API_ROLES: raise ReconError("Invalid API role")
+    requested=[
+        str(s).strip().lower()
+        for s in (scopes if scopes is not None else ROLE_DEFAULT_SCOPES[role])
+        if str(s).strip()
+    ]
+    if not requested:
+        requested=list(ROLE_DEFAULT_SCOPES[role])
+    if any(scope not in API_SCOPES for scope in requested):
+        raise ReconError("Invalid API token scope")
+    allowed_for_role=ROLE_ALLOWED_SCOPES[role]
+    if any(scope not in allowed_for_role for scope in requested):
+        raise ReconError("API token scope exceeds the selected role")
+    requested=list(dict.fromkeys(requested))
     expires_days=max(1,min(3650,int(expires_days)))
-    expires=(_dt.datetime.now(_dt.timezone.utc)+_dt.timedelta(days=expires_days)).replace(microsecond=0).isoformat().replace("+00:00","Z")
+    expires=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(days=expires_days)).replace(microsecond=0).isoformat().replace("+00:00","Z")
     token="rm6_"+secrets.token_urlsafe(36); digest=hashlib.sha256(token.encode()).hexdigest()
-    db.execute("INSERT INTO api_tokens(name,token_hash,role,scopes_json,expires_at,created_at) VALUES(?,?,?,?,?,?)",(name,digest,role,json_dumps(scopes),expires,utc_now()))
-    db.audit("api_token_created",entity_type="api_token",entity_value=name,details={"role":role,"scopes":scopes,"expires_at":expires})
+    db.execute("INSERT INTO api_tokens(name,token_hash,role,scopes_json,expires_at,created_at) VALUES(?,?,?,?,?,?)",(name,digest,role,json_dumps(requested),expires,utc_now()))
+    db.audit("api_token_created",entity_type="api_token",entity_value=name,details={"role":role,"scopes":requested,"expires_at":expires})
     return token
 
 
@@ -77,13 +142,18 @@ class APIHandler(BaseHTTPRequestHandler):
         try:return json.loads(self.rfile.read(length).decode() or "{}")
         except Exception:return {}
     def auth(self,required="viewer",scope: str | None = None):
+        header=self.headers.get("Authorization","")
         db=self.db()
-        try: ok,name,role,scopes=authenticate(db,self.headers.get("Authorization",""))
+        try: ok,name,role,scopes=authenticate(db,header)
         finally: db.close()
-        required_scope=scope or ("read" if self.command=="GET" else "write")
-        legacy_unscoped=not scopes
-        scope_ok=legacy_unscoped or required_scope in scopes or "admin" in scopes or (required_scope=="write" and "validation" in scopes and self.path.startswith("/api/v1/validation")) or (required_scope=="write" and "operations" in scopes and self.path.startswith("/api/v1/platform"))
-        if not ok or ROLE_LEVEL.get(role,0)<ROLE_LEVEL.get(required,999) or not scope_ok: self.send_json({"error":"unauthorized"},401); return None
+        path=urllib.parse.urlsplit(self.path).path
+        required_scope=scope or _request_scope(self.command,path)
+        scope_ok=required_scope in scopes or (role=="admin" and "admin" in scopes)
+        role_ok=_role_allows(role,required)
+        if not ok or not role_ok or not scope_ok:
+            self.send_json({"error":"unauthorized"},401)
+            return None
+        self.auth_token_hash=_bearer_token_hash(header)
         return name,role
     def do_GET(self):
         auth=self.auth("viewer")
@@ -261,23 +331,96 @@ class APIHandler(BaseHTTPRequestHandler):
             if path=="/api/v1/views":
                 now=utc_now(); db.execute("INSERT INTO saved_views(owner,name,view_type,query_json,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner,name) DO UPDATE SET view_type=excluded.view_type,query_json=excluded.query_json,updated_at=excluded.updated_at",(actor,str(data.get('name')),str(data.get('view_type','search')),json_dumps(data.get('query',{})),now,now)); self.send_json({"ok":True}); return
             if path=="/api/v1/workers/register":
-                worker_id=str(data.get('worker_id') or secrets.token_hex(8)); db.execute("INSERT INTO remote_workers(worker_id,name,capabilities_json,status,registered_at,last_heartbeat,metadata_json) VALUES(?,?,?,'online',?,?,?) ON CONFLICT(worker_id) DO UPDATE SET name=excluded.name,capabilities_json=excluded.capabilities_json,status='online',last_heartbeat=excluded.last_heartbeat,metadata_json=excluded.metadata_json",(worker_id,str(data.get('name',worker_id)),json_dumps(data.get('capabilities',[])),utc_now(),utc_now(),json_dumps(data.get('metadata',{})))); self.send_json({"worker_id":worker_id}); return
+                worker_id=str(data.get('worker_id') or secrets.token_hex(8))
+                requested_capabilities=set(map(str,data.get('capabilities',[])))
+                if not requested_capabilities or not requested_capabilities.issubset(WORKER_CAPABILITIES):
+                    self.send_json({"error":"invalid worker capabilities"},400); return
+                token_hash=str(getattr(self,"auth_token_hash",""))
+                existing=db.one("SELECT auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
+                if existing and str(existing["auth_token_hash"] or "")!=token_hash:
+                    self.send_json({"error":"worker id is bound to another token"},403); return
+                now=utc_now()
+                db.execute(
+                    "INSERT INTO remote_workers(worker_id,name,capabilities_json,status,registered_at,last_heartbeat,metadata_json,auth_token_hash) "
+                    "VALUES(?,?,?,'online',?,?,?,?) "
+                    "ON CONFLICT(worker_id) DO UPDATE SET "
+                    "name=excluded.name,capabilities_json=excluded.capabilities_json,status='online',"
+                    "last_heartbeat=excluded.last_heartbeat,metadata_json=excluded.metadata_json",
+                    (
+                        worker_id,
+                        str(data.get('name',worker_id)),
+                        json_dumps(sorted(requested_capabilities)),
+                        now,
+                        now,
+                        json_dumps(data.get('metadata',{})),
+                        token_hash,
+                    ),
+                )
+                self.send_json({"worker_id":worker_id}); return
             if path=="/api/v1/workers/heartbeat":
-                worker_id=str(data.get('worker_id')); db.execute("UPDATE remote_workers SET status='online',last_heartbeat=? WHERE worker_id=?",(utc_now(),worker_id)); self.send_json({"ok":True}); return
+                worker_id=str(data.get('worker_id'))
+                row=db.one("SELECT auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
+                if not row or not secrets.compare_digest(str(row["auth_token_hash"] or ""),str(getattr(self,"auth_token_hash",""))):
+                    self.send_json({"error":"worker identity mismatch"},403); return
+                db.execute("UPDATE remote_workers SET status='online',last_heartbeat=? WHERE worker_id=?",(utc_now(),worker_id))
+                self.send_json({"ok":True}); return
             if path=="/api/v1/work/claim":
-                worker_id=str(data.get('worker_id')); capabilities=set(map(str,data.get('capabilities',[])))
+                worker_id=str(data.get('worker_id'))
+                worker=db.one("SELECT capabilities_json,auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
+                if not worker or not secrets.compare_digest(str(worker["auth_token_hash"] or ""),str(getattr(self,"auth_token_hash",""))):
+                    self.send_json({"error":"worker identity mismatch"},403); return
+                capabilities=set(map(str,safe_json_loads(worker["capabilities_json"],[],expected_type=list)))
+                lease_token=""
+                chosen_payload=None
                 with db.transaction():
                     rows=db.all("SELECT * FROM work_items WHERE status IN ('queued','retry_pending') ORDER BY created_at LIMIT 50")
-                    chosen=None
                     for row in rows:
                         payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
-                        if not kind or kind in capabilities: chosen=row; break
-                    if chosen: db.work_start(int(chosen['id']),worker_id)
-                self.send_json(dict(chosen) if chosen else {"work":None}); return
+                        if kind and kind not in capabilities:
+                            continue
+                        candidate_lease=secrets.token_urlsafe(32)
+                        lease_hash=hashlib.sha256(candidate_lease.encode()).hexdigest()
+                        lease_expires=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(seconds=WORK_LEASE_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00","Z")
+                        if db.work_start(
+                            int(row['id']),
+                            worker_id,
+                            lease_token_hash=lease_hash,
+                            lease_expires_at=lease_expires,
+                        ):
+                            chosen_payload=dict(row)
+                            lease_token=candidate_lease
+                            break
+                if chosen_payload is None:
+                    self.send_json({"work":None}); return
+                chosen_payload["lease_token"]=lease_token
+                self.send_json(chosen_payload); return
             if path=="/api/v1/work/result":
                 work_id=parse_int(data.get('id'),0)
-                if data.get('ok',False): db.work_finish(work_id,data.get('result',{}))
-                else: db.work_fail(work_id,str(data.get('error','worker failure')),retry=bool(data.get('retry',True)))
+                worker_id=str(data.get('worker_id') or '')
+                lease_token=str(data.get('lease_token') or '')
+                worker=db.one("SELECT auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
+                if not worker or not secrets.compare_digest(str(worker["auth_token_hash"] or ""),str(getattr(self,"auth_token_hash",""))):
+                    self.send_json({"error":"worker identity mismatch"},403); return
+                if not lease_token:
+                    self.send_json({"error":"lease token required"},400); return
+                lease_hash=hashlib.sha256(lease_token.encode()).hexdigest()
+                if data.get('ok',False):
+                    accepted=db.work_finish(
+                        work_id,
+                        data.get('result',{}),
+                        worker_id=worker_id,
+                        lease_token_hash=lease_hash,
+                    )
+                else:
+                    accepted=db.work_fail(
+                        work_id,
+                        str(data.get('error','worker failure')),
+                        retry=bool(data.get('retry',True)),
+                        worker_id=worker_id,
+                        lease_token_hash=lease_hash,
+                    )
+                if not accepted:
+                    self.send_json({"error":"work lease is invalid, expired, or not owned by this worker"},409); return
                 self.send_json({"ok":True}); return
             self.send_json({"error":"not found"},404)
         finally: db.close()
