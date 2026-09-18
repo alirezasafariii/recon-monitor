@@ -197,6 +197,8 @@ def finalize_draft(draft: Mapping[str, Any]) -> dict[str, Any]:
         "case_origin_id": _text(raw.get("case_origin_id")),
         "evidence_snapshot_id": _text(raw.get("evidence_snapshot_id")),
         "evidence_quality": dict(quality),
+        "evaluation_role": _text(raw.get("evaluation_role")) or "fresh_candidate",
+        "source_corpus_id": _text(raw.get("source_corpus_id")) or "real-world-corpus-v1",
     }
 
     contract = validate_verified_replay_record(record)
