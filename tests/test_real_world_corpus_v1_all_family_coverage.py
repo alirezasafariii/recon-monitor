@@ -106,11 +106,14 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         )
 
     def test_unique_cwe_candidate_can_be_matched_without_semantic_guess(self):
-        raw = _advisory(
-            "Object access control weakness in a REST API",
-            "CWE-639",
+        unique_cwe, owners = next(
+            (cwe, families)
+            for cwe, families in sorted(cwe_owners().items())
+            if len(families) == 1
         )
-        match = candidate_family_match(raw, "broken_object_authorization")
+        family = owners[0]
+        raw = _advisory("A reviewed advisory with a canonical CWE", unique_cwe)
+        match = candidate_family_match(raw, family)
         self.assertTrue(match["matched"])
         self.assertEqual(match["basis"], "unique_canonical_cwe")
 
@@ -189,19 +192,25 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         api_get.assert_called_once()
 
     def test_source_resolver_uses_unique_target_cwe_when_hint_is_missing(self):
+        unique_cwe, owners = next(
+            (cwe, families)
+            for cwe, families in sorted(cwe_owners().items())
+            if len(families) == 1
+        )
+        family = owners[0]
         feasibility = {
             "family_hints": [],
             "source_taxonomy_match": {
-                "family_target": "broken_object_authorization",
-                "target_cwe": "CWE-639",
+                "family_target": family,
+                "target_cwe": unique_cwe,
             },
         }
         result = resolve_source_family(
             feasibility,
-            _advisory("Authorization issue", "CWE-639"),
+            _advisory("A reviewed advisory with a canonical CWE", unique_cwe),
         )
         self.assertTrue(result["resolved"])
-        self.assertEqual(result["family"], "broken_object_authorization")
+        self.assertEqual(result["family"], family)
         self.assertEqual(result["basis"], "unique_canonical_target_cwe")
 
     def test_source_resolver_can_disambiguate_shared_cwe_with_summary(self):
@@ -255,10 +264,12 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
 
     def test_cwe_owner_index_covers_known_shared_and_unique_taxonomy(self):
         owners = cwe_owners()
-        self.assertEqual(owners["CWE-639"], ("broken_object_authorization",))
+        self.assertIn("broken_object_authorization", owners["CWE-639"])
+        self.assertIn("graphql_authorization", owners["CWE-639"])
         self.assertIn("stored_xss", owners["CWE-79"])
         self.assertIn("reflected_xss", owners["CWE-79"])
         self.assertIn("dom_xss", owners["CWE-79"])
+        self.assertTrue(any(len(families) == 1 for families in owners.values()))
 
 
 if __name__ == "__main__":
