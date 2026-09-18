@@ -108,6 +108,47 @@ class ReconP1CollectionTests(unittest.TestCase):
         self.assertEqual(result["dns_rebinding_protection"], "resolution_pinned")
         self.assertEqual(ctx.budget.used, 1)
 
+    def test_origin_probe_falls_back_to_bounded_get_when_head_is_unsupported(self) -> None:
+        ctx = _ctx()
+        calls = []
+
+        def fake_transport(item, policy, **kwargs):
+            calls.append(dict(item))
+            observation = kwargs["observation"]
+            if item["method"] == "HEAD":
+                row = observation(
+                    "HEAD",
+                    item["url"],
+                    405,
+                    {"Content-Type": "text/html"},
+                    b"",
+                    "http_error",
+                )
+            else:
+                self.assertEqual(item["headers"]["Range"], "bytes=0-0")
+                self.assertEqual(kwargs["max_response_bytes"], 1024)
+                row = observation(
+                    "GET",
+                    item["url"],
+                    200,
+                    {"Content-Type": "text/html"},
+                    b"x",
+                    "",
+                )
+            row["dns_rebinding_protection"] = "resolution_pinned"
+            return row, "ok"
+
+        with patch("stages.perform_pinned_request", side_effect=fake_transport):
+            result = _origin_probe_one(ctx, "https://app.example.com")
+
+        self.assertEqual([row["method"] for row in calls], ["HEAD", "GET"])
+        self.assertTrue(result["head_fallback_used"])
+        self.assertEqual(result["head_fallback_status_code"], 405)
+        self.assertEqual(result["method"], "GET")
+        self.assertEqual(result["status_code"], 200)
+        self.assertTrue(result["live"])
+        self.assertEqual(ctx.budget.used, 2)
+
     def test_out_of_scope_redirect_is_not_a_crawl_origin(self) -> None:
         ctx = _ctx()
 
