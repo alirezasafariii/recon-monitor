@@ -187,6 +187,7 @@ class SourceAttestedCorpusV1Tests(unittest.TestCase):
         # Keep the second source independent.
         second_artifacts[0]["sources"][0]["source_project"] = "owner/second"
         second_artifacts[1]["source_packs"][0]["source_project"] = "owner/second"
+        second_artifacts[2]["revision_pairs"][0]["source_project"] = "owner/second"
         second_artifacts[1]["source_packs"][0]["advisory_snapshot"]["repository_advisory_url"] = (
             "https://api.github.com/repos/owner/second/security-advisories/GHSA-DDDD-EEEE-FFFF"
         )
