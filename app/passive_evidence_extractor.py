@@ -12,14 +12,15 @@ Safety properties:
 - no payload generation and no target mutation;
 - no taxonomy/write-up material is treated as target evidence;
 - route names alone never become vulnerability evidence;
-- direct/confirmation signals are never synthesized.
+- direct condition signals are derived only when concrete stored observations directly establish the named condition; exploit/impact confirmation signals are never synthesized.
 """
 
+import re
 import urllib.parse
 from typing import Any, Mapping
 
-PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.3.0"
-PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.4"
+PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.4.0"
+PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.5"
 
 _BACKUP_SUFFIXES = (
     ".bak",
@@ -68,6 +69,42 @@ _SECURE_REFERRER_POLICIES = frozenset(
     }
 )
 _HSTS_MIN_MAX_AGE_SECONDS = 15_552_000
+_DIAGNOSTIC_TITLE_MARKERS = (
+    "apache status",
+    "debug toolbar",
+    "django debug",
+    "phpinfo()",
+    "server status",
+    "spring boot actuator",
+    "werkzeug debugger",
+)
+_STRONG_DIAGNOSTIC_PATH_MARKERS = (
+    "/server-status",
+    "/server-info",
+    "/phpinfo.php",
+    "/_debug_toolbar",
+    "/__debug__",
+    "/debug/pprof",
+    "/actuator/env",
+    "/actuator/configprops",
+    "/actuator/beans",
+    "/actuator/mappings",
+    "/actuator/heapdump",
+    "/actuator/threaddump",
+)
+_DEPRECATED_LIFECYCLE_STATES = frozenset(
+    {"deprecated", "retired", "sunset", "decommissioned", "legacy"}
+)
+_STALE_LIFECYCLE_STATES = frozenset({"stale", "orphaned", "obsolete"})
+_API_PATH_RE = re.compile(r"/(?:api(?:/|$)|(?:api/)?v\d+(?:/|$))", re.I)
+_DEBUG_API_PATH_RE = re.compile(
+    r"/(?:api/)?(?:v\d+/)?debug(?:/|$)|/debug/api(?:/|$)",
+    re.I,
+)
+_DIRECTORY_INDEX_TITLE_RE = re.compile(
+    r"^(?:index of(?: /|$)|directory listing for\b)",
+    re.I,
+)
 
 _ALLOWED_DERIVED_SIGNALS = frozenset(
     {
@@ -87,6 +124,15 @@ _ALLOWED_DERIVED_SIGNALS = frozenset(
         "noopener_enforced",
         "noreferrer_enforced",
         "known_vulnerable_component_match_observed",
+        "debug_mode_publicly_exposed",
+        "directory_listing_observed",
+        "inventory_drift_signal",
+        "deprecated_api_publicly_reachable",
+        "undocumented_api_publicly_reachable",
+        "debug_api_publicly_reachable",
+        "stale_api_host_publicly_reachable",
+        "debug_endpoint_restricted",
+        "version_decommissioned",
     }
 )
 
@@ -615,6 +661,259 @@ def _derive_semantic_js_evidence(
         )
 
 
+def _record_passive_condition(
+    enriched: dict[str, Any],
+    signal: str,
+    **fields: Any,
+) -> None:
+    raw = enriched.get("passive_condition_details")
+    details = dict(raw) if isinstance(raw, Mapping) else {}
+    details[signal] = {
+        key: value
+        for key, value in fields.items()
+        if value not in (None, "", [], {})
+    }
+    enriched["passive_condition_details"] = details
+
+
+def _successful_stored_response(status: int) -> bool:
+    return 200 <= status < 300
+
+
+def _diagnostic_title(title: str) -> bool:
+    return any(marker in title for marker in _DIAGNOSTIC_TITLE_MARKERS)
+
+
+def _strong_diagnostic_path(path: str) -> bool:
+    return any(marker in path for marker in _STRONG_DIAGNOSTIC_PATH_MARKERS)
+
+
+def _api_surface(path: str, classification: str, content_type: str) -> bool:
+    return (
+        bool(_API_PATH_RE.search(path))
+        or classification in {"api", "graphql"}
+        or "application/json" in content_type
+    )
+
+
+def _authoritative_inventory_context(enriched: Mapping[str, Any]) -> bool:
+    return any(
+        bool(enriched.get(key))
+        for key in (
+            "inventory_baseline",
+            "authoritative_inventory",
+            "lifecycle_source",
+            "inventory_source",
+        )
+    )
+
+
+def _derive_misconfiguration_and_inventory_evidence(
+    enriched: dict[str, Any],
+    sources: dict[str, list[str]],
+    *,
+    endpoint: str,
+    path: str,
+    title: str,
+    classification: str,
+    status: int,
+    content_type: str,
+) -> None:
+    if not status:
+        return
+
+    # Directory indexes have a strong, response-derived title signature. A path
+    # containing "directory" is never sufficient.
+    if (
+        _successful_html_response(status, content_type)
+        and _DIRECTORY_INDEX_TITLE_RE.search(title)
+    ):
+        _set_signal(
+            enriched,
+            sources,
+            "directory_listing_observed",
+            "stored_http_status",
+            "stored_page_title",
+            "stored_html_response",
+        )
+        _record_passive_condition(
+            enriched,
+            "directory_listing_observed",
+            endpoint=endpoint,
+            status_code=status,
+            content_type=content_type,
+            title=title[:200],
+        )
+
+    diagnostic_path = _strong_diagnostic_path(path)
+    debug_api_path = bool(_DEBUG_API_PATH_RE.search(path)) or diagnostic_path
+    diagnostic_response = (
+        _successful_stored_response(status)
+        and (
+            _diagnostic_title(title)
+            or (
+                diagnostic_path
+                and "text/html" not in content_type
+                and "application/xhtml+xml" not in content_type
+                and bool(content_type)
+            )
+        )
+    )
+
+    if diagnostic_response:
+        _set_signal(
+            enriched,
+            sources,
+            "debug_mode_publicly_exposed",
+            "stored_http_status",
+            "strong_diagnostic_surface",
+            "stored_response_metadata",
+        )
+        _record_passive_condition(
+            enriched,
+            "debug_mode_publicly_exposed",
+            endpoint=endpoint,
+            status_code=status,
+            content_type=content_type,
+            title=title[:200],
+            path=path,
+        )
+
+    if debug_api_path and status in {401, 403}:
+        _set_signal(
+            enriched,
+            sources,
+            "debug_endpoint_restricted",
+            "stored_http_status",
+            "debug_api_surface",
+        )
+        _record_passive_condition(
+            enriched,
+            "debug_endpoint_restricted",
+            endpoint=endpoint,
+            status_code=status,
+            path=path,
+        )
+    elif debug_api_path and diagnostic_response and _api_surface(
+        path, classification, content_type
+    ):
+        _set_signal(
+            enriched,
+            sources,
+            "debug_api_publicly_reachable",
+            "stored_http_status",
+            "debug_api_surface",
+            "stored_response_metadata",
+        )
+        _record_passive_condition(
+            enriched,
+            "debug_api_publicly_reachable",
+            endpoint=endpoint,
+            status_code=status,
+            content_type=content_type,
+            title=title[:200],
+            path=path,
+        )
+
+    # Lifecycle findings require an explicit authoritative baseline/source.
+    # Version numbers or words like "v1"/"old" never create drift by themselves.
+    if not _authoritative_inventory_context(enriched):
+        return
+
+    lifecycle = str(enriched.get("lifecycle_status") or "").strip().lower()
+    documented = _truth(enriched.get("inventory_documented"))
+    api_surface = _api_surface(path, classification, content_type)
+    if not api_surface:
+        return
+
+    if status in {404, 410} and lifecycle in _DEPRECATED_LIFECYCLE_STATES:
+        _set_signal(
+            enriched,
+            sources,
+            "version_decommissioned",
+            "authoritative_inventory_metadata",
+            "stored_http_status",
+        )
+        _record_passive_condition(
+            enriched,
+            "version_decommissioned",
+            endpoint=endpoint,
+            status_code=status,
+            lifecycle_status=lifecycle,
+        )
+        return
+
+    if not _successful_stored_response(status):
+        return
+
+    if lifecycle in _DEPRECATED_LIFECYCLE_STATES:
+        for signal in (
+            "inventory_drift_signal",
+            "deprecated_api_publicly_reachable",
+        ):
+            _set_signal(
+                enriched,
+                sources,
+                signal,
+                "authoritative_inventory_metadata",
+                "stored_http_status",
+                "observed_api_surface",
+            )
+            _record_passive_condition(
+                enriched,
+                signal,
+                endpoint=endpoint,
+                status_code=status,
+                lifecycle_status=lifecycle,
+                inventory_baseline=str(
+                    enriched.get("inventory_baseline")
+                    or enriched.get("authoritative_inventory")
+                    or ""
+                )[:300],
+            )
+    elif lifecycle in _STALE_LIFECYCLE_STATES:
+        for signal in (
+            "inventory_drift_signal",
+            "stale_api_host_publicly_reachable",
+        ):
+            _set_signal(
+                enriched,
+                sources,
+                signal,
+                "authoritative_inventory_metadata",
+                "stored_http_status",
+                "observed_api_surface",
+            )
+            _record_passive_condition(
+                enriched,
+                signal,
+                endpoint=endpoint,
+                status_code=status,
+                lifecycle_status=lifecycle,
+            )
+
+    if documented is False:
+        for signal in (
+            "inventory_drift_signal",
+            "undocumented_api_publicly_reachable",
+        ):
+            _set_signal(
+                enriched,
+                sources,
+                signal,
+                "authoritative_inventory_metadata",
+                "stored_http_status",
+                "observed_api_surface",
+            )
+            _record_passive_condition(
+                enriched,
+                signal,
+                endpoint=endpoint,
+                status_code=status,
+                inventory_documented=False,
+            )
+
+
 def _derive_dependency_advisory_evidence(
     enriched: dict[str, Any],
     sources: dict[str, list[str]],
@@ -729,6 +1028,16 @@ def extract_passive_family_evidence(
             headers=headers,
             headers_observed=headers_observed,
         )
+        _derive_misconfiguration_and_inventory_evidence(
+            enriched,
+            sources,
+            endpoint=endpoint,
+            path=path,
+            title=title,
+            classification=classification,
+            status=status,
+            content_type=content_type,
+        )
 
     enriched["_passive_evidence_extractor"] = {
         "version": PASSIVE_EVIDENCE_EXTRACTOR_VERSION,
@@ -749,6 +1058,11 @@ def extract_passive_family_evidence(
         ),
         "dependency_catalog_is_exhaustive": False,
         "absence_of_dependency_match_means_safe": False,
+        "passive_condition_count": len(
+            enriched.get("passive_condition_details") or {}
+        ),
+        "direct_conditions_require_concrete_stored_observation": True,
+        "exploit_or_impact_confirmation_synthesized": False,
         "derived_signals": sorted(sources),
         "sources": sources,
     }
