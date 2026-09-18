@@ -2793,15 +2793,6 @@ _SENSITIVE_COMMAND_FLAGS = {
     "--proxy-authorization",
 }
 _HEADER_FLAGS = {"-h", "--header"}
-_SENSITIVE_HEADER_NAMES = {
-    "authorization",
-    "proxy-authorization",
-    "cookie",
-    "set-cookie",
-    "x-api-key",
-    "api-key",
-    "x-auth-token",
-}
 _SENSITIVE_QUERY_KEY_RE = re.compile(
     r"(?:token|secret|password|passwd|api[_-]?key|session|auth|code)",
     re.IGNORECASE,
@@ -2850,10 +2841,11 @@ def redact_command_args(args: Sequence[str]) -> list[str]:
             redacted.append(value)
             header_value = values[index + 1]
             header_name, separator, _ = header_value.partition(":")
-            if separator and header_name.strip().lower() in _SENSITIVE_HEADER_NAMES:
-                redacted.append(f"{header_name}: <redacted>")
-            else:
-                redacted.append(_redact_url_command_arg(header_value))
+            redacted.append(
+                f"{header_name}: <redacted>"
+                if separator
+                else "<redacted-header>"
+            )
             index += 2
             continue
 
@@ -2870,10 +2862,13 @@ def redact_command_args(args: Sequence[str]) -> list[str]:
                 continue
             if flag.lower() == "--header":
                 header_name, separator, _ = assigned.partition(":")
-                if separator and header_name.strip().lower() in _SENSITIVE_HEADER_NAMES:
-                    redacted.append(f"{flag}={header_name}: <redacted>")
-                    index += 1
-                    continue
+                redacted.append(
+                    f"{flag}={header_name}: <redacted>"
+                    if separator
+                    else f"{flag}=<redacted-header>"
+                )
+                index += 1
+                continue
 
         redacted.append(_redact_url_command_arg(value))
         index += 1
