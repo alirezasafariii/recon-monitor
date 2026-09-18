@@ -19,13 +19,14 @@ from typing import Any, Iterable, Mapping
 from dependency_version_ranges import (
     DEPENDENCY_VERSION_RANGE_RULE_VERSION,
     DEPENDENCY_VERSION_RANGE_VERSION,
+    observed_version_supported,
     range_expression_capability,
     range_expression_supported,
     version_matches_range,
 )
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.2.0"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.6"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.3.0"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.19.1"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -43,7 +44,7 @@ _ALLOWED_SOURCE_TYPES = {
 }
 _VERSIONED_TECH_RE = re.compile(
     r"^(?P<name>.+?)(?:\s*[:/@]\s*|\s+)"
-    r"v?(?P<version>\d+(?:\.\d+){1,3})$",
+    r"v?(?P<version>\S+)$",
     re.I,
 )
 
@@ -75,7 +76,7 @@ def parse_versioned_technology(value: str) -> dict[str, str] | None:
         return None
     name = normalize_component_name(match.group("name"))
     version = str(match.group("version"))
-    if not name or _version_tuple(version) is None:
+    if not name or not observed_version_supported(version):
         return None
     return {
         "raw": text,
