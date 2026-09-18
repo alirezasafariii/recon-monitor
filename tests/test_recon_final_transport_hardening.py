@@ -20,6 +20,7 @@ from stages import (
     _katana_crawl_plan,
     _katana_scope_regex,
     _origin_probe_one,
+    _policy_headers_for_url,
 )
 
 
@@ -300,6 +301,78 @@ class ReconFinalTransportHardeningTests(unittest.TestCase):
         self.assertEqual(result["certificate"]["serialNumber"], "01")
         self.assertEqual(result["pinned_address"], "93.184.216.34")
         self.assertEqual(result["dns_rebinding_protection"], "resolution_pinned")
+
+    def test_policy_credentials_are_https_only(self) -> None:
+        policy = SimpleNamespace(
+            headers={
+                "Authorization": "Bearer secret",
+                "X-Company-Session": "custom-secret",
+            }
+        )
+        self.assertEqual(
+            _policy_headers_for_url(policy, "http://example.test/private"),
+            {},
+        )
+        self.assertEqual(
+            _policy_headers_for_url(policy, "https://example.test/private"),
+            policy.headers,
+        )
+
+    def test_origin_probe_never_sends_policy_credentials_over_http(self) -> None:
+        ctx = SimpleNamespace(
+            policy=SimpleNamespace(
+                headers={
+                    "Authorization": "Bearer secret",
+                    "X-Company-Session": "custom-secret",
+                },
+                url_in_scope=lambda _url: True,
+                limits=SimpleNamespace(http_workers=8),
+            ),
+            budget=_Budget(),
+        )
+        seen: list[dict[str, str]] = []
+
+        def fake_transport(item, _policy, **kwargs):
+            seen.append(dict(item.get("headers") or {}))
+            observation = kwargs["observation"]
+            return (
+                observation(
+                    item["method"],
+                    item["url"],
+                    200,
+                    {"Content-Type": "text/html"},
+                    b"",
+                    "",
+                ),
+                "ok",
+            )
+
+        with mock.patch("stages.perform_pinned_request", side_effect=fake_transport):
+            _origin_probe_one(ctx, "http://example.test")
+            _origin_probe_one(ctx, "https://example.test")
+
+        self.assertEqual(seen[0], {})
+        self.assertEqual(seen[1]["Authorization"], "Bearer secret")
+        self.assertEqual(seen[1]["X-Company-Session"], "custom-secret")
+
+    def test_external_recon_tools_never_receive_policy_credentials(self) -> None:
+        for fn in (
+            stages.stage_urls,
+            stages.stage_fingerprint,
+            stages.stage_nuclei,
+        ):
+            source = inspect.getsource(fn)
+            self.assertNotIn("header_args(ctx.policy.headers)", source)
+            self.assertNotIn("ctx.policy.headers.items()", source)
+
+        self.assertIn(
+            "_policy_headers_for_url",
+            inspect.getsource(stages._download_url),
+        )
+        self.assertIn(
+            "_policy_headers_for_url",
+            inspect.getsource(stages._safe_validate_endpoint),
+        )
 
     def test_origin_probe_falls_back_to_tiny_get_after_inconclusive_head(self) -> None:
         ctx = _probe_ctx()
