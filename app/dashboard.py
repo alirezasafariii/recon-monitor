@@ -13,6 +13,10 @@ from collections import defaultdict
 from typing import Any, Callable, Mapping
 
 import dashboard_core as _base
+from change_guidance_calibration import (
+    CHANGE_GUIDANCE_CALIBRATION_VERSION,
+    change_guidance_calibration_report,
+)
 from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_VERSION,
     change_guidance_evaluation,
@@ -30,7 +34,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.5.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.6.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -221,6 +225,77 @@ def _queue_item_card(item: dict[str, Any]) -> str:
         f"<div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div><div><strong>Recent Recon change</strong><ul>{change_reasons}</ul><p class='muted small'>Change affinity is non-evidentiary and is already reflected inside bug proximity; it is not counted again in Queue score.</p></div></div>"
         "<div class='next-step'><span>Interpretation</span><p>This cluster is an investigation priority only. Review the underlying Potential Findings and target evidence before any vulnerability claim.</p></div>"
         f"</div><a class='candidate-open' href='{_base._esc(_cluster_href(item))}'>Open cluster →</a></article>"
+    )
+
+
+def _change_guidance_calibration_panel(report: Mapping[str, Any]) -> str:
+    signal_rows = [
+        row
+        for row in report.get("signals", [])
+        if isinstance(row, Mapping)
+    ] if isinstance(report, Mapping) else []
+    if not signal_rows:
+        return (
+            "<section class='panel' id='change-guidance-calibration' style='margin-top:16px'>"
+            "<div class='panel-head'><div><h3>Change-guidance Calibration</h3>"
+            f"<span class='muted small'>Shadow report {_base._esc(CHANGE_GUIDANCE_CALIBRATION_VERSION)}</span></div>"
+            + _base._pill("shadow only", "neutral")
+            + "</div><div class='panel-body'>"
+            + _base._empty(
+                "No explicit signal feedback yet",
+                "Complete or skip change-guided tasks and record useful/neutral/noisy feedback to build a per-signal shadow calibration report.",
+            )
+            + "</div></section>"
+        )
+
+    def pct(value: Any) -> str:
+        if value is None:
+            return "—"
+        return f"{round(float(value) * 100, 1)}%"
+
+    def tone(status: str) -> str:
+        return {
+            "utility_watch": "success",
+            "noise_watch": "danger",
+            "mixed": "info",
+            "insufficient_feedback": "neutral",
+        }.get(status, "neutral")
+
+    rows = "".join(
+        "<tr>"
+        f"<td><code>{_base._esc(row.get('signal_type') or '')}</code></td>"
+        f"<td>{int(row.get('task_count') or 0)}</td>"
+        f"<td>{int(row.get('feedback_count') or 0)}</td>"
+        f"<td>{pct(row.get('useful_rate'))}</td>"
+        f"<td>{pct(row.get('neutral_rate'))}</td>"
+        f"<td>{pct(row.get('noisy_rate'))}</td>"
+        f"<td>{_base._pill(str(row.get('shadow_status') or ''), tone(str(row.get('shadow_status') or '')))}</td>"
+        f"<td>{_base._esc(row.get('review_recommendation') or '')}</td>"
+        "</tr>"
+        for row in signal_rows[:50]
+    )
+    status_counts = report.get("status_counts") if isinstance(report.get("status_counts"), Mapping) else {}
+    return (
+        "<section class='panel' id='change-guidance-calibration' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Change-guidance Calibration</h3>"
+        f"<span class='muted small'>Shadow report {_base._esc(CHANGE_GUIDANCE_CALIBRATION_VERSION)} · explicit analyst usefulness only</span></div>"
+        + _base._pill("shadow only", "info")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Review signal quality — do not tune production</strong>"
+        "<span>This report summarizes explicit useful/neutral/noisy feedback by Derived Change signal type. Statuses are human-review prompts only: they cannot change Meta Ranker weights, Queue score, task ordering, Admission, Evidence Gap, or validation.</span></div>"
+        "<div class='attention-grid' style='margin-top:14px'>"
+        f"<div class='attention-card'><span>Feedback</span><strong>{int(report.get('feedback_count') or 0)}</strong><small>{pct(report.get('feedback_coverage'))} of change-guided tasks</small></div>"
+        f"<div class='attention-card'><span>Signals</span><strong>{int(report.get('signal_count') or 0)}</strong><small>distinct signal types</small></div>"
+        f"<div class='attention-card'><span>Utility watch</span><strong>{int(status_counts.get('utility_watch') or 0)}</strong><small>review only</small></div>"
+        f"<div class='attention-card'><span>Noise watch</span><strong>{int(status_counts.get('noise_watch') or 0)}</strong><small>review extraction/provenance</small></div>"
+        "</div>"
+        "<div class='table-wrap' style='margin-top:14px'><table><thead><tr>"
+        "<th>Signal</th><th>Tasks</th><th>Ratings</th><th>Useful</th><th>Neutral</th><th>Noisy</th><th>Shadow status</th><th>Review recommendation</th>"
+        "</tr></thead><tbody>"
+        + rows
+        + "</tbody></table></div>"
+        f"<p class='muted small' style='margin-top:12px'>A signal remains <code>insufficient_feedback</code> until at least {int(report.get('minimum_feedback_per_signal') or 5)} explicit ratings exist. Ratings are subjective workflow telemetry, not vulnerability labels, and no production activation path exists in this report.</p>"
+        "</div></section>"
     )
 
 
@@ -738,6 +813,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
     db = self.db()
     try:
         evaluation = change_guidance_evaluation(db, target=target, limit=500)
+        calibration = change_guidance_calibration_report(db, target=target, limit=5000)
     finally:
         db.close()
     if family:
@@ -764,6 +840,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
+    fragments.append(_change_guidance_calibration_panel(calibration))
     fragments.append(_change_guidance_evaluation_panel(evaluation))
     fragments.append(_investigation_queue_panel(analysis_id, queue))
     body = _insert_before(body, "<section class='filter-panel'>", "".join(fragments))
