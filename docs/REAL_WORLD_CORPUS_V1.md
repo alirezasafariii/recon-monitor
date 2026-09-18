@@ -72,3 +72,61 @@ No production threshold or Analysis rule is changed by corpus collection.
 ## Current phase
 
 `source_discovery` — no scoring has been executed and the V6 reserved blind set remains untouched.
+
+
+## Port to current main (8.8.0)
+
+The Corpus V1 tooling and review artifacts are ported onto the current 8.8.0
+architecture on the `research/real-world-corpus-v1-port` branch. The port keeps
+the original independence boundary and adds a fail-closed bridge to the current
+`verified_replay_contract` and `real_world_calibration` pipeline.
+
+Current preserved review material:
+
+- 100 independent source origins;
+- 300 pending human-review drafts: positive, secure-negative, and sparse/noisy;
+- three label-blind reviewer packets with source origins kept together;
+- 66 exact parent/fix revision pairs covering 564 changed-file pairs;
+- public advisory/source metadata and SHA-256 evidence bindings;
+- zero records marked human verified.
+
+The historical `variant`, CWE hints, family targets and advisory metadata are
+not labels. `app/real_world_corpus_v1_bridge.py` refuses to emit a verified
+replay record unless all of the following are present:
+
+1. an explicit completed human review;
+2. canonical family and explicit human label;
+3. reviewer identity, review timestamp and label source;
+4. all seven evidence-quality dimensions;
+5. human confirmation of revision-boundary semantics for positive/secure-negative records;
+6. Decision Readiness, Bug Proximity and Target Evidence Confidence from the current engine.
+
+This prevents the corpus design itself from leaking the expected answer into
+calibration and prevents old-engine scores from being treated as current-engine
+measurements.
+
+Review status can be inspected offline:
+
+```bash
+./recon-monitor.sh analysis corpus-v1-review-status \
+  --corpus-review benchmarks/real_world/v1/human_review_queue.json
+```
+
+After human review and current-engine scoring, verified replay JSONL can be
+exported:
+
+```bash
+./recon-monitor.sh analysis corpus-v1-finalize \
+  --corpus-review ./reviewed-corpus-v1.json \
+  --verified-output ./verified-corpus-v1.jsonl
+```
+
+The exported JSONL is then evaluated through the existing label-blind
+train/holdout calibration path:
+
+```bash
+./recon-monitor.sh analysis real-world-calibration \
+  --verified-corpus ./verified-corpus-v1.jsonl
+```
+
+No command in this port performs production activation automatically.
