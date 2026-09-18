@@ -108,10 +108,12 @@ revisions), development-branch aliases such as `x-dev`, and custom labels
 without a documented ordering stay fail-closed rather than being guessed.
 
 A normalized technology alias that exists in multiple ecosystems now abstains
-unless the observation carries an explicit ecosystem hint. The hint can only
-narrow matching to that ecosystem; it never broadens identity. Catalog status
-reports the number of cross-ecosystem ambiguous aliases so this precision
-pressure stays observable.
+unless identity can be narrowed by either an explicit observation ecosystem
+hint or the reviewed fingerprint alias registry. A hint can only narrow
+matching to that ecosystem, and a registry alias is accepted only when it maps
+the fingerprint to exactly one of the candidate ecosystems. Catalog status
+reports both unresolved cross-ecosystem ambiguity and aliases resolved by the
+registry so this precision pressure stays observable.
 
 The catalog remains indexed and cached so a full snapshot is not reparsed for
 every technology observation. Expanding range syntax does not make a catalog
