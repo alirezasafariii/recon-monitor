@@ -204,11 +204,12 @@ def finalize_draft(draft: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def finalize_collection(drafts: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    rows = [dict(row) for row in drafts]
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    for index, raw in enumerate(drafts):
+    for index, raw in enumerate(rows):
         result = finalize_draft(raw)
         record = dict(result["record"])
         fingerprint = _text(record.get("record_fingerprint"))
@@ -233,7 +234,7 @@ def finalize_collection(drafts: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "rejected_count": len(rejected),
         "records": accepted,
         "rejected": rejected,
-        "readiness": review_readiness_shallow(drafts),
+        "readiness": review_readiness_shallow(rows),
         "production_activation_performed": False,
     }
 
