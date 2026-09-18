@@ -13,8 +13,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-SEMANTIC_ENGINE_VERSION = "5.0.1"
-SEMANTIC_RULE_VERSION = "2026.08.8.1"
+SEMANTIC_ENGINE_VERSION = "5.1.0"
+SEMANTIC_RULE_VERSION = "2026.09.18.1"
 PROFILES = {
     "quiet": {"minimum_sources": 3, "minimum_evidence": 62, "minimum_likelihood": 50, "stale_days": 21},
     "balanced": {"minimum_sources": 2, "minimum_evidence": 42, "minimum_likelihood": 32, "stale_days": 30},
@@ -171,6 +171,94 @@ def _extract_semantic_units(text: str) -> list[dict[str, Any]]:
         for match in pattern.finditer(text):
             value = match.group(1) if match.lastindex else match.group(0)
             units.append({"unit_type": unit_type, "unit_key": sha256_text(f"{unit_type}|{value}")[:24], "value": value[:1000], "confidence": 78 if match.lastindex else 64})
+    # Static browser-storage writes. Persist only normalized semantics:
+    # storage kind, key name, and a sensitivity hint. Never persist the assigned
+    # value expression because it may contain credential material.
+    storage_write_pattern = re.compile(
+        r"""(?P<storage>localStorage|sessionStorage)\s*\.\s*setItem\s*\(\s*(?P<q>['"])(?P<key>[^'"]{1,120})(?P=q)\s*,\s*(?P<expr>[^;\n]{1,300}?)\s*\)""",
+        re.I,
+    )
+    sensitive_storage_pattern = re.compile(
+        r"""(?:^|[^a-z0-9])(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth[_-]?token|session[_-]?token|jwt|bearer|api[_-]?key|apikey|credential|password|secret|token)(?:[^a-z0-9]|$)""",
+        re.I,
+    )
+    for match in storage_write_pattern.finditer(text):
+        storage = str(match.group("storage") or "")
+        key = str(match.group("key") or "")[:120]
+        expression = str(match.group("expr") or "")[:300]
+        sensitive_hint = bool(
+            sensitive_storage_pattern.search(key)
+            or sensitive_storage_pattern.search(expression)
+        )
+        value = {
+            "storage": storage,
+            "key": key,
+            "sensitive_hint": sensitive_hint,
+            "operation": "setItem",
+        }
+        units.append(
+            {
+                "unit_type": "browser_storage_write",
+                "unit_key": sha256_text(
+                    "browser_storage_write|" + json_dumps(value)
+                )[:24],
+                "value": value,
+                "confidence": 92 if sensitive_hint else 82,
+            }
+        )
+
+    # Static new-tab opens. Only absolute HTTP(S) destinations are retained so
+    # later target-aware analysis can distinguish external from same-site opens.
+    # Feature strings are normalized to protection booleans; raw arbitrary
+    # feature expressions are never persisted.
+    new_tab_with_features = re.compile(
+        r"""window\s*\.\s*open\s*\(\s*(?P<q1>['"])(?P<dest>https?://[^'"]{1,500})(?P=q1)\s*,\s*(?P<q2>['"])_blank(?P=q2)\s*,\s*(?P<q3>['"])(?P<features>[^'"]{0,500})(?P=q3)\s*\)""",
+        re.I,
+    )
+    new_tab_without_features = re.compile(
+        r"""window\s*\.\s*open\s*\(\s*(?P<q1>['"])(?P<dest>https?://[^'"]{1,500})(?P=q1)\s*,\s*(?P<q2>['"])_blank(?P=q2)\s*\)""",
+        re.I,
+    )
+    occupied_spans: set[tuple[int, int]] = set()
+    for pattern, features_known in (
+        (new_tab_with_features, True),
+        (new_tab_without_features, True),
+    ):
+        for match in pattern.finditer(text):
+            span = match.span()
+            if any(start <= span[0] and span[1] <= end for start, end in occupied_spans):
+                continue
+            occupied_spans.add(span)
+            destination = str(match.group("dest") or "")[:500]
+            raw_features = (
+                str(match.groupdict().get("features") or "")
+                if "features" in match.groupdict()
+                else ""
+            )
+            feature_tokens = {
+                token.strip().lower()
+                for token in re.split(r"[,\s]+", raw_features)
+                if token.strip()
+            }
+            value = {
+                "destination": destination,
+                "target": "_blank",
+                "mechanism": "window.open",
+                "features_static": features_known,
+                "noopener": "noopener" in feature_tokens,
+                "noreferrer": "noreferrer" in feature_tokens,
+            }
+            units.append(
+                {
+                    "unit_type": "new_tab_open",
+                    "unit_key": sha256_text(
+                        "new_tab_open|" + json_dumps(value)
+                    )[:24],
+                    "value": value,
+                    "confidence": 90,
+                }
+            )
+
     # Boolean-ish feature flags. Keep names with strong flag semantics.
     flag_pattern = re.compile(r"\b((?:enable|disable|use|allow|beta|experimental|feature)[A-Z_][A-Za-z0-9_]{2,80})\s*[:=]\s*(true|false|0|1|['\"][^'\"]{0,80}['\"])", re.I)
     for match in flag_pattern.finditer(text):

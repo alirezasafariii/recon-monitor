@@ -18,8 +18,8 @@ Safety properties:
 import urllib.parse
 from typing import Any, Mapping
 
-PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.1.0"
-PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.2"
+PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.2.0"
+PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.3"
 
 _BACKUP_SUFFIXES = (
     ".bak",
@@ -82,6 +82,10 @@ _ALLOWED_DERIVED_SIGNALS = frozenset(
         "csp_frame_ancestors_enforced",
         "hsts_policy_weak_or_missing_observed",
         "hsts_policy_valid_observed",
+        "sensitive_data_in_browser_storage_observed",
+        "opener_reference_exposed_observed",
+        "noopener_enforced",
+        "noreferrer_enforced",
     }
 )
 
@@ -524,10 +528,97 @@ def _derive_hsts_evidence(
         )
 
 
+def _external_http_destination(value: str, target: str) -> bool:
+    try:
+        parsed = urllib.parse.urlsplit(str(value or ""))
+        target_parsed = urllib.parse.urlsplit(
+            target if "://" in target else f"https://{target}"
+        )
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    target_host = (target_parsed.hostname or target).lower()
+    if parsed.scheme.lower() not in {"http", "https"} or not host or not target_host:
+        return False
+    return host != target_host and not host.endswith("." + target_host)
+
+
+def _derive_semantic_js_evidence(
+    enriched: dict[str, Any],
+    sources: dict[str, list[str]],
+    *,
+    target: str,
+) -> None:
+    if _truth(enriched.get("semantic_js_static_observation")) is not True:
+        return
+    unit_type = str(enriched.get("semantic_js_unit_type") or "").strip()
+    raw = enriched.get("semantic_js_observation")
+    observation = dict(raw) if isinstance(raw, Mapping) else {}
+
+    if unit_type == "browser_storage_write":
+        storage = str(observation.get("storage") or "")
+        key = str(observation.get("key") or "")
+        sensitive_hint = _truth(observation.get("sensitive_hint")) is True
+        if (
+            storage in {"localStorage", "sessionStorage"}
+            and key
+            and sensitive_hint
+            and str(observation.get("operation") or "") == "setItem"
+        ):
+            _set_signal(
+                enriched,
+                sources,
+                "sensitive_data_in_browser_storage_observed",
+                "stored_semantic_js_unit",
+                "static_browser_storage_write",
+            )
+        return
+
+    if unit_type != "new_tab_open":
+        return
+
+    destination = str(observation.get("destination") or "")
+    if (
+        str(observation.get("target") or "").lower() != "_blank"
+        or str(observation.get("mechanism") or "") != "window.open"
+        or _truth(observation.get("features_static")) is not True
+        or not _external_http_destination(destination, target)
+    ):
+        return
+
+    noopener = _truth(observation.get("noopener")) is True
+    noreferrer = _truth(observation.get("noreferrer")) is True
+    if noopener:
+        _set_signal(
+            enriched,
+            sources,
+            "noopener_enforced",
+            "stored_semantic_js_unit",
+            "static_window_open_features",
+        )
+    if noreferrer:
+        _set_signal(
+            enriched,
+            sources,
+            "noreferrer_enforced",
+            "stored_semantic_js_unit",
+            "static_window_open_features",
+        )
+    if not noopener and not noreferrer:
+        _set_signal(
+            enriched,
+            sources,
+            "opener_reference_exposed_observed",
+            "stored_semantic_js_unit",
+            "static_external_window_open",
+        )
+
+
 def extract_passive_family_evidence(
     *,
     endpoint: str,
     details: Mapping[str, Any] | None,
+    target: str = "",
 ) -> dict[str, Any]:
     """Return details enriched only with evidence derivable from stored Recon.
 
@@ -546,6 +637,11 @@ def extract_passive_family_evidence(
     headers_observed = _header_snapshot_observed(enriched)
 
     sources: dict[str, list[str]] = {}
+    _derive_semantic_js_evidence(
+        enriched,
+        sources,
+        target=target,
+    )
     if _stored_response_observed(enriched, status):
         _derive_backup_evidence(
             enriched,
@@ -603,6 +699,9 @@ def extract_passive_family_evidence(
         "confirmation_signals_synthesized": False,
         "response_header_snapshot_observed": headers_observed,
         "persisted_response_header_names": sorted(headers),
+        "semantic_js_static_observation": (
+            _truth(enriched.get("semantic_js_static_observation")) is True
+        ),
         "derived_signals": sorted(sources),
         "sources": sources,
     }

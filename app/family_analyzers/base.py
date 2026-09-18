@@ -249,6 +249,7 @@ class FamilyAnalyzerContext:
             enriched = extract_passive_family_evidence(
                 endpoint=self.endpoint,
                 details=enriched,
+                target=self.target,
             )
             enriched = _attach_generated_protocol_context(
                 self.db,

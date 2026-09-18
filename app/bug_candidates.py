@@ -214,6 +214,7 @@ def _stored_fingerprint_response_headers(
 def _raw_surface_rows(
     db: Any,
     *,
+    analysis_id: str,
     run_id: str,
     target: str | None,
 ) -> list[dict[str, Any]]:
@@ -532,6 +533,59 @@ def _raw_surface_rows(
                 ),
             }
         )
+    # Structured Semantic-JS units are separate passive surfaces. Keeping them
+    # attached to their originating JS file prevents target-wide JavaScript
+    # observations from being sprayed onto unrelated HTTP endpoints.
+    semantic_params: list[Any] = [analysis_id]
+    semantic_target_clause = ""
+    if target:
+        semantic_target_clause = " AND target=?"
+        semantic_params.append(target)
+    semantic_rows = db.all(
+        "SELECT target,js_url,unit_type,unit_key,value_json,confidence "
+        "FROM semantic_js_units WHERE analysis_id=? "
+        "AND unit_type IN ('browser_storage_write','new_tab_open')"
+        f"{semantic_target_clause} "
+        "ORDER BY confidence DESC,target,js_url,unit_type,unit_key "
+        f"LIMIT {_RAW_SURFACE_LIMIT}",
+        tuple(semantic_params),
+    )
+    for raw in semantic_rows:
+        row = dict(raw)
+        current_target = str(row.get("target") or "")
+        js_url = str(row.get("js_url") or "")
+        unit_type = str(row.get("unit_type") or "")
+        payload = _core._loads(row.get("value_json"), {})
+        observation = payload.get("value") if isinstance(payload, Mapping) else None
+        if (
+            not current_target
+            or not js_url
+            or unit_type not in {"browser_storage_write", "new_tab_open"}
+            or not isinstance(observation, Mapping)
+        ):
+            continue
+        unit_key = str(row.get("unit_key") or "")
+        surfaces.append(
+            {
+                "target": current_target,
+                "endpoint": js_url,
+                "kind": "semantic_js_passive",
+                "confidence": _core.parse_int(row.get("confidence"), 0),
+                "details": {
+                    "semantic_js_unit_type": unit_type,
+                    "semantic_js_unit_key": unit_key,
+                    "semantic_js_observation": dict(observation),
+                    "semantic_js_static_observation": True,
+                    "raw_surface_observation": True,
+                    "active_request_performed": False,
+                },
+                "source_ref": (
+                    f"semantic-js:{current_target}:"
+                    f"{_core.sha256_text(js_url + '|' + unit_type + '|' + unit_key)[:20]}"
+                ),
+            }
+        )
+
     # Explicit stored findings receive priority, then the remaining bounded raw
     # inventory. Duplicate endpoints are still allowed across source kinds so
     # record_hypothesis can merge independent evidence roots by family/variant.
@@ -546,7 +600,12 @@ def _raw_surface_family_candidates(
     target: str | None,
 ) -> int:
     promoted = 0
-    for surface in _raw_surface_rows(db, run_id=run_id, target=target):
+    for surface in _raw_surface_rows(
+        db,
+        analysis_id=analysis_id,
+        run_id=run_id,
+        target=target,
+    ):
         endpoint = str(surface["endpoint"])
         current_target = str(surface["target"])
         method, query_fields, path_fields = _surface_method_and_fields(endpoint)
@@ -570,6 +629,15 @@ def _raw_surface_family_candidates(
         )
         if surface.get("kind") == "dns_cname":
             families = ("subdomain_takeover",)
+        elif surface.get("kind") == "semantic_js_passive":
+            unit_type = str(context.details.get("semantic_js_unit_type") or "")
+            families = (
+                ("browser_storage_exposure",)
+                if unit_type == "browser_storage_write"
+                else ("reverse_tabnabbing",)
+                if unit_type == "new_tab_open"
+                else ()
+            )
         else:
             families = (
                 *_RAW_ALWAYS_EVALUATED_FAMILIES,

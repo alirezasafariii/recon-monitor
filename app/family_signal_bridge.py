@@ -19,8 +19,8 @@ import urllib.parse
 from collections import OrderedDict
 from typing import Any, Mapping
 
-FAMILY_SIGNAL_BRIDGE_VERSION = "1.0.0"
-FAMILY_SIGNAL_BRIDGE_RULE_VERSION = "2026.08.14.1"
+FAMILY_SIGNAL_BRIDGE_VERSION = "1.1.0"
+FAMILY_SIGNAL_BRIDGE_RULE_VERSION = "2026.09.18.2"
 
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _SENSITIVE_ROUTE_MARKERS = {
@@ -315,6 +315,27 @@ def _external_api_units(units: list[dict[str, Any]], target: str) -> list[str]:
     return external
 
 
+def _external_http_destination(value: str, target: str) -> bool:
+    try:
+        parsed = urllib.parse.urlsplit(str(value or ""))
+        target_parsed = urllib.parse.urlsplit(
+            target if "://" in target else f"https://{target}"
+        )
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    target_host = (target_parsed.hostname or target).lower()
+    if parsed.scheme.lower() not in {"http", "https"} or not host or not target_host:
+        return False
+    return host != target_host and not host.endswith("." + target_host)
+
+
+def _semantic_js_observation(details: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
+    unit_type = str(details.get("semantic_js_unit_type") or "").strip()
+    value = details.get("semantic_js_observation")
+    return unit_type, dict(value) if isinstance(value, Mapping) else {}
+
+
 def augment_family_details(
     db: Any,
     *,
@@ -368,6 +389,30 @@ def augment_family_details(
     headers = _header_map(enriched)
     status = _status_code(enriched)
     auth_boundary = str(auth.get("boundary") or contract.get("auth_boundary") or "").lower()
+    semantic_unit_type, semantic_observation = _semantic_js_observation(enriched)
+
+    # Dedicated Semantic-JS surfaces remain context-only here. Concrete passive
+    # vulnerability evidence is derived later by passive_evidence_extractor.
+    if semantic_unit_type == "browser_storage_write":
+        _add_signal(
+            enriched,
+            sources,
+            "browser_storage_surface",
+            "semantic_js_browser_storage_write",
+        )
+    elif (
+        semantic_unit_type == "new_tab_open"
+        and _external_http_destination(
+            str(semantic_observation.get("destination") or ""),
+            target,
+        )
+    ):
+        _add_signal(
+            enriched,
+            sources,
+            "new_tab_external_link_surface",
+            "semantic_js_external_new_tab",
+        )
 
     # Phase-one discovery context.
     if any(token in text for token in ("batch", "bulk", "upload", "export", "report", "search", "render", "resize", "convert", "generate", "send")):
