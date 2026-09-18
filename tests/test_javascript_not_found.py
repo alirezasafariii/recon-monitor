@@ -210,6 +210,34 @@ class JavascriptNotFoundTests(unittest.TestCase):
         self.assertIn("redirect left authorized scope", result["error"])
 
 
+    def test_oversized_download_fails_closed_without_persisting_partial_body(self):
+        ctx = _ctx()
+
+        def fake(item, _policy, **kwargs):
+            observation = kwargs["observation"]
+            row = observation(
+                "GET",
+                item["url"],
+                200,
+                {"Content-Type": "application/javascript"},
+                b"x" * 10,
+                "response_budget_exceeded",
+            )
+            row["dns_rebinding_protection"] = "resolution_pinned"
+            return row, "stopped_for_safety"
+
+        with mock.patch("stages.perform_pinned_request", side_effect=fake):
+            result = _download_url(
+                ctx,
+                "https://example.test/app.js",
+                5,
+            )
+
+        self.assertIn("Content exceeded limit", result["error"])
+        self.assertEqual(result["transport_status"], "stopped_for_safety")
+        self.assertEqual(ctx.budget.download_bytes, 0)
+
+
     def test_download_uses_shared_pinned_transport_not_direct_urllib(self):
         source = inspect.getsource(_download_url)
         self.assertIn("perform_pinned_request", source)
