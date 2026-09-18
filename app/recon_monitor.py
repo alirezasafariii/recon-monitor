@@ -64,6 +64,13 @@ from real_world_corpus_v1_bridge import (
     render_jsonl as render_corpus_v1_jsonl,
     review_readiness as corpus_v1_review_readiness,
 )
+from real_world_corpus_v1_source_attested import (
+    SOURCE_ATTESTED_RULE_VERSION,
+    SOURCE_ATTESTED_VERSION,
+    run_source_attested_evaluation,
+    summary_payload as source_attested_summary_payload,
+    write_attested_records,
+)
 from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
 from typed_evidence_adapter import adapt_validation_runner_execution
@@ -146,6 +153,7 @@ def build_parser():
         "real-world-calibration",
         "corpus-v1-review-status",
         "corpus-v1-finalize",
+        "corpus-v1-auto-evaluate",
         "stop",
     )
 
@@ -175,6 +183,42 @@ def build_parser():
             default="",
             dest="verified_output",
             help="Write accepted Corpus V1 records as verified replay JSONL",
+        )
+    if "corpus_feasibility" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-feasibility",
+            default="",
+            dest="corpus_feasibility",
+            help="Override Corpus V1 source feasibility JSON",
+        )
+    if "corpus_source_evidence" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-source-evidence",
+            default="",
+            dest="corpus_source_evidence",
+            help="Override Corpus V1 public source evidence JSON",
+        )
+    if "corpus_revision_pairs" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-revision-pairs",
+            default="",
+            dest="corpus_revision_pairs",
+            help="Override Corpus V1 exact revision-pair JSON",
+        )
+    if "corpus_scores" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-scores",
+            action="append",
+            default=[],
+            dest="corpus_scores",
+            help="Label-blind current-engine score artifact; repeat for multiple files",
+        )
+    if "attested_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--attested-output",
+            default="",
+            dest="attested_output",
+            help="Optional JSON path for source-attested records and attached scores",
         )
 
     validation_parser = _validation_parser(parser)
@@ -497,6 +541,52 @@ def corpus_v1_finalize_cli_payload(
     }
 
 
+def corpus_v1_auto_evaluate_cli_payload(args: Any) -> dict[str, Any]:
+    root = _base.ROOT_DIR
+    feasibility = str(getattr(args, "corpus_feasibility", "") or "").strip()
+    source_evidence = str(getattr(args, "corpus_source_evidence", "") or "").strip()
+    revision_pairs = str(getattr(args, "corpus_revision_pairs", "") or "").strip()
+    if not feasibility:
+        feasibility = str(root / "benchmarks" / "real_world" / "v1" / "source_feasibility_final.json")
+    if not source_evidence:
+        source_evidence = str(root / "benchmarks" / "real_world" / "v1" / "public_source_evidence.json")
+    if not revision_pairs:
+        revision_pairs = str(root / "benchmarks" / "real_world" / "v1" / "revision_pair_evidence.json")
+
+    score_paths = [
+        str(path).strip()
+        for path in list(getattr(args, "corpus_scores", []) or [])
+        if str(path).strip()
+    ]
+    result = run_source_attested_evaluation(
+        feasibility_path=feasibility,
+        source_evidence_path=source_evidence,
+        revision_pairs_path=revision_pairs,
+        score_paths=score_paths,
+    )
+    output = str(getattr(args, "attested_output", "") or "").strip()
+    if output:
+        write_attested_records(output, result["evaluation"]["records"])
+
+    payload = source_attested_summary_payload(result)
+    payload.update({
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-auto-evaluate",
+        "engine": {
+            "version": SOURCE_ATTESTED_VERSION,
+            "rule_version": SOURCE_ATTESTED_RULE_VERSION,
+        },
+        "source_artifacts": {
+            "feasibility": feasibility,
+            "public_source_evidence": source_evidence,
+            "revision_pairs": revision_pairs,
+            "score_files": score_paths,
+        },
+        "attested_output": output or None,
+    })
+    return payload
+
+
 def _runner_execute_cli(args: Any) -> dict[str, Any]:
     if not str(args.run_id or "").strip():
         raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
@@ -612,6 +702,7 @@ def main(argv: list[str] | None = None) -> int:
         "real-world-calibration",
         "corpus-v1-review-status",
         "corpus-v1-finalize",
+        "corpus-v1-auto-evaluate",
         "stop",
     }:
         parser = build_parser()
@@ -634,6 +725,10 @@ def main(argv: list[str] | None = None) -> int:
                 list(getattr(args, "corpus_review", []) or []),
                 verified_output=str(getattr(args, "verified_output", "") or ""),
             )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-auto-evaluate":
+            payload = corpus_v1_auto_evaluate_cli_payload(args)
             print(_base.json_dumps(payload, pretty=True))
             return 0
 
