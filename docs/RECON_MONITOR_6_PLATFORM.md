@@ -101,6 +101,8 @@ Existing installations keep their current authentication setting during upgrade.
 
 Retention is preview-first. Confirmed evidence and case evidence are protected. Deletion requires the exact preview-specific confirmation phrase and refuses paths outside the project root.
 
+Content-addressed objects are reference-aware. Repeated writes of identical bytes do not increase logical ownership. Current JavaScript files, source maps and embedded source-map sources bind stable owners to SHA-256 objects, and retention only selects objects with zero owners whose last access is older than the configured window. Apply revalidates both reference state and last-access state so a newly referenced or recently read object is skipped even if an older preview selected it. Pre-migration objects with positive legacy reference counts but no classifiable owner are conservatively protected as `legacy_unclassified` instead of being guessed safe to delete.
+
 Default policies:
 
 - raw HTTP artifacts: 90 days;
