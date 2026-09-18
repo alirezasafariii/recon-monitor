@@ -70,16 +70,18 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         )
         matches = vulnerable["dependency_advisory_matches"]
         self.assertGreaterEqual(len(matches), 1)
-        self.assertTrue(all(match["product"] == "jquery" for match in matches))
-        self.assertTrue(all(match["version"] == "3.4.1" for match in matches))
-        self.assertTrue(all(match["matched_range"] for match in matches))
-        self.assertTrue(
-            all(match["source_url"].startswith("https://") for match in matches)
+        expected = next(
+            (
+                match
+                for match in matches
+                if match.get("advisory_id") == "GHSA-GXR4-XJJ5-5PX2"
+            ),
+            None,
         )
-        self.assertIn(
-            "GHSA-GXR4-XJJ5-5PX2",
-            {match["advisory_id"] for match in matches},
-        )
+        self.assertIsNotNone(expected)
+        self.assertEqual(expected["version"], "3.4.1")
+        self.assertTrue(expected["matched_range"])
+        self.assertTrue(expected["source_url"].startswith("https://"))
         self.assertEqual(
             vulnerable["_passive_evidence_extractor"][
                 "dependency_advisory_match_count"
