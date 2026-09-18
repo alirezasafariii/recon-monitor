@@ -752,7 +752,7 @@ def _derive_misconfiguration_and_inventory_evidence(
         and (
             _diagnostic_title(title)
             or (
-                diagnostic_path
+                debug_api_path
                 and "text/html" not in content_type
                 and "application/xhtml+xml" not in content_type
                 and bool(content_type)
