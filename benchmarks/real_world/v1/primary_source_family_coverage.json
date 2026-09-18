@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "rule_version": "2026.09.18.1",
+  "purpose": "Primary-source coverage for canonical families whose real-world security boundary is configuration/DNS/operational rather than an exact package code revision.",
+  "records": [
+    {
+      "source_id": "github-bounty-2016-unclaimed-heroku-subdomain",
+      "family": "subdomain_takeover",
+      "source_url": "https://bounty.github.com/researchers/testusername911.html",
+      "source_kind": "public_bug_bounty_primary",
+      "coverage_level": "primary_source_configuration_boundary",
+      "title": "Unclaimed subdomain on Heroku",
+      "source_org": "GitHub Bug Bounty",
+      "reported_at": "2016-01-20",
+      "researcher": "@testusername911",
+      "remediation_summary": "GitHub reports that it removed the dangling Heroku claimability by registering applications for the subdomains it directed to Heroku.",
+      "evaluation_role": "fresh_candidate",
+      "human_verified": false,
+      "activation_eligible": false,
+      "decision_readiness_score": null,
+      "bug_proximity_score": null,
+      "target_evidence_confidence": null
+    }
+  ],
+  "historical_exposure_check": {
+    "checked_corpora": [
+      "analysis_golden_v3",
+      "analysis_golden_v4",
+      "analysis_raw_v1",
+      "analysis_raw_v2",
+      "analysis_raw_v3",
+      "analysis_raw_v4",
+      "analysis_raw_v5",
+      "analysis_raw_v6_reserved_blind"
+    ],
+    "source_url_or_title_overlap_found": false
+  }
+}

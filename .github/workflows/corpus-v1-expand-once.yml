@@ -1,0 +1,65 @@
+name: Corpus V1 Coverage Expansion (one-shot)
+
+on:
+  push:
+    branches:
+      - research/real-world-corpus-v1-port
+    paths:
+      - .github/workflows/corpus-v1-expand-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Expand all-family coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: app
+        run: |
+          set +e
+          python app/real_world_corpus_v1_coverage_expander.py             --quota 1             --max-pages-per-family 25             --output coverage_expansion.json
+          code=$?
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path("coverage_expansion.json").read_text())
+          print("COVERAGE_EXPANSION_SUMMARY=" + json.dumps({
+              "represented_before": p["represented_family_count_before"],
+              "represented_after": p["represented_family_count_after"],
+              "missing_after": p["missing_family_count_after"],
+              "missing_families": p["missing_families_after"],
+              "selected": p["selected_candidate_count"],
+          }, sort_keys=True))
+          for family, diag in sorted(p.get("family_diagnostics", {}).items()):
+              if not diag.get("selected_count"):
+                  print("COVERAGE_DIAG=" + json.dumps({
+                      "family": family,
+                      "pages": diag.get("pages_fetched"),
+                      "rejected": diag.get("rejected_counts"),
+                  }, sort_keys=True))
+          print("COVERAGE_SWEEP=" + json.dumps(p.get("semantic_sweep", {}), sort_keys=True))
+          for row in p.get("selected", []):
+              print("COVERAGE_SELECTED=" + json.dumps({
+                  "family": row.get("family_target"),
+                  "root": row.get("source_root"),
+                  "project": row.get("source_project"),
+                  "cwes": row.get("cwes"),
+                  "basis": row.get("targeting_basis"),
+                  "published_at": row.get("published_at"),
+                  "references": row.get("references"),
+              }, sort_keys=True))
+          PY
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-v1-coverage-expansion
+          path: coverage_expansion.json

@@ -10,7 +10,10 @@ human-verified real-world calibration reports, explicit Validation Runner
 passive-live execution, and offline Differential Evidence adaptation.
 """
 
+import json
+import os
 import sys
+from pathlib import Path
 from typing import Any, Iterable
 
 import recon_monitor_core as _base
@@ -55,6 +58,35 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_RULE_VERSION,
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
+)
+from real_world_corpus_v1_bridge import (
+    CORPUS_V1_BRIDGE_RULE_VERSION,
+    CORPUS_V1_BRIDGE_VERSION,
+    finalize_collection as finalize_corpus_v1_collection,
+    load_review_files as load_corpus_v1_review_files,
+    render_jsonl as render_corpus_v1_jsonl,
+    review_readiness as corpus_v1_review_readiness,
+)
+from real_world_corpus_v1_coverage_expander import (
+    COVERAGE_EXPANDER_RULE_VERSION,
+    COVERAGE_EXPANDER_VERSION,
+    DEFAULT_FAMILY_QUOTA,
+    DEFAULT_MAX_PAGES_PER_FAMILY,
+    coverage_inventory,
+    expand_coverage,
+)
+from real_world_corpus_v1_primary_sources import (
+    PRIMARY_SOURCE_COVERAGE_RULE_VERSION,
+    PRIMARY_SOURCE_COVERAGE_VERSION,
+    load_primary_source_file,
+)
+from real_world_corpus_v1_source_attested import (
+    SOURCE_ATTESTED_RULE_VERSION,
+    SOURCE_ATTESTED_VERSION,
+    run_source_attested_evaluation,
+    summary_payload as source_attested_summary_payload,
+    write_attested_records,
+    write_blind_replay_manifest,
 )
 from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
@@ -136,6 +168,11 @@ def build_parser():
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "corpus-v1-review-status",
+        "corpus-v1-finalize",
+        "corpus-v1-auto-evaluate",
+        "corpus-v1-coverage-status",
+        "corpus-v1-expand-coverage",
         "stop",
     )
 
@@ -150,6 +187,101 @@ def build_parser():
             default=[],
             dest="verified_corpus",
             help="Path to a human-verified replay JSONL corpus; repeat for multiple files",
+        )
+    if "corpus_review" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-review",
+            action="append",
+            default=[],
+            dest="corpus_review",
+            help="Path to a Real-World Corpus V1 review queue or packet; repeat for multiple files",
+        )
+    if "verified_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--verified-output",
+            default="",
+            dest="verified_output",
+            help="Write accepted Corpus V1 records as verified replay JSONL",
+        )
+    if "corpus_feasibility" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-feasibility",
+            default="",
+            dest="corpus_feasibility",
+            help="Override Corpus V1 source feasibility JSON",
+        )
+    if "corpus_source_evidence" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-source-evidence",
+            default="",
+            dest="corpus_source_evidence",
+            help="Override Corpus V1 public source evidence JSON",
+        )
+    if "corpus_revision_pairs" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-revision-pairs",
+            default="",
+            dest="corpus_revision_pairs",
+            help="Override Corpus V1 exact revision-pair JSON",
+        )
+    if "corpus_primary_sources" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-primary-sources",
+            default="",
+            dest="corpus_primary_sources",
+            help="Override Corpus V1 primary-source family coverage JSON",
+        )
+    if "corpus_scores" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-scores",
+            action="append",
+            default=[],
+            dest="corpus_scores",
+            help="Label-blind current-engine score artifact; repeat for multiple files",
+        )
+    if "attested_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--attested-output",
+            default="",
+            dest="attested_output",
+            help="Optional JSON path for source-attested records and attached scores",
+        )
+    if "blind_replay_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--blind-replay-output",
+            default="",
+            dest="blind_replay_output",
+            help="Optional label/family-blind replay manifest for a current-engine scorer",
+        )
+    if "coverage_quota" not in existing_dests:
+        analysis_parser.add_argument(
+            "--coverage-quota",
+            type=int,
+            default=DEFAULT_FAMILY_QUOTA,
+            dest="coverage_quota",
+            help="Independent source-origin quota per canonical vulnerability family",
+        )
+    if "coverage_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--coverage-output",
+            default="",
+            dest="coverage_output",
+            help="Write all-family coverage inventory or expansion result as JSON",
+        )
+    if "max_pages_per_family" not in existing_dests:
+        analysis_parser.add_argument(
+            "--max-pages-per-family",
+            type=int,
+            default=DEFAULT_MAX_PAGES_PER_FAMILY,
+            dest="max_pages_per_family",
+            help="Maximum GitHub reviewed-advisory pages to inspect per family",
+        )
+    if "github_token" not in existing_dests:
+        analysis_parser.add_argument(
+            "--github-token",
+            default="",
+            dest="github_token",
+            help="GitHub token for all-family public advisory coverage expansion",
         )
 
     validation_parser = _validation_parser(parser)
@@ -419,6 +551,252 @@ def real_world_calibration_cli_payload(corpus_paths: Iterable[str]) -> dict[str,
     }
 
 
+def corpus_v1_review_status_cli_payload(review_paths: Iterable[str]) -> dict[str, Any]:
+    paths = [str(path).strip() for path in review_paths if str(path).strip()]
+    rows = load_corpus_v1_review_files(paths)
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-review-status",
+        "bridge": {
+            "version": CORPUS_V1_BRIDGE_VERSION,
+            "rule_version": CORPUS_V1_BRIDGE_RULE_VERSION,
+        },
+        "corpus_paths": paths,
+        "status": corpus_v1_review_readiness(rows),
+        "safety": {
+            "variant_is_not_a_label": True,
+            "human_review_is_required": True,
+            "current_engine_scores_are_required": True,
+            "production_activation_is_not_performed": True,
+        },
+    }
+
+
+def corpus_v1_finalize_cli_payload(
+    review_paths: Iterable[str],
+    *,
+    verified_output: str = "",
+) -> dict[str, Any]:
+    paths = [str(path).strip() for path in review_paths if str(path).strip()]
+    rows = load_corpus_v1_review_files(paths)
+    result = finalize_corpus_v1_collection(rows)
+    output = str(verified_output or "").strip()
+    if output:
+        from pathlib import Path
+        Path(output).write_text(
+            render_corpus_v1_jsonl(result["records"]),
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-finalize",
+        "bridge": {
+            "version": CORPUS_V1_BRIDGE_VERSION,
+            "rule_version": CORPUS_V1_BRIDGE_RULE_VERSION,
+        },
+        "corpus_paths": paths,
+        "verified_output": output or None,
+        "accepted_count": int(result["accepted_count"]),
+        "rejected_count": int(result["rejected_count"]),
+        "rejected": list(result["rejected"]),
+        "readiness": dict(result["readiness"]),
+        "production_activation_performed": False,
+    }
+
+
+def corpus_v1_auto_evaluate_cli_payload(args: Any) -> dict[str, Any]:
+    root = _base.ROOT_DIR
+    feasibility = str(getattr(args, "corpus_feasibility", "") or "").strip()
+    source_evidence = str(getattr(args, "corpus_source_evidence", "") or "").strip()
+    revision_pairs = str(getattr(args, "corpus_revision_pairs", "") or "").strip()
+    if not feasibility:
+        feasibility = str(root / "benchmarks" / "real_world" / "v1" / "source_feasibility_final.json")
+    if not source_evidence:
+        source_evidence = str(root / "benchmarks" / "real_world" / "v1" / "public_source_evidence.json")
+    if not revision_pairs:
+        revision_pairs = str(root / "benchmarks" / "real_world" / "v1" / "revision_pair_evidence.json")
+
+    score_paths = [
+        str(path).strip()
+        for path in list(getattr(args, "corpus_scores", []) or [])
+        if str(path).strip()
+    ]
+    result = run_source_attested_evaluation(
+        feasibility_path=feasibility,
+        source_evidence_path=source_evidence,
+        revision_pairs_path=revision_pairs,
+        score_paths=score_paths,
+    )
+    output = str(getattr(args, "attested_output", "") or "").strip()
+    if output:
+        write_attested_records(output, result["evaluation"]["records"])
+    blind_output = str(getattr(args, "blind_replay_output", "") or "").strip()
+    if blind_output:
+        write_blind_replay_manifest(
+            blind_output,
+            result["attestation"]["records"],
+        )
+
+    payload = source_attested_summary_payload(result)
+    payload.update({
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-auto-evaluate",
+        "engine": {
+            "version": SOURCE_ATTESTED_VERSION,
+            "rule_version": SOURCE_ATTESTED_RULE_VERSION,
+        },
+        "source_artifacts": {
+            "feasibility": feasibility,
+            "public_source_evidence": source_evidence,
+            "revision_pairs": revision_pairs,
+            "score_files": score_paths,
+        },
+        "attested_output": output or None,
+        "blind_replay_output": blind_output or None,
+    })
+    return payload
+
+
+def _corpus_v1_default_artifacts(args: Any) -> dict[str, str]:
+    root = _base.ROOT_DIR
+    feasibility = str(getattr(args, "corpus_feasibility", "") or "").strip()
+    source_evidence = str(getattr(args, "corpus_source_evidence", "") or "").strip()
+    revision_pairs = str(getattr(args, "corpus_revision_pairs", "") or "").strip()
+    primary_sources = str(getattr(args, "corpus_primary_sources", "") or "").strip()
+    return {
+        "feasibility": feasibility
+        or str(root / "benchmarks" / "real_world" / "v1" / "source_feasibility_final.json"),
+        "source_evidence": source_evidence
+        or str(root / "benchmarks" / "real_world" / "v1" / "public_source_evidence.json"),
+        "revision_pairs": revision_pairs
+        or str(root / "benchmarks" / "real_world" / "v1" / "revision_pair_evidence.json"),
+        "primary_sources": primary_sources
+        or str(root / "benchmarks" / "real_world" / "v1" / "primary_source_family_coverage.json"),
+    }
+
+
+def corpus_v1_coverage_status_cli_payload(args: Any) -> dict[str, Any]:
+    artifacts = _corpus_v1_default_artifacts(args)
+    feasibility = json.loads(Path(artifacts["feasibility"]).read_text(encoding="utf-8"))
+    source_result = run_source_attested_evaluation(
+        feasibility_path=artifacts["feasibility"],
+        source_evidence_path=artifacts["source_evidence"],
+        revision_pairs_path=artifacts["revision_pairs"],
+    )
+    primary_source_result = load_primary_source_file(artifacts["primary_sources"])
+    quota = max(
+        1,
+        int(
+            getattr(args, "coverage_quota", DEFAULT_FAMILY_QUOTA)
+            or DEFAULT_FAMILY_QUOTA
+        ),
+    )
+    inventory = coverage_inventory(
+        feasibility,
+        attestation=source_result["attestation"],
+        primary_sources=primary_source_result,
+        quota=quota,
+    )
+    output = str(getattr(args, "coverage_output", "") or "").strip()
+    if output:
+        Path(output).write_text(
+            json.dumps(inventory, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-coverage-status",
+        "engine": {
+            "version": COVERAGE_EXPANDER_VERSION,
+            "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
+        },
+        "primary_source_engine": {
+            "version": PRIMARY_SOURCE_COVERAGE_VERSION,
+            "rule_version": PRIMARY_SOURCE_COVERAGE_RULE_VERSION,
+        },
+        "source_artifacts": artifacts,
+        "coverage_output": output or None,
+        "inventory": inventory,
+        "source_attestation": {
+            key: value
+            for key, value in source_result["attestation"].items()
+            if key not in {"records", "excluded"}
+        },
+        "primary_source_coverage": {
+            key: value
+            for key, value in primary_source_result.items()
+            if key not in {"records", "rejected"}
+        },
+        "safety": {
+            "all_74_canonical_families_tracked": len(inventory["families"]) == 74,
+            "no_network_required_for_status": True,
+            "no_labels_created_by_coverage_inventory": True,
+            "primary_source_coverage_is_not_runtime_target_evidence": True,
+            "no_production_activation": True,
+        },
+    }
+
+
+def corpus_v1_expand_coverage_cli_payload(args: Any) -> dict[str, Any]:
+    artifacts = _corpus_v1_default_artifacts(args)
+    feasibility = json.loads(Path(artifacts["feasibility"]).read_text(encoding="utf-8"))
+    quota = max(
+        1,
+        int(
+            getattr(args, "coverage_quota", DEFAULT_FAMILY_QUOTA)
+            or DEFAULT_FAMILY_QUOTA
+        ),
+    )
+    token = (
+        str(getattr(args, "github_token", "") or "").strip()
+        or os.environ.get("GITHUB_TOKEN", "")
+    )
+    result = expand_coverage(
+        feasibility,
+        token=token,
+        quota=quota,
+        max_pages_per_family=max(
+            1,
+            int(
+                getattr(
+                    args,
+                    "max_pages_per_family",
+                    DEFAULT_MAX_PAGES_PER_FAMILY,
+                )
+                or DEFAULT_MAX_PAGES_PER_FAMILY
+            ),
+        ),
+    )
+    output = str(getattr(args, "coverage_output", "") or "").strip()
+    if output:
+        Path(output).write_text(
+            json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-expand-coverage",
+        "engine": {
+            "version": COVERAGE_EXPANDER_VERSION,
+            "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
+        },
+        "source_artifacts": artifacts,
+        "coverage_output": output or None,
+        "quota": quota,
+        "represented_family_count_before": int(
+            result["represented_family_count_before"]
+        ),
+        "represented_family_count_after": int(
+            result["represented_family_count_after"]
+        ),
+        "missing_family_count_after": int(result["missing_family_count_after"]),
+        "missing_families_after": list(result["missing_families_after"]),
+        "selected_candidate_count": int(result["selected_candidate_count"]),
+        "all_families_represented": bool(result["all_families_represented"]),
+        "production_activation_performed": False,
+    }
+
+
 def _runner_execute_cli(args: Any) -> dict[str, Any]:
     if not str(args.run_id or "").strip():
         raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
@@ -532,6 +910,11 @@ def main(argv: list[str] | None = None) -> int:
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "corpus-v1-review-status",
+        "corpus-v1-finalize",
+        "corpus-v1-auto-evaluate",
+        "corpus-v1-coverage-status",
+        "corpus-v1-expand-coverage",
         "stop",
     }:
         parser = build_parser()
@@ -541,6 +924,31 @@ def main(argv: list[str] | None = None) -> int:
             payload = real_world_calibration_cli_payload(
                 list(getattr(args, "verified_corpus", []) or []),
             )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-review-status":
+            payload = corpus_v1_review_status_cli_payload(
+                list(getattr(args, "corpus_review", []) or []),
+            )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-finalize":
+            payload = corpus_v1_finalize_cli_payload(
+                list(getattr(args, "corpus_review", []) or []),
+                verified_output=str(getattr(args, "verified_output", "") or ""),
+            )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-auto-evaluate":
+            payload = corpus_v1_auto_evaluate_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-coverage-status":
+            payload = corpus_v1_coverage_status_cli_payload(args)
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-expand-coverage":
+            payload = corpus_v1_expand_coverage_cli_payload(args)
             print(_base.json_dumps(payload, pretty=True))
             return 0
 
