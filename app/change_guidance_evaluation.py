@@ -13,8 +13,8 @@ from typing import Any, Mapping
 
 from core import Database, safe_json_loads
 
-CHANGE_GUIDANCE_EVALUATION_VERSION = "1.0.0"
-CHANGE_GUIDANCE_EVALUATION_RULE_VERSION = "2026.09.18.1"
+CHANGE_GUIDANCE_EVALUATION_VERSION = "1.1.0"
+CHANGE_GUIDANCE_EVALUATION_RULE_VERSION = "2026.09.18.2"
 CLUSTER_CASE_PREFIX = "investigation-cluster:"
 _MIN_COMPARISON_CASES_PER_COHORT = 5
 _MAX_CASES = 500
@@ -128,6 +128,31 @@ def case_change_guidance_metrics(db: Database, case_id: str) -> dict[str, Any]:
         (guided_tasks if is_guided else base_tasks).append(row)
 
     guided = bool(guided_events or guided_tasks)
+    guided_completed = 0
+    guided_skipped = 0
+    usefulness_counts = {"useful": 0, "neutral": 0, "noisy": 0}
+    task_outcome_hours: list[float] = []
+    for row in guided_tasks:
+        status = str(row.get("status") or "open")
+        if status == "completed":
+            guided_completed += 1
+        elif status == "skipped":
+            guided_skipped += 1
+        details = _loads(row.get("details_json"), {})
+        feedback = (
+            details.get("analyst_feedback")
+            if isinstance(details, Mapping)
+            else None
+        )
+        if isinstance(feedback, Mapping):
+            usefulness = str(feedback.get("usefulness") or "")
+            if usefulness in usefulness_counts:
+                usefulness_counts[usefulness] += 1
+        if status in {"completed", "skipped"}:
+            elapsed = _hours_between(start_at, row.get("updated_at"))
+            if elapsed is not None:
+                task_outcome_hours.append(elapsed)
+
     guidance_first_at = ""
     if guided_events:
         guidance_first_at = str(guided_events[0].get("created_at") or "")
@@ -195,6 +220,14 @@ def case_change_guidance_metrics(db: Database, case_id: str) -> dict[str, Any]:
         "rejected_or_duplicate": rejected_or_duplicate,
         "needs_more_evidence": needs_more,
         "guided_task_count": len(guided_tasks),
+        "guided_task_completed_count": guided_completed,
+        "guided_task_skipped_count": guided_skipped,
+        "guided_task_terminal_count": guided_completed + guided_skipped,
+        "guided_task_feedback_count": sum(usefulness_counts.values()),
+        "guided_task_useful_count": usefulness_counts["useful"],
+        "guided_task_neutral_count": usefulness_counts["neutral"],
+        "guided_task_noisy_count": usefulness_counts["noisy"],
+        "median_time_to_guided_task_outcome_hours": _median(task_outcome_hours),
         "base_task_count": len(base_tasks),
         "snapshot_count": len(snapshots),
         "event_count": len(events),
@@ -223,6 +256,17 @@ def _cohort_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     confirmed_count = sum(bool(row.get("confirmed")) for row in rows)
     rejected_count = sum(bool(row.get("rejected_or_duplicate")) for row in rows)
     needs_more_count = sum(bool(row.get("needs_more_evidence")) for row in rows)
+    guided_task_count = sum(int(row.get("guided_task_count") or 0) for row in rows)
+    guided_terminal_count = sum(int(row.get("guided_task_terminal_count") or 0) for row in rows)
+    guided_feedback_count = sum(int(row.get("guided_task_feedback_count") or 0) for row in rows)
+    useful_count = sum(int(row.get("guided_task_useful_count") or 0) for row in rows)
+    neutral_count = sum(int(row.get("guided_task_neutral_count") or 0) for row in rows)
+    noisy_count = sum(int(row.get("guided_task_noisy_count") or 0) for row in rows)
+    task_outcome_hours = [
+        float(row["median_time_to_guided_task_outcome_hours"])
+        for row in rows
+        if row.get("median_time_to_guided_task_outcome_hours") is not None
+    ]
     return {
         "case_count": count,
         "evidence_gain_count": evidence_gain_count,
@@ -240,6 +284,18 @@ def _cohort_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "rejected_or_duplicate_rate": _rate(rejected_count, count),
         "needs_more_evidence_count": needs_more_count,
         "needs_more_evidence_rate": _rate(needs_more_count, count),
+        "guided_task_count": guided_task_count,
+        "guided_task_terminal_count": guided_terminal_count,
+        "guided_task_terminal_rate": _rate(guided_terminal_count, guided_task_count),
+        "guided_task_feedback_count": guided_feedback_count,
+        "guided_task_feedback_rate": _rate(guided_feedback_count, guided_task_count),
+        "guided_task_useful_count": useful_count,
+        "guided_task_useful_rate": _rate(useful_count, guided_feedback_count),
+        "guided_task_neutral_count": neutral_count,
+        "guided_task_neutral_rate": _rate(neutral_count, guided_feedback_count),
+        "guided_task_noisy_count": noisy_count,
+        "guided_task_noisy_rate": _rate(noisy_count, guided_feedback_count),
+        "median_time_to_guided_task_outcome_hours": _median(task_outcome_hours),
     }
 
 
@@ -325,15 +381,18 @@ def change_guidance_evaluation(
             "causal": False,
             "auto_tuning": False,
             "winner_selection": False,
-            "task_completion_observed": False,
+            "task_completion_observed": True,
+            "task_completion_definition": "explicit case_autopilot_tasks status completed/skipped only",
+            "task_feedback_definition": "explicit analyst_feedback usefulness useful/neutral/noisy only",
             "evidence_gain_definition": "latest evidence-gap coverage exceeds the first persisted coverage snapshot",
             "decision_definition": "first investigation_cluster_decision event",
         },
         "limitations": [
             "Cohorts are observational and are not randomized; differences must not be interpreted as causal impact.",
             "Change-guided routing depends on available Recon changes and case surface, so cohort composition can differ materially.",
-            "Task completion is not explicitly modeled in the current task lifecycle; this evaluator does not infer completion from task disappearance.",
-            "Time metrics are reported only when the corresponding persisted event/snapshot exists.",
+            "Only explicit completed/skipped task status and explicit useful/neutral/noisy analyst feedback are counted; missing feedback remains unknown.",
+            "Task disappearance or regeneration is never interpreted as completion.",
+            "Time metrics are reported only when the corresponding persisted event/snapshot or terminal task update exists.",
             "This evaluator does not change ranking, Admission, Evidence Gap, validation eligibility, or workflow task ordering.",
         ],
     }
