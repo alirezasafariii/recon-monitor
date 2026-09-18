@@ -119,6 +119,18 @@ class DependencyEcosystemAmbiguityTests(unittest.TestCase):
                 "GHSA-2345-6789-CFGH",
             )
 
+    def test_explicit_default_alias_registry_can_resolve_known_fingerprint(self):
+        outcome = match_versioned_technology("jQuery:3.4.1")
+        self.assertFalse(outcome["identity_ambiguous"])
+        self.assertEqual(
+            outcome["ecosystem_resolved_by_alias_registry"],
+            "npm",
+        )
+        self.assertIn(
+            "GHSA-GXR4-XJJ5-5PX2",
+            {row["advisory_id"] for row in outcome["matches"]},
+        )
+
     def test_mapping_observation_can_carry_ecosystem_hint(self):
         with tempfile.TemporaryDirectory() as td:
             catalog = self._catalog(Path(td))
