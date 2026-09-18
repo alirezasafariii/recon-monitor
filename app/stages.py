@@ -2133,6 +2133,48 @@ def _tls_certificate_info(
     }
 
 
+_PERSISTED_RESPONSE_HEADER_NAMES = frozenset({
+    "content-security-policy",
+    "content-security-policy-report-only",
+    "x-frame-options",
+    "x-content-type-options",
+    "referrer-policy",
+    "permissions-policy",
+    "strict-transport-security",
+    "cross-origin-opener-policy",
+    "cross-origin-resource-policy",
+    "cross-origin-embedder-policy",
+})
+
+
+def _persistable_response_headers(raw: Any) -> dict[str, str]:
+    """Return a bounded allow-listed response-header snapshot.
+
+    The fingerprint stage never persists cookies, authorization material, or
+    arbitrary vendor headers. Header names are normalized to lower case and
+    values are flattened to short single-line strings for deterministic JSON
+    persistence and later passive evidence extraction.
+    """
+
+    if not isinstance(raw, Mapping):
+        return {}
+    result: dict[str, str] = {}
+    for key, value in raw.items():
+        name = str(key or "").strip().lower()
+        if name not in _PERSISTED_RESPONSE_HEADER_NAMES:
+            continue
+        if isinstance(value, (list, tuple, set)):
+            text = ", ".join(str(item) for item in value if item is not None)
+        elif isinstance(value, Mapping):
+            continue
+        else:
+            text = str(value or "")
+        text = re.sub(r"[\r\n]+", " ", text).strip()
+        if text:
+            result[name] = text[:2048]
+    return result
+
+
 def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     url = normalize_url(str(row.get("url") or row.get("input") or "")) or ""
     tech = row.get("tech") or row.get("technologies") or []
@@ -2151,6 +2193,9 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     chain = row.get("chain") or row.get("redirect_chain") or []
     if not isinstance(chain, list):
         chain = [chain] if chain else []
+    response_headers_raw = row.get("header")
+    response_headers_observed = isinstance(response_headers_raw, Mapping)
+    response_headers = _persistable_response_headers(response_headers_raw)
     record = {
         "status_code": int(row.get("status_code") or 0),
         "title": str(row.get("title") or "")[:500],
@@ -2158,6 +2203,8 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         "technologies": sorted(str(x) for x in tech),
         "content_type": str(row.get("content_type") or "")[:200],
         "content_length": int(row.get("content_length") or 0),
+        "response_headers": response_headers,
+        "response_headers_observed": response_headers_observed,
         "body_hash": body_hash,
         "favicon_hash": str(row.get("favicon") or row.get("favicon_hash") or ""),
         "jarm": str(row.get("jarm") or ""),
@@ -2190,7 +2237,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         ctx.budget.consume("http_requests", base_count)
     out = ctx.current / "httpx.jsonl"
     args = [
-        "httpx", "-l", str(base_path), "-silent", "-json", "-duc", "-no-color",
+        "httpx", "-l", str(base_path), "-silent", "-json", "-duc", "-no-color", "-irh",
         "-sc", "-cl", "-ct", "-location", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
         "-hash", "sha256", "-jarm", "-http2", "-include-chain",
         "-t", str(ctx.policy.limits.http_threads),
