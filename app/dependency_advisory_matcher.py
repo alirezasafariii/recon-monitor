@@ -16,8 +16,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.0.2"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.4"
+from dependency_version_ranges import (
+    DEPENDENCY_VERSION_RANGE_RULE_VERSION,
+    DEPENDENCY_VERSION_RANGE_VERSION,
+    range_expression_capability,
+    range_expression_supported,
+    version_matches_range,
+)
+
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.1.0"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.5"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -33,7 +41,6 @@ _VERSIONED_TECH_RE = re.compile(
     r"v?(?P<version>\d+(?:\.\d+){1,3})$",
     re.I,
 )
-_COMPARATOR_RE = re.compile(r"^(<=|>=|<|>|=)?\s*(\d+(?:\.\d+){1,3})$")
 
 
 def normalize_component_name(value: str) -> str:
@@ -70,42 +77,6 @@ def parse_versioned_technology(value: str) -> dict[str, str] | None:
         "name": name,
         "version": version,
     }
-
-
-def _compare(left: tuple[int, ...], operator: str, right: tuple[int, ...]) -> bool:
-    if operator == "<":
-        return left < right
-    if operator == "<=":
-        return left <= right
-    if operator == ">":
-        return left > right
-    if operator == ">=":
-        return left >= right
-    return left == right
-
-
-def range_expression_supported(expression: str) -> bool:
-    clauses = [item.strip() for item in str(expression or "").split(",") if item.strip()]
-    if not clauses:
-        return False
-    return all(_COMPARATOR_RE.fullmatch(clause) is not None for clause in clauses)
-
-
-def version_matches_range(version: str, expression: str) -> bool:
-    current = _version_tuple(version)
-    if current is None or not range_expression_supported(expression):
-        return False
-    clauses = [item.strip() for item in str(expression or "").split(",") if item.strip()]
-    for clause in clauses:
-        match = _COMPARATOR_RE.fullmatch(clause)
-        if match is None:
-            return False
-        boundary = _version_tuple(match.group(2))
-        if boundary is None:
-            return False
-        if not _compare(current, match.group(1) or "=", boundary):
-            return False
-    return True
 
 
 def advisories_sha256(advisories: Iterable[Mapping[str, Any]]) -> str:
@@ -154,6 +125,7 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     identities: set[tuple[str, str, str]] = set()
     duplicates: list[str] = []
     supported_range_count = 0
+    partially_supported_range_count = 0
     unsupported_range_count = 0
     for item in advisories:
         identity = (
@@ -164,9 +136,16 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         if identity in identities:
             duplicates.append("|".join(identity))
         identities.add(identity)
+        ecosystem = str(item.get("ecosystem") or "").lower()
         for expression in item.get("affected_ranges", []) or []:
-            if range_expression_supported(str(expression)):
+            capability = range_expression_capability(
+                str(expression),
+                ecosystem,
+            )
+            if capability == "full":
                 supported_range_count += 1
+            elif capability == "partial":
+                partially_supported_range_count += 1
             else:
                 unsupported_range_count += 1
 
@@ -187,6 +166,7 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         "invalid_advisories": invalid,
         "duplicate_identities": duplicates,
         "supported_range_count": supported_range_count,
+        "partially_supported_range_count": partially_supported_range_count,
         "unsupported_range_count": unsupported_range_count,
         "advisories_sha256": actual_hash,
         "declared_advisories_sha256": declared_hash,
@@ -288,7 +268,14 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
         "product_count": len(products),
         "ecosystems": ecosystems,
         "supported_range_count": validation["supported_range_count"],
+        "partially_supported_range_count": validation[
+            "partially_supported_range_count"
+        ],
         "unsupported_range_count": validation["unsupported_range_count"],
+        "version_range_engine": {
+            "version": DEPENDENCY_VERSION_RANGE_VERSION,
+            "rule_version": DEPENDENCY_VERSION_RANGE_RULE_VERSION,
+        },
         "integrity_valid": validation["integrity_valid"],
         "source_sync_complete": bool(source_snapshot.get("sync_complete")),
         "source_scope": str(source_snapshot.get("scope") or ""),
@@ -336,7 +323,11 @@ def match_versioned_technology(
             (
                 str(expression)
                 for expression in raw.get("affected_ranges", []) or []
-                if version_matches_range(version, str(expression))
+                if version_matches_range(
+                    version,
+                    str(expression),
+                    str(raw.get("ecosystem") or ""),
+                )
             ),
             "",
         )
@@ -397,7 +388,11 @@ def match_technologies(
                 (
                     str(expression)
                     for expression in advisory.get("affected_ranges", []) or []
-                    if version_matches_range(parsed["version"], str(expression))
+                    if version_matches_range(
+                        parsed["version"],
+                        str(expression),
+                        str(advisory.get("ecosystem") or ""),
+                    )
                 ),
                 "",
             )
@@ -463,6 +458,7 @@ __all__ = [
     "match_versioned_technology",
     "normalize_component_name",
     "parse_versioned_technology",
+    "range_expression_capability",
     "range_expression_supported",
     "validate_catalog_payload",
     "version_matches_range",
