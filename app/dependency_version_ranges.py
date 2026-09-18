@@ -3,9 +3,11 @@ from __future__ import annotations
 """Fail-closed affected-version range evaluation for dependency advisories.
 
 Recon Monitor deliberately keeps the observed component version contract narrow:
-the target-side version must be an exact stable numeric release. Advisory range
-boundaries may be richer. This module evaluates only syntax whose ordering
-semantics are explicit for the advisory ecosystem.
+the target-side version must be an exact numeric release or a strict SemVer
+release/prerelease. Advisory range boundaries may be richer. Prerelease target
+versions are evaluated only for SemVer-compatible ecosystems and only when the
+range branch explicitly admits that prerelease tuple. This module evaluates
+only syntax whose ordering semantics are explicit for the advisory ecosystem.
 
 Unsupported syntax never becomes a positive match. For union expressions, a
 fully understood branch may safely produce a positive match even when another
@@ -15,8 +17,8 @@ union branch is unsupported; a conjunction is never partially evaluated.
 import re
 from typing import Iterable
 
-DEPENDENCY_VERSION_RANGE_VERSION = "1.2.0"
-DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.18.3"
+DEPENDENCY_VERSION_RANGE_VERSION = "1.3.0"
+DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.19.1"
 
 SEMVER_ECOSYSTEMS = frozenset(
     {
@@ -139,6 +141,154 @@ def _compare_release(left: tuple[int, ...], right: tuple[int, ...]) -> int:
     if padded_left > padded_right:
         return 1
     return 0
+
+
+
+def _strict_semver(
+    value: str,
+) -> tuple[tuple[int, int, int], tuple[str, ...] | None] | None:
+    match = _SEMVER_RE.fullmatch(str(value or "").strip())
+    if not match:
+        return None
+    core = tuple(str(match.group(index)) for index in (1, 2, 3))
+    if any(len(item) > 1 and item.startswith("0") for item in core):
+        return None
+    release = tuple(int(item) for item in core)
+
+    raw_prerelease = str(match.group(4) or "")
+    prerelease: tuple[str, ...] | None = None
+    if raw_prerelease:
+        prerelease = tuple(raw_prerelease.split("."))
+        if (
+            not prerelease
+            or any(not item for item in prerelease)
+            or any(
+                item.isdigit() and len(item) > 1 and item.startswith("0")
+                for item in prerelease
+            )
+        ):
+            return None
+
+    raw_build = str(match.group(5) or "")
+    if raw_build and any(not item for item in raw_build.split(".")):
+        return None
+    return release, prerelease
+
+def _compare_semver_identifiers(
+    left: tuple[str, ...] | None,
+    right: tuple[str, ...] | None,
+) -> int:
+    if left is None and right is None:
+        return 0
+    if left is None:
+        return 1
+    if right is None:
+        return -1
+    for left_item, right_item in zip(left, right):
+        if left_item == right_item:
+            continue
+        left_numeric = left_item.isdigit()
+        right_numeric = right_item.isdigit()
+        if left_numeric and right_numeric:
+            left_value = int(left_item)
+            right_value = int(right_item)
+            return -1 if left_value < right_value else 1
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return -1 if left_item < right_item else 1
+    if len(left) == len(right):
+        return 0
+    return -1 if len(left) < len(right) else 1
+
+
+def _compare_semver(
+    left: tuple[tuple[int, int, int], tuple[str, ...] | None],
+    right: tuple[tuple[int, int, int], tuple[str, ...] | None],
+) -> int:
+    release_cmp = _compare_release(left[0], right[0])
+    if release_cmp:
+        return release_cmp
+    return _compare_semver_identifiers(left[1], right[1])
+
+
+def observed_version_supported(value: str) -> bool:
+    text = str(value or "").strip()
+    return _release_tuple(text) is not None or _strict_semver(text) is not None
+
+
+def _observed_prerelease(
+    value: str,
+    ecosystem: str,
+) -> tuple[tuple[int, int, int], tuple[str, ...]] | None:
+    if normalize_ecosystem(ecosystem) not in SEMVER_ECOSYSTEMS:
+        return None
+    parsed = _strict_semver(value)
+    if parsed is None or parsed[1] is None:
+        return None
+    return parsed[0], parsed[1]
+
+
+def _compare_observed_to_boundary(
+    observed_text: str,
+    boundary_text: str,
+    ecosystem: str,
+) -> int | None:
+    observed_release = _release_tuple(observed_text)
+    if observed_release is not None:
+        return _compare_stable_observed_to_boundary(
+            observed_release,
+            boundary_text,
+            ecosystem,
+        )
+
+    ecosystem = normalize_ecosystem(ecosystem)
+    if ecosystem not in SEMVER_ECOSYSTEMS:
+        return None
+    observed_semver = _strict_semver(observed_text)
+    if observed_semver is None:
+        return None
+
+    boundary_semver = _strict_semver(boundary_text)
+    if boundary_semver is not None:
+        return _compare_semver(observed_semver, boundary_semver)
+
+    boundary_release = _release_tuple(boundary_text)
+    if boundary_release is not None and len(boundary_release) <= 3:
+        padded = boundary_release + (0,) * (3 - len(boundary_release))
+        return _compare_semver(observed_semver, (padded, None))
+    return None
+
+
+def _branch_explicitly_admits_prerelease(
+    observed_text: str,
+    branch: str,
+    ecosystem: str,
+) -> bool:
+    observed = _observed_prerelease(observed_text, ecosystem)
+    if observed is None:
+        return True
+    observed_release = observed[0]
+    text = str(branch or "").strip()
+
+    hyphen = _HYPHEN_RE.fullmatch(text)
+    if hyphen:
+        for boundary in (hyphen.group(1), hyphen.group(2)):
+            parsed = _strict_semver(boundary)
+            if parsed is not None and parsed[1] is not None and parsed[0] == observed_release:
+                return True
+        return False
+
+    parts = _split_comparator_conjunction(text)
+    if not parts:
+        return False
+    for part in parts:
+        match = _COMPARATOR_CLAUSE_RE.fullmatch(part)
+        if not match:
+            continue
+        parsed = _strict_semver(str(match.group(2) or ""))
+        if parsed is not None and parsed[1] is not None and parsed[0] == observed_release:
+            return True
+    return False
 
 
 def _semver_boundary(value: str) -> tuple[tuple[int, ...], int] | None:
@@ -389,8 +539,12 @@ def _wildcard_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | No
     return lower, upper
 
 
+
 def _caret_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     release = _release_tuple(value)
+    if release is None:
+        semver = _strict_semver(value)
+        release = semver[0] if semver is not None else None
     if release is None or len(release) > 3:
         return None
     padded = release + (0,) * (3 - len(release))
@@ -413,6 +567,9 @@ def _caret_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
 
 def _tilde_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     release = _release_tuple(value)
+    if release is None:
+        semver = _strict_semver(value)
+        release = semver[0] if semver is not None else None
     if release is None or len(release) > 3:
         return None
     padded = release + (0,) * (3 - len(release))
@@ -422,7 +579,6 @@ def _tilde_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     else:
         upper = (padded[0], padded[1] + 1, 0)
     return lower, upper
-
 
 def _compatible_release_bounds(
     value: str,
@@ -500,72 +656,122 @@ def _special_branch_supported(branch: str, ecosystem: str) -> bool:
     return False
 
 
+
 def _special_branch_matches(
-    observed: tuple[int, ...],
+    observed_text: str,
     branch: str,
     ecosystem: str,
 ) -> bool | None:
     text = str(branch or "").strip()
     ecosystem = normalize_ecosystem(ecosystem)
+    observed_release = _release_tuple(observed_text)
+    observed_semver = (
+        _strict_semver(observed_text)
+        if ecosystem in SEMVER_ECOSYSTEMS
+        else None
+    )
+    if observed_release is None and observed_semver is None:
+        return None
 
     if ecosystem in SEMVER_ECOSYSTEMS:
         if text.startswith("^"):
-            bounds = _caret_bounds(text[1:].strip())
-            return (
-                _release_in_bounds(observed, *bounds)
-                if bounds is not None
-                else None
-            )
+            lower_text = text[1:].strip()
+            bounds = _caret_bounds(lower_text)
+            if bounds is None:
+                return None
+            if _strict_semver(lower_text) is not None:
+                low_cmp = _compare_observed_to_boundary(
+                    observed_text, lower_text, ecosystem
+                )
+                high_cmp = _compare_observed_to_boundary(
+                    observed_text, ".".join(str(item) for item in bounds[1]), ecosystem
+                )
+                if low_cmp is None or high_cmp is None:
+                    return None
+                if not _branch_explicitly_admits_prerelease(
+                    observed_text, f">={lower_text}", ecosystem
+                ):
+                    return False
+                return low_cmp >= 0 and high_cmp < 0
+            if observed_semver is not None and observed_semver[1] is not None:
+                return False
+            release = observed_release if observed_release is not None else observed_semver[0]
+            return _release_in_bounds(release, *bounds)
         if text.startswith("~") and not text.startswith("~="):
-            bounds = _tilde_bounds(text[1:].strip())
-            return (
-                _release_in_bounds(observed, *bounds)
-                if bounds is not None
-                else None
-            )
+            lower_text = text[1:].strip()
+            bounds = _tilde_bounds(lower_text)
+            if bounds is None:
+                return None
+            if _strict_semver(lower_text) is not None:
+                low_cmp = _compare_observed_to_boundary(
+                    observed_text, lower_text, ecosystem
+                )
+                high_cmp = _compare_observed_to_boundary(
+                    observed_text, ".".join(str(item) for item in bounds[1]), ecosystem
+                )
+                if low_cmp is None or high_cmp is None:
+                    return None
+                if not _branch_explicitly_admits_prerelease(
+                    observed_text, f">={lower_text}", ecosystem
+                ):
+                    return False
+                return low_cmp >= 0 and high_cmp < 0
+            if observed_semver is not None and observed_semver[1] is not None:
+                return False
+            release = observed_release if observed_release is not None else observed_semver[0]
+            return _release_in_bounds(release, *bounds)
         wildcard = _wildcard_bounds(text)
         if wildcard is not None:
-            return _release_in_bounds(observed, *wildcard)
+            if observed_semver is not None and observed_semver[1] is not None:
+                return False
+            release = observed_release if observed_release is not None else observed_semver[0]
+            return _release_in_bounds(release, *wildcard)
         hyphen = _HYPHEN_RE.fullmatch(text)
         if hyphen:
-            low_cmp = _compare_stable_observed_to_boundary(
-                observed,
+            low_cmp = _compare_observed_to_boundary(
+                observed_text,
                 hyphen.group(1),
                 ecosystem,
             )
-            high_cmp = _compare_stable_observed_to_boundary(
-                observed,
+            high_cmp = _compare_observed_to_boundary(
+                observed_text,
                 hyphen.group(2),
                 ecosystem,
             )
             if low_cmp is None or high_cmp is None:
                 return None
+            if not _branch_explicitly_admits_prerelease(
+                observed_text,
+                text,
+                ecosystem,
+            ):
+                return False
             return low_cmp >= 0 and high_cmp <= 0
 
     if ecosystem in PEP440_ECOSYSTEMS and text.startswith("~="):
         bounds = _compatible_release_bounds(text[2:].strip())
         return (
-            _release_in_bounds(observed, *bounds)
-            if bounds is not None
+            _release_in_bounds(observed_release, *bounds)
+            if bounds is not None and observed_release is not None
             else None
         )
 
     if ecosystem in RUBYGEMS_ECOSYSTEMS and text.startswith("~>"):
         bounds = _pessimistic_rubygems_bounds(text[2:].strip())
         return (
-            _release_in_bounds(observed, *bounds)
-            if bounds is not None
+            _release_in_bounds(observed_release, *bounds)
+            if bounds is not None and observed_release is not None
             else None
         )
 
     if ecosystem in MAVEN_ECOSYSTEMS:
         interval = _MAVEN_INTERVAL_RE.fullmatch(text)
-        if interval:
+        if interval and observed_release is not None:
             lower = interval.group(2).strip()
             upper = interval.group(3).strip()
             if lower:
                 low_cmp = _compare_stable_observed_to_boundary(
-                    observed, lower, ecosystem
+                    observed_release, lower, ecosystem
                 )
                 if low_cmp is None:
                     return None
@@ -576,7 +782,7 @@ def _special_branch_matches(
                     return False
             if upper:
                 high_cmp = _compare_stable_observed_to_boundary(
-                    observed, upper, ecosystem
+                    observed_release, upper, ecosystem
                 )
                 if high_cmp is None:
                     return None
@@ -588,7 +794,6 @@ def _special_branch_matches(
             return True
 
     return None
-
 
 def _comparator_branch_supported(branch: str, ecosystem: str) -> bool:
     parts = _split_comparator_conjunction(branch)
@@ -616,13 +821,14 @@ def _comparator_branch_supported(branch: str, ecosystem: str) -> bool:
     return True
 
 
+
 def _comparator_branch_matches(
-    observed: tuple[int, ...],
+    observed_text: str,
     branch: str,
     ecosystem: str,
 ) -> bool | None:
     whole_special = _special_branch_matches(
-        observed,
+        observed_text,
         branch,
         ecosystem,
     )
@@ -633,7 +839,7 @@ def _comparator_branch_matches(
     if not parts:
         return None
     for part in parts:
-        special = _special_branch_matches(observed, part, ecosystem)
+        special = _special_branch_matches(observed_text, part, ecosystem)
         if special is not None:
             if not special:
                 return False
@@ -652,12 +858,15 @@ def _comparator_branch_matches(
             and normalize_ecosystem(ecosystem)
             in (SEMVER_ECOSYSTEMS | PEP440_ECOSYSTEMS | RUBYGEMS_ECOSYSTEMS)
         ):
-            if not _release_in_bounds(observed, *wildcard):
+            observed_release = _release_tuple(observed_text)
+            if observed_release is None:
+                return False
+            if not _release_in_bounds(observed_release, *wildcard):
                 return False
             continue
 
-        comparison = _compare_stable_observed_to_boundary(
-            observed,
+        comparison = _compare_observed_to_boundary(
+            observed_text,
             boundary,
             ecosystem,
         )
@@ -665,8 +874,14 @@ def _comparator_branch_matches(
             return None
         if not _operator_matches(comparison, operator):
             return False
-    return True
 
+    if not _branch_explicitly_admits_prerelease(
+        observed_text,
+        branch,
+        ecosystem,
+    ):
+        return False
+    return True
 
 def _union_branches(expression: str) -> list[str]:
     return [
@@ -697,13 +912,20 @@ def range_expression_supported(expression: str, ecosystem: str = "") -> bool:
     return range_expression_capability(expression, ecosystem) == "full"
 
 
+
 def version_matches_range(
     version: str,
     expression: str,
     ecosystem: str = "",
 ) -> bool:
-    observed = _release_tuple(version)
-    if observed is None:
+    observed_text = str(version or "").strip()
+    if not observed_version_supported(observed_text):
+        return False
+    if (
+        _release_tuple(observed_text) is None
+        and _strict_semver(observed_text) is not None
+        and normalize_ecosystem(ecosystem) not in SEMVER_ECOSYSTEMS
+    ):
         return False
 
     for branch in _union_branches(expression):
@@ -712,11 +934,10 @@ def version_matches_range(
             or _special_branch_supported(branch, ecosystem)
         ):
             continue
-        result = _comparator_branch_matches(observed, branch, ecosystem)
+        result = _comparator_branch_matches(observed_text, branch, ecosystem)
         if result is True:
             return True
     return False
-
 
 def range_support_summary(
     rows: Iterable[tuple[str, str]],
@@ -736,6 +957,7 @@ __all__ = [
     "RUBYGEMS_ECOSYSTEMS",
     "SEMVER_ECOSYSTEMS",
     "normalize_ecosystem",
+    "observed_version_supported",
     "range_expression_capability",
     "range_expression_supported",
     "range_support_summary",

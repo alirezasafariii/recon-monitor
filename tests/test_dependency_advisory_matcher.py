@@ -26,7 +26,10 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         self.assertEqual(parsed["version"], "3.4.1")
         self.assertIsNone(parse_versioned_technology("jQuery"))
         self.assertIsNone(parse_versioned_technology("jQuery:latest"))
-        self.assertIsNone(parse_versioned_technology("jQuery:3.5.0-beta.1"))
+        prerelease = parse_versioned_technology("demo:3.5.0-beta.1")
+        self.assertEqual(prerelease["name"], "demo")
+        self.assertEqual(prerelease["version"], "3.5.0-beta.1")
+        self.assertIsNone(parse_versioned_technology("demo:1.2.3-01"))
 
     def test_range_matching_is_deterministic(self):
         self.assertTrue(version_matches_range("3.4.1", ">=1.2,<3.5.0"))
