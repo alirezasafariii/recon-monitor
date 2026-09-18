@@ -235,6 +235,21 @@ def candidate_family_match(
         }
 
     if not expected_cwes:
+        normalized_summary = _text(summary_text).lower().replace("-", " ")
+        if (
+            family == "client_side_resource_manipulation"
+            and (
+                "client side ssrf" in normalized_summary
+                or "client side resource manipulation" in normalized_summary
+                or "external resource loading" in normalized_summary
+            )
+        ):
+            return {
+                "matched": True,
+                "basis": "explicit_client_side_resource_semantics",
+                "matched_cwes": [],
+                "semantic_matches": semantic or ["client side resource"],
+            }
         semantic_candidates = semantic_family_candidates(summary_text)
         matches = semantic_candidates.get(family, [])
         competing = {
