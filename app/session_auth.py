@@ -39,7 +39,15 @@ def create_user(paths: AppPaths, username: str, password: str, role: str = "admi
     db=Database(paths.db)
     try:
         now=utc_now()
-        db.execute("INSERT INTO users(username,password_salt,password_hash,password_iterations,role,enabled,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?) ON CONFLICT(username) DO UPDATE SET password_salt=excluded.password_salt,password_hash=excluded.password_hash,password_iterations=excluded.password_iterations,role=excluded.role,enabled=1,updated_at=excluded.updated_at",(username,salt,digest,iterations,role,now,now))
+        db.execute(
+            "INSERT INTO users(username,password_salt,password_hash,password_iterations,role,enabled,auth_epoch,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,1,1,?,?) "
+            "ON CONFLICT(username) DO UPDATE SET "
+            "password_salt=excluded.password_salt,password_hash=excluded.password_hash,"
+            "password_iterations=excluded.password_iterations,role=excluded.role,enabled=1,"
+            "auth_epoch=users.auth_epoch+1,updated_at=excluded.updated_at",
+            (username,salt,digest,iterations,role,now,now),
+        )
         db.audit("dashboard_user_upserted", actor=username, entity_type="user", entity_value=username, details={"role":role})
     finally: db.close()
 
@@ -47,7 +55,10 @@ def create_user(paths: AppPaths, username: str, password: str, role: str = "admi
 def disable_user(paths: AppPaths, username: str) -> None:
     db=Database(paths.db)
     try:
-        db.execute("UPDATE users SET enabled=0,updated_at=? WHERE username=?",(utc_now(),username))
+        db.execute(
+            "UPDATE users SET enabled=0,auth_epoch=auth_epoch+1,updated_at=? WHERE username=?",
+            (utc_now(),username),
+        )
         db.audit("dashboard_user_disabled", entity_type="user", entity_value=username)
     finally: db.close()
 
@@ -88,10 +99,31 @@ def _session_path(paths: AppPaths, token: str) -> Path:
 
 
 def create_session(paths: AppPaths, username: str, role: str, ttl_seconds: int = SESSION_TTL_SECONDS) -> Session:
+    db=Database(paths.db)
+    try:
+        row=db.one(
+            "SELECT role,enabled,auth_epoch FROM users WHERE username=?",
+            (username,),
+        )
+    finally:
+        db.close()
+    if not row or not int(row["enabled"]):
+        raise ReconError("Cannot create a session for a disabled or unknown user")
+    current_role=str(row["role"] or "viewer")
+    auth_epoch=int(row["auth_epoch"] or 1)
+    if role and role != current_role:
+        raise ReconError("Session role does not match the current user role")
     token=secrets.token_urlsafe(32); csrf=secrets.token_urlsafe(24); expires=int(time.time())+ttl_seconds
-    payload={"username":username,"role":role,"csrf":csrf,"expires_at":expires,"created_at":utc_now()}
+    payload={
+        "username":username,
+        "role":current_role,
+        "auth_epoch":auth_epoch,
+        "csrf":csrf,
+        "expires_at":expires,
+        "created_at":utc_now(),
+    }
     atomic_write_text(_session_path(paths,token),json.dumps(payload,sort_keys=True)+"\n",0o600)
-    return Session(username,role,csrf,expires,token)
+    return Session(username,current_role,csrf,expires,token)
 
 
 def parse_session(paths: AppPaths, cookie_header: str) -> Session | None:
@@ -106,7 +138,26 @@ def parse_session(paths: AppPaths, cookie_header: str) -> Session | None:
     except Exception: path.unlink(missing_ok=True); return None
     expires=int(data.get("expires_at",0))
     if expires<int(time.time()): path.unlink(missing_ok=True); return None
-    return Session(str(data.get("username","")),str(data.get("role","viewer")),str(data.get("csrf","")),expires,token)
+    username=str(data.get("username",""))
+    stored_role=str(data.get("role","viewer"))
+    stored_epoch=int(data.get("auth_epoch",0) or 0)
+    db=Database(paths.db)
+    try:
+        row=db.one(
+            "SELECT role,enabled,auth_epoch FROM users WHERE username=?",
+            (username,),
+        )
+    finally:
+        db.close()
+    if (
+        not row
+        or not int(row["enabled"])
+        or int(row["auth_epoch"] or 1) != stored_epoch
+        or str(row["role"] or "viewer") != stored_role
+    ):
+        path.unlink(missing_ok=True)
+        return None
+    return Session(username,stored_role,str(data.get("csrf","")),expires,token)
 
 
 def destroy_session(paths: AppPaths, token: str) -> None:
