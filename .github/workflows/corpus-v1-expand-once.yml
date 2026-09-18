@@ -26,7 +26,7 @@ jobs:
           PYTHONPATH: app
         run: |
           set +e
-          python app/real_world_corpus_v1_coverage_expander.py             --quota 1             --max-pages-per-family 20             --output coverage_expansion.json
+          python app/real_world_corpus_v1_coverage_expander.py             --quota 1             --max-pages-per-family 25             --output coverage_expansion.json
           code=$?
           python - <<'PY'
           import json
