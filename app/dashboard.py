@@ -29,6 +29,15 @@ from change_guidance_review_packet import (
     CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
     change_guidance_review_packets,
 )
+from change_guidance_policy_proposal import (
+    CHANGE_GUIDANCE_POLICY_PROPOSAL_VERSION,
+    create_policy_change_proposal,
+    current_policy_snapshot,
+    decide_policy_change_proposal,
+    list_policy_change_proposals,
+    submit_policy_change_proposal,
+    supported_policy_surfaces,
+)
 from correlation_engine import CORRELATION_ENGINE_VERSION, build_correlation_context, investigation_queue
 from derived_change_advisory import DERIVED_CHANGE_ADVISORY_VERSION
 from investigation_workflow import (
@@ -42,7 +51,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.8.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.9.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -303,6 +312,143 @@ def _change_guidance_calibration_panel(report: Mapping[str, Any]) -> str:
         + rows
         + "</tbody></table></div>"
         f"<p class='muted small' style='margin-top:12px'>A signal remains <code>insufficient_feedback</code> until at least {int(report.get('minimum_feedback_per_signal') or 5)} explicit ratings exist. Ratings are subjective workflow telemetry, not vulnerability labels, and no production activation path exists in this report.</p>"
+        "</div></section>"
+    )
+
+
+def _change_guidance_policy_proposal_panel(
+    review_report: Mapping[str, Any],
+    proposals: list[Mapping[str, Any]],
+    *,
+    target: str = "",
+) -> str:
+    ready_packets = [
+        dict(row)
+        for row in review_report.get("packets", [])
+        if isinstance(row, Mapping)
+        and str(row.get("review_status") or "") == "ready_for_manual_review"
+    ]
+    packet_options = "".join(
+        f"<option value='{_base._esc(row.get('proposal_id') or '')}'>"
+        f"{_base._esc(row.get('signal_type') or '')} · "
+        f"{_base._esc(str(row.get('proposal_direction') or '').replace('_',' '))}</option>"
+        for row in ready_packets[:100]
+    )
+    surface_options = "".join(
+        f"<option value='{_base._esc(surface)}'>{_base._esc(surface)}</option>"
+        for surface in supported_policy_surfaces()
+    )
+    snapshots = "".join(
+        "<li><code>"
+        + _base._esc(surface)
+        + "</code>: <code>"
+        + _base._esc(json.dumps(current_policy_snapshot(surface), sort_keys=True))
+        + "</code></li>"
+        for surface in supported_policy_surfaces()
+    )
+
+    def state_tone(value: str) -> str:
+        return {
+            "draft": "neutral",
+            "under_review": "info",
+            "accepted_for_separate_implementation": "success",
+            "rejected": "danger",
+            "superseded": "neutral",
+        }.get(value, "neutral")
+
+    rows: list[str] = []
+    for raw in proposals[:100]:
+        row = dict(raw)
+        state = str(row.get("state") or "")
+        proposal_id = str(row.get("proposal_version_id") or "")
+        actions = ""
+        if state == "draft":
+            actions = (
+                "<form method='post' action='/investigation/policy-proposal/submit'>"
+                f"<input type='hidden' name='proposal_version_id' value='{_base._esc(proposal_id)}'>"
+                "<input type='hidden' name='return' value='/potential-findings#change-guidance-policy-proposals'>"
+                "<button type='submit' class='secondary'>Submit for review</button></form>"
+            )
+        elif state == "under_review":
+            actions = (
+                "<form method='post' action='/investigation/policy-proposal/decision' class='filters'>"
+                f"<input type='hidden' name='proposal_version_id' value='{_base._esc(proposal_id)}'>"
+                "<input type='hidden' name='return' value='/potential-findings#change-guidance-policy-proposals'>"
+                "<label>Decision<select name='proposal_decision'>"
+                "<option value='accept'>Accept for separate implementation</option>"
+                "<option value='reject'>Reject</option></select></label>"
+                "<label>Decision note<input name='decision_note' maxlength='2000' required></label>"
+                "<button type='submit'>Record review decision</button></form>"
+            )
+        else:
+            actions = (
+                "<span class='muted small'>No apply action exists. "
+                + (
+                    "A separate code/config change is required."
+                    if state == "accepted_for_separate_implementation"
+                    else "Lifecycle is terminal."
+                )
+                + "</span>"
+            )
+        diff_text = json.dumps(row.get("diff") or [], sort_keys=True)
+        tests_text = " · ".join(str(value) for value in row.get("test_requirements", [])[:6])
+        rows.append(
+            "<tr>"
+            f"<td><code>{_base._esc(proposal_id)}</code><br><span class='muted small'>v{int(row.get('proposal_version') or 0)}</span></td>"
+            f"<td><code>{_base._esc(row.get('source_packet_id') or '')}</code></td>"
+            f"<td><code>{_base._esc(row.get('policy_surface') or '')}</code></td>"
+            f"<td>{_base._pill(state, state_tone(state))}</td>"
+            f"<td><code>{_base._esc(diff_text)}</code></td>"
+            f"<td>{_base._esc(row.get('rollback_plan') or '')}<br><span class='muted small'>{_base._esc(tests_text)}</span></td>"
+            f"<td>{actions}</td>"
+            "</tr>"
+        )
+    proposal_rows = "".join(rows) or (
+        "<tr><td colspan='7' class='muted'>No explicit policy-change proposal has been drafted yet.</td></tr>"
+    )
+
+    create_form = (
+        "<form method='post' action='/investigation/policy-proposal/create' style='margin-top:14px'>"
+        f"<input type='hidden' name='target' value='{_base._esc(target)}'>"
+        "<input type='hidden' name='return' value='/potential-findings#change-guidance-policy-proposals'>"
+        "<div class='filters'>"
+        "<label>Ready P11 packet<select name='source_packet_id' required>"
+        + packet_options
+        + "</select></label>"
+        "<label>Policy surface<select name='policy_surface' required>"
+        + surface_options
+        + "</select></label>"
+        "</div>"
+        "<label>Candidate after JSON<textarea name='after_json' rows='4' required "
+        "placeholder='Example: {&quot;derived_change_weight&quot;:0.06}'></textarea></label>"
+        "<label>Rationale<textarea name='rationale' rows='3' maxlength='4000' required></textarea></label>"
+        "<label>Rollback plan<textarea name='rollback_plan' rows='3' maxlength='4000' required "
+        "placeholder='Describe exactly how the separate implementation would be reverted.'></textarea></label>"
+        "<label>Test requirements<textarea name='test_requirements' rows='4' required "
+        "placeholder='One required test per line'></textarea></label>"
+        "<button type='submit'>Draft versioned proposal</button>"
+        "</form>"
+        if ready_packets
+        else "<p class='muted small'>No P11 packet is currently ready for manual review, so proposal drafting is disabled.</p>"
+    )
+
+    return (
+        "<section class='panel' id='change-guidance-policy-proposals' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Explicit Policy-change Proposals</h3>"
+        f"<span class='muted small'>Workflow {_base._esc(CHANGE_GUIDANCE_POLICY_PROPOSAL_VERSION)} · versioned and audited</span></div>"
+        + _base._pill("non-executable", "info")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Accepted does not mean applied</strong>"
+        "<span>This ledger records a human proposal and review decision only. It has no apply endpoint and cannot mutate production weights, thresholds, Queue score, task ordering, Evidence Gap, Admission, or validation. Accepted proposals require a separate code/config change and normal CI/review/merge controls.</span></div>"
+        "<details style='margin-top:12px'><summary>Current supported policy snapshots</summary><ul>"
+        + snapshots
+        + "</ul></details>"
+        + create_form
+        + "<div class='table-wrap' style='margin-top:16px'><table><thead><tr>"
+        "<th>Proposal version</th><th>Source packet</th><th>Policy surface</th><th>State</th><th>Before/after diff</th><th>Rollback & tests</th><th>Review action</th>"
+        "</tr></thead><tbody>"
+        + proposal_rows
+        + "</tbody></table></div>"
         "</div></section>"
     )
 
@@ -967,6 +1113,11 @@ def _bug_candidates_with_queue(self: Any) -> None:
             calibration_report=calibration,
             drift_report=drift,
         )
+        policy_proposals = list_policy_change_proposals(
+            db,
+            target=target,
+            limit=100,
+        )
     finally:
         db.close()
     if family:
@@ -993,6 +1144,13 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
+    fragments.append(
+        _change_guidance_policy_proposal_panel(
+            review_packets,
+            policy_proposals,
+            target=target,
+        )
+    )
     fragments.append(_change_guidance_review_packet_panel(review_packets))
     fragments.append(_change_guidance_drift_panel(drift))
     fragments.append(_change_guidance_calibration_panel(calibration))
@@ -1013,6 +1171,9 @@ def _do_post_with_investigation(self: Any) -> None:
         "/investigation/start",
         "/investigation/refresh",
         "/investigation/task-feedback",
+        "/investigation/policy-proposal/create",
+        "/investigation/policy-proposal/submit",
+        "/investigation/policy-proposal/decision",
         "/investigation/decision",
     }:
         _ORIGINAL_DO_POST(self)
@@ -1055,6 +1216,51 @@ def _do_post_with_investigation(self: Any) -> None:
                 status=str((data.get("task_status") or [""])[0]),
                 usefulness=str((data.get("usefulness") or [""])[0]),
                 note=str((data.get("note") or [""])[0])[:1000],
+                actor=actor,
+            )
+        elif path == "/investigation/policy-proposal/create":
+            after_text = str((data.get("after_json") or ["{}"])[0]).strip()
+            try:
+                after_payload = json.loads(after_text)
+            except json.JSONDecodeError as exc:
+                raise _base.ReconError("Candidate after JSON is invalid") from exc
+            if not isinstance(after_payload, Mapping):
+                raise _base.ReconError("Candidate after JSON must be an object")
+            requirements = [
+                line.strip()
+                for line in str((data.get("test_requirements") or [""])[0]).splitlines()
+                if line.strip()
+            ]
+            target_value = str((data.get("target") or [""])[0]).strip()
+            current_packets = change_guidance_review_packets(
+                db,
+                target=target_value,
+                max_packets=100,
+            )
+            create_policy_change_proposal(
+                db,
+                source_packet_id=str((data.get("source_packet_id") or [""])[0]),
+                target=target_value,
+                policy_surface=str((data.get("policy_surface") or [""])[0]),
+                after=after_payload,
+                rationale=str((data.get("rationale") or [""])[0])[:4000],
+                rollback_plan=str((data.get("rollback_plan") or [""])[0])[:4000],
+                test_requirements=requirements,
+                actor=actor,
+                review_packet_report=current_packets,
+            )
+        elif path == "/investigation/policy-proposal/submit":
+            submit_policy_change_proposal(
+                db,
+                str((data.get("proposal_version_id") or [""])[0]),
+                actor=actor,
+            )
+        elif path == "/investigation/policy-proposal/decision":
+            decide_policy_change_proposal(
+                db,
+                str((data.get("proposal_version_id") or [""])[0]),
+                decision=str((data.get("proposal_decision") or [""])[0]),
+                note=str((data.get("decision_note") or [""])[0])[:2000],
                 actor=actor,
             )
         else:
