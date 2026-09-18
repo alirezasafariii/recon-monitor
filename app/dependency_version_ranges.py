@@ -143,25 +143,36 @@ def _compare_release(left: tuple[int, ...], right: tuple[int, ...]) -> int:
     return 0
 
 
+
 def _strict_semver(
     value: str,
 ) -> tuple[tuple[int, int, int], tuple[str, ...] | None] | None:
     match = _SEMVER_RE.fullmatch(str(value or "").strip())
     if not match:
         return None
-    release = tuple(int(match.group(index)) for index in (1, 2, 3))
-    raw_prerelease = str(match.group(4) or "")
-    if not raw_prerelease:
-        return release, None
-    identifiers = tuple(raw_prerelease.split("."))
-    if (
-        not identifiers
-        or any(not item for item in identifiers)
-        or any(item.isdigit() and len(item) > 1 and item.startswith("0") for item in identifiers)
-    ):
+    core = tuple(str(match.group(index)) for index in (1, 2, 3))
+    if any(len(item) > 1 and item.startswith("0") for item in core):
         return None
-    return release, identifiers
+    release = tuple(int(item) for item in core)
 
+    raw_prerelease = str(match.group(4) or "")
+    prerelease: tuple[str, ...] | None = None
+    if raw_prerelease:
+        prerelease = tuple(raw_prerelease.split("."))
+        if (
+            not prerelease
+            or any(not item for item in prerelease)
+            or any(
+                item.isdigit() and len(item) > 1 and item.startswith("0")
+                for item in prerelease
+            )
+        ):
+            return None
+
+    raw_build = str(match.group(5) or "")
+    if raw_build and any(not item for item in raw_build.split(".")):
+        return None
+    return release, prerelease
 
 def _compare_semver_identifiers(
     left: tuple[str, ...] | None,
@@ -528,8 +539,12 @@ def _wildcard_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | No
     return lower, upper
 
 
+
 def _caret_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     release = _release_tuple(value)
+    if release is None:
+        semver = _strict_semver(value)
+        release = semver[0] if semver is not None else None
     if release is None or len(release) > 3:
         return None
     padded = release + (0,) * (3 - len(release))
@@ -552,6 +567,9 @@ def _caret_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
 
 def _tilde_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     release = _release_tuple(value)
+    if release is None:
+        semver = _strict_semver(value)
+        release = semver[0] if semver is not None else None
     if release is None or len(release) > 3:
         return None
     padded = release + (0,) * (3 - len(release))
@@ -561,7 +579,6 @@ def _tilde_bounds(value: str) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
     else:
         upper = (padded[0], padded[1] + 1, 0)
     return lower, upper
-
 
 def _compatible_release_bounds(
     value: str,
@@ -658,17 +675,47 @@ def _special_branch_matches(
 
     if ecosystem in SEMVER_ECOSYSTEMS:
         if text.startswith("^"):
-            bounds = _caret_bounds(text[1:].strip())
+            lower_text = text[1:].strip()
+            bounds = _caret_bounds(lower_text)
             if bounds is None:
                 return None
+            if _strict_semver(lower_text) is not None:
+                low_cmp = _compare_observed_to_boundary(
+                    observed_text, lower_text, ecosystem
+                )
+                high_cmp = _compare_observed_to_boundary(
+                    observed_text, ".".join(str(item) for item in bounds[1]), ecosystem
+                )
+                if low_cmp is None or high_cmp is None:
+                    return None
+                if not _branch_explicitly_admits_prerelease(
+                    observed_text, f">={lower_text}", ecosystem
+                ):
+                    return False
+                return low_cmp >= 0 and high_cmp < 0
             if observed_semver is not None and observed_semver[1] is not None:
                 return False
             release = observed_release if observed_release is not None else observed_semver[0]
             return _release_in_bounds(release, *bounds)
         if text.startswith("~") and not text.startswith("~="):
-            bounds = _tilde_bounds(text[1:].strip())
+            lower_text = text[1:].strip()
+            bounds = _tilde_bounds(lower_text)
             if bounds is None:
                 return None
+            if _strict_semver(lower_text) is not None:
+                low_cmp = _compare_observed_to_boundary(
+                    observed_text, lower_text, ecosystem
+                )
+                high_cmp = _compare_observed_to_boundary(
+                    observed_text, ".".join(str(item) for item in bounds[1]), ecosystem
+                )
+                if low_cmp is None or high_cmp is None:
+                    return None
+                if not _branch_explicitly_admits_prerelease(
+                    observed_text, f">={lower_text}", ecosystem
+                ):
+                    return False
+                return low_cmp >= 0 and high_cmp < 0
             if observed_semver is not None and observed_semver[1] is not None:
                 return False
             release = observed_release if observed_release is not None else observed_semver[0]
