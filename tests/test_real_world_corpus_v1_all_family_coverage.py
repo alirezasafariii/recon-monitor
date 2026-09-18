@@ -133,6 +133,25 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         self.assertEqual(result["family"], "stored_xss")
         self.assertEqual(result["basis"], "shared_cwe_plus_unique_summary_semantics")
 
+    def test_source_resolver_can_use_unique_explicit_summary_without_target_hint(self):
+        feasibility = {
+            "family_hints": [],
+            "source_taxonomy_match": {
+                "family_target": None,
+                "target_cwe": None,
+            },
+        }
+        result = resolve_source_family(
+            feasibility,
+            _advisory("Package has Web Cache Poisoning through an unkeyed header"),
+        )
+        self.assertTrue(result["resolved"])
+        self.assertEqual(result["family"], "web_cache_poisoning")
+        self.assertEqual(
+            result["basis"],
+            "unique_summary_semantics_without_target",
+        )
+
     def test_source_resolver_refuses_ambiguous_shared_cwe(self):
         feasibility = {
             "family_hints": [],
