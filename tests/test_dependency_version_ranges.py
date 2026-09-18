@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 import unittest
 from pathlib import Path
@@ -199,35 +198,6 @@ class DependencyVersionRangeTests(unittest.TestCase):
             version_matches_range("1.2.3", "workspace:*", "npm")
         )
 
-    def test_full_snapshot_reports_bounded_unsupported_range_diagnostics(self):
-        payload = json.loads(
-            (ROOT / "data" / "dependency_advisory_catalog.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        counts: dict[str, int] = {}
-        samples: dict[str, list[str]] = {}
-        for advisory in payload.get("advisories", []):
-            if not isinstance(advisory, dict):
-                continue
-            ecosystem = str(advisory.get("ecosystem") or "").lower()
-            for expression in advisory.get("affected_ranges", []) or []:
-                expression = str(expression)
-                if range_expression_capability(expression, ecosystem) != "none":
-                    continue
-                counts[ecosystem] = counts.get(ecosystem, 0) + 1
-                bucket = samples.setdefault(ecosystem, [])
-                if expression not in bucket and len(bucket) < 8:
-                    bucket.append(expression)
-        print(
-            "DEPENDENCY_RANGE_UNSUPPORTED "
-            + json.dumps(
-                {"counts": counts, "samples": samples},
-                sort_keys=True,
-            )
-        )
-        self.assertGreater(sum(counts.values()), 0)
-
     def test_full_snapshot_reports_range_coverage_without_claiming_safety(self):
         status = catalog_status()
         total = (
@@ -240,21 +210,10 @@ class DependencyVersionRangeTests(unittest.TestCase):
             int(status["supported_range_count"])
             + int(status["partially_supported_range_count"])
         ) / total
-        self.assertGreater(ratio, 0.90)
+        self.assertGreater(ratio, 0.995)
         self.assertFalse(status["catalog_is_exhaustive"])
         self.assertFalse(status["absence_of_match_means_safe"])
-        print(
-            "DEPENDENCY_RANGE_COVERAGE "
-            + json.dumps(
-                {
-                    "full": status["supported_range_count"],
-                    "partial": status["partially_supported_range_count"],
-                    "none": status["unsupported_range_count"],
-                    "ratio": round(ratio, 6),
-                },
-                sort_keys=True,
-            )
-        )
+
 
 
 if __name__ == "__main__":
