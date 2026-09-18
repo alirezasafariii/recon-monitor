@@ -899,7 +899,8 @@ class Database:
               run_id TEXT NOT NULL, target TEXT NOT NULL, stage TEXT NOT NULL,
               item_key TEXT NOT NULL, payload_json TEXT NOT NULL DEFAULT '{}',
               status TEXT NOT NULL DEFAULT 'queued', attempts INTEGER NOT NULL DEFAULT 0,
-              worker_id TEXT, result_json TEXT NOT NULL DEFAULT '{}', error TEXT,
+              worker_id TEXT, lease_token_hash TEXT, lease_expires_at TEXT,
+              result_json TEXT NOT NULL DEFAULT '{}', error TEXT,
               created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT, heartbeat_at TEXT,
               UNIQUE(run_id,target,stage,item_key)
             );
@@ -957,7 +958,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS users (
               username TEXT PRIMARY KEY, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL,
               password_iterations INTEGER NOT NULL, role TEXT NOT NULL DEFAULT 'admin', enabled INTEGER NOT NULL DEFAULT 1,
-              created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+              auth_epoch INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS api_tokens (
               id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
@@ -965,7 +966,8 @@ class Database:
             );
             CREATE TABLE IF NOT EXISTS remote_workers (
               worker_id TEXT PRIMARY KEY, name TEXT NOT NULL, capabilities_json TEXT NOT NULL DEFAULT '[]',
-              status TEXT NOT NULL DEFAULT 'registered', registered_at TEXT NOT NULL, last_heartbeat TEXT, metadata_json TEXT NOT NULL DEFAULT '{}'
+              status TEXT NOT NULL DEFAULT 'registered', registered_at TEXT NOT NULL, last_heartbeat TEXT,
+              metadata_json TEXT NOT NULL DEFAULT '{}', auth_token_hash TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS plugin_registry (
               name TEXT PRIMARY KEY, version TEXT NOT NULL, category TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
@@ -1673,9 +1675,22 @@ class Database:
             "last_login_at": "TEXT",
             "failed_login_count": "INTEGER NOT NULL DEFAULT 0",
             "locked_until": "TEXT",
+            "auth_epoch": "INTEGER NOT NULL DEFAULT 1",
         }.items():
             if column not in user_columns:
                 self.conn.execute(f"ALTER TABLE users ADD COLUMN {column} {declaration}")
+        work_columns = {row[1] for row in self.conn.execute("PRAGMA table_info(work_items)")}
+        for column, declaration in {
+            "lease_token_hash": "TEXT",
+            "lease_expires_at": "TEXT",
+        }.items():
+            if column not in work_columns:
+                self.conn.execute(f"ALTER TABLE work_items ADD COLUMN {column} {declaration}")
+        worker_columns = {row[1] for row in self.conn.execute("PRAGMA table_info(remote_workers)")}
+        if "auth_token_hash" not in worker_columns:
+            self.conn.execute(
+                "ALTER TABLE remote_workers ADD COLUMN auth_token_hash TEXT NOT NULL DEFAULT ''"
+            )
 
         self.conn.execute(
             "INSERT INTO schema_meta(key,value) VALUES('schema_version',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -1759,14 +1774,115 @@ class Database:
         row = self.one("SELECT status FROM work_items WHERE run_id=? AND target=? AND stage=? AND item_key=?", (run_id,target,stage,item_key))
         return str(row["status"]) if row else None
 
-    def work_start(self, work_id: int, worker_id: str = "local") -> None:
-        self.execute("UPDATE work_items SET status='running',attempts=attempts+1,worker_id=?,started_at=?,heartbeat_at=?,error=NULL WHERE id=?", (worker_id,utc_now(),utc_now(),work_id))
+    def reclaim_expired_work_leases(self, now: str | None = None) -> int:
+        current = now or utc_now()
+        cursor = self.execute(
+            "UPDATE work_items SET status='retry_pending',worker_id=NULL,"
+            "lease_token_hash=NULL,lease_expires_at=NULL,started_at=NULL,"
+            "error=COALESCE(NULLIF(error,''),'Recovered expired remote work lease'),"
+            "heartbeat_at=? "
+            "WHERE status='running' AND COALESCE(lease_expires_at,'')<>'' "
+            "AND lease_expires_at<?",
+            (current, current),
+        )
+        return int(cursor.rowcount or 0)
 
-    def work_finish(self, work_id: int, result: Mapping[str, Any] | None = None) -> None:
-        self.execute("UPDATE work_items SET status='completed',result_json=?,finished_at=?,heartbeat_at=? WHERE id=?", (json_dumps(result or {}),utc_now(),utc_now(),work_id))
+    def work_start(
+        self,
+        work_id: int,
+        worker_id: str = "local",
+        *,
+        lease_token_hash: str = "",
+        lease_expires_at: str = "",
+    ) -> bool:
+        now = utc_now()
+        cursor = self.execute(
+            "UPDATE work_items SET status='running',attempts=attempts+1,worker_id=?,"
+            "lease_token_hash=?,lease_expires_at=?,started_at=?,heartbeat_at=?,error=NULL "
+            "WHERE id=? AND status IN ('queued','retry_pending')",
+            (
+                worker_id,
+                lease_token_hash or None,
+                lease_expires_at or None,
+                now,
+                now,
+                work_id,
+            ),
+        )
+        return cursor.rowcount == 1
 
-    def work_fail(self, work_id: int, error: str, retry: bool = True) -> None:
-        self.execute("UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=? WHERE id=?", ('retry_pending' if retry else 'failed',error,utc_now(),utc_now(),work_id))
+    def work_finish(
+        self,
+        work_id: int,
+        result: Mapping[str, Any] | None = None,
+        *,
+        worker_id: str | None = None,
+        lease_token_hash: str | None = None,
+    ) -> bool:
+        now = utc_now()
+        if worker_id is None:
+            cursor = self.execute(
+                "UPDATE work_items SET status='completed',result_json=?,finished_at=?,heartbeat_at=?,"
+                "lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?",
+                (json_dumps(result or {}), now, now, work_id),
+            )
+        else:
+            if not lease_token_hash:
+                return False
+            cursor = self.execute(
+                "UPDATE work_items SET status='completed',result_json=?,finished_at=?,heartbeat_at=?,"
+                "lease_token_hash=NULL,lease_expires_at=NULL "
+                "WHERE id=? AND status='running' AND worker_id=? AND lease_token_hash=? "
+                "AND COALESCE(lease_expires_at,'')>=?",
+                (
+                    json_dumps(result or {}),
+                    now,
+                    now,
+                    work_id,
+                    worker_id,
+                    lease_token_hash,
+                    now,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def work_fail(
+        self,
+        work_id: int,
+        error: str,
+        retry: bool = True,
+        *,
+        worker_id: str | None = None,
+        lease_token_hash: str | None = None,
+    ) -> bool:
+        now = utc_now()
+        status = "retry_pending" if retry else "failed"
+        if worker_id is None:
+            cursor = self.execute(
+                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,"
+                "lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?",
+                (status, error, now, now, work_id),
+            )
+        else:
+            if not lease_token_hash:
+                return False
+            cursor = self.execute(
+                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,"
+                "lease_token_hash=NULL,lease_expires_at=NULL "
+                "WHERE id=? AND status='running' AND worker_id=? AND lease_token_hash=? "
+                "AND COALESCE(lease_expires_at,'')>=?",
+                (
+                    status,
+                    error,
+                    now,
+                    now,
+                    work_id,
+                    worker_id,
+                    lease_token_hash,
+                    now,
+                ),
+            )
+        return cursor.rowcount == 1
 
     def add_ignore_rule(self, target: str, rule_type: str, pattern: str, note: str = "") -> int:
         now=utc_now()
@@ -2553,7 +2669,10 @@ class Database:
                 repaired += 1
             for row in report["work_items"]:
                 self.conn.execute(
-                    "UPDATE work_items SET status='retry_pending',started_at=NULL,worker_id=NULL,error=COALESCE(NULLIF(error,''),'Recovered stale work item'),heartbeat_at=? WHERE id=? AND status='running'",
+                    "UPDATE work_items SET status='retry_pending',started_at=NULL,worker_id=NULL,"
+                    "lease_token_hash=NULL,lease_expires_at=NULL,"
+                    "error=COALESCE(NULLIF(error,''),'Recovered stale work item'),heartbeat_at=? "
+                    "WHERE id=? AND status='running'",
                     (now, row["id"]),
                 )
                 repaired += 1
@@ -2663,6 +2782,100 @@ def process_alive(pid: int) -> bool:
     return True
 
 
+_SENSITIVE_COMMAND_FLAGS = {
+    "--token",
+    "--api-key",
+    "--api_key",
+    "--password",
+    "--secret",
+    "--authorization",
+    "--cookie",
+    "--proxy-authorization",
+}
+_HEADER_FLAGS = {"-h", "--header"}
+_SENSITIVE_QUERY_KEY_RE = re.compile(
+    r"(?:token|secret|password|passwd|api[_-]?key|session|auth|code)",
+    re.IGNORECASE,
+)
+
+
+def _redact_url_command_arg(value: str) -> str:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError:
+        return value
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.query:
+        return value
+    pairs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    changed = False
+    safe_pairs: list[tuple[str, str]] = []
+    for key, item in pairs:
+        if _SENSITIVE_QUERY_KEY_RE.search(key):
+            safe_pairs.append((key, "<redacted>"))
+            changed = True
+        else:
+            safe_pairs.append((key, item))
+    if not changed:
+        return value
+    return urllib.parse.urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urllib.parse.urlencode(safe_pairs, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
+def redact_command_args(args: Sequence[str]) -> list[str]:
+    """Return a logging-only argv copy with credentials removed."""
+    values = [str(value) for value in args]
+    redacted: list[str] = []
+    index = 0
+    while index < len(values):
+        value = values[index]
+        lowered = value.lower()
+
+        if lowered in _HEADER_FLAGS and index + 1 < len(values):
+            redacted.append(value)
+            header_value = values[index + 1]
+            header_name, separator, _ = header_value.partition(":")
+            redacted.append(
+                f"{header_name}: <redacted>"
+                if separator
+                else "<redacted-header>"
+            )
+            index += 2
+            continue
+
+        if lowered in _SENSITIVE_COMMAND_FLAGS and index + 1 < len(values):
+            redacted.extend([value, "<redacted>"])
+            index += 2
+            continue
+
+        if "=" in value:
+            flag, assigned = value.split("=", 1)
+            if flag.lower() in _SENSITIVE_COMMAND_FLAGS:
+                redacted.append(f"{flag}=<redacted>")
+                index += 1
+                continue
+            if flag.lower() == "--header":
+                header_name, separator, _ = assigned.partition(":")
+                redacted.append(
+                    f"{flag}={header_name}: <redacted>"
+                    if separator
+                    else f"{flag}=<redacted-header>"
+                )
+                index += 1
+                continue
+
+        redacted.append(_redact_url_command_arg(value))
+        index += 1
+
+    return redacted
+
+
 @dataclasses.dataclass(slots=True)
 class CommandResult:
     args: list[str]
@@ -2716,7 +2929,12 @@ class CommandRunner:
         proc_env = os.environ.copy()
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
-        self.logger.info("Executing tool", command=" ".join(args), cwd=str(cwd or Path.cwd()))
+        display_command = " ".join(redact_command_args(args))
+        self.logger.info(
+            "Executing tool",
+            command=display_command,
+            cwd=str(cwd or Path.cwd()),
+        )
         proc = subprocess.Popen(
             list(args),
             cwd=str(cwd) if cwd else None,
@@ -2745,7 +2963,7 @@ class CommandRunner:
                     except Exception as exc:  # Heartbeat failure must not kill timeout supervision.
                         self.logger.warn(
                             "Stage heartbeat failed",
-                            command=" ".join(args),
+                            command=display_command,
                             error=str(exc),
                         )
                     next_heartbeat = now + heartbeat_interval
@@ -2783,7 +3001,7 @@ class CommandRunner:
             returncode = 124
         self.logger.info(
             "Tool finished",
-            command=" ".join(args),
+            command=display_command,
             returncode=returncode,
             duration_seconds=round(duration, 3),
             lines=lines,

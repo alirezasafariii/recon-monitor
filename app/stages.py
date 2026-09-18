@@ -5,12 +5,8 @@ import contextlib
 import json
 import os
 import re
-import socket
-import ssl
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -30,7 +26,6 @@ from core import (
     classify_url,
     explain_risk,
     extract_js_indicators,
-    header_args,
     json_dumps,
     normalize_host,
     normalize_url,
@@ -48,7 +43,7 @@ from core import (
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
-from safe_transport import perform_pinned_request
+from safe_transport import fetch_pinned_tls_peer, perform_pinned_download, perform_pinned_request
 
 
 @dataclass(slots=True)
@@ -133,6 +128,17 @@ def emit_event(ctx: StageContext, category: str, item: str, title: str, details:
 
 def _scope_hosts(policy: TargetPolicy, hosts: Iterable[str]) -> list[str]:
     return sorted({host for value in hosts if (host := normalize_host(value)) and policy.host_in_scope(host)})
+
+
+def _policy_headers_for_url(policy: TargetPolicy, url: str) -> dict[str, str]:
+    """Return policy headers only for encrypted, in-process target transport."""
+    try:
+        parsed = urllib.parse.urlsplit(str(url or ""))
+    except ValueError:
+        return {}
+    if parsed.scheme.lower() != "https":
+        return {}
+    return {str(key): str(value) for key, value in policy.headers.items()}
 
 
 def _parse_subfinder_row(row: Mapping[str, Any]) -> tuple[str, set[str]]:
@@ -479,6 +485,91 @@ def _select_diverse_urls(candidates: Mapping[str, set[str]], limit: int) -> list
     return selected
 
 
+def _katana_scope_regex(base_urls: Iterable[str]) -> str:
+    """Restrict Katana pre-request traversal to exact safe-probed origins."""
+    origins: list[str] = []
+    for value in base_urls:
+        parsed = urllib.parse.urlsplit(str(value or "").strip())
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            continue
+        origin = f"{parsed.scheme.lower()}://{parsed.netloc}"
+        if origin not in origins:
+            origins.append(origin)
+    if not origins:
+        return r"(?!)"
+    return r"^(?:" + "|".join(re.escape(origin) for origin in sorted(origins)) + r")(?:[/?#]|$)"
+
+
+def _katana_crawl_plan(
+    base_urls: Iterable[str],
+    *,
+    remaining_requests: int | None,
+    request_rate: int,
+    timeout_seconds: int,
+    http_threads: int,
+    max_urls: int,
+) -> dict[str, Any]:
+    """Build a deterministic conservative request envelope for external Katana."""
+    ordered = list(dict.fromkeys(str(url) for url in base_urls if str(url).strip()))
+    if not ordered:
+        return {
+            "origins": [],
+            "reservation": 0,
+            "rate_limit": 0,
+            "crawl_seconds": 0,
+            "concurrency": 1,
+            "scope_regex": r"(?!)",
+        }
+
+    rate = max(1, int(request_rate or 1))
+    timeout = max(1, int(timeout_seconds or 1))
+    max_candidates = max(1, int(max_urls or 1))
+    remaining = None if remaining_requests is None else max(0, int(remaining_requests))
+    if remaining == 0:
+        return {
+            "origins": [],
+            "reservation": 0,
+            "rate_limit": 0,
+            "crawl_seconds": 0,
+            "concurrency": 1,
+            "scope_regex": r"(?!)",
+        }
+
+    # Reserve at most 30 seconds of configured global rate, bounded by the URL
+    # budget and the actual remaining HTTP request budget.
+    desired = min(max_candidates, max(len(ordered), rate * 30))
+    reservation = desired if remaining is None else min(remaining, desired)
+    origin_count = min(len(ordered), max(1, reservation))
+    origins = ordered[:origin_count]
+
+    per_origin_budget = max(1, reservation // max(1, len(origins)))
+    effective_rate = max(1, min(rate, per_origin_budget))
+    crawl_seconds = max(1, per_origin_budget // effective_rate)
+    crawl_seconds = min(crawl_seconds, 30, timeout)
+
+    # The product is kept below the reserved envelope. Any remainder stays
+    # conservatively reserved instead of being spent through an external tool.
+    while (
+        effective_rate * crawl_seconds * len(origins) > reservation
+        and effective_rate > 1
+    ):
+        effective_rate -= 1
+    while (
+        effective_rate * crawl_seconds * len(origins) > reservation
+        and crawl_seconds > 1
+    ):
+        crawl_seconds -= 1
+
+    return {
+        "origins": origins,
+        "reservation": reservation,
+        "rate_limit": effective_rate,
+        "crawl_seconds": crawl_seconds,
+        "concurrency": min(5, max(1, int(http_threads or 1))),
+        "scope_regex": _katana_scope_regex(origins),
+    }
+
+
 def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     if ctx.budget:
         ctx.budget.consume("http_requests", 1)
@@ -501,7 +592,7 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
         }
 
     result, transport_status = perform_pinned_request(
-        {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+        {"method": "HEAD", "url": url, "headers": _policy_headers_for_url(ctx.policy, url)},
         ctx.policy,
         safe_methods={"HEAD"},
         url_safety=lambda candidate, policy: (
@@ -514,6 +605,44 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     )
     result["transport_status"] = transport_status
     result["live"] = bool(result.get("status_code"))
+
+    # Some origins reject/drop HEAD while serving GET normally. Retry once with
+    # a one-byte ranged GET only when the HEAD result was inconclusive or a
+    # method-specific rejection. Safety stops (scope/non-public/429) never retry.
+    head_status = int(result.get("status_code") or 0)
+    if (
+        head_status in {0, 405, 501}
+        and transport_status != "stopped_for_safety"
+    ):
+        if ctx.budget:
+            ctx.budget.consume("http_requests", 1)
+        fallback_headers = {
+            **_policy_headers_for_url(ctx.policy, url),
+            "Range": "bytes=0-0",
+        }
+        get_result, get_transport_status = perform_pinned_request(
+            {"method": "GET", "url": url, "headers": fallback_headers},
+            ctx.policy,
+            safe_methods={"GET"},
+            url_safety=lambda candidate, policy: (
+                bool(policy.url_in_scope(candidate)),
+                "outside_scope" if not policy.url_in_scope(candidate) else "",
+            ),
+            observation=observation,
+            max_response_bytes=1,
+            validation_version="recon-origin-probe-1",
+        )
+        get_result["transport_status"] = get_transport_status
+        get_result["live"] = bool(get_result.get("status_code"))
+        get_result["head_fallback"] = True
+        get_result["head_status_code"] = head_status
+        if get_result.get("live") or head_status == 0:
+            return get_result
+        result["head_fallback"] = True
+        result["head_fallback_status_code"] = int(
+            get_result.get("status_code") or 0
+        )
+
     return result
 
 
@@ -610,37 +739,117 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 add_candidate(line, "wayback")
 
     katana_observed = 0
+    katana_reserved_requests = 0
+    katana_crawl_origins = 0
+    katana_rate_limit = 0
+    katana_crawl_seconds = 0
     if tool_path("katana") and base_urls:
-        out = ctx.current / "katana-urls.txt"
-        args = [
-            "katana", "-list", str(base_path), "-silent", "-duc", "-jc",
-            "-d", str(ctx.policy.limits.crawl_depth),
-            "-rl", str(ctx.policy.limits.request_rate),
-            "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 10))),
-        ]
-        for key, value in ctx.policy.headers.items():
-            args.extend(["-H", f"{key}: {value}"])
-        result = ctx.runner.run(
-            args,
-            timeout=ctx.policy.limits.timeout_seconds,
-            output_path=out,
-            heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "urls"),
-            line_callback=lambda _line, count: ctx.progress.update(count, 0, "katana crawling"),
+        remaining_requests: int | None = None
+        if ctx.budget and hasattr(ctx.budget, "snapshot"):
+            budget_row = ctx.budget.snapshot().get("http_requests", {})
+            limit_value = int(budget_row.get("limit") or 0)
+            used_value = int(budget_row.get("used") or 0)
+            if limit_value:
+                remaining_requests = max(0, limit_value - used_value)
+
+        plan = _katana_crawl_plan(
+            base_urls,
+            remaining_requests=remaining_requests,
+            request_rate=ctx.policy.limits.request_rate,
+            timeout_seconds=ctx.policy.limits.timeout_seconds,
+            http_threads=ctx.policy.limits.http_threads,
+            max_urls=ctx.policy.limits.max_urls,
         )
-        katana_observed = int(getattr(result, "lines", 0) or 0)
-        if result.returncode not in {0, 1}:
-            ctx.logger.warn("katana failed", target=ctx.policy.name, exit=result.returncode)
-        if out.exists():
-            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
-                raw_candidate = line.strip()
-                if _katana_candidate_malformed(raw_candidate):
-                    katana_rejected_malformed += 1
-                    continue
-                add_candidate(raw_candidate, "katana")
+        katana_origins = list(plan["origins"])
+        katana_reserved_requests = int(plan["reservation"] or 0)
+        katana_crawl_origins = len(katana_origins)
+        katana_rate_limit = int(plan["rate_limit"] or 0)
+        katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
+
+        if katana_origins:
+            katana_base_path = ctx.current / "katana-base-urls.txt"
+            atomic_write_text(
+                katana_base_path,
+                "".join(f"{url}\n" for url in katana_origins),
+            )
+            if ctx.budget and katana_reserved_requests:
+                ctx.budget.consume(
+                    "http_requests",
+                    katana_reserved_requests,
+                )
+
+            out = ctx.current / "katana-urls.txt"
+            args = [
+                "katana",
+                "-list",
+                str(katana_base_path),
+                "-silent",
+                "-duc",
+                "-jc",
+                "-d",
+                str(ctx.policy.limits.crawl_depth),
+                "-cs",
+                str(plan["scope_regex"]),
+                "-rl",
+                str(katana_rate_limit),
+                "-ct",
+                f"{katana_crawl_seconds}s",
+                "-mrs",
+                str(ctx.policy.limits.max_js_bytes),
+                "-retry",
+                "0",
+                "-c",
+                str(plan["concurrency"]),
+                "-p",
+                "1",
+                "-timeout",
+                str(
+                    min(
+                        30,
+                        max(
+                            5,
+                            ctx.policy.limits.timeout_seconds // 10,
+                        ),
+                    )
+                ),
+            ]
+            # Policy credentials never cross into an external crawler.
+            result = ctx.runner.run(
+                args,
+                timeout=ctx.policy.limits.timeout_seconds,
+                output_path=out,
+                heartbeat=lambda: ctx.db.stage_heartbeat(
+                    ctx.run_id,
+                    ctx.policy.name,
+                    "urls",
+                ),
+                line_callback=lambda _line, count: ctx.progress.update(
+                    count,
+                    0,
+                    "katana crawling",
+                ),
+            )
+            katana_observed = int(getattr(result, "lines", 0) or 0)
+            if result.returncode not in {0, 1}:
+                ctx.logger.warn(
+                    "katana failed",
+                    target=ctx.policy.name,
+                    exit=result.returncode,
+                )
+            if out.exists():
+                for line in out.read_text(
+                    encoding="utf-8",
+                    errors="replace",
+                ).splitlines():
+                    raw_candidate = line.strip()
+                    if _katana_candidate_malformed(raw_candidate):
+                        katana_rejected_malformed += 1
+                        continue
+                    add_candidate(raw_candidate, "katana")
+        else:
+            atomic_write_text(ctx.current / "katana-base-urls.txt", "")
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
-    if ctx.budget and katana_observed:
-        ctx.budget.consume("http_requests", min(katana_observed, ctx.policy.limits.max_http_requests))
     new_count = 0
     classified_count = 0
     rows: list[dict[str, Any]] = []
@@ -700,102 +909,130 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "classified_endpoints": classified_count,
         "truncated": len(candidates) > len(urls),
         "katana_rejected_malformed": katana_rejected_malformed,
+        "katana_observed": katana_observed,
+        "katana_reserved_requests": katana_reserved_requests,
+        "katana_crawl_origins": katana_crawl_origins,
+        "katana_rate_limit": katana_rate_limit,
+        "katana_crawl_seconds_per_origin": katana_crawl_seconds,
     }
 
 
-class _ScopedRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def __init__(self, policy: TargetPolicy):
-        super().__init__()
-        self.policy = policy
-
-    def redirect_request(self, req: urllib.request.Request, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> urllib.request.Request | None:
-        normalized = normalize_url(newurl)
-        if not normalized or not self.policy.url_in_scope(normalized):
-            raise urllib.error.HTTPError(newurl, 403, "redirect left authorized scope", headers, fp)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
 def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]:
-    headers = {"User-Agent": ctx.config.get("USER_AGENT", "ReconMonitor/3.0 authorized security monitoring"), **ctx.policy.headers}
-    request = urllib.request.Request(url, headers=headers)
-    opener = urllib.request.build_opener(_ScopedRedirectHandler(ctx.policy))
-    ssl_context = ssl.create_default_context()
-    # HTTPSHandler cannot be mixed into an already-built opener cleanly after creation,
-    # so standard verification is retained by urllib's default HTTPS handler.
+    """Download one in-scope resource through the pinned transport boundary."""
+    headers = {
+        "User-Agent": ctx.config.get(
+            "USER_AGENT",
+            "ReconMonitor/3.0 authorized security monitoring",
+        ),
+        **_policy_headers_for_url(ctx.policy, url),
+    }
     started = time.monotonic()
-    if ctx.budget:
-        ctx.budget.consume("http_requests", 1)
-    try:
-        with opener.open(request, timeout=min(45, max(5, ctx.policy.limits.timeout_seconds))) as response:
-            final_url = normalize_url(response.geturl()) or url
-            if not ctx.policy.url_in_scope(final_url):
-                raise StageError(f"Redirect left scope: {url} -> {final_url}", retryable=False)
-            content_type = response.headers.get("Content-Type", "")
-            length_header = response.headers.get("Content-Length")
-            if length_header and int(length_header) > max_bytes:
-                raise StageError(f"Content too large: {url}", retryable=False)
-            data = response.read(max_bytes + 1)
-            if ctx.budget:
-                ctx.budget.consume("download_bytes", len(data))
-            if len(data) > max_bytes:
-                raise StageError(f"Content exceeded limit: {url}", retryable=False)
-            return {
-                "url": url,
-                "final_url": final_url,
-                "status_code": int(
-                    getattr(
-                        response,
-                        "status",
-                        0,
-                    )
-                    or 0
-                ),
-                "data": data,
-                "content_type": content_type,
-                "etag": response.headers.get("ETag", ""),
-                "last_modified": response.headers.get("Last-Modified", ""),
-                "duration": time.monotonic() - started,
-            }
-    except urllib.error.HTTPError as exc:
-        status_code = int(exc.code or 0)
-        error_text = str(exc)
 
-        # HTTPError can own a response/file object. Close it after extracting
-        # the status/error text so repeated probes and tests do not leak it.
-        with contextlib.suppress(Exception):
-            exc.close()
+    def before_request(_candidate: str) -> None:
+        if ctx.budget:
+            ctx.budget.consume("http_requests", 1)
 
-        # A 404/410 is a definitive HTTP result, not a transport/runtime
-        # failure. Preserve it separately so JavaScript discovery can report
-        # stale/not-found candidates without polluting the error count or
-        # retrying them during resume.
-        if status_code in {404, 410}:
-            return {
-                "url": url,
-                "status_code": status_code,
-                "not_found": True,
-                "duration": time.monotonic() - started,
-            }
+    result = perform_pinned_download(
+        url,
+        ctx.policy,
+        headers=headers,
+        max_response_bytes=max_bytes,
+        timeout=min(45, max(5, ctx.policy.limits.timeout_seconds)),
+        max_redirects=3,
+        user_agent=headers["User-Agent"],
+        before_request=before_request,
+    )
+    duration = time.monotonic() - started
+    status_code = int(result.get("status_code") or 0)
+    response_headers = (
+        result.get("headers")
+        if isinstance(result.get("headers"), Mapping)
+        else {}
+    )
+    error = str(result.get("error") or "")
 
+    if error == "response_budget_exceeded":
+        raise StageError(f"Content exceeded limit: {url}", retryable=False)
+
+    if status_code in {404, 410}:
         return {
             "url": url,
+            "final_url": str(result.get("final_url") or url),
             "status_code": status_code,
-            "error": error_text,
-            "duration": time.monotonic() - started,
+            "not_found": True,
+            "duration": duration,
+            "transport_status": str(result.get("transport_status") or ""),
+            "transport_hops": list(result.get("transport_hops") or []),
+            "dns_rebinding_protection": str(
+                result.get("dns_rebinding_protection") or ""
+            ),
         }
 
-    except (
-        urllib.error.URLError,
-        TimeoutError,
-        socket.timeout,
-        ValueError,
-    ) as exc:
+    data = result.get("data")
+    if not error and isinstance(data, (bytes, bytearray)) and status_code:
+        payload = bytes(data)
+        if ctx.budget:
+            ctx.budget.consume("download_bytes", len(payload))
+        content_type = str(
+            response_headers.get("Content-Type")
+            or response_headers.get("content-type")
+            or ""
+        )
         return {
             "url": url,
-            "error": str(exc),
-            "duration": time.monotonic() - started,
+            "final_url": str(result.get("final_url") or url),
+            "status_code": status_code,
+            "data": payload,
+            "content_type": content_type,
+            "etag": str(
+                response_headers.get("ETag")
+                or response_headers.get("etag")
+                or ""
+            ),
+            "last_modified": str(
+                response_headers.get("Last-Modified")
+                or response_headers.get("last-modified")
+                or ""
+            ),
+            "duration": duration,
+            "transport_status": str(result.get("transport_status") or ""),
+            "transport_hops": list(result.get("transport_hops") or []),
+            "resolved_addresses": list(result.get("resolved_addresses") or []),
+            "pinned_address": str(result.get("pinned_address") or ""),
+            "dns_rebinding_protection": str(
+                result.get("dns_rebinding_protection") or ""
+            ),
+            "environment_proxy_used": bool(
+                result.get("environment_proxy_used", False)
+            ),
+            "safe_transport_version": str(
+                result.get("safe_transport_version") or ""
+            ),
         }
 
+    return {
+        "url": url,
+        "final_url": str(result.get("final_url") or url),
+        "status_code": status_code,
+        "error": error or "download_failed",
+        "duration": duration,
+        "transport_status": str(result.get("transport_status") or ""),
+        "transport_hops": list(result.get("transport_hops") or []),
+        "resolved_addresses": list(result.get("resolved_addresses") or []),
+        "pinned_address": str(result.get("pinned_address") or ""),
+        "dns_rebinding_protection": str(
+            result.get("dns_rebinding_protection") or ""
+        ),
+        "redirect_outside_scope": bool(
+            result.get("redirect_outside_scope", False)
+        ),
+        "environment_proxy_used": bool(
+            result.get("environment_proxy_used", False)
+        ),
+        "safe_transport_version": str(
+            result.get("safe_transport_version") or ""
+        ),
+    }
 
 def _find_source_map_url(js_url: str, text: str) -> str:
     matches = re.findall(r"(?m)//[#@]\s*sourceMappingURL\s*=\s*([^\s]+)\s*$", text)
@@ -1750,7 +1987,7 @@ def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[
             }
 
         result, transport_status = perform_pinned_request(
-            {"method": "HEAD", "url": url, "headers": ctx.policy.headers},
+            {"method": "HEAD", "url": url, "headers": _policy_headers_for_url(ctx.policy, url)},
             ctx.policy,
             safe_methods={"HEAD"},
             url_safety=lambda candidate, policy: (
@@ -1851,31 +2088,48 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
         "errors": sum(1 for r in results if r.get("error")),
     }
 
-def _tls_certificate_info(url: str, timeout: float = 5.0) -> dict[str, Any]:
-    parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "https" or not parsed.hostname:
+def _tls_certificate_info(
+    ctx: StageContext,
+    url: str,
+    timeout: float = 5.0,
+) -> dict[str, Any]:
+    transport = fetch_pinned_tls_peer(
+        url,
+        ctx.policy,
+        timeout=timeout,
+    )
+    cert = (
+        transport.get("certificate")
+        if isinstance(transport.get("certificate"), Mapping)
+        else {}
+    )
+    if not cert:
         return {}
-    host = parsed.hostname
-    port = parsed.port or 443
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((host, port), timeout=timeout) as raw:
-            with context.wrap_socket(raw, server_hostname=host) as sock:
-                cert = sock.getpeercert()
-    except (OSError, ssl.SSLError, socket.timeout):
-        return {}
+
     def flatten_name(value: Any) -> str:
         parts: list[str] = []
         for group in value or []:
             for key, item in group:
                 parts.append(f"{key}={item}")
         return ", ".join(parts)
-    sans = [str(item) for kind, item in cert.get("subjectAltName", []) if kind == "DNS"]
+
+    sans = [
+        str(item)
+        for kind, item in cert.get("subjectAltName", [])
+        if kind == "DNS"
+    ]
     return {
         "tls_issuer": flatten_name(cert.get("issuer")),
         "tls_expiry": str(cert.get("notAfter") or ""),
         "tls_sans": sorted(sans),
         "tls_serial": str(cert.get("serialNumber") or ""),
+        "tls_pinned_address": str(transport.get("pinned_address") or ""),
+        "tls_dns_rebinding_protection": str(
+            transport.get("dns_rebinding_protection") or ""
+        ),
+        "tls_safe_transport_version": str(
+            transport.get("safe_transport_version") or ""
+        ),
     }
 
 
@@ -1944,7 +2198,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 20))),
         "-retries", "1",
     ]
-    args.extend(header_args(ctx.policy.headers))
+    # Policy credentials are confined to the in-process pinned transport.
     if ctx.policy.modules.get("screenshots"):
         screenshot_dir = ctx.run_dir / "screenshots"
         screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -1963,7 +2217,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
             "-sc", "-cl", "-ct", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
             "-t", str(ctx.policy.limits.http_threads), "-rl", str(ctx.policy.limits.request_rate),
             "-timeout", "10", "-retries", "1",
-        ] + header_args(ctx.policy.headers)
+        ]
         result = ctx.runner.run(
             args,
             timeout=ctx.policy.limits.timeout_seconds,
@@ -1983,7 +2237,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
             continue
         live += 1
         if ctx.policy.raw.get("fingerprint", {}).get("collect_tls", True):
-            record.update(_tls_certificate_info(url))
+            record.update(_tls_certificate_info(ctx, url))
         screenshot_path = record.get("screenshot_path")
         if screenshot_path:
             screenshot_file = Path(str(screenshot_path)).expanduser()
@@ -2121,7 +2375,7 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         "-pt", "http,ssl,dns", "-dut", "-jsonl", "-silent", "-nc", "-duc",
         "-rl", str(ctx.policy.limits.nuclei_rate), "-bs", "5", "-c", "5", "-o", str(out),
     ]
-    args.extend(header_args(ctx.policy.headers))
+    # Do not delegate policy credentials to external active tools.
     result = ctx.runner.run(
         args,
         timeout=ctx.policy.limits.timeout_seconds,

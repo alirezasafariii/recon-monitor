@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import sys
 import unittest
-import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -25,25 +24,12 @@ class _Config:
         return default
 
 
-class _FakeOpener:
-    def __init__(self, status_code):
-        self.status_code = status_code
-
-    def open(self, request, timeout=None):
-        raise urllib.error.HTTPError(
-            request.full_url,
-            self.status_code,
-            f"HTTP {self.status_code}",
-            hdrs=None,
-            fp=None,
-        )
-
-
 def _ctx():
     return SimpleNamespace(
         config=_Config(),
         policy=SimpleNamespace(
             headers={},
+            url_in_scope=lambda url: str(url).startswith("https://example.test/"),
             limits=SimpleNamespace(
                 timeout_seconds=30,
             ),
@@ -56,8 +42,22 @@ class JavascriptNotFoundTests(unittest.TestCase):
 
     def test_404_is_not_found_not_runtime_error(self):
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(404),
+            "stages.perform_pinned_download",
+            return_value={
+                "url": "https://example.test/app.js",
+                "final_url": "https://example.test/app.js",
+                "status_code": 404,
+                "headers": {},
+                "data": b"",
+                "error": "http_error",
+                "transport_status": "ok",
+                "transport_hops": [],
+                "resolved_addresses": ["93.184.216.34"],
+                "pinned_address": "93.184.216.34",
+                "dns_rebinding_protection": "resolution_pinned_each_hop",
+                "environment_proxy_used": False,
+                "safe_transport_version": "test",
+            },
         ):
             result = _download_url(
                 _ctx(),
@@ -72,8 +72,22 @@ class JavascriptNotFoundTests(unittest.TestCase):
 
     def test_410_is_not_found_not_runtime_error(self):
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(410),
+            "stages.perform_pinned_download",
+            return_value={
+                "url": "https://example.test/old.js",
+                "final_url": "https://example.test/old.js",
+                "status_code": 410,
+                "headers": {},
+                "data": b"",
+                "error": "http_error",
+                "transport_status": "ok",
+                "transport_hops": [],
+                "resolved_addresses": ["93.184.216.34"],
+                "pinned_address": "93.184.216.34",
+                "dns_rebinding_protection": "resolution_pinned_each_hop",
+                "environment_proxy_used": False,
+                "safe_transport_version": "test",
+            },
         ):
             result = _download_url(
                 _ctx(),
@@ -88,8 +102,22 @@ class JavascriptNotFoundTests(unittest.TestCase):
 
     def test_403_remains_error(self):
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(403),
+            "stages.perform_pinned_download",
+            return_value={
+                "url": "https://example.test/private.js",
+                "final_url": "https://example.test/private.js",
+                "status_code": 403,
+                "headers": {},
+                "data": b"",
+                "error": "http_error",
+                "transport_status": "ok",
+                "transport_hops": [],
+                "resolved_addresses": ["93.184.216.34"],
+                "pinned_address": "93.184.216.34",
+                "dns_rebinding_protection": "resolution_pinned_each_hop",
+                "environment_proxy_used": False,
+                "safe_transport_version": "test",
+            },
         ):
             result = _download_url(
                 _ctx(),
