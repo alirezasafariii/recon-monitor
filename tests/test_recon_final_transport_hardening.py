@@ -148,6 +148,7 @@ class ReconFinalTransportHardeningTests(unittest.TestCase):
             "Authorization": "Bearer secret",
             "Cookie": "session=secret",
             "X-API-Key": "secret-key",
+            "X-Company-Session": "custom-secret",
             "Accept-Language": "en",
         }
         sanitized = safe_transport._redirect_headers(
@@ -158,6 +159,7 @@ class ReconFinalTransportHardeningTests(unittest.TestCase):
         self.assertNotIn("Authorization", sanitized)
         self.assertNotIn("Cookie", sanitized)
         self.assertNotIn("X-API-Key", sanitized)
+        self.assertNotIn("X-Company-Session", sanitized)
         self.assertEqual(sanitized["Accept-Language"], "en")
 
         same_origin = safe_transport._redirect_headers(
