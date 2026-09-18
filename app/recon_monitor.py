@@ -46,7 +46,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.4.0"
+INVESTIGATION_CLI_VERSION = "1.5.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -247,6 +247,9 @@ def investigation_queue_cli_payload(
             "change_guidance_evaluation_is_observational_only": True,
             "change_guidance_evaluation_is_non_causal": True,
             "change_guidance_evaluation_cannot_auto_tune": True,
+            "change_task_feedback_is_observational_only": True,
+            "change_task_feedback_cannot_auto_tune": True,
+            "change_task_feedback_is_not_target_evidence": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
