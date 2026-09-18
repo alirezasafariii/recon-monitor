@@ -12,6 +12,7 @@ exist outside this matcher.
 import hashlib
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -191,8 +192,14 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _load_catalog(path: str | Path | None = None) -> dict[str, Any]:
-    selected = Path(path) if path else _DEFAULT_CATALOG
+@lru_cache(maxsize=8)
+def _load_catalog_cached(
+    path_text: str,
+    mtime_ns: int,
+    size: int,
+) -> dict[str, Any]:
+    del mtime_ns, size
+    selected = Path(path_text)
     raw = json.loads(selected.read_text(encoding="utf-8"))
     if not isinstance(raw, Mapping):
         raise ValueError("Dependency advisory catalog must be a JSON object")
@@ -204,6 +211,42 @@ def _load_catalog(path: str | Path | None = None) -> dict[str, Any]:
             + json.dumps(validation, sort_keys=True)
         )
     return catalog
+
+
+def _catalog_cache_key(path: str | Path | None = None) -> tuple[str, int, int]:
+    selected = (Path(path) if path else _DEFAULT_CATALOG).resolve()
+    stat = selected.stat()
+    return str(selected), int(stat.st_mtime_ns), int(stat.st_size)
+
+
+def _load_catalog(path: str | Path | None = None) -> dict[str, Any]:
+    return _load_catalog_cached(*_catalog_cache_key(path))
+
+
+@lru_cache(maxsize=8)
+def _catalog_index_cached(
+    path_text: str,
+    mtime_ns: int,
+    size: int,
+) -> dict[str, tuple[dict[str, Any], ...]]:
+    catalog = _load_catalog_cached(path_text, mtime_ns, size)
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for raw in catalog.get("advisories", []) or []:
+        if not isinstance(raw, Mapping) or not _valid_advisory(raw):
+            continue
+        entry = dict(raw)
+        for alias in _advisory_aliases(entry):
+            buckets.setdefault(alias, []).append(entry)
+    return {
+        alias: tuple(rows)
+        for alias, rows in buckets.items()
+    }
+
+
+def _catalog_index(
+    path: str | Path | None = None,
+) -> dict[str, tuple[dict[str, Any], ...]]:
+    return _catalog_index_cached(*_catalog_cache_key(path))
 
 
 def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
@@ -281,11 +324,8 @@ def match_versioned_technology(
     name = parsed["name"]
     version = parsed["version"]
     matches: list[dict[str, Any]] = []
-    for raw in catalog.get("advisories", []) or []:
-        if not isinstance(raw, Mapping) or not _valid_advisory(raw):
-            continue
-        if name not in _advisory_aliases(raw):
-            continue
+    index = _catalog_index(catalog_path)
+    for raw in index.get(name, ()):
         matched_range = next(
             (
                 str(expression)
@@ -326,6 +366,10 @@ def match_technologies(
     *,
     catalog_path: str | Path | None = None,
 ) -> dict[str, Any]:
+    catalog = _load_catalog(catalog_path)
+    source = catalog.get("source_snapshot")
+    source_snapshot = dict(source) if isinstance(source, Mapping) else {}
+    index = _catalog_index(catalog_path)
     exact: list[dict[str, Any]] = []
     matches: list[dict[str, Any]] = []
     seen_matches: set[tuple[str, str, str, str]] = set()
@@ -337,14 +381,44 @@ def match_technologies(
         ).strip()
         if not technology:
             continue
-        outcome = match_versioned_technology(
-            technology,
-            catalog_path=catalog_path,
-        )
-        parsed = outcome.get("technology")
-        if isinstance(parsed, Mapping) and parsed:
-            exact.append(dict(parsed))
-        for match in outcome.get("matches", []) or []:
+        parsed = parse_versioned_technology(technology)
+        if not parsed:
+            continue
+        exact.append(dict(parsed))
+        component_matches: list[dict[str, Any]] = []
+        for advisory in index.get(parsed["name"], ()):
+            matched_range = next(
+                (
+                    str(expression)
+                    for expression in advisory.get("affected_ranges", []) or []
+                    if version_matches_range(parsed["version"], str(expression))
+                ),
+                "",
+            )
+            if not matched_range:
+                continue
+            component_matches.append(
+                {
+                    "advisory_id": str(advisory.get("id") or ""),
+                    "cve": str(advisory.get("cve") or ""),
+                    "product": str(advisory.get("product") or ""),
+                    "ecosystem": str(advisory.get("ecosystem") or ""),
+                    "version": parsed["version"],
+                    "matched_range": matched_range,
+                    "patched_versions": [
+                        str(item)
+                        for item in advisory.get("patched_versions", []) or []
+                        if str(item)
+                    ],
+                    "severity": str(advisory.get("severity") or ""),
+                    "published_at": str(advisory.get("published_at") or ""),
+                    "updated_at": str(advisory.get("updated_at") or ""),
+                    "source_type": str(advisory.get("source_type") or ""),
+                    "review_status": str(advisory.get("review_status") or ""),
+                    "source_url": str(advisory.get("source_url") or ""),
+                }
+            )
+        for match in component_matches:
             if not isinstance(match, Mapping):
                 continue
             identity = (
@@ -358,9 +432,6 @@ def match_technologies(
             seen_matches.add(identity)
             matches.append(dict(match))
 
-    catalog = _load_catalog(catalog_path)
-    source = catalog.get("source_snapshot")
-    source_snapshot = dict(source) if isinstance(source, Mapping) else {}
     return {
         "version": DEPENDENCY_ADVISORY_MATCHER_VERSION,
         "rule_version": DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION,
