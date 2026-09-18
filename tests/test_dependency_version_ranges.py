@@ -40,6 +40,80 @@ class DependencyVersionRangeTests(unittest.TestCase):
             range_expression_supported("< 2.0.0-beta.2", "nuget")
         )
 
+    def test_semver_prerelease_observations_use_full_precedence(self):
+        self.assertTrue(
+            version_matches_range(
+                "2.0.0-beta.1",
+                ">= 2.0.0-beta.1, < 2.0.0-beta.3",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "2.0.0-beta.2",
+                "> 2.0.0-beta.1, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-beta.3",
+                "< 2.0.0-beta.3",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "2.0.0-beta.11",
+                "> 2.0.0-beta.2, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "2.0.0-rc.1",
+                "> 2.0.0-beta.11, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-beta.1",
+                "< 2.0.0",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.5.0-beta.1",
+                ">= 1.0.0-beta.1, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-beta.1",
+                "< 2.0.0-beta.2",
+                "unknown",
+            )
+        )
+
+    def test_semver_build_metadata_does_not_change_precedence(self):
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3+build.7",
+                "= 1.2.3",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-rc.1+build.7",
+                "= 1.2.3-rc.1",
+                "npm",
+            )
+        )
+
     def test_semver_shorthand_and_union_are_bounded(self):
         self.assertTrue(version_matches_range("1.8.4", "^1.2.3", "npm"))
         self.assertFalse(version_matches_range("2.0.0", "^1.2.3", "npm"))
