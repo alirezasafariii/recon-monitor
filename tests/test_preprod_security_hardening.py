@@ -49,6 +49,8 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
             "Authorization: Bearer REAL_BEARER",
             "-H",
             "Accept: application/json",
+            "-H",
+            "X-Company-Session: custom-secret",
             "--api-key",
             "REAL_API_KEY",
             "https://example.test/api?token=REAL_QUERY&safe=1",
@@ -58,8 +60,10 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
         self.assertNotIn("REAL_BEARER", encoded)
         self.assertNotIn("REAL_API_KEY", encoded)
         self.assertNotIn("REAL_QUERY", encoded)
+        self.assertNotIn("custom-secret", encoded)
         self.assertIn("Authorization: <redacted>", encoded)
-        self.assertIn("Accept: application/json", encoded)
+        self.assertIn("Accept: <redacted>", encoded)
+        self.assertIn("X-Company-Session: <redacted>", encoded)
         source = inspect.getsource(CommandRunner.run)
         self.assertIn("redact_command_args(args)", source)
         self.assertNotIn('" ".join(args)', source)
