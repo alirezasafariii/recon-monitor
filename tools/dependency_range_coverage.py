@@ -47,6 +47,22 @@ def classify_range_syntax(expression: str, ecosystem: str = "") -> str:
     return "empty"
 
 
+def unsupported_reason(expression: str, ecosystem: str = "") -> str:
+    text = str(expression or "").strip().lower()
+    eco = str(ecosystem or "").strip().lower()
+    if re.search(r"\d{4}-\d{2}-\d{2}", text):
+        return "date_version_outside_canonical_ecosystem_grammar"
+    if "ubuntu" in text:
+        return "distro_revision_outside_pep440"
+    if eco == "composer" and "x-dev" in text:
+        return "composer_branch_alias"
+    if eco == "pip" and re.search(r"(?:stable|ubuntu)", text):
+        return "non_pep440_legacy_suffix"
+    if eco == "composer" and re.search(r"\d(?:r\d+|[a-z]+\d*|[a-z])(?:\s|,|$)", text):
+        return "composer_opaque_legacy_suffix"
+    return "unsupported_or_ambiguous_syntax"
+
+
 def audit_catalog(payload: Mapping[str, Any], *, top: int = 30) -> dict[str, Any]:
     capability_counts: Counter[str] = Counter()
     ecosystem_counts: dict[str, Counter[str]] = defaultdict(Counter)
@@ -83,7 +99,12 @@ def audit_catalog(payload: Mapping[str, Any], *, top: int = 30) -> dict[str, Any
 
     def render_counter(counter: Counter[tuple[str, str]]) -> list[dict[str, Any]]:
         return [
-            {"ecosystem": ecosystem, "expression": expression, "count": count}
+            {
+                "ecosystem": ecosystem,
+                "expression": expression,
+                "count": count,
+                "reason": unsupported_reason(expression, ecosystem),
+            }
             for (ecosystem, expression), count in counter.most_common(max(1, top))
         ]
 
