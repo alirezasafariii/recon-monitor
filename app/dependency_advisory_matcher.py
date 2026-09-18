@@ -24,13 +24,18 @@ from dependency_version_ranges import (
     version_matches_range,
 )
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.1.0"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.5"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.2.0"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.6"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
     / "data"
     / "dependency_advisory_catalog.json"
+)
+_DEFAULT_ALIASES = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "dependency_advisory_aliases.json"
 )
 _ALLOWED_SOURCE_TYPES = {
     "github_reviewed_advisory",
@@ -235,6 +240,117 @@ def _catalog_index(
     return _catalog_index_cached(*_catalog_cache_key(path))
 
 
+@lru_cache(maxsize=4)
+def _explicit_alias_ecosystems_cached(
+    path_text: str,
+    mtime_ns: int,
+    size: int,
+) -> dict[str, tuple[str, ...]]:
+    del mtime_ns, size
+    selected = Path(path_text)
+    if not selected.exists():
+        return {}
+    raw = json.loads(selected.read_text(encoding="utf-8"))
+    aliases = raw.get("aliases") if isinstance(raw, Mapping) else None
+    if not isinstance(aliases, Mapping):
+        return {}
+    buckets: dict[str, set[str]] = {}
+    for raw_key, raw_values in aliases.items():
+        key = str(raw_key or "").strip()
+        ecosystem, separator, product = key.partition(":")
+        ecosystem = ecosystem.strip().lower()
+        if not separator or not ecosystem or not product.strip():
+            continue
+        values = [product]
+        if isinstance(raw_values, list):
+            values.extend(str(item) for item in raw_values)
+        for value in values:
+            alias = normalize_component_name(value)
+            if alias:
+                buckets.setdefault(alias, set()).add(ecosystem)
+    return {
+        alias: tuple(sorted(ecosystems))
+        for alias, ecosystems in buckets.items()
+    }
+
+
+def _explicit_alias_ecosystems(alias: str) -> tuple[str, ...]:
+    selected = _DEFAULT_ALIASES.resolve()
+    if not selected.exists():
+        return ()
+    stat = selected.stat()
+    registry = _explicit_alias_ecosystems_cached(
+        str(selected),
+        int(stat.st_mtime_ns),
+        int(stat.st_size),
+    )
+    return registry.get(normalize_component_name(alias), ())
+
+
+def _candidate_ecosystems(
+    rows: Iterable[Mapping[str, Any]],
+) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                str(row.get("ecosystem") or "").strip().lower()
+                for row in rows
+                if str(row.get("ecosystem") or "").strip()
+            }
+        )
+    )
+
+
+def _select_ecosystem_rows(
+    rows: Iterable[Mapping[str, Any]],
+    ecosystem_hint: str = "",
+    *,
+    alias: str = "",
+) -> tuple[
+    tuple[Mapping[str, Any], ...],
+    tuple[str, ...],
+    bool,
+    str,
+]:
+    candidates = tuple(rows)
+    ecosystems = _candidate_ecosystems(candidates)
+    hint = str(ecosystem_hint or "").strip().lower()
+    if hint:
+        return (
+            tuple(
+                row
+                for row in candidates
+                if str(row.get("ecosystem") or "").strip().lower() == hint
+            ),
+            ecosystems,
+            False,
+            "",
+        )
+
+    if len(ecosystems) > 1:
+        explicit = tuple(
+            ecosystem
+            for ecosystem in _explicit_alias_ecosystems(alias)
+            if ecosystem in ecosystems
+        )
+        if len(explicit) == 1:
+            resolved = explicit[0]
+            return (
+                tuple(
+                    row
+                    for row in candidates
+                    if str(row.get("ecosystem") or "").strip().lower()
+                    == resolved
+                ),
+                ecosystems,
+                False,
+                resolved,
+            )
+        return (), ecosystems, True, ""
+
+    return candidates, ecosystems, False, ""
+
+
 def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
     selected = Path(path) if path else _DEFAULT_CATALOG
     catalog = _load_catalog(selected)
@@ -256,6 +372,23 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
         for item in catalog.get("advisories", []) or []
         if isinstance(item, Mapping)
     }
+    index = _catalog_index(selected)
+    ambiguous_aliases: list[str] = []
+    registry_resolved_aliases: list[str] = []
+    for alias, rows in index.items():
+        ecosystems_for_alias = _candidate_ecosystems(rows)
+        if len(ecosystems_for_alias) <= 1:
+            continue
+        _, _, ambiguous, resolved = _select_ecosystem_rows(
+            rows,
+            alias=alias,
+        )
+        if ambiguous:
+            ambiguous_aliases.append(alias)
+        elif resolved:
+            registry_resolved_aliases.append(alias)
+    ambiguous_aliases.sort()
+    registry_resolved_aliases.sort()
     return {
         "matcher_version": DEPENDENCY_ADVISORY_MATCHER_VERSION,
         "rule_version": DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION,
@@ -267,6 +400,14 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
         "advisory_count": validation["advisory_count"],
         "product_count": len(products),
         "ecosystems": ecosystems,
+        "cross_ecosystem_ambiguous_alias_count": len(ambiguous_aliases),
+        "cross_ecosystem_ambiguous_alias_sample": ambiguous_aliases[:20],
+        "cross_ecosystem_alias_registry_resolution_count": len(
+            registry_resolved_aliases
+        ),
+        "cross_ecosystem_alias_registry_resolution_sample": (
+            registry_resolved_aliases[:20]
+        ),
         "supported_range_count": validation["supported_range_count"],
         "partially_supported_range_count": validation[
             "partially_supported_range_count"
@@ -292,6 +433,7 @@ def match_versioned_technology(
     technology: str,
     *,
     catalog_path: str | Path | None = None,
+    ecosystem_hint: str = "",
 ) -> dict[str, Any]:
     parsed = parse_versioned_technology(technology)
     catalog = _load_catalog(catalog_path)
@@ -306,6 +448,11 @@ def match_versioned_technology(
         "catalog_source_sync_complete": bool(source_snapshot.get("sync_complete")),
         "technology": parsed or {},
         "version_exact": bool(parsed),
+        "ecosystem_hint": str(ecosystem_hint or "").strip().lower(),
+        "candidate_ecosystems": [],
+        "identity_ambiguous": False,
+        "abstained_due_to_ecosystem_ambiguity": False,
+        "ecosystem_resolved_by_alias_registry": "",
         "matches": [],
         "catalog_is_exhaustive": False,
         "absence_of_match_means_safe": False,
@@ -318,7 +465,25 @@ def match_versioned_technology(
     version = parsed["version"]
     matches: list[dict[str, Any]] = []
     index = _catalog_index(catalog_path)
-    for raw in index.get(name, ()):
+    (
+        selected_rows,
+        candidate_ecosystems,
+        ambiguous,
+        registry_resolved_ecosystem,
+    ) = _select_ecosystem_rows(
+        index.get(name, ()),
+        ecosystem_hint,
+        alias=name,
+    )
+    result["candidate_ecosystems"] = list(candidate_ecosystems)
+    result["identity_ambiguous"] = ambiguous
+    result["abstained_due_to_ecosystem_ambiguity"] = ambiguous
+    result["ecosystem_resolved_by_alias_registry"] = (
+        registry_resolved_ecosystem
+    )
+    if ambiguous:
+        return result
+    for raw in selected_rows:
         matched_range = next(
             (
                 str(expression)
@@ -369,6 +534,8 @@ def match_technologies(
     index = _catalog_index(catalog_path)
     exact: list[dict[str, Any]] = []
     matches: list[dict[str, Any]] = []
+    ambiguity_abstentions: list[dict[str, Any]] = []
+    alias_registry_resolutions: list[dict[str, Any]] = []
     seen_matches: set[tuple[str, str, str, str]] = set()
     for raw in technologies:
         technology = (
@@ -376,14 +543,61 @@ def match_technologies(
             if isinstance(raw, Mapping)
             else str(raw or "")
         ).strip()
+        ecosystem_hint = (
+            str(
+                raw.get("ecosystem")
+                or raw.get("package_ecosystem")
+                or raw.get("dependency_ecosystem")
+                or ""
+            ).strip().lower()
+            if isinstance(raw, Mapping)
+            else ""
+        )
         if not technology:
             continue
         parsed = parse_versioned_technology(technology)
         if not parsed:
             continue
-        exact.append(dict(parsed))
+        (
+            selected_rows,
+            candidate_ecosystems,
+            ambiguous,
+            registry_resolved_ecosystem,
+        ) = _select_ecosystem_rows(
+            index.get(parsed["name"], ()),
+            ecosystem_hint,
+            alias=parsed["name"],
+        )
+        exact_item = dict(parsed)
+        exact_item["ecosystem_hint"] = ecosystem_hint
+        exact_item["candidate_ecosystems"] = list(candidate_ecosystems)
+        exact_item["identity_ambiguous"] = ambiguous
+        exact_item["ecosystem_resolved_by_alias_registry"] = (
+            registry_resolved_ecosystem
+        )
+        if registry_resolved_ecosystem:
+            alias_registry_resolutions.append(
+                {
+                    "technology": technology,
+                    "name": parsed["name"],
+                    "version": parsed["version"],
+                    "resolved_ecosystem": registry_resolved_ecosystem,
+                    "candidate_ecosystems": list(candidate_ecosystems),
+                }
+            )
+        exact.append(exact_item)
+        if ambiguous:
+            ambiguity_abstentions.append(
+                {
+                    "technology": technology,
+                    "name": parsed["name"],
+                    "version": parsed["version"],
+                    "candidate_ecosystems": list(candidate_ecosystems),
+                }
+            )
+            continue
         component_matches: list[dict[str, Any]] = []
-        for advisory in index.get(parsed["name"], ()):
+        for advisory in selected_rows:
             matched_range = next(
                 (
                     str(expression)
@@ -443,6 +657,12 @@ def match_technologies(
         "versioned_components": exact,
         "matches": matches,
         "match_count": len(matches),
+        "ecosystem_ambiguity_abstention_count": len(ambiguity_abstentions),
+        "ecosystem_ambiguity_abstentions": ambiguity_abstentions[:50],
+        "ecosystem_alias_registry_resolution_count": len(
+            alias_registry_resolutions
+        ),
+        "ecosystem_alias_registry_resolutions": alias_registry_resolutions[:50],
         "catalog_is_exhaustive": False,
         "absence_of_match_means_safe": False,
         "network_requests": 0,
