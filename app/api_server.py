@@ -11,6 +11,11 @@ import urllib.parse
 from typing import Any
 
 import api_server_core as _base
+from change_guidance_calibration import (
+    CHANGE_GUIDANCE_CALIBRATION_RULE_VERSION,
+    CHANGE_GUIDANCE_CALIBRATION_VERSION,
+    change_guidance_calibration_report,
+)
 from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
     CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -28,7 +33,7 @@ from derived_change_advisory import (
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 
 
-INVESTIGATION_API_VERSION = "1.3.0"
+INVESTIGATION_API_VERSION = "1.4.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -81,6 +86,11 @@ def investigation_queue_payload(
             target=str(target or "").strip(),
             limit=500,
         )
+        calibration = change_guidance_calibration_report(
+            db,
+            target=str(target or "").strip(),
+            limit=5000,
+        )
     else:
         evaluation = {
             "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -90,6 +100,16 @@ def investigation_queue_payload(
             "unavailable": True,
             "reason": "database evaluation interface unavailable",
         }
+        calibration = {
+            "version": CHANGE_GUIDANCE_CALIBRATION_VERSION,
+            "rule_version": CHANGE_GUIDANCE_CALIBRATION_RULE_VERSION,
+            "activation": "shadow_only",
+            "task_count": 0,
+            "feedback_count": 0,
+            "signal_count": 0,
+            "unavailable": True,
+            "reason": "database calibration interface unavailable",
+        }
     return {
         "api_version": INVESTIGATION_API_VERSION,
         "analysis_id": selected_analysis,
@@ -97,6 +117,7 @@ def investigation_queue_payload(
         "count": len(items),
         "items": items,
         "change_guidance_evaluation": evaluation,
+        "change_guidance_calibration": calibration,
         "engines": {
             "meta_ranker": {
                 "version": META_RANKER_VERSION,
@@ -114,6 +135,11 @@ def investigation_queue_payload(
                 "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
                 "rule_version": CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
             },
+            "change_guidance_calibration": {
+                "version": CHANGE_GUIDANCE_CALIBRATION_VERSION,
+                "rule_version": CHANGE_GUIDANCE_CALIBRATION_RULE_VERSION,
+                "activation": "shadow_only",
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
@@ -128,6 +154,9 @@ def investigation_queue_payload(
             "change_task_feedback_is_observational_only": True,
             "change_task_feedback_cannot_auto_tune": True,
             "change_task_feedback_is_not_target_evidence": True,
+            "change_guidance_calibration_is_shadow_only": True,
+            "change_guidance_calibration_cannot_auto_tune": True,
+            "change_guidance_calibration_cannot_change_weights_or_thresholds": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
