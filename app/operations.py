@@ -154,7 +154,11 @@ class BackupManager:
                     "content_type": str(row["content_type"] or ""),
                 }
 
-            def add_path_reference(raw_path: str, kind: str) -> None:
+            def add_path_reference(
+                raw_path: str,
+                kind: str,
+                expected_sha256: str = "",
+            ) -> None:
                 rel, error = self._project_relative_artifact(raw_path)
                 if error:
                     issues.append(error)
@@ -188,20 +192,32 @@ class BackupManager:
                             return
                 except (OSError, ValueError):
                     pass
+                normalized_expected = str(
+                    expected_sha256 or ""
+                ).strip().lower()
+                if (
+                    len(normalized_expected) != 64
+                    or any(
+                        ch not in "0123456789abcdef"
+                        for ch in normalized_expected
+                    )
+                ):
+                    normalized_expected = ""
                 required[rel] = {
                     "kind": kind,
-                    "sha256": "",
+                    "sha256": normalized_expected,
                     "size": 0,
                 }
 
             if "js_files" in tables:
                 for row in conn.execute(
-                    "SELECT blob_path FROM js_files "
+                    "SELECT blob_path,raw_hash FROM js_files "
                     "WHERE COALESCE(blob_path,'')<>''"
                 ):
                     add_path_reference(
                         str(row["blob_path"]),
                         "javascript_artifact",
+                        str(row["raw_hash"] or ""),
                     )
 
             if "asset_edges" in tables:
@@ -218,6 +234,7 @@ class BackupManager:
                         add_path_reference(
                             str(payload.get("blob_path") or ""),
                             "evidence_artifact",
+                            str(payload.get("object_hash") or ""),
                         )
         finally:
             conn.close()
@@ -796,38 +813,52 @@ class BackupManager:
                 if isinstance(manifest, dict)
                 else {}
             )
+            restore_inventory = self._reference_inventory(
+                restored_database
+            )
+            if restore_inventory["issues"]:
+                raise ReconError(
+                    "Verified backup reference inventory became invalid: "
+                    + "; ".join(restore_inventory["issues"][:10])
+                )
+
+            artifact_paths: set[str] = set(
+                restore_inventory["required_files"].keys()
+            )
             if isinstance(declared_files, Mapping):
                 for rel, metadata in declared_files.items():
                     if not isinstance(metadata, Mapping):
                         continue
-                    kind = str(metadata.get("kind") or "")
-                    if kind not in {
+                    if str(metadata.get("kind") or "") in {
                         "cas_object",
                         "cas_object_unreferenced",
                         "javascript_artifact",
                         "evidence_artifact",
                         "referenced_artifact",
                     }:
-                        continue
-                    safe_rel = self._safe_relative_path(str(rel))
-                    src = root / safe_rel
-                    if not src.is_file():
-                        raise ReconError(
-                            f"Verified artifact disappeared before restore: {safe_rel}"
+                        artifact_paths.add(
+                            self._safe_relative_path(str(rel))
                         )
-                    dst = (self.paths.root / safe_rel).resolve()
-                    try:
-                        dst.relative_to(self.paths.root.resolve())
-                    except ValueError as exc:
-                        raise ReconError(
-                            f"Restore artifact leaves project root: {safe_rel}"
-                        ) from exc
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    staged = dst.with_name(
-                        f".{dst.name}.restore-{uuid.uuid4().hex}.tmp"
+
+            for safe_rel in sorted(artifact_paths):
+                src = root / safe_rel
+                if not src.is_file():
+                    raise ReconError(
+                        f"Verified artifact disappeared before restore: {safe_rel}"
                     )
-                    shutil.copy2(src, staged)
-                    staged_artifacts.append((staged, dst))
+                dst = (self.paths.root / safe_rel).resolve()
+                try:
+                    dst.relative_to(self.paths.root.resolve())
+                except ValueError as exc:
+                    raise ReconError(
+                        f"Restore artifact leaves project root: {safe_rel}"
+                    ) from exc
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                staged = dst.with_name(
+                    f".{dst.name}.restore-{uuid.uuid4().hex}.tmp"
+                )
+                shutil.copy2(src, staged)
+                staged_artifacts.append((staged, dst))
 
             try:
                 self.db.audit(
