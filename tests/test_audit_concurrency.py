@@ -162,6 +162,55 @@ class AuditConcurrencyTests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_verify_detects_missing_integrity_row(self):
+        temp, paths, db = self.project()
+        try:
+            db.execute(
+                "INSERT INTO audit_log("
+                "actor,action,target,entity_type,entity_value,details_json,created_at"
+                ") VALUES('test','unsealed',NULL,NULL,NULL,'{}','2026-01-01T00:00:00Z')"
+            )
+            result = verify_audit_chain(db)
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["reason"], "missing_integrity_row")
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_verify_detects_audit_log_tampering(self):
+        temp, paths, db = self.project()
+        try:
+            db.audit("original_action", actor="test", details={"value": 1})
+            db.execute(
+                "UPDATE audit_log SET action='tampered_action' WHERE action='original_action'"
+            )
+            result = verify_audit_chain(db)
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["reason"], "audit_log_mismatch")
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_rolled_back_audit_is_not_written_to_jsonl_mirror(self):
+        temp, paths, db = self.project()
+        try:
+            with self.assertRaises(RuntimeError):
+                with db.transaction():
+                    db.audit(
+                        "rolled_back_mirror_fixture",
+                        actor="test",
+                        entity_type="fixture",
+                        entity_value="rollback",
+                    )
+                    raise RuntimeError("rollback")
+
+            audit_path = paths.audit_log
+            text = audit_path.read_text(encoding="utf-8") if audit_path.exists() else ""
+            self.assertNotIn("rolled_back_mirror_fixture", text)
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_audit_inside_existing_transaction_commits_as_one_chain_entry(self):
         temp, paths, db = self.project()
         try:
