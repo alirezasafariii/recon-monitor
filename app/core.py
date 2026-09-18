@@ -1774,6 +1774,19 @@ class Database:
         row = self.one("SELECT status FROM work_items WHERE run_id=? AND target=? AND stage=? AND item_key=?", (run_id,target,stage,item_key))
         return str(row["status"]) if row else None
 
+    def reclaim_expired_work_leases(self, now: str | None = None) -> int:
+        current = now or utc_now()
+        cursor = self.execute(
+            "UPDATE work_items SET status='retry_pending',worker_id=NULL,"
+            "lease_token_hash=NULL,lease_expires_at=NULL,started_at=NULL,"
+            "error=COALESCE(NULLIF(error,''),'Recovered expired remote work lease'),"
+            "heartbeat_at=? "
+            "WHERE status='running' AND COALESCE(lease_expires_at,'')<>'' "
+            "AND lease_expires_at<?",
+            (current, current),
+        )
+        return int(cursor.rowcount or 0)
+
     def work_start(
         self,
         work_id: int,
@@ -2656,7 +2669,10 @@ class Database:
                 repaired += 1
             for row in report["work_items"]:
                 self.conn.execute(
-                    "UPDATE work_items SET status='retry_pending',started_at=NULL,worker_id=NULL,error=COALESCE(NULLIF(error,''),'Recovered stale work item'),heartbeat_at=? WHERE id=? AND status='running'",
+                    "UPDATE work_items SET status='retry_pending',started_at=NULL,worker_id=NULL,"
+                    "lease_token_hash=NULL,lease_expires_at=NULL,"
+                    "error=COALESCE(NULLIF(error,''),'Recovered stale work item'),heartbeat_at=? "
+                    "WHERE id=? AND status='running'",
                     (now, row["id"]),
                 )
                 repaired += 1
