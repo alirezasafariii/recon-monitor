@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable
 
-SAFE_TRANSPORT_VERSION = "1.2.0"
+SAFE_TRANSPORT_VERSION = "1.3.0"
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
