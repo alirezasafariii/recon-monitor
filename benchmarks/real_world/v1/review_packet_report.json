@@ -1,0 +1,21 @@
+{
+  "actual_human_reviewer_count": 0,
+  "errors": [],
+  "evaluation_kind": "real_world_corpus_v1_pending_human_review_shards",
+  "human_labels_created": false,
+  "maximum_slot_record_share": 0.34,
+  "origin_overlap_count": 0,
+  "passed": true,
+  "rule_version": "2026.08.14.14",
+  "slot_origin_counts": {
+    "reviewer_slot_1": 34,
+    "reviewer_slot_2": 33,
+    "reviewer_slot_3": 33
+  },
+  "slot_record_counts": {
+    "reviewer_slot_1": 102,
+    "reviewer_slot_2": 99,
+    "reviewer_slot_3": 99
+  },
+  "version": "1.0.0"
+}
