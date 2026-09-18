@@ -77,7 +77,7 @@ def _targeted_origins_by_family(feasibility: Mapping[str, Any]) -> Counter[str]:
     for row in _source_rows(feasibility):
         taxonomy_raw = row.get("source_taxonomy_match")
         taxonomy = taxonomy_raw if isinstance(taxonomy_raw, Mapping) else {}
-        family = _text(taxonomy.get("family_target"))
+        family = _text(taxonomy.get("family_target")) or _text(row.get("family_target"))
         root = _text(row.get("source_root")).upper()
         if family and root and (family, root) not in seen:
             seen.add((family, root))
@@ -93,7 +93,7 @@ def _strong_revision_origins_by_family(feasibility: Mapping[str, Any]) -> Counte
             continue
         taxonomy_raw = row.get("source_taxonomy_match")
         taxonomy = taxonomy_raw if isinstance(taxonomy_raw, Mapping) else {}
-        family = _text(taxonomy.get("family_target"))
+        family = _text(taxonomy.get("family_target")) or _text(row.get("family_target"))
         root = _text(row.get("source_root")).upper()
         if family and root and (family, root) not in seen:
             seen.add((family, root))
@@ -240,6 +240,21 @@ def candidate_family_match(
             "matched_cwes": [],
             "semantic_matches": matches,
             "reason": "semantic_no_cwe_ambiguous_or_missing",
+        }
+
+    semantic_candidates = semantic_family_candidates(text)
+    fallback_matches = semantic_candidates.get(family, [])
+    competing = {
+        other: values
+        for other, values in semantic_candidates.items()
+        if other != family and values
+    }
+    if fallback_matches and not competing:
+        return {
+            "matched": True,
+            "basis": "unique_semantics_cwe_fallback",
+            "matched_cwes": [],
+            "semantic_matches": fallback_matches,
         }
 
     return {
@@ -409,6 +424,96 @@ def discover_for_family(
     }
 
 
+def semantic_sweep_for_families(
+    families: Mapping[str, int],
+    *,
+    exposed: Mapping[str, set[str]],
+    token: str,
+    max_pages: int,
+    used_roots: set[str],
+    used_projects: set[str],
+) -> dict[str, Any]:
+    """Scan the general reviewed-advisory feed once for unresolved families."""
+
+    remaining = {
+        _text(family): max(0, int(needed))
+        for family, needed in families.items()
+        if _text(family) and int(needed) > 0
+    }
+    selected: list[dict[str, Any]] = []
+    selected_counts: Counter[str] = Counter()
+    rejected: Counter[str] = Counter()
+    pages_fetched = 0
+    next_url = _general_query()
+    seen_page_heads: set[str] = set()
+
+    while next_url and pages_fetched < max(1, int(max_pages)) and remaining:
+        rows, following = hardened._api_page(next_url, token=token)
+        if not isinstance(rows, list) or not rows:
+            break
+        pages_fetched += 1
+        page_head = _text(rows[0].get("ghsa_id") if isinstance(rows[0], Mapping) else "")
+        if page_head and page_head in seen_page_heads:
+            rejected["repeated_page_guard"] += len(rows)
+            break
+        if page_head:
+            seen_page_heads.add(page_head)
+
+        for raw in rows:
+            if not isinstance(raw, Mapping):
+                continue
+            if raw.get("withdrawn_at"):
+                rejected["withdrawn"] += 1
+                continue
+
+            matching: list[tuple[str, dict[str, Any]]] = []
+            for family in sorted(remaining):
+                match = candidate_family_match(raw, family)
+                if match.get("matched"):
+                    matching.append((family, dict(match)))
+            if len(matching) != 1:
+                if len(matching) > 1:
+                    rejected["multi_family_semantic_match"] += 1
+                continue
+
+            family, match = matching[0]
+            candidate = _candidate_from_raw(raw, family=family, match=match)
+            root = _text(candidate.get("source_root")).upper()
+            project = _project(candidate.get("source_project"))
+            if not root or not project:
+                rejected["missing_root_or_project"] += 1
+                continue
+            reasons = corpus.exposure_reasons(candidate, exposed)
+            if reasons:
+                for reason in reasons:
+                    rejected[reason] += 1
+                continue
+            if root in used_roots:
+                rejected["duplicate_or_existing_root"] += 1
+                continue
+            if project in used_projects:
+                rejected["duplicate_or_existing_project"] += 1
+                continue
+
+            used_roots.add(root)
+            used_projects.add(project)
+            selected.append(candidate)
+            selected_counts[family] += 1
+            remaining[family] -= 1
+            if remaining[family] <= 0:
+                remaining.pop(family, None)
+
+        next_url = following
+
+    return {
+        "selected": selected,
+        "selected_counts": dict(sorted(selected_counts.items())),
+        "remaining": dict(sorted(remaining.items())),
+        "pages_fetched": pages_fetched,
+        "rejected_counts": dict(sorted(rejected.items())),
+    }
+
+
 def expand_coverage(
     feasibility: Mapping[str, Any],
     *,
@@ -465,6 +570,26 @@ def expand_coverage(
         }
         selected.extend(result["selected"])
 
+    selected_per_family = Counter(
+        _text(row.get("family_target"))
+        for row in selected
+        if _text(row.get("family_target"))
+    )
+    semantic_deficits = {
+        family: max(0, deficits[family] - int(selected_per_family.get(family, 0)))
+        for family in deficits
+        if max(0, deficits[family] - int(selected_per_family.get(family, 0))) > 0
+    }
+    semantic_sweep = semantic_sweep_for_families(
+        semantic_deficits,
+        exposed=exposed,
+        token=token,
+        max_pages=max(20, int(max_pages_per_family) * 4),
+        used_roots=used_roots,
+        used_projects=used_projects,
+    )
+    selected.extend(semantic_sweep["selected"])
+
     expanded_feasibility = {
         "sources": [*current_rows, *selected],
     }
@@ -486,6 +611,11 @@ def expand_coverage(
         "inventory_after": inventory_after,
         "selected": selected,
         "family_diagnostics": diagnostics,
+        "semantic_sweep": {
+            key: value
+            for key, value in semantic_sweep.items()
+            if key != "selected"
+        },
         "historical_exposure": historical_reports,
         "safety": {
             "reviewed_public_metadata_only": True,
@@ -561,5 +691,6 @@ __all__ = [
     "coverage_inventory",
     "candidate_family_match",
     "discover_for_family",
+    "semantic_sweep_for_families",
     "expand_coverage",
 ]
