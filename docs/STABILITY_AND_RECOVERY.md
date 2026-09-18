@@ -33,7 +33,7 @@ The repair command can finalize stale analysis/stage/run rows and return interru
 ./recon-monitor.sh backup drill latest
 ```
 
-Verification checks the outer archive hash, safe member paths, manifest presence, every declared file hash, SQLite integrity, and foreign-key consistency. The drill extracts the backup to an isolated temporary directory and opens the restored database without changing the active installation.
+Verification checks the outer archive hash, safe member paths, manifest presence, every declared file hash, SQLite integrity, foreign-key consistency, and artifact referential integrity. Every CAS object or legacy JavaScript artifact referenced by the database must be present and recoverable from the archive; referenced CAS bytes are re-hashed against their stored SHA-256 identity. Normal backups always include referenced artifacts. `--include-objects` additionally includes unreferenced CAS objects. The drill extracts the backup to an isolated temporary directory, verifies those references, and opens the restored database without changing the active installation.
 
 Actual restore still requires an explicit backup ID and `--force`:
 
@@ -41,7 +41,7 @@ Actual restore still requires an explicit backup ID and `--force`:
 ./recon-monitor.sh backup restore BACKUP_ID --force
 ```
 
-Before replacement, Recon Monitor creates a safety backup, closes the live WAL-backed database connection, atomically installs the restored database, removes stale WAL/SHM files, reopens the database, and validates integrity and foreign keys.
+Before replacement, Recon Monitor creates a safety backup, closes the live WAL-backed database connection, stages archived artifacts, atomically installs the restored database and artifact files, removes stale WAL/SHM files, reopens the database, and validates integrity, foreign keys, and all restored artifact references. If the live artifact store is already damaged, the safety snapshot records that incompleteness instead of blocking recovery from a verified backup.
 
 ## Doctor additions
 
