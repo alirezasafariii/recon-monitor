@@ -237,14 +237,14 @@ def perform_pinned_request(
 
 
 _REDIRECT_STATUSES = {301, 302, 303, 307, 308}
-_SENSITIVE_REDIRECT_HEADERS = {
-    "authorization",
-    "proxy-authorization",
-    "cookie",
-    "set-cookie",
-    "x-api-key",
-    "api-key",
-    "x-auth-token",
+_CROSS_ORIGIN_FORWARD_HEADERS = {
+    "accept",
+    "accept-encoding",
+    "accept-language",
+    "cache-control",
+    "if-modified-since",
+    "if-none-match",
+    "range",
 }
 
 
@@ -276,7 +276,7 @@ def _redirect_headers(
     return {
         str(key):str(value)
         for key,value in headers.items()
-        if str(key).strip().lower() not in _SENSITIVE_REDIRECT_HEADERS
+        if str(key).strip().lower() in _CROSS_ORIGIN_FORWARD_HEADERS
     }
 
 
