@@ -35,6 +35,11 @@ from change_guidance_review_packet import (
     CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
     change_guidance_review_packets,
 )
+from change_guidance_policy_proposal import (
+    CHANGE_GUIDANCE_POLICY_PROPOSAL_RULE_VERSION,
+    CHANGE_GUIDANCE_POLICY_PROPOSAL_VERSION,
+    list_policy_change_proposals,
+)
 from correlation_engine import (
     CORRELATION_ENGINE_VERSION,
     CORRELATION_RULE_VERSION,
@@ -61,7 +66,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.8.0"
+INVESTIGATION_CLI_VERSION = "1.9.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -236,6 +241,11 @@ def investigation_queue_cli_payload(
             calibration_report=calibration,
             drift_report=drift,
         )
+        policy_proposals = list_policy_change_proposals(
+            db,
+            target=str(target or "").strip(),
+            limit=100,
+        )
     else:
         evaluation = {
             "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -274,6 +284,7 @@ def investigation_queue_cli_payload(
             "unavailable": True,
             "reason": "database review-packet interface unavailable",
         }
+        policy_proposals = []
     return {
         "cli_version": INVESTIGATION_CLI_VERSION,
         "analysis_id": selected_analysis,
@@ -284,6 +295,7 @@ def investigation_queue_cli_payload(
         "change_guidance_calibration": calibration,
         "change_guidance_drift": drift,
         "change_guidance_review_packets": review_packets,
+        "change_guidance_policy_proposals": policy_proposals,
         "engines": {
             "meta_ranker": {
                 "version": META_RANKER_VERSION,
@@ -316,6 +328,11 @@ def investigation_queue_cli_payload(
                 "rule_version": CHANGE_GUIDANCE_REVIEW_PACKET_RULE_VERSION,
                 "activation": "human_review_only",
             },
+            "change_guidance_policy_proposals": {
+                "version": CHANGE_GUIDANCE_POLICY_PROPOSAL_VERSION,
+                "rule_version": CHANGE_GUIDANCE_POLICY_PROPOSAL_RULE_VERSION,
+                "activation": "proposal_only",
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
@@ -339,6 +356,9 @@ def investigation_queue_cli_payload(
             "change_guidance_review_packets_are_human_review_only": True,
             "change_guidance_review_packets_are_non_executable": True,
             "change_guidance_review_packets_require_separate_policy_change": True,
+            "change_guidance_policy_proposals_are_versioned_and_audited": True,
+            "change_guidance_policy_proposals_have_no_apply_endpoint": True,
+            "change_guidance_policy_proposals_cannot_change_production": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
