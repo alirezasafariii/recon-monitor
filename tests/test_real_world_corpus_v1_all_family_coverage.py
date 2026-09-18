@@ -90,6 +90,20 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         self.assertEqual(stored["basis"], "shared_cwe_plus_unique_semantics")
         self.assertFalse(reflected["matched"])
 
+    def test_explicit_client_side_ssrf_maps_to_client_resource_family(self):
+        raw = _advisory(
+            "Client-side SSRF via unrestricted external resource loading"
+        )
+        match = candidate_family_match(
+            raw,
+            "client_side_resource_manipulation",
+        )
+        self.assertTrue(match["matched"])
+        self.assertEqual(
+            match["basis"],
+            "explicit_client_side_resource_semantics",
+        )
+
     def test_no_cwe_family_can_use_distinctive_semantics(self):
         raw = _advisory(
             "Framework is vulnerable to Web Cache Poisoning through an unkeyed header"
