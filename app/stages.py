@@ -6,11 +6,8 @@ import json
 import os
 import re
 import socket
-import ssl
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -48,7 +45,7 @@ from core import (
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
-from safe_transport import perform_pinned_request
+from safe_transport import fetch_pinned_tls_peer, perform_pinned_download, perform_pinned_request
 
 
 @dataclass(slots=True)
@@ -703,99 +700,122 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     }
 
 
-class _ScopedRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def __init__(self, policy: TargetPolicy):
-        super().__init__()
-        self.policy = policy
-
-    def redirect_request(self, req: urllib.request.Request, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> urllib.request.Request | None:
-        normalized = normalize_url(newurl)
-        if not normalized or not self.policy.url_in_scope(normalized):
-            raise urllib.error.HTTPError(newurl, 403, "redirect left authorized scope", headers, fp)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
 def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]:
-    headers = {"User-Agent": ctx.config.get("USER_AGENT", "ReconMonitor/3.0 authorized security monitoring"), **ctx.policy.headers}
-    request = urllib.request.Request(url, headers=headers)
-    opener = urllib.request.build_opener(_ScopedRedirectHandler(ctx.policy))
-    ssl_context = ssl.create_default_context()
-    # HTTPSHandler cannot be mixed into an already-built opener cleanly after creation,
-    # so standard verification is retained by urllib's default HTTPS handler.
+    """Download one in-scope resource through the pinned transport boundary."""
+    headers = {
+        "User-Agent": ctx.config.get(
+            "USER_AGENT",
+            "ReconMonitor/3.0 authorized security monitoring",
+        ),
+        **ctx.policy.headers,
+    }
     started = time.monotonic()
-    if ctx.budget:
-        ctx.budget.consume("http_requests", 1)
-    try:
-        with opener.open(request, timeout=min(45, max(5, ctx.policy.limits.timeout_seconds))) as response:
-            final_url = normalize_url(response.geturl()) or url
-            if not ctx.policy.url_in_scope(final_url):
-                raise StageError(f"Redirect left scope: {url} -> {final_url}", retryable=False)
-            content_type = response.headers.get("Content-Type", "")
-            length_header = response.headers.get("Content-Length")
-            if length_header and int(length_header) > max_bytes:
-                raise StageError(f"Content too large: {url}", retryable=False)
-            data = response.read(max_bytes + 1)
-            if ctx.budget:
-                ctx.budget.consume("download_bytes", len(data))
-            if len(data) > max_bytes:
-                raise StageError(f"Content exceeded limit: {url}", retryable=False)
-            return {
-                "url": url,
-                "final_url": final_url,
-                "status_code": int(
-                    getattr(
-                        response,
-                        "status",
-                        0,
-                    )
-                    or 0
-                ),
-                "data": data,
-                "content_type": content_type,
-                "etag": response.headers.get("ETag", ""),
-                "last_modified": response.headers.get("Last-Modified", ""),
-                "duration": time.monotonic() - started,
-            }
-    except urllib.error.HTTPError as exc:
-        status_code = int(exc.code or 0)
-        error_text = str(exc)
 
-        # HTTPError can own a response/file object. Close it after extracting
-        # the status/error text so repeated probes and tests do not leak it.
-        with contextlib.suppress(Exception):
-            exc.close()
+    def before_request(_candidate: str) -> None:
+        if ctx.budget:
+            ctx.budget.consume("http_requests", 1)
 
-        # A 404/410 is a definitive HTTP result, not a transport/runtime
-        # failure. Preserve it separately so JavaScript discovery can report
-        # stale/not-found candidates without polluting the error count or
-        # retrying them during resume.
-        if status_code in {404, 410}:
-            return {
-                "url": url,
-                "status_code": status_code,
-                "not_found": True,
-                "duration": time.monotonic() - started,
-            }
+    result = perform_pinned_download(
+        url,
+        ctx.policy,
+        headers=headers,
+        max_response_bytes=max_bytes,
+        timeout=min(45, max(5, ctx.policy.limits.timeout_seconds)),
+        max_redirects=3,
+        user_agent=headers["User-Agent"],
+        before_request=before_request,
+    )
+    duration = time.monotonic() - started
+    status_code = int(result.get("status_code") or 0)
+    response_headers = (
+        result.get("headers")
+        if isinstance(result.get("headers"), Mapping)
+        else {}
+    )
+    error = str(result.get("error") or "")
 
+    if error == "response_budget_exceeded":
+        raise StageError(f"Content exceeded limit: {url}", retryable=False)
+
+    if status_code in {404, 410}:
         return {
             "url": url,
+            "final_url": str(result.get("final_url") or url),
             "status_code": status_code,
-            "error": error_text,
-            "duration": time.monotonic() - started,
+            "not_found": True,
+            "duration": duration,
+            "transport_status": str(result.get("transport_status") or ""),
+            "transport_hops": list(result.get("transport_hops") or []),
+            "dns_rebinding_protection": str(
+                result.get("dns_rebinding_protection") or ""
+            ),
         }
 
-    except (
-        urllib.error.URLError,
-        TimeoutError,
-        socket.timeout,
-        ValueError,
-    ) as exc:
+    data = result.get("data")
+    if not error and isinstance(data, (bytes, bytearray)) and status_code:
+        payload = bytes(data)
+        if ctx.budget:
+            ctx.budget.consume("download_bytes", len(payload))
+        content_type = str(
+            response_headers.get("Content-Type")
+            or response_headers.get("content-type")
+            or ""
+        )
         return {
             "url": url,
-            "error": str(exc),
-            "duration": time.monotonic() - started,
+            "final_url": str(result.get("final_url") or url),
+            "status_code": status_code,
+            "data": payload,
+            "content_type": content_type,
+            "etag": str(
+                response_headers.get("ETag")
+                or response_headers.get("etag")
+                or ""
+            ),
+            "last_modified": str(
+                response_headers.get("Last-Modified")
+                or response_headers.get("last-modified")
+                or ""
+            ),
+            "duration": duration,
+            "transport_status": str(result.get("transport_status") or ""),
+            "transport_hops": list(result.get("transport_hops") or []),
+            "resolved_addresses": list(result.get("resolved_addresses") or []),
+            "pinned_address": str(result.get("pinned_address") or ""),
+            "dns_rebinding_protection": str(
+                result.get("dns_rebinding_protection") or ""
+            ),
+            "environment_proxy_used": bool(
+                result.get("environment_proxy_used", False)
+            ),
+            "safe_transport_version": str(
+                result.get("safe_transport_version") or ""
+            ),
         }
 
+    return {
+        "url": url,
+        "final_url": str(result.get("final_url") or url),
+        "status_code": status_code,
+        "error": error or "download_failed",
+        "duration": duration,
+        "transport_status": str(result.get("transport_status") or ""),
+        "transport_hops": list(result.get("transport_hops") or []),
+        "resolved_addresses": list(result.get("resolved_addresses") or []),
+        "pinned_address": str(result.get("pinned_address") or ""),
+        "dns_rebinding_protection": str(
+            result.get("dns_rebinding_protection") or ""
+        ),
+        "redirect_outside_scope": bool(
+            result.get("redirect_outside_scope", False)
+        ),
+        "environment_proxy_used": bool(
+            result.get("environment_proxy_used", False)
+        ),
+        "safe_transport_version": str(
+            result.get("safe_transport_version") or ""
+        ),
+    }
 
 def _find_source_map_url(js_url: str, text: str) -> str:
     matches = re.findall(r"(?m)//[#@]\s*sourceMappingURL\s*=\s*([^\s]+)\s*$", text)
