@@ -510,6 +510,44 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     )
     result["transport_status"] = transport_status
     result["live"] = bool(result.get("status_code"))
+
+    # Some origins reject/drop HEAD while serving GET normally. Retry once with
+    # a one-byte ranged GET only when the HEAD result was inconclusive or a
+    # method-specific rejection. Safety stops (scope/non-public/429) never retry.
+    head_status = int(result.get("status_code") or 0)
+    if (
+        head_status in {0, 405, 501}
+        and transport_status != "stopped_for_safety"
+    ):
+        if ctx.budget:
+            ctx.budget.consume("http_requests", 1)
+        fallback_headers = {
+            **ctx.policy.headers,
+            "Range": "bytes=0-0",
+        }
+        get_result, get_transport_status = perform_pinned_request(
+            {"method": "GET", "url": url, "headers": fallback_headers},
+            ctx.policy,
+            safe_methods={"GET"},
+            url_safety=lambda candidate, policy: (
+                bool(policy.url_in_scope(candidate)),
+                "outside_scope" if not policy.url_in_scope(candidate) else "",
+            ),
+            observation=observation,
+            max_response_bytes=1,
+            validation_version="recon-origin-probe-1",
+        )
+        get_result["transport_status"] = get_transport_status
+        get_result["live"] = bool(get_result.get("status_code"))
+        get_result["head_fallback"] = True
+        get_result["head_status_code"] = head_status
+        if get_result.get("live") or head_status == 0:
+            return get_result
+        result["head_fallback"] = True
+        result["head_fallback_status_code"] = int(
+            get_result.get("status_code") or 0
+        )
+
     return result
 
 
