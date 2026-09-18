@@ -101,9 +101,11 @@ Advisory **boundaries** are evaluated with ecosystem-aware semantics:
 
 Range capability is reported as `full`, `partial` or `none`. A partial OR
 expression may create a positive match only when the observed version matches a
-fully understood branch. Conjunctions are never partially evaluated. Unknown
-qualifiers, package-manager expressions or malformed boundaries remain
-unsupported and cannot create target evidence.
+fully understood branch. Conjunctions are never partially evaluated. Unknown qualifiers, package-manager expressions or malformed boundaries remain
+unsupported and cannot create target evidence. In particular, date-based
+versions, distro-specific suffixes (for example Ubuntu/Debian-style package
+revisions), development-branch aliases such as `x-dev`, and custom labels
+without a documented ordering stay fail-closed rather than being guessed.
 
 The catalog remains indexed and cached so a full snapshot is not reparsed for
 every technology observation. Expanding range syntax does not make a catalog
