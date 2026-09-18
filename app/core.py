@@ -597,6 +597,8 @@ class Database:
         self.conn.execute("PRAGMA busy_timeout=30000")
         self.conn.execute("PRAGMA temp_store=MEMORY")
         self._lock = threading.RLock()
+        self._managed_transaction_depth = 0
+        self._pending_audit_lines: list[str] = []
         self.migrate()
 
     def close(self) -> None:
@@ -1712,14 +1714,26 @@ class Database:
         # inside this transaction and accidentally commit or roll back work that
         # belongs to a different operation.
         with self._lock:
+            pending_start = len(self._pending_audit_lines)
             self.conn.execute("BEGIN IMMEDIATE")
+            self._managed_transaction_depth += 1
             try:
                 yield self.conn
             except Exception:
                 self.conn.execute("ROLLBACK")
+                del self._pending_audit_lines[pending_start:]
                 raise
             else:
                 self.conn.execute("COMMIT")
+                pending = self._pending_audit_lines[pending_start:]
+                del self._pending_audit_lines[pending_start:]
+                for event_json in pending:
+                    self._append_audit_mirror(event_json)
+            finally:
+                self._managed_transaction_depth = max(
+                    0,
+                    self._managed_transaction_depth - 1,
+                )
 
     def execute(self, sql: str, params: Sequence[Any] = ()) -> sqlite3.Cursor:
         with self._lock:
@@ -1732,6 +1746,16 @@ class Database:
     def all(self, sql: str, params: Sequence[Any] = ()) -> list[sqlite3.Row]:
         with self._lock:
             return list(self.conn.execute(sql, params).fetchall())
+
+    def _append_audit_mirror(self, event_json: str) -> None:
+        audit_path = self.path.parent / "audit.jsonl"
+        try:
+            with audit_path.open("a", encoding="utf-8") as handle:
+                handle.write(event_json + "\n")
+        except OSError:
+            # SQLite is the authoritative audit source. A mirror write failure
+            # must not make a committed database transaction appear rolled back.
+            pass
 
     def audit(self, action: str, *, actor: str = "system", target: str = "", entity_type: str = "", entity_value: str = "", details: Mapping[str, Any] | None = None) -> None:
         created = utc_now()
@@ -1795,12 +1819,13 @@ class Database:
                     self.conn.execute("ROLLBACK")
                 raise
 
-            # audit.jsonl is a human-readable mirror. The SQLite audit tables are
-            # the transactional source of truth and verify_audit_chain() reads
-            # them. Keep mirror writes serialized for threads sharing this DB.
-            audit_path = self.path.parent / "audit.jsonl"
-            with audit_path.open("a", encoding="utf-8") as handle:
-                handle.write(event_json + "\n")
+            # audit.jsonl is a human-readable mirror. When audit() joins a
+            # managed transaction, defer the mirror until the outer COMMIT so a
+            # later rollback cannot leave a phantom event in the file.
+            if self._managed_transaction_depth > 0 and not owns_transaction:
+                self._pending_audit_lines.append(event_json)
+            else:
+                self._append_audit_mirror(event_json)
 
     def budget_init(self, run_id: str, target: str, limits: Mapping[str, int]) -> None:
         now = utc_now()
