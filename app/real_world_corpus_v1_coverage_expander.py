@@ -36,6 +36,19 @@ COVERAGE_EXPANDER_VERSION = "1.0.0"
 COVERAGE_EXPANDER_RULE_VERSION = "2026.09.18.1"
 DEFAULT_FAMILY_QUOTA = 1
 RECOMMENDED_FAMILY_QUOTA = 10
+# Reviewed-advisory IDs used only as discovery accelerators for sparse families.
+# They do not bypass semantic/taxonomy matching, historical-exposure firewalling,
+# or later feasibility/capture gates.
+REVIEWED_DISCOVERY_SEEDS: dict[str, tuple[str, ...]] = {
+    "business_logic": ("GHSA-7V3V-CP44-VC8M",),
+    "http_verb_tampering": ("GHSA-VXRR-W42W-W76G",),
+    "ssi_injection": ("GHSA-8R5J-GM3J-CX9C",),
+    "host_header_injection": ("GHSA-7GCC-R8M5-44QM",),
+    "client_side_resource_manipulation": ("GHSA-RFFM-9Q57-Q649",),
+    "improper_inventory_management": ("GHSA-6RMH-7XCM-CPXJ",),
+    "backup_unreferenced_file_exposure": ("GHSA-G39V-CVJH-8FPF",),
+}
+
 DEFAULT_MAX_PAGES_PER_FAMILY = 5
 
 
@@ -332,6 +345,65 @@ def _candidate_from_raw(
     return candidate
 
 
+def discover_reviewed_seeds(
+    family: str,
+    *,
+    exposed: Mapping[str, set[str]],
+    token: str,
+    needed: int,
+    used_roots: set[str],
+    used_projects: set[str],
+) -> dict[str, Any]:
+    selected: list[dict[str, Any]] = []
+    rejected: Counter[str] = Counter()
+    for root in REVIEWED_DISCOVERY_SEEDS.get(_text(family), ()):
+        if len(selected) >= max(0, int(needed)):
+            break
+        try:
+            raw = hardened._api_json(
+                f"https://api.github.com/advisories/{root}",
+                token=token,
+            )
+        except Exception:
+            rejected["seed_fetch_failed"] += 1
+            continue
+        if not isinstance(raw, Mapping):
+            rejected["seed_payload_invalid"] += 1
+            continue
+        if raw.get("withdrawn_at"):
+            rejected["seed_withdrawn"] += 1
+            continue
+        match = candidate_family_match(raw, family)
+        if not match.get("matched"):
+            rejected["seed_family_mismatch"] += 1
+            continue
+        candidate = _candidate_from_raw(raw, family=family, match=match)
+        source_root = _text(candidate.get("source_root")).upper()
+        project = _project(candidate.get("source_project"))
+        if not source_root or not project:
+            rejected["seed_missing_root_or_project"] += 1
+            continue
+        reasons = corpus.exposure_reasons(candidate, exposed)
+        if reasons:
+            for reason in reasons:
+                rejected[f"seed_{reason}"] += 1
+            continue
+        if source_root in used_roots:
+            rejected["seed_duplicate_or_existing_root"] += 1
+            continue
+        if project in used_projects:
+            rejected["seed_duplicate_or_existing_project"] += 1
+            continue
+        used_roots.add(source_root)
+        used_projects.add(project)
+        selected.append(candidate)
+    return {
+        "selected": selected,
+        "selected_count": len(selected),
+        "rejected_counts": dict(sorted(rejected.items())),
+    }
+
+
 def discover_for_family(
     family: str,
     *,
@@ -355,8 +427,16 @@ def discover_for_family(
 
     cwes = list(canonical_family_cwes().get(family, ()))
     start_urls = [_cwe_query(cwe) for cwe in cwes] or [_general_query()]
-    selected: list[dict[str, Any]] = []
-    rejected: Counter[str] = Counter()
+    seed_result = discover_reviewed_seeds(
+        family,
+        exposed=exposed,
+        token=token,
+        needed=needed,
+        used_roots=used_roots,
+        used_projects=used_projects,
+    )
+    selected: list[dict[str, Any]] = list(seed_result["selected"])
+    rejected: Counter[str] = Counter(seed_result["rejected_counts"])
     pages_fetched = 0
     seen_page_heads: set[str] = set()
 
@@ -422,6 +502,7 @@ def discover_for_family(
         "discovery_mode": "cwe" if cwes else "semantic",
         "canonical_cwes": cwes,
         "semantic_terms": list(family_terms(family)),
+        "seed_selected_count": int(seed_result["selected_count"]),
     }
 
 
@@ -691,6 +772,7 @@ __all__ = [
     "RECOMMENDED_FAMILY_QUOTA",
     "coverage_inventory",
     "candidate_family_match",
+    "discover_reviewed_seeds",
     "discover_for_family",
     "semantic_sweep_for_families",
     "expand_coverage",
