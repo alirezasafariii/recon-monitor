@@ -337,7 +337,8 @@ class APIHandler(BaseHTTPRequestHandler):
                     self.send_json({"error":"invalid worker capabilities"},400); return
                 token_hash=str(getattr(self,"auth_token_hash",""))
                 existing=db.one("SELECT auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
-                if existing and str(existing["auth_token_hash"] or "")!=token_hash:
+                existing_hash=str(existing["auth_token_hash"] or "") if existing else ""
+                if existing_hash and not secrets.compare_digest(existing_hash,token_hash):
                     self.send_json({"error":"worker id is bound to another token"},403); return
                 now=utc_now()
                 db.execute(
@@ -345,7 +346,9 @@ class APIHandler(BaseHTTPRequestHandler):
                     "VALUES(?,?,?,'online',?,?,?,?) "
                     "ON CONFLICT(worker_id) DO UPDATE SET "
                     "name=excluded.name,capabilities_json=excluded.capabilities_json,status='online',"
-                    "last_heartbeat=excluded.last_heartbeat,metadata_json=excluded.metadata_json",
+                    "last_heartbeat=excluded.last_heartbeat,metadata_json=excluded.metadata_json,"
+                    "auth_token_hash=CASE WHEN remote_workers.auth_token_hash='' "
+                    "THEN excluded.auth_token_hash ELSE remote_workers.auth_token_hash END",
                     (
                         worker_id,
                         str(data.get('name',worker_id)),
