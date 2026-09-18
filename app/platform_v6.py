@@ -981,17 +981,85 @@ def security_posture(paths: AppPaths, config: Config, db: Database, *, persist: 
 
 
 def verify_audit_chain(db: Database) -> dict[str, Any]:
-    rows = db.all("SELECT audit_id,previous_hash,event_hash,event_json FROM audit_integrity ORDER BY audit_id")
+    orphan = db.one(
+        "SELECT i.audit_id FROM audit_integrity i "
+        "LEFT JOIN audit_log l ON l.id=i.audit_id "
+        "WHERE l.id IS NULL ORDER BY i.audit_id LIMIT 1"
+    )
+    if orphan:
+        return {
+            "ok": False,
+            "verified": 0,
+            "failed_audit_id": orphan["audit_id"],
+            "reason": "orphan_integrity_row",
+        }
+
+    rows = db.all(
+        "SELECT l.id AS audit_id,l.actor,l.action,l.target,l.entity_type,"
+        "l.entity_value,l.details_json,l.created_at,"
+        "i.previous_hash,i.event_hash,i.event_json "
+        "FROM audit_log l LEFT JOIN audit_integrity i ON i.audit_id=l.id "
+        "ORDER BY l.id"
+    )
     previous = ""
     verified = 0
     for row in rows:
+        audit_id = row["audit_id"]
+        if row["event_hash"] is None or row["event_json"] is None:
+            return {
+                "ok": False,
+                "verified": verified,
+                "failed_audit_id": audit_id,
+                "reason": "missing_integrity_row",
+            }
+
+        canonical_event_json = json_dumps(
+            {
+                "created_at": str(row["created_at"] or ""),
+                "actor": str(row["actor"] or ""),
+                "action": str(row["action"] or ""),
+                "target": str(row["target"] or ""),
+                "entity_type": str(row["entity_type"] or ""),
+                "entity_value": str(row["entity_value"] or ""),
+                "details": safe_json_loads(
+                    row["details_json"],
+                    {},
+                    expected_type=dict,
+                ),
+            }
+        )
         event_json = str(row["event_json"])
+        if event_json != canonical_event_json:
+            return {
+                "ok": False,
+                "verified": verified,
+                "failed_audit_id": audit_id,
+                "reason": "audit_log_mismatch",
+            }
+
         expected = sha256_text(previous + "|" + event_json)
-        if str(row["previous_hash"] or "") != previous or str(row["event_hash"] or "") != expected:
-            return {"ok": False, "verified": verified, "failed_audit_id": row["audit_id"]}
+        if str(row["previous_hash"] or "") != previous:
+            return {
+                "ok": False,
+                "verified": verified,
+                "failed_audit_id": audit_id,
+                "reason": "previous_hash_mismatch",
+            }
+        if str(row["event_hash"] or "") != expected:
+            return {
+                "ok": False,
+                "verified": verified,
+                "failed_audit_id": audit_id,
+                "reason": "event_hash_mismatch",
+            }
         previous = expected
         verified += 1
-    return {"ok": True, "verified": verified, "head_hash": previous}
+    return {
+        "ok": True,
+        "verified": verified,
+        "head_hash": previous,
+        "audit_rows": len(rows),
+    }
 
 
 def set_retention_policy(db: Database, category: str, days: int, *, enabled: bool = True, keep_count: int = 0, actor: str = "system") -> dict[str, Any]:

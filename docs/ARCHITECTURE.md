@@ -79,7 +79,7 @@ Finding notifications are independent from Recon Change Alerts. New or materiall
 
 ## Storage and concurrency
 
-SQLite under `state/` remains the transactional source of truth. The database uses WAL mode, busy timeouts, transactions, and a serialized writer path for queued mutation events. Content-addressed evidence and source objects live under the local object store with SHA-256 integrity metadata. PostgreSQL, when configured, is an analytics mirror rather than the primary transactional store.
+SQLite under `state/` remains the transactional source of truth. The database uses WAL mode, busy timeouts, connection-wide transaction locking, and a serialized writer path for queued mutation events. Audit-log and audit-integrity rows are appended under the same SQLite write transaction so concurrent writers cannot fork the hash-chain head. Content-addressed evidence and source objects live under the local object store with SHA-256 integrity metadata. PostgreSQL, when configured, is an analytics mirror rather than the primary transactional store.
 
 ## Primary components
 
