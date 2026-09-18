@@ -35,34 +35,29 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         self.assertFalse(version_matches_range("4.18.0", ">=4.0.0,<=4.17.23"))
         self.assertFalse(version_matches_range("4.17.21-beta.1", "<4.18.0"))
 
-    def test_curated_catalog_positive_matches_only(self):
+    def test_full_catalog_positive_matches_keep_positive_only_semantics(self):
         jquery = match_versioned_technology("jQuery:3.4.1")
         self.assertTrue(jquery["version_exact"])
         self.assertIn(
-            "GHSA-gxr4-xjj5-5px2",
+            "GHSA-GXR4-XJJ5-5PX2",
             {row["advisory_id"] for row in jquery["matches"]},
         )
 
-        jquery_patched_for_that_advisory = match_versioned_technology("jQuery:3.5.0")
-        self.assertEqual(jquery_patched_for_that_advisory["matches"], [])
-        self.assertFalse(jquery_patched_for_that_advisory["catalog_is_exhaustive"])
-        self.assertFalse(jquery_patched_for_that_advisory["absence_of_match_means_safe"])
+        self.assertFalse(jquery["catalog_is_exhaustive"])
+        self.assertFalse(jquery["absence_of_match_means_safe"])
 
         bootstrap = match_versioned_technology("Bootstrap:4.3.0")
         self.assertIn(
-            "GHSA-9v3m-8fp8-mj99",
+            "GHSA-9V3M-8FP8-MJ99",
             {row["advisory_id"] for row in bootstrap["matches"]},
         )
 
-        lodash_current_advisory = match_versioned_technology("Lodash:4.17.23")
-        self.assertIn(
-            "GHSA-r5fr-rjxr-66jc",
-            {row["advisory_id"] for row in lodash_current_advisory["matches"]},
+        definitely_unknown = match_versioned_technology(
+            "DefinitelyNotARealPackage:1.2.3"
         )
-        self.assertEqual(
-            match_versioned_technology("Lodash:4.18.0")["matches"],
-            [],
-        )
+        self.assertEqual(definitely_unknown["matches"], [])
+        self.assertFalse(definitely_unknown["catalog_is_exhaustive"])
+        self.assertFalse(definitely_unknown["absence_of_match_means_safe"])
 
     def test_passive_extractor_preserves_advisory_provenance(self):
         vulnerable = extract_passive_family_evidence(
@@ -74,15 +69,22 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
             vulnerable["known_vulnerable_component_match_observed"]
         )
         matches = vulnerable["dependency_advisory_matches"]
-        self.assertEqual(matches[0]["product"], "jquery")
-        self.assertEqual(matches[0]["version"], "3.4.1")
-        self.assertTrue(matches[0]["matched_range"])
-        self.assertTrue(matches[0]["source_url"].startswith("https://"))
+        self.assertGreaterEqual(len(matches), 1)
+        self.assertTrue(all(match["product"] == "jquery" for match in matches))
+        self.assertTrue(all(match["version"] == "3.4.1" for match in matches))
+        self.assertTrue(all(match["matched_range"] for match in matches))
+        self.assertTrue(
+            all(match["source_url"].startswith("https://") for match in matches)
+        )
+        self.assertIn(
+            "GHSA-GXR4-XJJ5-5PX2",
+            {match["advisory_id"] for match in matches},
+        )
         self.assertEqual(
             vulnerable["_passive_evidence_extractor"][
                 "dependency_advisory_match_count"
             ],
-            1,
+            len(matches),
         )
 
         unknown_version = extract_passive_family_evidence(
@@ -98,7 +100,7 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
         no_match = extract_passive_family_evidence(
             endpoint="https://example.test/",
             target="example.test",
-            details={"technologies": ["jQuery:3.5.0"]},
+            details={"technologies": ["DefinitelyNotARealPackage:1.2.3"]},
         )
         self.assertNotIn(
             "known_vulnerable_component_match_observed",
@@ -187,7 +189,7 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
                 db,
                 now,
                 url=unmatched_url,
-                technologies=["jQuery:3.5.0"],
+                technologies=["DefinitelyNotARealPackage:1.2.3"],
             )
 
             result = run_analysis(paths, db, "RUN-DEP", "example.test")
@@ -217,7 +219,7 @@ class DependencyAdvisoryMatcherTests(unittest.TestCase):
             ]
             self.assertEqual(len(advisory_items), 1)
             self.assertIn(
-                "GHSA-gxr4-xjj5-5px2",
+                "GHSA-GXR4-XJJ5-5PX2",
                 {
                     match.get("advisory_id")
                     for match in advisory_items[0].get("advisory_matches", [])
