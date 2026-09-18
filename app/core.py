@@ -2918,9 +2918,10 @@ class CommandRunner:
         proc_env = os.environ.copy()
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
+        display_command = " ".join(redact_command_args(args))
         self.logger.info(
             "Executing tool",
-            command=" ".join(redact_command_args(args)),
+            command=display_command,
             cwd=str(cwd or Path.cwd()),
         )
         proc = subprocess.Popen(
@@ -2951,7 +2952,7 @@ class CommandRunner:
                     except Exception as exc:  # Heartbeat failure must not kill timeout supervision.
                         self.logger.warn(
                             "Stage heartbeat failed",
-                            command=" ".join(args),
+                            command=display_command,
                             error=str(exc),
                         )
                     next_heartbeat = now + heartbeat_interval
@@ -2989,7 +2990,7 @@ class CommandRunner:
             returncode = 124
         self.logger.info(
             "Tool finished",
-            command=" ".join(args),
+            command=display_command,
             returncode=returncode,
             duration_seconds=round(duration, 3),
             lines=lines,
