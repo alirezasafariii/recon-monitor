@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "corpus_version": "1.0.0",
+  "rule_version": "2026.08.14.1",
+  "status": "source_discovery",
+  "target": {
+    "source_roots": 100,
+    "records": 400,
+    "variants_per_root": 4,
+    "minimum_families": 50,
+    "holdout_percent": 20,
+    "minimum_human_reviewers": 3,
+    "maximum_top_reviewer_share": 0.7
+  },
+  "variant_contract": [
+    "positive",
+    "near_miss",
+    "secure_negative",
+    "sparse_noisy"
+  ],
+  "historical_exposure_policy": {
+    "analysis_golden_v3": "consumed_benchmark",
+    "analysis_golden_v4": "consumed_benchmark",
+    "analysis_raw_v1": "consumed_benchmark",
+    "analysis_raw_v2": "consumed_benchmark",
+    "analysis_raw_v3": "consumed_benchmark",
+    "analysis_raw_v6": "reserved_blind"
+  },
+  "hard_boundaries": {
+    "no_overlap_with_consumed_source_roots": true,
+    "no_overlap_with_consumed_source_projects": true,
+    "no_overlap_with_consumed_identifiers": true,
+    "no_overlap_with_consumed_primary_urls": true,
+    "v6_reserved_blind_must_remain_unconsumed": true,
+    "source_discovery_executes_scoring": false,
+    "source_discovery_contacts_targets": false,
+    "source_discovery_creates_human_labels": false,
+    "final_family_requires_source_or_human_adjudication": true,
+    "golden_or_synthetic_cannot_unlock_activation": true
+  },
+  "collection_lifecycle": [
+    "fresh_source_discovery",
+    "historical_exposure_firewall",
+    "source_feasibility_review",
+    "controlled_literal_capture",
+    "human_label_review",
+    "evidence_quality_review",
+    "corpus_freeze",
+    "label_blind_train_holdout_freeze",
+    "first_score"
+  ],
+  "scoring_executed": false,
+  "first_score_consumed": false
+}
