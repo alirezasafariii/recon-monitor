@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: dependency-advisory-catalog-sync
@@ -73,3 +74,20 @@ jobs:
           git add data/dependency_advisory_catalog.json MANIFEST.sha256
           git commit -m "chore: sync GitHub reviewed advisory catalog"
           git push --force origin "HEAD:refs/heads/$BRANCH"
+
+      - name: Open or refresh catalog pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH="automation/dependency-advisory-catalog"
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "No automation branch was produced."
+            exit 0
+          fi
+          if gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Catalog pull request is already open."
+            exit 0
+          fi
+          gh pr create             --repo "$GITHUB_REPOSITORY"             --base main             --head "$BRANCH"             --title "chore: sync GitHub reviewed advisory catalog"             --body "Automated full GitHub-reviewed dependency advisory snapshot. Runtime Analysis remains offline; catalog misses do not imply safety."             || echo "::warning::Automation branch was pushed, but repository settings did not allow GitHub Actions to open the PR."
