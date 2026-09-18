@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -326,20 +327,21 @@ class ReconP8TaskLifecycleFeedbackTests(unittest.TestCase):
         self.assertIn("Update usefulness", terminal_html)
 
     def test_api_and_cli_publish_feedback_safety_contract(self) -> None:
-        for payload in (
-            api_server.investigation_queue_payload(
+        with mock.patch("api_server.investigation_queue", return_value=[]):
+            api_payload = api_server.investigation_queue_payload(
                 object(),
-                analysis_id="",
+                analysis_id="AN-P8",
                 target="",
                 limit=5,
-            ),
-            recon_monitor.investigation_queue_cli_payload(
+            )
+        with mock.patch("recon_monitor.investigation_queue", return_value=[]):
+            cli_payload = recon_monitor.investigation_queue_cli_payload(
                 object(),
-                analysis_id="",
+                analysis_id="AN-P8",
                 target="",
                 limit=5,
-            ),
-        ):
+            )
+        for payload in (api_payload, cli_payload):
             safety = payload["safety"]
             self.assertTrue(safety["change_task_feedback_is_observational_only"])
             self.assertTrue(safety["change_task_feedback_cannot_auto_tune"])
