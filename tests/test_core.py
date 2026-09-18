@@ -153,7 +153,13 @@ class CoreTests(unittest.TestCase):
             try:
                 record = {
                     "status_code": 200, "title": "ok", "webserver": "srv", "technologies": ["x"],
-                    "content_type": "text/html", "content_length": 10, "body_hash": "b",
+                    "content_type": "text/html", "content_length": 10,
+                    "response_headers": {
+                        "content-security-policy": "default-src 'self'",
+                        "strict-transport-security": "max-age=31536000",
+                    },
+                    "response_headers_observed": True,
+                    "body_hash": "b",
                     "favicon_hash": "f", "jarm": "j", "ip": "192.0.2.1", "cname": "c",
                     "cdn": "cdn", "final_url": "https://example.com/", "redirect_chain": [],
                     "http2": True, "tls_issuer": "issuer", "tls_expiry": "expiry",
@@ -163,9 +169,18 @@ class CoreTests(unittest.TestCase):
                 is_new, changed, _ = db.upsert_fingerprint("t", "https://example.com/", record, "h", "run")
                 self.assertTrue(is_new)
                 self.assertFalse(changed)
-                row = db.one("SELECT tls_issuer,screenshot_hash FROM fingerprints")
+                row = db.one(
+                    "SELECT tls_issuer,screenshot_hash,response_headers_json,response_headers_observed "
+                    "FROM fingerprints"
+                )
                 self.assertEqual(row["tls_issuer"], "issuer")
                 self.assertEqual(row["screenshot_hash"], "shot")
+                self.assertEqual(int(row["response_headers_observed"]), 1)
+                self.assertIn("strict-transport-security", row["response_headers_json"])
+                self.assertEqual(
+                    db.meta_get("fingerprint_response_headers_schema_version"),
+                    "1",
+                )
             finally:
                 db.close()
 
