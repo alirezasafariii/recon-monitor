@@ -95,6 +95,14 @@ Version 6 adds:
 - safe file-permission repair;
 - tamper-evident audit hash chaining.
 
+Audit appends are serialized as one SQLite transaction across the administrative
+log row, previous-chain head lookup and integrity row. Calls made inside an
+existing managed database transaction join that transaction, so rollback removes
+both the business change and its audit record. The verifier checks chain hashes,
+one-to-one audit/integrity completeness, and that the hashed canonical event
+still matches the stored audit-log fields. `audit.jsonl` is a post-commit
+human-readable mirror; SQLite remains the transactional source of truth.
+
 Existing installations keep their current authentication setting during upgrade. The example configuration enables dashboard authentication for new installations.
 
 ## 10. Retention
