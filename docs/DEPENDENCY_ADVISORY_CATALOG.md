@@ -83,17 +83,32 @@ sync does not guess aliases from advisory prose.
 
 ## Runtime version matching
 
-The current runtime matcher is intentionally fail-closed:
+The runtime matcher is intentionally fail-closed. A target-side technology must
+still contain an exact stable numeric version; prerelease or ambiguous observed
+versions do not produce a dependency advisory match.
 
-- a technology must contain an exact stable numeric version;
-- only supported comparator ranges are matched;
-- unsupported range syntax stays in the catalog but cannot produce a match;
-- prerelease or ambiguous observed versions do not produce a match;
-- the catalog is indexed and cached so a full snapshot is not reparsed for
-  every technology observation.
+Advisory **boundaries** are evaluated with ecosystem-aware semantics:
 
-This separation allows catalog coverage to expand independently from version
-matching semantics.
+- generic numeric comparator conjunctions, including single-component and
+  extended numeric releases;
+- SemVer-compatible ecosystems (Actions, Composer, Erlang/Hex, Go, npm,
+  NuGet, Pub, Rust/Cargo and Swift), including prerelease boundaries, caret,
+  tilde, wildcard, hyphen and OR ranges;
+- Python/PyPI PEP 440 prerelease/post/dev boundaries and compatible-release
+  (`~=`) ranges;
+- RubyGems prerelease boundaries and pessimistic (`~>`) ranges;
+- Maven known qualifier ordering and interval notation.
+
+Range capability is reported as `full`, `partial` or `none`. A partial OR
+expression may create a positive match only when the observed version matches a
+fully understood branch. Conjunctions are never partially evaluated. Unknown
+qualifiers, package-manager expressions or malformed boundaries remain
+unsupported and cannot create target evidence.
+
+The catalog remains indexed and cached so a full snapshot is not reparsed for
+every technology observation. Expanding range syntax does not make a catalog
+miss equivalent to safety and does not turn an advisory match into confirmed
+exploitability.
 
 ## Automation
 
