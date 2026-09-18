@@ -18,6 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
+from storage import ContentAddressedStore
+
 from core import (
     APP_VERSION,
     AppPaths,
@@ -1022,15 +1024,51 @@ def seed_retention_policies(db: Database) -> int:
     return count
 
 
+def _retention_protected_paths(paths: AppPaths, db: Database) -> set[str]:
+    root = paths.root.resolve()
+    protected: set[str] = set()
+
+    def add_path(raw: Any) -> None:
+        text = str(raw or "").strip()
+        if not text or text.startswith(("http://", "https://")):
+            return
+        path = Path(text)
+        if not path.is_absolute():
+            path = root / path
+        try:
+            resolved = path.resolve()
+            resolved.relative_to(root)
+        except (OSError, ValueError):
+            return
+        protected.add(str(resolved))
+
+    for row in db.all("SELECT blob_path FROM js_files WHERE COALESCE(blob_path,'')<>''"):
+        add_path(row["blob_path"])
+
+    for row in db.all(
+        "SELECT metadata_json FROM asset_edges "
+        "WHERE metadata_json LIKE '%blob_path%'"
+    ):
+        payload = _loads(row["metadata_json"], {})
+        if isinstance(payload, dict):
+            add_path(payload.get("blob_path"))
+
+    for row in db.all(
+        "SELECT package_json FROM validation_packages "
+        "UNION ALL SELECT body_json FROM report_drafts"
+    ):
+        text = str(row[0] or "")
+        for match in re.findall(r"(?:/[^\"']+)", text):
+            add_path(match)
+
+    return protected
+
+
 def retention_preview(paths: AppPaths, db: Database, *, persist: bool = True) -> dict[str, Any]:
     seed_retention_policies(db)
     policies = {str(row["category"]): dict(row) for row in db.all("SELECT * FROM retention_policies")}
     candidates: list[dict[str, Any]] = []
-    protected_paths: set[str] = set()
-    for row in db.all("SELECT package_json FROM validation_packages UNION ALL SELECT body_json FROM report_drafts"):
-        text = str(row[0] or "")
-        for match in re.findall(r"(?:/[^\"']+)", text):
-            protected_paths.add(match)
+    protected_paths = _retention_protected_paths(paths, db)
 
     def add_files(base: Path, category: str, days: int) -> None:
         if not base.exists() or days <= 0:
@@ -1045,22 +1083,103 @@ def retention_preview(paths: AppPaths, db: Database, *, persist: bool = True) ->
                 continue
             if stat.st_mtime >= cutoff:
                 continue
-            protected = str(path) in protected_paths or "confirmed" in path.name.lower()
-            candidates.append({"category": category, "path": str(path), "size": stat.st_size, "modified_at": dt.datetime.fromtimestamp(stat.st_mtime, UTC).isoformat().replace("+00:00", "Z"), "protected": protected})
+            protected = str(path.resolve()) in protected_paths or "confirmed" in path.name.lower()
+            candidates.append(
+                {
+                    "category": category,
+                    "storage_kind": "file",
+                    "path": str(path),
+                    "size": stat.st_size,
+                    "modified_at": dt.datetime.fromtimestamp(stat.st_mtime, UTC).isoformat().replace("+00:00", "Z"),
+                    "protected": protected,
+                }
+            )
 
-    add_files(paths.state / "objects", "raw_http_artifacts", parse_int(policies.get("raw_http_artifacts", {}).get("retention_days"), 90))
-    add_files(paths.blobs, "javascript_snapshots", parse_int(policies.get("javascript_snapshots", {}).get("retention_days"), 180))
-    add_files(paths.reports, "temporary_exports", parse_int(policies.get("temporary_exports", {}).get("retention_days"), 30))
-    add_files(paths.logs, "logs", parse_int(policies.get("logs", {}).get("retention_days"), 45))
+    cas_store = ContentAddressedStore(paths, db)
+    reconciliation = cas_store.reconcile_reference_counts()
+    cas_days = parse_int(
+        policies.get("raw_http_artifacts", {}).get("retention_days"),
+        90,
+    )
+    if cas_days > 0:
+        cutoff_dt = dt.datetime.now(UTC) - dt.timedelta(days=cas_days)
+        for item in cas_store.retention_candidates(cutoff=cutoff_dt):
+            path = Path(str(item["path"]))
+            protected = str(path.resolve()) in protected_paths
+            candidates.append(
+                {
+                    "category": "raw_http_artifacts",
+                    "storage_kind": "cas_object",
+                    "sha256": str(item["sha256"]),
+                    "path": str(path),
+                    "size": int(item["size"]),
+                    "modified_at": str(item["last_accessed"]),
+                    "last_accessed": str(item["last_accessed"]),
+                    "reference_count": int(item["reference_count"]),
+                    "protected": protected,
+                    "reason": "unreferenced_and_past_retention",
+                }
+            )
+
+    add_files(
+        paths.blobs,
+        "javascript_snapshots",
+        parse_int(policies.get("javascript_snapshots", {}).get("retention_days"), 180),
+    )
+    add_files(
+        paths.reports,
+        "temporary_exports",
+        parse_int(policies.get("temporary_exports", {}).get("retention_days"), 30),
+    )
+    add_files(
+        paths.logs,
+        "logs",
+        parse_int(policies.get("logs", {}).get("retention_days"), 45),
+    )
+
     backup_keep = parse_int(policies.get("backups", {}).get("keep_count"), 10)
-    backups = sorted([path for path in paths.backups.glob("*") if path.is_file()], key=lambda p: p.stat().st_mtime, reverse=True)
+    backups = sorted(
+        [path for path in paths.backups.glob("*") if path.is_file()],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     for path in backups[backup_keep:]:
         stat = path.stat()
-        candidates.append({"category": "backups", "path": str(path), "size": stat.st_size, "modified_at": dt.datetime.fromtimestamp(stat.st_mtime, UTC).isoformat().replace("+00:00", "Z"), "protected": False})
+        candidates.append(
+            {
+                "category": "backups",
+                "storage_kind": "file",
+                "path": str(path),
+                "size": stat.st_size,
+                "modified_at": dt.datetime.fromtimestamp(stat.st_mtime, UTC).isoformat().replace("+00:00", "Z"),
+                "protected": False,
+            }
+        )
+
     deletable = [item for item in candidates if not item["protected"]]
-    payload = {"preview_id": "retention-" + uuid.uuid4().hex[:14], "files": len(deletable), "bytes": sum(item["size"] for item in deletable), "protected_files": len(candidates) - len(deletable), "candidates": candidates[:5000], "generated_at": utc_now()}
+    payload = {
+        "preview_id": "retention-" + uuid.uuid4().hex[:14],
+        "files": len(deletable),
+        "bytes": sum(item["size"] for item in deletable),
+        "protected_files": len(candidates) - len(deletable),
+        "candidates": candidates[:5000],
+        "candidate_limit": 5000,
+        "candidates_truncated": len(candidates) > 5000,
+        "cas_reconciliation": reconciliation,
+        "generated_at": utc_now(),
+    }
     if persist:
-        db.execute("INSERT INTO retention_previews(preview_id,files_count,bytes_count,protected_count,preview_json,created_at) VALUES(?,?,?,?,?,?)", (payload["preview_id"], payload["files"], payload["bytes"], payload["protected_files"], json_dumps(payload), payload["generated_at"]))
+        db.execute(
+            "INSERT INTO retention_previews(preview_id,files_count,bytes_count,protected_count,preview_json,created_at) VALUES(?,?,?,?,?,?)",
+            (
+                payload["preview_id"],
+                payload["files"],
+                payload["bytes"],
+                payload["protected_files"],
+                json_dumps(payload),
+                payload["generated_at"],
+            ),
+        )
     return payload
 
 
@@ -1071,29 +1190,95 @@ def apply_retention(paths: AppPaths, db: Database, preview_id: str, *, actor: st
     row = db.one("SELECT preview_json FROM retention_previews WHERE preview_id=?", (preview_id,))
     if not row:
         raise ReconError("Retention preview not found")
+
     preview = _loads(row["preview_json"], {})
+    if preview.get("candidates_truncated"):
+        raise ReconError("Retention preview is truncated; generate a narrower preview before applying")
+
     deleted = 0
     freed = 0
-    errors = []
+    errors: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    cas_store = ContentAddressedStore(paths, db)
+    root = paths.root.resolve()
+    protected_paths = _retention_protected_paths(paths, db)
+
     for item in preview.get("candidates", []):
         if item.get("protected"):
             continue
         path = Path(str(item.get("path") or ""))
         try:
             resolved = path.resolve()
-            if not str(resolved).startswith(str(paths.root.resolve())):
-                raise ReconError("candidate path leaves project root")
+            resolved.relative_to(root)
+            if str(resolved) in protected_paths:
+                skipped.append(
+                    {
+                        "path": str(path),
+                        "reason": "referenced_path",
+                    }
+                )
+                continue
+
+            if str(item.get("storage_kind") or "") == "cas_object":
+                outcome = cas_store.delete_if_unreferenced(
+                    str(item.get("sha256") or ""),
+                    expected_path=resolved,
+                    expected_last_accessed=str(item.get("last_accessed") or ""),
+                )
+                if outcome.get("deleted"):
+                    deleted += 1
+                    freed += int(outcome.get("bytes") or 0)
+                else:
+                    skipped.append(
+                        {
+                            "path": str(path),
+                            "sha256": str(item.get("sha256") or ""),
+                            "reason": str(outcome.get("reason") or "not_deleted"),
+                        }
+                    )
+                continue
+
             size = path.stat().st_size if path.exists() else 0
             path.unlink(missing_ok=True)
             deleted += 1
             freed += size
         except Exception as exc:
             errors.append({"path": str(path), "error": str(exc)})
-    execution_id = "retention-run-" + uuid.uuid4().hex[:12]
-    db.execute("INSERT INTO retention_executions(execution_id,preview_id,deleted_count,freed_bytes,errors_json,executed_by,created_at) VALUES(?,?,?,?,?,?,?)", (execution_id, preview_id, deleted, freed, json_dumps(errors), actor, utc_now()))
-    db.audit("retention_applied", actor=actor, entity_type="retention", entity_value=execution_id, details={"preview_id": preview_id, "deleted": deleted, "freed_bytes": freed, "errors": len(errors)})
-    return {"execution_id": execution_id, "preview_id": preview_id, "deleted": deleted, "freed_bytes": freed, "errors": errors}
 
+    execution_id = "retention-run-" + uuid.uuid4().hex[:12]
+    db.execute(
+        "INSERT INTO retention_executions(execution_id,preview_id,deleted_count,freed_bytes,errors_json,executed_by,created_at) VALUES(?,?,?,?,?,?,?)",
+        (
+            execution_id,
+            preview_id,
+            deleted,
+            freed,
+            json_dumps(errors),
+            actor,
+            utc_now(),
+        ),
+    )
+    db.audit(
+        "retention_applied",
+        actor=actor,
+        entity_type="retention",
+        entity_value=execution_id,
+        details={
+            "preview_id": preview_id,
+            "deleted": deleted,
+            "freed_bytes": freed,
+            "errors": len(errors),
+            "skipped": len(skipped),
+        },
+    )
+    return {
+        "execution_id": execution_id,
+        "preview_id": preview_id,
+        "deleted": deleted,
+        "freed_bytes": freed,
+        "skipped": skipped,
+        "errors": errors,
+    }
 
 def performance_diagnostics(paths: AppPaths, db: Database, *, limit: int = 50) -> dict[str, Any]:
     slow = [dict(row) for row in db.all("SELECT * FROM performance_samples WHERE duration_ms>=100 ORDER BY duration_ms DESC,created_at DESC LIMIT ?", (parse_int(limit, 50, 1, 500),))]

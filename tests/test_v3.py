@@ -69,7 +69,9 @@ class Version3Tests(unittest.TestCase):
         try:
             store=ContentAddressedStore(paths,db); d1,p1,c1=store.put(b'abc'); d2,p2,c2=store.put(b'abc')
             self.assertEqual(d1,d2); self.assertEqual(p1,p2); self.assertTrue(c1); self.assertFalse(c2)
-            self.assertEqual(int(db.one('SELECT reference_count FROM object_store WHERE sha256=?',(d1,))[0]),2)
+            self.assertEqual(int(db.one('SELECT reference_count FROM object_store WHERE sha256=?',(d1,))[0]),0)
+            store.set_reference('test','owner-1',d1); store.set_reference('test','owner-1',d1)
+            self.assertEqual(int(db.one('SELECT reference_count FROM object_store WHERE sha256=?',(d1,))[0]),1)
         finally: db.close();tmp.cleanup()
 
     def test_plugins(self):

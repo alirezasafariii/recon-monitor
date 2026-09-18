@@ -1610,6 +1610,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             last_modified=str(result.get("last_modified", "")),
             source_map_url=source_map_url,
         )
+        js_owner_key = f"{ctx.policy.name}\n{url}"
+        source_map_source_prefix = js_owner_key + "\n"
+        store.set_reference("js_file", js_owner_key, object_hash)
         if ctx.policy.analysis.get("asset_graph", True):
             host = urllib.parse.urlsplit(url).hostname or ""
             ctx.db.upsert_edge(ctx.policy.name, "host", host, "serves_javascript", "javascript", url, ctx.run_id, {"semantic_hash": semantic_hash})
@@ -1692,12 +1695,22 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     {"discovery": "static_string"},
                 )
 
+        if not source_map_url and source_map_collection_enabled:
+            store.drop_reference("source_map", js_owner_key)
+            store.sync_references(
+                "source_map_source",
+                {},
+                owner_prefix=source_map_source_prefix,
+            )
+
         if source_map_url and ctx.policy.url_in_scope(source_map_url) and source_map_collection_enabled:
             source_map_attempts += 1
             map_result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
             if "data" in map_result:
                 map_data = map_result["data"]
                 map_hash, map_path, _ = store.put(map_data, content_type="application/json")
+                store.set_reference("source_map", js_owner_key, map_hash)
+                current_embedded_refs: dict[str, str] = {}
                 maps_downloaded += 1
                 if ctx.policy.analysis.get("asset_graph", True):
                     ctx.db.upsert_edge(
@@ -1735,6 +1748,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                                 embedded_sources += 1
                                 source_bytes = embedded_content.encode("utf-8")
                                 source_hash, source_path, _ = store.put(source_bytes, content_type="text/plain")
+                                current_embedded_refs[
+                                    source_map_source_prefix + source_identity
+                                ] = source_hash
                                 entry["object_hash"] = source_hash
                                 entry["blob_path"] = str(source_path)
                                 embedded_indicators = extract_js_indicators(embedded_content)
@@ -1830,6 +1846,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                                     **entry,
                                 }
                             )
+                store.sync_references(
+                    "source_map_source",
+                    current_embedded_refs,
+                    owner_prefix=source_map_source_prefix,
+                )
             else:
                 source_map_failures += 1
         if url in work_ids:
