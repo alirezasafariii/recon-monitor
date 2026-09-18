@@ -394,6 +394,7 @@ class ContentAddressedStore:
         digest: str,
         *,
         expected_path: str | Path | None = None,
+        expected_last_accessed: str = "",
     ) -> dict[str, Any]:
         digest = str(digest or "").strip().lower()
         with _CAS_LOCK:
@@ -422,6 +423,16 @@ class ContentAddressedStore:
                             "reason": "referenced",
                             "bytes": 0,
                             "reference_count": max(refs, int(row["reference_count"])),
+                        }
+                    if (
+                        expected_last_accessed
+                        and str(row["last_accessed"] or "") != expected_last_accessed
+                    ):
+                        self.db.conn.execute("COMMIT")
+                        return {
+                            "deleted": False,
+                            "reason": "recently_accessed",
+                            "bytes": 0,
                         }
                     path = self._row_path(str(row["relative_path"]))
                     if expected_path is not None and path != Path(expected_path).resolve():
