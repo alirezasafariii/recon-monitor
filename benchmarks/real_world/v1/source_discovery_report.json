@@ -1,0 +1,132 @@
+{
+  "discovery_summary": {
+    "evaluation_kind": "real_world_corpus_v1_pre_score_source_discovery",
+    "family_hint_count": 13,
+    "family_hint_counts": {
+      "authentication_session": 6,
+      "broken_function_authorization": 9,
+      "broken_object_authorization": 4,
+      "command_injection": 3,
+      "cors_misconfiguration": 1,
+      "dom_xss": 10,
+      "file_upload": 1,
+      "information_disclosure": 12,
+      "open_redirect": 2,
+      "path_traversal": 19,
+      "sql_injection": 5,
+      "ssrf": 15,
+      "unrestricted_resource_consumption": 22
+    },
+    "fetched_advisory_count": 700,
+    "human_labels_created": false,
+    "pages_fetched": 7,
+    "pagination_mode": "github_link_cursor",
+    "rejected_counts": {
+      "duplicate_new_project": 205,
+      "historical_identifier_overlap": 25,
+      "historical_source_project_overlap": 214,
+      "historical_source_root_overlap": 25,
+      "historical_url_overlap": 2,
+      "withdrawn": 7
+    },
+    "rule_version": "2026.08.14.1",
+    "scoring_executed": false,
+    "selected_candidate_count": 180,
+    "target_contact_performed": false,
+    "unique_source_project_count": 180,
+    "unique_source_root_count": 180,
+    "version": "1.0.0"
+  },
+  "historical_exposure": [
+    {
+      "loaded": true,
+      "name": "analysis_golden_v3",
+      "path": "benchmarks/golden/analysis_golden_v3.jsonl",
+      "record_count": 179,
+      "ref": "agent/analysis-engine-6.0-owasp-admission",
+      "role": "consumed_benchmark",
+      "source_project_count": 51,
+      "source_root_count": 87
+    },
+    {
+      "loaded": true,
+      "name": "analysis_golden_v4",
+      "path": "benchmarks/golden/analysis_golden_v4.jsonl",
+      "record_count": 200,
+      "ref": "agent/analysis-engine-6.6-postfreeze-blind",
+      "role": "consumed_benchmark",
+      "source_project_count": 50,
+      "source_root_count": 50
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v1",
+      "path": "benchmarks/raw/analysis_raw_v1.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.11-blind-raw-recon-benchmark",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v2",
+      "path": "benchmarks/raw/analysis_raw_v2.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.13-fresh-raw-holdout-v2",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v3",
+      "path": "benchmarks/raw/analysis_raw_v3.jsonl",
+      "record_count": 96,
+      "ref": "agent/analysis-engine-6.15-fresh-raw-holdout-v3",
+      "role": "consumed_benchmark",
+      "source_project_count": 24,
+      "source_root_count": 24
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v6",
+      "path": "benchmarks/raw/sources/v6_shortlist.json",
+      "record_count": 1,
+      "ref": "agent/analysis-engine-6.31-fresh-blind-v6-validation",
+      "role": "reserved_blind",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v4",
+      "path": "benchmarks/raw/analysis_raw_v4.jsonl",
+      "record_count": 144,
+      "ref": "agent/analysis-engine-6.26-fresh-raw-holdout-v4",
+      "role": "consumed_benchmark",
+      "source_project_count": 36,
+      "source_root_count": 36
+    },
+    {
+      "loaded": true,
+      "name": "analysis_raw_v5",
+      "path": "benchmarks/raw/analysis_raw_v5.jsonl",
+      "record_count": 216,
+      "ref": "agent/analysis-engine-6.29-fresh-blind-v5-multifamily",
+      "role": "consumed_benchmark",
+      "source_project_count": 54,
+      "source_root_count": 54
+    }
+  ],
+  "next_transition": "source_feasibility_and_family_adjudication",
+  "rule_version": "2026.08.14.1",
+  "scoring_executed": false,
+  "status": "source_discovery_complete",
+  "target_contact_performed": false,
+  "target_minimum_families": 50,
+  "target_records": 400,
+  "target_source_roots": 100,
+  "variants_per_root": 4,
+  "version": "1.0.0"
+}
