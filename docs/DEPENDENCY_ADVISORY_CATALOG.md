@@ -84,8 +84,12 @@ sync does not guess aliases from advisory prose.
 ## Runtime version matching
 
 The runtime matcher is intentionally fail-closed. A target-side technology must
-still contain an exact stable numeric version; prerelease or ambiguous observed
-versions do not produce a dependency advisory match.
+contain an exact numeric version or a strict SemVer release/prerelease. Observed
+prereleases are evaluated only for SemVer-compatible ecosystems, with full
+SemVer identifier precedence, and only when the selected comparator branch
+explicitly admits a prerelease for the same release tuple. Ambiguous or
+ecosystem-incompatible observed versions do not produce a dependency advisory
+match.
 
 Advisory **boundaries** are evaluated with ecosystem-aware semantics:
 
@@ -146,3 +150,16 @@ The automation branch contains only the catalog snapshot and corresponding
 - catalog miss does not mean safe;
 - a dependency advisory match produces at most a Potential Finding unless
   separate evidence satisfies stronger validation requirements.
+
+
+## Range coverage audit
+
+`python tools/dependency_range_coverage.py` audits the stored catalog without
+network access or target contact. It reports full/partial/unsupported range
+counts by ecosystem and syntax family, plus the most frequent unsupported and
+partially supported expressions. Use `--require-full-ratio <ratio>` in CI or
+release checks when a minimum full-coverage threshold is desired.
+
+A `partial` union means at least one union branch is fully understood. Runtime
+matching may return a positive result only from such a fully understood branch;
+unsupported conjunction clauses are never partially evaluated.
