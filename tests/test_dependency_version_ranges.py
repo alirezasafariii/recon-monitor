@@ -114,6 +114,35 @@ class DependencyVersionRangeTests(unittest.TestCase):
             version_matches_range("1.2.3", "workspace:*", "npm")
         )
 
+    def test_full_snapshot_reports_bounded_unsupported_range_diagnostics(self):
+        payload = json.loads(
+            (ROOT / "data" / "dependency_advisory_catalog.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        counts: dict[str, int] = {}
+        samples: dict[str, list[str]] = {}
+        for advisory in payload.get("advisories", []):
+            if not isinstance(advisory, dict):
+                continue
+            ecosystem = str(advisory.get("ecosystem") or "").lower()
+            for expression in advisory.get("affected_ranges", []) or []:
+                expression = str(expression)
+                if range_expression_capability(expression, ecosystem) != "none":
+                    continue
+                counts[ecosystem] = counts.get(ecosystem, 0) + 1
+                bucket = samples.setdefault(ecosystem, [])
+                if expression not in bucket and len(bucket) < 8:
+                    bucket.append(expression)
+        print(
+            "DEPENDENCY_RANGE_UNSUPPORTED "
+            + json.dumps(
+                {"counts": counts, "samples": samples},
+                sort_keys=True,
+            )
+        )
+        self.assertGreater(sum(counts.values()), 0)
+
     def test_full_snapshot_reports_range_coverage_without_claiming_safety(self):
         status = catalog_status()
         total = (
