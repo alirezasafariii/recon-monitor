@@ -13,6 +13,10 @@ from collections import defaultdict
 from typing import Any, Callable, Mapping
 
 import dashboard_core as _base
+from change_guidance_evaluation import (
+    CHANGE_GUIDANCE_EVALUATION_VERSION,
+    change_guidance_evaluation,
+)
 from correlation_engine import CORRELATION_ENGINE_VERSION, build_correlation_context, investigation_queue
 from derived_change_advisory import DERIVED_CHANGE_ADVISORY_VERSION
 from investigation_workflow import (
@@ -25,7 +29,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.3.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.4.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -216,6 +220,82 @@ def _queue_item_card(item: dict[str, Any]) -> str:
         f"<div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div><div><strong>Recent Recon change</strong><ul>{change_reasons}</ul><p class='muted small'>Change affinity is non-evidentiary and is already reflected inside bug proximity; it is not counted again in Queue score.</p></div></div>"
         "<div class='next-step'><span>Interpretation</span><p>This cluster is an investigation priority only. Review the underlying Potential Findings and target evidence before any vulnerability claim.</p></div>"
         f"</div><a class='candidate-open' href='{_base._esc(_cluster_href(item))}'>Open cluster →</a></article>"
+    )
+
+
+def _change_guidance_evaluation_panel(evaluation: Mapping[str, Any]) -> str:
+    if not evaluation or int(evaluation.get("case_count") or 0) <= 0:
+        return (
+            "<section class='panel' id='change-guidance-evaluation' style='margin-top:16px'>"
+            "<div class='panel-head'><div><h3>Change-guidance Evaluation</h3>"
+            f"<span class='muted small'>Evaluator {_base._esc(CHANGE_GUIDANCE_EVALUATION_VERSION)}</span></div>"
+            + _base._pill("no cases", "neutral")
+            + "</div><div class='panel-body'>"
+            + _base._empty(
+                "No investigation cohort yet",
+                "Start and refresh Investigation Queue cases to accumulate local workflow telemetry. No ranking or workflow behavior is changed by this evaluator.",
+            )
+            + "</div></section>"
+        )
+
+    guided = evaluation.get("guided") if isinstance(evaluation.get("guided"), Mapping) else {}
+    control = evaluation.get("control") if isinstance(evaluation.get("control"), Mapping) else {}
+    ready = bool(evaluation.get("comparison_ready"))
+
+    def pct(value: Any) -> str:
+        if value is None:
+            return "—"
+        return f"{round(float(value) * 100, 1)}%"
+
+    def hours(value: Any) -> str:
+        if value is None:
+            return "—"
+        return f"{round(float(value), 2)}h"
+
+    def number(value: Any) -> str:
+        if value is None:
+            return "—"
+        return str(round(float(value), 2))
+
+    comparison = ""
+    if ready:
+        deltas = evaluation.get("directional_deltas_guided_minus_control")
+        delta_map = deltas if isinstance(deltas, Mapping) else {}
+        comparison = (
+            "<div class='table-wrap' style='margin-top:14px'><table>"
+            "<thead><tr><th>Directional delta</th><th>Guided − control</th></tr></thead><tbody>"
+            f"<tr><td>Evidence gain rate</td><td>{pct(delta_map.get('evidence_gain_rate'))}</td></tr>"
+            f"<tr><td>Median coverage delta</td><td>{number(delta_map.get('median_coverage_delta'))}</td></tr>"
+            f"<tr><td>Median time to first evidence gain</td><td>{hours(delta_map.get('median_time_to_first_evidence_gain_hours'))}</td></tr>"
+            f"<tr><td>Decision rate</td><td>{pct(delta_map.get('decision_rate'))}</td></tr>"
+            f"<tr><td>Median time to decision</td><td>{hours(delta_map.get('median_time_to_decision_hours'))}</td></tr>"
+            f"<tr><td>Rejected/duplicate rate</td><td>{pct(delta_map.get('rejected_or_duplicate_rate'))}</td></tr>"
+            "</tbody></table></div>"
+        )
+    else:
+        minimum = int(evaluation.get("minimum_cases_per_cohort") or 5)
+        comparison = (
+            "<div class='callout' style='margin-top:14px'><strong>Comparison not ready</strong>"
+            f"<span>At least {minimum} change-guided and {minimum} non-guided cases are required before directional cohort deltas are shown. "
+            "Per-cohort descriptive metrics remain visible below.</span></div>"
+        )
+
+    return (
+        "<section class='panel' id='change-guidance-evaluation' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Change-guidance Evaluation</h3>"
+        f"<span class='muted small'>Evaluator {_base._esc(CHANGE_GUIDANCE_EVALUATION_VERSION)} · local observational telemetry</span></div>"
+        + _base._pill("comparison ready" if ready else "sample building", "info" if ready else "neutral")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Observational, not causal</strong>"
+        "<span>This panel measures persisted workflow outcomes only. Cohorts are not randomized, task completion is not inferred, and these metrics never auto-tune ranking, Evidence Gap, Admission, validation, or task ordering.</span></div>"
+        "<div class='table-wrap' style='margin-top:14px'><table>"
+        "<thead><tr><th>Cohort</th><th>Cases</th><th>Evidence gain</th><th>Median coverage Δ</th><th>Time to first gain</th><th>Decision rate</th><th>Time to decision</th><th>Rejected/duplicate</th></tr></thead><tbody>"
+        f"<tr><td>Change-guided</td><td>{int(guided.get('case_count') or 0)}</td><td>{pct(guided.get('evidence_gain_rate'))}</td><td>{number(guided.get('median_coverage_delta'))}</td><td>{hours(guided.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(guided.get('decision_rate'))}</td><td>{hours(guided.get('median_time_to_decision_hours'))}</td><td>{pct(guided.get('rejected_or_duplicate_rate'))}</td></tr>"
+        f"<tr><td>Non-guided</td><td>{int(control.get('case_count') or 0)}</td><td>{pct(control.get('evidence_gain_rate'))}</td><td>{number(control.get('median_coverage_delta'))}</td><td>{hours(control.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(control.get('decision_rate'))}</td><td>{hours(control.get('median_time_to_decision_hours'))}</td><td>{pct(control.get('rejected_or_duplicate_rate'))}</td></tr>"
+        "</tbody></table></div>"
+        + comparison
+        + "<p class='muted small' style='margin-top:12px'>Evidence gain means the latest persisted Evidence Gap coverage is higher than the first persisted snapshot. A lower time delta is not automatically better, and no cohort is labeled a winner.</p>"
+        "</div></section>"
     )
 
 
@@ -585,6 +665,11 @@ def _bug_candidates_with_queue(self: Any) -> None:
     family = str((params.get("family") or [""])[0]).strip()
     selected_cluster = str((params.get("cluster") or [""])[0]).strip()
     analysis_id, queue = _latest_analysis_queue(self, target=target, limit=100)
+    db = self.db()
+    try:
+        evaluation = change_guidance_evaluation(db, target=target, limit=500)
+    finally:
+        db.close()
     if family:
         queue = [
             item for item in queue
@@ -609,6 +694,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
+    fragments.append(_change_guidance_evaluation_panel(evaluation))
     fragments.append(_investigation_queue_panel(analysis_id, queue))
     body = _insert_before(body, "<section class='filter-panel'>", "".join(fragments))
     self.send_html(title, body, status)
