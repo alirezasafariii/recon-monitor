@@ -53,13 +53,37 @@ class BackupManager:
             return "", ""
         candidate = Path(text)
         if not candidate.is_absolute():
-            candidate = self.paths.root / candidate
+            try:
+                return self._safe_relative_path(text), ""
+            except ReconError as exc:
+                return "", str(exc)
+
         try:
             resolved = candidate.resolve()
-            rel = resolved.relative_to(self.paths.root.resolve()).as_posix()
+            return (
+                resolved.relative_to(
+                    self.paths.root.resolve()
+                ).as_posix(),
+                "",
+            )
         except (OSError, ValueError):
+            # Older rows can store absolute project paths. Preserve portability
+            # by recognizing only known artifact roots and remapping that suffix
+            # into the project that is performing verify/restore.
+            parts = candidate.parts
+            for marker in (
+                ("state", "objects", "sha256"),
+                ("state", "blobs"),
+            ):
+                width = len(marker)
+                for index in range(0, len(parts) - width + 1):
+                    if tuple(parts[index : index + width]) == marker:
+                        rel = Path(*parts[index:]).as_posix()
+                        try:
+                            return self._safe_relative_path(rel), ""
+                        except ReconError as exc:
+                            return "", str(exc)
             return "", f"referenced artifact is outside project root: {text}"
-        return rel, ""
 
     def _reference_inventory(self, database: Path) -> dict[str, Any]:
         required: dict[str, dict[str, Any]] = {}
@@ -109,7 +133,12 @@ class BackupManager:
                     )
                     continue
                 try:
-                    rel = self._safe_relative_path(str(row["relative_path"]))
+                    state_rel = self._safe_relative_path(
+                        str(row["relative_path"])
+                    )
+                    rel = (
+                        Path("state") / Path(state_rel)
+                    ).as_posix()
                     resolved = (self.paths.root / rel).resolve()
                     resolved.relative_to(self.paths.objects.resolve())
                 except (OSError, ValueError, ReconError):
