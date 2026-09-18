@@ -40,6 +40,148 @@ class DependencyVersionRangeTests(unittest.TestCase):
             range_expression_supported("< 2.0.0-beta.2", "nuget")
         )
 
+    def test_semver_observed_prerelease_uses_full_precedence(self):
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-beta.2",
+                ">= 1.2.3-beta.1, < 1.2.3",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.2.3-beta.1",
+                ">= 1.2.3-beta.2, < 1.2.3",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-beta.11",
+                "> 1.2.3-beta.2, < 1.2.3",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.2.3-alpha.beta",
+                ">= 1.2.3-beta, < 1.2.3",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3+build.7",
+                "= 1.2.3",
+                "npm",
+            )
+        )
+
+    def test_semver_prerelease_requires_branch_anchor(self):
+        self.assertFalse(
+            version_matches_range(
+                "1.5.0-beta.1",
+                ">= 1.0.0, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.5.0-beta.2",
+                ">= 1.5.0-beta.1, < 2.0.0",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.5.0-beta.2",
+                "1.x",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.5.0-beta.2",
+                ">= 1.0.0, < 2.0.0 || >= 3.0.0, < 4.0.0",
+                "npm",
+            )
+        )
+
+    def test_semver_prerelease_shorthand_is_supported_conservatively(self):
+        self.assertTrue(
+            range_expression_supported("^1.2.3-beta.1", "npm")
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-beta.2",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-beta.1",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.9-beta.2",
+                "~1.2.9-beta.1",
+                "composer",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.3.0-beta.1",
+                "~1.2.9-beta.1",
+                "composer",
+            )
+        )
+
+    def test_non_semver_qualified_observations_remain_fail_closed(self):
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0rc1",
+                ">= 1.0, < 2.0",
+                "pip",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "3.1.0.rc1",
+                ">= 3.0, < 4.0",
+                "rubygems",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-RC1",
+                "[1.0.0,3.0.0)",
+                "maven",
+            )
+        )
+
+    def test_legacy_distribution_and_date_ranges_remain_unsupported(self):
+        for ecosystem, expression in (
+            ("composer", "< 2020-09-14"),
+            ("composer", "<= 2024.92.x-dev"),
+            ("go", "<= 2018-05-19"),
+            ("pip", "< 0.8.3ubuntu7.5"),
+        ):
+            with self.subTest(ecosystem=ecosystem, expression=expression):
+                self.assertFalse(
+                    range_expression_supported(expression, ecosystem)
+                )
+
     def test_semver_shorthand_and_union_are_bounded(self):
         self.assertTrue(version_matches_range("1.8.4", "^1.2.3", "npm"))
         self.assertFalse(version_matches_range("2.0.0", "^1.2.3", "npm"))
@@ -211,6 +353,12 @@ class DependencyVersionRangeTests(unittest.TestCase):
             + int(status["partially_supported_range_count"])
         ) / total
         self.assertGreater(ratio, 0.995)
+        self.assertIn("range_capability_by_ecosystem", status)
+        self.assertIn("unsupported_range_samples", status)
+        self.assertLessEqual(
+            len(status["unsupported_range_samples"]),
+            50,
+        )
         self.assertFalse(status["catalog_is_exhaustive"])
         self.assertFalse(status["absence_of_match_means_safe"])
 

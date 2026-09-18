@@ -24,8 +24,8 @@ from dependency_version_ranges import (
     version_matches_range,
 )
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.2.0"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.6"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.3.0"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.19.1"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -43,7 +43,11 @@ _ALLOWED_SOURCE_TYPES = {
 }
 _VERSIONED_TECH_RE = re.compile(
     r"^(?P<name>.+?)(?:\s*[:/@]\s*|\s+)"
-    r"v?(?P<version>\d+(?:\.\d+){1,3})$",
+    r"v?(?P<version>"
+    r"\d+(?:\.\d+){1,7}"
+    r"(?:(?:[-._]?[A-Za-z][0-9A-Za-z.-]*)|(?:-[0-9][0-9A-Za-z.-]*))?"
+    r"(?:\+[0-9A-Za-z][0-9A-Za-z.-]*)?"
+    r")$",
     re.I,
 )
 
@@ -75,7 +79,7 @@ def parse_versioned_technology(value: str) -> dict[str, str] | None:
         return None
     name = normalize_component_name(match.group("name"))
     version = str(match.group("version"))
-    if not name or _version_tuple(version) is None:
+    if not name:
         return None
     return {
         "raw": text,
@@ -132,6 +136,8 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     supported_range_count = 0
     partially_supported_range_count = 0
     unsupported_range_count = 0
+    range_capability_by_ecosystem: dict[str, dict[str, int]] = {}
+    unsupported_range_samples: list[dict[str, str]] = []
     for item in advisories:
         identity = (
             str(item.get("id") or ""),
@@ -147,12 +153,27 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
                 str(expression),
                 ecosystem,
             )
+            ecosystem_counts = range_capability_by_ecosystem.setdefault(
+                ecosystem,
+                {"full": 0, "partial": 0, "none": 0},
+            )
+            ecosystem_counts[capability] = (
+                int(ecosystem_counts.get(capability, 0)) + 1
+            )
             if capability == "full":
                 supported_range_count += 1
             elif capability == "partial":
                 partially_supported_range_count += 1
             else:
                 unsupported_range_count += 1
+            if capability != "full" and len(unsupported_range_samples) < 50:
+                unsupported_range_samples.append(
+                    {
+                        "ecosystem": ecosystem,
+                        "expression": str(expression),
+                        "capability": capability,
+                    }
+                )
 
     integrity = payload.get("integrity")
     declared_hash = (
@@ -173,6 +194,13 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         "supported_range_count": supported_range_count,
         "partially_supported_range_count": partially_supported_range_count,
         "unsupported_range_count": unsupported_range_count,
+        "range_capability_by_ecosystem": {
+            ecosystem: dict(counts)
+            for ecosystem, counts in sorted(
+                range_capability_by_ecosystem.items()
+            )
+        },
+        "unsupported_range_samples": unsupported_range_samples,
         "advisories_sha256": actual_hash,
         "declared_advisories_sha256": declared_hash,
         "integrity_valid": hash_valid,
@@ -413,6 +441,12 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
             "partially_supported_range_count"
         ],
         "unsupported_range_count": validation["unsupported_range_count"],
+        "range_capability_by_ecosystem": validation[
+            "range_capability_by_ecosystem"
+        ],
+        "unsupported_range_samples": validation[
+            "unsupported_range_samples"
+        ],
         "version_range_engine": {
             "version": DEPENDENCY_VERSION_RANGE_VERSION,
             "rule_version": DEPENDENCY_VERSION_RANGE_RULE_VERSION,

@@ -67,7 +67,10 @@ Important fields include:
 - `product_count`
 - `ecosystems`
 - `supported_range_count`
+- `partially_supported_range_count`
 - `unsupported_range_count`
+- `range_capability_by_ecosystem`
+- `unsupported_range_samples`
 - `integrity_valid`
 - `source_last_updated_at`
 
@@ -84,8 +87,16 @@ sync does not guess aliases from advisory prose.
 ## Runtime version matching
 
 The runtime matcher is intentionally fail-closed. A target-side technology must
-still contain an exact stable numeric version; prerelease or ambiguous observed
-versions do not produce a dependency advisory match.
+contain an exact version token. Stable numeric versions retain the broadest
+support. For SemVer-compatible ecosystems, exact prerelease/build versions are
+also evaluated with SemVer precedence, but a prerelease observation is admitted
+only when the same OR branch contains an explicit prerelease boundary for that
+numeric release line. This prevents a broad stable range such as
+`>=1.0.0,<2.0.0` from silently admitting `1.5.0-beta.1`.
+
+Qualified observed versions whose ecosystem-specific precedence is not modeled
+exactly (for example RubyGems or Maven qualifier observations) remain
+fail-closed rather than being coerced into stable numeric releases.
 
 Advisory **boundaries** are evaluated with ecosystem-aware semantics:
 
@@ -99,9 +110,13 @@ Advisory **boundaries** are evaluated with ecosystem-aware semantics:
 - RubyGems prerelease boundaries and pessimistic (`~>`) ranges;
 - Maven known qualifier ordering and interval notation.
 
-Range capability is reported as `full`, `partial` or `none`. A partial OR
-expression may create a positive match only when the observed version matches a
-fully understood branch. Conjunctions are never partially evaluated. Unknown qualifiers, package-manager expressions or malformed boundaries remain
+Range capability is reported as `full`, `partial` or `none`. Catalog
+status recomputes this capability with the current matcher instead of trusting
+the snapshot's older `range_match_supported` convenience flag, and reports
+per-ecosystem counts plus bounded unsupported samples. A partial OR expression
+may create a positive match only when the observed version matches a fully
+understood branch. Conjunctions are never partially evaluated. Unknown
+qualifiers, package-manager expressions or malformed boundaries remain
 unsupported and cannot create target evidence. In particular, date-based
 versions, distro-specific suffixes (for example Ubuntu/Debian-style package
 revisions), development-branch aliases such as `x-dev`, and custom labels
