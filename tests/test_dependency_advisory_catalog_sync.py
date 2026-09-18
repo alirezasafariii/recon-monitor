@@ -128,7 +128,7 @@ class DependencyAdvisoryCatalogSyncTests(unittest.TestCase):
             row for row in payload["advisories"]
             if row["product"] == "complex"
         )
-        self.assertFalse(complex_entry["range_match_supported"])
+        self.assertTrue(complex_entry["range_match_supported"])
 
         validation = validate_catalog_payload(payload)
         self.assertTrue(validation["valid"])
