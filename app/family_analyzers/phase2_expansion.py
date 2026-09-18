@@ -15,7 +15,7 @@ from owasp_phase2_catalog import PHASE2_FAMILY_ORDER, PHASE2_FAMILY_SPECS
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 from .remaining_common import add_unique, finalize_result, observations, scalar, truth
 
-PHASE2_ANALYZER_VERSION = "1.1.0"
+PHASE2_ANALYZER_VERSION = "1.2.0"
 
 
 def _truth(details: Mapping[str, Any], key: str) -> bool:
