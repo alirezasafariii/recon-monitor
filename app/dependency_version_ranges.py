@@ -73,7 +73,7 @@ _WILDCARD_RE = re.compile(
 )
 _HYPHEN_RE = re.compile(r"^\s*(\S+)\s+-\s+(\S+)\s*$")
 _MAVEN_INTERVAL_RE = re.compile(
-    r"^\s*([\[(])\s*([^,]*)\s*,\s*([^\])]*?)\s*([\])])\s*$"
+    r"^\s*(\[|\()\s*([^,]*)\s*,\s*([^\]\)]*)\s*(\]|\))\s*$"
 )
 
 _PRE_LABELS = {
@@ -524,6 +524,14 @@ def _comparator_branch_matches(
     branch: str,
     ecosystem: str,
 ) -> bool | None:
+    whole_special = _special_branch_matches(
+        observed,
+        branch,
+        ecosystem,
+    )
+    if whole_special is not None:
+        return whole_special
+
     parts = _split_comparator_conjunction(branch)
     if not parts:
         return None
