@@ -21,6 +21,8 @@ Downloads now use the shared pinned transport boundary:
 
 Request budget accounting runs before every download hop, so an in-scope redirect consumes an additional request instead of bypassing the budget.
 
+Policy headers are treated as credentials regardless of their names. They are sent only by the in-process pinned transport and only to HTTPS URLs. HTTPS-to-HTTP redirects fail closed. Same-origin HTTPS redirects may retain policy headers; cross-origin redirects forward only a small non-sensitive header allowlist. Policy headers are not delegated to `httpx`, Katana, or Nuclei subprocesses, so their independent redirect and DNS behavior cannot expose target credentials.
+
 ## Origin liveness
 
 Origin probing still starts with a pinned `HEAD` request.
