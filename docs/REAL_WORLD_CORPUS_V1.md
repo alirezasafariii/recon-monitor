@@ -130,3 +130,25 @@ train/holdout calibration path:
 ```
 
 No command in this port performs production activation automatically.
+
+
+## Automatic source-attested mode
+
+For operators who do not have vulnerability-review expertise, Corpus V1 now
+has a conservative source-attested path:
+
+```bash
+./recon-monitor.sh analysis corpus-v1-auto-evaluate
+```
+
+It automatically accepts only unambiguous GitHub-reviewed advisory cases with a
+complete exact parent/fix revision boundary. The current frozen corpus yields 19
+eligible origins / 38 paired records across 11 canonical families. Ambiguous
+cases are excluded rather than guessed.
+
+Ground-truth labels are kept separate from a label/family/advisory-blind replay
+manifest. See `docs/SOURCE_ATTESTED_CORPUS_EVALUATION.md`.
+
+Source-attested records are never marked human verified and never become
+production-activation eligible. Until a current-engine source-replay scorer has
+produced label-blind scores, metrics remain explicitly unavailable.
