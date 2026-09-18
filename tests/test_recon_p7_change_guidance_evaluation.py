@@ -240,7 +240,15 @@ class ReconP7ChangeGuidanceEvaluationTests(unittest.TestCase):
         self.assertFalse(report["interpretation"]["causal"])
         self.assertFalse(report["interpretation"]["auto_tuning"])
         self.assertFalse(report["interpretation"]["winner_selection"])
-        self.assertFalse(report["interpretation"]["task_completion_observed"])
+        self.assertTrue(report["interpretation"]["task_completion_observed"])
+        self.assertEqual(
+            report["interpretation"]["task_completion_definition"],
+            "explicit case_autopilot_tasks status completed/skipped only",
+        )
+        self.assertEqual(
+            report["interpretation"]["task_feedback_definition"],
+            "explicit analyst_feedback usefulness useful/neutral/noisy only",
+        )
         self.assertTrue(report["limitations"])
 
         self.assertEqual(
