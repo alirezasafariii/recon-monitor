@@ -299,6 +299,18 @@ def resolve_source_family(
                 }
             reasons.append("no_cwe_semantics_not_unique")
 
+    if not target_family and not hints:
+        semantic_candidates = semantic_family_candidates(summary)
+        if len(semantic_candidates) == 1:
+            family, matches = next(iter(semantic_candidates.items()))
+            return {
+                "resolved": True,
+                "family": family,
+                "basis": "unique_summary_semantics_without_target",
+                "reasons": [],
+                "semantic_matches": list(matches),
+            }
+
     if len(hints) > 1:
         reasons.append("multiple_family_hints")
     elif not hints:
