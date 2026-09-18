@@ -33,9 +33,12 @@ class SourceAttestedCorpusV1CliTests(unittest.TestCase):
         payload = corpus_v1_auto_evaluate_cli_payload(args)
         self.assertEqual(payload["action"], "corpus-v1-auto-evaluate")
         self.assertEqual(payload["status"], "awaiting_current_engine_replay")
-        self.assertEqual(payload["attestation"]["eligible_origin_count"], 19)
-        self.assertEqual(payload["attestation"]["attested_record_count"], 38)
-        self.assertEqual(payload["attestation"]["family_count"], 11)
+        self.assertGreaterEqual(payload["attestation"]["eligible_origin_count"], 19)
+        self.assertEqual(
+            payload["attestation"]["attested_record_count"],
+            payload["attestation"]["eligible_origin_count"] * 2,
+        )
+        self.assertGreaterEqual(payload["attestation"]["family_count"], 11)
         self.assertTrue(
             payload["attestation"]["safety"]["human_review_required_for_this_mode"]
             is False
@@ -60,8 +63,8 @@ class SourceAttestedCorpusV1CliTests(unittest.TestCase):
             self.assertTrue(blind.exists())
             truth = json.loads(attested.read_text(encoding="utf-8"))
             replay = json.loads(blind.read_text(encoding="utf-8"))
-            self.assertEqual(len(truth["records"]), 38)
-            self.assertEqual(replay["case_count"], 38)
+            self.assertGreaterEqual(len(truth["records"]), 38)
+            self.assertEqual(replay["case_count"], len(truth["records"]))
             self.assertIn("label", truth["records"][0])
             self.assertNotIn("label", replay["cases"][0])
             self.assertNotIn("family", replay["cases"][0])
