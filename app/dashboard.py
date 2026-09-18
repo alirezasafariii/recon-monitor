@@ -17,6 +17,10 @@ from change_guidance_calibration import (
     CHANGE_GUIDANCE_CALIBRATION_VERSION,
     change_guidance_calibration_report,
 )
+from change_guidance_drift import (
+    CHANGE_GUIDANCE_DRIFT_VERSION,
+    change_guidance_drift_report,
+)
 from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_VERSION,
     change_guidance_evaluation,
@@ -34,7 +38,7 @@ from investigation_workflow import (
 from meta_ranker import META_RANKER_VERSION
 
 
-DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.6.0"
+DASHBOARD_INTELLIGENCE_INTEGRATION_VERSION = "1.7.0"
 
 # Preserve the complete established dashboard import contract, including private
 # rendering helpers used by regression tests and local integrations.
@@ -295,6 +299,81 @@ def _change_guidance_calibration_panel(report: Mapping[str, Any]) -> str:
         + rows
         + "</tbody></table></div>"
         f"<p class='muted small' style='margin-top:12px'>A signal remains <code>insufficient_feedback</code> until at least {int(report.get('minimum_feedback_per_signal') or 5)} explicit ratings exist. Ratings are subjective workflow telemetry, not vulnerability labels, and no production activation path exists in this report.</p>"
+        "</div></section>"
+    )
+
+
+def _change_guidance_drift_panel(report: Mapping[str, Any]) -> str:
+    signals = [
+        row for row in report.get("signals", [])
+        if isinstance(row, Mapping)
+    ] if isinstance(report, Mapping) else []
+    if not signals:
+        return (
+            "<section class='panel' id='change-guidance-drift' style='margin-top:16px'>"
+            "<div class='panel-head'><div><h3>Change-guidance Drift</h3>"
+            f"<span class='muted small'>Monitor {_base._esc(CHANGE_GUIDANCE_DRIFT_VERSION)}</span></div>"
+            + _base._pill("monitoring only", "neutral")
+            + "</div><div class='panel-body'>"
+            + _base._empty(
+                "Not enough longitudinal feedback yet",
+                "Explicit task ratings need valid timestamps across adjacent windows before signal drift can be monitored.",
+            )
+            + "</div></section>"
+        )
+
+    def pct(value: Any) -> str:
+        if value is None:
+            return "—"
+        return f"{round(float(value) * 100, 1)}%"
+
+    def tone(status: str) -> str:
+        return {
+            "noise_increase_watch": "danger",
+            "utility_decline_watch": "danger",
+            "utility_improvement_watch": "success",
+            "stable": "neutral",
+            "mixed_shift": "info",
+            "insufficient_history": "neutral",
+        }.get(status, "neutral")
+
+    rows = "".join(
+        "<tr>"
+        f"<td><code>{_base._esc(row.get('signal_type') or '')}</code></td>"
+        f"<td>{int((row.get('previous') or {}).get('feedback_count') or 0)}</td>"
+        f"<td>{int((row.get('recent') or {}).get('feedback_count') or 0)}</td>"
+        f"<td>{pct((row.get('previous') or {}).get('useful_rate'))}</td>"
+        f"<td>{pct((row.get('recent') or {}).get('useful_rate'))}</td>"
+        f"<td>{pct(row.get('useful_rate_delta_recent_minus_previous'))}</td>"
+        f"<td>{pct(row.get('noisy_rate_delta_recent_minus_previous'))}</td>"
+        f"<td>{_base._pill(str(row.get('drift_status') or ''), tone(str(row.get('drift_status') or '')))}</td>"
+        f"<td>{_base._esc(row.get('review_recommendation') or '')}</td>"
+        "</tr>"
+        for row in signals[:50]
+    )
+    status_counts = report.get("status_counts") if isinstance(report.get("status_counts"), Mapping) else {}
+    previous = report.get("previous_window") if isinstance(report.get("previous_window"), Mapping) else {}
+    recent = report.get("recent_window") if isinstance(report.get("recent_window"), Mapping) else {}
+    return (
+        "<section class='panel' id='change-guidance-drift' style='margin-top:16px'>"
+        "<div class='panel-head'><div><h3>Change-guidance Drift</h3>"
+        f"<span class='muted small'>Monitor {_base._esc(CHANGE_GUIDANCE_DRIFT_VERSION)} · {int(report.get('window_days') or 30)}d adjacent windows</span></div>"
+        + _base._pill("monitoring only", "info")
+        + "</div><div class='panel-body'>"
+        "<div class='callout'><strong>Longitudinal monitoring — no auto-tuning</strong>"
+        "<span>Drift compares adjacent feedback windows anchored to the latest explicit analyst rating. Watch statuses are descriptive prompts only; they cannot change production weights, thresholds, Queue score, task ordering, Evidence Gap, Admission, or validation.</span></div>"
+        "<div class='attention-grid' style='margin-top:14px'>"
+        f"<div class='attention-card'><span>Previous window</span><strong>{int(previous.get('feedback_count') or 0)}</strong><small>{_base._esc(previous.get('start') or '—')} → {_base._esc(previous.get('end_exclusive') or '—')}</small></div>"
+        f"<div class='attention-card'><span>Recent window</span><strong>{int(recent.get('feedback_count') or 0)}</strong><small>{_base._esc(recent.get('start') or '—')} → {_base._esc(recent.get('end_inclusive') or '—')}</small></div>"
+        f"<div class='attention-card'><span>Noise increase</span><strong>{int(status_counts.get('noise_increase_watch') or 0)}</strong><small>review only</small></div>"
+        f"<div class='attention-card'><span>Utility decline</span><strong>{int(status_counts.get('utility_decline_watch') or 0)}</strong><small>review only</small></div>"
+        "</div>"
+        "<div class='table-wrap' style='margin-top:14px'><table><thead><tr>"
+        "<th>Signal</th><th>Prev n</th><th>Recent n</th><th>Prev useful</th><th>Recent useful</th><th>Useful Δ</th><th>Noisy Δ</th><th>Drift status</th><th>Review recommendation</th>"
+        "</tr></thead><tbody>"
+        + rows
+        + "</tbody></table></div>"
+        f"<p class='muted small' style='margin-top:12px'>A signal remains <code>insufficient_history</code> until both windows contain at least {int(report.get('minimum_feedback_per_window') or 5)} explicit ratings. Target/family slices are descriptive only and are not a significance test.</p>"
         "</div></section>"
     )
 
@@ -814,6 +893,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
     try:
         evaluation = change_guidance_evaluation(db, target=target, limit=500)
         calibration = change_guidance_calibration_report(db, target=target, limit=5000)
+        drift = change_guidance_drift_report(db, target=target, window_days=30, limit=5000)
     finally:
         db.close()
     if family:
@@ -840,6 +920,7 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
+    fragments.append(_change_guidance_drift_panel(drift))
     fragments.append(_change_guidance_calibration_panel(calibration))
     fragments.append(_change_guidance_evaluation_panel(evaluation))
     fragments.append(_investigation_queue_panel(analysis_id, queue))

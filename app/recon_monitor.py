@@ -20,6 +20,11 @@ from change_guidance_calibration import (
     CHANGE_GUIDANCE_CALIBRATION_VERSION,
     change_guidance_calibration_report,
 )
+from change_guidance_drift import (
+    CHANGE_GUIDANCE_DRIFT_RULE_VERSION,
+    CHANGE_GUIDANCE_DRIFT_VERSION,
+    change_guidance_drift_report,
+)
 from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_RULE_VERSION,
     CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -51,7 +56,7 @@ from verified_replay_collector import (
 )
 
 
-INVESTIGATION_CLI_VERSION = "1.6.0"
+INVESTIGATION_CLI_VERSION = "1.7.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -213,6 +218,12 @@ def investigation_queue_cli_payload(
             target=str(target or "").strip(),
             limit=5000,
         )
+        drift = change_guidance_drift_report(
+            db,
+            target=str(target or "").strip(),
+            window_days=30,
+            limit=5000,
+        )
     else:
         evaluation = {
             "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -232,6 +243,15 @@ def investigation_queue_cli_payload(
             "unavailable": True,
             "reason": "database calibration interface unavailable",
         }
+        drift = {
+            "version": CHANGE_GUIDANCE_DRIFT_VERSION,
+            "rule_version": CHANGE_GUIDANCE_DRIFT_RULE_VERSION,
+            "activation": "monitoring_only",
+            "feedback_count": 0,
+            "signal_count": 0,
+            "unavailable": True,
+            "reason": "database drift-monitor interface unavailable",
+        }
     return {
         "cli_version": INVESTIGATION_CLI_VERSION,
         "analysis_id": selected_analysis,
@@ -240,6 +260,7 @@ def investigation_queue_cli_payload(
         "items": items,
         "change_guidance_evaluation": evaluation,
         "change_guidance_calibration": calibration,
+        "change_guidance_drift": drift,
         "engines": {
             "meta_ranker": {
                 "version": META_RANKER_VERSION,
@@ -262,6 +283,11 @@ def investigation_queue_cli_payload(
                 "rule_version": CHANGE_GUIDANCE_CALIBRATION_RULE_VERSION,
                 "activation": "shadow_only",
             },
+            "change_guidance_drift": {
+                "version": CHANGE_GUIDANCE_DRIFT_VERSION,
+                "rule_version": CHANGE_GUIDANCE_DRIFT_RULE_VERSION,
+                "activation": "monitoring_only",
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
@@ -279,6 +305,9 @@ def investigation_queue_cli_payload(
             "change_guidance_calibration_is_shadow_only": True,
             "change_guidance_calibration_cannot_auto_tune": True,
             "change_guidance_calibration_cannot_change_weights_or_thresholds": True,
+            "change_guidance_drift_is_monitoring_only": True,
+            "change_guidance_drift_cannot_auto_tune": True,
+            "change_guidance_drift_cannot_change_weights_thresholds_or_ordering": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
