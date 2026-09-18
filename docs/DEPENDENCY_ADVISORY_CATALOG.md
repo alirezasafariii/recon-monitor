@@ -1,0 +1,123 @@
+# Dependency Advisory Catalog
+
+Recon Monitor keeps dependency advisory synchronization separate from target
+Recon and Analysis execution.
+
+## Runtime boundary
+
+Analysis reads a local catalog only. It never fetches GitHub advisories while a
+target is being scanned or analyzed.
+
+```
+GitHub Reviewed Advisories
+        |
+        | explicit catalog sync only
+        v
+normalized local snapshot
+        |
+        | offline runtime read
+        v
+Recon exact technology version
+        |
+        v
+dependency_supply_chain Potential Finding
+```
+
+A catalog match is evidence that a stored exact component version falls inside
+a reviewed affected-version range. It is not proof that the affected feature is
+reachable or exploitable.
+
+A catalog miss is never treated as proof that the component is safe.
+
+## Synchronize the full reviewed catalog
+
+```bash
+./recon-monitor.sh analysis advisory-catalog-sync \
+  --advisory-update-manifest
+```
+
+The sync traverses the GitHub Global Security Advisories reviewed cursor to
+completion unless `--advisory-max-pages` is explicitly set to a positive
+diagnostic cap.
+
+The operation:
+
+- contacts only GitHub's public advisory API;
+- excludes withdrawn advisories;
+- normalizes every valid affected package entry;
+- deduplicates by GHSA, ecosystem and package;
+- preserves unsupported affected-range syntax instead of dropping records;
+- records whether each package entry has at least one range currently matchable
+  by the runtime matcher;
+- writes the catalog atomically;
+- stores an SHA-256 digest over the normalized advisory records;
+- does not contact Recon targets;
+- does not change Analysis thresholds or confirmation policy.
+
+## Inspect status without network access
+
+```bash
+./recon-monitor.sh analysis advisory-catalog-status
+```
+
+Important fields include:
+
+- `source_sync_complete`
+- `advisory_count`
+- `product_count`
+- `ecosystems`
+- `supported_range_count`
+- `unsupported_range_count`
+- `integrity_valid`
+- `source_last_updated_at`
+
+`source_sync_complete=true` means the local snapshot traversed the complete
+GitHub-reviewed API cursor for that sync. It does **not** mean the catalog is an
+exhaustive list of every vulnerability source in existence.
+
+## Alias registry
+
+`data/dependency_advisory_aliases.json` maps package identities to common
+technology-fingerprint aliases. Alias changes are explicit and reviewable; the
+sync does not guess aliases from advisory prose.
+
+## Runtime version matching
+
+The current runtime matcher is intentionally fail-closed:
+
+- a technology must contain an exact stable numeric version;
+- only supported comparator ranges are matched;
+- unsupported range syntax stays in the catalog but cannot produce a match;
+- prerelease or ambiguous observed versions do not produce a match;
+- the catalog is indexed and cached so a full snapshot is not reparsed for
+  every technology observation.
+
+This separation allows catalog coverage to expand independently from version
+matching semantics.
+
+## Automation
+
+`.github/workflows/dependency-advisory-catalog.yml` performs a full sync:
+
+- weekly;
+- manually through `workflow_dispatch`;
+- automatically when the sync/matcher/alias infrastructure changes on `main`.
+
+When the snapshot changes, the workflow pushes:
+
+```
+automation/dependency-advisory-catalog
+```
+
+The automation branch contains only the catalog snapshot and corresponding
+`MANIFEST.sha256` update. Normal pull-request CI remains the merge gate.
+
+## Safety invariants
+
+- catalog metadata is not target evidence by itself;
+- research/benchmark corpora are not imported into runtime matching;
+- sync performs no target contact;
+- Analysis performs no advisory-network I/O;
+- catalog miss does not mean safe;
+- a dependency advisory match produces at most a Potential Finding unless
+  separate evidence satisfies stronger validation requirements.
