@@ -239,7 +239,21 @@ def resolve_source_family(
         for value in feasibility.get("family_hints", []) or []
         if _text(value)
     ]
-    hints = [value for value in hints if value in CANONICAL_FAMILIES]
+    hints = list(dict.fromkeys(
+        value for value in hints if value in CANONICAL_FAMILIES
+    ))
+
+    if len(hints) > 1:
+        return {
+            "resolved": False,
+            "family": "",
+            "basis": "",
+            "reasons": [
+                "family_hint_not_unambiguous",
+                "multiple_family_hints",
+            ],
+            "semantic_matches": [],
+        }
 
     taxonomy_raw = feasibility.get("source_taxonomy_match")
     taxonomy = taxonomy_raw if isinstance(taxonomy_raw, Mapping) else {}

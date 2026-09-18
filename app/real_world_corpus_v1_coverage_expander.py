@@ -115,10 +115,38 @@ def _strong_revision_origins_by_family(feasibility: Mapping[str, Any]) -> Counte
     return result
 
 
+def _primary_source_boundaries_by_family(
+    primary_sources: Mapping[str, Any] | None,
+) -> tuple[Counter[str], dict[str, set[str]]]:
+    result: Counter[str] = Counter()
+    levels: dict[str, set[str]] = {}
+    if not isinstance(primary_sources, Mapping):
+        return result, levels
+
+    seen: set[tuple[str, str]] = set()
+    for raw in primary_sources.get("records", []) or []:
+        if not isinstance(raw, Mapping):
+            continue
+        family = _text(raw.get("family"))
+        source_id = _text(raw.get("source_id"))
+        coverage_level = _text(raw.get("coverage_level"))
+        if (
+            family in FAMILY_ORDER
+            and source_id
+            and (family, source_id) not in seen
+        ):
+            seen.add((family, source_id))
+            result[family] += 1
+            if coverage_level:
+                levels.setdefault(family, set()).add(coverage_level)
+    return result, levels
+
+
 def coverage_inventory(
     feasibility: Mapping[str, Any],
     *,
     attestation: Mapping[str, Any] | None = None,
+    primary_sources: Mapping[str, Any] | None = None,
     quota: int = DEFAULT_FAMILY_QUOTA,
 ) -> dict[str, Any]:
     quota = max(1, int(quota))
@@ -126,6 +154,7 @@ def coverage_inventory(
     targeted = _targeted_origins_by_family(feasibility)
     strong = _strong_revision_origins_by_family(feasibility)
     attested = _attested_origins_by_family(attestation)
+    primary, primary_levels = _primary_source_boundaries_by_family(primary_sources)
 
     families: list[dict[str, Any]] = []
     for raw_family in FAMILY_ORDER:
@@ -140,12 +169,42 @@ def coverage_inventory(
             "targeted_origin_count": current,
             "strong_revision_origin_count": int(strong.get(family, 0)),
             "source_attested_origin_count": int(attested.get(family, 0)),
+            "primary_source_boundary_count": int(primary.get(family, 0)),
+            "primary_source_coverage_levels": sorted(primary_levels.get(family, set())),
+            "coverage_tiers": {
+                "targeted_discovery": current > 0,
+                "strong_revision_boundary": int(strong.get(family, 0)) > 0,
+                "source_attested": int(attested.get(family, 0)) > 0,
+                "primary_source_boundary": int(primary.get(family, 0)) > 0,
+            },
             "quota": quota,
             "deficit": max(0, quota - current),
             "quota_met": current >= quota,
         })
 
     missing = [row["family"] for row in families if not row["quota_met"]]
+    tier_family_counts = {
+        "targeted_discovery": sum(
+            1 for row in families if row["coverage_tiers"]["targeted_discovery"]
+        ),
+        "strong_revision_boundary": sum(
+            1 for row in families if row["coverage_tiers"]["strong_revision_boundary"]
+        ),
+        "source_attested": sum(
+            1 for row in families if row["coverage_tiers"]["source_attested"]
+        ),
+        "primary_source_boundary": sum(
+            1 for row in families if row["coverage_tiers"]["primary_source_boundary"]
+        ),
+        "any_boundary": sum(
+            1
+            for row in families
+            if (
+                row["coverage_tiers"]["strong_revision_boundary"]
+                or row["coverage_tiers"]["primary_source_boundary"]
+            )
+        ),
+    }
     return {
         "version": COVERAGE_EXPANDER_VERSION,
         "rule_version": COVERAGE_EXPANDER_RULE_VERSION,
@@ -155,6 +214,13 @@ def coverage_inventory(
         "missing_family_count": len(missing),
         "missing_families": missing,
         "all_families_represented": not missing,
+        "tier_family_counts": tier_family_counts,
+        "coverage_semantics": {
+            "represented_family_count_is_targeted_discovery_only": True,
+            "primary_source_boundary_does_not_satisfy_discovery_quota": True,
+            "source_attested_is_not_human_verified": True,
+            "coverage_is_not_a_vulnerability_confirmation": True,
+        },
         "families": families,
         "safety": {
             "taxonomy_is_discovery_only": True,
@@ -272,7 +338,7 @@ def candidate_family_match(
             "reason": "semantic_no_cwe_ambiguous_or_missing",
         }
 
-    semantic_candidates = semantic_family_candidates(text)
+    semantic_candidates = semantic_family_candidates(summary_text)
     fallback_matches = semantic_candidates.get(family, [])
     competing = {
         other: values

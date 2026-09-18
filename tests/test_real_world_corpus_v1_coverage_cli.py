@@ -41,8 +41,20 @@ class CorpusV1CoverageCliTests(unittest.TestCase):
         self.assertEqual(inventory["canonical_family_count"], 74)
         self.assertEqual(inventory["represented_family_count"], 60)
         self.assertEqual(inventory["missing_family_count"], 14)
+        self.assertEqual(inventory["tier_family_counts"]["primary_source_boundary"], 1)
+        subdomain = next(
+            row
+            for row in inventory["families"]
+            if row["family"] == "subdomain_takeover"
+        )
+        self.assertEqual(subdomain["primary_source_boundary_count"], 1)
+        self.assertFalse(subdomain["quota_met"])
+        self.assertEqual(payload["primary_source_coverage"]["accepted_count"], 1)
         self.assertTrue(payload["safety"]["all_74_canonical_families_tracked"])
         self.assertTrue(payload["safety"]["no_network_required_for_status"])
+        self.assertTrue(
+            payload["safety"]["primary_source_coverage_is_not_runtime_target_evidence"]
+        )
 
     def test_status_can_write_inventory_json(self):
         parser = build_parser()
