@@ -103,6 +103,15 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             self.assertFalse(raw["budget"]["exhausted"])
             self.assertEqual(raw["budget"]["execution_coverage"], 1.0)
             self.assertEqual(raw["routing"]["active_requests"], 0)
+            runtime = result["bug_candidates"]["detection_runtime"]
+            self.assertEqual(runtime["canonical_family_count"], 74)
+            self.assertEqual(runtime["registered_analyzer_count"], 74)
+            self.assertIn("security_headers", runtime["evaluated_families"])
+            self.assertIn("security_headers", runtime["hypothesis_families"])
+            self.assertIn("security_headers", runtime["potential_finding_families"])
+            self.assertGreaterEqual(runtime["potential_finding_count"], 1)
+            self.assertEqual(runtime["active_requests_added"], 0)
+            self.assertFalse(runtime["collector_behavior_changed"])
             self.assertTrue(raw["diagnostic_only"])
             self.assertEqual(raw["accuracy_claim"], "none")
 

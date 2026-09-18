@@ -12,6 +12,7 @@ from analysis_engine import run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 from family_analyzers.base import FamilyAnalyzerContext
 import family_analyzers.router as family_router
+from bug_candidates import _phase2_families_for_surface
 
 
 class _BudgetDb:
@@ -97,6 +98,17 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
             self.assertEqual(budget["skipped"], 0)
             self.assertFalse(budget["exhausted"])
             self.assertGreaterEqual(budget["limit"], 100_000)
+            runtime = result["bug_candidates"]["detection_runtime"]
+            self.assertEqual(runtime["canonical_family_count"], 74)
+            self.assertEqual(runtime["registered_analyzer_count"], 74)
+            self.assertTrue(runtime["all_canonical_analyzers_registered"])
+            self.assertEqual(runtime["active_requests_added"], 0)
+            self.assertFalse(runtime["collector_behavior_changed"])
+            self.assertEqual(
+                runtime["input_boundary"],
+                "stored_recon_and_analysis_evidence_only",
+            )
+            self.assertEqual(runtime["confirmation_claim"], "none")
             self.assertEqual(
                 db.one(
                     "SELECT COUNT(*) count FROM bug_candidates WHERE analysis_id=?",
@@ -115,6 +127,23 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
         finally:
             db.close()
             temp.cleanup()
+
+    def test_phase2_router_recognizes_structured_family_signals_without_keyword_guessing(self):
+        families = _phase2_families_for_surface(
+            {
+                "required_security_header_missing_or_invalid_observed": True,
+            },
+            "opaque stored observation",
+        )
+        self.assertIn("security_headers", families)
+        self.assertNotIn("subdomain_takeover", families)
+
+    def test_phase2_router_normalizes_stored_signal_text_for_routing_only(self):
+        families = _phase2_families_for_surface(
+            {},
+            "strict_transport_security policy observation",
+        )
+        self.assertIn("tls_hsts_weakness", families)
 
     def test_raw_analyzer_budget_is_bounded_audited_and_raw_only(self):
         original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
