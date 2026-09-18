@@ -134,6 +134,22 @@ class SourceAttestedCorpusV1Tests(unittest.TestCase):
             result["excluded"][0]["reasons"],
         )
 
+
+    def test_blind_replay_manifest_removes_ground_truth_and_uses_opaque_ids(self):
+        result = source_attested.build_source_attested_cases(*artifacts())
+        manifest = source_attested.blind_replay_manifest(result["records"])
+        self.assertEqual(manifest["case_count"], 2)
+        self.assertTrue(manifest["safety"]["label_blind"])
+        self.assertTrue(manifest["safety"]["family_blind"])
+        for row in manifest["cases"]:
+            self.assertTrue(row["case_id"].startswith("SA-"))
+            self.assertNotIn("positive", row["case_id"])
+            self.assertNotIn("negative", row["case_id"])
+            self.assertNotIn("label", row)
+            self.assertNotIn("family", row)
+            self.assertNotIn("variant", row)
+            self.assertNotIn("source_root", row)
+
     def test_no_engine_scores_means_metrics_remain_unavailable(self):
         attestation = source_attested.build_source_attested_cases(*artifacts())
         report = source_attested.source_attested_evaluation_report(attestation)
