@@ -117,6 +117,19 @@ class DependencyVersionRangeTests(unittest.TestCase):
             range_expression_supported(">= 9.0.0RC1, < 9.5.1", "composer")
         )
         self.assertTrue(
+            range_expression_supported(
+                ">= 6.6.0.0-rc1, < 6.6.10.3",
+                "composer",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "6.6.0.0",
+                ">= 6.6.0.0-rc1, < 6.6.10.3",
+                "composer",
+            )
+        )
+        self.assertTrue(
             version_matches_range("9.0.0", ">= 9.0.0RC1, < 9.5.1", "composer")
         )
         self.assertTrue(
