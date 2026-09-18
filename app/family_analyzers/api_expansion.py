@@ -18,6 +18,13 @@ from .owasp_expansion_common import controlled_observation
 
 def _yes(d: Mapping[str, Any], key: str) -> bool: return truth(d.get(key)) is True
 
+def _passive_condition(d: Mapping[str, Any], key: str) -> dict[str, Any]:
+    raw = d.get("passive_condition_details")
+    if not isinstance(raw, Mapping):
+        return {}
+    value = raw.get(key)
+    return dict(value) if isinstance(value, Mapping) else {}
+
 def _result(analyzer, family, variant, support, contradict, taxonomy, method, fp, writeups, direct, rules, summary, base, **meta):
     if not support and not contradict: return None
     return finalize_result(analyzer=analyzer,family=family,variant=variant,support=support,contradict=contradict,taxonomy=taxonomy,methodology=method,false_positive_checks=fp,writeup_patterns=writeups,direct_types=set(direct),rule_ids=rules,summary=summary,base=base,extra_meta=meta)
@@ -77,7 +84,12 @@ def analyze_security_misconfiguration_signal(db:Database,*,analysis_id:str,targe
     if header_map(d) or direct_present or _yes(d,"configuration_surface") or any(x in text for x in ("debug","admin","management","actuator","swagger","openapi","server-status","directory")):
         add_unique(support,{"type":"configuration_surface","source":"stored_configuration_metadata","source_group":"configuration_surface","weight":14,"text":"A concrete target configuration/deployment surface is present."})
     for et in MISCONFIG_DIRECT:
-        if _yes(d,et): add_unique(support,{"type":et,"source":"stored_configuration_observation","source_group":f"configuration_observation:{et}","weight":58,"text":f"Stored target observation demonstrates {et.replace('_',' ')}."})
+        if _yes(d,et):
+            item={"type":et,"source":"stored_configuration_observation","source_group":f"configuration_observation:{et}","weight":58,"text":f"Stored target observation demonstrates {et.replace('_',' ')}."}
+            passive=_passive_condition(d,et)
+            if passive:
+                item["observation"]=passive
+            add_unique(support,item)
     for et in MISCONFIG_BLOCK:
         if _yes(d,et): add_unique(contradict,{"type":et,"source":"stored_configuration_observation","source_group":f"configuration_control:{et}","weight":-46,"text":f"Stored target observation demonstrates {et.replace('_',' ')}."})
     runtime=observations(d,"security_misconfiguration_observations","configuration_observations")
@@ -97,11 +109,26 @@ def analyze_improper_inventory_management_signal(db:Database,*,analysis_id:str,t
     del db,analysis_id,target,method,business_context; d=dict(details or {}); support=[]; contradict=[]; text=f"{endpoint} {semantic_text}".lower(); direct_present=any(_yes(d,x) for x in INVENTORY_DIRECT)
     surface=_yes(d,"api_inventory_surface") or direct_present or bool(re.search(r"/(?:api/)?v\d+(?:/|$)",text)) or any(x in text for x in ("/debug","/swagger","/openapi","/graphql","/actuator"))
     if surface: add_unique(support,{"type":"api_inventory_surface","source":"observed_api_surface","source_group":"observed_api_surface","weight":16,"text":"A concrete API version/host/debug/documentation surface is present."})
-    if _yes(d,"inventory_drift_signal") and bool(d.get("inventory_baseline") or d.get("lifecycle_status")): add_unique(support,{"type":"inventory_drift_signal","source":"authoritative_inventory_comparison","source_group":"authoritative_inventory_comparison","weight":30,"text":"Stored comparison against authoritative inventory/lifecycle data indicates drift."})
+    if _yes(d,"inventory_drift_signal") and bool(d.get("inventory_baseline") or d.get("lifecycle_status") or d.get("authoritative_inventory") or d.get("lifecycle_source")):
+        item={"type":"inventory_drift_signal","source":"authoritative_inventory_comparison","source_group":"authoritative_inventory_comparison","weight":30,"text":"Stored comparison against authoritative inventory/lifecycle data indicates drift."}
+        passive=_passive_condition(d,"inventory_drift_signal")
+        if passive:
+            item["observation"]=passive
+        add_unique(support,item)
     for et in INVENTORY_DIRECT:
-        if _yes(d,et): add_unique(support,{"type":et,"source":"stored_inventory_observation","source_group":f"inventory_reachability:{et}","weight":60,"text":f"Stored target evidence demonstrates {et.replace('_',' ')}."})
+        if _yes(d,et):
+            item={"type":et,"source":"stored_inventory_observation","source_group":f"inventory_reachability:{et}","weight":60,"text":f"Stored target evidence demonstrates {et.replace('_',' ')}."}
+            passive=_passive_condition(d,et)
+            if passive:
+                item["observation"]=passive
+            add_unique(support,item)
     for et in INVENTORY_BLOCK:
-        if _yes(d,et): add_unique(contradict,{"type":et,"source":"stored_inventory_control","source_group":"authoritative_inventory_comparison","weight":-46,"text":f"Stored lifecycle evidence records {et.replace('_',' ')}."})
+        if _yes(d,et):
+            item={"type":et,"source":"stored_inventory_control","source_group":"authoritative_inventory_comparison","weight":-46,"text":f"Stored lifecycle evidence records {et.replace('_',' ')}."}
+            passive=_passive_condition(d,et)
+            if passive:
+                item["observation"]=passive
+            add_unique(contradict,item)
     runtime=observations(d,"api_inventory_observations","inventory_management_observations")
     for i,obs in enumerate(runtime[:50]):
         g=f"inventory_observation:{i}"
@@ -141,10 +168,10 @@ class SensitiveBusinessFlowAbuseFamilyAnalyzer(FamilyAnalyzer):
     family="sensitive_business_flow_abuse"; analyzer_version="1.0.0"
     def analyze(self,c:FamilyAnalyzerContext,**kw): return analyze_sensitive_business_flow_abuse_signal(c.db,analysis_id=c.analysis_id,target=c.target,endpoint=c.endpoint,method=c.method,details=c.details,business_context=c.business_context,**kw)
 class SecurityMisconfigurationFamilyAnalyzer(FamilyAnalyzer):
-    family="security_misconfiguration"; analyzer_version="1.0.0"
+    family="security_misconfiguration"; analyzer_version="1.1.0"
     def analyze(self,c:FamilyAnalyzerContext,**kw): return analyze_security_misconfiguration_signal(c.db,analysis_id=c.analysis_id,target=c.target,endpoint=c.endpoint,method=c.method,details=c.details,business_context=c.business_context,**kw)
 class ImproperInventoryManagementFamilyAnalyzer(FamilyAnalyzer):
-    family="improper_inventory_management"; analyzer_version="1.0.0"
+    family="improper_inventory_management"; analyzer_version="1.1.0"
     def analyze(self,c:FamilyAnalyzerContext,**kw): return analyze_improper_inventory_management_signal(c.db,analysis_id=c.analysis_id,target=c.target,endpoint=c.endpoint,method=c.method,details=c.details,business_context=c.business_context,**kw)
 class UnsafeApiConsumptionFamilyAnalyzer(FamilyAnalyzer):
     family="unsafe_api_consumption"; analyzer_version="1.0.0"
