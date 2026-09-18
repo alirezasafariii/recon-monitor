@@ -24,6 +24,7 @@ from typing import Any, Iterable, Mapping
 import real_world_corpus_v1 as corpus
 import real_world_corpus_v1_discovery as hardened
 from family_reasoning import FAMILY_ORDER
+from real_world_corpus_v1_feasibility import _api_get_json
 from real_world_corpus_v1_family_match import (
     cwe_owners,
     family_terms,
@@ -360,7 +361,7 @@ def discover_reviewed_seeds(
         if len(selected) >= max(0, int(needed)):
             break
         try:
-            raw = hardened._api_json(
+            raw = _api_get_json(
                 f"https://api.github.com/advisories/{root}",
                 token=token,
             )
