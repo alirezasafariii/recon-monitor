@@ -53,6 +53,13 @@ def _load_rows(path: str | Path) -> list[dict[str, Any]]:
     return [dict(row) for row in rows if isinstance(row, Mapping)]
 
 
+def load_review_files(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for path in paths:
+        rows.extend(_load_rows(path))
+    return rows
+
+
 def _score_present(draft: Mapping[str, Any], field: str) -> bool:
     value = draft.get(field)
     if value is None:
@@ -281,9 +288,7 @@ def _main() -> int:
     parser.add_argument("--status-only", action="store_true")
     args = parser.parse_args()
 
-    rows: list[dict[str, Any]] = []
-    for path in args.input:
-        rows.extend(_load_rows(path))
+    rows = load_review_files(args.input)
 
     if args.status_only:
         print(json.dumps(review_readiness(rows), indent=2, sort_keys=True))
