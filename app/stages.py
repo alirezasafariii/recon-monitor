@@ -774,6 +774,10 @@ def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]
             observation=observation,
             max_response_bytes=max_bytes,
             validation_version="recon-download-1",
+            timeout_seconds=min(
+                45,
+                max(5, ctx.policy.limits.timeout_seconds),
+            ),
         )
         status_code = int(result.get("status_code") or 0)
         location = str(result.get("location") or "")
