@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import sys
 import unittest
-import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -25,42 +24,67 @@ class _Config:
         return default
 
 
-class _FakeOpener:
-    def __init__(self, status_code):
-        self.status_code = status_code
+class _Policy:
+    headers = {}
+    limits = SimpleNamespace(timeout_seconds=30)
 
-    def open(self, request, timeout=None):
-        raise urllib.error.HTTPError(
-            request.full_url,
-            self.status_code,
-            f"HTTP {self.status_code}",
-            hdrs=None,
-            fp=None,
-        )
+    def url_in_scope(self, url: str) -> bool:
+        return str(url).startswith("https://example.test/")
+
+
+class _Budget:
+    def __init__(self) -> None:
+        self.http_requests = 0
+        self.download_bytes = 0
+
+    def consume(self, metric: str, amount: int = 1):
+        if metric == "http_requests":
+            self.http_requests += amount
+        elif metric == "download_bytes":
+            self.download_bytes += amount
+        return amount, 1000000
 
 
 def _ctx():
     return SimpleNamespace(
         config=_Config(),
-        policy=SimpleNamespace(
-            headers={},
-            limits=SimpleNamespace(
-                timeout_seconds=30,
-            ),
-        ),
-        budget=None,
+        policy=_Policy(),
+        budget=_Budget(),
     )
+
+
+def _transport_status(code: int, *, body: bytes = b"", location: str = "", error: str = ""):
+    def fake(item, _policy, **kwargs):
+        observation = kwargs["observation"]
+        headers = {}
+        if location:
+            headers["Location"] = location
+        row = observation(
+            item["method"],
+            item["url"],
+            code,
+            headers,
+            body,
+            error or ("http_error" if code >= 400 else ""),
+        )
+        row["dns_rebinding_protection"] = "resolution_pinned"
+        row["environment_proxy_used"] = False
+        row["pinned_address"] = "203.0.113.10"
+        return row, "ok"
+
+    return fake
 
 
 class JavascriptNotFoundTests(unittest.TestCase):
 
     def test_404_is_not_found_not_runtime_error(self):
+        ctx = _ctx()
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(404),
+            "stages.perform_pinned_request",
+            side_effect=_transport_status(404),
         ):
             result = _download_url(
-                _ctx(),
+                ctx,
                 "https://example.test/app.js",
                 100000,
             )
@@ -68,12 +92,13 @@ class JavascriptNotFoundTests(unittest.TestCase):
         self.assertTrue(result["not_found"])
         self.assertEqual(result["status_code"], 404)
         self.assertNotIn("error", result)
+        self.assertEqual(ctx.budget.http_requests, 1)
 
 
     def test_410_is_not_found_not_runtime_error(self):
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(410),
+            "stages.perform_pinned_request",
+            side_effect=_transport_status(410),
         ):
             result = _download_url(
                 _ctx(),
@@ -88,8 +113,8 @@ class JavascriptNotFoundTests(unittest.TestCase):
 
     def test_403_remains_error(self):
         with mock.patch(
-            "stages.urllib.request.build_opener",
-            return_value=_FakeOpener(403),
+            "stages.perform_pinned_request",
+            side_effect=_transport_status(403),
         ):
             result = _download_url(
                 _ctx(),
@@ -97,40 +122,109 @@ class JavascriptNotFoundTests(unittest.TestCase):
                 100000,
             )
 
-        self.assertFalse(
-            result.get("not_found", False)
+        self.assertFalse(result.get("not_found", False))
+        self.assertEqual(result["status_code"], 403)
+        self.assertIn("error", result)
+
+
+    def test_in_scope_redirect_is_reissued_through_pinned_transport(self):
+        ctx = _ctx()
+        seen = []
+
+        def fake(item, _policy, **kwargs):
+            seen.append(item["url"])
+            observation = kwargs["observation"]
+            if len(seen) == 1:
+                row = observation(
+                    "GET",
+                    item["url"],
+                    302,
+                    {"Location": "/assets/app-v2.js"},
+                    b"",
+                    "http_error",
+                )
+            else:
+                row = observation(
+                    "GET",
+                    item["url"],
+                    200,
+                    {"Content-Type": "application/javascript"},
+                    b"console.log('ok')",
+                    "",
+                )
+            row["dns_rebinding_protection"] = "resolution_pinned"
+            row["environment_proxy_used"] = False
+            return row, "ok"
+
+        with mock.patch("stages.perform_pinned_request", side_effect=fake):
+            result = _download_url(
+                ctx,
+                "https://example.test/app.js",
+                100000,
+            )
+
+        self.assertEqual(
+            seen,
+            [
+                "https://example.test/app.js",
+                "https://example.test/assets/app-v2.js",
+            ],
         )
         self.assertEqual(
-            result["status_code"],
-            403,
+            result["final_url"],
+            "https://example.test/assets/app-v2.js",
         )
-        self.assertIn(
-            "error",
-            result,
-        )
+        self.assertEqual(result["data"], b"console.log('ok')")
+        self.assertEqual(result["redirect_chain"], ["https://example.test/app.js"])
+        self.assertEqual(ctx.budget.http_requests, 2)
+        self.assertEqual(ctx.budget.download_bytes, len(result["data"]))
+
+
+    def test_out_of_scope_redirect_is_blocked_without_second_request(self):
+        ctx = _ctx()
+        seen = []
+
+        def fake(item, _policy, **kwargs):
+            seen.append(item["url"])
+            observation = kwargs["observation"]
+            row = observation(
+                "GET",
+                item["url"],
+                302,
+                {"Location": "https://outside.test/app.js"},
+                b"",
+                "http_error",
+            )
+            row["redirect_outside_scope"] = True
+            return row, "ok"
+
+        with mock.patch("stages.perform_pinned_request", side_effect=fake):
+            result = _download_url(
+                ctx,
+                "https://example.test/app.js",
+                100000,
+            )
+
+        self.assertEqual(seen, ["https://example.test/app.js"])
+        self.assertTrue(result["redirect_outside_scope"])
+        self.assertIn("redirect left authorized scope", result["error"])
+
+
+    def test_download_uses_shared_pinned_transport_not_direct_urllib(self):
+        source = inspect.getsource(_download_url)
+        self.assertIn("perform_pinned_request", source)
+        self.assertNotIn("urllib.request", source)
+        self.assertNotIn("urlopen(", source)
+        self.assertIn("redirect limit exceeded", source)
 
 
     def test_javascript_stage_completes_not_found_work(self):
-        source = inspect.getsource(
-            stage_javascript
-        )
+        source = inspect.getsource(stage_javascript)
 
-        self.assertIn(
-            'result.get("not_found")',
-            source,
-        )
-        self.assertIn(
-            "work_queue.finish",
-            source,
-        )
-        self.assertIn(
-            '"javascript-not-found.jsonl"',
-            source,
-        )
-        self.assertIn(
-            '"not_found": len(not_found)',
-            source,
-        )
+        self.assertIn('result.get("not_found")', source)
+        self.assertIn("work_queue.finish", source)
+        self.assertIn('"javascript-not-found.jsonl"', source)
+        self.assertIn('"not_found": len(not_found)', source)
 
 
 if __name__ == "__main__":
