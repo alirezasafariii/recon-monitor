@@ -161,7 +161,7 @@ class DependencyAdvisoryCatalogSyncTests(unittest.TestCase):
             fetch_page=lambda _url: (
                 [
                     advisory(
-                        "GHSA-6789-cfgh-jmpq",
+                        "GHSA-6789-CFGH-JMPQ",
                         package="demo",
                         vulnerable_range=">= 1.0.0, < 2.0.0",
                     )
