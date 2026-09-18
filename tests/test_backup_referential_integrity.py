@@ -144,7 +144,8 @@ class BackupReferentialIntegrityTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as unpacked_name:
                 unpacked = Path(unpacked_name)
                 with tarfile.open(archive, "r:gz") as tar:
-                    tar.extractall(unpacked)
+                    members = manager._safe_members(tar)
+                    manager._extract_members(tar, unpacked, members)
                 (unpacked / rel).unlink()
                 rebuilt = archive.with_name(archive.stem + "-tampered.tar.gz")
                 with tarfile.open(rebuilt, "w:gz") as tar:
