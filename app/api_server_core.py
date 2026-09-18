@@ -376,6 +376,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 lease_token=""
                 chosen_payload=None
                 with db.transaction():
+                    db.reclaim_expired_work_leases()
                     rows=db.all("SELECT * FROM work_items WHERE status IN ('queued','retry_pending') ORDER BY created_at LIMIT 50")
                     for row in rows:
                         payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
