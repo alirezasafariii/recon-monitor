@@ -5,7 +5,6 @@ import contextlib
 import json
 import os
 import re
-import socket
 import time
 import urllib.parse
 from dataclasses import dataclass
@@ -1871,31 +1870,48 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
         "errors": sum(1 for r in results if r.get("error")),
     }
 
-def _tls_certificate_info(url: str, timeout: float = 5.0) -> dict[str, Any]:
-    parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "https" or not parsed.hostname:
+def _tls_certificate_info(
+    ctx: StageContext,
+    url: str,
+    timeout: float = 5.0,
+) -> dict[str, Any]:
+    transport = fetch_pinned_tls_peer(
+        url,
+        ctx.policy,
+        timeout=timeout,
+    )
+    cert = (
+        transport.get("certificate")
+        if isinstance(transport.get("certificate"), Mapping)
+        else {}
+    )
+    if not cert:
         return {}
-    host = parsed.hostname
-    port = parsed.port or 443
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((host, port), timeout=timeout) as raw:
-            with context.wrap_socket(raw, server_hostname=host) as sock:
-                cert = sock.getpeercert()
-    except (OSError, ssl.SSLError, socket.timeout):
-        return {}
+
     def flatten_name(value: Any) -> str:
         parts: list[str] = []
         for group in value or []:
             for key, item in group:
                 parts.append(f"{key}={item}")
         return ", ".join(parts)
-    sans = [str(item) for kind, item in cert.get("subjectAltName", []) if kind == "DNS"]
+
+    sans = [
+        str(item)
+        for kind, item in cert.get("subjectAltName", [])
+        if kind == "DNS"
+    ]
     return {
         "tls_issuer": flatten_name(cert.get("issuer")),
         "tls_expiry": str(cert.get("notAfter") or ""),
         "tls_sans": sorted(sans),
         "tls_serial": str(cert.get("serialNumber") or ""),
+        "tls_pinned_address": str(transport.get("pinned_address") or ""),
+        "tls_dns_rebinding_protection": str(
+            transport.get("dns_rebinding_protection") or ""
+        ),
+        "tls_safe_transport_version": str(
+            transport.get("safe_transport_version") or ""
+        ),
     }
 
 
@@ -2003,7 +2019,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
             continue
         live += 1
         if ctx.policy.raw.get("fingerprint", {}).get("collect_tls", True):
-            record.update(_tls_certificate_info(url))
+            record.update(_tls_certificate_info(ctx, url))
         screenshot_path = record.get("screenshot_path")
         if screenshot_path:
             screenshot_file = Path(str(screenshot_path)).expanduser()
