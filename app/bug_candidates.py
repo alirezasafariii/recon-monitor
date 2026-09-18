@@ -14,8 +14,12 @@ from urllib.parse import parse_qsl, urlsplit
 
 import bug_candidates_family21 as _family21_import
 from family_analyzers.base import FamilyAnalyzerContext
-from family_analyzers.router import analyzer_for_family, raw_analysis_budget_snapshot
-from family_reasoning import candidate_evidence_schema_map
+from family_analyzers.router import (
+    analyzer_for_family,
+    raw_analysis_budget_snapshot,
+    router_status,
+)
+from family_reasoning import FAMILY_ORDER, candidate_evidence_schema_map
 from owasp_family_catalog import (
     BUG_FAMILY_METADATA,
     DIRECT_TYPES,
@@ -156,18 +160,40 @@ def _surface_method_and_fields(endpoint: str) -> tuple[str, list[str], list[str]
     return "UNKNOWN", query_fields, path_fields
 
 
+def _routing_text(value: Any) -> str:
+    """Normalize stored Recon text for conservative family pre-routing.
+
+    This is routing only, not evidence. It lets explicit stored signal names
+    with separators map to the same family vocabulary without manufacturing a
+    target observation.
+    """
+
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+
 def _phase2_families_for_surface(
     details: Mapping[str, Any],
     semantic_text: str,
 ) -> tuple[str, ...]:
-    text = semantic_text.lower()
+    text = _routing_text(semantic_text)
     selected: list[str] = []
     for family in PHASE2_FAMILY_ORDER:
         spec = PHASE2_FAMILY_SPECS[family]
-        if any(bool(details.get(signal)) for signal in spec["context"]):
+
+        structured_signals = (
+            *spec["context"],
+            *spec["unsafe"],
+            *spec["direct"],
+            *spec["contradictions"],
+        )
+        if any(bool(details.get(signal)) for signal in structured_signals):
             selected.append(family)
             continue
-        if any(str(keyword).lower() in text for keyword in spec["keywords"]):
+
+        if any(
+            _routing_text(keyword) and _routing_text(keyword) in text
+            for keyword in spec["keywords"]
+        ):
             selected.append(family)
     return tuple(selected)
 
@@ -801,6 +827,65 @@ _ORIGINAL_GENERATE_BUG_CANDIDATES = _core.generate_bug_candidates
 _CANDIDATE_GENERATION_TRANSACTION_VERSION = "1.0.0"
 
 
+def _detection_runtime_summary(
+    db: Any,
+    *,
+    analysis_id: str,
+    raw_budget: Mapping[str, Any],
+) -> dict[str, Any]:
+    status = router_status()
+    registered = tuple(status.get("registered") or ())
+    evaluated = sorted(
+        str(family)
+        for family, count in dict(raw_budget.get("families") or {}).items()
+        if int(count or 0) > 0
+    )
+    hypothesis_families = sorted(
+        str(row[0])
+        for row in db.all(
+            "SELECT DISTINCT bug_family FROM analysis_hypotheses "
+            "WHERE analysis_id=? ORDER BY bug_family",
+            (analysis_id,),
+        )
+    )
+    candidate_families = sorted(
+        str(row[0])
+        for row in db.all(
+            "SELECT DISTINCT bug_family FROM bug_candidates "
+            "WHERE analysis_id=? ORDER BY bug_family",
+            (analysis_id,),
+        )
+    )
+    candidate_count_row = db.one(
+        "SELECT COUNT(*) count FROM bug_candidates WHERE analysis_id=?",
+        (analysis_id,),
+    )
+    return {
+        "version": "1.0.0",
+        "canonical_family_count": len(FAMILY_ORDER),
+        "registered_analyzer_count": len(registered),
+        "all_canonical_analyzers_registered": (
+            len(registered) == len(FAMILY_ORDER)
+            and tuple(registered) == tuple(FAMILY_ORDER)
+        ),
+        "evaluated_family_count": len(evaluated),
+        "evaluated_families": evaluated,
+        "hypothesis_family_count": len(hypothesis_families),
+        "hypothesis_families": hypothesis_families,
+        "potential_finding_count": int(
+            candidate_count_row["count"] if candidate_count_row else 0
+        ),
+        "potential_finding_family_count": len(candidate_families),
+        "potential_finding_families": candidate_families,
+        "abstention_retains_hypotheses": True,
+        "input_boundary": "stored_recon_and_analysis_evidence_only",
+        "active_requests_added": 0,
+        "collector_behavior_changed": False,
+        "taxonomy_counts_as_target_evidence": False,
+        "confirmation_claim": "none",
+    }
+
+
 def generate_bug_candidates(
     db: Any,
     analysis_id: str,
@@ -880,6 +965,12 @@ def generate_bug_candidates(
                     "families": dict(raw_budget.get("families") or {}),
                 },
             }
+
+            result["detection_runtime"] = _detection_runtime_summary(
+                db,
+                analysis_id=analysis_id,
+                raw_budget=raw_budget,
+            )
 
         except Exception:
             if not already_in_transaction and conn.in_transaction:
