@@ -21,6 +21,7 @@ from dependency_advisory_catalog_sync import (
 from dependency_advisory_matcher import (
     catalog_status,
     match_versioned_technology,
+    normalize_component_name,
     validate_catalog_payload,
 )
 
@@ -132,6 +133,97 @@ class DependencyAdvisoryCatalogSyncTests(unittest.TestCase):
         validation = validate_catalog_payload(payload)
         self.assertTrue(validation["valid"])
         self.assertTrue(validation["integrity_valid"])
+
+    def test_runtime_canonical_identity_dedupes_package_name_variants(self):
+        row = advisory(
+            "GHSA-35jh-r3h4-6jhm",
+            package="lodash.template",
+            vulnerable_range="< 4.17.21",
+            patched="4.17.21",
+        )
+        row["vulnerabilities"].append(
+            {
+                "package": {
+                    "ecosystem": "npm",
+                    "name": "lodash-template",
+                },
+                "vulnerable_version_range": ">= 4.0.0, < 4.17.20",
+                "first_patched_version": {"identifier": "4.17.20"},
+            }
+        )
+
+        payload = build_catalog_from_pages(
+            fetch_page=lambda _url: ([row], ""),
+            now="2026-09-18T00:00:00Z",
+        )
+
+        self.assertEqual(len(payload["advisories"]), 1)
+        entry = payload["advisories"][0]
+        self.assertEqual(
+            normalize_component_name(entry["product"]),
+            "lodash template",
+        )
+        self.assertEqual(
+            {normalize_component_name(alias) for alias in entry["aliases"]},
+            {"lodash template"},
+        )
+        self.assertIn("lodash.template", entry["aliases"])
+        self.assertIn("lodash-template", entry["aliases"])
+        self.assertEqual(
+            entry["patched_versions"],
+            ["4.17.20", "4.17.21"],
+        )
+        self.assertEqual(
+            payload["source_snapshot"]["normalized_package_entry_count"],
+            1,
+        )
+        validation = validate_catalog_payload(payload)
+        self.assertTrue(validation["valid"])
+        self.assertEqual(validation["duplicate_identities"], [])
+
+    def test_runtime_canonical_identity_dedupes_across_pages(self):
+        first = "https://api.github.com/advisories?cursor=one"
+        second = "https://api.github.com/advisories?cursor=two"
+        pages = {
+            first: (
+                [
+                    advisory(
+                        "GHSA-f4w5-5xv9-85f6",
+                        package="chainguard.dev/apko",
+                        ecosystem="go",
+                    )
+                ],
+                second,
+            ),
+            second: (
+                [
+                    advisory(
+                        "GHSA-f4w5-5xv9-85f6",
+                        package="chainguard dev apko",
+                        ecosystem="go",
+                        vulnerable_range=">= 0.10.0, < 0.11.0",
+                        patched="0.11.0",
+                    )
+                ],
+                "",
+            ),
+        }
+
+        def fetch(url):
+            if "per_page=100" in url:
+                return pages[first]
+            return pages[url]
+
+        payload = build_catalog_from_pages(
+            fetch_page=fetch,
+            now="2026-09-18T00:00:00Z",
+        )
+        self.assertEqual(len(payload["advisories"]), 1)
+        entry = payload["advisories"][0]
+        self.assertIn("chainguard.dev/apko", entry["aliases"])
+        self.assertIn("chainguard dev apko", entry["aliases"])
+        self.assertEqual(len(entry["affected_ranges"]), 2)
+        self.assertTrue(validate_catalog_payload(payload)["valid"])
 
     def test_page_cap_marks_snapshot_partial_not_complete(self):
         calls = 0

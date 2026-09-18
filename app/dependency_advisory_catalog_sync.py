@@ -27,12 +27,13 @@ from typing import Any, Callable, Mapping
 
 from dependency_advisory_matcher import (
     advisories_sha256,
+    normalize_component_name,
     range_expression_supported,
     validate_catalog_payload,
 )
 
-DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION = "1.0.0"
-DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION = "2026.09.18.1"
+DEPENDENCY_ADVISORY_CATALOG_SYNC_VERSION = "1.0.1"
+DEPENDENCY_ADVISORY_CATALOG_SYNC_RULE_VERSION = "2026.09.18.2"
 GITHUB_API_VERSION = "2022-11-28"
 GITHUB_REVIEWED_ADVISORY_API = "https://api.github.com/advisories"
 CATALOG_SCHEMA_VERSION = "2.0.0"
@@ -152,7 +153,11 @@ def _normalize_advisory_rows(
             stats["malformed_excluded"] += 1
             continue
 
-        identity = (ecosystem, product.lower())
+        canonical_product = normalize_component_name(product)
+        if not canonical_product:
+            stats["malformed_excluded"] += 1
+            continue
+        identity = (ecosystem, canonical_product)
         entry = grouped.setdefault(
             identity,
             {
@@ -177,6 +182,12 @@ def _normalize_advisory_rows(
                 "withdrawn_at": "",
             },
         )
+        entry["aliases"] = sorted({
+            _text(item)
+            for item in list(entry.get("aliases") or [])
+            + _package_aliases(ecosystem, product, alias_registry)
+            if _text(item)
+        })
         if affected_range not in entry["affected_ranges"]:
             entry["affected_ranges"].append(affected_range)
         patched = raw_vulnerability.get("first_patched_version")
@@ -204,7 +215,7 @@ def _catalog_identity(entry: Mapping[str, Any]) -> tuple[str, str, str]:
     return (
         _text(entry.get("id")).upper(),
         _text(entry.get("ecosystem")).lower(),
-        _text(entry.get("product")).lower(),
+        normalize_component_name(_text(entry.get("product"))),
     )
 
 

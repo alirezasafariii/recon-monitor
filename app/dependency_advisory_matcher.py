@@ -16,8 +16,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.0.0"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.2"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.0.1"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.3"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -36,8 +36,14 @@ _VERSIONED_TECH_RE = re.compile(
 _COMPARATOR_RE = re.compile(r"^(<=|>=|<|>|=)?\s*(\d+(?:\.\d+){1,3})$")
 
 
-def _normalize_name(value: str) -> str:
+def normalize_component_name(value: str) -> str:
+    """Canonical component identity used by catalog sync, validation and runtime."""
     return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+
+# Backward-compatible internal alias for any out-of-tree callers of the old
+# private helper. New code should use normalize_component_name().
+_normalize_name = normalize_component_name
 
 
 def _version_tuple(value: str) -> tuple[int, int, int, int] | None:
@@ -55,7 +61,7 @@ def parse_versioned_technology(value: str) -> dict[str, str] | None:
     match = _VERSIONED_TECH_RE.fullmatch(text)
     if not match:
         return None
-    name = _normalize_name(match.group("name"))
+    name = normalize_component_name(match.group("name"))
     version = str(match.group("version"))
     if not name or _version_tuple(version) is None:
         return None
@@ -113,9 +119,9 @@ def advisories_sha256(advisories: Iterable[Mapping[str, Any]]) -> str:
 
 
 def _advisory_aliases(advisory: Mapping[str, Any]) -> set[str]:
-    result = {_normalize_name(str(advisory.get("product") or ""))}
+    result = {normalize_component_name(str(advisory.get("product") or ""))}
     for alias in advisory.get("aliases", []) or []:
-        normalized = _normalize_name(str(alias))
+        normalized = normalize_component_name(str(alias))
         if normalized:
             result.add(normalized)
     result.discard("")
@@ -153,7 +159,7 @@ def validate_catalog_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         identity = (
             str(item.get("id") or ""),
             str(item.get("ecosystem") or "").lower(),
-            _normalize_name(str(item.get("product") or "")),
+            normalize_component_name(str(item.get("product") or "")),
         )
         if identity in identities:
             duplicates.append("|".join(identity))
@@ -265,7 +271,7 @@ def catalog_status(path: str | Path | None = None) -> dict[str, Any]:
     products = {
         (
             str(item.get("ecosystem") or "").lower(),
-            _normalize_name(str(item.get("product") or "")),
+            normalize_component_name(str(item.get("product") or "")),
         )
         for item in catalog.get("advisories", []) or []
         if isinstance(item, Mapping)
@@ -455,6 +461,7 @@ __all__ = [
     "catalog_status",
     "match_technologies",
     "match_versioned_technology",
+    "normalize_component_name",
     "parse_versioned_technology",
     "range_expression_supported",
     "validate_catalog_payload",
