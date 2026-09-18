@@ -26,6 +26,11 @@ from change_guidance_evaluation import (
     CHANGE_GUIDANCE_EVALUATION_VERSION,
     change_guidance_evaluation,
 )
+from change_guidance_review_packet import (
+    CHANGE_GUIDANCE_REVIEW_PACKET_RULE_VERSION,
+    CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
+    change_guidance_review_packets,
+)
 from correlation_engine import (
     CORRELATION_ENGINE_VERSION,
     CORRELATION_RULE_VERSION,
@@ -38,7 +43,7 @@ from derived_change_advisory import (
 from meta_ranker import META_RANKER_VERSION, META_RANKER_RULE_VERSION
 
 
-INVESTIGATION_API_VERSION = "1.5.0"
+INVESTIGATION_API_VERSION = "1.6.0"
 
 for _name, _value in vars(_base).items():
     if _name not in {
@@ -102,6 +107,13 @@ def investigation_queue_payload(
             window_days=30,
             limit=5000,
         )
+        review_packets = change_guidance_review_packets(
+            db,
+            target=str(target or "").strip(),
+            max_packets=100,
+            calibration_report=calibration,
+            drift_report=drift,
+        )
     else:
         evaluation = {
             "version": CHANGE_GUIDANCE_EVALUATION_VERSION,
@@ -130,6 +142,16 @@ def investigation_queue_payload(
             "unavailable": True,
             "reason": "database drift-monitor interface unavailable",
         }
+        review_packets = {
+            "version": CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
+            "rule_version": CHANGE_GUIDANCE_REVIEW_PACKET_RULE_VERSION,
+            "activation": "human_review_only",
+            "packet_count": 0,
+            "ready_for_manual_review_count": 0,
+            "packets": [],
+            "unavailable": True,
+            "reason": "database review-packet interface unavailable",
+        }
     return {
         "api_version": INVESTIGATION_API_VERSION,
         "analysis_id": selected_analysis,
@@ -139,6 +161,7 @@ def investigation_queue_payload(
         "change_guidance_evaluation": evaluation,
         "change_guidance_calibration": calibration,
         "change_guidance_drift": drift,
+        "change_guidance_review_packets": review_packets,
         "engines": {
             "meta_ranker": {
                 "version": META_RANKER_VERSION,
@@ -166,6 +189,11 @@ def investigation_queue_payload(
                 "rule_version": CHANGE_GUIDANCE_DRIFT_RULE_VERSION,
                 "activation": "monitoring_only",
             },
+            "change_guidance_review_packets": {
+                "version": CHANGE_GUIDANCE_REVIEW_PACKET_VERSION,
+                "rule_version": CHANGE_GUIDANCE_REVIEW_PACKET_RULE_VERSION,
+                "activation": "human_review_only",
+            },
         },
         "safety": {
             "status": "investigation_queue_not_confirmed",
@@ -186,6 +214,9 @@ def investigation_queue_payload(
             "change_guidance_drift_is_monitoring_only": True,
             "change_guidance_drift_cannot_auto_tune": True,
             "change_guidance_drift_cannot_change_weights_thresholds_or_ordering": True,
+            "change_guidance_review_packets_are_human_review_only": True,
+            "change_guidance_review_packets_are_non_executable": True,
+            "change_guidance_review_packets_require_separate_policy_change": True,
             "target_evidence_confidence_uses_target_observations_only": True,
         },
     }
