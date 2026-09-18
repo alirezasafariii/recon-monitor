@@ -19,8 +19,8 @@ import urllib.parse
 from collections import OrderedDict
 from typing import Any, Mapping
 
-FAMILY_SIGNAL_BRIDGE_VERSION = "1.1.0"
-FAMILY_SIGNAL_BRIDGE_RULE_VERSION = "2026.09.18.2"
+FAMILY_SIGNAL_BRIDGE_VERSION = "1.2.0"
+FAMILY_SIGNAL_BRIDGE_RULE_VERSION = "2026.09.18.3"
 
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _SENSITIVE_ROUTE_MARKERS = {
@@ -519,10 +519,27 @@ def augment_family_details(
         _add_signal(enriched, sources, "cryptographic_operation_surface", "cryptographic_semantics")
     if any(token in text for token in ("update", "artifact", "package", "plugin", "firmware", "manifest", "signature")):
         _add_signal(enriched, sources, "trusted_update_or_data_pipeline_surface", "update_pipeline_semantics")
+    detail_technologies = enriched.get("technologies")
+    detail_technology_values = (
+        [
+            str(item.get("technology") or "")
+            if isinstance(item, Mapping)
+            else str(item or "")
+            for item in detail_technologies
+        ]
+        if isinstance(detail_technologies, (list, tuple, set))
+        else []
+    )
     versioned_technologies = [
-        str(row.get("technology") or "")
-        for row in technologies
-        if re.search(r"\d+(?:\.\d+)+", str(row.get("technology") or ""))
+        value
+        for value in (
+            *[
+                str(row.get("technology") or "")
+                for row in technologies
+            ],
+            *detail_technology_values,
+        )
+        if re.search(r"\d+(?:\.\d+)+", value)
     ]
     if versioned_technologies:
         _add_signal(enriched, sources, "third_party_component_surface", "versioned_technology_observation")

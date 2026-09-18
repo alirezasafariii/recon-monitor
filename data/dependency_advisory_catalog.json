@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-09-18",
+  "completeness": "curated_not_exhaustive",
+  "runtime_role": "positive_match_only",
+  "advisories": [
+    {
+      "id": "GHSA-gxr4-xjj5-5px2",
+      "cve": "CVE-2020-11022",
+      "product": "jquery",
+      "aliases": ["jquery", "jquery.js"],
+      "source_type": "maintainer_security_advisory",
+      "review_status": "maintainer_published",
+      "source_url": "https://github.com/jquery/jquery/security/advisories/GHSA-gxr4-xjj5-5px2",
+      "affected_ranges": [">=1.2,<3.5.0"],
+      "patched_versions": ["3.5.0"]
+    },
+    {
+      "id": "GHSA-9v3m-8fp8-mj99",
+      "cve": "CVE-2019-8331",
+      "product": "bootstrap",
+      "aliases": ["bootstrap", "twitter bootstrap"],
+      "source_type": "github_reviewed_advisory",
+      "review_status": "reviewed",
+      "source_url": "https://github.com/advisories/GHSA-9v3m-8fp8-mj99",
+      "affected_ranges": [">=3.0.0,<3.4.1", ">=4.0.0,<4.3.1"],
+      "patched_versions": ["3.4.1", "4.3.1"]
+    },
+    {
+      "id": "GHSA-35jh-r3h4-6jhm",
+      "cve": "CVE-2021-23337",
+      "product": "lodash",
+      "aliases": ["lodash", "lodash.js"],
+      "source_type": "github_reviewed_advisory",
+      "review_status": "reviewed",
+      "source_url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+      "affected_ranges": ["<4.17.21"],
+      "patched_versions": ["4.17.21"]
+    },
+    {
+      "id": "GHSA-r5fr-rjxr-66jc",
+      "cve": "",
+      "product": "lodash",
+      "aliases": ["lodash", "lodash.js"],
+      "source_type": "maintainer_security_advisory",
+      "review_status": "maintainer_published",
+      "source_url": "https://github.com/lodash/lodash/security/advisories/GHSA-r5fr-rjxr-66jc",
+      "affected_ranges": [">=4.0.0,<=4.17.23"],
+      "patched_versions": ["4.18.0"]
+    }
+  ]
+}
