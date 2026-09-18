@@ -70,6 +70,7 @@ from real_world_corpus_v1_source_attested import (
     run_source_attested_evaluation,
     summary_payload as source_attested_summary_payload,
     write_attested_records,
+    write_blind_replay_manifest,
 )
 from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
@@ -219,6 +220,13 @@ def build_parser():
             default="",
             dest="attested_output",
             help="Optional JSON path for source-attested records and attached scores",
+        )
+    if "blind_replay_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--blind-replay-output",
+            default="",
+            dest="blind_replay_output",
+            help="Optional label/family-blind replay manifest for a current-engine scorer",
         )
 
     validation_parser = _validation_parser(parser)
@@ -567,6 +575,12 @@ def corpus_v1_auto_evaluate_cli_payload(args: Any) -> dict[str, Any]:
     output = str(getattr(args, "attested_output", "") or "").strip()
     if output:
         write_attested_records(output, result["evaluation"]["records"])
+    blind_output = str(getattr(args, "blind_replay_output", "") or "").strip()
+    if blind_output:
+        write_blind_replay_manifest(
+            blind_output,
+            result["attestation"]["records"],
+        )
 
     payload = source_attested_summary_payload(result)
     payload.update({
@@ -583,6 +597,7 @@ def corpus_v1_auto_evaluate_cli_payload(args: Any) -> dict[str, Any]:
             "score_files": score_paths,
         },
         "attested_output": output or None,
+        "blind_replay_output": blind_output or None,
     })
     return payload
 
