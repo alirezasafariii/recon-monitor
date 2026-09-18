@@ -146,7 +146,7 @@ class ReconP11HumanPromotionProposalTests(unittest.TestCase):
             target="example.test",
             family="broken_object_authorization",
             signal_type="source_map_source_changed",
-            previous=["useful", "useful", "useful", "neutral", "neutral"],
+            previous=["useful", "useful", "useful", "useful", "neutral"],
             recent=["useful", "useful", "useful", "useful", "neutral"],
         )
         self._signal(
