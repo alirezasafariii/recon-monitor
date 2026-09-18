@@ -310,6 +310,43 @@ class ContentAddressedStore:
                         (key, digest, now, now),
                     )
                     seeded += 1
+
+                legacy_marker = self.db.conn.execute(
+                    "SELECT value FROM schema_meta WHERE key='cas_reference_legacy_bootstrap_v1'"
+                ).fetchone()
+                legacy_protected = 0
+                if legacy_marker is None:
+                    legacy_rows = self.db.conn.execute(
+                        "SELECT sha256 FROM object_store WHERE reference_count>0"
+                    ).fetchall()
+                    for legacy_row in legacy_rows:
+                        digest = str(legacy_row["sha256"])
+                        known = self.db.conn.execute(
+                            "SELECT 1 FROM cas_references WHERE sha256=? LIMIT 1",
+                            (digest,),
+                        ).fetchone()
+                        if known:
+                            continue
+                        self.db.conn.execute(
+                            "INSERT OR IGNORE INTO cas_references("
+                            "owner_kind,owner_key,sha256,created_at,updated_at"
+                            ") VALUES('legacy_unclassified',?,?,?,?)",
+                            (digest, digest, now, now),
+                        )
+                        legacy_protected += 1
+                    self.db.conn.execute(
+                        "INSERT INTO schema_meta(key,value) "
+                        "VALUES('cas_reference_legacy_bootstrap_v1','1') "
+                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+                    )
+                else:
+                    legacy_protected = int(
+                        self.db.conn.execute(
+                            "SELECT COUNT(*) FROM cas_references "
+                            "WHERE owner_kind='legacy_unclassified'"
+                        ).fetchone()[0]
+                    )
+
                 self._refresh_counts_locked()
                 self.db.conn.execute("COMMIT")
             except Exception:
@@ -335,6 +372,7 @@ class ContentAddressedStore:
         )
         return {
             "seeded_legacy_references": seeded,
+            "legacy_protected_objects": legacy_protected,
             "missing_referenced_files": missing_files,
             "unreferenced_objects": unreferenced,
         }
