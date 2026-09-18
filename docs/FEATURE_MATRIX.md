@@ -31,7 +31,7 @@
 | Templates | Passive, web, SPA, API, GraphQL, enterprise and low-noise | Implemented; never changes scope |
 | Reports | Automatic quality and missing-section checks | Implemented |
 | Plugins | Manifest governance and health history | Implemented; not an OS sandbox |
-| Backups | Create, verify, restore and isolated restore drill | Implemented |
+| Backups | Create, verify, restore and isolated restore drill | Implemented; DB-referenced CAS/evidence artifacts are required and restore-validated |
 | Exploitation | Payload, credential replay, destructive or cross-user automation | Not included |
 | Confirmation | Automatic vulnerability confirmation | Not included |
 | Tests | Unit suite | 124 tests |
