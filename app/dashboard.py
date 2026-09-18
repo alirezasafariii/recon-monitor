@@ -303,7 +303,7 @@ def _change_guidance_evaluation_panel(evaluation: Mapping[str, Any]) -> str:
         "<div class='callout'><strong>Observational, not causal</strong>"
         "<span>This panel measures persisted workflow outcomes only. Change-task completion/skip and useful/neutral/noisy ratings are counted only when an analyst records them explicitly; task disappearance is never treated as completion. These metrics never auto-tune ranking, Evidence Gap, Admission, validation, or task ordering.</span></div>"
         + task_feedback_metrics
-        "<div class='table-wrap' style='margin-top:14px'><table>"
+        + "<div class='table-wrap' style='margin-top:14px'><table>"
         "<thead><tr><th>Cohort</th><th>Cases</th><th>Evidence gain</th><th>Median coverage Δ</th><th>Time to first gain</th><th>Decision rate</th><th>Time to decision</th><th>Rejected/duplicate</th></tr></thead><tbody>"
         f"<tr><td>Change-guided</td><td>{int(guided.get('case_count') or 0)}</td><td>{pct(guided.get('evidence_gain_rate'))}</td><td>{number(guided.get('median_coverage_delta'))}</td><td>{hours(guided.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(guided.get('decision_rate'))}</td><td>{hours(guided.get('median_time_to_decision_hours'))}</td><td>{pct(guided.get('rejected_or_duplicate_rate'))}</td></tr>"
         f"<tr><td>Non-guided</td><td>{int(control.get('case_count') or 0)}</td><td>{pct(control.get('evidence_gain_rate'))}</td><td>{number(control.get('median_coverage_delta'))}</td><td>{hours(control.get('median_time_to_first_evidence_gain_hours'))}</td><td>{pct(control.get('decision_rate'))}</td><td>{hours(control.get('median_time_to_decision_hours'))}</td><td>{pct(control.get('rejected_or_duplicate_rate'))}</td></tr>"
