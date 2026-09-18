@@ -98,6 +98,49 @@ class DependencyVersionRangeTests(unittest.TestCase):
             )
         )
 
+    def test_semver_prerelease_caret_and_tilde_ranges(self):
+        self.assertTrue(
+            range_expression_supported("^1.2.3-beta.1", "npm")
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-beta.2",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.4.0",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "2.0.0-beta.1",
+                "^1.2.3-beta.1",
+                "npm",
+            )
+        )
+        self.assertTrue(
+            range_expression_supported("~1.2.3-rc.1", "npm")
+        )
+        self.assertTrue(
+            version_matches_range(
+                "1.2.3-rc.2",
+                "~1.2.3-rc.1",
+                "npm",
+            )
+        )
+        self.assertFalse(
+            version_matches_range(
+                "1.3.0-beta.1",
+                "~1.2.3-rc.1",
+                "npm",
+            )
+        )
+
     def test_semver_build_metadata_does_not_change_precedence(self):
         self.assertTrue(
             version_matches_range(
