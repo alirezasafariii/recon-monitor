@@ -475,6 +475,91 @@ def _select_diverse_urls(candidates: Mapping[str, set[str]], limit: int) -> list
     return selected
 
 
+def _katana_scope_regex(base_urls: Iterable[str]) -> str:
+    """Restrict Katana pre-request traversal to exact safe-probed origins."""
+    origins: list[str] = []
+    for value in base_urls:
+        parsed = urllib.parse.urlsplit(str(value or "").strip())
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            continue
+        origin = f"{parsed.scheme.lower()}://{parsed.netloc}"
+        if origin not in origins:
+            origins.append(origin)
+    if not origins:
+        return r"(?!)"
+    return r"^(?:" + "|".join(re.escape(origin) for origin in sorted(origins)) + r")(?:[/?#]|$)"
+
+
+def _katana_crawl_plan(
+    base_urls: Iterable[str],
+    *,
+    remaining_requests: int | None,
+    request_rate: int,
+    timeout_seconds: int,
+    http_threads: int,
+    max_urls: int,
+) -> dict[str, Any]:
+    """Build a deterministic conservative request envelope for external Katana."""
+    ordered = list(dict.fromkeys(str(url) for url in base_urls if str(url).strip()))
+    if not ordered:
+        return {
+            "origins": [],
+            "reservation": 0,
+            "rate_limit": 0,
+            "crawl_seconds": 0,
+            "concurrency": 1,
+            "scope_regex": r"(?!)",
+        }
+
+    rate = max(1, int(request_rate or 1))
+    timeout = max(1, int(timeout_seconds or 1))
+    max_candidates = max(1, int(max_urls or 1))
+    remaining = None if remaining_requests is None else max(0, int(remaining_requests))
+    if remaining == 0:
+        return {
+            "origins": [],
+            "reservation": 0,
+            "rate_limit": 0,
+            "crawl_seconds": 0,
+            "concurrency": 1,
+            "scope_regex": r"(?!)",
+        }
+
+    # Reserve at most 30 seconds of configured global rate, bounded by the URL
+    # budget and the actual remaining HTTP request budget.
+    desired = min(max_candidates, max(len(ordered), rate * 30))
+    reservation = desired if remaining is None else min(remaining, desired)
+    origin_count = min(len(ordered), max(1, reservation))
+    origins = ordered[:origin_count]
+
+    per_origin_budget = max(1, reservation // max(1, len(origins)))
+    effective_rate = max(1, min(rate, per_origin_budget))
+    crawl_seconds = max(1, per_origin_budget // effective_rate)
+    crawl_seconds = min(crawl_seconds, 30, timeout)
+
+    # The product is kept below the reserved envelope. Any remainder stays
+    # conservatively reserved instead of being spent through an external tool.
+    while (
+        effective_rate * crawl_seconds * len(origins) > reservation
+        and effective_rate > 1
+    ):
+        effective_rate -= 1
+    while (
+        effective_rate * crawl_seconds * len(origins) > reservation
+        and crawl_seconds > 1
+    ):
+        crawl_seconds -= 1
+
+    return {
+        "origins": origins,
+        "reservation": reservation,
+        "rate_limit": effective_rate,
+        "crawl_seconds": crawl_seconds,
+        "concurrency": min(5, max(1, int(http_threads or 1))),
+        "scope_regex": _katana_scope_regex(origins),
+    }
+
+
 def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     if ctx.budget:
         ctx.budget.consume("http_requests", 1)
@@ -644,37 +729,118 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 add_candidate(line, "wayback")
 
     katana_observed = 0
+    katana_reserved_requests = 0
+    katana_crawl_origins = 0
+    katana_rate_limit = 0
+    katana_crawl_seconds = 0
     if tool_path("katana") and base_urls:
-        out = ctx.current / "katana-urls.txt"
-        args = [
-            "katana", "-list", str(base_path), "-silent", "-duc", "-jc",
-            "-d", str(ctx.policy.limits.crawl_depth),
-            "-rl", str(ctx.policy.limits.request_rate),
-            "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 10))),
-        ]
-        for key, value in ctx.policy.headers.items():
-            args.extend(["-H", f"{key}: {value}"])
-        result = ctx.runner.run(
-            args,
-            timeout=ctx.policy.limits.timeout_seconds,
-            output_path=out,
-            heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "urls"),
-            line_callback=lambda _line, count: ctx.progress.update(count, 0, "katana crawling"),
+        remaining_requests: int | None = None
+        if ctx.budget and hasattr(ctx.budget, "snapshot"):
+            budget_row = ctx.budget.snapshot().get("http_requests", {})
+            limit_value = int(budget_row.get("limit") or 0)
+            used_value = int(budget_row.get("used") or 0)
+            if limit_value:
+                remaining_requests = max(0, limit_value - used_value)
+
+        plan = _katana_crawl_plan(
+            base_urls,
+            remaining_requests=remaining_requests,
+            request_rate=ctx.policy.limits.request_rate,
+            timeout_seconds=ctx.policy.limits.timeout_seconds,
+            http_threads=ctx.policy.limits.http_threads,
+            max_urls=ctx.policy.limits.max_urls,
         )
-        katana_observed = int(getattr(result, "lines", 0) or 0)
-        if result.returncode not in {0, 1}:
-            ctx.logger.warn("katana failed", target=ctx.policy.name, exit=result.returncode)
-        if out.exists():
-            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
-                raw_candidate = line.strip()
-                if _katana_candidate_malformed(raw_candidate):
-                    katana_rejected_malformed += 1
-                    continue
-                add_candidate(raw_candidate, "katana")
+        katana_origins = list(plan["origins"])
+        katana_reserved_requests = int(plan["reservation"] or 0)
+        katana_crawl_origins = len(katana_origins)
+        katana_rate_limit = int(plan["rate_limit"] or 0)
+        katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
+
+        if katana_origins:
+            katana_base_path = ctx.current / "katana-base-urls.txt"
+            atomic_write_text(
+                katana_base_path,
+                "".join(f"{url}\n" for url in katana_origins),
+            )
+            if ctx.budget and katana_reserved_requests:
+                ctx.budget.consume(
+                    "http_requests",
+                    katana_reserved_requests,
+                )
+
+            out = ctx.current / "katana-urls.txt"
+            args = [
+                "katana",
+                "-list",
+                str(katana_base_path),
+                "-silent",
+                "-duc",
+                "-jc",
+                "-d",
+                str(ctx.policy.limits.crawl_depth),
+                "-cs",
+                str(plan["scope_regex"]),
+                "-rl",
+                str(katana_rate_limit),
+                "-ct",
+                f"{katana_crawl_seconds}s",
+                "-mrs",
+                str(ctx.policy.limits.max_js_bytes),
+                "-retry",
+                "0",
+                "-c",
+                str(plan["concurrency"]),
+                "-p",
+                "1",
+                "-timeout",
+                str(
+                    min(
+                        30,
+                        max(
+                            5,
+                            ctx.policy.limits.timeout_seconds // 10,
+                        ),
+                    )
+                ),
+            ]
+            for key, value in ctx.policy.headers.items():
+                args.extend(["-H", f"{key}: {value}"])
+            result = ctx.runner.run(
+                args,
+                timeout=ctx.policy.limits.timeout_seconds,
+                output_path=out,
+                heartbeat=lambda: ctx.db.stage_heartbeat(
+                    ctx.run_id,
+                    ctx.policy.name,
+                    "urls",
+                ),
+                line_callback=lambda _line, count: ctx.progress.update(
+                    count,
+                    0,
+                    "katana crawling",
+                ),
+            )
+            katana_observed = int(getattr(result, "lines", 0) or 0)
+            if result.returncode not in {0, 1}:
+                ctx.logger.warn(
+                    "katana failed",
+                    target=ctx.policy.name,
+                    exit=result.returncode,
+                )
+            if out.exists():
+                for line in out.read_text(
+                    encoding="utf-8",
+                    errors="replace",
+                ).splitlines():
+                    raw_candidate = line.strip()
+                    if _katana_candidate_malformed(raw_candidate):
+                        katana_rejected_malformed += 1
+                        continue
+                    add_candidate(raw_candidate, "katana")
+        else:
+            atomic_write_text(ctx.current / "katana-base-urls.txt", "")
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
-    if ctx.budget and katana_observed:
-        ctx.budget.consume("http_requests", min(katana_observed, ctx.policy.limits.max_http_requests))
     new_count = 0
     classified_count = 0
     rows: list[dict[str, Any]] = []
@@ -734,6 +900,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "classified_endpoints": classified_count,
         "truncated": len(candidates) > len(urls),
         "katana_rejected_malformed": katana_rejected_malformed,
+        "katana_observed": katana_observed,
+        "katana_reserved_requests": katana_reserved_requests,
+        "katana_crawl_origins": katana_crawl_origins,
+        "katana_rate_limit": katana_rate_limit,
+        "katana_crawl_seconds_per_origin": katana_crawl_seconds,
     }
 
 
