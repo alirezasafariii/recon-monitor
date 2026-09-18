@@ -16,8 +16,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.0.1"
-DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.3"
+DEPENDENCY_ADVISORY_MATCHER_VERSION = "2.0.2"
+DEPENDENCY_ADVISORY_MATCHER_RULE_VERSION = "2026.09.18.4"
 
 _DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
@@ -344,8 +344,8 @@ def match_versioned_technology(
             continue
         matches.append(
             {
-                "advisory_id": str(raw.get("id") or ""),
-                "cve": str(raw.get("cve") or ""),
+                "advisory_id": str(raw.get("id") or "").upper(),
+                "cve": str(raw.get("cve") or "").upper(),
                 "product": str(raw.get("product") or ""),
                 "ecosystem": str(raw.get("ecosystem") or ""),
                 "version": version,
@@ -405,8 +405,8 @@ def match_technologies(
                 continue
             component_matches.append(
                 {
-                    "advisory_id": str(advisory.get("id") or ""),
-                    "cve": str(advisory.get("cve") or ""),
+                    "advisory_id": str(advisory.get("id") or "").upper(),
+                    "cve": str(advisory.get("cve") or "").upper(),
                     "product": str(advisory.get("product") or ""),
                     "ecosystem": str(advisory.get("ecosystem") or ""),
                     "version": parsed["version"],
