@@ -16,8 +16,8 @@ from typing import Any, Mapping
 from core import Database
 
 
-FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.3.1"
-FAMILY_ANALYZER_RULE_VERSION = "2026.08.14.4"
+FAMILY_ANALYZER_FRAMEWORK_VERSION = "1.4.0"
+FAMILY_ANALYZER_RULE_VERSION = "2026.09.18.1"
 
 # Temporal/workflow intelligence is generated lazily because the family router
 # runs after Semantic + Behavioral Intelligence have populated the current
@@ -222,10 +222,11 @@ class FamilyAnalyzerContext:
     business_context: str = "general"
 
     def __post_init__(self) -> None:
-        """Attach stored Semantic/Behavioral/Temporal context without creating evidence.
+        """Attach stored context and conservative passive evidence.
 
-        The bridge is fail-soft: older/minimal databases that do not contain
-        optional intelligence tables continue with the original details.
+        The context bridge remains non-evidentiary. A separate passive extractor
+        may derive only allow-listed signals from concrete observations already
+        stored by Recon. Both layers are fail-soft for older/minimal databases.
         """
         try:
             _bootstrap_context_intelligence(self.db, self.analysis_id, self.target)
@@ -238,6 +239,16 @@ class FamilyAnalyzerContext:
                 endpoint=self.endpoint,
                 method=self.method,
                 details=self.details,
+            )
+
+            # Passive evidence extraction is deliberately separate from the
+            # context-only signal bridge. It may derive only allow-listed
+            # target evidence from concrete observations already stored by Recon.
+            from passive_evidence_extractor import extract_passive_family_evidence
+
+            enriched = extract_passive_family_evidence(
+                endpoint=self.endpoint,
+                details=enriched,
             )
             enriched = _attach_generated_protocol_context(
                 self.db,
