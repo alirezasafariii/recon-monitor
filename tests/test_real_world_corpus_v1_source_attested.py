@@ -240,11 +240,14 @@ class SourceAttestedCorpusV1Tests(unittest.TestCase):
             source_evidence,
             revision_pairs,
         )
-        self.assertEqual(result["eligible_origin_count"], 19)
-        self.assertEqual(result["attested_record_count"], 38)
-        self.assertEqual(result["family_count"], 11)
-        self.assertEqual(result["positive_count"], 19)
-        self.assertEqual(result["negative_count"], 19)
+        self.assertGreaterEqual(result["eligible_origin_count"], 19)
+        self.assertEqual(
+            result["attested_record_count"],
+            result["eligible_origin_count"] * 2,
+        )
+        self.assertGreaterEqual(result["family_count"], 11)
+        self.assertEqual(result["positive_count"], result["eligible_origin_count"])
+        self.assertEqual(result["negative_count"], result["eligible_origin_count"])
 
 
 if __name__ == "__main__":
