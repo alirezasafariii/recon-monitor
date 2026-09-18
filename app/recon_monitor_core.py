@@ -512,7 +512,14 @@ def build_parser() -> argparse.ArgumentParser:
     backup = sub.add_parser("backup", help="Create, list, verify, drill, or restore backups")
     backup.add_argument("action", nargs="?", default="create", choices=["create","list","verify","drill","restore"])
     backup.add_argument("backup_id", nargs="?", help="Backup ID or 'latest'")
-    backup.add_argument("--include-objects", action="store_true")
+    backup.add_argument(
+        "--include-objects",
+        action="store_true",
+        help=(
+            "Include unreferenced CAS objects too; referenced artifacts are "
+            "always included for recoverability"
+        ),
+    )
     backup.add_argument("--force", action="store_true")
 
     repair = sub.add_parser("repair", help="Inspect or repair stale execution state")

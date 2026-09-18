@@ -32,7 +32,7 @@
 - JavaScript diffs redact common secret patterns before persistence, but no detector is perfect.
 - Evidence exports may contain sensitive metadata and should be encrypted in transit and at rest.
 - Evidence manifests and content-addressed object hashes help detect modification but are not a legal digital-signature system.
-- Backup archives may contain configuration, database history, notes, and evidence.
+- Backup archives may contain configuration, database history, notes, and evidence. Referenced CAS/evidence artifacts are included even without `--include-objects`; verification fails if a database reference cannot be recovered from the archive.
 
 ## Updates and restore
 
