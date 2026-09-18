@@ -56,6 +56,14 @@ from real_world_calibration import (
     REAL_WORLD_CALIBRATION_VERSION,
     build_real_world_calibration_report,
 )
+from real_world_corpus_v1_bridge import (
+    CORPUS_V1_BRIDGE_RULE_VERSION,
+    CORPUS_V1_BRIDGE_VERSION,
+    finalize_collection as finalize_corpus_v1_collection,
+    load_review_files as load_corpus_v1_review_files,
+    render_jsonl as render_corpus_v1_jsonl,
+    review_readiness as corpus_v1_review_readiness,
+)
 from progress_tracking import install_progress_tracking, stop_analysis
 from validation_executor import execute_validation_runner_contract
 from typed_evidence_adapter import adapt_validation_runner_execution
@@ -136,6 +144,8 @@ def build_parser():
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "corpus-v1-review-status",
+        "corpus-v1-finalize",
         "stop",
     )
 
@@ -150,6 +160,21 @@ def build_parser():
             default=[],
             dest="verified_corpus",
             help="Path to a human-verified replay JSONL corpus; repeat for multiple files",
+        )
+    if "corpus_review" not in existing_dests:
+        analysis_parser.add_argument(
+            "--corpus-review",
+            action="append",
+            default=[],
+            dest="corpus_review",
+            help="Path to a Real-World Corpus V1 review queue or packet; repeat for multiple files",
+        )
+    if "verified_output" not in existing_dests:
+        analysis_parser.add_argument(
+            "--verified-output",
+            default="",
+            dest="verified_output",
+            help="Write accepted Corpus V1 records as verified replay JSONL",
         )
 
     validation_parser = _validation_parser(parser)
@@ -419,6 +444,59 @@ def real_world_calibration_cli_payload(corpus_paths: Iterable[str]) -> dict[str,
     }
 
 
+def corpus_v1_review_status_cli_payload(review_paths: Iterable[str]) -> dict[str, Any]:
+    paths = [str(path).strip() for path in review_paths if str(path).strip()]
+    rows = load_corpus_v1_review_files(paths)
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-review-status",
+        "bridge": {
+            "version": CORPUS_V1_BRIDGE_VERSION,
+            "rule_version": CORPUS_V1_BRIDGE_RULE_VERSION,
+        },
+        "corpus_paths": paths,
+        "status": corpus_v1_review_readiness(rows),
+        "safety": {
+            "variant_is_not_a_label": True,
+            "human_review_is_required": True,
+            "current_engine_scores_are_required": True,
+            "production_activation_is_not_performed": True,
+        },
+    }
+
+
+def corpus_v1_finalize_cli_payload(
+    review_paths: Iterable[str],
+    *,
+    verified_output: str = "",
+) -> dict[str, Any]:
+    paths = [str(path).strip() for path in review_paths if str(path).strip()]
+    rows = load_corpus_v1_review_files(paths)
+    result = finalize_corpus_v1_collection(rows)
+    output = str(verified_output or "").strip()
+    if output:
+        from pathlib import Path
+        Path(output).write_text(
+            render_corpus_v1_jsonl(result["records"]),
+            encoding="utf-8",
+        )
+    return {
+        "cli_version": INVESTIGATION_CLI_VERSION,
+        "action": "corpus-v1-finalize",
+        "bridge": {
+            "version": CORPUS_V1_BRIDGE_VERSION,
+            "rule_version": CORPUS_V1_BRIDGE_RULE_VERSION,
+        },
+        "corpus_paths": paths,
+        "verified_output": output or None,
+        "accepted_count": int(result["accepted_count"]),
+        "rejected_count": int(result["rejected_count"]),
+        "rejected": list(result["rejected"]),
+        "readiness": dict(result["readiness"]),
+        "production_activation_performed": False,
+    }
+
+
 def _runner_execute_cli(args: Any) -> dict[str, Any]:
     if not str(args.run_id or "").strip():
         raise _base.ReconError("validation runner-execute requires --run-id RUN_ID")
@@ -532,6 +610,8 @@ def main(argv: list[str] | None = None) -> int:
         "investigation-queue",
         "verified-replay-drafts",
         "real-world-calibration",
+        "corpus-v1-review-status",
+        "corpus-v1-finalize",
         "stop",
     }:
         parser = build_parser()
@@ -540,6 +620,19 @@ def main(argv: list[str] | None = None) -> int:
         if translated[1] == "real-world-calibration":
             payload = real_world_calibration_cli_payload(
                 list(getattr(args, "verified_corpus", []) or []),
+            )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-review-status":
+            payload = corpus_v1_review_status_cli_payload(
+                list(getattr(args, "corpus_review", []) or []),
+            )
+            print(_base.json_dumps(payload, pretty=True))
+            return 0
+        if translated[1] == "corpus-v1-finalize":
+            payload = corpus_v1_finalize_cli_payload(
+                list(getattr(args, "corpus_review", []) or []),
+                verified_output=str(getattr(args, "verified_output", "") or ""),
             )
             print(_base.json_dumps(payload, pretty=True))
             return 0
