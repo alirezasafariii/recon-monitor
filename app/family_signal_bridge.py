@@ -223,13 +223,25 @@ def _content_type(details: Mapping[str, Any], contract: Mapping[str, Any] | None
 def _header_map(details: Mapping[str, Any]) -> dict[str, str]:
     result: dict[str, str] = {}
     candidates: list[Any] = []
-    for key in ("headers", "response_headers", "headers_json", "new_headers", "current_headers"):
+    for key in (
+        "headers",
+        "response_headers",
+        "headers_json",
+        "response_headers_json",
+        "new_headers",
+        "current_headers",
+    ):
         if details.get(key):
             candidates.append(details.get(key))
     for key in ("new", "current", "after", "response"):
         nested = details.get(key)
         if isinstance(nested, Mapping):
-            for header_key in ("headers", "response_headers", "headers_json"):
+            for header_key in (
+                "headers",
+                "response_headers",
+                "headers_json",
+                "response_headers_json",
+            ):
                 if nested.get(header_key):
                     candidates.append(nested.get(header_key))
     for raw in candidates:
@@ -435,7 +447,7 @@ def augment_family_details(
         _add_signal(enriched, sources, "browser_storage_surface", "semantic_js_storage_key")
     if headers or ("html" in content_type and status in {200, 201, 202, 203, 204}):
         _add_signal(enriched, sources, "browser_security_header_surface", "stored_http_header_surface")
-    if endpoint.startswith("http://") or any(
+    if endpoint.startswith(("http://", "https://")) or any(
         key in enriched for key in ("tls_issuer", "tls_expiry", "tls_sans", "tls_serial", "certificate")
     ):
         _add_signal(enriched, sources, "transport_security_surface", "stored_transport_metadata")
