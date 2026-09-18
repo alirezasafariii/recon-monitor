@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -182,6 +183,55 @@ class CasRetentionIntegrityTests(unittest.TestCase):
                     (live_digest,),
                 )
             )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_legacy_blob_path_referenced_by_js_files_is_protected(self):
+        temp, paths, db = self.project()
+        try:
+            legacy_dir = paths.blobs / "js"
+            legacy_dir.mkdir(parents=True, exist_ok=True)
+            legacy = legacy_dir / "legacy.js"
+            legacy.write_text("console.log('legacy')", encoding="utf-8")
+            os.utime(legacy, (946684800, 946684800))
+            now = utc_now()
+            db.execute(
+                "INSERT INTO js_files("
+                "target,url,raw_hash,semantic_hash,blob_path,content_length,"
+                "first_seen,last_seen,last_run_id"
+                ") VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.com",
+                    "https://example.com/legacy.js",
+                    "legacy-raw",
+                    "legacy-sem",
+                    str(legacy),
+                    legacy.stat().st_size,
+                    now,
+                    now,
+                    "RUN-LEGACY",
+                ),
+            )
+
+            preview = retention_preview(paths, db, persist=True)
+            matching = [
+                item
+                for item in preview["candidates"]
+                if Path(str(item.get("path") or "")).resolve() == legacy.resolve()
+            ]
+            self.assertEqual(len(matching), 1)
+            self.assertTrue(matching[0]["protected"])
+
+            result = apply_retention(
+                paths,
+                db,
+                preview["preview_id"],
+                actor="test",
+                confirmation=f"DELETE_RETENTION_PREVIEW_{preview['preview_id']}",
+            )
+            self.assertTrue(legacy.exists())
+            self.assertEqual(result["errors"], [])
         finally:
             db.close()
             temp.cleanup()
