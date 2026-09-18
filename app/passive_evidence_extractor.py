@@ -18,8 +18,8 @@ Safety properties:
 import urllib.parse
 from typing import Any, Mapping
 
-PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.2.0"
-PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.3"
+PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.3.0"
+PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.4"
 
 _BACKUP_SUFFIXES = (
     ".bak",
@@ -86,6 +86,7 @@ _ALLOWED_DERIVED_SIGNALS = frozenset(
         "opener_reference_exposed_observed",
         "noopener_enforced",
         "noreferrer_enforced",
+        "known_vulnerable_component_match_observed",
     }
 )
 
@@ -614,6 +615,43 @@ def _derive_semantic_js_evidence(
         )
 
 
+def _derive_dependency_advisory_evidence(
+    enriched: dict[str, Any],
+    sources: dict[str, list[str]],
+) -> None:
+    technologies = enriched.get("technologies")
+    if not isinstance(technologies, (list, tuple, set)) or not technologies:
+        return
+
+    from dependency_advisory_matcher import match_technologies
+
+    outcome = match_technologies(technologies)
+    enriched["_dependency_advisory_matcher"] = {
+        key: value
+        for key, value in outcome.items()
+        if key not in {"matches", "versioned_components"}
+    }
+    enriched["dependency_versioned_components"] = list(
+        outcome.get("versioned_components") or []
+    )[:50]
+    matches = [
+        dict(item)
+        for item in outcome.get("matches", []) or []
+        if isinstance(item, Mapping)
+    ][:50]
+    if not matches:
+        return
+
+    enriched["dependency_advisory_matches"] = matches
+    _set_signal(
+        enriched,
+        sources,
+        "known_vulnerable_component_match_observed",
+        "stored_exact_technology_version",
+        "source_attributed_runtime_advisory",
+    )
+
+
 def extract_passive_family_evidence(
     *,
     endpoint: str,
@@ -641,6 +679,10 @@ def extract_passive_family_evidence(
         enriched,
         sources,
         target=target,
+    )
+    _derive_dependency_advisory_evidence(
+        enriched,
+        sources,
     )
     if _stored_response_observed(enriched, status):
         _derive_backup_evidence(
@@ -702,6 +744,11 @@ def extract_passive_family_evidence(
         "semantic_js_static_observation": (
             _truth(enriched.get("semantic_js_static_observation")) is True
         ),
+        "dependency_advisory_match_count": len(
+            enriched.get("dependency_advisory_matches") or []
+        ),
+        "dependency_catalog_is_exhaustive": False,
+        "absence_of_dependency_match_means_safe": False,
         "derived_signals": sorted(sources),
         "sources": sources,
     }
