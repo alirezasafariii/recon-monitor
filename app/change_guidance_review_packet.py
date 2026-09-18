@@ -115,18 +115,28 @@ def change_guidance_review_packets(
     drift_limit: int = 5000,
     window_days: int = 30,
     max_packets: int = MAX_PACKETS,
+    calibration_report: Mapping[str, Any] | None = None,
+    drift_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Join P9/P10 reports into deterministic, non-executable review packets."""
-    calibration = change_guidance_calibration_report(
-        db,
-        target=str(target or ""),
-        limit=calibration_limit,
+    calibration = (
+        dict(calibration_report)
+        if isinstance(calibration_report, Mapping)
+        else change_guidance_calibration_report(
+            db,
+            target=str(target or ""),
+            limit=calibration_limit,
+        )
     )
-    drift = change_guidance_drift_report(
-        db,
-        target=str(target or ""),
-        window_days=window_days,
-        limit=drift_limit,
+    drift = (
+        dict(drift_report)
+        if isinstance(drift_report, Mapping)
+        else change_guidance_drift_report(
+            db,
+            target=str(target or ""),
+            window_days=window_days,
+            limit=drift_limit,
+        )
     )
 
     calibration_by_signal = {
