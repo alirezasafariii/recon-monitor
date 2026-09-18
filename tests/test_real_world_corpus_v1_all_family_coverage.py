@@ -117,6 +117,16 @@ class CorpusV1AllFamilyCoverageTests(unittest.TestCase):
         match = candidate_family_match(raw, "web_cache_poisoning")
         self.assertFalse(match["matched"])
 
+    def test_cwe_family_without_expected_cwe_fails_closed_on_summary_only(self):
+        raw = {
+            "summary": "A security issue affects request processing",
+            "description": "SQL injection is discussed only in the long description",
+            "cwes": [],
+        }
+        match = candidate_family_match(raw, "sql_injection")
+        self.assertFalse(match["matched"])
+        self.assertEqual(match["reason"], "canonical_cwe_not_present")
+
     @patch.object(coverage_expander, "_api_get_json")
     def test_sparse_family_seed_is_fetched_and_still_must_match(self, api_get):
         api_get.return_value = {
