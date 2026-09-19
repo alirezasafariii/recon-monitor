@@ -14,8 +14,8 @@ from typing import Any, Mapping
 
 from core import json_dumps, utc_now
 
-RAW_ANALYSIS_QUALITY_VERSION = "1.0.0"
-RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.08.14.1"
+RAW_ANALYSIS_QUALITY_VERSION = "1.1.0"
+RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.1"
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -60,6 +60,9 @@ def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
     executed = max(0, int(budget.get("executed") or 0))
     skipped = max(0, int(budget.get("skipped") or 0))
     limit = max(0, int(budget.get("limit") or 0))
+    analyzer_execution_coverage = (
+        round(executed / attempted, 4) if attempted else None
+    )
     return {
         "version": str(budget.get("version") or ""),
         "limit": limit,
@@ -67,7 +70,9 @@ def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
         "executed": executed,
         "skipped": skipped,
         "exhausted": bool(budget.get("exhausted")),
-        "execution_coverage": round(executed / attempted, 4) if attempted else None,
+        # Operational budget utilization is not collection/input completeness.
+        "analyzer_execution_coverage": analyzer_execution_coverage,
+        "execution_coverage": analyzer_execution_coverage,
         "remaining_capacity": max(0, limit - executed) if limit else None,
         "families": dict(budget.get("families") or {})
         if isinstance(budget.get("families"), Mapping)
@@ -244,6 +249,14 @@ def raw_quality_snapshot(
         status = "empty"
 
     routing = raw_routing if isinstance(raw_routing, Mapping) else {}
+    raw_selection = routing.get("surface_selection", {})
+    selection = (
+        raw_selection
+        if isinstance(raw_selection, Mapping)
+        else {}
+    )
+    input_coverage = selection.get("input_ingestion_coverage")
+    surface_coverage = selection.get("surface_selection_coverage")
     result = {
         "version": RAW_ANALYSIS_QUALITY_VERSION,
         "rule_version": RAW_ANALYSIS_QUALITY_RULE_VERSION,
@@ -284,6 +297,35 @@ def raw_quality_snapshot(
             "rule_version": str(routing.get("rule_version") or ""),
             "surface_limit": int(routing.get("surface_limit") or 0),
             "active_requests": int(routing.get("active_requests") or 0),
+            "eligible_input_records": int(
+                selection.get("eligible_input_records") or 0
+            ),
+            "loaded_input_records": int(
+                selection.get("loaded_input_records") or 0
+            ),
+            "input_coverage": (
+                float(input_coverage)
+                if input_coverage is not None
+                else None
+            ),
+            "candidate_surfaces": int(
+                selection.get("candidate_surfaces") or 0
+            ),
+            "selected_surfaces": int(
+                selection.get("selected_surfaces") or 0
+            ),
+            "dropped_surfaces": int(
+                selection.get("dropped_surfaces") or 0
+            ),
+            "surface_selection_coverage": (
+                float(surface_coverage)
+                if surface_coverage is not None
+                else None
+            ),
+            "cap_reached": bool(selection.get("cap_reached")),
+            "by_source": dict(selection.get("by_source") or {})
+            if isinstance(selection.get("by_source"), Mapping)
+            else {},
         },
         "diagnostic_only": True,
         "accuracy_claim": "none",
