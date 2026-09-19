@@ -243,6 +243,49 @@ class AnalysisInputSnapshotTests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_entity_tag_writes_persist_outside_snapshot_shadow(self):
+        temp, paths, db, _ctx = self.project()
+        try:
+            with analysis_inputs(
+                paths,
+                db,
+                "RUN-BASELINE",
+                "example.test",
+            ):
+                db.add_tag(
+                    "example.test",
+                    "alert",
+                    "123",
+                    "reviewed",
+                )
+                self.assertIsNone(
+                    db.one(
+                        "SELECT tag FROM entity_tags "
+                        "WHERE target='example.test' "
+                        "AND entity_type='alert' AND entity_value='123'"
+                    )
+                )
+                self.assertEqual(
+                    db.one(
+                        "SELECT tag FROM main.entity_tags "
+                        "WHERE target='example.test' "
+                        "AND entity_type='alert' AND entity_value='123'"
+                    )["tag"],
+                    "reviewed",
+                )
+
+            self.assertEqual(
+                db.one(
+                    "SELECT tag FROM entity_tags "
+                    "WHERE target='example.test' "
+                    "AND entity_type='alert' AND entity_value='123'"
+                )["tag"],
+                "reviewed",
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_javascript_artifact_is_frozen_in_cas(self):
         temp, paths, db, _ctx = self.project()
         try:
