@@ -65,7 +65,10 @@ def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
     )
     return {
         "version": str(budget.get("version") or ""),
+        "scope": str(budget.get("scope") or routing.get("scope") or "analysis"),
+        "target": str(budget.get("target") or routing.get("target") or ""),
         "limit": limit,
+        "limit_scope": str(budget.get("limit_scope") or "analysis"),
         "attempted": attempted,
         "executed": executed,
         "skipped": skipped,
@@ -94,7 +97,19 @@ def raw_quality_snapshot(
     it intentionally does not estimate real-world precision or recall.
     """
 
-    budget = _budget_metrics(raw_routing)
+    routing = raw_routing if isinstance(raw_routing, Mapping) else {}
+    routing_scope = "analysis_total"
+    if target:
+        by_target = routing.get("by_target", {})
+        if isinstance(by_target, Mapping):
+            target_routing = by_target.get(target)
+            if isinstance(target_routing, Mapping):
+                routing = target_routing
+                routing_scope = "target"
+    elif str(routing.get("scope") or "") == "analysis":
+        routing_scope = "analysis_total"
+
+    budget = _budget_metrics(routing)
     params: list[Any] = [analysis_id]
     target_clause = ""
     if target:
@@ -248,7 +263,6 @@ def raw_quality_snapshot(
     else:
         status = "empty"
 
-    routing = raw_routing if isinstance(raw_routing, Mapping) else {}
     raw_selection = routing.get("surface_selection", {})
     selection = (
         raw_selection
@@ -295,7 +309,12 @@ def raw_quality_snapshot(
         "routing": {
             "version": str(routing.get("version") or ""),
             "rule_version": str(routing.get("rule_version") or ""),
+            "scope": routing_scope,
+            "target": target or "",
             "surface_limit": int(routing.get("surface_limit") or 0),
+            "surface_limit_scope": str(
+                routing.get("surface_limit_scope") or "analysis"
+            ),
             "active_requests": int(routing.get("active_requests") or 0),
             "eligible_input_records": int(
                 selection.get("eligible_input_records") or 0
