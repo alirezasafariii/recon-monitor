@@ -105,8 +105,8 @@ class KatanaExecutionQualityTests(unittest.TestCase):
                 ).splitlines()
                 seen.append(origins)
                 Path(kwargs["output_path"]).write_text(
-                    "https://0.example.test/app.js\\n" if len(seen) == 1 else
-                    "https://5.example.test/next.js\\n",
+                    "https://0.example.test/app.js\n" if len(seen) == 1 else
+                    "https://5.example.test/next.js\n",
                     encoding="utf-8",
                 )
                 return SimpleNamespace(
