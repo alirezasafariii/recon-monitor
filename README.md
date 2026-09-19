@@ -1,14 +1,14 @@
-# Recon Monitor 8.8.0
+# Recon Monitor 8.8.1
 
-<!-- recon-monitor-current: app=8.8.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.1 schema=18 -->
 
-## Current release: Evidence-to-Finding Reliability & Durable Delivery
+## Current release: Correctness, Replay Integrity & Multi-target Reporting
 
-Recon Monitor 8.8.0 closes the operational path from trustworthy Recon observations to canonical Potential Findings and durable external delivery without weakening Admission or vulnerability-confirmation boundaries.
+Recon Monitor 8.8.1 is a correctness-focused patch over 8.8.0. It fixes npm partial-range semantics, preserves real S3/GCS listing evidence through the normal httpx fingerprint path, makes cross-root backup restore portable, strengthens immutable replay and calibration semantics, enforces notification lease ownership, and makes bounded raw-analysis and multi-target telemetry explicit and target-aware.
 
-The release adds successful-snapshot and state-version reliability, offline Typed Evidence adapters for all nine `passive_live` families, controlled reviewed-evidence admission paths, a generic reviewed-evidence dispatcher, durable Finding notification outbox/retry/dead-letter operations, and one shared transport boundary for Finding notifications and Recon Change Alerts.
+The canonical application version is **8.8.1** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`).
 
-The canonical application version is **8.8.0** and the core database schema is **18**. Reliability and notification features use additive, independently versioned compatibility schemas where needed. `app/core.py` remains the source of truth for the release-facing application and core-schema values. See `CHANGELOG.md`, `MIGRATION-v8.8.0.md`, `docs/RELEASE_NOTES_v8.8.0.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
+See `CHANGELOG.md`, `MIGRATION-v8.8.1.md`, `docs/RELEASE_NOTES_v8.8.1.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 
