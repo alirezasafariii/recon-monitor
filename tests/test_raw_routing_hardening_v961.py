@@ -12,6 +12,7 @@ from analysis_engine import run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 from family_analyzers.base import FamilyAnalyzerContext
 import family_analyzers.router as family_router
+import bug_candidates
 from bug_candidates import _phase2_families_for_surface
 
 
@@ -233,6 +234,96 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
             family_router.RAW_ANALYZER_INVOCATION_LIMIT = original_limit
             if analysis_id:
                 family_router.clear_raw_analysis_budget(analysis_id)
+            db.close()
+            temp.cleanup()
+
+    def test_surface_cap_is_source_balanced_and_coverage_uses_full_input(self):
+        original_limit = bug_candidates._RAW_SURFACE_LIMIT
+        temp, paths, db, now = self.project()
+        try:
+            for index in range(8):
+                db.execute(
+                    "INSERT INTO endpoint_intelligence("
+                    "target,endpoint,kind,primary_category,confidence,"
+                    "categories_json,reasons_json,sources_json,"
+                    "first_seen,last_seen,last_run_id"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "example.test",
+                        f"https://example.test/api/{index}",
+                        "absolute_url",
+                        "api",
+                        90 - index,
+                        "[]",
+                        "[]",
+                        "[]",
+                        now,
+                        now,
+                        "RUN-HARDEN",
+                    ),
+                )
+            for index in range(2):
+                db.execute(
+                    "INSERT INTO dns_records("
+                    "target,host,rrtype,value,first_seen,last_seen,"
+                    "last_run_id,is_current"
+                    ") VALUES(?,?,?,?,?,?,?,1)",
+                    (
+                        "example.test",
+                        f"alias-{index}.example.test",
+                        "CNAME",
+                        f"provider-{index}.example.invalid",
+                        now,
+                        now,
+                        "RUN-HARDEN",
+                    ),
+                )
+
+            bug_candidates._RAW_SURFACE_LIMIT = 4
+            result = run_analysis(
+                paths,
+                db,
+                "RUN-HARDEN",
+                "example.test",
+            )
+            routing = result["bug_candidates"]["raw_surface_routing"]
+            selection = routing["surface_selection"]
+
+            self.assertEqual(selection["eligible_input_records"], 10)
+            self.assertEqual(selection["loaded_input_records"], 6)
+            self.assertEqual(selection["input_ingestion_coverage"], 0.6)
+            self.assertEqual(selection["candidate_surfaces"], 6)
+            self.assertEqual(selection["selected_surfaces"], 4)
+            self.assertEqual(selection["dropped_surfaces"], 2)
+            self.assertEqual(
+                selection["surface_selection_coverage"],
+                0.6667,
+            )
+            self.assertEqual(
+                selection["by_source"]["endpoint_intelligence"][
+                    "selected_surfaces"
+                ],
+                2,
+            )
+            self.assertEqual(
+                selection["by_source"]["dns_cname"]["selected_surfaces"],
+                2,
+            )
+
+            quality = result["quality"]["raw_analysis"]
+            self.assertEqual(quality["routing"]["eligible_input_records"], 10)
+            self.assertEqual(quality["routing"]["loaded_input_records"], 6)
+            self.assertEqual(quality["routing"]["input_coverage"], 0.6)
+            self.assertEqual(
+                quality["routing"]["surface_selection_coverage"],
+                0.6667,
+            )
+            self.assertEqual(
+                quality["budget"]["execution_coverage"],
+                quality["budget"]["analyzer_execution_coverage"],
+            )
+        finally:
+            bug_candidates._RAW_SURFACE_LIMIT = original_limit
             db.close()
             temp.cleanup()
 
