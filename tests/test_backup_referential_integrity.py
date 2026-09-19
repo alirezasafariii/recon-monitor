@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import tarfile
 import tempfile
 import unittest
@@ -233,6 +234,150 @@ class BackupReferentialIntegrityTests(unittest.TestCase):
             except Exception:
                 pass
             temp.cleanup()
+
+    def test_restore_rebases_artifact_paths_across_project_roots(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            source_paths = AppPaths.from_root(base / "source")
+            source_paths.ensure()
+            source_paths.config.write_text(
+                'I_HAVE_AUTHORIZATION="yes"\n',
+                encoding="utf-8",
+            )
+            source_paths.policy.write_text(
+                json.dumps(
+                    {
+                        "defaults": {},
+                        "targets": [
+                            {
+                                "name": "example.com",
+                                "roots": ["example.com"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            source_db = Database(source_paths.db)
+            artifact = source_paths.blobs / "js" / "portable.js"
+            artifact.parent.mkdir(parents=True, exist_ok=True)
+            artifact.write_text(
+                "const restoredAcrossRoots = true;",
+                encoding="utf-8",
+            )
+            digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            now = utc_now()
+            source_db.execute(
+                "INSERT INTO js_files("
+                "target,url,raw_hash,semantic_hash,blob_path,content_length,"
+                "first_seen,last_seen,last_run_id"
+                ") VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.com",
+                    "https://example.com/portable.js",
+                    digest,
+                    "semantic-portable",
+                    str(artifact),
+                    artifact.stat().st_size,
+                    now,
+                    now,
+                    "RUN-PORTABLE",
+                ),
+            )
+            source_db.upsert_edge(
+                "example.com",
+                "javascript",
+                "https://example.com/portable.js",
+                "stores",
+                "artifact",
+                "portable.js",
+                "RUN-PORTABLE",
+                {
+                    "blob_path": str(artifact),
+                    "object_hash": digest,
+                },
+            )
+            created = BackupManager(
+                source_paths,
+                source_db,
+                LoggerStub(),
+            ).create()
+            source_archive = Path(created["path"])
+            source_db.close()
+
+            destination_paths = AppPaths.from_root(base / "destination")
+            destination_paths.ensure()
+            copied_archive = (
+                destination_paths.backups / source_archive.name
+            )
+            shutil.copy2(source_archive, copied_archive)
+
+            destination_db = Database(destination_paths.db)
+            destination_db.execute(
+                "INSERT INTO backup_catalog("
+                "backup_id,path,sha256,size,created_at,metadata_json"
+                ") VALUES(?,?,?,?,?,?)",
+                (
+                    created["backup_id"],
+                    str(copied_archive),
+                    sha256_file(copied_archive),
+                    copied_archive.stat().st_size,
+                    utc_now(),
+                    "{}",
+                ),
+            )
+            manager = BackupManager(
+                destination_paths,
+                destination_db,
+                LoggerStub(),
+            )
+            verified = manager.verify(created["backup_id"])
+            self.assertTrue(verified["ok"], verified)
+
+            shutil.rmtree(source_paths.root)
+            self.assertFalse(artifact.exists())
+
+            restored = manager.restore(
+                created["backup_id"],
+                force=True,
+            )
+            self.assertEqual(restored["js_paths_rebased"], 1)
+            self.assertEqual(restored["evidence_paths_rebased"], 1)
+
+            reopened = Database(destination_paths.db)
+            try:
+                js_row = reopened.one(
+                    "SELECT blob_path FROM js_files "
+                    "WHERE url='https://example.com/portable.js'"
+                )
+                self.assertIsNotNone(js_row)
+                stored_path = Path(str(js_row["blob_path"]))
+                self.assertTrue(stored_path.is_absolute())
+                self.assertTrue(stored_path.exists())
+                self.assertEqual(
+                    stored_path.read_text(encoding="utf-8"),
+                    "const restoredAcrossRoots = true;",
+                )
+                self.assertEqual(
+                    stored_path,
+                    (
+                        destination_paths.blobs
+                        / "js"
+                        / "portable.js"
+                    ).resolve(),
+                )
+
+                edge = reopened.one(
+                    "SELECT metadata_json FROM asset_edges "
+                    "WHERE source_value='https://example.com/portable.js'"
+                )
+                self.assertIsNotNone(edge)
+                metadata = json.loads(str(edge["metadata_json"]))
+                edge_path = Path(str(metadata["blob_path"]))
+                self.assertEqual(edge_path, stored_path)
+                self.assertTrue(edge_path.exists())
+            finally:
+                reopened.close()
 
     def test_legacy_js_blob_reference_is_included_and_verified(self):
         temp, paths, db = self.project()
