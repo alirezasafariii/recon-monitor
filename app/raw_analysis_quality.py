@@ -14,8 +14,8 @@ from typing import Any, Mapping
 
 from core import json_dumps, utc_now
 
-RAW_ANALYSIS_QUALITY_VERSION = "1.2.0"
-RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.2"
+RAW_ANALYSIS_QUALITY_VERSION = "1.2.1"
+RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.3"
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -52,14 +52,26 @@ def _context_only_support(items: list[dict[str, Any]]) -> bool:
     return False
 
 
-def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
+def _budget_metrics(
+    raw_routing: Mapping[str, Any] | None,
+    *,
+    analysis_budget: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     routing = raw_routing if isinstance(raw_routing, Mapping) else {}
     raw_budget = routing.get("analyzer_budget", {})
     budget = raw_budget if isinstance(raw_budget, Mapping) else {}
+    aggregate = (
+        analysis_budget
+        if isinstance(analysis_budget, Mapping)
+        else budget
+    )
     attempted = max(0, int(budget.get("attempted") or 0))
     executed = max(0, int(budget.get("executed") or 0))
     skipped = max(0, int(budget.get("skipped") or 0))
-    limit = max(0, int(budget.get("limit") or 0))
+    analysis_attempted = max(0, int(aggregate.get("attempted") or 0))
+    analysis_executed = max(0, int(aggregate.get("executed") or 0))
+    analysis_skipped = max(0, int(aggregate.get("skipped") or 0))
+    limit = max(0, int(budget.get("limit") or aggregate.get("limit") or 0))
     analyzer_execution_coverage = (
         round(executed / attempted, 4) if attempted else None
     )
@@ -72,11 +84,21 @@ def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
         "attempted": attempted,
         "executed": executed,
         "skipped": skipped,
+        "analysis_attempted": analysis_attempted,
+        "analysis_executed": analysis_executed,
+        "analysis_skipped": analysis_skipped,
         "exhausted": bool(budget.get("exhausted")),
         # Operational budget utilization is not collection/input completeness.
         "analyzer_execution_coverage": analyzer_execution_coverage,
         "execution_coverage": analyzer_execution_coverage,
-        "remaining_capacity": max(0, limit - executed) if limit else None,
+        "remaining_capacity": (
+            max(0, limit - analysis_executed)
+            if limit
+            and str(budget.get("limit_scope") or "analysis") == "analysis"
+            else max(0, limit - executed)
+            if limit
+            else None
+        ),
         "families": dict(budget.get("families") or {})
         if isinstance(budget.get("families"), Mapping)
         else {},
@@ -98,6 +120,12 @@ def raw_quality_snapshot(
     """
 
     routing = raw_routing if isinstance(raw_routing, Mapping) else {}
+    aggregate_budget_raw = routing.get("analyzer_budget", {})
+    aggregate_budget = (
+        aggregate_budget_raw
+        if isinstance(aggregate_budget_raw, Mapping)
+        else {}
+    )
     routing_scope = "analysis_total"
     if target:
         by_target = routing.get("by_target", {})
@@ -109,7 +137,10 @@ def raw_quality_snapshot(
     elif str(routing.get("scope") or "") == "analysis":
         routing_scope = "analysis_total"
 
-    budget = _budget_metrics(routing)
+    budget = _budget_metrics(
+        routing,
+        analysis_budget=aggregate_budget,
+    )
     params: list[Any] = [analysis_id]
     target_clause = ""
     if target:
