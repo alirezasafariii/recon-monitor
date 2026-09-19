@@ -1146,6 +1146,13 @@ class Database:
               headers_json TEXT NOT NULL DEFAULT '{}', source_ref TEXT NOT NULL DEFAULT '', confidence INTEGER NOT NULL,
               created_at TEXT NOT NULL, PRIMARY KEY(analysis_id,target,endpoint,context,source_ref)
             );
+            CREATE TABLE IF NOT EXISTS analysis_behavioral_baselines (
+              analysis_id TEXT NOT NULL, target TEXT NOT NULL, source_run_id TEXT NOT NULL,
+              baseline_analysis_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+              PRIMARY KEY(analysis_id,target)
+            );
+            CREATE INDEX IF NOT EXISTS idx_analysis_behavioral_baselines_source
+              ON analysis_behavioral_baselines(source_run_id,target,created_at);
             CREATE TABLE IF NOT EXISTS authentication_boundary_diffs (
               analysis_id TEXT NOT NULL, target TEXT NOT NULL, endpoint TEXT NOT NULL, previous_analysis_id TEXT NOT NULL,
               previous_boundary TEXT NOT NULL, current_boundary TEXT NOT NULL, transition TEXT NOT NULL, confidence INTEGER NOT NULL,
