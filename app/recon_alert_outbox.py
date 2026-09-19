@@ -12,7 +12,7 @@ from core import APP_VERSION, Database, ReconError, safe_json_loads, utc_now
 from notification_transports import deliver_notification_message
 
 
-RECON_ALERT_OUTBOX_VERSION = "1.0.0"
+RECON_ALERT_OUTBOX_VERSION = "1.0.1"
 RECON_ALERT_OUTBOX_SCHEMA_VERSION = 1
 DEFAULT_MAX_ATTEMPTS = 8
 LEASE_MINUTES = 5
@@ -282,6 +282,7 @@ def deliver_recon_alert_outbox(
             "delivered": 0,
             "retry_pending": 0,
             "failed": 0,
+            "lease_lost": 0,
             "batches": [],
         }
 
@@ -293,6 +294,7 @@ def deliver_recon_alert_outbox(
     delivered_count = 0
     retry_count = 0
     failed_count = 0
+    lease_lost_count = 0
     batches: list[dict[str, Any]] = []
 
     for (batch_target, batch_run_id), batch_rows in groups.items():
@@ -304,18 +306,23 @@ def deliver_recon_alert_outbox(
         channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
         error = str(result.get("error") or "")
 
+        batch_lease_lost = 0
         with db.transaction():
             for row in batch_rows:
                 event_id = str(row["event_id"])
                 attempts = int(row.get("attempt_count") or 0) + 1
                 max_attempts = max(1, int(row.get("max_attempts") or DEFAULT_MAX_ATTEMPTS))
                 if delivered:
-                    db.execute(
+                    finalized = db.execute(
                         "UPDATE recon_alert_notification_outbox SET status='delivered',attempt_count=?,last_attempt_at=?,"
                         "last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
                         "WHERE event_id=? AND status='delivering' AND lease_id=?",
                         (attempts, current, current, current, event_id, lease_id),
                     )
+                    if int(finalized.rowcount or 0) != 1:
+                        lease_lost_count += 1
+                        batch_lease_lost += 1
+                        continue
                     db.execute(
                         "UPDATE alerts SET last_notified=? WHERE id=?",
                         (current, int(row["alert_id"])),
@@ -326,12 +333,16 @@ def deliver_recon_alert_outbox(
                 terminal = attempts >= max_attempts
                 next_status = "failed" if terminal else "retry_pending"
                 next_attempt = current if terminal else _next_attempt(current, attempts)
-                db.execute(
+                finalized = db.execute(
                     "UPDATE recon_alert_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,last_attempt_at=?,"
                     "last_error=?,lease_id='',lease_expires_at='',updated_at=? "
                     "WHERE event_id=? AND status='delivering' AND lease_id=?",
                     (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
                 )
+                if int(finalized.rowcount or 0) != 1:
+                    lease_lost_count += 1
+                    batch_lease_lost += 1
+                    continue
                 if terminal:
                     failed_count += 1
                 else:
@@ -345,6 +356,7 @@ def deliver_recon_alert_outbox(
                 "delivered": delivered,
                 "channel": channel,
                 "error": error,
+                "lease_lost": batch_lease_lost,
             }
         )
 
@@ -356,6 +368,7 @@ def deliver_recon_alert_outbox(
         "delivered": delivered_count,
         "retry_pending": retry_count,
         "failed": failed_count,
+        "lease_lost": lease_lost_count,
         "batches": batches,
     }
 
