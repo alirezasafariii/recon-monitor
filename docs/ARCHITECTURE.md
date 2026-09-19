@@ -1,8 +1,8 @@
 # Recon Monitor architecture
 
-<!-- recon-monitor-current: app=8.8.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.1 schema=18 -->
 
-Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.8.0** and **18**.
+Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.8.1** and **18**.
 
 ```text
 Target / Policy / Authorization
@@ -40,7 +40,7 @@ Recon Change Alerts                  Finding Notifications
 
 `app/core.py` is the source of truth for the release-facing metadata:
 
-- `APP_VERSION = "8.8.0"`
+- `APP_VERSION = "8.8.1"`
 - `SCHEMA_VERSION = 18`
 
 `SCHEMA_VERSION` identifies the **core SQLite schema** created and maintained by `Database.migrate()`. Reliability features added after the core schema-18 migration use additive, independently versioned compatibility schemas rather than pretending to be a new core migration. Their metadata is stored in `schema_meta`, including `successful_snapshot_schema_version`, `stable_confirmation_schema_version`, `finding_notification_schema_version`, and the explicit target-lifecycle metadata key.
