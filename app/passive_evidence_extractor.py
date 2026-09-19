@@ -19,8 +19,8 @@ import re
 import urllib.parse
 from typing import Any, Mapping
 
-PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.5.0"
-PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.18.6"
+PASSIVE_EVIDENCE_EXTRACTOR_VERSION = "1.5.1"
+PASSIVE_EVIDENCE_EXTRACTOR_RULE_VERSION = "2026.09.19.1"
 
 _BACKUP_SUFFIXES = (
     ".bak",
@@ -1077,8 +1077,79 @@ def _cloud_sensitive_object(object_key: str) -> bool:
     return False
 
 
+def _response_xml_root(details: Mapping[str, Any]) -> str:
+    for key in (
+        "response_xml_root",
+        "xml_root",
+        "response_root_element",
+    ):
+        value = _first_nested(details, key)
+        if value not in (None, ""):
+            text = str(value).strip()
+            if "}" in text:
+                text = text.rsplit("}", 1)[-1]
+            if ":" in text:
+                text = text.rsplit(":", 1)[-1]
+            return text.lower()
+
+    for key in (
+        "response_body",
+        "body",
+        "response_text",
+        "body_text",
+        "response_sample",
+    ):
+        value = _first_nested(details, key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        sample = value.lstrip()[:8192]
+        match = re.search(
+            r"<\s*(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b",
+            sample,
+        )
+        if match:
+            return str(match.group(1) or "").lower()
+    return ""
+
+
+def _cloud_listing_operation(location: Mapping[str, Any]) -> bool:
+    provider = str(location.get("provider") or "")
+    query = location.get("query")
+    query_map = dict(query) if isinstance(query, Mapping) else {}
+    keys = {str(key).lower() for key in query_map}
+
+    if provider == "aws_s3":
+        allowed = {
+            "continuation-token",
+            "delimiter",
+            "encoding-type",
+            "fetch-owner",
+            "list-type",
+            "marker",
+            "max-keys",
+            "prefix",
+            "request-payer",
+            "start-after",
+            "expected-bucket-owner",
+        }
+        return keys <= allowed
+
+    if provider == "gcs":
+        allowed = {
+            "delimiter",
+            "generation-marker",
+            "marker",
+            "max-keys",
+            "prefix",
+        }
+        return keys <= allowed
+
+    return False
+
+
 def _cloud_listing_response(
     location: Mapping[str, Any],
+    details: Mapping[str, Any],
     *,
     status: int,
     content_type: str,
@@ -1092,7 +1163,13 @@ def _cloud_listing_response(
     query = location.get("query")
     query_map = dict(query) if isinstance(query, Mapping) else {}
     if provider in {"aws_s3", "gcs"}:
-        return True
+        if not _cloud_listing_operation(location):
+            return False
+        # A 200 XML response at a bucket root is not sufficient evidence of
+        # object listing: S3/GCS expose other XML subresources such as location,
+        # ACL, CORS and lifecycle configuration. Require the stored response
+        # structure to identify the actual list-objects result.
+        return _response_xml_root(details) == "listbucketresult"
     if provider == "azure_blob":
         return (
             "restype" in query_map
@@ -1114,6 +1191,7 @@ def _derive_cloud_storage_evidence(
     sources: dict[str, list[str]],
     *,
     endpoint: str,
+    details: Mapping[str, Any],
     status: int,
     content_type: str,
     content_length: int,
@@ -1161,6 +1239,7 @@ def _derive_cloud_storage_evidence(
 
     if _cloud_listing_response(
         location,
+        details,
         status=status,
         content_type=content_type,
     ):
@@ -1171,6 +1250,7 @@ def _derive_cloud_storage_evidence(
             "stored_cloud_storage_url",
             "stored_http_status",
             "stored_response_metadata",
+            "stored_response_structure",
         )
         _record_passive_condition(
             enriched,
@@ -1288,6 +1368,7 @@ def extract_passive_family_evidence(
             enriched,
             sources,
             endpoint=endpoint,
+            details=enriched,
             status=status,
             content_type=content_type,
             content_length=content_length,
