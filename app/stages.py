@@ -747,6 +747,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_exit_code: int | None = None
     katana_timed_out = False
     katana_duration_seconds = 0.0
+    katana_batches_attempted = 0
+    katana_batches_completed = 0
+    katana_origins_attempted = 0
     if tool_path("katana") and base_urls:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -777,81 +780,93 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 "".join(f"{url}\n" for url in katana_origins),
             )
             if ctx.budget and katana_reserved_requests:
-                ctx.budget.consume(
-                    "http_requests",
-                    katana_reserved_requests,
-                )
+                ctx.budget.consume("http_requests", katana_reserved_requests)
 
+            # Bound each invocation, while keeping a global deadline for this
+            # collector. One stuck origin must not hold up all other stages for
+            # the full stage timeout. Batches are sequential to preserve the
+            # configured rate limit; scopes include only safe-probed origins.
             out = ctx.current / "katana-urls.txt"
-            args = [
-                "katana",
-                "-list",
-                str(katana_base_path),
-                "-silent",
-                "-duc",
-                "-jc",
-                "-d",
-                str(ctx.policy.limits.crawl_depth),
-                "-cs",
-                str(plan["scope_regex"]),
-                "-rl",
-                str(katana_rate_limit),
-                "-ct",
-                f"{katana_crawl_seconds}s",
-                "-mrs",
-                str(ctx.policy.limits.max_js_bytes),
-                "-retry",
-                "0",
-                "-c",
-                str(plan["concurrency"]),
-                "-p",
-                "1",
-                "-timeout",
-                str(
-                    min(
-                        30,
-                        max(
-                            5,
-                            ctx.policy.limits.timeout_seconds // 10,
-                        ),
-                    )
-                ),
-            ]
-            # Policy credentials never cross into an external crawler.
-            result = ctx.runner.run(
-                args,
-                timeout=ctx.policy.limits.timeout_seconds,
-                output_path=out,
-                heartbeat=lambda: ctx.db.stage_heartbeat(
-                    ctx.run_id,
-                    ctx.policy.name,
-                    "urls",
-                ),
-                line_callback=lambda _line, count: ctx.progress.update(
-                    count,
-                    0,
-                    "katana crawling",
-                ),
-            )
-            katana_observed = int(getattr(result, "lines", 0) or 0)
-            katana_exit_code = int(result.returncode)
-            katana_timed_out = bool(getattr(result, "timed_out", False))
-            katana_duration_seconds = float(getattr(result, "duration", 0.0) or 0.0)
-            katana_status = (
-                "timeout" if katana_timed_out else
-                "completed" if katana_exit_code == 0 else
-                "nonzero_exit"
-            )
-            if result.returncode not in {0, 1}:
-                ctx.logger.warn(
-                    "katana failed",
-                    target=ctx.policy.name,
-                    exit=result.returncode,
+            atomic_write_text(out, "")
+            crawl_started = time.monotonic()
+            for batch_offset in range(0, len(katana_origins), 5):
+                remaining_seconds = int(
+                    ctx.policy.limits.timeout_seconds -
+                    (time.monotonic() - crawl_started)
                 )
+                if remaining_seconds <= 0:
+                    katana_status = "timeout"
+                    katana_timed_out = True
+                    break
+
+                batch_origins = katana_origins[batch_offset:batch_offset + 5]
+                batch_number = (batch_offset // 5) + 1
+                batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
+                batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
+                atomic_write_text(
+                    batch_input,
+                    "".join(f"{url}\n" for url in batch_origins),
+                )
+                args = [
+                    "katana",
+                    "-list", str(batch_input),
+                    "-silent", "-duc", "-jc",
+                    "-d", str(ctx.policy.limits.crawl_depth),
+                    "-cs", _katana_scope_regex(batch_origins),
+                    "-rl", str(katana_rate_limit),
+                    "-ct", f"{katana_crawl_seconds}s",
+                    "-mrs", str(ctx.policy.limits.max_js_bytes),
+                    "-retry", "0",
+                    "-c", str(plan["concurrency"]),
+                    "-p", "1",
+                    "-timeout", str(
+                        min(30, max(5, ctx.policy.limits.timeout_seconds // 10))
+                    ),
+                ]
+                # Policy credentials never cross into an external crawler.
+                result = ctx.runner.run(
+                    args,
+                    timeout=min(120, remaining_seconds),
+                    output_path=batch_output,
+                    heartbeat=lambda: ctx.db.stage_heartbeat(
+                        ctx.run_id, ctx.policy.name, "urls",
+                    ),
+                    line_callback=lambda _line, count: ctx.progress.update(
+                        katana_observed + count, 0,
+                        f"katana batch {batch_number} crawling",
+                    ),
+                )
+                katana_batches_attempted += 1
+                katana_origins_attempted += len(batch_origins)
+                katana_observed += int(getattr(result, "lines", 0) or 0)
+                katana_exit_code = int(result.returncode)
+                katana_timed_out = bool(getattr(result, "timed_out", False))
+                katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
+
+                # Always retain partial evidence from the interrupted batch.
+                if batch_output.exists():
+                    with out.open("a", encoding="utf-8") as combined:
+                        for line in batch_output.read_text(
+                            encoding="utf-8", errors="replace",
+                        ).splitlines():
+                            combined.write(line + "\n")
+
+                if katana_timed_out or katana_exit_code != 0:
+                    katana_status = "timeout" if katana_timed_out else "nonzero_exit"
+                    ctx.logger.warn(
+                        "katana batch incomplete",
+                        target=ctx.policy.name,
+                        batch=batch_number,
+                        exit=katana_exit_code,
+                        timed_out=katana_timed_out,
+                    )
+                    break
+                katana_batches_completed += 1
+                katana_status = "completed"
+
             if out.exists():
                 for line in out.read_text(
-                    encoding="utf-8",
-                    errors="replace",
+                    encoding="utf-8", errors="replace",
                 ).splitlines():
                     raw_candidate = line.strip()
                     if _katana_candidate_malformed(raw_candidate):
@@ -931,6 +946,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_exit_code": katana_exit_code,
         "katana_timed_out": katana_timed_out,
         "katana_duration_seconds": round(katana_duration_seconds, 3),
+        "katana_batches_attempted": katana_batches_attempted,
+        "katana_batches_completed": katana_batches_completed,
+        "katana_origins_attempted": katana_origins_attempted,
         "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted"} else "completed",
     }
 
