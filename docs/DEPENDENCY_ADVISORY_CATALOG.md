@@ -97,7 +97,9 @@ Advisory **boundaries** are evaluated with ecosystem-aware semantics:
   extended numeric releases;
 - SemVer-compatible ecosystems (Actions, Composer, Erlang/Hex, Go, npm,
   NuGet, Pub, Rust/Cargo and Swift), including prerelease boundaries, caret,
-  tilde, wildcard, hyphen and OR ranges;
+  tilde, wildcard, hyphen and OR ranges. npm partial hyphen endpoints follow
+  node-semver prefix semantics: for example, `1.2 - 2.3` admits stable
+  `2.3.x` releases and stops before `2.4.0`;
 - Python/PyPI PEP 440 prerelease/post/dev boundaries and compatible-release
   (`~=`) ranges;
 - RubyGems prerelease boundaries and pessimistic (`~>`) ranges;
