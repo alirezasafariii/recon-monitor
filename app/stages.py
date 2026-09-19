@@ -743,6 +743,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_crawl_origins = 0
     katana_rate_limit = 0
     katana_crawl_seconds = 0
+    katana_status = "tool_missing" if not tool_path("katana") else ("no_input" if not base_urls else "not_run")
+    katana_exit_code: int | None = None
+    katana_timed_out = False
+    katana_duration_seconds = 0.0
     if tool_path("katana") and base_urls:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -830,6 +834,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 ),
             )
             katana_observed = int(getattr(result, "lines", 0) or 0)
+            katana_exit_code = int(result.returncode)
+            katana_timed_out = bool(getattr(result, "timed_out", False))
+            katana_duration_seconds = float(getattr(result, "duration", 0.0) or 0.0)
+            katana_status = (
+                "timeout" if katana_timed_out else
+                "completed" if katana_exit_code == 0 else
+                "nonzero_exit"
+            )
             if result.returncode not in {0, 1}:
                 ctx.logger.warn(
                     "katana failed",
@@ -847,6 +859,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         continue
                     add_candidate(raw_candidate, "katana")
         else:
+            katana_status = "budget_exhausted"
             atomic_write_text(ctx.current / "katana-base-urls.txt", "")
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
@@ -914,6 +927,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_crawl_origins": katana_crawl_origins,
         "katana_rate_limit": katana_rate_limit,
         "katana_crawl_seconds_per_origin": katana_crawl_seconds,
+        "katana_status": katana_status,
+        "katana_exit_code": katana_exit_code,
+        "katana_timed_out": katana_timed_out,
+        "katana_duration_seconds": round(katana_duration_seconds, 3),
+        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted"} else "completed",
     }
 
 
@@ -1264,6 +1282,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         return {
             "files": 0,
             "downloaded": 0,
+            "collection_status": "no_input",
+            "input_url_count": 0,
             "new": 0,
             "raw_changed": 0,
             "semantic_changed": 0,
