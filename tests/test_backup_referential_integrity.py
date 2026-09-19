@@ -259,13 +259,20 @@ class BackupReferentialIntegrityTests(unittest.TestCase):
                 encoding="utf-8",
             )
             source_db = Database(source_paths.db)
-            artifact = source_paths.blobs / "js" / "portable.js"
-            artifact.parent.mkdir(parents=True, exist_ok=True)
-            artifact.write_text(
-                "const restoredAcrossRoots = true;",
-                encoding="utf-8",
+            source_store = ContentAddressedStore(
+                source_paths,
+                source_db,
             )
-            digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            artifact_bytes = b"const restoredAcrossRoots = true;"
+            digest, artifact, _ = source_store.put(
+                artifact_bytes,
+                content_type="application/javascript",
+            )
+            source_store.set_reference(
+                "js_file",
+                "example.com\nhttps://example.com/portable.js",
+                digest,
+            )
             now = utc_now()
             source_db.execute(
                 "INSERT INTO js_files("
@@ -278,7 +285,7 @@ class BackupReferentialIntegrityTests(unittest.TestCase):
                     digest,
                     "semantic-portable",
                     str(artifact),
-                    artifact.stat().st_size,
+                    len(artifact_bytes),
                     now,
                     now,
                     "RUN-PORTABLE",
@@ -361,9 +368,10 @@ class BackupReferentialIntegrityTests(unittest.TestCase):
                 self.assertEqual(
                     stored_path,
                     (
-                        destination_paths.blobs
-                        / "js"
-                        / "portable.js"
+                        destination_paths.objects
+                        / digest[:2]
+                        / digest[2:4]
+                        / digest
                     ).resolve(),
                 )
 
