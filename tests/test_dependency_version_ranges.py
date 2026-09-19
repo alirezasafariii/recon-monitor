@@ -175,6 +175,57 @@ class DependencyVersionRangeTests(unittest.TestCase):
             )
         )
 
+    def test_npm_partial_hyphen_range_expands_incomplete_bounds(self):
+        expression = "1.2 - 2.3"
+        self.assertEqual(
+            range_expression_capability(expression, "npm"),
+            "full",
+        )
+        self.assertTrue(range_expression_supported(expression, "npm"))
+        self.assertFalse(
+            version_matches_range("1.1.999", expression, "npm")
+        )
+        self.assertTrue(
+            version_matches_range("1.2.0", expression, "npm")
+        )
+        self.assertTrue(
+            version_matches_range("2.3.0", expression, "npm")
+        )
+        self.assertTrue(
+            version_matches_range("2.3.4", expression, "npm")
+        )
+        self.assertTrue(
+            version_matches_range("2.3.999", expression, "npm")
+        )
+        self.assertFalse(
+            version_matches_range("2.4.0", expression, "npm")
+        )
+
+        major_upper = "1.2.3 - 2"
+        self.assertTrue(
+            version_matches_range("2.99.99", major_upper, "npm")
+        )
+        self.assertFalse(
+            version_matches_range("3.0.0", major_upper, "npm")
+        )
+
+        exact_upper = "1.2 - 2.3.4"
+        self.assertTrue(
+            version_matches_range("2.3.4", exact_upper, "npm")
+        )
+        self.assertFalse(
+            version_matches_range("2.3.5", exact_upper, "npm")
+        )
+
+    def test_npm_partial_hyphen_range_does_not_admit_prerelease(self):
+        self.assertFalse(
+            version_matches_range(
+                "2.3.4-beta.1",
+                "1.2 - 2.3",
+                "npm",
+            )
+        )
+
     def test_partial_union_can_positive_match_only_under_fully_understood_branch(self):
         expression = ">= 1.0.0, < 2.0.0 || bananas"
         self.assertEqual(
