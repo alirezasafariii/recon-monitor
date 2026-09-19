@@ -74,7 +74,11 @@ each family to a distinct analyzer class.
 Manual-only families accept decisive/direct evidence only when the stored
 observation is explicitly marked authorized/controlled and benign/non-destructive.
 Passive-live families consume already collected metadata or bounded read-only
-observations. No phase-2 analyzer sends traffic itself.
+observations. No phase-2 analyzer sends traffic itself. Cloud object-listing
+evidence is fail-closed: an S3/GCS bucket-root `200` XML response is not enough
+by itself. The stored request must represent a list operation and the stored XML
+response structure must identify `ListBucketResult`; metadata subresources such
+as S3 `?location` remain context only.
 
 Specific prohibited behavior includes destructive HTTP methods, command/code
 execution, database extraction/modification, XXE local-file reads, request
