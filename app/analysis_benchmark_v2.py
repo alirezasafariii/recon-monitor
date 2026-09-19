@@ -23,9 +23,9 @@ from calibration_engine import confusion_metrics
 from meta_ranker import rank_bug_proximity
 from vulnerability_knowledge import BUG_PROFILES, rank_families, retrieve_writeups
 
-ANALYSIS_BENCHMARK_V2_VERSION = "1.2.0"
-ANALYSIS_BENCHMARK_V2_RULE_VERSION = "2026.08.13.3"
-VERIFIED_REPLAY_SCHEMA_VERSION = "1.0.0"
+ANALYSIS_BENCHMARK_V2_VERSION = "1.2.1"
+ANALYSIS_BENCHMARK_V2_RULE_VERSION = "2026.09.19.1"
+VERIFIED_REPLAY_SCHEMA_VERSION = "1.1.0"
 EVIDENCE_QUALITY_VERSION = "1.0.0"
 
 TRUSTED_REPLAY_PROVENANCE = frozenset({
@@ -324,6 +324,8 @@ def _validate_verified_replay(raw: Mapping[str, Any], *, default_id: str) -> dic
         "reviewed_at": str(raw.get("reviewed_at") or "").strip(),
         "case_origin_id": str(raw.get("case_origin_id") or "").strip(),
         "evidence_snapshot_id": str(raw.get("evidence_snapshot_id") or "").strip(),
+        "evaluation_role": str(raw.get("evaluation_role") or "fresh_candidate").strip().lower(),
+        "source_corpus_id": str(raw.get("source_corpus_id") or "").strip(),
         "evidence_quality": dict(raw.get("evidence_quality") or {}) if isinstance(raw.get("evidence_quality"), Mapping) else {},
         "evidence_quality_profile": quality,
         "verified_replay_schema_version": VERIFIED_REPLAY_SCHEMA_VERSION,
@@ -393,6 +395,8 @@ def load_verified_replay_jsonl_with_diagnostics(paths: Iterable[str | Path]) -> 
                 "reviewed_at": row["reviewed_at"],
                 "case_origin_id": row["case_origin_id"],
                 "evidence_snapshot_id": row["evidence_snapshot_id"],
+                "evaluation_role": row["evaluation_role"],
+                "source_corpus_id": row["source_corpus_id"],
                 "evidence_quality": row["evidence_quality"],
                 "evidence_quality_profile": row["evidence_quality_profile"],
                 "verified_replay_fingerprint": row["verified_replay_fingerprint"],
