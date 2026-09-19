@@ -2247,13 +2247,18 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     response_headers_raw = row.get("header")
     response_headers_observed = isinstance(response_headers_raw, Mapping)
     response_headers = _persistable_response_headers(response_headers_raw)
-    response_xml_root = _httpx_response_xml_root(row)
+    content_type = str(row.get("content_type") or "")[:200]
+    response_xml_root = (
+        _httpx_response_xml_root(row)
+        if "xml" in content_type.lower()
+        else ""
+    )
     record = {
         "status_code": int(row.get("status_code") or 0),
         "title": str(row.get("title") or "")[:500],
         "webserver": str(row.get("webserver") or row.get("web_server") or "")[:300],
         "technologies": sorted(str(x) for x in tech),
-        "content_type": str(row.get("content_type") or "")[:200],
+        "content_type": content_type,
         "content_length": int(row.get("content_length") or 0),
         "response_headers": response_headers,
         "response_headers_observed": response_headers_observed,
