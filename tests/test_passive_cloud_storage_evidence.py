@@ -23,12 +23,83 @@ class PassiveCloudStorageEvidenceTests(unittest.TestCase):
                 "reachable": True,
                 "content_type": "application/xml",
                 "content_length": 4096,
+                "response_xml_root": "ListBucketResult",
             },
         )
         self.assertTrue(exposed["cloud_object_listing_public_observed"])
         self.assertNotIn(
             "sensitive_cloud_object_publicly_readable_observed",
             exposed,
+        )
+
+        metadata_only = extract_passive_family_evidence(
+            endpoint="https://acme-bucket.s3.amazonaws.com/?location",
+            target="acme-bucket.s3.amazonaws.com",
+            details={
+                "status_code": 200,
+                "reachable": True,
+                "content_type": "application/xml",
+                "content_length": 128,
+                "response_body": (
+                    "<LocationConstraint "
+                    "xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">"
+                    "eu-west-1</LocationConstraint>"
+                ),
+            },
+        )
+        self.assertNotIn(
+            "cloud_object_listing_public_observed",
+            metadata_only,
+        )
+
+        ambiguous_root = extract_passive_family_evidence(
+            endpoint="https://acme-bucket.s3.amazonaws.com/",
+            target="acme-bucket.s3.amazonaws.com",
+            details={
+                "status_code": 200,
+                "reachable": True,
+                "content_type": "application/xml",
+                "content_length": 128,
+            },
+        )
+        self.assertNotIn(
+            "cloud_object_listing_public_observed",
+            ambiguous_root,
+        )
+
+        gcs_listing = extract_passive_family_evidence(
+            endpoint="https://storage.googleapis.com/acme-public",
+            target="storage.googleapis.com",
+            details={
+                "status_code": 200,
+                "reachable": True,
+                "content_type": "application/xml",
+                "content_length": 1024,
+                "response_body": (
+                    "<?xml version=\"1.0\"?>"
+                    "<ListBucketResult><Name>acme-public</Name>"
+                    "</ListBucketResult>"
+                ),
+            },
+        )
+        self.assertTrue(
+            gcs_listing["cloud_object_listing_public_observed"]
+        )
+
+        gcs_metadata = extract_passive_family_evidence(
+            endpoint="https://storage.googleapis.com/acme-public?acl",
+            target="storage.googleapis.com",
+            details={
+                "status_code": 200,
+                "reachable": True,
+                "content_type": "application/xml",
+                "content_length": 512,
+                "response_body": "<AccessControlPolicy />",
+            },
+        )
+        self.assertNotIn(
+            "cloud_object_listing_public_observed",
+            gcs_metadata,
         )
 
         website_like = extract_passive_family_evidence(
@@ -312,7 +383,12 @@ class PassiveCloudStorageEvidenceTests(unittest.TestCase):
                 (result["analysis_id"],),
             )
             endpoints = [str(row["endpoint"]) for row in rows]
-            self.assertIn(listing, endpoints)
+            self.assertNotIn(
+                listing,
+                endpoints,
+                "root XML metadata without stored ListBucketResult must not "
+                "be promoted as a public object listing",
+            )
             self.assertIn(sensitive, endpoints)
             self.assertNotIn(benign, endpoints)
             self.assertNotIn(denied, endpoints)
