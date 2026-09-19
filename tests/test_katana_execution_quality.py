@@ -12,7 +12,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from core import TargetPolicy
-from stages import stage_javascript, stage_urls
+from stages import _katana_crawl_plan, stage_javascript, stage_urls
 
 
 class KatanaExecutionQualityTests(unittest.TestCase):
@@ -94,6 +94,83 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["katana_status"], "completed")
             self.assertNotIn("5.example.test", batches[0][1])
             self.assertIn("5\\.example\\.test", batches[1][1])
+
+    def test_timed_out_batch_does_not_hide_later_origins(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            seen = []
+
+            def fake_run(args, **kwargs):
+                origins = Path(args[args.index("-list") + 1]).read_text(
+                    encoding="utf-8",
+                ).splitlines()
+                seen.append(origins)
+                Path(kwargs["output_path"]).write_text(
+                    "https://0.example.test/app.js\\n" if len(seen) == 1 else
+                    "https://5.example.test/next.js\\n",
+                    encoding="utf-8",
+                )
+                return SimpleNamespace(
+                    returncode=124 if len(seen) == 1 else 0,
+                    timed_out=len(seen) == 1,
+                    duration=120.1 if len(seen) == 1 else 0.01,
+                    lines=1,
+                )
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            live = [f"https://{i}.example.test" for i in range(6)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+
+            self.assertEqual([len(origins) for origins in seen], [5, 1])
+            self.assertEqual(metrics["katana_origins_attempted"], 6)
+            self.assertEqual(metrics["katana_origins_completed"], 1)
+            self.assertEqual(metrics["katana_pending_origins"], 5)
+            self.assertEqual(metrics["katana_batches_incomplete"], 1)
+            self.assertEqual(metrics["katana_status"], "timeout")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(
+                (ctx.current / "katana-pending-origins.txt").read_text(
+                    encoding="utf-8",
+                ).splitlines(), live[:5],
+            )
+            combined = (ctx.current / "katana-urls.txt").read_text(
+                encoding="utf-8",
+            )
+            self.assertIn("https://0.example.test/app.js", combined)
+            self.assertIn("https://5.example.test/next.js", combined)
+
+    def test_crawl_plan_uses_configured_envelope_not_fixed_30_seconds(self) -> None:
+        plan = _katana_crawl_plan(
+            [f"https://{i}.example.test" for i in range(100)],
+            remaining_requests=5000,
+            request_rate=3,
+            timeout_seconds=1800,
+            http_threads=8,
+            max_urls=10000,
+        )
+        self.assertEqual(len(plan["origins"]), 100)
+        self.assertEqual(plan["reservation"], 5000)
+        self.assertGreater(plan["crawl_seconds"], 1)
+        self.assertLessEqual(plan["wall_seconds"] * plan["rate_limit"], plan["reservation"])
+        self.assertLessEqual(
+            plan["crawl_seconds"] * plan["rate_limit"] * len(plan["origins"]),
+            plan["reservation"],
+        )
+
+    def test_crawl_plan_keeps_unaffordable_origins_outside_batch(self) -> None:
+        plan = _katana_crawl_plan(
+            [f"https://{i}.example.test" for i in range(8)],
+            remaining_requests=3,
+            request_rate=3,
+            timeout_seconds=1800,
+            http_threads=8,
+            max_urls=10000,
+        )
+        self.assertEqual(len(plan["origins"]), 3)
+        self.assertEqual(plan["reservation"], 3)
+        self.assertEqual(plan["wall_seconds"], 3)
 
     def test_no_js_input_is_recorded_as_no_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
