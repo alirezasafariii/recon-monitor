@@ -473,6 +473,76 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_target_budget_remaining_capacity_uses_shared_analysis_budget(self):
+        temp = tempfile.TemporaryDirectory()
+        paths = AppPaths.from_root(Path(temp.name))
+        paths.ensure()
+        db = Database(paths.db)
+        now = utc_now()
+        original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
+        try:
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-SHARED-BUDGET',?,'success',?,?,?,2)",
+                (APP_VERSION, now, now, "*"),
+            )
+            for target in ("a.test", "b.test"):
+                db.execute(
+                    "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                    "VALUES('RUN-SHARED-BUDGET',?,'policy','success','report',?,?,?,1)",
+                    (
+                        target,
+                        now,
+                        now,
+                        str(paths.output / "RUN-SHARED-BUDGET" / target),
+                    ),
+                )
+                db.execute(
+                    "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        target,
+                        f"https://{target}/admin",
+                        "absolute_url",
+                        "administration",
+                        90,
+                        json_dumps([{"category": "administration", "confidence": 90}]),
+                        json_dumps(["shared analyzer budget fixture"]),
+                        json_dumps([f"budget-{target}"]),
+                        now,
+                        now,
+                        "RUN-SHARED-BUDGET",
+                    ),
+                )
+
+            family_router.RAW_ANALYZER_INVOCATION_LIMIT = 10
+            result = run_analysis(
+                paths,
+                db,
+                "RUN-SHARED-BUDGET",
+                None,
+            )
+            aggregate_budget = result["quality"]["raw_analysis"]["budget"]
+            self.assertEqual(aggregate_budget["executed"], 10)
+            self.assertEqual(aggregate_budget["remaining_capacity"], 0)
+
+            quality_b = analysis_quality(db, "b.test")["raw_analysis"]
+            budget_b = quality_b["budget"]
+            self.assertEqual(budget_b["scope"], "target")
+            self.assertEqual(budget_b["target"], "b.test")
+            self.assertEqual(budget_b["limit"], 10)
+            self.assertEqual(budget_b["limit_scope"], "analysis")
+            self.assertEqual(budget_b["executed"], 0)
+            self.assertTrue(budget_b["exhausted"])
+            self.assertGreater(budget_b["attempted"], 0)
+            self.assertEqual(budget_b["analysis_executed"], 10)
+            self.assertEqual(budget_b["remaining_capacity"], 0)
+        finally:
+            family_router.RAW_ANALYZER_INVOCATION_LIMIT = original_limit
+            family_router.clear_raw_analysis_budget()
+            db.close()
+            temp.cleanup()
+
     def test_budget_exhaustion_survives_quality_rehydration(self):
         temp, paths, db, now = self.project()
         original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
