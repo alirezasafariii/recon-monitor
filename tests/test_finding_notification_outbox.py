@@ -192,6 +192,56 @@ class FindingNotificationOutboxTests(unittest.TestCase):
         self.assertEqual(int(outbox["attempt_count"]), 1)
         self.assertEqual(int(deliveries["n"]), 1)
 
+    def test_stale_worker_cannot_finalize_after_lease_is_replaced(self) -> None:
+        event_id, _candidate_id = self._queue("stale-lease")
+
+        def replace_lease_then_succeed(config, logger, message: str):
+            self.db.execute(
+                "UPDATE finding_notification_outbox "
+                "SET lease_id='FNW-replacement',lease_expires_at='2099-01-01T00:10:00Z' "
+                "WHERE event_id=? AND status='delivering'",
+                (event_id,),
+            )
+            return {
+                "delivered": True,
+                "channel": "fixture",
+                "channels": ["fixture"],
+                "error": "",
+            }
+
+        result = deliver_finding_notification_outbox(
+            config=self.config,
+            logger=self.logger,
+            db=self.db,
+            target=self.TARGET,
+            transport=replace_lease_then_succeed,
+            now="2099-01-01T00:00:00Z",
+        )
+
+        self.assertEqual(result["attempted"], 1)
+        self.assertEqual(result["delivered"], 0)
+        self.assertEqual(result["retry_pending"], 0)
+        self.assertEqual(result["failed"], 0)
+
+        outbox = self.db.one(
+            "SELECT status,attempt_count,lease_id FROM finding_notification_outbox WHERE event_id=?",
+            (event_id,),
+        )
+        event = self.db.one(
+            "SELECT status,delivered_at FROM notification_events WHERE event_id=?",
+            (event_id,),
+        )
+        deliveries = self.db.one(
+            "SELECT COUNT(*) AS n FROM notification_deliveries WHERE event_id=?",
+            (event_id,),
+        )
+        self.assertEqual(str(outbox["status"]), "delivering")
+        self.assertEqual(int(outbox["attempt_count"]), 0)
+        self.assertEqual(str(outbox["lease_id"]), "FNW-replacement")
+        self.assertEqual(str(event["status"]), "queued")
+        self.assertIsNone(event["delivered_at"])
+        self.assertEqual(int(deliveries["n"]), 0)
+
     def test_failure_uses_backoff_then_retry_without_candidate_rollback(self) -> None:
         event_id, candidate_id = self._queue("retry")
         first = deliver_finding_notification_outbox(
