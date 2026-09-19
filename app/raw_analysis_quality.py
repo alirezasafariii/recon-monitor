@@ -14,8 +14,8 @@ from typing import Any, Mapping
 
 from core import json_dumps, utc_now
 
-RAW_ANALYSIS_QUALITY_VERSION = "1.0.0"
-RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.08.14.1"
+RAW_ANALYSIS_QUALITY_VERSION = "1.1.0"
+RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.1"
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -75,6 +75,53 @@ def _budget_metrics(raw_routing: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _input_completeness(
+    raw_routing: Mapping[str, Any] | None,
+    budget: Mapping[str, Any],
+) -> dict[str, Any]:
+    routing = raw_routing if isinstance(raw_routing, Mapping) else {}
+    eligible = max(0, int(routing.get("eligible_surfaces") or 0))
+    selected = max(0, int(routing.get("selected_surfaces") or 0))
+    omitted = max(
+        0,
+        int(
+            routing.get("omitted_surfaces")
+            if routing.get("omitted_surfaces") is not None
+            else max(0, eligible - selected)
+        )
+        or 0,
+    )
+    selection_complete = omitted == 0 and selected >= eligible
+    reasons: list[str] = []
+    if not selection_complete:
+        reasons.append("surface_selection_cap")
+    if bool(budget.get("exhausted")):
+        reasons.append("analyzer_invocation_budget")
+    return {
+        "eligible_input": eligible,
+        "selected_input": selected,
+        "omitted_input": omitted,
+        "coverage": (
+            round(selected / eligible, 4)
+            if eligible
+            else None
+        ),
+        "selection_complete": selection_complete,
+        "analyzer_execution_coverage": budget.get(
+            "execution_coverage"
+        ),
+        "complete": selection_complete
+        and not bool(budget.get("exhausted")),
+        "incomplete_reasons": reasons,
+        "denominator": "eligible_raw_surfaces_before_selection",
+        "source_selection": dict(
+            routing.get("source_selection") or {}
+        )
+        if isinstance(routing.get("source_selection"), Mapping)
+        else {},
+    }
+
+
 def raw_quality_snapshot(
     db: Any,
     analysis_id: str,
@@ -90,6 +137,7 @@ def raw_quality_snapshot(
     """
 
     budget = _budget_metrics(raw_routing)
+    completeness = _input_completeness(raw_routing, budget)
     params: list[Any] = [analysis_id]
     target_clause = ""
     if target:
@@ -116,6 +164,7 @@ def raw_quality_snapshot(
             "states": {},
             "families": {},
             "budget": budget,
+            "completeness": completeness,
             "diagnostic_only": True,
         }
 
@@ -238,6 +287,8 @@ def raw_quality_snapshot(
         status = "guardrail_violation"
     elif budget["exhausted"]:
         status = "budget_exhausted"
+    elif not completeness["selection_complete"]:
+        status = "input_truncated"
     elif total:
         status = "observed"
     else:
@@ -279,10 +330,37 @@ def raw_quality_snapshot(
         "families": family_output,
         "family_count": len(family_output),
         "budget": budget,
+        "completeness": completeness,
         "routing": {
             "version": str(routing.get("version") or ""),
             "rule_version": str(routing.get("rule_version") or ""),
             "surface_limit": int(routing.get("surface_limit") or 0),
+            "selection_strategy": str(
+                routing.get("selection_strategy") or ""
+            ),
+            "eligible_surfaces": int(
+                routing.get("eligible_surfaces") or 0
+            ),
+            "selected_surfaces": int(
+                routing.get("selected_surfaces") or 0
+            ),
+            "omitted_surfaces": int(
+                routing.get("omitted_surfaces") or 0
+            ),
+            "selection_coverage": routing.get(
+                "selection_coverage"
+            ),
+            "selection_complete": bool(
+                routing.get("selection_complete", True)
+            ),
+            "source_selection": dict(
+                routing.get("source_selection") or {}
+            )
+            if isinstance(
+                routing.get("source_selection"),
+                Mapping,
+            )
+            else {},
             "active_requests": int(routing.get("active_requests") or 0),
         },
         "diagnostic_only": True,

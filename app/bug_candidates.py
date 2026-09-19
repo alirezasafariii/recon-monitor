@@ -80,9 +80,19 @@ _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
 _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
-RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.2.0"
-RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.18.1"
+RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.3.0"
+RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.19.2"
 _RAW_SURFACE_LIMIT = 5000
+_RAW_SURFACE_RESERVE_DIVISOR = 20
+_RAW_SURFACE_SOURCE_ORDER = (
+    "findings",
+    "endpoints",
+    "validations",
+    "fingerprints",
+    "dns_cname",
+    "semantic_js",
+)
+_RAW_SURFACE_SELECTION_CACHE: dict[str, dict[str, Any]] = {}
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
 # raw surface does not belong to them. Phase-two's larger catalog is pre-routed
@@ -211,13 +221,302 @@ def _stored_fingerprint_response_headers(
     return headers, observed
 
 
+def _stream_raw_rows(
+    db: Any,
+    sql: str,
+    params: tuple[Any, ...],
+):
+    cursor = db.execute(sql, params)
+    while True:
+        page = cursor.fetchmany(1000)
+        if not page:
+            break
+        for row in page:
+            yield dict(row)
+
+
+def _eligible_raw_surface_inventory(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    target: str | None,
+) -> dict[str, Any]:
+    """Count the full normalized raw input before the analysis selection cap."""
+
+    params: list[Any] = [run_id]
+    target_clause = ""
+    if target:
+        target_clause = " AND target=?"
+        params.append(target)
+    query_params = tuple(params)
+
+    counts = {source: 0 for source in _RAW_SURFACE_SOURCE_ORDER}
+    seen: set[tuple[str, str]] = set()
+
+    finding_sql = (
+        "SELECT target,matched_at,details_json FROM findings "
+        "WHERE last_run_id=?"
+        f"{target_clause}"
+    )
+    for row in _stream_raw_rows(db, finding_sql, query_params):
+        current_target = str(row.get("target") or "")
+        details = _core._loads(row.get("details_json"), {})
+        details = details if isinstance(details, Mapping) else {}
+        endpoint = str(
+            row.get("matched_at")
+            or details.get("matched_at")
+            or details.get("url")
+            or details.get("host")
+            or ""
+        )
+        if not current_target or not endpoint:
+            continue
+        counts["findings"] += 1
+        seen.add((current_target, endpoint))
+
+    endpoint_sql = (
+        "SELECT target,endpoint FROM endpoint_intelligence "
+        "WHERE last_run_id=?"
+        f"{target_clause}"
+    )
+    for row in _stream_raw_rows(db, endpoint_sql, query_params):
+        current_target = str(row.get("target") or "")
+        endpoint = str(row.get("endpoint") or "")
+        if not current_target or not endpoint:
+            continue
+        counts["endpoints"] += 1
+        seen.add((current_target, endpoint))
+
+    seen_before_validation = set(seen)
+    validation_sql = (
+        "SELECT target,endpoint,resolved_url FROM endpoint_validations "
+        "WHERE last_run_id=?"
+        f"{target_clause}"
+    )
+    for row in _stream_raw_rows(db, validation_sql, query_params):
+        current_target = str(row.get("target") or "")
+        endpoint = str(
+            row.get("resolved_url") or row.get("endpoint") or ""
+        )
+        key = (current_target, endpoint)
+        if not current_target or not endpoint or key in seen:
+            continue
+        counts["validations"] += 1
+        seen.add(key)
+
+    seen_before_fingerprint = set(seen)
+    fingerprint_sql = (
+        "SELECT target,url FROM fingerprints WHERE last_run_id=?"
+        f"{target_clause}"
+    )
+    for row in _stream_raw_rows(db, fingerprint_sql, query_params):
+        current_target = str(row.get("target") or "")
+        endpoint = str(row.get("url") or "")
+        key = (current_target, endpoint)
+        if not current_target or not endpoint or key in seen:
+            continue
+        counts["fingerprints"] += 1
+        seen.add(key)
+
+    dns_sql = (
+        "SELECT target,host FROM dns_records "
+        "WHERE last_run_id=? AND is_current=1 AND rrtype='CNAME'"
+        f"{target_clause}"
+    )
+    for row in _stream_raw_rows(db, dns_sql, query_params):
+        if str(row.get("target") or "") and str(row.get("host") or ""):
+            counts["dns_cname"] += 1
+
+    semantic_params: list[Any] = [analysis_id]
+    semantic_target_clause = ""
+    if target:
+        semantic_target_clause = " AND target=?"
+        semantic_params.append(target)
+    semantic_sql = (
+        "SELECT target,js_url,unit_type,value_json "
+        "FROM semantic_js_units WHERE analysis_id=? "
+        "AND unit_type IN ('browser_storage_write','new_tab_open')"
+        f"{semantic_target_clause}"
+    )
+    for row in _stream_raw_rows(
+        db,
+        semantic_sql,
+        tuple(semantic_params),
+    ):
+        payload = _core._loads(row.get("value_json"), {})
+        observation = (
+            payload.get("value") if isinstance(payload, Mapping) else None
+        )
+        if (
+            str(row.get("target") or "")
+            and str(row.get("js_url") or "")
+            and isinstance(observation, Mapping)
+        ):
+            counts["semantic_js"] += 1
+
+    return {
+        "eligible_by_source": counts,
+        "eligible_total": sum(counts.values()),
+        "_seen_before_validation": seen_before_validation,
+        "_seen_before_fingerprint": seen_before_fingerprint,
+    }
+
+
+def _raw_surface_priority(surface: Mapping[str, Any]) -> int:
+    source = str(surface.get("_source_bucket") or "")
+    source_bonus = {
+        "findings": 20,
+        "validations": 8,
+        "semantic_js": 8,
+        "dns_cname": 6,
+        "fingerprints": 4,
+        "endpoints": 0,
+    }.get(source, 0)
+    return _core.parse_int(surface.get("confidence"), 0) + source_bonus
+
+
+def _raw_surface_sort_key(surface: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (
+        -_raw_surface_priority(surface),
+        -_core.parse_int(surface.get("confidence"), 0),
+        str(surface.get("target") or ""),
+        str(surface.get("endpoint") or ""),
+        str(surface.get("source_ref") or ""),
+    )
+
+
+def _select_raw_surfaces(
+    candidates: list[dict[str, Any]],
+    inventory: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Reserve source diversity, then spend remaining capacity by risk."""
+
+    groups: dict[str, list[dict[str, Any]]] = {
+        source: [] for source in _RAW_SURFACE_SOURCE_ORDER
+    }
+    for surface in candidates:
+        source = str(surface.get("_source_bucket") or "endpoints")
+        groups.setdefault(source, []).append(surface)
+    for group in groups.values():
+        group.sort(key=_raw_surface_sort_key)
+
+    reserve = max(1, int(_RAW_SURFACE_LIMIT) // _RAW_SURFACE_RESERVE_DIVISOR)
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[int] = set()
+
+    # At most 30% of the default capacity is reserved when all six sources are
+    # present. The remainder is selected globally by confidence/risk.
+    for source in _RAW_SURFACE_SOURCE_ORDER:
+        if len(selected) >= int(_RAW_SURFACE_LIMIT):
+            break
+        group = groups.get(source, [])
+        take = min(
+            len(group),
+            reserve,
+            max(0, int(_RAW_SURFACE_LIMIT) - len(selected)),
+        )
+        for surface in group[:take]:
+            selected.append(surface)
+            selected_ids.add(id(surface))
+
+    remaining = sorted(
+        (
+            surface
+            for surface in candidates
+            if id(surface) not in selected_ids
+        ),
+        key=_raw_surface_sort_key,
+    )
+    for surface in remaining:
+        if len(selected) >= int(_RAW_SURFACE_LIMIT):
+            break
+        selected.append(surface)
+        selected_ids.add(id(surface))
+
+    # Analyzer-budget exhaustion should also spend its earliest invocations on
+    # the highest-value members of the already source-balanced selection.
+    selected.sort(key=_raw_surface_sort_key)
+
+    selected_by_source = {
+        source: 0 for source in _RAW_SURFACE_SOURCE_ORDER
+    }
+    for surface in selected:
+        source = str(surface.get("_source_bucket") or "endpoints")
+        selected_by_source[source] = (
+            int(selected_by_source.get(source, 0)) + 1
+        )
+
+    eligible_by_source = {
+        source: max(
+            0,
+            int(
+                dict(inventory.get("eligible_by_source") or {}).get(
+                    source,
+                    0,
+                )
+                or 0
+            ),
+        )
+        for source in _RAW_SURFACE_SOURCE_ORDER
+    }
+    eligible_total = max(
+        0,
+        int(inventory.get("eligible_total") or 0),
+    )
+    selected_total = len(selected)
+    omitted_total = max(0, eligible_total - selected_total)
+    source_selection = {}
+    for source in _RAW_SURFACE_SOURCE_ORDER:
+        eligible = eligible_by_source[source]
+        selected_count = int(selected_by_source.get(source, 0))
+        source_selection[source] = {
+            "eligible": eligible,
+            "candidate_window": len(groups.get(source, [])),
+            "selected": selected_count,
+            "coverage": (
+                round(selected_count / eligible, 4)
+                if eligible
+                else None
+            ),
+        }
+
+    public_rows = []
+    for surface in selected:
+        item = dict(surface)
+        item.pop("_source_bucket", None)
+        public_rows.append(item)
+
+    return public_rows, {
+        "strategy": "source_reserve_then_risk",
+        "limit": int(_RAW_SURFACE_LIMIT),
+        "reserve_per_nonempty_source": reserve,
+        "eligible_surfaces": eligible_total,
+        "selected_surfaces": selected_total,
+        "omitted_surfaces": omitted_total,
+        "selection_coverage": (
+            round(selected_total / eligible_total, 4)
+            if eligible_total
+            else None
+        ),
+        "complete": omitted_total == 0,
+        "sources": source_selection,
+    }
+
+
 def _raw_surface_rows(
     db: Any,
     *,
     analysis_id: str,
     run_id: str,
     target: str | None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    inventory = _eligible_raw_surface_inventory(
+        db,
+        analysis_id=analysis_id,
+        run_id=run_id,
+        target=target,
+    )
     params: list[Any] = [run_id]
     target_clause = ""
     if target:
@@ -337,6 +636,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": endpoint,
                 "kind": "stored_finding",
+                "_source_bucket": "findings",
                 "confidence": severity_confidence.get(
                     str(row.get("severity") or "info").lower(),
                     55,
@@ -411,6 +711,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": endpoint,
                 "kind": str(row.get("kind") or "endpoint"),
+                "_source_bucket": "endpoints",
                 "confidence": _core.parse_int(row.get("confidence"), 0),
                 "details": details,
                 "source_ref": (
@@ -419,6 +720,11 @@ def _raw_surface_rows(
                 ),
             }
         )
+
+    # Eligibility is computed from the complete inventory, so an endpoint that
+    # fell outside a bounded candidate window still prevents duplicate
+    # validation/fingerprint primary surfaces.
+    seen = set(inventory["_seen_before_validation"])
 
     # Preserve safe, stored endpoint-validation metadata even when an endpoint
     # has no classification row (for example a legacy replay database).
@@ -434,6 +740,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": endpoint,
                 "kind": "endpoint_validation",
+                "_source_bucket": "validations",
                 "confidence": _core.parse_int(row.get("confidence"), 0),
                 "details": {
                     "method": str(row.get("method") or "UNKNOWN"),
@@ -450,6 +757,8 @@ def _raw_surface_rows(
                 ),
             }
         )
+
+    seen = set(inventory["_seen_before_fingerprint"])
 
     # A live HTTP fingerprint may not have been classified as an endpoint (for
     # example, the root URL). It is still useful passive family context.
@@ -493,6 +802,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": endpoint,
                 "kind": "http_fingerprint",
+                "_source_bucket": "fingerprints",
                 "confidence": 70,
                 "details": details,
                 "source_ref": (
@@ -521,6 +831,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": host,
                 "kind": "dns_cname",
+                "_source_bucket": "dns_cname",
                 "confidence": 70,
                 "details": {
                     "rrtype": "CNAME",
@@ -570,6 +881,7 @@ def _raw_surface_rows(
                 "target": current_target,
                 "endpoint": js_url,
                 "kind": "semantic_js_passive",
+                "_source_bucket": "semantic_js",
                 "confidence": _core.parse_int(row.get("confidence"), 0),
                 "details": {
                     "semantic_js_unit_type": unit_type,
@@ -586,10 +898,13 @@ def _raw_surface_rows(
             }
         )
 
-    # Explicit stored findings receive priority, then the remaining bounded raw
-    # inventory. Duplicate endpoints are still allowed across source kinds so
-    # record_hypothesis can merge independent evidence roots by family/variant.
-    return (priority_surfaces + surfaces)[:_RAW_SURFACE_LIMIT]
+    # Selection is source-balanced first, then risk-aware. The full eligible
+    # inventory is retained in telemetry even when only a bounded subset can
+    # enter the family router.
+    return _select_raw_surfaces(
+        priority_surfaces + surfaces,
+        inventory,
+    )
 
 
 def _raw_surface_family_candidates(
@@ -600,12 +915,14 @@ def _raw_surface_family_candidates(
     target: str | None,
 ) -> int:
     promoted = 0
-    for surface in _raw_surface_rows(
+    surfaces, selection = _raw_surface_rows(
         db,
         analysis_id=analysis_id,
         run_id=run_id,
         target=target,
-    ):
+    )
+    _RAW_SURFACE_SELECTION_CACHE[analysis_id] = dict(selection)
+    for surface in surfaces:
         endpoint = str(surface["endpoint"])
         current_target = str(surface["target"])
         method, query_fields, path_fields = _surface_method_and_fields(endpoint)
@@ -1001,6 +1318,8 @@ def generate_bug_candidates(
             "Candidate transaction patch requires Database._lock and Database.conn"
         )
 
+    _RAW_SURFACE_SELECTION_CACHE.pop(analysis_id, None)
+
     with lock:
         already_in_transaction = bool(conn.in_transaction)
 
@@ -1044,6 +1363,9 @@ def generate_bug_candidates(
             )
 
             raw_budget = raw_analysis_budget_snapshot(analysis_id)
+            raw_selection = dict(
+                _RAW_SURFACE_SELECTION_CACHE.pop(analysis_id, {})
+            )
 
             result["raw_surface_routing"] = {
                 "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
@@ -1052,6 +1374,27 @@ def generate_bug_candidates(
                 "promoted": raw_promoted,
                 "families": raw_families,
                 "surface_limit": _RAW_SURFACE_LIMIT,
+                "selection_strategy": str(
+                    raw_selection.get("strategy") or ""
+                ),
+                "eligible_surfaces": int(
+                    raw_selection.get("eligible_surfaces") or 0
+                ),
+                "selected_surfaces": int(
+                    raw_selection.get("selected_surfaces") or 0
+                ),
+                "omitted_surfaces": int(
+                    raw_selection.get("omitted_surfaces") or 0
+                ),
+                "selection_coverage": raw_selection.get(
+                    "selection_coverage"
+                ),
+                "selection_complete": bool(
+                    raw_selection.get("complete", True)
+                ),
+                "source_selection": dict(
+                    raw_selection.get("sources") or {}
+                ),
                 "active_requests": 0,
                 "analyzer_budget": {
                     "version": str(raw_budget.get("version") or ""),
@@ -1071,6 +1414,7 @@ def generate_bug_candidates(
             )
 
         except Exception:
+            _RAW_SURFACE_SELECTION_CACHE.pop(analysis_id, None)
             if not already_in_transaction and conn.in_transaction:
                 conn.execute("ROLLBACK")
             raise

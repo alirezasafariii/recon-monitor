@@ -12,7 +12,10 @@ sys.path.insert(0, str(ROOT / "app"))
 from analysis_engine import analysis_quality, run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 import family_analyzers.router as family_router
-from raw_analysis_quality import RAW_ANALYSIS_QUALITY_VERSION
+from raw_analysis_quality import (
+    RAW_ANALYSIS_QUALITY_VERSION,
+    raw_quality_snapshot,
+)
 
 
 class RawAnalysisQualityV962Tests(unittest.TestCase):
@@ -102,6 +105,12 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             self.assertEqual(raw["budget"]["skipped"], routing_budget["skipped"])
             self.assertFalse(raw["budget"]["exhausted"])
             self.assertEqual(raw["budget"]["execution_coverage"], 1.0)
+            self.assertTrue(raw["completeness"]["complete"])
+            self.assertEqual(raw["completeness"]["coverage"], 1.0)
+            self.assertEqual(
+                raw["completeness"]["eligible_input"],
+                raw["completeness"]["selected_input"],
+            )
             self.assertEqual(raw["routing"]["active_requests"], 0)
             runtime = result["bug_candidates"]["detection_runtime"]
             self.assertEqual(runtime["canonical_family_count"], 74)
@@ -128,6 +137,77 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             self.assertEqual(
                 persisted["raw_analysis"]["context_only_promoted"],
                 0,
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_completeness_uses_full_eligible_surface_denominator(self):
+        temp, _paths, db, _now = self.project()
+        try:
+            raw = raw_quality_snapshot(
+                db,
+                "ANALYSIS-COVERAGE",
+                "example.test",
+                raw_routing={
+                    "surface_limit": 6,
+                    "selection_strategy": "source_reserve_then_risk",
+                    "eligible_surfaces": 22,
+                    "selected_surfaces": 6,
+                    "omitted_surfaces": 16,
+                    "selection_coverage": 0.2727,
+                    "selection_complete": False,
+                    "source_selection": {
+                        "endpoints": {
+                            "eligible": 20,
+                            "selected": 4,
+                        },
+                        "findings": {
+                            "eligible": 1,
+                            "selected": 1,
+                        },
+                        "dns_cname": {
+                            "eligible": 1,
+                            "selected": 1,
+                        },
+                    },
+                    "analyzer_budget": {
+                        "version": "fixture",
+                        "limit": 100,
+                        "attempted": 6,
+                        "executed": 6,
+                        "skipped": 0,
+                        "exhausted": False,
+                        "families": {},
+                    },
+                },
+            )
+
+            self.assertEqual(
+                raw["budget"]["execution_coverage"],
+                1.0,
+            )
+            self.assertEqual(raw["status"], "input_truncated")
+            self.assertEqual(
+                raw["completeness"]["eligible_input"],
+                22,
+            )
+            self.assertEqual(
+                raw["completeness"]["selected_input"],
+                6,
+            )
+            self.assertEqual(
+                raw["completeness"]["coverage"],
+                0.2727,
+            )
+            self.assertEqual(
+                raw["completeness"]["denominator"],
+                "eligible_raw_surfaces_before_selection",
+            )
+            self.assertFalse(raw["completeness"]["complete"])
+            self.assertIn(
+                "surface_selection_cap",
+                raw["completeness"]["incomplete_reasons"],
             )
         finally:
             db.close()

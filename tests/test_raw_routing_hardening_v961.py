@@ -12,6 +12,7 @@ from analysis_engine import run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 from family_analyzers.base import FamilyAnalyzerContext
 import family_analyzers.router as family_router
+import bug_candidates as bug_candidates_module
 from bug_candidates import _phase2_families_for_surface
 
 
@@ -144,6 +145,104 @@ class RawRoutingHardeningV961Tests(unittest.TestCase):
             "strict_transport_security policy observation",
         )
         self.assertIn("tls_hsts_weakness", families)
+
+    def test_surface_cap_is_source_balanced_and_reports_full_denominator(self):
+        temp, _paths, db, now = self.project()
+        original_limit = bug_candidates_module._RAW_SURFACE_LIMIT
+        try:
+            bug_candidates_module._RAW_SURFACE_LIMIT = 6
+            for index in range(20):
+                db.execute(
+                    "INSERT INTO endpoint_intelligence("
+                    "target,endpoint,kind,primary_category,confidence,"
+                    "categories_json,reasons_json,sources_json,"
+                    "first_seen,last_seen,last_run_id"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "example.test",
+                        f"https://example.test/bulk/{index}",
+                        "absolute_url",
+                        "api",
+                        99 - (index % 10),
+                        "[]",
+                        "[]",
+                        "[]",
+                        now,
+                        now,
+                        "RUN-HARDEN",
+                    ),
+                )
+            db.execute(
+                "INSERT INTO findings("
+                "target,dedup_key,template_id,name,severity,matched_at,"
+                "details_json,first_seen,last_seen,last_run_id"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.test",
+                    "balanced-finding",
+                    "fixture",
+                    "High-value stored finding",
+                    "high",
+                    "https://example.test/finding",
+                    "{}",
+                    now,
+                    now,
+                    "RUN-HARDEN",
+                ),
+            )
+            db.execute(
+                "INSERT INTO dns_records("
+                "target,host,rrtype,value,first_seen,last_seen,last_run_id,"
+                "is_current"
+                ") VALUES(?,?,?,?,?,?,?,1)",
+                (
+                    "example.test",
+                    "cdn.example.test",
+                    "CNAME",
+                    "vendor.example.net",
+                    now,
+                    now,
+                    "RUN-HARDEN",
+                ),
+            )
+
+            rows, selection = bug_candidates_module._raw_surface_rows(
+                db,
+                analysis_id="ANALYSIS-BALANCED",
+                run_id="RUN-HARDEN",
+                target="example.test",
+            )
+
+            self.assertEqual(selection["eligible_surfaces"], 22)
+            self.assertEqual(selection["selected_surfaces"], 6)
+            self.assertEqual(selection["omitted_surfaces"], 16)
+            self.assertEqual(selection["selection_coverage"], 0.2727)
+            self.assertEqual(
+                selection["strategy"],
+                "source_reserve_then_risk",
+            )
+            self.assertEqual(
+                selection["sources"]["findings"]["selected"],
+                1,
+            )
+            self.assertEqual(
+                selection["sources"]["dns_cname"]["selected"],
+                1,
+            )
+            self.assertEqual(
+                selection["sources"]["endpoints"]["selected"],
+                4,
+            )
+            self.assertTrue(
+                any(
+                    str(row["source_ref"]).startswith("raw-cname:")
+                    for row in rows
+                )
+            )
+        finally:
+            bug_candidates_module._RAW_SURFACE_LIMIT = original_limit
+            db.close()
+            temp.cleanup()
 
     def test_raw_analyzer_budget_is_bounded_audited_and_raw_only(self):
         original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
