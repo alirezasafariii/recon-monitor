@@ -269,6 +269,210 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_multi_target_quality_uses_target_scoped_routing_and_budget(self):
+        temp = tempfile.TemporaryDirectory()
+        paths = AppPaths.from_root(Path(temp.name))
+        paths.ensure()
+        db = Database(paths.db)
+        now = utc_now()
+        try:
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-SCOPED-QUALITY',?,'success',?,?,?,2)",
+                (APP_VERSION, now, now, "*"),
+            )
+            for target in ("a.test", "b.test"):
+                db.execute(
+                    "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                    "VALUES('RUN-SCOPED-QUALITY',?,'policy','success','report',?,?,?,1)",
+                    (
+                        target,
+                        now,
+                        now,
+                        str(paths.output / "RUN-SCOPED-QUALITY" / target),
+                    ),
+                )
+
+            for index in range(1):
+                db.execute(
+                    "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "a.test",
+                        f"https://a.test/admin/{index}",
+                        "absolute_url",
+                        "administration",
+                        80,
+                        json_dumps([{"category": "administration", "confidence": 80}]),
+                        json_dumps(["target scoped quality fixture"]),
+                        json_dumps([f"a-{index}"]),
+                        now,
+                        now,
+                        "RUN-SCOPED-QUALITY",
+                    ),
+                )
+            for index in range(8):
+                db.execute(
+                    "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "b.test",
+                        f"https://b.test/admin/{index}",
+                        "absolute_url",
+                        "administration",
+                        80,
+                        json_dumps([{"category": "administration", "confidence": 80}]),
+                        json_dumps(["target scoped quality fixture"]),
+                        json_dumps([f"b-{index}"]),
+                        now,
+                        now,
+                        "RUN-SCOPED-QUALITY",
+                    ),
+                )
+
+            result = run_analysis(
+                paths,
+                db,
+                "RUN-SCOPED-QUALITY",
+                None,
+            )
+            aggregate = result["quality"]["raw_analysis"]["routing"]
+            self.assertEqual(aggregate["scope"], "analysis_total")
+            self.assertEqual(aggregate["eligible_input_records"], 9)
+            self.assertEqual(aggregate["selected_surfaces"], 9)
+
+            quality_a = analysis_quality(db, "a.test")["raw_analysis"]
+            quality_b = analysis_quality(db, "b.test")["raw_analysis"]
+
+            self.assertEqual(quality_a["routing"]["scope"], "target")
+            self.assertEqual(quality_a["routing"]["target"], "a.test")
+            self.assertEqual(
+                quality_a["routing"]["eligible_input_records"],
+                1,
+            )
+            self.assertEqual(
+                quality_a["routing"]["selected_surfaces"],
+                1,
+            )
+            self.assertEqual(quality_b["routing"]["scope"], "target")
+            self.assertEqual(quality_b["routing"]["target"], "b.test")
+            self.assertEqual(
+                quality_b["routing"]["eligible_input_records"],
+                8,
+            )
+            self.assertEqual(
+                quality_b["routing"]["selected_surfaces"],
+                8,
+            )
+
+            self.assertEqual(quality_a["budget"]["scope"], "target")
+            self.assertEqual(quality_a["budget"]["target"], "a.test")
+            self.assertEqual(quality_b["budget"]["scope"], "target")
+            self.assertEqual(quality_b["budget"]["target"], "b.test")
+            self.assertGreater(quality_a["budget"]["attempted"], 0)
+            self.assertGreater(
+                quality_b["budget"]["attempted"],
+                quality_a["budget"]["attempted"],
+            )
+            self.assertEqual(
+                quality_a["budget"]["limit_scope"],
+                "analysis",
+            )
+            self.assertEqual(
+                quality_b["budget"]["limit_scope"],
+                "analysis",
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_replay_comparison_never_crosses_target_scope(self):
+        temp = tempfile.TemporaryDirectory()
+        paths = AppPaths.from_root(Path(temp.name))
+        paths.ensure()
+        db = Database(paths.db)
+        now = utc_now()
+        try:
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-SCOPE-COMPARE',?,'success',?,?,?,2)",
+                (APP_VERSION, now, now, "*"),
+            )
+            for target in ("a.test", "b.test"):
+                db.execute(
+                    "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                    "VALUES('RUN-SCOPE-COMPARE',?,'policy','success','report',?,?,?,1)",
+                    (
+                        target,
+                        now,
+                        now,
+                        str(paths.output / "RUN-SCOPE-COMPARE" / target),
+                    ),
+                )
+            db.upsert_alert(
+                "a.test",
+                "scope-a-alert",
+                "endpoint",
+                "MEDIUM",
+                43,
+                "A-only alert",
+                "https://a.test/account",
+                {"status_code": 200},
+                "RUN-SCOPE-COMPARE",
+            )
+
+            first_a = run_analysis(
+                paths,
+                db,
+                "RUN-SCOPE-COMPARE",
+                "a.test",
+            )
+            first_b = run_analysis(
+                paths,
+                db,
+                "RUN-SCOPE-COMPARE",
+                "b.test",
+            )
+
+            self.assertNotIn("replay_comparison", first_b)
+            self.assertIsNone(
+                db.one(
+                    "SELECT 1 FROM analysis_replays WHERE analysis_id=?",
+                    (first_b["analysis_id"],),
+                )
+            )
+
+            second_a = run_analysis(
+                paths,
+                db,
+                "RUN-SCOPE-COMPARE",
+                "a.test",
+            )
+            comparison = second_a.get("replay_comparison")
+            self.assertIsInstance(comparison, dict)
+            self.assertEqual(
+                comparison["previous_analysis_id"],
+                first_a["analysis_id"],
+            )
+            self.assertEqual(comparison["scope"], "a.test")
+            replay_row = db.one(
+                "SELECT previous_analysis_id,comparison_json "
+                "FROM analysis_replays WHERE analysis_id=?",
+                (second_a["analysis_id"],),
+            )
+            self.assertIsNotNone(replay_row)
+            self.assertEqual(
+                replay_row["previous_analysis_id"],
+                first_a["analysis_id"],
+            )
+            self.assertEqual(
+                json.loads(replay_row["comparison_json"])["scope"],
+                "a.test",
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_budget_exhaustion_survives_quality_rehydration(self):
         temp, paths, db, now = self.project()
         original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT
