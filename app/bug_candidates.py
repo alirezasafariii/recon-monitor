@@ -80,9 +80,168 @@ _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
 _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
-RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.2.0"
-RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.18.1"
+RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.3.0"
+RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.19.1"
 _RAW_SURFACE_LIMIT = 5000
+_RAW_SURFACE_SELECTIONS: dict[str, dict[str, Any]] = {}
+_RAW_SURFACE_SOURCE_ORDER = (
+    "stored_finding",
+    "endpoint_intelligence",
+    "endpoint_validation",
+    "http_fingerprint",
+    "dns_cname",
+    "semantic_js_passive",
+)
+
+
+def _raw_surface_source(surface: Mapping[str, Any]) -> str:
+    source_ref = str(surface.get("source_ref") or "")
+    if source_ref.startswith("raw-finding:"):
+        return "stored_finding"
+    if source_ref.startswith("raw-endpoint:"):
+        return "endpoint_intelligence"
+    if source_ref.startswith("raw-validation:"):
+        return "endpoint_validation"
+    if source_ref.startswith("raw-fingerprint:"):
+        return "http_fingerprint"
+    if source_ref.startswith("raw-cname:"):
+        return "dns_cname"
+    if source_ref.startswith("semantic-js:"):
+        return "semantic_js_passive"
+    return "other"
+
+
+def _balanced_raw_surface_selection(
+    surfaces: list[dict[str, Any]],
+    *,
+    limit: int,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Select a bounded, source-balanced inventory with risk ordering."""
+
+    bounded_limit = max(0, int(limit))
+    if bounded_limit == 0 or not surfaces:
+        return [], {}
+
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for surface in surfaces:
+        source = _raw_surface_source(surface)
+        buckets.setdefault(source, []).append(surface)
+
+    source_order = [
+        source
+        for source in _RAW_SURFACE_SOURCE_ORDER
+        if buckets.get(source)
+    ]
+    source_order.extend(
+        sorted(source for source in buckets if source not in source_order)
+    )
+    for source in source_order:
+        buckets[source].sort(
+            key=lambda row: (
+                -_core.parse_int(row.get("confidence"), 0),
+                str(row.get("target") or ""),
+                str(row.get("endpoint") or ""),
+                str(row.get("source_ref") or ""),
+            )
+        )
+
+    quota = max(1, bounded_limit // max(1, len(source_order)))
+    selected: list[dict[str, Any]] = []
+    selected_counts: dict[str, int] = {}
+    overflow: list[tuple[int, int, str, str, dict[str, Any]]] = []
+
+    for order, source in enumerate(source_order):
+        rows = buckets[source]
+        take = min(quota, len(rows), max(0, bounded_limit - len(selected)))
+        if take:
+            selected.extend(rows[:take])
+            selected_counts[source] = take
+        for row in rows[take:]:
+            overflow.append(
+                (
+                    -_core.parse_int(row.get("confidence"), 0),
+                    order,
+                    str(row.get("target") or ""),
+                    str(row.get("endpoint") or ""),
+                    row,
+                )
+            )
+
+    if len(selected) < bounded_limit and overflow:
+        overflow.sort(key=lambda item: item[:4])
+        for _confidence, _order, _target, _endpoint, row in overflow:
+            if len(selected) >= bounded_limit:
+                break
+            source = _raw_surface_source(row)
+            selected.append(row)
+            selected_counts[source] = selected_counts.get(source, 0) + 1
+
+    return selected, selected_counts
+
+
+def _raw_surface_input_counts(
+    db: Any,
+    *,
+    analysis_id: str,
+    run_id: str,
+    target: str | None,
+) -> dict[str, int]:
+    target_sql = " AND target=?" if target else ""
+    run_params: tuple[Any, ...] = (run_id, target) if target else (run_id,)
+    semantic_params: tuple[Any, ...] = (
+        (analysis_id, target) if target else (analysis_id,)
+    )
+
+    queries = {
+        "stored_finding": (
+            "SELECT COUNT(*) count FROM findings WHERE last_run_id=? "
+            "AND COALESCE(target,'')<>''"
+            + target_sql,
+            run_params,
+        ),
+        "endpoint_intelligence": (
+            "SELECT COUNT(*) count FROM endpoint_intelligence "
+            "WHERE last_run_id=? AND COALESCE(target,'')<>'' "
+            "AND COALESCE(endpoint,'')<>''"
+            + target_sql,
+            run_params,
+        ),
+        "endpoint_validation": (
+            "SELECT COUNT(*) count FROM endpoint_validations "
+            "WHERE last_run_id=? AND COALESCE(target,'')<>'' "
+            "AND (COALESCE(resolved_url,'')<>'' OR COALESCE(endpoint,'')<>'')"
+            + target_sql,
+            run_params,
+        ),
+        "http_fingerprint": (
+            "SELECT COUNT(*) count FROM fingerprints "
+            "WHERE last_run_id=? AND COALESCE(target,'')<>'' "
+            "AND COALESCE(url,'')<>''"
+            + target_sql,
+            run_params,
+        ),
+        "dns_cname": (
+            "SELECT COUNT(*) count FROM dns_records "
+            "WHERE last_run_id=? AND is_current=1 AND rrtype='CNAME' "
+            "AND COALESCE(target,'')<>'' AND COALESCE(host,'')<>''"
+            + target_sql,
+            run_params,
+        ),
+        "semantic_js_passive": (
+            "SELECT COUNT(*) count FROM semantic_js_units "
+            "WHERE analysis_id=? "
+            "AND unit_type IN ('browser_storage_write','new_tab_open') "
+            "AND COALESCE(target,'')<>'' AND COALESCE(js_url,'')<>''"
+            + target_sql,
+            semantic_params,
+        ),
+    }
+    counts: dict[str, int] = {}
+    for source, (sql, params) in queries.items():
+        row = db.one(sql, params)
+        counts[source] = max(0, int(row["count"] if row else 0))
+    return counts
+
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
 # raw surface does not belong to them. Phase-two's larger catalog is pre-routed
@@ -586,10 +745,67 @@ def _raw_surface_rows(
             }
         )
 
-    # Explicit stored findings receive priority, then the remaining bounded raw
-    # inventory. Duplicate endpoints are still allowed across source kinds so
-    # record_hypothesis can merge independent evidence roots by family/variant.
-    return (priority_surfaces + surfaces)[:_RAW_SURFACE_LIMIT]
+    # Keep the scale guard, but do not let one abundant source monopolize it.
+    # Each source receives an initial fair share ordered by source-local risk;
+    # unused capacity is then filled by the highest-confidence overflow.
+    candidates = priority_surfaces + surfaces
+    selected, selected_counts = _balanced_raw_surface_selection(
+        candidates,
+        limit=_RAW_SURFACE_LIMIT,
+    )
+    eligible_counts = _raw_surface_input_counts(
+        db,
+        analysis_id=analysis_id,
+        run_id=run_id,
+        target=target,
+    )
+    loaded_counts = {
+        "stored_finding": len(finding_rows),
+        "endpoint_intelligence": len(endpoint_rows),
+        "endpoint_validation": len(validation_rows),
+        "http_fingerprint": len(fingerprint_rows),
+        "dns_cname": len(dns_rows),
+        "semantic_js_passive": len(semantic_rows),
+    }
+    eligible_records = sum(eligible_counts.values())
+    loaded_records = sum(loaded_counts.values())
+    candidate_surfaces = len(candidates)
+    selected_surfaces = len(selected)
+    _RAW_SURFACE_SELECTIONS[str(analysis_id)] = {
+        "eligible_input_records": eligible_records,
+        "loaded_input_records": loaded_records,
+        "input_ingestion_coverage": (
+            round(min(1.0, loaded_records / eligible_records), 4)
+            if eligible_records
+            else 1.0
+        ),
+        "candidate_surfaces": candidate_surfaces,
+        "selected_surfaces": selected_surfaces,
+        "dropped_surfaces": max(0, candidate_surfaces - selected_surfaces),
+        "surface_selection_coverage": (
+            round(selected_surfaces / candidate_surfaces, 4)
+            if candidate_surfaces
+            else 1.0
+        ),
+        "cap_reached": (
+            selected_surfaces >= _RAW_SURFACE_LIMIT
+            and candidate_surfaces > selected_surfaces
+        ),
+        "by_source": {
+            source: {
+                "eligible_input_records": int(eligible_counts.get(source, 0)),
+                "loaded_input_records": int(loaded_counts.get(source, 0)),
+                "candidate_surfaces": sum(
+                    1
+                    for row in candidates
+                    if _raw_surface_source(row) == source
+                ),
+                "selected_surfaces": int(selected_counts.get(source, 0)),
+            }
+            for source in _RAW_SURFACE_SOURCE_ORDER
+        },
+    }
+    return selected
 
 
 def _raw_surface_family_candidates(
@@ -1045,6 +1261,9 @@ def generate_bug_candidates(
 
             raw_budget = raw_analysis_budget_snapshot(analysis_id)
 
+            surface_selection = dict(
+                _RAW_SURFACE_SELECTIONS.pop(str(analysis_id), {})
+            )
             result["raw_surface_routing"] = {
                 "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
                 "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
@@ -1052,6 +1271,7 @@ def generate_bug_candidates(
                 "promoted": raw_promoted,
                 "families": raw_families,
                 "surface_limit": _RAW_SURFACE_LIMIT,
+                "surface_selection": surface_selection,
                 "active_requests": 0,
                 "analyzer_budget": {
                     "version": str(raw_budget.get("version") or ""),
