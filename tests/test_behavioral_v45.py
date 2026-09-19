@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from analysis_engine import run_analysis
+from analysis_engine import replay_analysis, run_analysis
 from behavioral_intelligence import behavioral_summary
 from core import AppPaths, Database, utc_now
 from dashboard import DashboardHandler
@@ -101,6 +101,69 @@ class BehavioralV45Tests(unittest.TestCase):
                 self.assertIsNotNone(shape)
                 self.assertIn(shape["transition"], {"error_to_data", "protected_to_data", "sensitive_expansion"})
                 self.assertIn("account.email", json.loads(shape["sensitive_added_json"]))
+            finally:
+                db.close()
+
+    def test_replay_reuses_original_behavioral_baseline(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths, db, _, first, second = self.fixture(td)
+            try:
+                original = db.one(
+                    "SELECT previous_analysis_id,transition "
+                    "FROM authentication_boundary_diffs "
+                    "WHERE analysis_id=?",
+                    (second["analysis_id"],),
+                )
+                self.assertIsNotNone(original)
+                self.assertEqual(
+                    str(original["previous_analysis_id"]),
+                    first["analysis_id"],
+                )
+                self.assertEqual(
+                    str(original["transition"]),
+                    "boundary_regression",
+                )
+
+                replayed = replay_analysis(
+                    paths,
+                    db,
+                    "run45b",
+                    "example.com",
+                )
+                replay_diff = db.one(
+                    "SELECT previous_analysis_id,transition "
+                    "FROM authentication_boundary_diffs "
+                    "WHERE analysis_id=?",
+                    (replayed["analysis_id"],),
+                )
+                self.assertIsNotNone(replay_diff)
+                self.assertEqual(
+                    str(replay_diff["previous_analysis_id"]),
+                    first["analysis_id"],
+                )
+                self.assertEqual(
+                    str(replay_diff["transition"]),
+                    "boundary_regression",
+                )
+                self.assertEqual(
+                    replayed["input_snapshot"]["integrity_hash"],
+                    second["input_snapshot"]["integrity_hash"],
+                )
+
+                bindings = db.all(
+                    "SELECT analysis_id,baseline_analysis_id "
+                    "FROM analysis_behavioral_baselines "
+                    "WHERE source_run_id='run45b' AND target='example.com' "
+                    "ORDER BY created_at,analysis_id"
+                )
+                self.assertGreaterEqual(len(bindings), 2)
+                self.assertTrue(
+                    all(
+                        str(row["baseline_analysis_id"])
+                        == first["analysis_id"]
+                        for row in bindings
+                    )
+                )
             finally:
                 db.close()
 
