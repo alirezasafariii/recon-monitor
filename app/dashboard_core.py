@@ -1272,6 +1272,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "/daily": self.daily,
                 "/targets": self.targets,
                 "/runs": self.runs,
+                "/run-review": self.run_review,
                 "/compare": self.compare,
                 "/alerts": self.alerts,
                 "/signal-alerts": self.signal_alerts,
@@ -2422,6 +2423,113 @@ class DashboardHandler(BaseHTTPRequestHandler):
         body="".join(f"<tr><td>{_esc(r['target'])}</td><td>{r['assets']}</td><td>{r['resolved']}</td><td>{r['confidence']}</td><td>{_esc(r['first_seen'])}</td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
         self.send_html("Targets",f"<h1>Targets</h1><table><thead><tr><th>Target</th><th>Assets</th><th>Resolved</th><th>Confidence</th><th>First</th><th>Last</th></tr></thead><tbody>{body}</tbody></table>")
 
+    def run_review(self) -> None:
+        """Show collector quality separately from overall orchestration status."""
+        run_id = str((self.query().get("id") or [""])[0]).strip()[:120]
+        if not run_id:
+            self.send_html("Run review", "<h1>Select a run from Run history</h1>", 400)
+            return
+        db = self.db()
+        try:
+            run = db.one(
+                "SELECT id,status,started_at,finished_at,error FROM runs WHERE id=?",
+                (run_id,),
+            )
+            stages = db.all(
+                "SELECT target,stage,status,exit_code,duration_seconds,metrics_json "
+                "FROM stage_runs WHERE run_id=? ORDER BY target,started_at,stage",
+                (run_id,),
+            ) if run else []
+        finally:
+            db.close()
+        if not run:
+            self.send_html("Run not found", "<h1>Run not found</h1>", 404)
+            return
+
+        items = []
+        partial_count = 0
+        no_input_count = 0
+        for row in stages:
+            try:
+                metrics = json.loads(row["metrics_json"] or "{}")
+                if not isinstance(metrics, dict):
+                    metrics = {}
+            except (TypeError, ValueError):
+                metrics = {}
+            stage_name = str(row["stage"])
+            raw_status = str(row["status"])
+            quality = str(metrics.get("collection_status") or "")
+            if raw_status == "partial" or quality == "partial":
+                partial_count += 1
+                label = "Partial"
+            elif quality == "no_input":
+                no_input_count += 1
+                label = "No input"
+            else:
+                label = raw_status.replace("_", " ").title()
+
+            highlights = []
+            if stage_name == "urls":
+                highlights.append(f"URLs: {metrics.get('urls', '—')}")
+                if "katana_status" in metrics:
+                    highlights.append(
+                        f"Katana: {metrics['katana_status']} "
+                        f"(exit {metrics.get('katana_exit_code', '—')}; "
+                        f"{metrics.get('katana_duration_seconds', '—')}s)"
+                    )
+                else:
+                    highlights.append("Katana tool outcome was not recorded for this run")
+            elif stage_name == "javascript":
+                highlights.append(f"JS inputs: {metrics.get('files', '—')}")
+                highlights.append(f"Downloaded: {metrics.get('downloaded', '—')}")
+            elif stage_name == "nuclei":
+                highlights.append(f"Targets: {metrics.get('targets', '—')}")
+                highlights.append(f"Findings: {metrics.get('findings', '—')}")
+
+            detail = (
+                "<div class='muted small' style='margin:8px 0'>"
+                + _esc(" · ".join(highlights))
+                + "</div>"
+                + "<pre style='overflow:auto;white-space:pre-wrap'>"
+                + _esc(json.dumps(metrics, ensure_ascii=False, indent=2))
+                + "</pre>"
+            )
+            items.append(
+                "<details class='panel' style='margin:8px 0;padding:12px'>"
+                "<summary style='cursor:pointer'>"
+                + f"<strong>{_esc(row['target'])} · {_esc(stage_name)}</strong>"
+                + f" — {_esc(label)}"
+                + f" <small class='muted'>({_esc(round(float(row['duration_seconds'] or 0), 2))}s)</small>"
+                + "</summary>" + detail + "</details>"
+            )
+
+        if str(run["status"]) == "running":
+            summary = "Run is in progress; stage outcomes may change."
+        elif partial_count:
+            summary = f"Run finished; {partial_count} collection stage(s) incomplete."
+        elif str(run["status"]) != "success":
+            summary = f"Run status: {run['status']}."
+        else:
+            summary = "Run finished. Completion of the entire target cannot be established."
+        note = (
+            f"{no_input_count} stage(s) had no input. " if no_input_count else ""
+        ) + "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
+        header = _page_header(
+            "Run review", "Execution state and observed collection quality.",
+            "<a class='button secondary' href='/runs'>Run history</a>",
+            "Operations",
+        )
+        body = (
+            header
+            + "<section class='panel' style='padding:16px'>"
+            + f"<h2>{_esc(summary)}</h2>"
+            + f"<p><code>{_esc(run_id)}</code> · {_esc(run['status'])}</p>"
+            + f"<p class='muted'>{_esc(note)}</p>"
+            + "</section>"
+            + ("".join(items) if items else "<p class='muted'>No stage results recorded yet.</p>")
+        )
+        self.send_html("Run review", body)
+
     def runs(self) -> None:
         p=self.query();q=str((p.get('q')or[''])[0]).strip();status=str((p.get('status')or[''])[0]);target=str((p.get('target')or[''])[0]);error_state=str((p.get('error')or[''])[0]);sort=str((p.get('sort')or['newest'])[0]);days=parse_int((p.get('days')or[0])[0],0,0,3650)
         where=[];args=[]
@@ -2443,7 +2551,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search runs<input name='q' value='{_esc(q)}' placeholder='Run ID, selector or error'></label><label>Status{_select('status',statuses,status,'Any status')}</label><label>Target{_select('target',targets,target,'All targets')}</label><label>Error{_select_pairs('error',[('yes','Has error'),('no','No error')],error_state,'Any')}</label><label>Started{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Newest first')}</label>"
         controls=_filter_panel(fields,{'Search':q,'Status':status,'Target':target,'Error':dict([('yes','Has error'),('no','No error')]).get(error_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='newest' else ''},'/runs',title='Run filters',result_count=len(rows))
-        body="".join(f"<tr><td><code>{_esc(r['id'])}</code></td><td>{_pill(r['status'])}</td><td>{_esc(r['started_at'])}</td><td>{_esc(r['finished_at'])}</td><td>{r['target_count']}<br><span class='muted small'>{_esc(r['targets'] or r['target_selector'] or '')}</span></td><td><code>{_esc(r['resumed_from'])}</code></td><td class='muted'>{_esc(r['error'])}</td><td><a class='button ghost' href='/report/{urllib.parse.quote(str(r['id']))}'>Report</a></td></tr>" for r in rows)
+        body="".join(f"<tr><td><code>{_esc(r['id'])}</code></td><td>{_pill(r['status'])}</td><td>{_esc(r['started_at'])}</td><td>{_esc(r['finished_at'])}</td><td>{r['target_count']}<br><span class='muted small'>{_esc(r['targets'] or r['target_selector'] or '')}</span></td><td><code>{_esc(r['resumed_from'])}</code></td><td class='muted'>{_esc(r['error'])}</td><td><a class='button ghost' href='/run-review?id={urllib.parse.quote(str(r['id']))}'>Review</a> <a class='button ghost' href='/report/{urllib.parse.quote(str(r['id']))}'>Report</a></td></tr>" for r in rows)
         header=_page_header("Run history", "Collection and analysis executions with status, target, resume lineage, error and time filters.", "<a class='button secondary' href='/compare'>Compare runs</a><a class='button' href='/health'>Health</a>", "Operations")
         self.send_html("Runs",header+controls+f"<div class='table-wrap'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th><th>Resumed from</th><th>Error</th><th></th></tr></thead><tbody>{body or '<tr><td colspan=8>No runs match the filters</td></tr>'}</tbody></table></div>")
 
