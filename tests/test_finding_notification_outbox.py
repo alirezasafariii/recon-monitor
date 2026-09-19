@@ -294,6 +294,109 @@ class FindingNotificationOutboxTests(unittest.TestCase):
         self.assertEqual(warning["delivered"], 1)
         self.assertEqual(str(self.db.one("SELECT status FROM notification_events WHERE event_id=?", (warning_id,))["status"]), "delivered")
 
+    def test_lost_lease_cannot_acknowledge_success(self) -> None:
+        event_id, _candidate_id = self._queue("lost-lease-success")
+
+        def transport(_config, _logger, _message):
+            self.db.execute(
+                "UPDATE finding_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (event_id,),
+            )
+            return {
+                "delivered": True,
+                "channel": "fixture",
+                "channels": ["fixture"],
+                "error": "",
+            }
+
+        result = deliver_finding_notification_outbox(
+            config=self.config,
+            logger=self.logger,
+            db=self.db,
+            target=self.TARGET,
+            transport=transport,
+            now="2099-01-01T00:00:00Z",
+        )
+        self.assertEqual(result["delivered"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        event = self.db.one(
+            "SELECT status FROM notification_events WHERE event_id=?",
+            (event_id,),
+        )
+        self.assertEqual(str(event["status"]), "queued")
+        self.assertEqual(
+            int(
+                self.db.one(
+                    "SELECT COUNT(*) AS n FROM notification_deliveries "
+                    "WHERE event_id=?",
+                    (event_id,),
+                )["n"]
+            ),
+            0,
+        )
+        outbox = self.db.one(
+            "SELECT status,lease_id,attempt_count "
+            "FROM finding_notification_outbox WHERE event_id=?",
+            (event_id,),
+        )
+        self.assertEqual(str(outbox["status"]), "delivering")
+        self.assertEqual(str(outbox["lease_id"]), "another-worker")
+        self.assertEqual(int(outbox["attempt_count"]), 0)
+
+    def test_lost_lease_cannot_record_failure(self) -> None:
+        event_id, _candidate_id = self._queue("lost-lease-failure")
+        self.db.execute(
+            "UPDATE finding_notification_outbox "
+            "SET max_attempts=1 WHERE event_id=?",
+            (event_id,),
+        )
+
+        def transport(_config, _logger, _message):
+            self.db.execute(
+                "UPDATE finding_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (event_id,),
+            )
+            return {
+                "delivered": False,
+                "channel": "fixture",
+                "channels": [],
+                "error": "transport_down",
+            }
+
+        result = deliver_finding_notification_outbox(
+            config=self.config,
+            logger=self.logger,
+            db=self.db,
+            target=self.TARGET,
+            transport=transport,
+            now="2099-01-01T00:00:00Z",
+        )
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["retry_pending"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        self.assertEqual(
+            str(
+                self.db.one(
+                    "SELECT status FROM notification_events "
+                    "WHERE event_id=?",
+                    (event_id,),
+                )["status"]
+            ),
+            "queued",
+        )
+        self.assertEqual(
+            int(
+                self.db.one(
+                    "SELECT COUNT(*) AS n FROM notification_deliveries "
+                    "WHERE event_id=?",
+                    (event_id,),
+                )["n"]
+            ),
+            0,
+        )
+
     def test_silent_policy_creates_no_event_or_outbox_row(self) -> None:
         self._set_policy("silent")
         run_id, analysis_id, _ = self._analysis_candidate("silent")

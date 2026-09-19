@@ -168,6 +168,82 @@ class ReconAlertOutboxTests(unittest.TestCase):
         self.assertEqual(row["attempt_count"], 0)
         self.assertEqual(row["last_error"], "")
 
+    def test_lost_lease_cannot_mark_alert_notified(self):
+        alert_id = self._alert(dedup_key="lease-loss-success")
+        queued = self._enqueue(alert_id)
+
+        def transport(_config, _logger, _message):
+            self.db.execute(
+                "UPDATE recon_alert_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (queued["event_id"],),
+            )
+            return {
+                "delivered": True,
+                "channels": ["notify"],
+                "channel": "notify",
+                "error": "",
+            }
+
+        result = deliver_recon_alert_outbox(
+            config=object(),
+            logger=object(),
+            db=self.db,
+            transport=transport,
+        )
+        self.assertEqual(result["delivered"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        alert = self.db.one(
+            "SELECT last_notified FROM alerts WHERE id=?",
+            (alert_id,),
+        )
+        self.assertFalse(alert["last_notified"])
+        outbox = self.db.one(
+            "SELECT status,lease_id,attempt_count "
+            "FROM recon_alert_notification_outbox WHERE event_id=?",
+            (queued["event_id"],),
+        )
+        self.assertEqual(str(outbox["status"]), "delivering")
+        self.assertEqual(str(outbox["lease_id"]), "another-worker")
+        self.assertEqual(int(outbox["attempt_count"]), 0)
+
+    def test_lost_lease_cannot_record_terminal_failure(self):
+        alert_id = self._alert(dedup_key="lease-loss-failure")
+        queued = self._enqueue(alert_id)
+        self.db.execute(
+            "UPDATE recon_alert_notification_outbox "
+            "SET max_attempts=1 WHERE event_id=?",
+            (queued["event_id"],),
+        )
+
+        def transport(_config, _logger, _message):
+            self.db.execute(
+                "UPDATE recon_alert_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (queued["event_id"],),
+            )
+            return {
+                "delivered": False,
+                "channels": [],
+                "channel": "fixture",
+                "error": "transport_down",
+            }
+
+        result = deliver_recon_alert_outbox(
+            config=object(),
+            logger=object(),
+            db=self.db,
+            transport=transport,
+        )
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["retry_pending"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        alert = self.db.one(
+            "SELECT last_notified FROM alerts WHERE id=?",
+            (alert_id,),
+        )
+        self.assertFalse(alert["last_notified"])
+
     def test_successful_batch_marks_all_alerts_notified(self):
         first_id = self._alert(dedup_key="change-a")
         second_id = self._alert(dedup_key="change-b")
