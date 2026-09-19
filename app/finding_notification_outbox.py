@@ -11,7 +11,7 @@ from core import APP_VERSION, Database, ReconError, safe_json_loads, utc_now
 from notification_transports import deliver_notification_message
 
 
-FINDING_NOTIFICATION_OUTBOX_VERSION = "1.0.0"
+FINDING_NOTIFICATION_OUTBOX_VERSION = "1.0.1"
 FINDING_NOTIFICATION_OUTBOX_SCHEMA_VERSION = 1
 EVENT_TYPE = "potential_finding"
 DELIVERABLE_MODES = {"immediate", "digest", "system_warning"}
@@ -277,6 +277,7 @@ def deliver_finding_notification_outbox(
             "delivered": 0,
             "retry_pending": 0,
             "failed": 0,
+            "lease_lost": 0,
             "batches": [],
         }
 
@@ -285,12 +286,28 @@ def deliver_finding_notification_outbox(
         groups[(str(row.get("target") or ""), str(row.get("mode") or ""))].append(row)
 
     send = transport or deliver_notification_message
+    attempted_count = 0
     delivered_count = 0
     retry_count = 0
     failed_count = 0
+    lease_lost_count = 0
     batches: list[dict[str, Any]] = []
 
     for (batch_target, batch_mode), batch_rows in groups.items():
+        ownership_time = str(now or utc_now())
+        batch_rows = [
+            row
+            for row in batch_rows
+            if db.one(
+                "SELECT 1 FROM finding_notification_outbox "
+                "WHERE event_id=? AND status='delivering' "
+                "AND lease_id=? AND lease_expires_at>?",
+                (str(row["event_id"]), lease_id, ownership_time),
+            )
+        ]
+        if not batch_rows:
+            continue
+        attempted_count += len(batch_rows)
         message = _message(batch_target, batch_mode, batch_rows)
         try:
             result = dict(send(config, logger, message))
@@ -306,12 +323,24 @@ def deliver_finding_notification_outbox(
                 attempts = int(row.get("attempt_count") or 0) + 1
                 max_attempts = max(1, int(row.get("max_attempts") or DEFAULT_MAX_ATTEMPTS))
                 if delivered:
-                    db.execute(
+                    finalized = db.execute(
                         "UPDATE finding_notification_outbox SET status='delivered',attempt_count=?,"
                         "last_attempt_at=?,last_error='',lease_id='',lease_expires_at='',updated_at=?,delivered_at=? "
-                        "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                        (attempts, current, current, current, event_id, lease_id),
+                        "WHERE event_id=? AND status='delivering' AND lease_id=? "
+                        "AND lease_expires_at>?",
+                        (
+                            attempts,
+                            current,
+                            current,
+                            current,
+                            event_id,
+                            lease_id,
+                            current,
+                        ),
                     )
+                    if finalized.rowcount != 1:
+                        lease_lost_count += 1
+                        continue
                     db.execute(
                         "UPDATE notification_events SET status='delivered',delivered_at=? "
                         "WHERE event_id=? AND status='queued'",
@@ -328,12 +357,26 @@ def deliver_finding_notification_outbox(
                 terminal = attempts >= max_attempts
                 next_attempt = current if terminal else _next_attempt(current, attempts)
                 next_status = "failed" if terminal else "retry_pending"
-                db.execute(
+                finalized = db.execute(
                     "UPDATE finding_notification_outbox SET status=?,attempt_count=?,next_attempt_at=?,"
                     "last_attempt_at=?,last_error=?,lease_id='',lease_expires_at='',updated_at=? "
-                    "WHERE event_id=? AND status='delivering' AND lease_id=?",
-                    (next_status, attempts, next_attempt, current, error, current, event_id, lease_id),
+                    "WHERE event_id=? AND status='delivering' AND lease_id=? "
+                    "AND lease_expires_at>?",
+                    (
+                        next_status,
+                        attempts,
+                        next_attempt,
+                        current,
+                        error,
+                        current,
+                        event_id,
+                        lease_id,
+                        current,
+                    ),
                 )
+                if finalized.rowcount != 1:
+                    lease_lost_count += 1
+                    continue
                 if terminal:
                     db.execute(
                         "UPDATE notification_events SET status='failed' WHERE event_id=? AND status='queued'",
@@ -363,10 +406,11 @@ def deliver_finding_notification_outbox(
         "version": FINDING_NOTIFICATION_OUTBOX_VERSION,
         "lease_id": lease_id,
         "due": len(rows),
-        "attempted": len(rows),
+        "attempted": attempted_count,
         "delivered": delivered_count,
         "retry_pending": retry_count,
         "failed": failed_count,
+        "lease_lost": lease_lost_count,
         "batches": batches,
     }
 
