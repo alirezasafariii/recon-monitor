@@ -17,8 +17,8 @@ union branch is unsupported; a conjunction is never partially evaluated.
 import re
 from typing import Iterable
 
-DEPENDENCY_VERSION_RANGE_VERSION = "1.3.0"
-DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.19.1"
+DEPENDENCY_VERSION_RANGE_VERSION = "1.3.1"
+DEPENDENCY_VERSION_RANGE_RULE_VERSION = "2026.09.19.2"
 
 SEMVER_ECOSYSTEMS = frozenset(
     {
@@ -619,6 +619,34 @@ def _release_in_bounds(
     ) < 0
 
 
+def _npm_hyphen_partial_bounds(
+    lower_text: str,
+    upper_text: str,
+) -> tuple[tuple[int, int, int] | None, tuple[int, int, int] | None]:
+    """Normalize partial numeric npm hyphen endpoints.
+
+    npm/node-semver zero-fills a partial lower endpoint. A partial upper
+    endpoint includes the written prefix, which is equivalent for stable
+    observed releases to an exclusive bound at the next prefix.
+    """
+
+    lower_release = _release_tuple(lower_text)
+    upper_release = _release_tuple(upper_text)
+
+    lower: tuple[int, int, int] | None = None
+    if lower_release is not None and 1 <= len(lower_release) < 3:
+        padded_lower = lower_release + (0,) * (3 - len(lower_release))
+        lower = (padded_lower[0], padded_lower[1], padded_lower[2])
+
+    upper: tuple[int, int, int] | None = None
+    if upper_release is not None and len(upper_release) == 1:
+        upper = (upper_release[0] + 1, 0, 0)
+    elif upper_release is not None and len(upper_release) == 2:
+        upper = (upper_release[0], upper_release[1] + 1, 0)
+
+    return lower, upper
+
+
 def _special_branch_supported(branch: str, ecosystem: str) -> bool:
     text = str(branch or "").strip()
     ecosystem = normalize_ecosystem(ecosystem)
@@ -728,14 +756,69 @@ def _special_branch_matches(
             return _release_in_bounds(release, *wildcard)
         hyphen = _HYPHEN_RE.fullmatch(text)
         if hyphen:
+            lower_text = hyphen.group(1)
+            upper_text = hyphen.group(2)
+
+            if ecosystem == "npm":
+                partial_lower, partial_upper = _npm_hyphen_partial_bounds(
+                    lower_text,
+                    upper_text,
+                )
+                if partial_lower is not None or partial_upper is not None:
+                    if (
+                        observed_semver is not None
+                        and observed_semver[1] is not None
+                        and not _branch_explicitly_admits_prerelease(
+                            observed_text,
+                            text,
+                            ecosystem,
+                        )
+                    ):
+                        return False
+                    release = (
+                        observed_release
+                        if observed_release is not None
+                        else observed_semver[0]
+                    )
+                    if partial_lower is not None:
+                        lower_ok = _compare_release(
+                            release,
+                            partial_lower,
+                        ) >= 0
+                    else:
+                        low_cmp = _compare_observed_to_boundary(
+                            observed_text,
+                            lower_text,
+                            ecosystem,
+                        )
+                        if low_cmp is None:
+                            return None
+                        lower_ok = low_cmp >= 0
+
+                    if partial_upper is not None:
+                        upper_ok = _compare_release(
+                            release,
+                            partial_upper,
+                        ) < 0
+                    else:
+                        high_cmp = _compare_observed_to_boundary(
+                            observed_text,
+                            upper_text,
+                            ecosystem,
+                        )
+                        if high_cmp is None:
+                            return None
+                        upper_ok = high_cmp <= 0
+                    return lower_ok and upper_ok
+
             low_cmp = _compare_observed_to_boundary(
                 observed_text,
-                hyphen.group(1),
+                lower_text,
                 ecosystem,
             )
             high_cmp = _compare_observed_to_boundary(
                 observed_text,
-                hyphen.group(2),
+                upper_text,
                 ecosystem,
             )
             if low_cmp is None or high_cmp is None:

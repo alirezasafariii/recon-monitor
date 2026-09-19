@@ -251,6 +251,127 @@ class BackupManager:
             "issues": issues,
         }
 
+    def _rebase_restored_artifact_references(
+        self,
+        database: Path,
+    ) -> dict[str, Any]:
+        """Rewrite portable artifact references to this project's root.
+
+        Backup verification resolves historical absolute paths to archive-relative
+        artifact locations. Restore must also persist that mapping back into the
+        restored database; otherwise consumers that read js_files.blob_path
+        directly keep following the source installation after a cross-root move.
+        """
+
+        conn = sqlite3.connect(database)
+        conn.row_factory = sqlite3.Row
+        rebased_js = 0
+        rebased_edges = 0
+        issues: list[str] = []
+        try:
+            tables = {
+                str(row[0])
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                if "js_files" in tables:
+                    rows = conn.execute(
+                        "SELECT rowid,blob_path FROM js_files "
+                        "WHERE COALESCE(blob_path,'')<>''"
+                    ).fetchall()
+                    for row in rows:
+                        original = str(row["blob_path"] or "")
+                        rel, error = self._project_relative_artifact(original)
+                        if error or not rel:
+                            issues.append(
+                                error
+                                or f"unable to rebase js_files.blob_path: {original}"
+                            )
+                            continue
+                        destination = (
+                            self.paths.root / self._safe_relative_path(rel)
+                        ).resolve()
+                        try:
+                            destination.relative_to(self.paths.root.resolve())
+                        except ValueError:
+                            issues.append(
+                                f"rebased JavaScript artifact leaves project root: {rel}"
+                            )
+                            continue
+                        rewritten = str(destination)
+                        if rewritten != original:
+                            conn.execute(
+                                "UPDATE js_files SET blob_path=? WHERE rowid=?",
+                                (rewritten, int(row["rowid"])),
+                            )
+                            rebased_js += 1
+
+                if "asset_edges" in tables:
+                    rows = conn.execute(
+                        "SELECT rowid,metadata_json FROM asset_edges "
+                        "WHERE metadata_json LIKE '%blob_path%'"
+                    ).fetchall()
+                    for row in rows:
+                        payload = safe_json_loads(
+                            row["metadata_json"],
+                            {},
+                            expected_type=dict,
+                        )
+                        if not isinstance(payload, dict):
+                            continue
+                        original = str(payload.get("blob_path") or "")
+                        if not original:
+                            continue
+                        rel, error = self._project_relative_artifact(original)
+                        if error or not rel:
+                            issues.append(
+                                error
+                                or f"unable to rebase asset_edges blob_path: {original}"
+                            )
+                            continue
+                        destination = (
+                            self.paths.root / self._safe_relative_path(rel)
+                        ).resolve()
+                        try:
+                            destination.relative_to(self.paths.root.resolve())
+                        except ValueError:
+                            issues.append(
+                                f"rebased evidence artifact leaves project root: {rel}"
+                            )
+                            continue
+                        rewritten = str(destination)
+                        if rewritten != original:
+                            payload["blob_path"] = rewritten
+                            conn.execute(
+                                "UPDATE asset_edges SET metadata_json=? WHERE rowid=?",
+                                (
+                                    json_dumps(payload),
+                                    int(row["rowid"]),
+                                ),
+                            )
+                            rebased_edges += 1
+
+                if issues:
+                    conn.execute("ROLLBACK")
+                else:
+                    conn.execute("COMMIT")
+            except Exception:
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
+                raise
+        finally:
+            conn.close()
+
+        return {
+            "ok": not issues,
+            "js_files_rebased": rebased_js if not issues else 0,
+            "asset_edges_rebased": rebased_edges if not issues else 0,
+            "issues": issues,
+        }
+
     def _materialize_reference_manifest(
         self,
         database: Path,
@@ -813,6 +934,15 @@ class BackupManager:
                 if isinstance(manifest, dict)
                 else {}
             )
+            rebase = self._rebase_restored_artifact_references(
+                restored_database
+            )
+            if not rebase["ok"]:
+                raise ReconError(
+                    "Restore artifact-path rebasing failed: "
+                    + "; ".join(rebase["issues"][:10])
+                )
+
             restore_inventory = self._reference_inventory(
                 restored_database
             )
@@ -872,6 +1002,12 @@ class BackupManager:
                                 "required_count"
                             )
                             or 0
+                        ),
+                        "js_paths_rebased": int(
+                            rebase.get("js_files_rebased") or 0
+                        ),
+                        "evidence_paths_rebased": int(
+                            rebase.get("asset_edges_rebased") or 0
                         ),
                     },
                 )
@@ -972,6 +1108,12 @@ class BackupManager:
                     "referenced_artifacts": len(
                         post_restore["required_files"]
                     ),
+                    "js_paths_rebased": int(
+                        rebase.get("js_files_rebased") or 0
+                    ),
+                    "evidence_paths_rebased": int(
+                        rebase.get("asset_edges_rebased") or 0
+                    ),
                 },
             )
         finally:
@@ -985,6 +1127,12 @@ class BackupManager:
             "referential_integrity": True,
             "referenced_artifacts": len(
                 post_restore["required_files"]
+            ),
+            "js_paths_rebased": int(
+                rebase.get("js_files_rebased") or 0
+            ),
+            "evidence_paths_rebased": int(
+                rebase.get("asset_edges_rebased") or 0
             ),
         }
 
