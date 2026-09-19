@@ -14,8 +14,8 @@ from typing import Any, Mapping
 
 from core import json_dumps, utc_now
 
-RAW_ANALYSIS_QUALITY_VERSION = "1.2.1"
-RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.3"
+RAW_ANALYSIS_QUALITY_VERSION = "1.2.2"
+RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.4"
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -75,9 +75,16 @@ def _budget_metrics(
     analyzer_execution_coverage = (
         round(executed / attempted, 4) if attempted else None
     )
+    scope = str(budget.get("scope") or routing.get("scope") or "analysis")
+    target_exhausted = (
+        bool(budget.get("exhausted"))
+        if scope == "target"
+        else False
+    )
+    analysis_exhausted = bool(aggregate.get("exhausted"))
     return {
         "version": str(budget.get("version") or ""),
-        "scope": str(budget.get("scope") or routing.get("scope") or "analysis"),
+        "scope": scope,
         "target": str(budget.get("target") or routing.get("target") or ""),
         "limit": limit,
         "limit_scope": str(budget.get("limit_scope") or "analysis"),
@@ -87,7 +94,17 @@ def _budget_metrics(
         "analysis_attempted": analysis_attempted,
         "analysis_executed": analysis_executed,
         "analysis_skipped": analysis_skipped,
-        "exhausted": bool(budget.get("exhausted")),
+        "target_exhausted": target_exhausted,
+        "analysis_exhausted": analysis_exhausted,
+        # Backward-compatible alias. In target-scoped reports this retains the
+        # historical target-local meaning; use the explicit fields above in
+        # dashboards and new integrations.
+        "exhausted": (
+            target_exhausted
+            if scope == "target"
+            else analysis_exhausted
+        ),
+        "exhausted_scope": "target" if scope == "target" else "analysis",
         # Operational budget utilization is not collection/input completeness.
         "analyzer_execution_coverage": analyzer_execution_coverage,
         "execution_coverage": analyzer_execution_coverage,
