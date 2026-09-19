@@ -14,8 +14,8 @@ from typing import Any, Mapping
 
 from core import json_dumps, utc_now
 
-RAW_ANALYSIS_QUALITY_VERSION = "1.1.0"
-RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.1"
+RAW_ANALYSIS_QUALITY_VERSION = "1.2.0"
+RAW_ANALYSIS_QUALITY_RULE_VERSION = "2026.09.19.2"
 
 
 def _loads(value: Any, default: Any) -> Any:
