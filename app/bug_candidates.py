@@ -1358,24 +1358,60 @@ def generate_bug_candidates(
             surface_selection = dict(
                 _RAW_SURFACE_SELECTIONS.pop(str(analysis_id), {})
             )
+            budget_by_target = (
+                dict(raw_budget.get("by_target") or {})
+                if isinstance(raw_budget.get("by_target"), Mapping)
+                else {}
+            )
+            selection_by_target = (
+                dict(surface_selection.get("by_target") or {})
+                if isinstance(surface_selection.get("by_target"), Mapping)
+                else {}
+            )
+            routing_by_target = {
+                current_target: {
+                    "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
+                    "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                    "surface_limit": _RAW_SURFACE_LIMIT,
+                    "surface_limit_scope": "analysis",
+                    "surface_selection": dict(
+                        selection_by_target.get(current_target) or {}
+                    ),
+                    "active_requests": 0,
+                    "analyzer_budget": dict(
+                        budget_by_target.get(current_target) or {}
+                    ),
+                }
+                for current_target in sorted(
+                    set(selection_by_target) | set(budget_by_target)
+                )
+            }
             result["raw_surface_routing"] = {
                 "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
                 "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                "scope": "analysis",
                 "hypotheses": raw_hypotheses,
                 "promoted": raw_promoted,
                 "families": raw_families,
                 "surface_limit": _RAW_SURFACE_LIMIT,
+                "surface_limit_scope": "analysis",
                 "surface_selection": surface_selection,
                 "active_requests": 0,
                 "analyzer_budget": {
                     "version": str(raw_budget.get("version") or ""),
                     "limit": int(raw_budget.get("limit") or 0),
+                    "limit_scope": str(
+                        raw_budget.get("limit_scope") or "analysis"
+                    ),
+                    "scope": "analysis",
                     "attempted": int(raw_budget.get("attempted") or 0),
                     "executed": int(raw_budget.get("executed") or 0),
                     "skipped": int(raw_budget.get("skipped") or 0),
                     "exhausted": bool(raw_budget.get("exhausted")),
                     "families": dict(raw_budget.get("families") or {}),
+                    "by_target": budget_by_target,
                 },
+                "by_target": routing_by_target,
             }
 
             result["detection_runtime"] = _detection_runtime_summary(
