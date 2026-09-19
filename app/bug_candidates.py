@@ -1372,6 +1372,8 @@ def generate_bug_candidates(
                 current_target: {
                     "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
                     "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                    "scope": "target",
+                    "target": current_target,
                     "surface_limit": _RAW_SURFACE_LIMIT,
                     "surface_limit_scope": "analysis",
                     "surface_selection": dict(
