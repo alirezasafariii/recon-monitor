@@ -535,9 +535,11 @@ def _katana_crawl_plan(
             "scope_regex": r"(?!)",
         }
 
-    # Reserve at most 30 seconds of configured global rate, bounded by the URL
-    # budget and the actual remaining HTTP request budget.
-    desired = min(max_candidates, max(len(ordered), rate * 30))
+    # The previous 30-second envelope allocated ~1 second per origin for
+    # larger targets. Reserve against the existing configured global request
+    # rate, stage timeout, URL cap and remaining HTTP budget instead. These
+    # are conservative estimates, not a per-request audit of external Katana.
+    desired = min(max_candidates, rate * timeout)
     reservation = desired if remaining is None else min(remaining, desired)
     origin_count = min(len(ordered), max(1, reservation))
     origins = ordered[:origin_count]
@@ -566,6 +568,10 @@ def _katana_crawl_plan(
         "rate_limit": effective_rate,
         "crawl_seconds": crawl_seconds,
         "concurrency": min(5, max(1, int(http_threads or 1))),
+        # The request envelope must also constrain the *wall-clock* time of
+        # an external tool, which otherwise can keep sending requests even
+        # after its nominal per-origin crawl duration has passed.
+        "wall_seconds": min(timeout, max(1, reservation // effective_rate)),
         "scope_regex": _katana_scope_regex(origins),
     }
 
@@ -750,6 +756,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_batches_attempted = 0
     katana_batches_completed = 0
     katana_origins_attempted = 0
+    katana_origin_successes: list[str] = []
+    katana_pending_origins: list[str] = []
+    katana_batches_incomplete = 0
+    katana_global_deadline_seconds = 0
     if tool_path("katana") and base_urls:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -772,6 +782,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         katana_crawl_origins = len(katana_origins)
         katana_rate_limit = int(plan["rate_limit"] or 0)
         katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
+        katana_global_deadline_seconds = int(plan.get("wall_seconds") or 0)
+        katana_pending_origins = list(
+            dict.fromkeys(katana_origins + [origin for origin in base_urls if origin not in katana_origins])
+        )
 
         if katana_origins:
             katana_base_path = ctx.current / "katana-base-urls.txt"
@@ -782,20 +796,21 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             if ctx.budget and katana_reserved_requests:
                 ctx.budget.consume("http_requests", katana_reserved_requests)
 
-            # Bound each invocation, while keeping a global deadline for this
-            # collector. One stuck origin must not hold up all other stages for
-            # the full stage timeout. Batches are sequential to preserve the
-            # configured rate limit; scopes include only safe-probed origins.
+            # Sequential invocations preserve the configured global rate.
+            # A failed batch is kept pending, but does not prevent *later*
+            # batches from being attempted while the shared budget permits.
+            # Successful here means the tool exited normally, NOT that every
+            # reachable page on its origins was discovered.
             out = ctx.current / "katana-urls.txt"
             atomic_write_text(out, "")
+            batch_outcomes: list[dict[str, Any]] = []
             crawl_started = time.monotonic()
             for batch_offset in range(0, len(katana_origins), 5):
                 remaining_seconds = int(
-                    ctx.policy.limits.timeout_seconds -
+                    katana_global_deadline_seconds -
                     (time.monotonic() - crawl_started)
                 )
                 if remaining_seconds <= 0:
-                    katana_status = "timeout"
                     katana_timed_out = True
                     break
 
@@ -805,7 +820,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
                 atomic_write_text(
                     batch_input,
-                    "".join(f"{url}\n" for url in batch_origins),
+                    "".join(f"{url}\\n" for url in batch_origins),
                 )
                 args = [
                     "katana",
@@ -839,31 +854,59 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_batches_attempted += 1
                 katana_origins_attempted += len(batch_origins)
                 katana_observed += int(getattr(result, "lines", 0) or 0)
-                katana_exit_code = int(result.returncode)
-                katana_timed_out = bool(getattr(result, "timed_out", False))
+                batch_exit = int(result.returncode)
+                batch_timed_out = bool(getattr(result, "timed_out", False))
+                katana_timed_out = katana_timed_out or batch_timed_out
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
+                batch_complete = batch_exit == 0 and not batch_timed_out
+                batch_outcomes.append({
+                    "batch": batch_number,
+                    "origins": len(batch_origins),
+                    "exit_code": batch_exit,
+                    "timed_out": batch_timed_out,
+                    "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
+                    "lines": int(getattr(result, "lines", 0) or 0),
+                    "status": "completed" if batch_complete else (
+                        "timeout" if batch_timed_out else "nonzero_exit"
+                    ),
+                })
+                if not batch_complete:
+                    katana_batches_incomplete += 1
+                    if katana_exit_code is None:
+                        katana_exit_code = batch_exit
+                    ctx.logger.warn(
+                        "katana batch incomplete",
+                        target=ctx.policy.name,
+                        batch=batch_number,
+                        exit=batch_exit,
+                        timed_out=batch_timed_out,
+                    )
+                else:
+                    katana_batches_completed += 1
+                    katana_origin_successes.extend(batch_origins)
 
-                # Always retain partial evidence from the interrupted batch.
+                # Retain evidence even for a failed batch; do not interpret a
+                # line of output as proof that its origin was fully crawled.
                 if batch_output.exists():
                     with out.open("a", encoding="utf-8") as combined:
                         for line in batch_output.read_text(
                             encoding="utf-8", errors="replace",
                         ).splitlines():
-                            combined.write(line + "\n")
+                            combined.write(line + "\\n")
 
-                if katana_timed_out or katana_exit_code != 0:
-                    katana_status = "timeout" if katana_timed_out else "nonzero_exit"
-                    ctx.logger.warn(
-                        "katana batch incomplete",
-                        target=ctx.policy.name,
-                        batch=batch_number,
-                        exit=katana_exit_code,
-                        timed_out=katana_timed_out,
-                    )
-                    break
-                katana_batches_completed += 1
-                katana_status = "completed"
-
+            successful = set(katana_origin_successes)
+            katana_pending_origins = [
+                origin for origin in katana_pending_origins if origin not in successful
+            ]
+            katana_status = (
+                "timeout" if katana_timed_out else
+                "nonzero_exit" if katana_batches_incomplete else
+                "partial" if katana_pending_origins else
+                "completed"
+            )
+            # Machine-readable per-batch evidence and explicit backlog remain
+            # accessible even after this run's other stages complete.
+            write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
             if out.exists():
                 for line in out.read_text(
                     encoding="utf-8", errors="replace",
@@ -876,6 +919,19 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         else:
             katana_status = "budget_exhausted"
             atomic_write_text(ctx.current / "katana-base-urls.txt", "")
+
+    # Do not silently discard origins that were not attempted, or those
+    # belonging to an incomplete batch. They require a later authorized pass.
+    if katana_status == "budget_exhausted":
+        katana_pending_origins = list(base_urls)
+    atomic_write_text(
+        ctx.current / "katana-pending-origins.txt",
+        "".join(f"{url}\\n" for url in katana_pending_origins),
+    )
+    atomic_write_text(
+        ctx.current / "katana-completed-origins.txt",
+        "".join(f"{url}\\n" for url in katana_origin_successes),
+    )
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
     new_count = 0
@@ -949,7 +1005,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_batches_attempted": katana_batches_attempted,
         "katana_batches_completed": katana_batches_completed,
         "katana_origins_attempted": katana_origins_attempted,
-        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted"} else "completed",
+        "katana_origins_completed": len(katana_origin_successes),
+        "katana_pending_origins": len(katana_pending_origins),
+        "katana_batches_incomplete": katana_batches_incomplete,
+        "katana_global_deadline_seconds": katana_global_deadline_seconds,
+        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial"} else "completed",
     }
 
 
