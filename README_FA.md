@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.8.0
+# راهنمای Recon Monitor 8.8.1
 
-<!-- recon-monitor-current: app=8.8.0 schema=18 -->
+<!-- recon-monitor-current: app=8.8.1 schema=18 -->
 
-## نسخهٔ فعلی: Evidence-to-Finding Reliability و Durable Delivery
+## نسخهٔ فعلی: Correctness، Replay Integrity و Multi-target Reporting
 
-Recon Monitor 8.8.0 مسیر عملیاتی بین Recon قابل اعتماد، Evidence ساختاریافته، Admission canonical، Potential Finding و Delivery پایدار را کامل می‌کند، بدون اینکه مرز تأیید Vulnerability یا اختیار Admission تضعیف شود.
+Recon Monitor 8.8.1 یک Patch متمرکز بر correctness نسبت به 8.8.0 است. semantics بازه‌های ناقص npm، انتقال شواهد واقعی listing در S3/GCS از مسیر عادی fingerprint، portability بازیابی backup بین rootهای مختلف، replay immutable و calibration، مالکیت lease در notification و telemetry مربوط به raw Analysis و اجرای چندهدفه در این نسخه اصلاح شده‌اند.
 
-این نسخه Successful Snapshot و State-Version Confirmation، Typed Evidence آفلاین برای هر ۹ خانوادهٔ `passive_live`، مسیرهای Reviewed Evidence کنترل‌شده، Dispatcher عمومی Reviewed Evidence، Finding Notification Outbox پایدار با Retry/Dead-letter و Transport مشترک برای Finding Notification و Recon Change Alert را اضافه یا یکپارچه می‌کند.
+نسخهٔ canonical برنامه **8.8.1** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-نسخهٔ canonical برنامه **8.8.0** و Core Schema دیتابیس **18** است. قابلیت‌های Reliability و Notification در صورت نیاز از Compatibility Schemaهای مستقل و Additive استفاده می‌کنند. منبع حقیقت نسخه و Core Schema همچنان `app/core.py` است. برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.0.md`، `docs/RELEASE_NOTES_v8.8.0.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.1.md`، `docs/RELEASE_NOTES_v8.8.1.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

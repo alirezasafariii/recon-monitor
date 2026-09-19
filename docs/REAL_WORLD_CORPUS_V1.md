@@ -74,9 +74,9 @@ No production threshold or Analysis rule is changed by corpus collection.
 `source_discovery` — no scoring has been executed and the V6 reserved blind set remains untouched.
 
 
-## Port to current main (8.8.0)
+## Port to current main (8.8.1)
 
-The Corpus V1 tooling and review artifacts are ported onto the current 8.8.0
+The Corpus V1 tooling and review artifacts are ported onto the current 8.8.1
 architecture on the `research/real-world-corpus-v1-port` branch. The port keeps
 the original independence boundary and adds a fail-closed bridge to the current
 `verified_replay_contract` and `real_world_calibration` pipeline.
