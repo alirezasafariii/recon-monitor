@@ -22,6 +22,7 @@ from calibration_dataset import (
     build_guarded_calibration_profile,
     is_activation_eligible,
 )
+from real_world_calibration import deterministic_holdout_split
 
 
 GOOD_EVIDENCE_QUALITY = {
@@ -147,6 +148,47 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         self.assertIn("missing_reviewer_id", errors)
         self.assertIn("missing_evidence_snapshot_id", errors)
         self.assertIn("incomplete_evidence_quality", errors)
+
+    def test_verified_replay_loader_preserves_evaluation_partition_metadata(self):
+        record = {
+            "id": "case-partition-001",
+            "family": "broken_object_authorization",
+            "label": False,
+            "decision_readiness_score": 22,
+            "bug_proximity_score": 58,
+            "target_evidence_confidence": 37,
+            "signals": ["object_identifier", "object_operation"],
+            "contradictions": ["cross_context_denied"],
+            "provenance": "human_verified_replay",
+            "human_verified": True,
+            "label_source": "analyst_case_review",
+            "reviewer_id": "reviewer-partition",
+            "reviewed_at": "2026-09-19T00:00:00Z",
+            "case_origin_id": "origin-partition-001",
+            "evidence_snapshot_id": "snapshot-partition-001",
+            "evidence_quality": GOOD_EVIDENCE_QUALITY,
+            "evaluation_role": "consumed_benchmark",
+            "source_corpus_id": "real-world-corpus-v1",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verified.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            loaded = load_verified_replay_jsonl_with_diagnostics([path])
+
+        self.assertEqual(loaded["accepted_count"], 1)
+        normalized = loaded["records"][0]
+        self.assertEqual(normalized["evaluation_role"], "consumed_benchmark")
+        self.assertEqual(normalized["source_corpus_id"], "real-world-corpus-v1")
+
+        split = deterministic_holdout_split(
+            loaded["records"],
+            holdout_percent=50,
+            min_evidence_quality=0,
+        )
+        self.assertEqual(split["evaluation_role_counts"], {"consumed_benchmark": 1})
+        self.assertEqual(split["forced_train_count"], 1)
+        self.assertEqual(split["train_count"], 1)
+        self.assertEqual(split["holdout_count"], 0)
 
     def test_verified_replay_loader_deduplicates_same_reviewed_snapshot(self):
         first = {

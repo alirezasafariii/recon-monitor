@@ -20,8 +20,8 @@ from typing import Any, Iterable, Mapping
 from calibration_engine import calibration_for_score
 from decision_readiness import decision_readiness
 
-META_RANKER_VERSION = "1.3.0"
-META_RANKER_RULE_VERSION = "2026.09.18.1"
+META_RANKER_VERSION = "1.3.1"
+META_RANKER_RULE_VERSION = "2026.09.19.1"
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "target_evidence": 0.40,
@@ -269,7 +269,12 @@ def rank_bug_proximity(
             target_evidence_confidence=evidence_score,
             recognized_contradictions=evidence_explanation["contradictions"],
         )
-        calibration = calibration_for_score(family, proximity, calibration_profile)
+        calibration = calibration_for_score(
+            family,
+            int(readiness["score"]),
+            calibration_profile,
+        )
+        calibration["score_semantics"] = "decision_readiness_score"
         available = [name for name, value in components.items() if value is not None]
         unavailable = [name for name, value in components.items() if value is None]
         why: list[str] = []

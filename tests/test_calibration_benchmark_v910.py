@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from analysis_benchmark import benchmark_report, load_golden_cases, replay_golden_cases
-from calibration_engine import build_calibration_profile, confusion_metrics, select_threshold
+from calibration_engine import build_calibration_profile, calibration_bins, confusion_metrics, select_threshold
 from meta_ranker import rank_bug_proximity
 
 
@@ -29,6 +30,28 @@ class CalibrationBenchmarkV910Tests(unittest.TestCase):
         selected = select_threshold(records)
         self.assertTrue(selected["learned"])
         self.assertEqual(selected["metrics"]["f1"], 1.0)
+
+    def test_calibration_bins_match_reported_boundaries(self):
+        records = [
+            {"family": "x", "label": False, "score": score}
+            for score in range(101)
+        ]
+        buckets = calibration_bins(records, bins=10)
+        self.assertEqual(
+            [(bucket["low"], bucket["high"], bucket["support"]) for bucket in buckets],
+            [
+                (0, 9, 10),
+                (10, 19, 10),
+                (20, 29, 10),
+                (30, 39, 10),
+                (40, 49, 10),
+                (50, 59, 10),
+                (60, 69, 10),
+                (70, 79, 10),
+                (80, 89, 10),
+                (90, 100, 11),
+            ],
+        )
 
     def test_family_thresholds_fail_closed_when_family_support_is_too_small(self):
         records = []
@@ -83,6 +106,50 @@ class CalibrationBenchmarkV910Tests(unittest.TestCase):
         self.assertTrue(calibrated["primary"]["calibration"]["available"])
         self.assertEqual(calibrated["calibration_mode"], "shadow_only")
         self.assertTrue(calibrated["safety"]["calibration_cannot_change_evidence_or_admission"])
+
+    def test_meta_ranker_queries_calibration_with_decision_readiness_score(self):
+        support = [{"type": "object_identifier", "source_group": "schema"}]
+        ranking = {
+            "family": "broken_object_authorization",
+            "label": "BOLA / IDOR",
+            "score": 91,
+            "matched": {
+                "strong": [],
+                "medium": ["object_identifier"],
+                "weak": [],
+                "text": [],
+            },
+            "contradictions": [],
+            "taxonomy": {},
+            "tags": [],
+        }
+        captured = []
+
+        def fake_calibration(family, score, profile):
+            captured.append((family, int(score)))
+            return {"available": False, "raw_score": int(score)}
+
+        readiness = {
+            "score": 17,
+            "matched_decisive_signals": [],
+            "blocking_contradictions": [],
+        }
+        with patch("meta_ranker.decision_readiness", return_value=readiness):
+            with patch("meta_ranker.calibration_for_score", side_effect=fake_calibration):
+                result = rank_bug_proximity(
+                    support,
+                    [],
+                    [ranking],
+                    [],
+                    calibration_profile={"activation": "shadow_only"},
+                )
+
+        self.assertEqual(captured, [("broken_object_authorization", 17)])
+        self.assertEqual(result["primary"]["decision_readiness_score"], 17)
+        self.assertEqual(
+            result["primary"]["calibration"]["score_semantics"],
+            "decision_readiness_score",
+        )
 
     def test_full_golden_replay_covers_all_74_families_and_148_labeled_records(self):
         cases = load_golden_cases([
