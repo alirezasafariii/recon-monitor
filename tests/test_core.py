@@ -159,6 +159,7 @@ class CoreTests(unittest.TestCase):
                         "strict-transport-security": "max-age=31536000",
                     },
                     "response_headers_observed": True,
+                    "response_xml_root": "listbucketresult",
                     "body_hash": "b",
                     "favicon_hash": "f", "jarm": "j", "ip": "192.0.2.1", "cname": "c",
                     "cdn": "cdn", "final_url": "https://example.com/", "redirect_chain": [],
@@ -170,15 +171,20 @@ class CoreTests(unittest.TestCase):
                 self.assertTrue(is_new)
                 self.assertFalse(changed)
                 row = db.one(
-                    "SELECT tls_issuer,screenshot_hash,response_headers_json,response_headers_observed "
+                    "SELECT tls_issuer,screenshot_hash,response_headers_json,response_headers_observed,response_xml_root "
                     "FROM fingerprints"
                 )
                 self.assertEqual(row["tls_issuer"], "issuer")
                 self.assertEqual(row["screenshot_hash"], "shot")
                 self.assertEqual(int(row["response_headers_observed"]), 1)
+                self.assertEqual(row["response_xml_root"], "listbucketresult")
                 self.assertIn("strict-transport-security", row["response_headers_json"])
                 self.assertEqual(
                     db.meta_get("fingerprint_response_headers_schema_version"),
+                    "1",
+                )
+                self.assertEqual(
+                    db.meta_get("fingerprint_response_xml_root_schema_version"),
                     "1",
                 )
             finally:

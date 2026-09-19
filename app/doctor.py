@@ -94,7 +94,7 @@ def run_doctor(paths: AppPaths, config: Config, logger: Logger, *, network: bool
         "subfinder": ["-oJ", "-cs", "-rl"],
         "dnsx": ["-json", "-wd", "-rl"],
         "katana": ["-jc", "-rl", "-cs", "-ct", "-mrs", "-retry", "-c", "-p"],
-        "httpx": ["-json", "-hash", "-jarm", "-include-chain"],
+        "httpx": ["-json", "-hash", "-jarm", "-include-chain", "-er"],
         "naabu": ["-json", "-rate"],
         "nuclei": ["-jsonl", "-id", "-dut", "-rl"],
     }

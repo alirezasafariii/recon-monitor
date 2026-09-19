@@ -19,7 +19,7 @@ from typing import Any, Iterator
 from core import AppPaths, Database, ReconError, json_dumps, sha256_bytes, utc_now
 from storage import ContentAddressedStore
 
-ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION = 1
+ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION = 2
 CAS_OWNER_KIND = "analysis_input_snapshot"
 
 INPUT_TABLES = (
@@ -34,6 +34,7 @@ INPUT_TABLES = (
     "js_files",
     "js_indicators",
     "technology_observations",
+    "entity_tags",
     "alerts",
     "change_incidents",
     "incident_events",
@@ -54,6 +55,7 @@ def _ensure_schema(db: Database) -> None:
               scope TEXT NOT NULL,
               payload_json TEXT NOT NULL,
               integrity_hash TEXT NOT NULL,
+              schema_version INTEGER NOT NULL DEFAULT 2,
               created_at TEXT NOT NULL,
               PRIMARY KEY(run_id,scope)
             );
@@ -61,6 +63,20 @@ def _ensure_schema(db: Database) -> None:
               ON analysis_input_snapshots(created_at);
             """
         )
+        snapshot_columns = {
+            str(row[1])
+            for row in db.conn.execute(
+                "PRAGMA table_info(analysis_input_snapshots)"
+            )
+        }
+        if "schema_version" not in snapshot_columns:
+            # Existing snapshots predate immutable entity-tag capture. Mark
+            # them explicitly as v1 so replay can fail closed instead of
+            # falling back to live business-context state.
+            db.conn.execute(
+                "ALTER TABLE analysis_input_snapshots "
+                "ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"
+            )
         db.conn.execute(
             "INSERT INTO schema_meta(key,value) "
             "VALUES('analysis_input_snapshot_schema_version',?) "
@@ -227,6 +243,12 @@ def _merge_target_snapshots(
 
     merged: dict[str, dict[str, dict[str, Any]]] = {}
     for part in parts:
+        snapshot_version = int(part["schema_version"] or 1)
+        if snapshot_version < ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION:
+            raise ReconError(
+                "Analysis input snapshot predates immutable entity-tag "
+                "capture; run a fresh scan."
+            )
         payload = str(part["payload_json"])
         if _digest(payload) != str(part["integrity_hash"]):
             raise ReconError("Analysis input snapshot integrity mismatch")
@@ -252,13 +274,21 @@ def _merge_target_snapshots(
     integrity_hash = _digest(payload)
     db.execute(
         "INSERT INTO analysis_input_snapshots("
-        "run_id,scope,payload_json,integrity_hash,created_at"
-        ") VALUES(?,?,?,?,?)",
-        (run_id, "*", payload, integrity_hash, utc_now()),
+        "run_id,scope,payload_json,integrity_hash,schema_version,created_at"
+        ") VALUES(?,?,?,?,?,?)",
+        (
+            run_id,
+            "*",
+            payload,
+            integrity_hash,
+            ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
+            utc_now(),
+        ),
     )
     return {
         "payload_json": payload,
         "integrity_hash": integrity_hash,
+        "schema_version": ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
     }
 
 
@@ -283,12 +313,22 @@ def analysis_inputs(
             stored = _merge_target_snapshots(db, run_id)
 
         if stored is not None:
+            snapshot_version = int(stored["schema_version"] or 1)
+            if snapshot_version < ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION:
+                raise ReconError(
+                    "Analysis input snapshot predates immutable entity-tag "
+                    "capture; run a fresh scan."
+                )
             payload = str(stored["payload_json"])
             if _digest(payload) != str(stored["integrity_hash"]):
                 raise ReconError("Analysis input snapshot integrity mismatch")
             snapshot = json.loads(payload)
             if not isinstance(snapshot, dict):
                 raise ReconError("Analysis input snapshot payload is invalid")
+            if "entity_tags" not in snapshot:
+                raise ReconError(
+                    "Analysis input snapshot is missing immutable entity tags"
+                )
         else:
             if replay:
                 raise ReconError(
@@ -301,10 +341,18 @@ def analysis_inputs(
             integrity_hash = _digest(payload)
             db.execute(
                 "INSERT INTO analysis_input_snapshots("
-                "run_id,scope,payload_json,integrity_hash,created_at"
-                ") VALUES(?,?,?,?,?)",
-                (run_id, scope, payload, integrity_hash, utc_now()),
+                "run_id,scope,payload_json,integrity_hash,schema_version,created_at"
+                ") VALUES(?,?,?,?,?,?)",
+                (
+                    run_id,
+                    scope,
+                    payload,
+                    integrity_hash,
+                    ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
+                    utc_now(),
+                ),
             )
+            snapshot_version = ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION
 
         installed: list[str] = []
         try:
@@ -382,6 +430,9 @@ def analysis_inputs(
                     "url",
                     "js_url",
                     "incident_id",
+                    "entity_type",
+                    "entity_value",
+                    "tag",
                 ):
                     if column in current_columns:
                         index_name = f"snapshot_{table}_{column}"
@@ -391,7 +442,7 @@ def analysis_inputs(
                         )
 
             yield {
-                "schema_version": ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
+                "schema_version": snapshot_version,
                 "scope": scope,
                 "integrity_hash": _digest(payload),
                 "tables": len(snapshot),

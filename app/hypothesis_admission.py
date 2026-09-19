@@ -402,7 +402,7 @@ def _persist_classification_tags(
                 tags.append(f"hunt-priority:{priority}")
     for tag in dict.fromkeys(tags):
         db.execute(
-            "INSERT OR IGNORE INTO entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
+            "INSERT OR IGNORE INTO main.entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
             (target, entity_type, entity_value, tag, utc_now()),
         )
 
