@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "app"))
 from analysis_engine import analysis_quality, run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 import family_analyzers.router as family_router
-from raw_analysis_quality import RAW_ANALYSIS_QUALITY_VERSION
+from raw_analysis_quality import RAW_ANALYSIS_QUALITY_VERSION, raw_quality_snapshot
 
 
 class RawAnalysisQualityV962Tests(unittest.TestCase):
@@ -473,6 +473,60 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_target_and_analysis_exhaustion_are_reported_separately(self):
+        temp, _paths, db, _now = self.project()
+        try:
+            metrics = raw_quality_snapshot(
+                db,
+                "ANALYSIS-BUDGET-SCOPE",
+                "a.test",
+                raw_routing={
+                    "scope": "analysis",
+                    "analyzer_budget": {
+                        "version": "fixture",
+                        "scope": "analysis",
+                        "limit": 10,
+                        "limit_scope": "analysis",
+                        "attempted": 11,
+                        "executed": 10,
+                        "skipped": 1,
+                        "exhausted": True,
+                        "families": {},
+                    },
+                    "by_target": {
+                        "a.test": {
+                            "scope": "target",
+                            "target": "a.test",
+                            "analyzer_budget": {
+                                "version": "fixture",
+                                "scope": "target",
+                                "target": "a.test",
+                                "limit": 10,
+                                "limit_scope": "analysis",
+                                "attempted": 10,
+                                "executed": 10,
+                                "skipped": 0,
+                                "exhausted": False,
+                                "families": {},
+                            },
+                            "surface_selection": {},
+                        },
+                    },
+                },
+            )
+            budget = metrics["budget"]
+            self.assertFalse(budget["target_exhausted"])
+            self.assertTrue(budget["analysis_exhausted"])
+            self.assertFalse(budget["exhausted"])
+            self.assertEqual(budget["exhausted_scope"], "target")
+            self.assertEqual(budget["executed"], 10)
+            self.assertEqual(budget["analysis_executed"], 10)
+            self.assertEqual(budget["analysis_skipped"], 1)
+            self.assertEqual(budget["remaining_capacity"], 0)
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_target_budget_remaining_capacity_uses_shared_analysis_budget(self):
         temp = tempfile.TemporaryDirectory()
         paths = AppPaths.from_root(Path(temp.name))
@@ -537,6 +591,9 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             self.assertGreater(budget_b["attempted"], 0)
             self.assertEqual(budget_b["analysis_executed"], 10)
             self.assertEqual(budget_b["remaining_capacity"], 0)
+            self.assertTrue(budget_b["target_exhausted"])
+            self.assertTrue(budget_b["analysis_exhausted"])
+            self.assertEqual(budget_b["exhausted_scope"], "target")
         finally:
             family_router.RAW_ANALYZER_INVOCATION_LIMIT = original_limit
             family_router.clear_raw_analysis_budget()
