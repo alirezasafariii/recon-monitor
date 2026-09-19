@@ -960,6 +960,48 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
+(function(){{
+  // Keep the operator at the same reading position when a GET filter/tab
+  // reloads this pathname. New pages and explicit anchor jumps are unaffected.
+  const key='recon-same-page-scroll';
+  const here=window.location.pathname+window.location.search;
+  let saved=null;
+  try{{
+    saved=JSON.parse(sessionStorage.getItem(key)||'null');
+    sessionStorage.removeItem(key);
+  }}catch(_error){{}}
+  if(saved&&saved.next===here&&Number.isFinite(saved.y)){{
+    const restore=()=>{{
+      const root=document.documentElement, previous=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      window.scrollTo(0,saved.y);
+      requestAnimationFrame(()=>{{root.style.scrollBehavior=previous;}});
+    }};
+    restore();
+    window.addEventListener('load',restore,{{once:true}});
+  }}
+  const remember=(next)=>{{
+    try{{sessionStorage.setItem(key,JSON.stringify({{next:next,y:window.scrollY}}));}}catch(_error){{}}
+  }};
+  document.addEventListener('click',(event)=>{{
+    if(!(event.target instanceof Element)||event.defaultPrevented||event.button!==0||
+       event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+    const link=event.target.closest('.content a[href]');
+    if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
+    const next=new URL(link.href,window.location.href);
+    if(next.origin===window.location.origin&&next.pathname===window.location.pathname&&
+       next.search!==window.location.search)remember(next.pathname+next.search);
+  }},true);
+  document.addEventListener('submit',(event)=>{{
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=='get'||
+       !form.closest('.content')||(form.target&&form.target!=='_self'))return;
+    const next=new URL(form.action||window.location.href,window.location.href);
+    if(next.origin!==window.location.origin||next.pathname!==window.location.pathname)return;
+    next.search=new URLSearchParams(new FormData(form)).toString();
+    remember(next.pathname+next.search);
+  }},true);
+}})();
 window.RECON_CSRF={csrf_json};
 document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>{{if(!f.querySelector("input[name='csrf']")){{const i=document.createElement('input');i.type='hidden';i.name='csrf';i.value=window.RECON_CSRF;f.appendChild(i);}}}});
 const root=document.documentElement, savedTheme=localStorage.getItem('recon-theme'); if(savedTheme) root.dataset.theme=savedTheme;
