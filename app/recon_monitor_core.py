@@ -294,15 +294,20 @@ class Orchestrator:
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
                 duration = time.monotonic() - started
+                # A collector may preserve useful output while its underlying
+                # tool times out. Persist that quality separately from the
+                # orchestration result so downstream stages can still run.
+                collection_status = str(metrics.get("collection_status") or "")
+                persisted_status = "partial" if collection_status == "partial" else "success"
                 self.db.stage_finish(
                     ctx.run_id,
                     ctx.policy.name,
                     stage_name,
-                    "success",
+                    persisted_status,
                     duration=duration,
                     metrics=metrics,
                 )
-                self.progress.finish_stage("ok", metrics)
+                self.progress.finish_stage("partial" if persisted_status == "partial" else "ok", metrics)
                 return "success", metrics
             except KeyboardInterrupt:
                 duration = time.monotonic() - started
