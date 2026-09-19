@@ -41,7 +41,7 @@ Actual restore still requires an explicit backup ID and `--force`:
 ./recon-monitor.sh backup restore BACKUP_ID --force
 ```
 
-Before replacement, Recon Monitor creates a safety backup, closes the live WAL-backed database connection, stages archived artifacts, atomically installs the restored database and artifact files, removes stale WAL/SHM files, reopens the database, and validates integrity, foreign keys, and all restored artifact references. If the live artifact store is already damaged, the safety snapshot records that incompleteness instead of blocking recovery from a verified backup.
+Before replacement, Recon Monitor creates a safety backup, closes the live WAL-backed database connection, stages archived artifacts, rebases stored JavaScript/evidence artifact paths to the destination project root, atomically installs the restored database and artifact files, removes stale WAL/SHM files, reopens the database, and validates integrity, foreign keys, and all restored artifact references. This allows a verified backup created under one project path to be restored under a different project path without leaving consumers pointed at the deleted source installation. If the live artifact store is already damaged, the safety snapshot records that incompleteness instead of blocking recovery from a verified backup.
 
 ## Doctor additions
 
