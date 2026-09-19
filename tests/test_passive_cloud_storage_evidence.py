@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "app"))
 from analysis_engine import run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 from passive_evidence_extractor import extract_passive_family_evidence
+from stages import _httpx_record
 
 
 class PassiveCloudStorageEvidenceTests(unittest.TestCase):
@@ -259,6 +260,95 @@ class PassiveCloudStorageEvidenceTests(unittest.TestCase):
             (target, now, now, str(paths.output / "RUN-CLOUD")),
         )
         return temp, paths, db, now, target
+
+    def test_httpx_listing_root_survives_storage_into_raw_analysis(self):
+        temp, paths, db, now, target = self._project()
+        try:
+            listing = f"https://{target}/"
+            db.execute(
+                "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    target,
+                    listing,
+                    "absolute_url",
+                    "file",
+                    95,
+                    json_dumps([{"category": "file", "confidence": 95}]),
+                    json_dumps(["stored cloud storage listing surface"]),
+                    json_dumps(["httpx-fingerprint"]),
+                    now,
+                    now,
+                    "RUN-CLOUD",
+                ),
+            )
+            db.execute(
+                "INSERT INTO endpoint_validations(target,endpoint,resolved_url,method,status_code,content_type,reachable,confidence,checked_at,last_run_id,error) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    target,
+                    listing,
+                    listing,
+                    "GET",
+                    200,
+                    "application/xml",
+                    1,
+                    95,
+                    now,
+                    "RUN-CLOUD",
+                    "",
+                ),
+            )
+
+            parsed_url, record = _httpx_record(
+                {
+                    "url": listing,
+                    "status_code": 200,
+                    "content_type": "application/xml",
+                    "content_length": 4096,
+                    "webserver": "AmazonS3",
+                    "extracts": {
+                        "xml-root": [
+                            "<?xml version=\"1.0\"?><ListBucketResult"
+                        ]
+                    },
+                }
+            )
+            self.assertEqual(parsed_url, listing)
+            self.assertEqual(
+                record["response_xml_root"],
+                "listbucketresult",
+            )
+            db.upsert_fingerprint(
+                target,
+                parsed_url,
+                record,
+                "fp-listing-root",
+                "RUN-CLOUD",
+            )
+            stored = db.one(
+                "SELECT response_xml_root FROM fingerprints "
+                "WHERE target=? AND url=?",
+                (target, listing),
+            )
+            self.assertEqual(
+                stored["response_xml_root"],
+                "listbucketresult",
+            )
+
+            result = run_analysis(paths, db, "RUN-CLOUD", target)
+            rows = db.all(
+                "SELECT endpoint FROM bug_candidates "
+                "WHERE analysis_id=? AND bug_family='cloud_storage_exposure'",
+                (result["analysis_id"],),
+            )
+            self.assertIn(
+                listing,
+                [str(row["endpoint"]) for row in rows],
+            )
+        finally:
+            db.close()
+            temp.cleanup()
 
     def _insert_surface(
         self,
