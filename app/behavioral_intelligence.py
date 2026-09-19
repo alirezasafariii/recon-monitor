@@ -10,8 +10,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-BEHAVIORAL_ENGINE_VERSION = "5.0.0"
-BEHAVIORAL_RULE_VERSION = "2026.08.7"
+BEHAVIORAL_ENGINE_VERSION = "5.0.1"
+BEHAVIORAL_RULE_VERSION = "2026.09.19.1"
 
 PROTECTED_BOUNDARIES = {
     "authentication_required", "session_required", "bearer_required", "api_key_required",
@@ -40,38 +40,6 @@ def _loads(value: Any, default: Any) -> Any:
 
 def _clamp(value: float, low: int = 0, high: int = 100) -> int:
     return max(low, min(high, int(round(value))))
-
-
-def _analysis_covers_target(
-    db: Database,
-    analysis_id: str,
-    target: str,
-) -> bool:
-    row = db.one(
-        """
-        SELECT 1
-        FROM analysis_runs ar
-        WHERE ar.id=?
-          AND (
-            ar.target=?
-            OR EXISTS(
-              SELECT 1 FROM analysis_results r
-              WHERE r.analysis_id=ar.id AND r.target=?
-            )
-            OR EXISTS(
-              SELECT 1 FROM authentication_boundaries b
-              WHERE b.analysis_id=ar.id AND b.target=?
-            )
-            OR EXISTS(
-              SELECT 1 FROM response_shape_fingerprints s
-              WHERE s.analysis_id=ar.id AND s.target=?
-            )
-          )
-        LIMIT 1
-        """,
-        (analysis_id, target, target, target, target),
-    )
-    return row is not None
 
 
 def _latest_previous_analysis(
@@ -173,6 +141,21 @@ def _latest_previous_analysis(
               AND ar.id<>?
               AND ar.source_run_id<>?
               AND COALESCE(ar.finished_at,ar.started_at)<?
+              AND (
+                ar.target=?
+                OR EXISTS(
+                  SELECT 1 FROM analysis_results r
+                  WHERE r.analysis_id=ar.id AND r.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM authentication_boundaries b
+                  WHERE b.analysis_id=ar.id AND b.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM response_shape_fingerprints s
+                  WHERE s.analysis_id=ar.id AND s.target=?
+                )
+              )
             ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC
             LIMIT 1
             """,
@@ -180,14 +163,12 @@ def _latest_previous_analysis(
                 analysis_id,
                 run_id,
                 str(current_analysis["started_at"] if current_analysis else ""),
+                target,
+                target,
+                target,
+                target,
             ),
         )
-        if candidate is not None and not _analysis_covers_target(
-            db,
-            str(candidate["id"]),
-            target,
-        ):
-            candidate = None
 
     baseline = str(candidate["id"]) if candidate else ""
     db.execute(
