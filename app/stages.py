@@ -2168,6 +2168,36 @@ _PERSISTED_RESPONSE_HEADER_NAMES = frozenset({
 })
 
 
+_HTTPX_XML_ROOT_EXTRACT_REGEX = (
+    r"(?is)^\\s*(?:<\\?xml[^>]*>\\s*)?"
+    r"<\\s*(?:[A-Za-z_][\\w.-]*:)?[A-Za-z_][\\w.-]*\\b"
+)
+
+
+def _httpx_response_xml_root(row: Mapping[str, Any]) -> str:
+    """Extract only the first XML element name from bounded httpx metadata."""
+
+    samples: list[str] = []
+    extracts = row.get("extracts")
+    if isinstance(extracts, Mapping):
+        for values in extracts.values():
+            if isinstance(values, (list, tuple, set)):
+                samples.extend(str(value) for value in values if value is not None)
+            elif values is not None:
+                samples.append(str(values))
+    for key in ("body_preview", "body"):
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            samples.append(value[:8192])
+
+    root_re = re.compile(r"<\\s*(?:[A-Za-z_][\\w.-]*:)?([A-Za-z_][\\w.-]*)\\b")
+    for sample in samples:
+        match = root_re.search(sample)
+        if match:
+            return str(match.group(1) or "").strip().lower()[:128]
+    return ""
+
+
 def _persistable_response_headers(raw: Any) -> dict[str, str]:
     """Return a bounded allow-listed response-header snapshot.
 
@@ -2217,6 +2247,7 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     response_headers_raw = row.get("header")
     response_headers_observed = isinstance(response_headers_raw, Mapping)
     response_headers = _persistable_response_headers(response_headers_raw)
+    response_xml_root = _httpx_response_xml_root(row)
     record = {
         "status_code": int(row.get("status_code") or 0),
         "title": str(row.get("title") or "")[:500],
@@ -2226,6 +2257,7 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         "content_length": int(row.get("content_length") or 0),
         "response_headers": response_headers,
         "response_headers_observed": response_headers_observed,
+        "response_xml_root": response_xml_root,
         "body_hash": body_hash,
         "favicon_hash": str(row.get("favicon") or row.get("favicon_hash") or ""),
         "jarm": str(row.get("jarm") or ""),
@@ -2261,6 +2293,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         "httpx", "-l", str(base_path), "-silent", "-json", "-duc", "-no-color", "-irh",
         "-sc", "-cl", "-ct", "-location", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
         "-hash", "sha256", "-jarm", "-http2", "-include-chain",
+        "-er", _HTTPX_XML_ROOT_EXTRACT_REGEX,
         "-t", str(ctx.policy.limits.http_threads),
         "-rl", str(ctx.policy.limits.request_rate),
         "-timeout", str(min(30, max(5, ctx.policy.limits.timeout_seconds // 20))),
@@ -2283,6 +2316,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         args = [
             "httpx", "-l", str(base_path), "-silent", "-json", "-duc", "-no-color",
             "-sc", "-cl", "-ct", "-title", "-server", "-td", "-ip", "-cname", "-cdn",
+            "-er", _HTTPX_XML_ROOT_EXTRACT_REGEX,
             "-t", str(ctx.policy.limits.http_threads), "-rl", str(ctx.policy.limits.request_rate),
             "-timeout", "10", "-retries", "1",
         ]
@@ -2322,7 +2356,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         canonical = {
             key: record.get(key)
             for key in (
-                "status_code", "title", "webserver", "technologies", "content_type", "body_hash",
+                "status_code", "title", "webserver", "technologies", "content_type", "response_xml_root", "body_hash",
                 "favicon_hash", "jarm", "ip", "cname", "cdn", "final_url", "http2",
                 "tls_issuer", "tls_expiry", "tls_sans", "tls_serial", "screenshot_hash",
             )
