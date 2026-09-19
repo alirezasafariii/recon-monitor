@@ -398,6 +398,7 @@ class Orchestrator:
                     self.db_writer,
                 )
                 target_failed = False
+                target_partial = False
                 report_ran = False
                 for stage_index, (stage_name, label) in enumerate(STAGES, 1):
                     if target_failed and stage_name != "report":
@@ -418,12 +419,15 @@ class Orchestrator:
                         report_ran = True
                     if status != "success" and stage_name != "report":
                         target_failed = True
+                    if _metrics.get("collection_status") == "partial":
+                        target_partial = True
                 if target_failed and not report_ran:
                     # Should not normally happen, but preserve partial reporting.
                     with contextlib.suppress(Exception):
                         self._run_stage(ctx, "report", STAGES[-1][1], len(STAGES), len(STAGES), target_index, len(targets), baseline, False)
-                self.db.finish_run_target(run_id, policy.name, "failed" if target_failed else "success")
-                failures += int(target_failed)
+                target_outcome = "failed" if target_failed else "partial" if target_partial else "success"
+                self.db.finish_run_target(run_id, policy.name, target_outcome)
+                failures += int(target_outcome != "success")
                 self._update_latest_pointers(policy.name, run_dir)
                 print(f"  Results: {run_dir}\n")
             status = "success" if failures == 0 else "partial"
