@@ -11,7 +11,10 @@ sys.path.insert(0, str(ROOT / "app"))
 
 import test_baseline_raw_analysis_v960 as baseline_fixture
 from analysis_engine import replay_analysis, run_analysis
-from analysis_input_snapshot import analysis_inputs
+from analysis_input_snapshot import (
+    ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
+    analysis_inputs,
+)
 from core import APP_VERSION, ReconError, utc_now
 
 
@@ -122,6 +125,120 @@ class AnalysisInputSnapshotTests(unittest.TestCase):
                     "WHERE type='table'"
                 )
             )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_replay_freezes_entity_tags_used_for_business_context(self):
+        temp, paths, db, _ctx = self.project()
+        try:
+            now = utc_now()
+            alert_id, _is_new, _old = db.upsert_alert(
+                "example.test",
+                "entity-tag-replay",
+                "new_url",
+                "MEDIUM",
+                30,
+                "Development endpoint",
+                "https://dev.example.test/status",
+                {},
+                "RUN-BASELINE",
+            )
+
+            first = run_analysis(
+                paths,
+                db,
+                "RUN-BASELINE",
+                "example.test",
+            )
+            first_result = db.one(
+                "SELECT adjusted_score,business_context "
+                "FROM analysis_results WHERE analysis_id=? AND alert_id=?",
+                (first["analysis_id"], alert_id),
+            )
+            self.assertIsNotNone(first_result)
+            self.assertEqual(
+                str(first_result["business_context"]),
+                "development",
+            )
+            self.assertEqual(
+                first["input_snapshot"]["schema_version"],
+                ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION,
+            )
+
+            db.execute(
+                "INSERT INTO entity_tags("
+                "target,entity_type,entity_value,tag,created_at"
+                ") VALUES(?,?,?,?,?)",
+                (
+                    "example.test",
+                    "alert",
+                    str(alert_id),
+                    "payment",
+                    now,
+                ),
+            )
+
+            replayed = replay_analysis(
+                paths,
+                db,
+                "RUN-BASELINE",
+                "example.test",
+            )
+            replay_result = db.one(
+                "SELECT adjusted_score,business_context "
+                "FROM analysis_results WHERE analysis_id=? AND alert_id=?",
+                (replayed["analysis_id"], alert_id),
+            )
+            self.assertIsNotNone(replay_result)
+            self.assertEqual(
+                str(replay_result["business_context"]),
+                str(first_result["business_context"]),
+            )
+            self.assertEqual(
+                int(replay_result["adjusted_score"]),
+                int(first_result["adjusted_score"]),
+            )
+            self.assertEqual(
+                replayed["input_snapshot"]["integrity_hash"],
+                first["input_snapshot"]["integrity_hash"],
+            )
+            self.assertEqual(
+                db.one(
+                    "SELECT tag FROM main.entity_tags "
+                    "WHERE target='example.test' "
+                    "AND entity_type='alert' AND entity_value=?",
+                    (str(alert_id),),
+                )["tag"],
+                "payment",
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_legacy_snapshot_without_entity_tags_fails_closed(self):
+        temp, paths, db, _ctx = self.project()
+        try:
+            run_analysis(
+                paths,
+                db,
+                "RUN-BASELINE",
+                "example.test",
+            )
+            db.execute(
+                "UPDATE analysis_input_snapshots SET schema_version=1 "
+                "WHERE run_id='RUN-BASELINE' AND scope='example.test'"
+            )
+            with self.assertRaisesRegex(
+                ReconError,
+                "predates immutable entity-tag",
+            ):
+                replay_analysis(
+                    paths,
+                    db,
+                    "RUN-BASELINE",
+                    "example.test",
+                )
         finally:
             db.close()
             temp.cleanup()
