@@ -316,6 +316,7 @@ def deliver_finding_notification_outbox(
         delivered = bool(result.get("delivered"))
         channel = str(result.get("channel") or "+".join(result.get("channels") or []) or "unknown")
         error = str(result.get("error") or "")
+        current = str(now or utc_now())
 
         with db.transaction():
             for row in batch_rows:
