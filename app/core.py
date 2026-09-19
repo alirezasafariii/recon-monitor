@@ -2529,13 +2529,13 @@ class Database:
         if not tag:
             raise ReconError("Tag cannot be empty")
         self.execute(
-            "INSERT OR IGNORE INTO entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
+            "INSERT OR IGNORE INTO main.entity_tags(target,entity_type,entity_value,tag,created_at) VALUES(?,?,?,?,?)",
             (target, entity_type, entity_value, tag, utc_now()),
         )
 
     def remove_tag(self, target: str, entity_type: str, entity_value: str, tag: str) -> None:
         self.execute(
-            "DELETE FROM entity_tags WHERE target=? AND entity_type=? AND entity_value=? AND tag=?",
+            "DELETE FROM main.entity_tags WHERE target=? AND entity_type=? AND entity_value=? AND tag=?",
             (target, entity_type, entity_value, tag),
         )
 
