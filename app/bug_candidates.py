@@ -80,8 +80,8 @@ _ORIGINAL_DEDICATED_FAMILY_RESULT = _legacy._dedicated_family_result
 _ORIGINAL_ALERT_CANDIDATES = _core._alert_candidates
 _ORIGINAL_STATIC_CANDIDATES = _legacy._static_candidates
 
-RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.3.0"
-RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.19.1"
+RAW_SURFACE_FAMILY_ROUTER_VERSION = "1.4.0"
+RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION = "2026.09.19.2"
 _RAW_SURFACE_LIMIT = 5000
 _RAW_SURFACE_SELECTIONS: dict[str, dict[str, Any]] = {}
 _RAW_SURFACE_SOURCE_ORDER = (
@@ -241,6 +241,67 @@ def _raw_surface_input_counts(
         row = db.one(sql, params)
         counts[source] = max(0, int(row["count"] if row else 0))
     return counts
+
+
+def _raw_surface_selection_metrics(
+    *,
+    eligible_counts: Mapping[str, int],
+    loaded_counts: Mapping[str, int],
+    candidates: list[dict[str, Any]],
+    selected: list[dict[str, Any]],
+    scope: str,
+    target: str | None = None,
+) -> dict[str, Any]:
+    candidate_surfaces = len(candidates)
+    selected_surfaces = len(selected)
+    eligible_records = sum(max(0, int(value)) for value in eligible_counts.values())
+    loaded_records = sum(max(0, int(value)) for value in loaded_counts.values())
+    return {
+        "scope": scope,
+        "target": target or "",
+        "eligible_input_records": eligible_records,
+        "loaded_input_records": loaded_records,
+        "input_ingestion_coverage": (
+            round(min(1.0, loaded_records / eligible_records), 4)
+            if eligible_records
+            else 1.0
+        ),
+        "candidate_surfaces": candidate_surfaces,
+        "selected_surfaces": selected_surfaces,
+        "dropped_surfaces": max(0, candidate_surfaces - selected_surfaces),
+        "surface_selection_coverage": (
+            round(selected_surfaces / candidate_surfaces, 4)
+            if candidate_surfaces
+            else 1.0
+        ),
+        # The cap itself remains analysis-wide. Per-target metrics describe the
+        # target's share of the globally bounded selected inventory.
+        "cap_reached": (
+            candidate_surfaces > selected_surfaces
+            if scope == "target"
+            else selected_surfaces >= _RAW_SURFACE_LIMIT
+            and candidate_surfaces > selected_surfaces
+        ),
+        "surface_limit": _RAW_SURFACE_LIMIT,
+        "surface_limit_scope": "analysis",
+        "by_source": {
+            source: {
+                "eligible_input_records": int(eligible_counts.get(source, 0)),
+                "loaded_input_records": int(loaded_counts.get(source, 0)),
+                "candidate_surfaces": sum(
+                    1
+                    for row in candidates
+                    if _raw_surface_source(row) == source
+                ),
+                "selected_surfaces": sum(
+                    1
+                    for row in selected
+                    if _raw_surface_source(row) == source
+                ),
+            }
+            for source in _RAW_SURFACE_SOURCE_ORDER
+        },
+    }
 
 
 # Core and phase-one analyzers are sufficiently specialized to abstain when a
@@ -770,44 +831,74 @@ def _raw_surface_rows(
         "dns_cname": len(dns_rows),
         "semantic_js_passive": len(semantic_rows),
     }
-    eligible_records = sum(eligible_counts.values())
-    loaded_records = sum(loaded_counts.values())
-    candidate_surfaces = len(candidates)
-    selected_surfaces = len(selected)
-    _RAW_SURFACE_SELECTIONS[str(analysis_id)] = {
-        "eligible_input_records": eligible_records,
-        "loaded_input_records": loaded_records,
-        "input_ingestion_coverage": (
-            round(min(1.0, loaded_records / eligible_records), 4)
-            if eligible_records
-            else 1.0
-        ),
-        "candidate_surfaces": candidate_surfaces,
-        "selected_surfaces": selected_surfaces,
-        "dropped_surfaces": max(0, candidate_surfaces - selected_surfaces),
-        "surface_selection_coverage": (
-            round(selected_surfaces / candidate_surfaces, 4)
-            if candidate_surfaces
-            else 1.0
-        ),
-        "cap_reached": (
-            selected_surfaces >= _RAW_SURFACE_LIMIT
-            and candidate_surfaces > selected_surfaces
-        ),
-        "by_source": {
-            source: {
-                "eligible_input_records": int(eligible_counts.get(source, 0)),
-                "loaded_input_records": int(loaded_counts.get(source, 0)),
-                "candidate_surfaces": sum(
-                    1
-                    for row in candidates
-                    if _raw_surface_source(row) == source
-                ),
-                "selected_surfaces": int(selected_counts.get(source, 0)),
-            }
-            for source in _RAW_SURFACE_SOURCE_ORDER
-        },
+    selection = _raw_surface_selection_metrics(
+        eligible_counts=eligible_counts,
+        loaded_counts=loaded_counts,
+        candidates=candidates,
+        selected=selected,
+        scope="analysis",
+    )
+
+    loaded_by_source = {
+        "stored_finding": finding_rows,
+        "endpoint_intelligence": endpoint_rows,
+        "endpoint_validation": validation_rows,
+        "http_fingerprint": fingerprint_rows,
+        "dns_cname": dns_rows,
+        "semantic_js_passive": semantic_rows,
     }
+    target_names = {
+        str(row.get("target") or "")
+        for row in candidates + selected
+        if str(row.get("target") or "")
+    }
+    if target:
+        target_names.add(str(target))
+    else:
+        target_names.update(
+            str(row["target"])
+            for row in db.all(
+                "SELECT target FROM run_targets WHERE run_id=? ORDER BY target",
+                (run_id,),
+            )
+            if str(row["target"] or "")
+        )
+
+    by_target: dict[str, Any] = {}
+    for current_target in sorted(target_names):
+        target_candidates = [
+            row for row in candidates
+            if str(row.get("target") or "") == current_target
+        ]
+        target_selected = [
+            row for row in selected
+            if str(row.get("target") or "") == current_target
+        ]
+        target_eligible = _raw_surface_input_counts(
+            db,
+            analysis_id=analysis_id,
+            run_id=run_id,
+            target=current_target,
+        )
+        target_loaded = {
+            source: sum(
+                1
+                for row in rows
+                if str(row["target"] or "") == current_target
+            )
+            for source, rows in loaded_by_source.items()
+        }
+        by_target[current_target] = _raw_surface_selection_metrics(
+            eligible_counts=target_eligible,
+            loaded_counts=target_loaded,
+            candidates=target_candidates,
+            selected=target_selected,
+            scope="target",
+            target=current_target,
+        )
+
+    selection["by_target"] = by_target
+    _RAW_SURFACE_SELECTIONS[str(analysis_id)] = selection
     return selected
 
 
@@ -1267,24 +1358,62 @@ def generate_bug_candidates(
             surface_selection = dict(
                 _RAW_SURFACE_SELECTIONS.pop(str(analysis_id), {})
             )
+            budget_by_target = (
+                dict(raw_budget.get("by_target") or {})
+                if isinstance(raw_budget.get("by_target"), Mapping)
+                else {}
+            )
+            selection_by_target = (
+                dict(surface_selection.get("by_target") or {})
+                if isinstance(surface_selection.get("by_target"), Mapping)
+                else {}
+            )
+            routing_by_target = {
+                current_target: {
+                    "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
+                    "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                    "scope": "target",
+                    "target": current_target,
+                    "surface_limit": _RAW_SURFACE_LIMIT,
+                    "surface_limit_scope": "analysis",
+                    "surface_selection": dict(
+                        selection_by_target.get(current_target) or {}
+                    ),
+                    "active_requests": 0,
+                    "analyzer_budget": dict(
+                        budget_by_target.get(current_target) or {}
+                    ),
+                }
+                for current_target in sorted(
+                    set(selection_by_target) | set(budget_by_target)
+                )
+            }
             result["raw_surface_routing"] = {
                 "version": RAW_SURFACE_FAMILY_ROUTER_VERSION,
                 "rule_version": RAW_SURFACE_FAMILY_ROUTER_RULE_VERSION,
+                "scope": "analysis",
                 "hypotheses": raw_hypotheses,
                 "promoted": raw_promoted,
                 "families": raw_families,
                 "surface_limit": _RAW_SURFACE_LIMIT,
+                "surface_limit_scope": "analysis",
                 "surface_selection": surface_selection,
                 "active_requests": 0,
                 "analyzer_budget": {
                     "version": str(raw_budget.get("version") or ""),
                     "limit": int(raw_budget.get("limit") or 0),
+                    "limit_scope": str(
+                        raw_budget.get("limit_scope") or "analysis"
+                    ),
+                    "scope": "analysis",
                     "attempted": int(raw_budget.get("attempted") or 0),
                     "executed": int(raw_budget.get("executed") or 0),
                     "skipped": int(raw_budget.get("skipped") or 0),
                     "exhausted": bool(raw_budget.get("exhausted")),
                     "families": dict(raw_budget.get("families") or {}),
+                    "by_target": budget_by_target,
                 },
+                "by_target": routing_by_target,
             }
 
             result["detection_runtime"] = _detection_runtime_summary(

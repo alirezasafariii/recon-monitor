@@ -702,11 +702,39 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
         raw_routing if isinstance(raw_routing, Mapping) else {},
     )
     summary={"alerts":len(alerts),"analysis_inputs":"raw_plus_alerts" if alerts else "raw_only","targets_analyzed":targets,"analysis_profile":profile,"average_original_score":round(sum(parse_int(row["risk_score"],0) for row in alerts)/len(alerts),2) if alerts else 0.0,"average_adjusted_score":round(sum(adjusted_scores)/len(adjusted_scores),2) if adjusted_scores else 0.0,"clusters":len(cluster_members),"duplicate_members":sum(max(0,len(values)-1) for values in cluster_members.values()),"static_intelligence":static,"bug_candidates":candidate_summary,"quality":quality}
-    previous=db.one("SELECT id,summary_json FROM analysis_runs WHERE source_run_id=? AND id<>? AND status='success' ORDER BY finished_at DESC LIMIT 1",(run_id,analysis_id))
+    analysis_scope = target or "*"
+    previous = db.one(
+        "SELECT id,summary_json FROM analysis_runs "
+        "WHERE source_run_id=? AND target=? AND id<>? AND status='success' "
+        "ORDER BY COALESCE(finished_at,started_at) DESC,rowid DESC LIMIT 1",
+        (run_id, analysis_scope, analysis_id),
+    )
     if previous:
-        old=_loads(previous["summary_json"],{}); comparison={"previous_analysis_id":previous["id"],"alert_delta":summary["alerts"]-parse_int(old.get("alerts"),0),"cluster_delta":summary["clusters"]-parse_int(old.get("clusters"),0),"average_score_delta":round(summary["average_adjusted_score"]-float(old.get("average_adjusted_score") or 0),2)}
-        summary["replay_comparison"]=comparison
-        db.execute("INSERT INTO analysis_replays(analysis_id,previous_analysis_id,source_run_id,comparison_json,created_at) VALUES(?,?,?,?,?)",(analysis_id,previous["id"],run_id,json_dumps(comparison),utc_now()))
+        old = _loads(previous["summary_json"], {})
+        comparison = {
+            "previous_analysis_id": previous["id"],
+            "scope": analysis_scope,
+            "alert_delta": summary["alerts"] - parse_int(old.get("alerts"), 0),
+            "cluster_delta": summary["clusters"] - parse_int(old.get("clusters"), 0),
+            "average_score_delta": round(
+                summary["average_adjusted_score"]
+                - float(old.get("average_adjusted_score") or 0),
+                2,
+            ),
+        }
+        summary["replay_comparison"] = comparison
+        db.execute(
+            "INSERT INTO analysis_replays("
+            "analysis_id,previous_analysis_id,source_run_id,comparison_json,created_at"
+            ") VALUES(?,?,?,?,?)",
+            (
+                analysis_id,
+                previous["id"],
+                run_id,
+                json_dumps(comparison),
+                utc_now(),
+            ),
+        )
     db.execute("UPDATE analysis_runs SET status='success',finished_at=?,summary_json=? WHERE id=?",(utc_now(),json_dumps(summary),analysis_id))
     db.audit("analysis_completed",target=target or "*",entity_type="run",entity_value=run_id,details={"analysis_id":analysis_id,"engine_version":ENGINE_VERSION,"summary":summary})
     return {"analysis_id":analysis_id,"run_id":run_id,"engine_version":ENGINE_VERSION,"rule_version":RULE_VERSION,**summary}

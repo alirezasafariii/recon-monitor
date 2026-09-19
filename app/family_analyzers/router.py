@@ -41,7 +41,7 @@ from .ssti import SstiFamilyAnalyzer
 from .websocket_authorization import WebsocketAuthorizationFamilyAnalyzer
 
 FAMILY_ANALYZER_ROUTER_VERSION = "4.2.0"
-RAW_ANALYZER_BUDGET_VERSION = "1.0.0"
+RAW_ANALYZER_BUDGET_VERSION = "1.1.0"
 RAW_ANALYZER_INVOCATION_LIMIT = 200_000
 _RAW_BUDGET_CACHE_MAX = 64
 _RAW_BUDGETS: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
@@ -104,6 +104,7 @@ def _budget_state(analysis_id: str) -> dict[str, Any]:
         "exhausted": False,
         "audit_emitted": False,
         "families": {},
+        "targets": {},
     }
     _RAW_BUDGETS[analysis_id] = state
     while len(_RAW_BUDGETS) > _RAW_BUDGET_CACHE_MAX:
@@ -122,10 +123,24 @@ def _consume_raw_budget(context: Any, family: str) -> bool:
         # process-local budget safely, so preserve historical behavior.
         return True
     state = _budget_state(analysis_id)
+    target = str(getattr(context, "target", "") or "*")
+    target_state = state["targets"].setdefault(
+        target,
+        {
+            "attempted": 0,
+            "executed": 0,
+            "skipped": 0,
+            "exhausted": False,
+            "families": {},
+        },
+    )
     state["attempted"] += 1
+    target_state["attempted"] += 1
     if int(state["executed"]) >= int(RAW_ANALYZER_INVOCATION_LIMIT):
         state["skipped"] += 1
         state["exhausted"] = True
+        target_state["skipped"] += 1
+        target_state["exhausted"] = True
         if not state["audit_emitted"]:
             db = getattr(context, "db", None)
             audit = getattr(db, "audit", None)
@@ -151,9 +166,15 @@ def _consume_raw_budget(context: Any, family: str) -> bool:
             state["audit_emitted"] = True
         return False
     state["executed"] += 1
+    target_state["executed"] += 1
+    family_key = str(family or "unknown")
     family_counts = state["families"]
-    family_counts[str(family or "unknown")] = int(
-        family_counts.get(str(family or "unknown"), 0)
+    family_counts[family_key] = int(
+        family_counts.get(family_key, 0)
+    ) + 1
+    target_families = target_state["families"]
+    target_families[family_key] = int(
+        target_families.get(family_key, 0)
     ) + 1
     return True
 
@@ -230,28 +251,75 @@ def _attach_evidence_plan(result: Mapping[str, Any], family: str) -> dict[str, A
     return normalized
 
 
-def raw_analysis_budget_snapshot(analysis_id: str) -> dict[str, Any]:
-    """Return a detached operational snapshot for tests/diagnostics."""
+def _detached_budget_metrics(
+    state: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    data = state if isinstance(state, Mapping) else {}
+    return {
+        "attempted": int(data.get("attempted") or 0),
+        "executed": int(data.get("executed") or 0),
+        "skipped": int(data.get("skipped") or 0),
+        "exhausted": bool(data.get("exhausted")),
+        "families": dict(data.get("families") or {})
+        if isinstance(data.get("families"), Mapping)
+        else {},
+    }
+
+
+def raw_analysis_budget_snapshot(
+    analysis_id: str,
+    target: str | None = None,
+) -> dict[str, Any]:
+    """Return detached global and optional target-scoped budget telemetry."""
 
     state = _RAW_BUDGETS.get(str(analysis_id or ""))
+    base = {
+        "version": RAW_ANALYZER_BUDGET_VERSION,
+        # The invocation ceiling remains analysis-wide. Target counters report
+        # consumption of that shared budget, not independent per-target limits.
+        "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
+        "limit_scope": "analysis",
+    }
     if state is None:
         return {
-            "version": RAW_ANALYZER_BUDGET_VERSION,
-            "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
-            "attempted": 0,
-            "executed": 0,
-            "skipped": 0,
-            "exhausted": False,
-            "families": {},
+            **base,
+            **_detached_budget_metrics(None),
+            "by_target": {},
         }
+
+    targets = state.get("targets")
+    by_target = {
+        str(name): {
+            **base,
+            **_detached_budget_metrics(metrics),
+            "scope": "target",
+            "target": str(name),
+        }
+        for name, metrics in (targets.items() if isinstance(targets, Mapping) else [])
+    }
+    if target is not None:
+        scoped = dict(
+            by_target.get(
+                str(target),
+                {
+                    **base,
+                    **_detached_budget_metrics(None),
+                    "scope": "target",
+                    "target": str(target),
+                },
+            )
+        )
+        scoped["analysis_total"] = {
+            **base,
+            **_detached_budget_metrics(state),
+        }
+        return scoped
+
     return {
-        "version": str(state["version"]),
-        "limit": int(RAW_ANALYZER_INVOCATION_LIMIT),
-        "attempted": int(state["attempted"]),
-        "executed": int(state["executed"]),
-        "skipped": int(state["skipped"]),
-        "exhausted": bool(state["exhausted"]),
-        "families": dict(state["families"]),
+        **base,
+        **_detached_budget_metrics(state),
+        "scope": "analysis",
+        "by_target": by_target,
     }
 
 
