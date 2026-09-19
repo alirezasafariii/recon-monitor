@@ -22,6 +22,7 @@ from calibration_dataset import annotate_record, build_guarded_calibration_profi
 from calibration_engine import confusion_metrics
 from meta_ranker import rank_bug_proximity
 from vulnerability_knowledge import BUG_PROFILES, rank_families, retrieve_writeups
+from verified_replay_contract import EVALUATION_ROLES, RESERVED_BLIND_ROLE
 
 ANALYSIS_BENCHMARK_V2_VERSION = "1.2.1"
 ANALYSIS_BENCHMARK_V2_RULE_VERSION = "2026.09.19.1"
@@ -287,6 +288,13 @@ def _validate_verified_replay(raw: Mapping[str, Any], *, default_id: str) -> dic
         errors.append("untrusted_provenance")
     if raw.get("human_verified") is not True:
         errors.append("human_verified_true_required")
+
+    evaluation_role = str(raw.get("evaluation_role") or "fresh_candidate").strip().lower()
+    if evaluation_role == RESERVED_BLIND_ROLE:
+        errors.append("reserved_blind_not_eligible_for_verified_replay")
+    elif evaluation_role not in EVALUATION_ROLES:
+        errors.append("invalid_evaluation_role")
+
     for field in ("label_source", "reviewer_id", "reviewed_at", "case_origin_id", "evidence_snapshot_id"):
         if not str(raw.get(field) or "").strip():
             errors.append(f"missing_{field}")
@@ -324,7 +332,7 @@ def _validate_verified_replay(raw: Mapping[str, Any], *, default_id: str) -> dic
         "reviewed_at": str(raw.get("reviewed_at") or "").strip(),
         "case_origin_id": str(raw.get("case_origin_id") or "").strip(),
         "evidence_snapshot_id": str(raw.get("evidence_snapshot_id") or "").strip(),
-        "evaluation_role": str(raw.get("evaluation_role") or "fresh_candidate").strip().lower(),
+        "evaluation_role": evaluation_role,
         "source_corpus_id": str(raw.get("source_corpus_id") or "").strip(),
         "evidence_quality": dict(raw.get("evidence_quality") or {}) if isinstance(raw.get("evidence_quality"), Mapping) else {},
         "evidence_quality_profile": quality,

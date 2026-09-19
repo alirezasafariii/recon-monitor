@@ -171,11 +171,24 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
             "evidence_quality": GOOD_EVIDENCE_QUALITY,
         }
         with tempfile.TemporaryDirectory() as tmp:
+            reserved = dict(consumed)
+            reserved["id"] = "case-reserved"
+            reserved["case_origin_id"] = "origin-reserved"
+            reserved["evidence_snapshot_id"] = "snapshot-reserved"
+            reserved["evaluation_role"] = "reserved_blind"
             path = Path(tmp) / "verified.jsonl"
-            path.write_text(json.dumps(consumed) + "\n", encoding="utf-8")
+            path.write_text(
+                json.dumps(consumed) + "\n" + json.dumps(reserved) + "\n",
+                encoding="utf-8",
+            )
             loaded = load_verified_replay_jsonl_with_diagnostics([path])
 
         self.assertEqual(loaded["accepted_count"], 1)
+        self.assertEqual(loaded["rejected_count"], 1)
+        self.assertIn(
+            "reserved_blind_not_eligible_for_verified_replay",
+            loaded["rejected"][0]["errors"],
+        )
         row = loaded["records"][0]
         self.assertEqual(row["evaluation_role"], "consumed_benchmark")
         self.assertEqual(row["source_corpus_id"], "real-world-corpus-v1")
