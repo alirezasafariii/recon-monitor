@@ -738,6 +738,7 @@ class Database:
               content_length INTEGER,
               response_headers_json TEXT NOT NULL DEFAULT '{}',
               response_headers_observed INTEGER NOT NULL DEFAULT 0,
+              response_xml_root TEXT NOT NULL DEFAULT '',
               body_hash TEXT,
               favicon_hash TEXT,
               jarm TEXT,
@@ -1597,11 +1598,16 @@ class Database:
             "screenshot_hash": "TEXT",
             "response_headers_json": "TEXT NOT NULL DEFAULT '{}'",
             "response_headers_observed": "INTEGER NOT NULL DEFAULT 0",
+            "response_xml_root": "TEXT NOT NULL DEFAULT ''",
         }.items():
             if column not in existing_columns:
                 self.conn.execute(f"ALTER TABLE fingerprints ADD COLUMN {column} {declaration}")
         self.conn.execute(
             "INSERT INTO schema_meta(key,value) VALUES('fingerprint_response_headers_schema_version','1') "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+        )
+        self.conn.execute(
+            "INSERT INTO schema_meta(key,value) VALUES('fingerprint_response_xml_root_schema_version','1') "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value"
         )
         alert_columns = {row[1] for row in self.conn.execute("PRAGMA table_info(alerts)")}
@@ -2366,16 +2372,17 @@ class Database:
             """
             INSERT INTO fingerprints(
               target,url,fingerprint_hash,status_code,title,webserver,technologies_json,content_type,content_length,
-              response_headers_json,response_headers_observed,
+              response_headers_json,response_headers_observed,response_xml_root,
               body_hash,favicon_hash,jarm,ip,cname,cdn,final_url,redirect_chain_json,http2,
               tls_issuer,tls_expiry,tls_sans_json,tls_serial,screenshot_path,screenshot_hash,
               first_seen,last_seen,last_changed,last_run_id
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(target,url) DO UPDATE SET
               fingerprint_hash=excluded.fingerprint_hash,status_code=excluded.status_code,title=excluded.title,
               webserver=excluded.webserver,technologies_json=excluded.technologies_json,content_type=excluded.content_type,
               content_length=excluded.content_length,response_headers_json=excluded.response_headers_json,
               response_headers_observed=excluded.response_headers_observed,
+              response_xml_root=excluded.response_xml_root,
               body_hash=excluded.body_hash,favicon_hash=excluded.favicon_hash,
               jarm=excluded.jarm,ip=excluded.ip,cname=excluded.cname,cdn=excluded.cdn,final_url=excluded.final_url,
               redirect_chain_json=excluded.redirect_chain_json,http2=excluded.http2,
@@ -2389,6 +2396,7 @@ class Database:
                 target, url, fp_hash, record.get("status_code"), record.get("title", ""), record.get("webserver", ""),
                 json_dumps(record.get("technologies", [])), record.get("content_type", ""), record.get("content_length", 0),
                 json_dumps(record.get("response_headers", {})), int(bool(record.get("response_headers_observed"))),
+                str(record.get("response_xml_root") or "")[:128],
                 record.get("body_hash", ""), record.get("favicon_hash", ""), record.get("jarm", ""), record.get("ip", ""),
                 record.get("cname", ""), record.get("cdn", ""), record.get("final_url", url),
                 json_dumps(record.get("redirect_chain", [])), int(bool(record.get("http2"))),
