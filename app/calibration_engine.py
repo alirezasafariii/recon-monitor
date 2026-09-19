@@ -11,8 +11,8 @@ labeled observations exist.
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
-CALIBRATION_ENGINE_VERSION = "1.0.0"
-CALIBRATION_RULE_VERSION = "2026.08.13.1"
+CALIBRATION_ENGINE_VERSION = "1.0.1"
+CALIBRATION_RULE_VERSION = "2026.09.19.1"
 DEFAULT_THRESHOLD = 70
 DEFAULT_BIN_COUNT = 10
 
@@ -97,15 +97,20 @@ def calibration_bins(
     bins = max(2, min(20, int(bins)))
     grouped: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
     rows = [dict(record) for record in records]
+    lower_bounds = [int(index * 100 / bins) for index in range(bins)]
     for record in rows:
         score = _score(record.get(score_key))
-        index = min(bins - 1, int(score * bins / 101))
+        index = 0
+        for candidate, low in enumerate(lower_bounds):
+            if score < low:
+                break
+            index = candidate
         grouped[index].append(record)
 
     result: list[dict[str, Any]] = []
     for index in range(bins):
-        low = int(index * 100 / bins)
-        high = 100 if index == bins - 1 else int((index + 1) * 100 / bins) - 1
+        low = lower_bounds[index]
+        high = 100 if index == bins - 1 else lower_bounds[index + 1] - 1
         bucket = grouped.get(index, [])
         mean_score = round(sum(_score(row.get(score_key)) for row in bucket) / len(bucket), 3) if bucket else None
         observed = round(sum(1 for row in bucket if _label(row.get(label_key))) / len(bucket), 6) if bucket else None
