@@ -1,3 +1,44 @@
+# Recon Monitor 8.8.1 — Correctness, Replay Integrity & Multi-target Reporting
+
+Recon Monitor 8.8.1 is a backward-compatible correctness patch over 8.8.0. The core database schema remains **18**.
+
+## Dependency and cloud evidence correctness
+
+- Fixed npm incomplete hyphen ranges so expressions such as `1.2 - 2.3` include stable `2.3.x` releases and exclude `2.4.0`, while prerelease handling remains fail-closed unless explicit.
+- Tightened S3/GCS public-listing evidence so metadata-only XML responses are not treated as listing proof.
+- Preserved the XML response root through the real httpx fingerprint path without storing full response bodies; extraction is anchored to the HTTP body boundary.
+
+## Backup and replay correctness
+
+- Rebased persisted JavaScript/evidence paths when restoring backups into a different project root and fail closed on unsafe path mappings.
+- Preserved replay corpus/evaluation metadata and immutable `entity_tags`.
+- Versioned Analysis input snapshots and reject legacy snapshots that would otherwise mix historical raw input with live business context.
+- Bound behavioral comparison baselines to the original source run/target scope so replay cannot erase historical boundary regressions.
+- Unified calibration semantics around Decision Readiness and corrected calibration bin boundaries.
+
+## Delivery and concurrency
+
+- Required current lease ownership before Finding or Recon Alert workers may finalize delivery state, write delivery records, or increment delivery counters.
+- Stale workers now fail closed after lease replacement.
+
+## Raw Analysis scale and reporting
+
+- Kept the 5,000-surface operational guard while replacing final source-order truncation with source-balanced selection.
+- Split eligible-input, loaded-input, selected-surface, and analyzer-execution telemetry.
+- Added target-scoped routing and analyzer-budget counters for multi-target Analysis.
+- Prevented `replay_comparison` from comparing different target scopes within the same source run.
+- Report shared analyzer remaining capacity from analysis-wide consumption while preserving target-local execution counters.
+- Added explicit `target_exhausted` and `analysis_exhausted` telemetry and an `exhausted_scope` compatibility label.
+
+## Compatibility
+
+- Application version advances to **8.8.1**.
+- Core database schema remains **18**; compatibility changes are additive and independently versioned.
+- Legacy Analysis snapshots predating immutable entity-tag capture must be regenerated before replay.
+- The normal fingerprint evidence path requires an httpx build with `-er` support.
+- No destructive core migration is required from 8.8.0.
+- Final CI requires strict manifest validation, release/version consistency, dependency-range coverage, the complete unit suite, and integration tests on Python 3.11 and Python 3.13.
+
 # Recon Monitor 8.8.0 — Evidence-to-Finding Reliability & Durable Delivery
 
 Recon Monitor 8.8.0 consolidates the post-8.7 reliability and evidence work into one release: trustworthy Recon snapshot semantics, offline typed/reviewed evidence, canonical Admission orchestration, durable Finding notification delivery, and a shared outbound transport boundary.
