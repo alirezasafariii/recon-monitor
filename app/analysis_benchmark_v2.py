@@ -449,6 +449,8 @@ def quality_report(
         calibration_rows,
         requested_activation=requested_activation,
         source="analysis_decision_readiness_replay_v2",
+        score_key="decision_readiness_score",
+        score_semantics="decision_readiness_score",
     )
     threshold = int(profile.get("global", {}).get("threshold", 70))
 

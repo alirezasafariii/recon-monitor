@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from analysis_benchmark import benchmark_report, load_golden_cases, replay_golden_cases
-from calibration_engine import build_calibration_profile, confusion_metrics, select_threshold
+from calibration_engine import build_calibration_profile, calibration_bins, confusion_metrics, select_threshold
 from meta_ranker import rank_bug_proximity
 
 
@@ -29,6 +29,31 @@ class CalibrationBenchmarkV910Tests(unittest.TestCase):
         selected = select_threshold(records)
         self.assertTrue(selected["learned"])
         self.assertEqual(selected["metrics"]["f1"], 1.0)
+
+    def test_calibration_bins_report_the_same_boundaries_used_for_assignment(self):
+        records = [{"score": score, "label": False} for score in range(101)]
+        buckets = calibration_bins(records, bins=10)
+        self.assertEqual(sum(bucket["support"] for bucket in buckets), 101)
+        self.assertEqual((buckets[0]["low"], buckets[0]["high"]), (0, 9))
+        self.assertEqual((buckets[1]["low"], buckets[1]["high"]), (10, 19))
+        self.assertEqual((buckets[-1]["low"], buckets[-1]["high"]), (90, 100))
+        for bucket in buckets:
+            self.assertEqual(bucket["support"], bucket["high"] - bucket["low"] + 1)
+
+    def test_calibration_profile_can_bind_explicit_decision_readiness_semantics(self):
+        records = [
+            {"family": "x", "label": True, "score": 10, "decision_readiness_score": 90},
+            {"family": "x", "label": False, "score": 90, "decision_readiness_score": 20},
+        ]
+        profile = build_calibration_profile(
+            records,
+            min_global_cases=2,
+            score_key="decision_readiness_score",
+            score_semantics="decision_readiness_score",
+        )
+        self.assertEqual(profile["score_key"], "decision_readiness_score")
+        self.assertEqual(profile["score_semantics"], "decision_readiness_score")
+        self.assertEqual(profile["global"]["metrics"]["f1"], 1.0)
 
     def test_family_thresholds_fail_closed_when_family_support_is_too_small(self):
         records = []
@@ -81,6 +106,10 @@ class CalibrationBenchmarkV910Tests(unittest.TestCase):
             calibrated["primary"]["target_evidence_confidence"],
         )
         self.assertTrue(calibrated["primary"]["calibration"]["available"])
+        self.assertEqual(
+            calibrated["primary"]["calibration"]["raw_score"],
+            calibrated["primary"]["decision_readiness_score"],
+        )
         self.assertEqual(calibrated["calibration_mode"], "shadow_only")
         self.assertTrue(calibrated["safety"]["calibration_cannot_change_evidence_or_admission"])
 

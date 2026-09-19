@@ -133,9 +133,11 @@ def benchmark_report(
         rows,
         source="analysis_golden_decision_readiness_replay",
         activation=calibration_activation,
+        score_key="decision_readiness_score",
+        score_semantics="decision_readiness_score",
     )
     family_metrics = {
-        family: confusion_metrics([row for row in rows if str(row.get("family")) == family], threshold=threshold)
+        family: confusion_metrics([row for row in rows if str(row.get("family")) == family], threshold=threshold, score_key="decision_readiness_score")
         for family in families
     }
     return {
@@ -149,7 +151,7 @@ def benchmark_report(
             "negative": negatives,
         },
         "threshold": int(threshold),
-        "global_metrics": confusion_metrics(rows, threshold=threshold),
+        "global_metrics": confusion_metrics(rows, threshold=threshold, score_key="decision_readiness_score"),
         "family_metrics": family_metrics,
         "calibration_profile": profile,
         "safety": {
