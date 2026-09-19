@@ -2169,8 +2169,8 @@ _PERSISTED_RESPONSE_HEADER_NAMES = frozenset({
 
 
 _HTTPX_XML_ROOT_EXTRACT_REGEX = (
-    r"(?is)^\\s*(?:<\\?xml[^>]*>\\s*)?"
-    r"<\\s*(?:[A-Za-z_][\\w.-]*:)?[A-Za-z_][\\w.-]*\\b"
+    r"(?is)^\s*(?:<\?xml[^>]*>\s*)?"
+    r"<\s*(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*\b"
 )
 
 
@@ -2190,7 +2190,7 @@ def _httpx_response_xml_root(row: Mapping[str, Any]) -> str:
         if isinstance(value, str) and value.strip():
             samples.append(value[:8192])
 
-    root_re = re.compile(r"<\\s*(?:[A-Za-z_][\\w.-]*:)?([A-Za-z_][\\w.-]*)\\b")
+    root_re = re.compile(r"<\s*(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b")
     for sample in samples:
         match = root_re.search(sample)
         if match:
