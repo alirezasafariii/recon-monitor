@@ -240,6 +240,62 @@ class FindingNotificationOutboxTests(unittest.TestCase):
         self.assertEqual(int(outbox["attempt_count"]), 2)
         self.assertEqual([str(row["status"]) for row in deliveries], ["failed", "delivered"])
 
+    def test_lost_lease_cannot_finalize_finding_delivery(self) -> None:
+        event_id, _candidate_id = self._queue("lost-lease")
+
+        def steal_lease(_config, _logger, _message):
+            self.db.execute(
+                "UPDATE finding_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (event_id,),
+            )
+            return {
+                "delivered": True,
+                "channel": "fixture",
+                "channels": ["fixture"],
+                "error": "",
+            }
+
+        result = deliver_finding_notification_outbox(
+            config=self.config,
+            logger=self.logger,
+            db=self.db,
+            target=self.TARGET,
+            transport=steal_lease,
+            now="2099-01-01T00:00:00Z",
+        )
+
+        self.assertEqual(result["due"], 1)
+        self.assertEqual(result["attempted"], 1)
+        self.assertEqual(result["delivered"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        event = self.db.one(
+            "SELECT status,delivered_at FROM notification_events "
+            "WHERE event_id=?",
+            (event_id,),
+        )
+        self.assertEqual(str(event["status"]), "queued")
+        self.assertFalse(event["delivered_at"])
+        outbox = self.db.one(
+            "SELECT status,lease_id,attempt_count,delivered_at "
+            "FROM finding_notification_outbox WHERE event_id=?",
+            (event_id,),
+        )
+        self.assertEqual(str(outbox["status"]), "delivering")
+        self.assertEqual(str(outbox["lease_id"]), "another-worker")
+        self.assertEqual(int(outbox["attempt_count"]), 0)
+        self.assertFalse(outbox["delivered_at"])
+        self.assertEqual(
+            int(
+                self.db.one(
+                    "SELECT COUNT(*) AS n FROM notification_deliveries "
+                    "WHERE event_id=?",
+                    (event_id,),
+                )["n"]
+            ),
+            0,
+        )
+
     def test_terminal_failure_can_be_manually_requeued(self) -> None:
         event_id, _candidate_id = self._queue("terminal")
         self.db.execute(
