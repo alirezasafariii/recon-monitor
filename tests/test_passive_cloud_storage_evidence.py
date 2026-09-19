@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ sys.path.insert(0, str(ROOT / "app"))
 from analysis_engine import run_analysis
 from core import APP_VERSION, AppPaths, Database, json_dumps, utc_now
 from passive_evidence_extractor import extract_passive_family_evidence
-from stages import _httpx_record
+from stages import _HTTPX_XML_ROOT_EXTRACT_REGEX, _httpx_record
 
 
 class PassiveCloudStorageEvidenceTests(unittest.TestCase):
@@ -300,6 +301,22 @@ class PassiveCloudStorageEvidenceTests(unittest.TestCase):
                 ),
             )
 
+            raw_response = (
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: application/xml\r\n"
+                "X-Debug: <LocationConstraint>header-only</LocationConstraint>\r\n"
+                "\r\n"
+                "<?xml version=\"1.0\"?><ListBucketResult>"
+                "<Name>acme-bucket</Name></ListBucketResult>"
+            )
+            extracts = re.findall(
+                _HTTPX_XML_ROOT_EXTRACT_REGEX,
+                raw_response,
+            )
+            self.assertEqual(len(extracts), 1)
+            self.assertIn("ListBucketResult", extracts[0])
+            self.assertNotIn("LocationConstraint", extracts[0])
+
             parsed_url, record = _httpx_record(
                 {
                     "url": listing,
@@ -308,9 +325,7 @@ class PassiveCloudStorageEvidenceTests(unittest.TestCase):
                     "content_length": 4096,
                     "webserver": "AmazonS3",
                     "extracts": {
-                        "xml-root": [
-                            "<?xml version=\"1.0\"?><ListBucketResult"
-                        ]
+                        _HTTPX_XML_ROOT_EXTRACT_REGEX: extracts,
                     },
                 }
             )
