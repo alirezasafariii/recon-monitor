@@ -25,7 +25,7 @@ class KatanaExecutionQualityTests(unittest.TestCase):
         policy = TargetPolicy.from_dict({
             "name": "example.test",
             "roots": ["example.test"],
-            "include": [r"(^|\\.)example\\.test$"],
+            "include": [r"(^|\.)example\.test$"],
             "analysis": {"asset_graph": False},
             "limits": {"timeout_seconds": 1800, "request_rate": 3},
         })
