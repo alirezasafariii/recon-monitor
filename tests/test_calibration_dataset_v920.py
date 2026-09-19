@@ -281,6 +281,8 @@ class CalibrationDatasetV920Tests(unittest.TestCase):
         self.assertEqual(report["coverage"]["verified_duplicate_records"], 0)
         self.assertEqual(report["coverage"]["total_diagnostic_records"], 370)
         self.assertEqual(report["score_semantics"], "decision_readiness_score")
+        self.assertEqual(report["calibration_profile"]["score_key"], "decision_readiness_score")
+        self.assertEqual(report["calibration_profile"]["score_semantics"], "decision_readiness_score")
         self.assertEqual(report["calibration_profile"]["activation"], "shadow_only")
         self.assertFalse(report["calibration_profile"]["activation_readiness"]["global_ready"])
         self.assertEqual(report["calibration_profile"]["activation_readiness"]["eligible_support"], 0)

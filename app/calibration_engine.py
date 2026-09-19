@@ -11,8 +11,8 @@ labeled observations exist.
 from collections import defaultdict
 from typing import Any, Iterable, Mapping
 
-CALIBRATION_ENGINE_VERSION = "1.0.0"
-CALIBRATION_RULE_VERSION = "2026.08.13.1"
+CALIBRATION_ENGINE_VERSION = "1.1.0"
+CALIBRATION_RULE_VERSION = "2026.09.19.1"
 DEFAULT_THRESHOLD = 70
 DEFAULT_BIN_COUNT = 10
 
@@ -99,13 +99,13 @@ def calibration_bins(
     rows = [dict(record) for record in records]
     for record in rows:
         score = _score(record.get(score_key))
-        index = min(bins - 1, int(score * bins / 101))
+        index = min(bins - 1, int(score * bins / 100))
         grouped[index].append(record)
 
     result: list[dict[str, Any]] = []
     for index in range(bins):
-        low = int(index * 100 / bins)
-        high = 100 if index == bins - 1 else int((index + 1) * 100 / bins) - 1
+        low = 0 if index == 0 else (index * 100 + bins - 1) // bins
+        high = 100 if index == bins - 1 else ((index + 1) * 100 + bins - 1) // bins - 1
         bucket = grouped.get(index, [])
         mean_score = round(sum(_score(row.get(score_key)) for row in bucket) / len(bucket), 3) if bucket else None
         observed = round(sum(1 for row in bucket if _label(row.get(label_key))) / len(bucket), 6) if bucket else None
@@ -153,7 +153,8 @@ def calibration_diagnostics(
         "score_brier_diagnostic": brier,
         "expected_calibration_error": round(ece, 6),
         "bins": bucket_rows,
-        "note": "bug_proximity_score is a ranking score, not a vulnerability probability",
+        "score_key": str(score_key),
+        "note": "calibrated scores are advisory signals, not vulnerability probabilities",
     }
 
 
@@ -206,6 +207,8 @@ def build_calibration_profile(
     *,
     source: str = "labeled_replay",
     activation: str = "shadow_only",
+    score_key: str = "score",
+    score_semantics: str | None = None,
     min_global_cases: int = 40,
     min_family_cases: int = 12,
     min_family_positive: int = 3,
@@ -221,15 +224,15 @@ def build_calibration_profile(
             families[family].append(record)
 
     global_ready = len(rows) >= int(min_global_cases) and any(_label(row.get("label")) for row in rows) and any(not _label(row.get("label")) for row in rows)
-    global_selection = select_threshold(rows) if global_ready else {
+    global_selection = select_threshold(rows, score_key=score_key) if global_ready else {
         "threshold": DEFAULT_THRESHOLD,
-        "metrics": confusion_metrics(rows, threshold=DEFAULT_THRESHOLD),
+        "metrics": confusion_metrics(rows, threshold=DEFAULT_THRESHOLD, score_key=score_key),
         "learned": False,
     }
     global_profile = {
         **global_selection,
         "ready": bool(global_ready),
-        "diagnostics": calibration_diagnostics(rows),
+        "diagnostics": calibration_diagnostics(rows, score_key=score_key),
     }
 
     family_profiles: dict[str, Any] = {}
@@ -237,9 +240,9 @@ def build_calibration_profile(
         positives = sum(1 for row in family_rows if _label(row.get("label")))
         negatives = len(family_rows) - positives
         ready = len(family_rows) >= int(min_family_cases) and positives >= int(min_family_positive) and negatives >= int(min_family_negative)
-        selection = select_threshold(family_rows) if ready else {
+        selection = select_threshold(family_rows, score_key=score_key) if ready else {
             "threshold": int(global_profile["threshold"]),
-            "metrics": confusion_metrics(family_rows, threshold=int(global_profile["threshold"])),
+            "metrics": confusion_metrics(family_rows, threshold=int(global_profile["threshold"]), score_key=score_key),
             "learned": False,
         }
         family_profiles[family] = {
@@ -249,7 +252,7 @@ def build_calibration_profile(
             "positive": positives,
             "negative": negatives,
             "threshold_source": "family_labeled_data" if ready else "global_fallback",
-            "diagnostics": calibration_diagnostics(family_rows),
+            "diagnostics": calibration_diagnostics(family_rows, score_key=score_key),
         }
 
     return {
@@ -257,6 +260,8 @@ def build_calibration_profile(
         "rule_version": CALIBRATION_RULE_VERSION,
         "source": str(source),
         "activation": str(activation),
+        "score_key": str(score_key),
+        "score_semantics": str(score_semantics or score_key),
         "global": global_profile,
         "families": family_profiles,
         "minimums": {
@@ -288,6 +293,7 @@ def calibration_for_score(family: str, score: Any, profile: Mapping[str, Any] | 
             "activation": "none",
             "above_threshold": raw_score >= DEFAULT_THRESHOLD,
             "empirical_positive_rate": None,
+            "score_semantics": None,
         }
 
     global_profile = profile.get("global", {}) if isinstance(profile.get("global"), Mapping) else {}
@@ -314,5 +320,6 @@ def calibration_for_score(family: str, score: Any, profile: Mapping[str, Any] | 
         "above_threshold": raw_score >= threshold,
         "empirical_positive_rate": empirical,
         "family_profile_ready": use_family,
+        "score_semantics": str(profile.get("score_semantics") or profile.get("score_key") or "score"),
         "advisory_only": True,
     }
