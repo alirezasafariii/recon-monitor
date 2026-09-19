@@ -10,7 +10,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from core import AppPaths, Config, Database
+from core import APP_VERSION, AppPaths, Config, Database
 from operations import UpdateManager
 from recon_monitor import build_parser
 
@@ -47,14 +47,20 @@ class UpdateV810Tests(unittest.TestCase):
     def test_check_parses_authenticated_github_release(self):
         temp, paths, db, manager = self.manager()
         try:
+            major, minor, patch = (int(part) for part in APP_VERSION.split("."))
+            available = f"{major}.{minor}.{patch + 1}"
+            archive = f"recon-monitor-v{available}.zip"
             release = {
-                "tagName": "v8.8.1",
-                "name": "Recon Monitor v8.8.1",
+                "tagName": f"v{available}",
+                "name": f"Recon Monitor v{available}",
                 "publishedAt": "2026-08-08T00:00:00Z",
-                "url": "https://github.com/alirezasafariii/recon-monitor/releases/tag/v8.8.1",
+                "url": (
+                    "https://github.com/alirezasafariii/recon-monitor/releases/tag/"
+                    f"v{available}"
+                ),
                 "assets": [
-                    {"name": "recon-monitor-v8.8.1.zip"},
-                    {"name": "recon-monitor-v8.8.1.zip.sha256"},
+                    {"name": archive},
+                    {"name": f"{archive}.sha256"},
                 ],
             }
             completed = mock.Mock(returncode=0, stdout=json.dumps(release), stderr="")
@@ -62,9 +68,9 @@ class UpdateV810Tests(unittest.TestCase):
                 result = manager.check()
             self.assertEqual(result["source"], "github")
             self.assertEqual(result["repo"], "alirezasafariii/recon-monitor")
-            self.assertEqual(result["available"], "8.8.1")
+            self.assertEqual(result["available"], available)
             self.assertTrue(result["update_available"])
-            self.assertIn("recon-monitor-v8.8.1.zip", result["assets"])
+            self.assertIn(archive, result["assets"])
             self.assertIn("--repo", run.call_args.args[0])
         finally:
             db.close(); temp.cleanup()
