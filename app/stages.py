@@ -2169,7 +2169,10 @@ _PERSISTED_RESPONSE_HEADER_NAMES = frozenset({
 
 
 _HTTPX_XML_ROOT_EXTRACT_REGEX = (
-    r"(?is)^\s*(?:<\?xml[^>]*>\s*)?"
+    # httpx applies -er to resp.Raw, which includes the HTTP status line and
+    # headers. Match either a body-only fixture or the first element strictly
+    # after the HTTP header/body separator; do not scan arbitrary header text.
+    r"(?is)(?:^|\r?\n\r?\n)\s*(?:<\?xml[^>]*>\s*)?"
     r"<\s*(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*\b"
 )
 

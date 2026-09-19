@@ -793,8 +793,51 @@ def replay_analysis(paths: AppPaths, db: Database, run_id: str, target: str | No
     return run_analysis(paths,db,run_id,target,mode="replay",profile=profile)
 
 
+def _latest_quality_analysis(
+    db: Database,
+    target: str | None,
+) -> Mapping[str, Any] | None:
+    if not target:
+        row = db.one(
+            "SELECT id,source_run_id,target,summary_json "
+            "FROM analysis_runs WHERE status='success' "
+            "ORDER BY COALESCE(finished_at,started_at) DESC,rowid DESC LIMIT 1"
+        )
+        return dict(row) if row else None
+
+    row = db.one(
+        """
+        SELECT ar.id,ar.source_run_id,ar.target,ar.summary_json
+        FROM analysis_runs ar
+        WHERE ar.status='success'
+          AND (
+            ar.target=?
+            OR EXISTS(
+              SELECT 1 FROM analysis_results r
+              WHERE r.analysis_id=ar.id AND r.target=?
+            )
+            OR EXISTS(
+              SELECT 1 FROM analysis_quality_snapshots q
+              WHERE q.analysis_id=ar.id AND q.target=?
+            )
+            OR (
+              ar.target='*'
+              AND EXISTS(
+                SELECT 1 FROM run_targets rt
+                WHERE rt.run_id=ar.source_run_id AND rt.target=?
+              )
+            )
+          )
+        ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC,ar.rowid DESC
+        LIMIT 1
+        """,
+        (target, target, target, target),
+    )
+    return dict(row) if row else None
+
+
 def analysis_quality(db: Database, target: str | None = None) -> dict[str, Any]:
-    latest=db.one("SELECT id,summary_json FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
+    latest = _latest_quality_analysis(db, target)
     if not latest:
         return {"message":"No completed analysis run"}
     summary = _loads(latest["summary_json"], {})

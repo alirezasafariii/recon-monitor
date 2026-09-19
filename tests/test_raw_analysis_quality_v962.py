@@ -133,6 +133,142 @@ class RawAnalysisQualityV962Tests(unittest.TestCase):
             db.close()
             temp.cleanup()
 
+    def test_quality_reader_keeps_requested_target_after_other_target_analysis(self):
+        temp, paths, db, now = self.project()
+        try:
+            db.execute(
+                "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.test",
+                    "https://example.test/admin",
+                    "absolute_url",
+                    "administration",
+                    84,
+                    json_dumps([{"category": "administration", "confidence": 84}]),
+                    json_dumps(["target-specific quality fixture"]),
+                    json_dumps(["quality-target-a"]),
+                    now,
+                    now,
+                    "RUN-QUALITY",
+                ),
+            )
+            first = run_analysis(
+                paths,
+                db,
+                "RUN-QUALITY",
+                "example.test",
+            )
+            expected = first["quality"]["raw_analysis"]["hypotheses"]
+            self.assertGreater(expected, 0)
+
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-QUALITY-B',?,'success',?,?,?,1)",
+                (APP_VERSION, now, now, "other.test"),
+            )
+            db.execute(
+                "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                "VALUES('RUN-QUALITY-B','other.test','policy','success','report',?,?,?,1)",
+                (now, now, str(paths.output / "RUN-QUALITY-B")),
+            )
+            run_analysis(
+                paths,
+                db,
+                "RUN-QUALITY-B",
+                "other.test",
+            )
+
+            reread = analysis_quality(db, "example.test")
+            self.assertEqual(
+                reread["raw_analysis"]["status"],
+                first["quality"]["raw_analysis"]["status"],
+            )
+            self.assertEqual(
+                reread["raw_analysis"]["hypotheses"],
+                expected,
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
+    def test_quality_reader_accepts_latest_multi_target_analysis_covering_target(self):
+        temp = tempfile.TemporaryDirectory()
+        paths = AppPaths.from_root(Path(temp.name))
+        paths.ensure()
+        db = Database(paths.db)
+        now = utc_now()
+        try:
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-MULTI',?,'success',?,?,?,2)",
+                (APP_VERSION, now, now, "*"),
+            )
+            for target in ("example.test", "other.test"):
+                db.execute(
+                    "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                    "VALUES('RUN-MULTI',?,'policy','success','report',?,?,?,1)",
+                    (
+                        target,
+                        now,
+                        now,
+                        str(paths.output / "RUN-MULTI" / target),
+                    ),
+                )
+            db.execute(
+                "INSERT INTO endpoint_intelligence(target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "example.test",
+                    "https://example.test/admin",
+                    "absolute_url",
+                    "administration",
+                    84,
+                    json_dumps([{"category": "administration", "confidence": 84}]),
+                    json_dumps(["multi-target quality fixture"]),
+                    json_dumps(["quality-multi"]),
+                    now,
+                    now,
+                    "RUN-MULTI",
+                ),
+            )
+            multi = run_analysis(paths, db, "RUN-MULTI", None)
+            expected = int(
+                db.one(
+                    "SELECT COUNT(*) AS n FROM analysis_hypotheses "
+                    "WHERE analysis_id=? AND target='example.test' "
+                    "AND source_ref LIKE 'raw-%'",
+                    (multi["analysis_id"],),
+                )["n"]
+            )
+            self.assertGreater(expected, 0)
+
+            db.execute(
+                "INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) "
+                "VALUES('RUN-OTHER-LATER',?,'success',?,?,?,1)",
+                (APP_VERSION, now, now, "other.test"),
+            )
+            db.execute(
+                "INSERT INTO run_targets(run_id,target,policy_hash,status,current_stage,started_at,finished_at,run_dir,baseline) "
+                "VALUES('RUN-OTHER-LATER','other.test','policy','success','report',?,?,?,1)",
+                (now, now, str(paths.output / "RUN-OTHER-LATER")),
+            )
+            run_analysis(
+                paths,
+                db,
+                "RUN-OTHER-LATER",
+                "other.test",
+            )
+
+            reread = analysis_quality(db, "example.test")
+            self.assertEqual(
+                reread["raw_analysis"]["hypotheses"],
+                expected,
+            )
+        finally:
+            db.close()
+            temp.cleanup()
+
     def test_budget_exhaustion_survives_quality_rehydration(self):
         temp, paths, db, now = self.project()
         original_limit = family_router.RAW_ANALYZER_INVOCATION_LIMIT

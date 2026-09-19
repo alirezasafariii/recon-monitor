@@ -10,8 +10,8 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 
-BEHAVIORAL_ENGINE_VERSION = "5.0.0"
-BEHAVIORAL_RULE_VERSION = "2026.08.7"
+BEHAVIORAL_ENGINE_VERSION = "5.0.1"
+BEHAVIORAL_RULE_VERSION = "2026.09.19.1"
 
 PROTECTED_BOUNDARIES = {
     "authentication_required", "session_required", "bearer_required", "api_key_required",
@@ -42,20 +42,142 @@ def _clamp(value: float, low: int = 0, high: int = 100) -> int:
     return max(low, min(high, int(round(value))))
 
 
-def _latest_previous_analysis(db: Database, analysis_id: str, target: str) -> str:
-    row = db.one(
+def _latest_previous_analysis(
+    db: Database,
+    analysis_id: str,
+    run_id: str,
+    target: str,
+) -> str:
+    """Bind behavioral comparison to a prior source run, never a same-run replay."""
+
+    # Once any successful Analysis of this source run has chosen a target
+    # baseline, every later Analysis/replay of the same run must reuse it.
+    bound = db.one(
         """
-        SELECT ar.id
-        FROM analysis_runs ar
-        JOIN analysis_results r ON r.analysis_id=ar.id
-        WHERE ar.status='success' AND ar.id<>? AND r.target=?
-        GROUP BY ar.id
-        ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC
+        SELECT b.baseline_analysis_id
+        FROM analysis_behavioral_baselines b
+        JOIN analysis_runs ar ON ar.id=b.analysis_id
+        WHERE b.source_run_id=? AND b.target=? AND b.analysis_id<>?
+          AND ar.status='success'
+        ORDER BY ar.started_at ASC, ar.id ASC
         LIMIT 1
         """,
-        (analysis_id, target),
+        (run_id, target, analysis_id),
     )
-    return str(row["id"]) if row else ""
+    if bound is not None:
+        baseline = str(bound["baseline_analysis_id"] or "")
+        db.execute(
+            "INSERT OR REPLACE INTO analysis_behavioral_baselines("
+            "analysis_id,target,source_run_id,baseline_analysis_id,created_at"
+            ") VALUES(?,?,?,?,?)",
+            (analysis_id, target, run_id, baseline, utc_now()),
+        )
+        return baseline
+
+    current_run = db.one(
+        "SELECT rowid AS run_rowid,started_at FROM runs WHERE id=?",
+        (run_id,),
+    )
+    candidate = None
+    if current_run is not None:
+        candidate = db.one(
+            """
+            SELECT ar.id
+            FROM analysis_runs ar
+            JOIN runs source_run ON source_run.id=ar.source_run_id
+            WHERE ar.status='success'
+              AND ar.id<>?
+              AND ar.source_run_id<>?
+              AND (
+                ar.target=?
+                OR EXISTS(
+                  SELECT 1 FROM analysis_results r
+                  WHERE r.analysis_id=ar.id AND r.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM authentication_boundaries b
+                  WHERE b.analysis_id=ar.id AND b.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM response_shape_fingerprints s
+                  WHERE s.analysis_id=ar.id AND s.target=?
+                )
+              )
+              AND (
+                source_run.started_at<?
+                OR (
+                  source_run.started_at=?
+                  AND source_run.rowid<?
+                )
+              )
+            ORDER BY source_run.started_at DESC,source_run.rowid DESC,
+                     COALESCE(ar.finished_at,ar.started_at) DESC
+            LIMIT 1
+            """,
+            (
+                analysis_id,
+                run_id,
+                target,
+                target,
+                target,
+                target,
+                str(current_run["started_at"] or ""),
+                str(current_run["started_at"] or ""),
+                int(current_run["run_rowid"]),
+            ),
+        )
+    else:
+        # Legacy/minimal databases may not have the source run row. Preserve
+        # compatibility while still excluding the same source_run_id.
+        current_analysis = db.one(
+            "SELECT started_at FROM analysis_runs WHERE id=?",
+            (analysis_id,),
+        )
+        candidate = db.one(
+            """
+            SELECT ar.id
+            FROM analysis_runs ar
+            WHERE ar.status='success'
+              AND ar.id<>?
+              AND ar.source_run_id<>?
+              AND COALESCE(ar.finished_at,ar.started_at)<?
+              AND (
+                ar.target=?
+                OR EXISTS(
+                  SELECT 1 FROM analysis_results r
+                  WHERE r.analysis_id=ar.id AND r.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM authentication_boundaries b
+                  WHERE b.analysis_id=ar.id AND b.target=?
+                )
+                OR EXISTS(
+                  SELECT 1 FROM response_shape_fingerprints s
+                  WHERE s.analysis_id=ar.id AND s.target=?
+                )
+              )
+            ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC
+            LIMIT 1
+            """,
+            (
+                analysis_id,
+                run_id,
+                str(current_analysis["started_at"] if current_analysis else ""),
+                target,
+                target,
+                target,
+                target,
+            ),
+        )
+
+    baseline = str(candidate["id"]) if candidate else ""
+    db.execute(
+        "INSERT OR REPLACE INTO analysis_behavioral_baselines("
+        "analysis_id,target,source_run_id,baseline_analysis_id,created_at"
+        ") VALUES(?,?,?,?,?)",
+        (analysis_id, target, run_id, baseline, utc_now()),
+    )
+    return baseline
 
 
 def _boundary_transition(previous: str, current: str) -> tuple[str, str, int]:
@@ -259,7 +381,12 @@ def generate_behavioral_intelligence(paths: AppPaths, db: Database, analysis_id:
     counts = Counter()
     per_target: dict[str, Any] = {}
     for target in sorted(set(targets)):
-        previous_analysis = _latest_previous_analysis(db, analysis_id, target)
+        previous_analysis = _latest_previous_analysis(
+            db,
+            analysis_id,
+            run_id,
+            target,
+        )
         target_summary = Counter()
 
         # Persist context observations already present in stored evidence. No network calls are made.
