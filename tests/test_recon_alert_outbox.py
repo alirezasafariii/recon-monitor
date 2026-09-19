@@ -142,6 +142,54 @@ class ReconAlertOutboxTests(unittest.TestCase):
         self.assertTrue(outbox["delivered_at"])
         self.assertIsNone(unresolved_recon_alert_delivery(self.db, alert_id))
 
+    def test_lost_lease_cannot_mark_recon_alert_notified(self):
+        alert_id = self._alert(dedup_key="lost-lease")
+        queued = self._enqueue(alert_id)
+        calls: list[str] = []
+
+        def steal_lease(_config, _logger, message: str):
+            calls.append(message)
+            self.db.execute(
+                "UPDATE recon_alert_notification_outbox "
+                "SET lease_id='another-worker' WHERE event_id=?",
+                (queued["event_id"],),
+            )
+            return {
+                "delivered": True,
+                "channels": ["notify"],
+                "channel": "notify",
+                "error": "",
+            }
+
+        result = deliver_recon_alert_outbox(
+            config=object(),
+            logger=object(),
+            db=self.db,
+            transport=steal_lease,
+            now="2099-01-01T00:00:00Z",
+        )
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["due"], 1)
+        self.assertEqual(result["attempted"], 1)
+        self.assertEqual(result["delivered"], 0)
+        self.assertEqual(result["lease_lost"], 1)
+        self.assertFalse(
+            self.db.one(
+                "SELECT last_notified FROM alerts WHERE id=?",
+                (alert_id,),
+            )["last_notified"]
+        )
+        outbox = self.db.one(
+            "SELECT status,lease_id,attempt_count,delivered_at "
+            "FROM recon_alert_notification_outbox WHERE event_id=?",
+            (queued["event_id"],),
+        )
+        self.assertEqual(str(outbox["status"]), "delivering")
+        self.assertEqual(str(outbox["lease_id"]), "another-worker")
+        self.assertEqual(int(outbox["attempt_count"]), 0)
+        self.assertFalse(outbox["delivered_at"])
+
     def test_terminal_failure_can_be_explicitly_requeued(self):
         alert_id = self._alert()
         queued = self._enqueue(alert_id)
