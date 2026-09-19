@@ -820,7 +820,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
                 atomic_write_text(
                     batch_input,
-                    "".join(f"{url}\\n" for url in batch_origins),
+                    "".join(f"{url}\n" for url in batch_origins),
                 )
                 args = [
                     "katana",
@@ -892,7 +892,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         for line in batch_output.read_text(
                             encoding="utf-8", errors="replace",
                         ).splitlines():
-                            combined.write(line + "\\n")
+                            combined.write(line + "\n")
 
             successful = set(katana_origin_successes)
             katana_pending_origins = [
@@ -926,11 +926,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         katana_pending_origins = list(base_urls)
     atomic_write_text(
         ctx.current / "katana-pending-origins.txt",
-        "".join(f"{url}\\n" for url in katana_pending_origins),
+        "".join(f"{url}\n" for url in katana_pending_origins),
     )
     atomic_write_text(
         ctx.current / "katana-completed-origins.txt",
-        "".join(f"{url}\\n" for url in katana_origin_successes),
+        "".join(f"{url}\n" for url in katana_origin_successes),
     )
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
