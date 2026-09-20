@@ -27,6 +27,7 @@ from core import (  # noqa: E402
     Config,
     Database,
     Logger,
+    NextStageRequested,
     PolicySet,
     Progress,
     process_alive,
@@ -264,7 +265,7 @@ class Orchestrator:
     ) -> tuple[str, dict[str, Any]]:
         self.progress.configure(target_index, target_total, stage_index, stage_total, label)
         prior = self.db.stage_status(ctx.run_id, ctx.policy.name, stage_name)
-        if resume and prior == "success":
+        if resume and prior == "success" and stage_name != "report":
             metrics_row = self.db.one(
                 "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
                 (ctx.run_id, ctx.policy.name, stage_name),
@@ -287,6 +288,11 @@ class Orchestrator:
         last_error = ""
         for attempt in range(1, attempts + 1):
             self.db.stage_begin(ctx.run_id, ctx.policy.name, stage_name, attempt)
+            # Next is scoped to exactly this run, target, stage and attempt.
+            self.runner.next_check = lambda: self.db.stage_next_requested(
+                ctx.run_id, ctx.policy.name, stage_name, attempt,
+            )
+            self.runner.next_raise = stage_name != "urls"
             started = time.monotonic()
             try:
                 if stage_name == "report":
@@ -294,6 +300,12 @@ class Orchestrator:
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
                 duration = time.monotonic() - started
+                if self.db.stage_next_requested(
+                    ctx.run_id, ctx.policy.name, stage_name, attempt,
+                ):
+                    metrics["collection_status"] = "partial"
+                    metrics["stop_reason"] = "operator_next"
+                    metrics["pending_stage_resume"] = stage_name != "urls"
                 # A collector may preserve useful output while its underlying
                 # tool times out. Persist that quality separately from the
                 # orchestration result so downstream stages can still run.
@@ -312,6 +324,24 @@ class Orchestrator:
                     "no-input" if collection_status == "no_input" else "ok"
                 )
                 self.progress.finish_stage(progress_status, metrics)
+                return "success", metrics
+            except NextStageRequested:
+                # The active tool's stdout has already been flushed to its
+                # per-run output file. Do not retry, report success, or use
+                # the incomplete stage as a clean comparison baseline.
+                duration = time.monotonic() - started
+                metrics = {
+                    "collection_status": "partial",
+                    "stop_reason": "operator_next",
+                    "pending_stage_resume": True,
+                    "evidence_directory": str(ctx.current),
+                }
+                self.db.stage_finish(
+                    ctx.run_id, ctx.policy.name, stage_name, "partial",
+                    exit_code=125, duration=duration, metrics=metrics,
+                    error="operator_next",
+                )
+                self.progress.finish_stage("partial", metrics)
                 return "success", metrics
             except KeyboardInterrupt:
                 duration = time.monotonic() - started
