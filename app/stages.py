@@ -750,6 +750,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_rate_limit = 0
     katana_crawl_seconds = 0
     katana_status = "tool_missing" if not tool_path("katana") else ("no_input" if not base_urls else "not_run")
+    katana_stop_reason = katana_status
     katana_exit_code: int | None = None
     katana_timed_out = False
     katana_duration_seconds = 0.0
@@ -757,9 +758,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_batches_completed = 0
     katana_origins_attempted = 0
     katana_origin_successes: list[str] = []
-    katana_pending_origins: list[str] = []
+    katana_pending_origins = list(base_urls)
     katana_batches_incomplete = 0
     katana_global_deadline_seconds = 0
+    katana_deadline_exhausted = False
+    batch_outcomes: list[dict[str, Any]] = []
+    # Clear stale evidence even when this attempt cannot launch the collector.
+    atomic_write_text(ctx.current / "katana-urls.txt", "")
+    atomic_write_text(ctx.current / "katana-base-urls.txt", "")
+    write_jsonl(ctx.current / "katana-batches.jsonl", [])
     if tool_path("katana") and base_urls:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -803,7 +810,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             # reachable page on its origins was discovered.
             out = ctx.current / "katana-urls.txt"
             atomic_write_text(out, "")
-            batch_outcomes: list[dict[str, Any]] = []
             crawl_started = time.monotonic()
             for batch_offset in range(0, len(katana_origins), 5):
                 remaining_seconds = int(
@@ -811,7 +817,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     (time.monotonic() - crawl_started)
                 )
                 if remaining_seconds <= 0:
-                    katana_timed_out = True
+                    katana_deadline_exhausted = True
                     break
 
                 batch_origins = katana_origins[batch_offset:batch_offset + 5]
@@ -839,6 +845,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     ),
                 ]
                 # Policy credentials never cross into an external crawler.
+                batch_started_at = utc_now()
                 result = ctx.runner.run(
                     args,
                     timeout=min(120, remaining_seconds),
@@ -855,6 +862,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_origins_attempted += len(batch_origins)
                 katana_observed += int(getattr(result, "lines", 0) or 0)
                 batch_exit = int(result.returncode)
+                if katana_exit_code in {None, 0}:
+                    katana_exit_code = batch_exit
                 batch_timed_out = bool(getattr(result, "timed_out", False))
                 katana_timed_out = katana_timed_out or batch_timed_out
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
@@ -862,12 +871,19 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_outcomes.append({
                     "batch": batch_number,
                     "origins": len(batch_origins),
+                    "origin_urls": batch_origins,
+                    "started_at": batch_started_at,
+                    "finished_at": utc_now(),
+                    "timeout_seconds": min(120, remaining_seconds),
                     "exit_code": batch_exit,
                     "timed_out": batch_timed_out,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),
                     "status": "completed" if batch_complete else (
                         "timeout" if batch_timed_out else "nonzero_exit"
+                    ),
+                    "stop_reason": "timeout" if batch_timed_out else (
+                        "nonzero_exit" if batch_exit else "completed"
                     ),
                 })
                 if not batch_complete:
@@ -893,6 +909,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                             encoding="utf-8", errors="replace",
                         ).splitlines():
                             combined.write(line + "\n")
+                write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
 
             successful = set(katana_origin_successes)
             katana_pending_origins = [
@@ -901,7 +918,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             katana_status = (
                 "timeout" if katana_timed_out else
                 "nonzero_exit" if katana_batches_incomplete else
-                "partial" if katana_pending_origins else
+                "partial" if katana_pending_origins or katana_deadline_exhausted else
+                "completed"
+            )
+            katana_stop_reason = (
+                "batch_timeout" if katana_timed_out else
+                "nonzero_exit" if katana_batches_incomplete else
+                "global_deadline" if katana_deadline_exhausted else
+                "request_budget" if katana_pending_origins else
                 "completed"
             )
             # Machine-readable per-batch evidence and explicit backlog remain
@@ -918,6 +942,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     add_candidate(raw_candidate, "katana")
         else:
             katana_status = "budget_exhausted"
+            katana_stop_reason = "request_budget"
             atomic_write_text(ctx.current / "katana-base-urls.txt", "")
 
     # Do not silently discard origins that were not attempted, or those
@@ -999,6 +1024,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_rate_limit": katana_rate_limit,
         "katana_crawl_seconds_per_origin": katana_crawl_seconds,
         "katana_status": katana_status,
+        "katana_stop_reason": katana_stop_reason,
+        "katana_input_origins": len(base_urls),
+        "katana_batch_outcomes": batch_outcomes,
         "katana_exit_code": katana_exit_code,
         "katana_timed_out": katana_timed_out,
         "katana_duration_seconds": round(katana_duration_seconds, 3),
@@ -1009,7 +1037,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_pending_origins": len(katana_pending_origins),
         "katana_batches_incomplete": katana_batches_incomplete,
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
-        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial"} else "completed",
+        "katana_deadline_exhausted": katana_deadline_exhausted,
+        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing"} else "completed",
     }
 
 

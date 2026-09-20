@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,13 @@ from stages import _katana_crawl_plan, stage_javascript, stage_urls
 
 
 class KatanaExecutionQualityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # These regressions must never start a tool, resolve DNS, or connect.
+        for name in ("subprocess.Popen", "socket.getaddrinfo", "socket.socket.connect"):
+            guard = patch(name, side_effect=AssertionError("offline test attempted I/O"))
+            guard.start()
+            self.addCleanup(guard.stop)
+
     def _context(self, root: Path, runner) -> SimpleNamespace:
         current = root / "current"
         changes = root / "changes"
@@ -60,6 +68,18 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["katana_exit_code"], 124)
             self.assertEqual(metrics["collection_status"], "partial")
             self.assertEqual(metrics["katana_batches_attempted"], 1)
+            self.assertEqual(metrics["katana_input_origins"], 1)
+            self.assertEqual(metrics["katana_observed"], 1)
+            self.assertEqual(metrics["katana_duration_seconds"], 120.1)
+            self.assertEqual(metrics["katana_stop_reason"], "batch_timeout")
+            outcome = metrics["katana_batch_outcomes"][0]
+            self.assertEqual(outcome["origin_urls"], ["https://example.test"])
+            self.assertEqual(outcome["stop_reason"], "timeout")
+            self.assertTrue(outcome["started_at"])
+            self.assertTrue(outcome["finished_at"])
+            self.assertEqual(outcome["exit_code"], 124)
+            self.assertEqual(outcome["lines"], 1)
+            self.assertEqual(json.loads((ctx.current / "katana-batches.jsonl").read_text()), outcome)
             self.assertIn("https://example.test/app.js", (
                 ctx.current / "katana-urls.txt"
             ).read_text(encoding="utf-8"))
@@ -92,6 +112,8 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["katana_batches_completed"], 2)
             self.assertEqual(metrics["katana_origins_attempted"], 6)
             self.assertEqual(metrics["katana_status"], "completed")
+            self.assertEqual(metrics["katana_exit_code"], 0)
+            self.assertEqual(metrics["katana_stop_reason"], "completed")
             self.assertNotIn("5.example.test", batches[0][1])
             self.assertIn("5\\.example\\.test", batches[1][1])
 
@@ -140,6 +162,38 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             )
             self.assertIn("https://0.example.test/app.js", combined)
             self.assertIn("https://5.example.test/next.js", combined)
+
+    def test_nonzero_exit_preserves_evidence_and_marks_partial(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            def fake_run(_args, **kwargs):
+                Path(kwargs["output_path"]).write_text("https://example.test/app.js\n")
+                return SimpleNamespace(returncode=1, timed_out=False, duration=0.5, lines=1)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(["https://example.test"], []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_exit_code"], 1)
+            self.assertEqual(metrics["katana_status"], "nonzero_exit")
+            self.assertEqual(metrics["katana_stop_reason"], "nonzero_exit")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertIn("https://example.test/app.js", (ctx.current / "urls.txt").read_text())
+
+    def test_missing_katana_is_incomplete_and_keeps_origins_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._context(Path(tmp), SimpleNamespace())
+            with patch("stages.tool_path", return_value=None), patch(
+                "stages._probe_live_origins", return_value=(["https://example.test"], []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_status"], "tool_missing")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertIsNone(metrics["katana_exit_code"])
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertEqual(metrics["katana_batch_outcomes"], [])
+            self.assertEqual((ctx.current / "katana-pending-origins.txt").read_text(), "https://example.test\n")
 
     def test_crawl_plan_uses_configured_envelope_not_fixed_30_seconds(self) -> None:
         plan = _katana_crawl_plan(

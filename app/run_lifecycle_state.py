@@ -24,7 +24,7 @@ from core import utc_now
 LIFECYCLE_STATE_VERSION = "1.0.0"
 LIFECYCLE_META_KEY = "explicit_target_lifecycle_v1"
 
-COLLECTION_TERMINAL = {"success", "failed", "interrupted", "not_run"}
+COLLECTION_TERMINAL = {"success", "partial", "failed", "interrupted", "not_run"}
 ANALYSIS_TERMINAL = {"success", "failed", "not_run"}
 REPORT_TERMINAL = {"success", "failed", "interrupted", "not_run"}
 NOTIFICATION_TERMINAL = {"success", "queued", "failed", "not_run"}
@@ -178,6 +178,10 @@ def derive_collection_status(
         if status == "failed":
             return "failed", f"collection_failed:{stage}"
 
+    incomplete = [stage for stage in stages if statuses.get(stage) == "partial"]
+    if incomplete:
+        return "partial", "collection_partial:" + ",".join(incomplete)
+
     missing = [stage for stage in stages if statuses.get(stage) != "success"]
     if missing:
         return "not_run", "collection_incomplete:" + ",".join(missing)
@@ -254,6 +258,8 @@ def derive_overall_status(
 ) -> str:
     if collection_status == "interrupted" or report_status == "interrupted":
         return "interrupted"
+    if collection_status == "partial":
+        return "partial"
     if collection_status != "success":
         return "failed"
     if report_status != "success":
