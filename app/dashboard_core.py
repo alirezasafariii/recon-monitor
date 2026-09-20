@@ -1008,23 +1008,111 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
-// Progressive enhancement: the server also emits action='#filter-N' on GET
-// forms, so native Safari submission retains the anchor if this handler does
-// not run. No timing-sensitive scroll restoration is necessary.
+// GET filters on Recon update only the main workspace. Native GET forms
+// retain server-rendered fragment actions as a fallback if JavaScript fails.
 (function(){{
+  if(window.location.pathname!=='/recon')return;
+  let latest=0;
+  let request=null;
+  if('scrollRestoration' in history)history.scrollRestoration='manual';
+
+  const jumpTo=(top)=>{{
+    const root=document.documentElement;
+    const before=root.style.getPropertyValue('scroll-behavior');
+    const priority=root.style.getPropertyPriority('scroll-behavior');
+    root.style.setProperty('scroll-behavior','auto','important');
+    window.scrollTo(0,Math.max(0,top));
+    if(before)root.style.setProperty('scroll-behavior',before,priority);
+    else root.style.removeProperty('scroll-behavior');
+  }};
+
+  async function updateRecon(next, options){{ 
+    const serial=++latest;
+    request?.abort();
+    const controller=new AbortController();
+    request=controller;
+    try{{
+      const response=await fetch(next.pathname+next.search,{{
+        method:'GET',credentials:'same-origin',cache:'no-store',
+        headers:{{'Accept':'text/html'}},signal:controller.signal
+      }});
+      const reached=new URL(response.url);
+      if(!response.ok||reached.origin!==window.location.origin||
+         reached.pathname!=='/recon'||
+         !(response.headers.get('content-type')||'').includes('text/html')){{
+        throw new Error('Dashboard filter response was not a Recon page');
+      }}
+      const page=new DOMParser().parseFromString(await response.text(),'text/html');
+      const replacement=page.querySelector('main.content');
+      const current=document.querySelector('main.content');
+      if(!replacement||!current)throw new Error('Missing Recon workspace');
+      if(serial!==latest||window.location.pathname!=='/recon')return;
+
+      current.replaceWith(replacement);
+      if(page.title)document.title=page.title;
+      const freshChip=page.querySelector('.focus-chip');
+      const oldChip=document.querySelector('.focus-chip');
+      if(oldChip&&freshChip)oldChip.replaceWith(freshChip);
+      else if(oldChip&&!freshChip)oldChip.remove();
+
+      const beforeY=options.scrollY;
+      let desiredY=beforeY;
+      if(options.formId){{
+        const forms=[...replacement.querySelectorAll('form.filters')];
+        const chosen=forms.find(form=>form.id===options.formId)||
+          forms[options.formIndex];
+        if(chosen&&Number.isFinite(options.formTop)){{
+          desiredY=beforeY+chosen.getBoundingClientRect().top-options.formTop;
+        }}
+      }}
+      if(options.push&&next.pathname+next.search!==
+          window.location.pathname+window.location.search){{
+        const state=history.state&&typeof history.state==='object'?
+          history.state:{{}};
+        history.replaceState({{...state,reconScroll:beforeY}},'',window.location.href);
+        history.pushState({{reconScroll:desiredY}},'',next.pathname+next.search);
+      }}
+      // No full document navigation: Safari keeps its viewport and the filter
+      // is returned to the same on-screen position after replacing results.
+      jumpTo(desiredY);
+      requestAnimationFrame(()=>jumpTo(desiredY));
+    }}catch(error){{
+      if(error.name==='AbortError')return;
+      if(options.push){{
+        // Preserve the native form's #filter-N navigation on failure.
+        window.location.assign(next.href);
+      }}else{{
+        window.location.reload();
+      }}
+    }}
+  }}
+
   document.addEventListener('submit',(event)=>{{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||!form.closest('main.content')||
-       !form.matches('form.filters')||
+    if(!(form instanceof HTMLFormElement)||
+       !form.closest('main.content')||!form.matches('form.filters')||
        form.method.toLowerCase()!=='get'||
-       (form.target&&form.target!=='_self')||!form.id)return;
+       (form.target&&form.target!=='_self'))return;
     const next=new URL(form.action||window.location.href,window.location.href);
-    if(next.origin!==window.location.origin)return;
+    if(next.origin!==window.location.origin||next.pathname!=='/recon')return;
     event.preventDefault();
     next.search=new URLSearchParams(new FormData(form)).toString();
-    next.hash=form.id;
-    window.location.assign(next.href);
+    const forms=[...document.querySelectorAll('main.content form.filters')];
+    const opts={{
+      push:true,scrollY:window.scrollY,formTop:form.getBoundingClientRect().top,
+      formId:form.id,formIndex:forms.indexOf(form)
+    }};
+    void updateRecon(next,opts);
   }},true);
+
+  window.addEventListener('popstate',(event)=>{{
+    if(window.location.pathname!=='/recon')return;
+    const scrollY=event.state&&Number.isFinite(event.state.reconScroll)?
+      event.state.reconScroll:window.scrollY;
+    void updateRecon(new URL(window.location.href),{{
+      push:false,scrollY:scrollY,formTop:null,formId:'',formIndex:-1
+    }});
+  }});
 }})();
 window.RECON_CSRF={csrf_json};
 document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>{{if(!f.querySelector("input[name='csrf']")){{const i=document.createElement('input');i.type='hidden';i.name='csrf';i.value=window.RECON_CSRF;f.appendChild(i);}}}});
