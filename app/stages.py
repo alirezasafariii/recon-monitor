@@ -816,6 +816,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         origin for origin in previous_completed
         if ctx.policy.url_in_scope(origin)
     ]
+    katana_pending_origins = list(dict.fromkeys(
+        previous_pending + katana_pending_origins
+    ))
     katana_global_deadline_seconds = 0
     katana_deadline_exhausted = False
     katana_budget_exhausted = False
@@ -1075,8 +1078,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     add_candidate(raw_candidate, "katana")
         else:
             # A resumed stage can legitimately have no work left for Katana.
-            katana_status = "completed" if not katana_pending_origins else "budget_exhausted"
-            katana_stop_reason = "completed" if not katana_pending_origins else "request_budget"
+            if not katana_pending_origins:
+                katana_status = katana_stop_reason = "completed"
+            elif not any(origin in base_urls for origin in katana_pending_origins):
+                katana_status = "no_live_pending"
+                katana_stop_reason = "origin_probe_pending"
+            else:
+                katana_status = "budget_exhausted"
+                katana_stop_reason = "request_budget"
             atomic_write_text(ctx.current / "katana-base-urls.txt", "")
     elif operator_next:
         katana_status = "operator_next"
@@ -1206,7 +1215,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
         "katana_deadline_exhausted": katana_deadline_exhausted,
         "katana_budget_metric": katana_budget_metric,
-        "collection_status": "partial" if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins"} else "completed",
+        "collection_status": "partial" if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins", "no_live_pending"} else "completed",
     }
     atomic_write_text(ctx.current / "url-collection.json", json_dumps({
         "run_id": ctx.run_id, "target": ctx.policy.name, "metrics": metrics,
