@@ -409,6 +409,14 @@ class Orchestrator:
                 if existing:
                     run_dir = Path(str(existing["run_dir"]))
                     baseline = bool(existing["baseline"])
+                    if resume_id:
+                        # A finished partial target becomes live again during
+                        # --resume; dashboard controls must follow its new stage.
+                        self.db.execute(
+                            "UPDATE run_targets SET status='running',current_stage=NULL,"
+                            "finished_at=NULL WHERE run_id=? AND target=?",
+                            (run_id, policy.name),
+                        )
                 else:
                     run_dir = self.paths.output / policy.name / "runs" / run_id
                     baseline = not self.db.target_has_history(policy.name)
