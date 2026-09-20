@@ -2019,6 +2019,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             # Deep diagnostics, safety/audit verification, coverage reconstruction and
             # target-memory synthesis remain available from their dedicated pages.
             snapshot=_command_center_snapshot(db,target)
+            active_runs=db.all(
+                "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
+                "JOIN runs r ON r.id=rt.run_id "
+                "WHERE r.status='running' AND rt.status='running' "
+                "AND rt.current_stage IS NOT NULL "
+                "AND (?='' OR rt.target=?) "
+                "ORDER BY rt.started_at DESC LIMIT 10",
+                (target, target),
+            )
         finally: db.close()
         data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
         controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
@@ -2047,7 +2056,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
         recent_rows=''.join(f"<tr><td><a class='row-link' href='/runs'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
         recent_panel=f"<section class='panel'><div class='panel-head'><div><h3>Recent research activity</h3><span class='muted small'>A compact operational trail — details stay in Run history.</span></div><a class='small' href='/runs'>Run history →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></section>"
         workspace_strip="<div class='workspace-strip'><a class='workspace-tile' href='/recon'><span class='workspace-tile-icon'>01</span><span><strong>Recon</strong><small>Discover and map the surface</small></span></a><a class='workspace-tile' href='/analysis'><span class='workspace-tile-icon'>02</span><span><strong>Analysis</strong><small>Understand collected evidence</small></span></a><a class='workspace-tile' href='/potential-findings'><span class='workspace-tile-icon'>03</span><span><strong>Potential Findings</strong><small>Review probable security issues</small></span></a><a class='workspace-tile' href='/alerts'><span class='workspace-tile-icon'>04</span><span><strong>Alerts</strong><small>Investigate meaningful change</small></span></a></div>"
-        body=header+hero+controls+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
+        active_rows="".join(
+            "<div class='pulse-row'><div>"
+            + f"<strong>{_esc(r['target'])}</strong><small>{_esc(r['current_stage'])} "
+            + f"· {_esc(r['run_id'])}</small></div>"
+            + f"<a class='button secondary' href='/run-review?id={urllib.parse.quote(str(r['run_id']))}'>Open Next controls</a></div>"
+            for r in active_runs
+        )
+        active_panel=(
+            "<section class='panel' style='margin:16px 0'>"
+            "<div class='panel-head'><h3>Running stages</h3>"
+            "<span class='muted small'>Next saves partial evidence and advances to the next stage.</span></div>"
+            + "<div class='panel-body'>" + active_rows + "</div></section>"
+        ) if active_rows else ""
+        body=header+hero+controls+active_panel+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
         self.send_html('Command center',body)
 
     def workbench(self) -> None:
