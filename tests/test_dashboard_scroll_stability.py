@@ -8,7 +8,7 @@ APP = Path(__file__).resolve().parents[1] / "app"
 if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
-from dashboard import _layout
+from dashboard import _inject_filter_anchors, _layout
 
 
 class DashboardScrollStabilityTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class DashboardScrollStabilityTests(unittest.TestCase):
 
     def test_get_filters_use_server_rendered_fragment_anchor(self) -> None:
         html = self.html
-        self.assertIn("form class='filters filter-grid' method='get' id='filter-1'", html)
+        self.assertIn("form class='filters filter-grid' method='get' id='filter-1' action='#filter-1'", html)
         self.assertIn("form.filters[id]{scroll-margin-top:86px}", html)
         self.assertIn("form.matches('form.filters')", html)
         self.assertIn("form.method.toLowerCase()!=='get'", html)
@@ -47,6 +47,27 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         form_pos = html.index("id='filter-1'")
         script_pos = html.index("<script>")
         self.assertLess(form_pos, script_pos)
+
+    def test_native_get_anchor_requires_no_script_and_preserves_unrelated_forms(self) -> None:
+        body = (
+            "<form class='filters filter-grid' method='get'><button>Apply filters</button></form>"
+            "<form class='filters' method='GET'><button>Filter</button></form>"
+            "<form class='filters' method='post'><button>Save</button></form>"
+            "<form class='other' method='get'><button>Other</button></form>"
+        )
+        rendered = _inject_filter_anchors(body)
+        self.assertIn("method='get' id='filter-1' action='#filter-1'", rendered)
+        self.assertIn("method='GET' id='filter-2' action='#filter-2'", rendered)
+        self.assertIn("<form class='filters' method='post'>", rendered)
+        self.assertIn("<form class='other' method='get'>", rendered)
+        self.assertNotIn("<script", rendered)
+
+    def test_explicit_get_action_is_preserved(self) -> None:
+        body = "<form class='filters' method='get' action='/audit'><button>Apply</button></form>"
+        result = _inject_filter_anchors(body)
+        self.assertIn("id='filter-1'", result)
+        self.assertIn("action='/audit'", result)
+        self.assertNotIn("action='#filter-1'", result)
 
     def test_live_refresh_preserves_expansion_focus_and_scroll(self) -> None:
         html = self.html
