@@ -26,14 +26,22 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("<summary>URL crawl</summary>", self.html)
         self.assertNotIn("href='#'", self.html)
 
-    def test_same_workspace_get_navigation_restores_scroll(self) -> None:
+    def test_get_filters_restore_reading_position_without_exact_query_match(self) -> None:
         html = self.html
-        self.assertIn("recon-same-workspace-scroll", html)
-        self.assertIn("next.pathname===window.location.pathname", html)
-        self.assertIn("next.search!==window.location.search", html)
-        self.assertIn("window.scrollTo(0,previous.y)", html)
+        self.assertIn("recon-filter-scroll-v2", html)
+        self.assertIn("pending.path===here", html)
+        self.assertNotIn("previous.destination===here", html)
+        self.assertIn("form.method.toLowerCase()!=='get'", html)
+        self.assertIn("remember(next.pathname,form)", html)
+        self.assertIn("form.getBoundingClientRect().top", html)
+        self.assertIn("filter.getBoundingClientRect().top-pending.filterTop", html)
+        self.assertIn("main.content form.filters", html)
+        self.assertIn("window.scrollTo(0,Math.max(0,y))", html)
+        self.assertIn("window.addEventListener('pageshow'", html)
+        self.assertIn("window.addEventListener('load'", html)
+        self.assertIn("requestAnimationFrame(()=>requestAnimationFrame(restore))", html)
         self.assertIn("!window.location.hash", html)
-        self.assertIn("next.pathname!==window.location.pathname", html)
+        self.assertIn("next.pathname!==here", html)
 
     def test_live_refresh_preserves_expansion_focus_and_scroll(self) -> None:
         html = self.html
