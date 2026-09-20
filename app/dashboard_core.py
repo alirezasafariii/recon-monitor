@@ -1410,6 +1410,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
         db = self.db()
         actor = getattr(self.session, "username", "dashboard") if self.session else "dashboard"
         try:
+            if path == "/run/next-stage":
+                run_id = str((data.get("run_id") or [""])[0]).strip()
+                target = str((data.get("target") or [""])[0]).strip()
+                stage = str((data.get("stage") or [""])[0]).strip()
+                attempt = parse_int((data.get("attempt") or [0])[0], 0, 0, 1000)
+                if not db.request_stage_next(run_id, target, stage, attempt, actor):
+                    self.send_html(
+                        "Stage Next rejected",
+                        "<h1>Stage Next rejected</h1><p>This run, target, stage, or attempt "
+                        "is no longer active. Reload Run review before requesting Next.</p>"
+                        "<p><a class='button' href='/runs'>Run history</a></p>",
+                        409,
+                    )
+                    return
+                self.redirect("/run-review?id=" + urllib.parse.quote(run_id)); return
             if path == "/alerts/status":
                 db.set_alert_status(
                     parse_int((data.get("id") or [0])[0], 0),
@@ -2482,11 +2497,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "FROM stage_runs WHERE run_id=? ORDER BY target,started_at,stage",
                 (run_id,),
             ) if run else []
+            live_stages = db.all(
+                "SELECT rt.target,rt.current_stage stage,sr.attempt,"
+                "nr.requested_at next_requested_at "
+                "FROM run_targets rt "
+                "JOIN stage_runs sr ON sr.run_id=rt.run_id AND sr.target=rt.target "
+                "AND sr.stage=rt.current_stage AND sr.status='running' "
+                "LEFT JOIN stage_next_requests nr ON nr.run_id=sr.run_id AND nr.target=sr.target "
+                "AND nr.stage=sr.stage AND nr.attempt=sr.attempt "
+                "WHERE rt.run_id=? AND rt.status='running' AND rt.current_stage IS NOT NULL "
+                "AND sr.stage<>'report'",
+                (run_id,),
+            ) if run and str(run["status"]) == "running" else []
         finally:
             db.close()
         if not run:
             self.send_html("Run not found", "<h1>Run not found</h1>", 404)
             return
+
+        live_controls = []
+        for active in live_stages:
+            if active["next_requested_at"]:
+                control = "<strong>Next requested — waiting for a safe checkpoint.</strong>"
+            else:
+                control = (
+                    "<form method='post' action='/run/next-stage'>"
+                    + f"<input type='hidden' name='run_id' value='{_esc(run_id)}'>"
+                    + f"<input type='hidden' name='target' value='{_esc(active['target'])}'>"
+                    + f"<input type='hidden' name='stage' value='{_esc(active['stage'])}'>"
+                    + f"<input type='hidden' name='attempt' value='{int(active['attempt'])}'>"
+                    + "<button type='submit' class='secondary'>Next stage</button></form>"
+                )
+            live_controls.append(
+                "<section class='panel' style='padding:14px'>"
+                + f"<h3>Running: {_esc(active['target'])} / {_esc(active['stage'])}</h3>"
+                + "<p class='muted'>Next preserves existing evidence, marks this stage partial, "
+                + "and proceeds to the next stage. This does not certify complete coverage.</p>"
+                + control + "</section>"
+            )
 
         items = []
         partial_count = 0
@@ -2568,6 +2616,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             + f"<p><code>{_esc(run_id)}</code> · {_esc(run['status'])}</p>"
             + f"<p class='muted'>{_esc(note)}</p>"
             + "</section>"
+            + "".join(live_controls)
             + ("".join(items) if items else "<p class='muted'>No stage results recorded yet.</p>")
         )
         self.send_html("Run review", body)
