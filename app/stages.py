@@ -785,6 +785,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     previous_outcomes: list[dict[str, Any]] = []
     previous_crawl_lines = ""
     previous_completed: list[str] = []
+    previous_pending: list[str] = []
     prior_summary = ctx.current / "url-collection.json"
     prior_pending = ctx.current / "katana-pending-origins.txt"
     if prior_summary.is_file() and prior_pending.is_file():
@@ -795,6 +796,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 previous_metrics = old_metrics
                 old_outcomes = read_jsonl(ctx.current / "katana-batches.jsonl")
                 previous_outcomes = [x for x in old_outcomes if isinstance(x, dict)]
+                previous_pending = [
+                    origin for origin in prior_pending.read_text(encoding="utf-8").splitlines()
+                    if ctx.policy.url_in_scope(origin)
+                ]
                 old_urls = ctx.current / "katana-urls.txt"
                 if old_urls.exists():
                     previous_crawl_lines = old_urls.read_text(encoding="utf-8", errors="replace")
@@ -806,7 +811,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             previous_outcomes = []
             previous_crawl_lines = ""
             previous_completed = []
-    katana_origin_successes = [origin for origin in previous_completed if origin in base_urls]
+            previous_pending = []
+    katana_origin_successes = [
+        origin for origin in previous_completed
+        if ctx.policy.url_in_scope(origin)
+    ]
     katana_global_deadline_seconds = 0
     katana_deadline_exhausted = False
     katana_budget_exhausted = False
@@ -859,9 +868,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         katana_rate_limit = int(plan["rate_limit"] or 0)
         katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
         katana_global_deadline_seconds = int(plan.get("wall_seconds") or 0)
-        katana_pending_origins = [
-            origin for origin in base_urls if origin not in already_completed
-        ]
+        katana_pending_origins = list(dict.fromkeys(
+            origin for origin in previous_pending + list(base_urls)
+            if origin not in already_completed
+        ))
 
         if katana_origins:
             katana_base_path = ctx.current / "katana-base-urls.txt"
@@ -1021,7 +1031,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 successful = set(katana_origin_successes)
                 atomic_write_text(
                     ctx.current / "katana-pending-origins.txt",
-                    "".join(f"{url}\n" for url in base_urls if url not in successful),
+                    "".join(f"{url}\n" for url in katana_pending_origins if url not in successful),
                 )
                 atomic_write_text(
                     ctx.current / "katana-completed-origins.txt",
