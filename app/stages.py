@@ -797,6 +797,22 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             http_threads=ctx.policy.limits.http_threads,
             max_urls=ctx.policy.limits.max_urls,
         )
+        # A target with both cumulative ceilings explicitly disabled may crawl
+        # its known origins until Katana exits naturally. Keep the configured
+        # per-second rate and exact-origin scope; external requests are not
+        # counted individually by Recon Monitor in this mode.
+        uncapped_katana = (
+            ctx.policy.limits.max_http_requests == 0
+            and ctx.policy.limits.max_runtime_minutes == 0
+        )
+        if uncapped_katana:
+            plan.update({
+                "origins": list(dict.fromkeys(base_urls)),
+                "reservation": 0,
+                "rate_limit": ctx.policy.limits.request_rate,
+                "crawl_seconds": 0,
+                "wall_seconds": 0,
+            })
         katana_origins = list(plan["origins"])
         katana_request_envelope = int(plan["reservation"] or 0)
         katana_crawl_origins = len(katana_origins)
@@ -825,32 +841,38 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_request_envelope, len(katana_origins),
             )
             for batch_offset in range(0, len(katana_origins), 5):
-                remaining_seconds = (
-                    katana_global_deadline_seconds -
-                    (time.monotonic() - crawl_started)
-                )
-                if remaining_seconds <= 0:
-                    katana_deadline_exhausted = True
-                    break
+                if not uncapped_katana:
+                    remaining_seconds = (
+                        katana_global_deadline_seconds -
+                        (time.monotonic() - crawl_started)
+                    )
+                    if remaining_seconds <= 0:
+                        katana_deadline_exhausted = True
+                        break
 
                 batch_origins = katana_origins[batch_offset:batch_offset + 5]
-                # Allocate only this batch's share. Fast/small runs must not
-                # consume the entire collector envelope before JS can start.
-                batch_allowance = requests_per_origin * len(batch_origins) + min(
-                    len(batch_origins), max(0, extra_requests - batch_offset),
-                )
-                batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
-                batch_reservation = min(batch_allowance, math.ceil(batch_timeout * katana_rate_limit))
-                batch_crawl_seconds = min(
-                    katana_crawl_seconds, max(1, int(batch_timeout / len(batch_origins))),
-                )
-                if ctx.budget:
-                    try:
-                        ctx.budget.consume("http_requests", batch_reservation)
-                    except BudgetExceeded as exc:
-                        katana_budget_exhausted = True
-                        katana_budget_metric = exc.metric
-                        break
+                if uncapped_katana:
+                    batch_timeout = None
+                    batch_reservation = 0
+                    batch_crawl_seconds = 0
+                else:
+                    # The finite mode retains its existing conservative
+                    # envelope. An unfinished origin must remain pending.
+                    batch_allowance = requests_per_origin * len(batch_origins) + min(
+                        len(batch_origins), max(0, extra_requests - batch_offset),
+                    )
+                    batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
+                    batch_reservation = min(batch_allowance, math.ceil(batch_timeout * katana_rate_limit))
+                    batch_crawl_seconds = min(
+                        katana_crawl_seconds, max(1, int(batch_timeout / len(batch_origins))),
+                    )
+                    if ctx.budget:
+                        try:
+                            ctx.budget.consume("http_requests", batch_reservation)
+                        except BudgetExceeded as exc:
+                            katana_budget_exhausted = True
+                            katana_budget_metric = exc.metric
+                            break
                 katana_reserved_requests += batch_reservation
                 batch_number = (batch_offset // 5) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
@@ -866,7 +888,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "-d", str(ctx.policy.limits.crawl_depth),
                     "-cs", _katana_scope_regex(batch_origins),
                     "-rl", str(katana_rate_limit),
-                    "-ct", f"{batch_crawl_seconds}s",
                     "-mrs", str(ctx.policy.limits.max_js_bytes),
                     "-retry", "0",
                     "-c", str(plan["concurrency"]),
@@ -875,6 +896,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         min(30, max(5, ctx.policy.limits.timeout_seconds // 10))
                     ),
                 ]
+                # In the explicitly uncapped mode, do not impose an internal
+                # crawl-duration limit or an outer process wall clock. A manual
+                # interruption remains possible; an interactive Next action
+                # is a separate feature and is not implied by this mode.
+                if not uncapped_katana:
+                    args.extend(["-ct", f"{batch_crawl_seconds}s"])
                 # Policy credentials never cross into an external crawler.
                 batch_started_at = utc_now()
                 result = ctx.runner.run(
@@ -905,7 +932,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "origin_urls": batch_origins,
                     "started_at": batch_started_at,
                     "finished_at": utc_now(),
-                    "timeout_seconds": round(batch_timeout, 6),
+                    "timeout_seconds": round(batch_timeout, 6) if batch_timeout is not None else None,
                     "crawl_seconds_per_origin": batch_crawl_seconds,
                     "reserved_requests": batch_reservation,
                     "rate_limit": katana_rate_limit,
@@ -1084,7 +1111,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_observed": katana_observed,
         "katana_reserved_requests": katana_reserved_requests,
         "katana_request_envelope": katana_request_envelope,
-        "katana_request_accounting": "rate_duration_reservation",
+        "katana_request_accounting": (
+            "rate_only_external_requests_unmetered"
+            if ctx.policy.limits.max_http_requests == 0
+            and ctx.policy.limits.max_runtime_minutes == 0
+            else "rate_duration_reservation"
+        ),
         "katana_crawl_origins": katana_crawl_origins,
         "katana_rate_limit": katana_rate_limit,
         "katana_crawl_seconds_per_origin": katana_crawl_seconds,
