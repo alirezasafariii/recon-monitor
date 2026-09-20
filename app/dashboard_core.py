@@ -960,57 +960,78 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
-// Preserve the reading position when a tab/filter changes this *same*
-// workspace's URL. Other-page navigation and explicit #anchors are untouched.
+// Remember navigation initiated by a filter on this same page. Matching
+// the exact query string is unreliable: native GET submissions can encode,
+// reorder or omit parameters differently from FormData serialization.
 (function(){{
-  const key='recon-same-workspace-scroll';
-  const here=window.location.pathname+window.location.search;
-  let previous=null;
+  const key='recon-filter-scroll-v2';
+  const here=window.location.pathname;
+  let pending=null;
   try{{
-    previous=JSON.parse(sessionStorage.getItem(key)||'null');
+    pending=JSON.parse(sessionStorage.getItem(key)||'null');
     sessionStorage.removeItem(key);
   }}catch(_error){{}}
-  if(previous&&previous.destination===here&&!window.location.hash&&
-     Number.isFinite(previous.y)){{
+  if(pending&&pending.path===here&&!window.location.hash&&
+     Number.isFinite(pending.y)){{
+    // A filter may change the height of content above the form. Keep the
+    // filter at its prior viewport position if it is still present; fall
+    // back to the saved absolute scroll position for ordinary view links.
     const restore=()=>{{
+      let y=pending.y;
+      if(Number.isInteger(pending.filterIndex)&&pending.filterIndex>=0){{
+        const filter=document.querySelectorAll('main.content form.filters')[pending.filterIndex];
+        if(filter&&Number.isFinite(pending.filterTop)){{
+          y=window.scrollY+filter.getBoundingClientRect().top-pending.filterTop;
+        }}
+      }}
       const root=document.documentElement;
-      const original=root.style.scrollBehavior;
-      root.style.scrollBehavior='auto';
-      window.scrollTo(0,previous.y);
-      root.style.scrollBehavior=original;
+      const oldBehavior=root.style.getPropertyValue('scroll-behavior');
+      const oldPriority=root.style.getPropertyPriority('scroll-behavior');
+      root.style.setProperty('scroll-behavior','auto','important');
+      window.scrollTo(0,Math.max(0,y));
+      if(oldBehavior)root.style.setProperty('scroll-behavior',oldBehavior,oldPriority);
+      else root.style.removeProperty('scroll-behavior');
     }};
+    // Safari and Chromium may perform native scroll restoration after inline
+    // scripts have run. Reapply after layout and after pageshow/load.
     restore();
-    window.addEventListener('load',restore,{{once:true}});
+    requestAnimationFrame(()=>requestAnimationFrame(restore));
+    window.addEventListener('load',()=>requestAnimationFrame(restore),{{once:true}});
+    window.addEventListener('pageshow',()=>requestAnimationFrame(restore),{{once:true}});
   }}
-  const remember=(destination)=>{{
+  const remember=(path,form=null)=>{{
+    let filterIndex=-1,filterTop=null;
+    if(form&&form.matches('form.filters')){{
+      filterIndex=[...document.querySelectorAll('main.content form.filters')].indexOf(form);
+      filterTop=form.getBoundingClientRect().top;
+    }}
     try{{sessionStorage.setItem(key,JSON.stringify({{
-      destination:destination,y:window.scrollY
+      path:path,y:window.scrollY,filterIndex:filterIndex,filterTop:filterTop
     }}));}}catch(_error){{}}
   }};
   document.addEventListener('click',(event)=>{{
     if(event.defaultPrevented||event.button!==0||event.ctrlKey||
        event.metaKey||event.shiftKey||event.altKey||
        !(event.target instanceof Element))return;
-    const link=event.target.closest('.content a[href]');
+    const link=event.target.closest('main.content a[href]');
     if(!link||link.hasAttribute('download')||
        (link.target&&link.target!=='_self'))return;
     const next=new URL(link.href,window.location.href);
     if(next.origin===window.location.origin&&
-       next.pathname===window.location.pathname&&
+       next.pathname===here&&
        next.search!==window.location.search&&!next.hash){{
-      remember(next.pathname+next.search);
+      const form=link.closest('form.filters');
+      remember(next.pathname,form);
     }}
   }},true);
   document.addEventListener('submit',(event)=>{{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||
-       form.method.toLowerCase()!=='get'||!form.closest('.content')||
+    if(!(form instanceof HTMLFormElement)||!form.closest('main.content')||
+       form.method.toLowerCase()!=='get'||
        (form.target&&form.target!=='_self'))return;
     const next=new URL(form.action||window.location.href,window.location.href);
-    if(next.origin!==window.location.origin||
-       next.pathname!==window.location.pathname||next.hash)return;
-    next.search=new URLSearchParams(new FormData(form)).toString();
-    remember(next.pathname+next.search);
+    if(next.origin!==window.location.origin||next.pathname!==here||next.hash)return;
+    remember(next.pathname,form);
   }},true);
 }})();
 window.RECON_CSRF={csrf_json};
