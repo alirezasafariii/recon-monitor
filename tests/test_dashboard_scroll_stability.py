@@ -16,8 +16,11 @@ class DashboardScrollStabilityTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.html = _layout(
             "Run review",
-            "<section class='panel'><details data-detail-id='urls'>"
-            "<summary>URL crawl</summary><p>Partial</p></details></section>",
+            "<section class='panel'><form class='filters filter-grid' method='get'>"
+            "<label>Target<input name='target' value='example.test'></label>"
+            "<button>Apply filters</button></form>"
+            "<details data-detail-id='urls'><summary>URL crawl</summary>"
+            "<p>Partial</p></details></section>",
             current_path="/recon?view=overview",
         )
 
@@ -26,22 +29,24 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("<summary>URL crawl</summary>", self.html)
         self.assertNotIn("href='#'", self.html)
 
-    def test_get_filters_restore_reading_position_without_exact_query_match(self) -> None:
+    def test_get_filters_use_server_rendered_fragment_anchor(self) -> None:
         html = self.html
-        self.assertIn("recon-filter-scroll-v2", html)
-        self.assertIn("pending.path===here", html)
-        self.assertNotIn("previous.destination===here", html)
+        self.assertIn("form class='filters filter-grid' method='get' id='filter-1'", html)
+        self.assertIn("form.filters[id]{scroll-margin-top:86px}", html)
+        self.assertIn("form.matches('form.filters')", html)
         self.assertIn("form.method.toLowerCase()!=='get'", html)
-        self.assertIn("remember(next.pathname,form)", html)
-        self.assertIn("form.getBoundingClientRect().top", html)
-        self.assertIn("filter.getBoundingClientRect().top-pending.filterTop", html)
-        self.assertIn("main.content form.filters", html)
-        self.assertIn("window.scrollTo(0,Math.max(0,y))", html)
-        self.assertIn("window.addEventListener('pageshow'", html)
-        self.assertIn("window.addEventListener('load'", html)
-        self.assertIn("requestAnimationFrame(()=>requestAnimationFrame(restore))", html)
-        self.assertIn("!window.location.hash", html)
-        self.assertIn("next.pathname!==here", html)
+        self.assertIn("event.preventDefault()", html)
+        self.assertIn("next.search=new URLSearchParams(new FormData(form)).toString()", html)
+        self.assertIn("next.hash=form.id", html)
+        self.assertIn("window.location.assign(next.href)", html)
+        self.assertNotIn("recon-filter-scroll-v2", html)
+        self.assertNotIn("sessionStorage.setItem", html)
+
+    def test_filter_anchor_is_rendered_before_client_script_runs(self) -> None:
+        html = self.html
+        form_pos = html.index("id='filter-1'")
+        script_pos = html.index("<script>")
+        self.assertLess(form_pos, script_pos)
 
     def test_live_refresh_preserves_expansion_focus_and_scroll(self) -> None:
         html = self.html
