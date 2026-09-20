@@ -129,6 +129,77 @@ class StageNextTests(unittest.TestCase):
         self.assertIn(prior, combined)
         self.assertIn("https://6.example.test/resumed.js", combined)
 
+    def test_resume_keeps_pending_origins_when_they_are_temporarily_offline(self):
+        current = self.run_dir / "current"
+        current.mkdir()
+        (current / "resolved-hosts.txt").write_text("example.test\n", encoding="utf-8")
+        old = [f"https://{i}.example.test" for i in range(4)]
+        (current / "url-collection.json").write_text(json.dumps({
+            "run_id": self.run_id,
+            "metrics": {"collection_status": "partial"},
+        }), encoding="utf-8")
+        (current / "katana-pending-origins.txt").write_text(
+            "\n".join(old[2:]) + "\n", encoding="utf-8",
+        )
+        (current / "katana-completed-origins.txt").write_text(
+            "\n".join(old[:2]) + "\n", encoding="utf-8",
+        )
+        (current / "katana-urls.txt").write_text(
+            old[0] + "/found.js\n", encoding="utf-8",
+        )
+        ctx = SimpleNamespace(
+            current=current, changes=self.run_dir / "changes", policy=self.policy,
+            db=MagicMock(), runner=SimpleNamespace(run=MagicMock()),
+            budget=None, run_id=self.run_id, logger=MagicMock(), progress=MagicMock(),
+        )
+        ctx.changes.mkdir()
+        with patch("stages.tool_path", side_effect=lambda name: name == "katana"), patch(
+            "stages._probe_live_origins", return_value=(old[:2], []),
+        ):
+            metrics = stage_urls(ctx)
+        self.assertEqual(metrics["katana_status"], "no_live_pending")
+        self.assertEqual(metrics["collection_status"], "partial")
+        self.assertEqual(metrics["katana_pending_origins"], 2)
+        self.assertEqual(
+            (current / "katana-pending-origins.txt").read_text().splitlines(),
+            old[2:],
+        )
+        self.assertIn(old[0] + "/found.js", (current / "katana-urls.txt").read_text())
+        ctx.runner.run.assert_not_called()
+
+    def test_cooperative_collectors_avoid_new_network_requests_after_next(self):
+        from stages import _download_url, _safe_validate_endpoint
+        ctx = SimpleNamespace(policy=self.policy, next_requested=lambda: True)
+        with patch("stages.perform_pinned_download", side_effect=AssertionError("new download after Next")), patch(
+            "stages.perform_pinned_request", side_effect=AssertionError("new request after Next"),
+        ):
+            self.assertTrue(_download_url(ctx, "https://example.test/x.js", 4096)["operator_next"])
+            self.assertEqual(
+                _safe_validate_endpoint(ctx, "https://example.test/api")["skipped"],
+                "operator_next",
+            )
+
+    def test_real_subprocess_next_drains_stdout_without_a_wall_clock_deadline(self):
+        from core import CommandRunner
+        runner = CommandRunner(Logger(self.paths))
+        runner.next_raise = False
+        ticks = {"count": 0}
+
+        def requested():
+            ticks["count"] += 1
+            return ticks["count"] >= 2
+
+        runner.next_check = requested
+        output = self.run_dir / "current" / "sleeping-tool.txt"
+        result = runner.run(
+            [sys.executable, "-u", "-c", "import time; print('ready', flush=True); time.sleep(30)"],
+            timeout=None, output_path=output,
+        )
+        self.assertTrue(result.operator_next)
+        self.assertFalse(result.timed_out)
+        self.assertEqual(result.returncode, 125)
+        self.assertIn("ready", output.read_text(encoding="utf-8"))
+
     def test_non_katana_next_is_partial_not_failed_and_next_stage_runs(self):
         orchestrator = runtime.Orchestrator(
             self.paths, Config(self.paths), Logger(self.paths), self.db,
