@@ -121,6 +121,53 @@ def _inject_csrf_inputs(body: str, csrf: str) -> str:
     return pattern.sub(add_token, body)
 
 
+def _inject_filter_anchors(body: str) -> str:
+    """Anchor GET filters in HTML, without depending on client-side JavaScript.
+
+    Native form navigation on Safari can occur without our submit listener
+    running. A fragment-only action survives a GET submission while the
+    browser replaces the query with the selected filter fields.
+    """
+    if "<form" not in body.lower() or "filters" not in body:
+        return body
+    counter = 0
+    opening_form = re.compile(r"<form\b[^>]*>", re.IGNORECASE)
+
+    def anchor(match: re.Match[str]) -> str:
+        nonlocal counter
+        tag = match.group(0)
+        class_match = re.search(
+            r"(?:^|\s)class\s*=\s*(['\"])(.*?)\1",
+            tag,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not class_match or "filters" not in class_match.group(2).split():
+            return tag
+        method = re.search(
+            r"(?:^|\s)method\s*=\s*(['\"]?)([a-zA-Z]+)\1",
+            tag,
+            re.IGNORECASE,
+        )
+        if method and method.group(2).lower() != "get":
+            return tag
+        counter += 1
+        existing_id = re.search(
+            r"(?:^|\s)id\s*=\s*(['\"])(.*?)\1",
+            tag,
+            re.IGNORECASE | re.DOTALL,
+        )
+        anchor_id = existing_id.group(2) if existing_id else f"filter-{counter}"
+        if not existing_id:
+            tag = tag[:-1] + f" id='{anchor_id}'>"
+        # Respect an explicit action; this fallback applies to local filter
+        # forms whose default action is the current dashboard route.
+        if not re.search(r"(?:^|\s)action\s*=", tag, re.IGNORECASE):
+            tag = tag[:-1] + f" action='#{_esc(anchor_id)}'>"
+        return tag
+
+    return opening_form.sub(anchor, body)
+
+
 def _default_origin_port(scheme: str) -> int | None:
     return 443 if scheme == "https" else 80 if scheme == "http" else None
 
@@ -830,6 +877,7 @@ ADVANCED_NAV_SECTIONS = [
 
 def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str = "", current_path: str = "") -> str:
     body = _inject_csrf_inputs(body, csrf)
+    body = _inject_filter_anchors(body)
     csrf_json = json.dumps(csrf)
     path_only = urllib.parse.urlsplit(current_path or "/").path
     active_path = {'/alert':'/potential-findings','/asset':'/recon','/js-diff':'/recon','/bug-candidate':'/potential-findings','/bug-candidates':'/potential-findings','/case':'/potential-findings','/signal-alerts':'/alerts','/behavioral-intelligence':'/analysis','/differential-intelligence':'/analysis','/evidence-gaps':'/analysis','/security-reasoning':'/analysis','/semantic-intelligence':'/analysis','/auth-contexts':'/analysis','/hypotheses':'/analysis','/clusters':'/analysis','/dataflows':'/analysis','/analysis-quality':'/analysis','/security-stories':'/analysis'}.get(path_only, path_only)
@@ -882,7 +930,7 @@ a{{color:inherit;text-decoration:none}} button,input,select,textarea{{font:inher
 .nav-group,.advanced-nav{{margin:6px 0;border:1px solid transparent;border-radius:13px;background:transparent;overflow:hidden}} .nav-group[open],.advanced-nav[open]{{background:color-mix(in srgb,var(--surface-2) 68%,transparent);border-color:color-mix(in srgb,var(--border) 78%,transparent)}} .nav-group>summary,.advanced-nav>summary{{display:grid;grid-template-columns:32px minmax(0,1fr) 16px;align-items:center;gap:9px;padding:9px 10px;color:var(--muted);list-style:none;transition:.16s ease}} .nav-group>summary::-webkit-details-marker,.advanced-nav>summary::-webkit-details-marker{{display:none}} .nav-group>summary:hover,.advanced-nav>summary:hover{{color:var(--text);background:var(--surface-2)}} .nav-group[open]>summary,.advanced-nav[open]>summary{{color:var(--text)}} .nav-group>summary b,.advanced-nav>summary b{{font-size:11px;color:var(--faint);transition:.18s}} .nav-group[open]>summary b,.advanced-nav[open]>summary b{{transform:rotate(180deg)}} .nav-group-icon{{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--border);font-size:9px;font-weight:900;color:var(--brand-2);letter-spacing:.03em}} .nav-group-copy{{min-width:0}} .nav-group-copy strong,.nav-group-copy small{{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}} .nav-group-copy strong{{font-size:11px;letter-spacing:.02em}} .nav-group-copy small{{font-size:9px;color:var(--faint);margin-top:1px}} .nav-items{{padding:0 6px 7px}} .nav-item{{display:flex;align-items:center;gap:9px;padding:7px 8px;margin:2px 0;border-radius:9px;color:var(--muted);font-size:12px;font-weight:650;transition:.16s ease}} .nav-item:hover{{color:var(--text);background:var(--surface)}} .nav-item.active{{color:var(--text);background:linear-gradient(90deg,rgba(124,156,255,.2),rgba(96,212,255,.05));box-shadow:inset 2px 0 var(--brand),0 0 0 1px rgba(124,156,255,.08)}} .nav-icon{{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--border);border-radius:7px;font-size:8px;font-weight:900;background:var(--surface);color:var(--faint)}} .nav-item.active .nav-icon{{border-color:rgba(124,156,255,.48);color:var(--brand-2);background:rgba(124,156,255,.08)}} .nav-text{{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}} .advanced-label{{padding:8px 8px 4px;color:var(--faint);font-size:8px;font-weight:850;text-transform:uppercase;letter-spacing:.14em}} .advanced-group+.advanced-group{{border-top:1px solid var(--border);margin-top:6px;padding-top:4px}}
 .sidebar-footer{{border-top:1px solid var(--border);padding:15px 9px 5px}} .user-card{{display:flex;align-items:center;gap:10px}} .avatar{{width:31px;height:31px;border-radius:9px;background:var(--surface-3);border:1px solid var(--border);display:grid;place-items:center;font-weight:800;color:var(--brand-2)}} .user-meta{{min-width:0;flex:1}} .user-meta strong,.user-meta small{{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}} .user-meta small{{color:var(--muted);text-transform:capitalize}}
 .main-shell{{margin-left:var(--sidebar);min-height:100vh}} .topbar{{position:sticky;top:0;z-index:20;height:68px;padding:0 30px;display:flex;align-items:center;gap:14px;background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid color-mix(in srgb,var(--border) 80%,transparent);backdrop-filter:blur(22px);box-shadow:0 8px 30px rgba(0,0,0,.08)}} .mobile-toggle{{display:none}} .global-search{{position:relative;width:min(580px,52vw)}} .global-search input{{width:100%;padding:10px 92px 10px 38px}} .search-icon{{position:absolute;left:13px;top:9px;color:var(--faint)}} .shortcut{{position:absolute;right:9px;top:8px;padding:2px 7px;border:1px solid var(--border);border-radius:6px;color:var(--faint);font-size:11px;background:var(--surface)}} .top-actions{{margin-left:auto;display:flex;align-items:center;gap:8px}}
-.content{{max-width:1720px;margin:0 auto;padding:30px 34px 64px}} .page-header{{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}} h1{{margin:0;font-size:28px;line-height:1.2;letter-spacing:-.035em}} h2{{margin:30px 0 12px;font-size:18px;letter-spacing:-.02em}} h3{{margin:0 0 12px;font-size:14px}} .eyebrow{{color:var(--brand-2);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.13em;margin-bottom:5px}} .page-subtitle{{margin:7px 0 0;color:var(--muted);max-width:780px}} .page-actions{{display:flex;gap:8px;flex-wrap:wrap}}
+.content{{max-width:1720px;margin:0 auto;padding:30px 34px 64px}} form.filters[id]{{scroll-margin-top:86px}} .page-header{{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}} h1{{margin:0;font-size:28px;line-height:1.2;letter-spacing:-.035em}} h2{{margin:30px 0 12px;font-size:18px;letter-spacing:-.02em}} h3{{margin:0 0 12px;font-size:14px}} .eyebrow{{color:var(--brand-2);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.13em;margin-bottom:5px}} .page-subtitle{{margin:7px 0 0;color:var(--muted);max-width:780px}} .page-actions{{display:flex;gap:8px;flex-wrap:wrap}}
 button,.button{{border:1px solid transparent;border-radius:9px;background:linear-gradient(135deg,var(--brand),#6685f3);color:#071020;padding:8px 12px;font-weight:760;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;transition:.15s ease}} button:hover,.button:hover{{transform:translateY(-1px);filter:brightness(1.06)}} button.secondary,.button.secondary{{background:var(--surface-2);color:var(--text);border-color:var(--border)}} button.ghost,.button.ghost{{background:transparent;color:var(--muted);border-color:var(--border)}} button.danger,.button.danger{{background:rgba(255,100,124,.14);color:var(--danger);border-color:rgba(255,100,124,.3)}} .icon-button{{width:36px;padding:0}}
 input,select,textarea{{background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px 10px;outline:none;transition:.15s}} input:focus,select:focus,textarea:focus{{border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,156,255,.12)}} textarea{{width:100%;min-height:92px;resize:vertical}} label{{color:var(--muted);font-size:12px;font-weight:650}}
 .metrics-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}} .metric-card{{position:relative;min-height:126px;padding:16px;background:linear-gradient(145deg,var(--surface),color-mix(in srgb,var(--surface-2) 80%,transparent));border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 0 rgba(255,255,255,.025);transition:.17s ease}} a.metric-card:hover{{transform:translateY(-2px);border-color:var(--border-strong);box-shadow:var(--shadow)}} .metric-top{{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;font-weight:700}} .metric-spark{{width:28px;height:7px;border-radius:99px;background:currentColor;opacity:.8}} .metric-value{{font-size:30px;font-weight:820;letter-spacing:-.045em;margin-top:14px}} .metric-detail{{color:var(--faint);font-size:11px;margin-top:5px}} .metric-arrow{{position:absolute;right:15px;bottom:13px;color:var(--faint)}}
@@ -960,6 +1008,103 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
+// GET filters on Recon update only the main workspace. Native GET forms
+// retain server-rendered fragment actions as a fallback if JavaScript fails.
+(function(){{
+  if(window.location.pathname!=='/recon')return;
+  let latest=0;
+  let request=null;
+  if('scrollRestoration' in history)history.scrollRestoration='manual';
+
+  const jumpTo=(top)=>{{
+    const root=document.documentElement;
+    const before=root.style.getPropertyValue('scroll-behavior');
+    const priority=root.style.getPropertyPriority('scroll-behavior');
+    root.style.setProperty('scroll-behavior','auto','important');
+    window.scrollTo(0,Math.max(0,top));
+    if(before)root.style.setProperty('scroll-behavior',before,priority);
+    else root.style.removeProperty('scroll-behavior');
+  }};
+
+  async function updateRecon(next, options){{ 
+    const serial=++latest;
+    request?.abort();
+    const controller=new AbortController();
+    request=controller;
+    try{{
+      const response=await fetch(next.pathname+next.search,{{
+        method:'GET',credentials:'same-origin',cache:'no-store',
+        headers:{{'Accept':'text/html'}},signal:controller.signal
+      }});
+      const reached=new URL(response.url);
+      if(!response.ok||reached.origin!==window.location.origin||
+         reached.pathname!=='/recon'||
+         !(response.headers.get('content-type')||'').includes('text/html')){{
+        throw new Error('Dashboard filter response was not a Recon page');
+      }}
+      const page=new DOMParser().parseFromString(await response.text(),'text/html');
+      const replacement=page.querySelector('main.content');
+      const current=document.querySelector('main.content');
+      if(!replacement||!current)throw new Error('Missing Recon workspace');
+      if(serial!==latest||window.location.pathname!=='/recon')return;
+
+      current.replaceWith(replacement);
+      if(page.title)document.title=page.title;
+      const freshChip=page.querySelector('.focus-chip');
+      const oldChip=document.querySelector('.focus-chip');
+      if(oldChip&&freshChip)oldChip.replaceWith(freshChip);
+      else if(oldChip&&!freshChip)oldChip.remove();
+
+      // Keep the viewport coordinate, not the form's layout coordinate.
+      // Recomputing the form's top after a result-count change itself caused
+      // a visible small jump when filters were applied in Safari.
+      const desiredY=options.scrollY;
+      if(options.push&&next.pathname+next.search!==
+          window.location.pathname+window.location.search){{
+        const state=history.state&&typeof history.state==='object'?
+          history.state:{{}};
+        history.replaceState({{...state,reconScroll:beforeY}},'',window.location.href);
+        history.pushState({{reconScroll:desiredY}},'',next.pathname+next.search);
+      }}
+      // A single immediate restoration avoids a second animated movement.
+      // Safari can clamp scrolling if the new result view is shorter.
+      jumpTo(desiredY);
+    }}catch(error){{
+      if(error.name==='AbortError')return;
+      if(options.push){{
+        // Preserve the native form's #filter-N navigation on failure.
+        window.location.assign(next.href);
+      }}else{{
+        window.location.reload();
+      }}
+    }}
+  }}
+
+  document.addEventListener('submit',(event)=>{{
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.closest('main.content')||!form.matches('form.filters')||
+       form.method.toLowerCase()!=='get'||
+       (form.target&&form.target!=='_self'))return;
+    const next=new URL(form.action||window.location.href,window.location.href);
+    if(next.origin!==window.location.origin||next.pathname!=='/recon')return;
+    event.preventDefault();
+    next.search=new URLSearchParams(new FormData(form)).toString();
+    const opts={{
+      push:true,scrollY:window.scrollY
+    }};
+    void updateRecon(next,opts);
+  }},true);
+
+  window.addEventListener('popstate',(event)=>{{
+    if(window.location.pathname!=='/recon')return;
+    const scrollY=event.state&&Number.isFinite(event.state.reconScroll)?
+      event.state.reconScroll:window.scrollY;
+    void updateRecon(new URL(window.location.href),{{
+      push:false,scrollY:scrollY
+    }});
+  }});
+}})();
 window.RECON_CSRF={csrf_json};
 document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>{{if(!f.querySelector("input[name='csrf']")){{const i=document.createElement('input');i.type='hidden';i.name='csrf';i.value=window.RECON_CSRF;f.appendChild(i);}}}});
 const root=document.documentElement, savedTheme=localStorage.getItem('recon-theme'); if(savedTheme) root.dataset.theme=savedTheme;
@@ -1019,8 +1164,42 @@ async function refreshLiveProgress(){{
     template.innerHTML=payload.html.trim();
     const fresh=template.content.querySelector('#live-progress');
 
-    if(fresh){{
+    if(fresh&&fresh.innerHTML!==panel.innerHTML){{
+      // A live refresh must not collapse an opened inline detail row.
+      // Identify stable rows by id/data-detail-id, with their index as a
+      // fallback for legacy panels that do not assign row identities.
+      const oldDetails=[...panel.querySelectorAll('details')];
+      const newDetails=[...fresh.querySelectorAll('details')];
+      const expanded=oldDetails.map((detail,index)=>({{
+        index:index,id:detail.id||detail.dataset.detailId||'',
+        open:detail.open
+      }}));
+      const active=document.activeElement;
+      const oldSummary=active&&panel.contains(active)?
+        active.closest('summary'):null;
+      const activeIndex=oldSummary?
+        oldDetails.indexOf(oldSummary.closest('details')):-1;
+      const priorScroll=window.scrollY;
+      const priorTop=panel.getBoundingClientRect().top;
+      expanded.forEach(item=>{{
+        const counterpart=item.id?
+          newDetails.find(detail=>(detail.id||detail.dataset.detailId)===item.id):
+          newDetails[item.index];
+        if(counterpart)counterpart.open=item.open;
+      }});
       panel.replaceWith(fresh);
+      if(activeIndex>=0){{
+        const focused=newDetails[activeIndex]?.querySelector('summary');
+        focused?.focus({{preventScroll:true}});
+      }}
+      const root=document.documentElement;
+      const original=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      // If the panel's position changed due to a refresh above the viewport,
+      // keep the same content anchored at its former reading position.
+      const delta=fresh.getBoundingClientRect().top-priorTop;
+      window.scrollTo(0,priorScroll+delta);
+      root.style.scrollBehavior=original;
     }}
   }}catch(error){{
     console.debug('Live progress refresh failed:',error);
