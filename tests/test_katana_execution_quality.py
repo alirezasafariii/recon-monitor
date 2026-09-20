@@ -464,7 +464,7 @@ class KatanaExecutionQualityTests(unittest.TestCase):
         budget.started_monotonic -= 10000000
         self.assertEqual(budget.consume("http_requests", 1), (1000001, 0))
         self.assertEqual(db.budget_consume.call_count, 1)
-        self.assertEqual(db.budget_init.call_args.args[3]["http_requests"], 0)
+        self.assertEqual(db.budget_init.call_args.args[2]["http_requests"], 0)
 
     def test_no_js_input_is_recorded_as_no_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
