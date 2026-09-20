@@ -1055,16 +1055,10 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
       if(oldChip&&freshChip)oldChip.replaceWith(freshChip);
       else if(oldChip&&!freshChip)oldChip.remove();
 
-      const beforeY=options.scrollY;
-      let desiredY=beforeY;
-      if(options.formId){{
-        const forms=[...replacement.querySelectorAll('form.filters')];
-        const chosen=forms.find(form=>form.id===options.formId)||
-          forms[options.formIndex];
-        if(chosen&&Number.isFinite(options.formTop)){{
-          desiredY=beforeY+chosen.getBoundingClientRect().top-options.formTop;
-        }}
-      }}
+      // Keep the viewport coordinate, not the form's layout coordinate.
+      // Recomputing the form's top after a result-count change itself caused
+      // a visible small jump when filters were applied in Safari.
+      const desiredY=options.scrollY;
       if(options.push&&next.pathname+next.search!==
           window.location.pathname+window.location.search){{
         const state=history.state&&typeof history.state==='object'?
@@ -1072,10 +1066,9 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
         history.replaceState({{...state,reconScroll:beforeY}},'',window.location.href);
         history.pushState({{reconScroll:desiredY}},'',next.pathname+next.search);
       }}
-      // No full document navigation: Safari keeps its viewport and the filter
-      // is returned to the same on-screen position after replacing results.
+      // A single immediate restoration avoids a second animated movement.
+      // Safari can clamp scrolling if the new result view is shorter.
       jumpTo(desiredY);
-      requestAnimationFrame(()=>jumpTo(desiredY));
     }}catch(error){{
       if(error.name==='AbortError')return;
       if(options.push){{
@@ -1097,10 +1090,8 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     if(next.origin!==window.location.origin||next.pathname!=='/recon')return;
     event.preventDefault();
     next.search=new URLSearchParams(new FormData(form)).toString();
-    const forms=[...document.querySelectorAll('main.content form.filters')];
     const opts={{
-      push:true,scrollY:window.scrollY,formTop:form.getBoundingClientRect().top,
-      formId:form.id,formIndex:forms.indexOf(form)
+      push:true,scrollY:window.scrollY
     }};
     void updateRecon(next,opts);
   }},true);
@@ -1110,7 +1101,7 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     const scrollY=event.state&&Number.isFinite(event.state.reconScroll)?
       event.state.reconScroll:window.scrollY;
     void updateRecon(new URL(window.location.href),{{
-      push:false,scrollY:scrollY,formTop:null,formId:'',formIndex:-1
+      push:false,scrollY:scrollY
     }});
   }});
 }})();
