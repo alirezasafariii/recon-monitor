@@ -1216,6 +1216,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
 
 def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]:
     """Download one in-scope resource through the pinned transport boundary."""
+    if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
+        return {"url": url, "operator_next": True}
     headers = {
         "User-Agent": ctx.config.get(
             "USER_AGENT",
@@ -1633,10 +1635,24 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     for url, work_id in work_ids.items():
         work_queue.start(work_id, "local-js")
     results: list[dict[str, Any]] = []
+    operator_next_urls: list[str] = []
+    next_signaled = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(_download_url, ctx, url, ctx.policy.limits.max_js_bytes): url for url in pending_urls}
         for index, future in enumerate(concurrent.futures.as_completed(futures), 1):
+            if (not next_signaled
+                and callable(getattr(ctx, "next_requested", None))
+                and ctx.next_requested()):
+                next_signaled = True
+                # Do not start queued requests; wait for already running
+                # downloads to finish so their completed bytes are retained.
+                for pending_future in futures:
+                    pending_future.cancel()
             url = futures[future]
+            if future.cancelled():
+                work_queue.fail(work_ids[url], "operator_next", retry=True)
+                operator_next_urls.append(url)
+                continue
             try:
                 result = future.result()
             except Exception as exc:
@@ -1646,6 +1662,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     retry=True,
                 )
                 result = {"url": url, "error": str(exc)}
+            if result.get("operator_next"):
+                work_queue.fail(work_ids[url], "operator_next", retry=True)
+                operator_next_urls.append(url)
+                continue
             results.append(result)
             ctx.progress.update(index, len(js_urls), f"downloaded={sum(1 for x in results if 'data' in x)}")
             ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "javascript")
@@ -2261,6 +2281,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     )
 
     collection_reasons = list(input_issues)
+    if operator_next_urls:
+        collection_reasons.append("operator_next")
     if len(errors) > unexpected_content_types:
         collection_reasons.append("download_errors")
     if unexpected_content_types:
@@ -2281,6 +2303,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "zero_download_reasons": zero_download_reasons,
         "download_attempts": len(pending_urls),
         "reused_work_items": len(js_urls) - len(pending_urls),
+        "operator_next_pending_urls": len(operator_next_urls),
         "unexpected_content_types": unexpected_content_types,
         "files": len(js_urls),
         "downloaded": downloaded,
@@ -2352,6 +2375,8 @@ def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[
 
     last_result: dict[str, Any] = {}
     for url, resolution_method, resolution_source in candidates[:3]:
+        if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
+            return {"endpoint": endpoint, "skipped": "operator_next"}
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
 
@@ -2440,8 +2465,14 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
         )
         queue.start(work_id, "local-validation")
         try:
+            if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
+                queue.fail(work_id, "operator_next", retry=True)
+                return {"endpoint": endpoint, "skipped": "operator_next"}
             result = _safe_validate_endpoint(ctx, endpoint, sources)
-            queue.finish(work_id, result)
+            if result.get("skipped") == "operator_next":
+                queue.fail(work_id, "operator_next", retry=True)
+            else:
+                queue.finish(work_id, result)
             return result
         except Exception as exc:
             queue.fail(work_id, str(exc), retry=True)
@@ -2468,9 +2499,12 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
         if result.get("reachable") and int(result.get("status_code", 0)) in {200, 201, 202, 204, 401, 403, 405}:
             emit_event(ctx, "validated_endpoint", str(result.get("resolved_url")), "Extracted endpoint validated", result)
     write_jsonl(ctx.current / "endpoint-validations.jsonl", results)
+    next_pending = sum(result.get("skipped") == "operator_next" for result in results)
     return {
         "candidates": len(rows),
-        "checked": len(results),
+        "checked": len(results) - next_pending,
+        "operator_next_pending": next_pending,
+        "collection_status": "partial" if next_pending else "completed",
         "reachable": sum(1 for r in results if r.get("reachable")),
         "errors": sum(1 for r in results if r.get("error")),
     }
