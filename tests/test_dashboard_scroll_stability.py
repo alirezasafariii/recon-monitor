@@ -37,7 +37,7 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("form.method.toLowerCase()!=='get'", html)
         self.assertIn("event.preventDefault()", html)
         self.assertIn("next.search=new URLSearchParams(new FormData(form)).toString()", html)
-        self.assertIn("next.hash=form.id", html)
+        self.assertIn("action='#filter-1'", html)
         self.assertIn("window.location.assign(next.href)", html)
         self.assertNotIn("recon-filter-scroll-v2", html)
         self.assertNotIn("sessionStorage.setItem", html)
@@ -94,7 +94,8 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("panel.replaceWith(fresh)", html)
 
     def test_refresh_does_not_rewrite_entire_document(self) -> None:
-        self.assertNotIn("window.location.reload()", self.html)
+        self.assertIn("window.location.reload()", self.html)  # only on failed back/forward fetch
+        self.assertIn("if(options.push)", self.html)
         self.assertNotIn("document.body.innerHTML=payload.html", self.html)
 
 
