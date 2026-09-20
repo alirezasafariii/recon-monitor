@@ -13,6 +13,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from core import TargetPolicy
+from execution import BudgetExceeded
 from stages import _katana_crawl_plan, stage_javascript, stage_urls
 
 
@@ -194,6 +195,138 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["katana_pending_origins"], 1)
             self.assertEqual(metrics["katana_batch_outcomes"], [])
             self.assertEqual((ctx.current / "katana-pending-origins.txt").read_text(), "https://example.test\n")
+
+    def test_batches_reserve_only_their_bounded_share(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            seen = []
+
+            def fake_run(args, **kwargs):
+                origins = Path(args[args.index("-list") + 1]).read_text().splitlines()
+                crawl_seconds = int(args[args.index("-ct") + 1][:-1])
+                self.assertLessEqual(crawl_seconds * len(origins), kwargs["timeout"])
+                self.assertLessEqual(kwargs["timeout"], 120)
+                seen.append(origins)
+                if len(seen) == 2:
+                    previous = [json.loads(line) for line in (ctx.current / "katana-batches.jsonl").read_text().splitlines()]
+                    self.assertEqual(previous[0]["origin_urls"], seen[0])
+                Path(kwargs["output_path"]).write_text("")
+                return SimpleNamespace(returncode=0, timed_out=False, duration=0.01, lines=0)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 0, "limit": 10000}}
+            live = [f"https://{i}.example.test" for i in range(6)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            reserved = sum(call.args[1] for call in ctx.budget.consume.call_args_list)
+            self.assertEqual(reserved, metrics["katana_reserved_requests"])
+            self.assertEqual(reserved, sum(row["reserved_requests"] for row in metrics["katana_batch_outcomes"]))
+            self.assertLess(reserved, metrics["katana_request_envelope"])
+            self.assertEqual(ctx.policy.limits.timeout_seconds, 1800)
+
+    def test_global_deadline_is_distinct_from_process_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            clock = [0.0]
+
+            def fake_run(_args, **kwargs):
+                Path(kwargs["output_path"]).write_text("")
+                clock[0] = 1801.0
+                return SimpleNamespace(returncode=0, timed_out=False, duration=0.01, lines=0)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            live = [f"https://{i}.example.test" for i in range(6)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ), patch("stages.time.monotonic", side_effect=lambda: clock[0]):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_batches_attempted"], 1)
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertEqual(metrics["katana_status"], "partial")
+            self.assertEqual(metrics["katana_stop_reason"], "global_deadline")
+            self.assertFalse(metrics["katana_timed_out"])
+            self.assertEqual(metrics["katana_exit_code"], 0)
+
+    def test_one_request_budget_still_launches_one_bounded_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            def fake_run(_args, **kwargs):
+                self.assertGreater(kwargs["timeout"], 0)
+                self.assertLessEqual(kwargs["timeout"], 1)
+                Path(kwargs["output_path"]).write_text("")
+                return SimpleNamespace(returncode=124, timed_out=True, duration=1.1, lines=0)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 99, "limit": 100}}
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(["https://example.test"], []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_batches_attempted"], 1)
+            self.assertEqual(metrics["katana_reserved_requests"], 1)
+            ctx.budget.consume.assert_called_once_with("http_requests", 1)
+
+    def test_budget_exhaustion_after_success_keeps_only_unfinished_origins_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            def fake_run(_args, **kwargs):
+                Path(kwargs["output_path"]).write_text("https://0.example.test/app.js\n")
+                return SimpleNamespace(returncode=0, timed_out=False, duration=0.01, lines=1)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 0, "limit": 10000}}
+            ctx.budget.consume.side_effect = [None, BudgetExceeded("http_requests", 10000, 10000)]
+            live = [f"https://{i}.example.test" for i in range(6)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_batches_attempted"], 1)
+            self.assertEqual(metrics["katana_origins_completed"], 5)
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertEqual(metrics["katana_status"], "budget_exhausted")
+            self.assertEqual(metrics["katana_stop_reason"], "request_budget")
+            self.assertEqual((ctx.current / "katana-pending-origins.txt").read_text().splitlines(), live[5:])
+
+    def test_exhausted_budget_does_not_reuse_stale_tool_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._context(Path(tmp), SimpleNamespace())
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 100, "limit": 100}}
+            (ctx.current / "katana-urls.txt").write_text("https://example.test/stale.js\n")
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(["https://example.test"], []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_batches_attempted"], 0)
+            self.assertEqual(metrics["katana_status"], "budget_exhausted")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertNotIn("stale.js", (ctx.current / "urls.txt").read_text())
+            ctx.budget.consume.assert_not_called()
+
+    def test_many_batches_stay_within_the_shared_request_reservation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            def fake_run(_args, **kwargs):
+                Path(kwargs["output_path"]).write_text("")
+                return SimpleNamespace(returncode=0, timed_out=False, duration=0.01, lines=0)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 5000, "limit": 10000}}
+            live = [f"https://{i}.example.test" for i in range(100)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_origins_completed"], 100)
+            self.assertEqual(metrics["katana_batches_completed"], 20)
+            self.assertLessEqual(metrics["katana_reserved_requests"], 5000)
+            self.assertEqual(metrics["katana_reserved_requests"], sum(
+                call.args[1] for call in ctx.budget.consume.call_args_list
+            ))
+            self.assertTrue(all(row["rate_limit"] <= 3 for row in metrics["katana_batch_outcomes"]))
 
     def test_crawl_plan_uses_configured_envelope_not_fixed_30_seconds(self) -> None:
         plan = _katana_crawl_plan(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import contextlib
 import json
+import math
 import os
 import re
 import time
@@ -746,6 +747,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
 
     katana_observed = 0
     katana_reserved_requests = 0
+    katana_request_envelope = 0
     katana_crawl_origins = 0
     katana_rate_limit = 0
     katana_crawl_seconds = 0
@@ -762,6 +764,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_batches_incomplete = 0
     katana_global_deadline_seconds = 0
     katana_deadline_exhausted = False
+    katana_budget_exhausted = False
+    katana_budget_metric = ""
     batch_outcomes: list[dict[str, Any]] = []
     # Clear stale evidence even when this attempt cannot launch the collector.
     atomic_write_text(ctx.current / "katana-urls.txt", "")
@@ -785,7 +789,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             max_urls=ctx.policy.limits.max_urls,
         )
         katana_origins = list(plan["origins"])
-        katana_reserved_requests = int(plan["reservation"] or 0)
+        katana_request_envelope = int(plan["reservation"] or 0)
         katana_crawl_origins = len(katana_origins)
         katana_rate_limit = int(plan["rate_limit"] or 0)
         katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
@@ -800,9 +804,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_base_path,
                 "".join(f"{url}\n" for url in katana_origins),
             )
-            if ctx.budget and katana_reserved_requests:
-                ctx.budget.consume("http_requests", katana_reserved_requests)
-
             # Sequential invocations preserve the configured global rate.
             # A failed batch is kept pending, but does not prevent *later*
             # batches from being attempted while the shared budget permits.
@@ -811,8 +812,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             out = ctx.current / "katana-urls.txt"
             atomic_write_text(out, "")
             crawl_started = time.monotonic()
+            requests_per_origin, extra_requests = divmod(
+                katana_request_envelope, len(katana_origins),
+            )
             for batch_offset in range(0, len(katana_origins), 5):
-                remaining_seconds = int(
+                remaining_seconds = (
                     katana_global_deadline_seconds -
                     (time.monotonic() - crawl_started)
                 )
@@ -821,6 +825,24 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     break
 
                 batch_origins = katana_origins[batch_offset:batch_offset + 5]
+                # Allocate only this batch's share. Fast/small runs must not
+                # consume the entire collector envelope before JS can start.
+                batch_allowance = requests_per_origin * len(batch_origins) + min(
+                    len(batch_origins), max(0, extra_requests - batch_offset),
+                )
+                batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
+                batch_reservation = min(batch_allowance, math.ceil(batch_timeout * katana_rate_limit))
+                batch_crawl_seconds = min(
+                    katana_crawl_seconds, max(1, int(batch_timeout / len(batch_origins))),
+                )
+                if ctx.budget:
+                    try:
+                        ctx.budget.consume("http_requests", batch_reservation)
+                    except BudgetExceeded as exc:
+                        katana_budget_exhausted = True
+                        katana_budget_metric = exc.metric
+                        break
+                katana_reserved_requests += batch_reservation
                 batch_number = (batch_offset // 5) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
@@ -835,7 +857,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "-d", str(ctx.policy.limits.crawl_depth),
                     "-cs", _katana_scope_regex(batch_origins),
                     "-rl", str(katana_rate_limit),
-                    "-ct", f"{katana_crawl_seconds}s",
+                    "-ct", f"{batch_crawl_seconds}s",
                     "-mrs", str(ctx.policy.limits.max_js_bytes),
                     "-retry", "0",
                     "-c", str(plan["concurrency"]),
@@ -848,7 +870,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_started_at = utc_now()
                 result = ctx.runner.run(
                     args,
-                    timeout=min(120, remaining_seconds),
+                    timeout=batch_timeout,
                     output_path=batch_output,
                     heartbeat=lambda: ctx.db.stage_heartbeat(
                         ctx.run_id, ctx.policy.name, "urls",
@@ -862,9 +884,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_origins_attempted += len(batch_origins)
                 katana_observed += int(getattr(result, "lines", 0) or 0)
                 batch_exit = int(result.returncode)
-                if katana_exit_code in {None, 0}:
-                    katana_exit_code = batch_exit
                 batch_timed_out = bool(getattr(result, "timed_out", False))
+                if katana_exit_code in {None, 0} or batch_timed_out:
+                    katana_exit_code = batch_exit
                 katana_timed_out = katana_timed_out or batch_timed_out
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
                 batch_complete = batch_exit == 0 and not batch_timed_out
@@ -874,7 +896,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "origin_urls": batch_origins,
                     "started_at": batch_started_at,
                     "finished_at": utc_now(),
-                    "timeout_seconds": min(120, remaining_seconds),
+                    "timeout_seconds": round(batch_timeout, 6),
+                    "crawl_seconds_per_origin": batch_crawl_seconds,
+                    "reserved_requests": batch_reservation,
+                    "rate_limit": katana_rate_limit,
                     "exit_code": batch_exit,
                     "timed_out": batch_timed_out,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
@@ -910,6 +935,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         ).splitlines():
                             combined.write(line + "\n")
                 write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
+                successful = set(katana_origin_successes)
+                atomic_write_text(
+                    ctx.current / "katana-pending-origins.txt",
+                    "".join(f"{url}\n" for url in base_urls if url not in successful),
+                )
+                atomic_write_text(
+                    ctx.current / "katana-completed-origins.txt",
+                    "".join(f"{url}\n" for url in katana_origin_successes),
+                )
 
             successful = set(katana_origin_successes)
             katana_pending_origins = [
@@ -918,6 +952,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             katana_status = (
                 "timeout" if katana_timed_out else
                 "nonzero_exit" if katana_batches_incomplete else
+                "budget_exhausted" if katana_budget_exhausted else
                 "partial" if katana_pending_origins or katana_deadline_exhausted else
                 "completed"
             )
@@ -925,6 +960,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 "batch_timeout" if katana_timed_out else
                 "nonzero_exit" if katana_batches_incomplete else
                 "global_deadline" if katana_deadline_exhausted else
+                "runtime_budget" if katana_budget_metric == "runtime_seconds" else
                 "request_budget" if katana_pending_origins else
                 "completed"
             )
@@ -947,8 +983,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
 
     # Do not silently discard origins that were not attempted, or those
     # belonging to an incomplete batch. They require a later authorized pass.
-    if katana_status == "budget_exhausted":
-        katana_pending_origins = list(base_urls)
     atomic_write_text(
         ctx.current / "katana-pending-origins.txt",
         "".join(f"{url}\n" for url in katana_pending_origins),
@@ -1004,7 +1038,26 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     atomic_write_text(ctx.current / "urls.txt", "".join(f"{url}\n" for url in urls))
     atomic_write_text(ctx.changes / "new-urls.txt", "".join(f"{url}\n" for url in new_urls))
     selected_hosts = {(urllib.parse.urlsplit(url).hostname or "") for url in urls}
-    return {
+    js_candidates = {url for url in candidates if classify_url(url) == "javascript"}
+    js_selected = js_candidates.intersection(urls)
+    selection = {
+        "classification_method": "url_path_extension",
+        "candidate_urls": len(candidates),
+        "selected_urls": len(urls),
+        "javascript_candidates": len(js_candidates),
+        "javascript_selected": len(js_selected),
+        "javascript_dropped": len(js_candidates - js_selected),
+        "javascript_sources": {
+            source: sum(source in candidates[url] for url in js_candidates)
+            for source in ("base", "wayback", "katana")
+        },
+    }
+    write_jsonl(ctx.current / "javascript-selection.jsonl", (
+        {"url": url, "sources": sorted(candidates[url]), "selected": url in js_selected,
+         "reason": "selected" if url in js_selected else "max_urls"}
+        for url in sorted(js_candidates)
+    ))
+    metrics = {
         "hosts": len(hosts),
         "candidate_origins": len(candidate_base_urls),
         "live_origins": len(base_urls),
@@ -1017,9 +1070,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "new": new_count,
         "classified_endpoints": classified_count,
         "truncated": len(candidates) > len(urls),
+        "url_selection": selection,
         "katana_rejected_malformed": katana_rejected_malformed,
         "katana_observed": katana_observed,
         "katana_reserved_requests": katana_reserved_requests,
+        "katana_request_envelope": katana_request_envelope,
+        "katana_request_accounting": "rate_duration_reservation",
         "katana_crawl_origins": katana_crawl_origins,
         "katana_rate_limit": katana_rate_limit,
         "katana_crawl_seconds_per_origin": katana_crawl_seconds,
@@ -1038,8 +1094,13 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_batches_incomplete": katana_batches_incomplete,
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
         "katana_deadline_exhausted": katana_deadline_exhausted,
+        "katana_budget_metric": katana_budget_metric,
         "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing"} else "completed",
     }
+    atomic_write_text(ctx.current / "url-collection.json", json_dumps({
+        "run_id": ctx.run_id, "target": ctx.policy.name, "metrics": metrics,
+    }) + "\n")
+    return metrics
 
 
 def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]:
@@ -1351,14 +1412,52 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     urls: list[str] = []
     if urls_path.exists():
         urls = [line.strip() for line in urls_path.read_text(encoding="utf-8", errors="replace").splitlines()]
-    js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})[: ctx.policy.limits.max_js_files]
+    classified_js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})
+    js_urls = classified_js_urls[: ctx.policy.limits.max_js_files]
+    upstream_metrics: dict[str, Any] = {}
+    try:
+        upstream = json.loads((ctx.current / "url-collection.json").read_text(encoding="utf-8"))
+        if (isinstance(upstream, dict) and upstream.get("run_id") == ctx.run_id
+                and upstream.get("target") == ctx.policy.name and isinstance(upstream.get("metrics"), dict)):
+            upstream_metrics = upstream["metrics"]
+    except (OSError, ValueError, TypeError):
+        pass
+    selection = upstream_metrics.get("url_selection", {})
+    if not isinstance(selection, dict):
+        selection = {}
+    dropped_js = selection.get("javascript_dropped", 0)
+    dropped_js = dropped_js if isinstance(dropped_js, int) and dropped_js >= 0 else 0
+    upstream_status = str(upstream_metrics.get("collection_status") or "not_recorded")
+    input_issues = []
+    if not urls_path.exists():
+        input_issues.append("url_input_missing")
+    if upstream_status == "partial":
+        input_issues.append("upstream_url_collection_partial")
+    if dropped_js:
+        input_issues.append("url_selection_limit")
+    if len(classified_js_urls) > len(js_urls):
+        input_issues.append("javascript_file_limit")
+    input_metrics = {
+        "source_url_count": len([url for url in urls if url]),
+        "input_url_count": len(classified_js_urls),
+        "selected_input_count": len(js_urls),
+        "url_collection_status": upstream_status,
+        "classification_method": "url_path_extension",
+        "javascript_discovered": selection.get("javascript_candidates"),
+        "javascript_dropped_by_url_limit": dropped_js,
+        "javascript_dropped_by_file_limit": len(classified_js_urls) - len(js_urls),
+    }
+    # Never turn missing/truncated upstream evidence into removals from a
+    # previous complete JS/source-map snapshot.
+    input_complete = upstream_status == "completed" and not input_issues
     atomic_write_text(ctx.current / "javascript-urls.txt", "".join(f"{url}\n" for url in js_urls))
     source_map_collection_enabled = bool(
         ctx.policy.raw.get("javascript", {}).get("download_source_maps", True)
     )
     if not js_urls:
-        for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "new-js-indicators.tsv"):
+        for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "new-js-indicators.tsv", "not-found-js-files.txt"):
             atomic_write_text(ctx.changes / filename, "")
+        write_jsonl(ctx.current / "javascript-errors.jsonl", [])
         write_jsonl(
             ctx.current / "javascript-not-found.jsonl",
             [],
@@ -1379,18 +1478,22 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             ctx,
             [],
             [],
-            source_maps_complete=source_map_collection_enabled,
-            chunks_complete=True,
+            source_maps_complete=source_map_collection_enabled and input_complete,
+            chunks_complete=input_complete,
         )
         write_jsonl(
             ctx.changes / "recon-derived-differentials.jsonl",
             derived_signals,
         )
         return {
+            **input_metrics,
             "files": 0,
             "downloaded": 0,
-            "collection_status": "no_input",
-            "input_url_count": 0,
+            "collection_status": "partial" if input_issues else "no_input",
+            "collection_reasons": input_issues or ["no_javascript_urls_classified"],
+            "zero_download_reasons": input_issues or ["no_javascript_urls_classified"],
+            "download_attempts": 0,
+            "reused_work_items": 0,
             "new": 0,
             "raw_changed": 0,
             "semantic_changed": 0,
@@ -1454,6 +1557,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     embedded_source_indicators = 0
     source_map_attempts = 0
     source_map_failures = 0
+    unexpected_content_types = 0
 
     availability_rows: list[dict[str, Any]] = []
     availability_changes = 0
@@ -1665,6 +1769,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 "application/json",
             )
         ):
+            unexpected_content_types += 1
             error_text = (
                 f"unexpected content-type: "
                 f"{content_type}"
@@ -1689,7 +1794,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 content_type=content_type,
                 error=error_text,
             )
-
+            if url in work_ids:
+                work_queue.fail(work_ids[url], error_text, retry=True)
             continue
         downloaded += 1
         raw_hash = sha256_bytes(data)
@@ -2015,9 +2121,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         sorted(chunk_edge_rows, key=lambda row: (row["js_url"], row["chunk_url"])),
     )
 
-    chunks_complete = fresh_full_js_pass and not errors
+    chunks_complete = fresh_full_js_pass and not errors and input_complete
     source_maps_complete = (
         fresh_full_js_pass
+        and input_complete
         and not errors
         and source_map_collection_enabled
         and source_map_failures == 0
@@ -2042,7 +2149,28 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         ),
     )
 
+    collection_reasons = list(input_issues)
+    if len(errors) > unexpected_content_types:
+        collection_reasons.append("download_errors")
+    if unexpected_content_types:
+        collection_reasons.append("unexpected_content_type")
+    if source_map_failures:
+        collection_reasons.append("source_map_download_errors")
+    zero_download_reasons = []
+    if downloaded == 0:
+        zero_download_reasons.extend(collection_reasons)
+        if not_found:
+            zero_download_reasons.append("not_found")
+        if len(pending_urls) < len(js_urls):
+            zero_download_reasons.append("already_processed")
     return {
+        **input_metrics,
+        "collection_status": "partial" if collection_reasons else "completed",
+        "collection_reasons": collection_reasons,
+        "zero_download_reasons": zero_download_reasons,
+        "download_attempts": len(pending_urls),
+        "reused_work_items": len(js_urls) - len(pending_urls),
+        "unexpected_content_types": unexpected_content_types,
         "files": len(js_urls),
         "downloaded": downloaded,
         "new": len(new_files),

@@ -307,7 +307,11 @@ class Orchestrator:
                     duration=duration,
                     metrics=metrics,
                 )
-                self.progress.finish_stage("partial" if persisted_status == "partial" else "ok", metrics)
+                progress_status = (
+                    "partial" if persisted_status == "partial" else
+                    "no-input" if collection_status == "no_input" else "ok"
+                )
+                self.progress.finish_stage(progress_status, metrics)
                 return "success", metrics
             except KeyboardInterrupt:
                 duration = time.monotonic() - started
