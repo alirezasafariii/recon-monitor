@@ -473,8 +473,8 @@ class TargetPolicy:
             http_threads=parse_int(raw_limits.get("http_threads"), 20, 1, 100),
             naabu_rate=parse_int(raw_limits.get("naabu_rate"), 50, 1, 500),
             nuclei_rate=parse_int(raw_limits.get("nuclei_rate"), 3, 1, 50),
-            max_runtime_minutes=parse_int(raw_limits.get("max_runtime_minutes"), 120, 5, 1440),
-            max_http_requests=parse_int(raw_limits.get("max_http_requests"), 10000, 100, 1000000),
+            max_runtime_minutes=parse_int(raw_limits.get("max_runtime_minutes"), 120, 0, 1440),
+            max_http_requests=parse_int(raw_limits.get("max_http_requests"), 10000, 0, 1000000),
             max_dns_queries=parse_int(raw_limits.get("max_dns_queries"), 5000, 100, 1000000),
             max_download_mb=parse_int(raw_limits.get("max_download_mb"), 500, 10, 100000),
             max_new_assets=parse_int(raw_limits.get("max_new_assets"), 5000, 10, 1000000),
@@ -1858,7 +1858,7 @@ class Database:
             used = int(row["used"]) + amount
             limit_value = int(row["limit_value"])
             self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used,utc_now(),run_id,target,metric))
-        return used, limit_value, used <= limit_value
+        return used, limit_value, limit_value == 0 or used <= limit_value
 
     def enqueue_work(self, run_id: str, target: str, stage: str, item_key: str, payload: Mapping[str, Any] | None = None) -> int:
         now = utc_now()
@@ -3017,7 +3017,7 @@ class CommandRunner:
         *,
         cwd: Path | None = None,
         env: Mapping[str, str] | None = None,
-        timeout: int = 600,
+        timeout: float | None = 600,
         output_path: Path | None = None,
         line_callback: Callable[[str, int], None] | None = None,
         heartbeat: Callable[[], None] | None = None,
@@ -3073,7 +3073,7 @@ class CommandRunner:
                             error=str(exc),
                         )
                     next_heartbeat = now + heartbeat_interval
-                if now - started > timeout:
+                if timeout is not None and now - started > timeout:
                     timed_out = True
                     with contextlib.suppress(ProcessLookupError):
                         os.killpg(proc.pid, signal.SIGTERM)
