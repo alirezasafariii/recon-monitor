@@ -80,8 +80,10 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("current.replaceWith(replacement)", html)
         self.assertIn("history.pushState(", html)
         self.assertIn("window.addEventListener('popstate'", html)
-        self.assertIn("form.getBoundingClientRect().top", html)
+        self.assertIn("const desiredY=options.scrollY;", html)
         self.assertIn("jumpTo(desiredY)", html)
+        self.assertNotIn("requestAnimationFrame(()=>jumpTo(desiredY))", html)
+        self.assertNotIn("formTop:form.getBoundingClientRect().top", html)
         self.assertIn("window.location.assign(next.href)", html)
 
     def test_live_refresh_preserves_expansion_focus_and_scroll(self) -> None:
