@@ -434,10 +434,18 @@ class Orchestrator:
                 target_failed = False
                 target_partial = False
                 report_ran = False
+                # On --resume, a previously partial collector may discover
+                # additional inputs. Re-run every dependent downstream stage
+                # instead of incorrectly keeping its earlier "success".
+                replay_downstream = False
                 for stage_index, (stage_name, label) in enumerate(STAGES, 1):
                     if target_failed and stage_name != "report":
                         # Persist explicit skipped state so resume can continue at the failed stage.
                         continue
+                    if resume_id and self.db.stage_status(
+                        run_id, policy.name, stage_name,
+                    ) != "success":
+                        replay_downstream = True
                     status, _metrics = self._run_stage(
                         ctx,
                         stage_name,
@@ -447,7 +455,7 @@ class Orchestrator:
                         target_index,
                         len(targets),
                         baseline,
-                        bool(resume_id),
+                        bool(resume_id) and not replay_downstream,
                     )
                     if stage_name == "report":
                         report_ran = True
