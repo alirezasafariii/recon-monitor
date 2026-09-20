@@ -69,6 +69,21 @@ class DashboardScrollStabilityTests(unittest.TestCase):
         self.assertIn("action='/audit'", result)
         self.assertNotIn("action='#filter-1'", result)
 
+    def test_recon_filter_uses_in_place_get_without_full_reload(self) -> None:
+        html = self.html
+        self.assertIn("window.location.pathname!=='/recon'", html)
+        self.assertIn("document.addEventListener('submit'", html)
+        self.assertIn("event.preventDefault()", html)
+        self.assertIn("void updateRecon(next,opts)", html)
+        self.assertIn("await fetch(next.pathname+next.search", html)
+        self.assertIn("const replacement=page.querySelector('main.content')", html)
+        self.assertIn("current.replaceWith(replacement)", html)
+        self.assertIn("history.pushState(", html)
+        self.assertIn("window.addEventListener('popstate'", html)
+        self.assertIn("form.getBoundingClientRect().top", html)
+        self.assertIn("jumpTo(desiredY)", html)
+        self.assertIn("window.location.assign(next.href)", html)
+
     def test_live_refresh_preserves_expansion_focus_and_scroll(self) -> None:
         html = self.html
         self.assertIn("fresh.innerHTML!==panel.innerHTML", html)
