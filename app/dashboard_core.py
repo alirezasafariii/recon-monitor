@@ -960,6 +960,59 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
+// Preserve the reading position when a tab/filter changes this *same*
+// workspace's URL. Other-page navigation and explicit #anchors are untouched.
+(function(){{
+  const key='recon-same-workspace-scroll';
+  const here=window.location.pathname+window.location.search;
+  let previous=null;
+  try{{
+    previous=JSON.parse(sessionStorage.getItem(key)||'null');
+    sessionStorage.removeItem(key);
+  }}catch(_error){{}}
+  if(previous&&previous.destination===here&&!window.location.hash&&
+     Number.isFinite(previous.y)){{
+    const restore=()=>{{
+      const root=document.documentElement;
+      const original=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      window.scrollTo(0,previous.y);
+      root.style.scrollBehavior=original;
+    }};
+    restore();
+    window.addEventListener('load',restore,{{once:true}});
+  }}
+  const remember=(destination)=>{{
+    try{{sessionStorage.setItem(key,JSON.stringify({{
+      destination:destination,y:window.scrollY
+    }}));}}catch(_error){{}}
+  }};
+  document.addEventListener('click',(event)=>{{
+    if(event.defaultPrevented||event.button!==0||event.ctrlKey||
+       event.metaKey||event.shiftKey||event.altKey||
+       !(event.target instanceof Element))return;
+    const link=event.target.closest('.content a[href]');
+    if(!link||link.hasAttribute('download')||
+       (link.target&&link.target!=='_self'))return;
+    const next=new URL(link.href,window.location.href);
+    if(next.origin===window.location.origin&&
+       next.pathname===window.location.pathname&&
+       next.search!==window.location.search&&!next.hash){{
+      remember(next.pathname+next.search);
+    }}
+  }},true);
+  document.addEventListener('submit',(event)=>{{
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       form.method.toLowerCase()!=='get'||!form.closest('.content')||
+       (form.target&&form.target!=='_self'))return;
+    const next=new URL(form.action||window.location.href,window.location.href);
+    if(next.origin!==window.location.origin||
+       next.pathname!==window.location.pathname||next.hash)return;
+    next.search=new URLSearchParams(new FormData(form)).toString();
+    remember(next.pathname+next.search);
+  }},true);
+}})();
 window.RECON_CSRF={csrf_json};
 document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>{{if(!f.querySelector("input[name='csrf']")){{const i=document.createElement('input');i.type='hidden';i.name='csrf';i.value=window.RECON_CSRF;f.appendChild(i);}}}});
 const root=document.documentElement, savedTheme=localStorage.getItem('recon-theme'); if(savedTheme) root.dataset.theme=savedTheme;
@@ -1019,8 +1072,42 @@ async function refreshLiveProgress(){{
     template.innerHTML=payload.html.trim();
     const fresh=template.content.querySelector('#live-progress');
 
-    if(fresh){{
+    if(fresh&&fresh.innerHTML!==panel.innerHTML){{
+      // A live refresh must not collapse an opened inline detail row.
+      // Identify stable rows by id/data-detail-id, with their index as a
+      // fallback for legacy panels that do not assign row identities.
+      const oldDetails=[...panel.querySelectorAll('details')];
+      const newDetails=[...fresh.querySelectorAll('details')];
+      const expanded=oldDetails.map((detail,index)=>({{
+        index:index,id:detail.id||detail.dataset.detailId||'',
+        open:detail.open
+      }}));
+      const active=document.activeElement;
+      const oldSummary=active&&panel.contains(active)?
+        active.closest('summary'):null;
+      const activeIndex=oldSummary?
+        oldDetails.indexOf(oldSummary.closest('details')):-1;
+      const priorScroll=window.scrollY;
+      const priorTop=panel.getBoundingClientRect().top;
+      expanded.forEach(item=>{{
+        const counterpart=item.id?
+          newDetails.find(detail=>(detail.id||detail.dataset.detailId)===item.id):
+          newDetails[item.index];
+        if(counterpart)counterpart.open=item.open;
+      }});
       panel.replaceWith(fresh);
+      if(activeIndex>=0){{
+        const focused=newDetails[activeIndex]?.querySelector('summary');
+        focused?.focus({{preventScroll:true}});
+      }}
+      const root=document.documentElement;
+      const original=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      // If the panel's position changed due to a refresh above the viewport,
+      // keep the same content anchored at its former reading position.
+      const delta=fresh.getBoundingClientRect().top-priorTop;
+      window.scrollTo(0,priorScroll+delta);
+      root.style.scrollBehavior=original;
     }}
   }}catch(error){{
     console.debug('Live progress refresh failed:',error);
