@@ -122,11 +122,11 @@ def _inject_csrf_inputs(body: str, csrf: str) -> str:
 
 
 def _inject_filter_anchors(body: str) -> str:
-    """Give dashboard filter forms stable server-rendered anchors.
+    """Anchor GET filters in HTML, without depending on client-side JavaScript.
 
-    Safari resolves URL fragments during document loading, so the target id
-    must already be present in the HTML response; adding it later in
-    JavaScript is not reliable.
+    Native form navigation on Safari can occur without our submit listener
+    running. A fragment-only action survives a GET submission while the
+    browser replaces the query with the selected filter fields.
     """
     if "<form" not in body.lower() or "filters" not in body:
         return body
@@ -137,19 +137,33 @@ def _inject_filter_anchors(body: str) -> str:
         nonlocal counter
         tag = match.group(0)
         class_match = re.search(
-            r"\bclass\s*=\s*(['\"])(.*?)\1",
+            r"(?:^|\s)class\s*=\s*(['\"])(.*?)\1",
             tag,
             re.IGNORECASE | re.DOTALL,
         )
-        if not class_match:
+        if not class_match or "filters" not in class_match.group(2).split():
             return tag
-        classes = {part for part in class_match.group(2).split() if part}
-        if "filters" not in classes:
+        method = re.search(
+            r"(?:^|\s)method\s*=\s*(['\"]?)([a-zA-Z]+)\1",
+            tag,
+            re.IGNORECASE,
+        )
+        if method and method.group(2).lower() != "get":
             return tag
         counter += 1
-        if re.search(r"\bid\s*=", tag, re.IGNORECASE):
-            return tag
-        return tag[:-1] + f" id='filter-{counter}'" + ">"
+        existing_id = re.search(
+            r"(?:^|\s)id\s*=\s*(['\"])(.*?)\1",
+            tag,
+            re.IGNORECASE | re.DOTALL,
+        )
+        anchor_id = existing_id.group(2) if existing_id else f"filter-{counter}"
+        if not existing_id:
+            tag = tag[:-1] + f" id='{anchor_id}'>"
+        # Respect an explicit action; this fallback applies to local filter
+        # forms whose default action is the current dashboard route.
+        if not re.search(r"(?:^|\s)action\s*=", tag, re.IGNORECASE):
+            tag = tag[:-1] + f" action='#{_esc(anchor_id)}'>"
+        return tag
 
     return opening_form.sub(anchor, body)
 
@@ -994,9 +1008,9 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
-// Keep Apply filters on the filter instead of reloading at the top.
-// Use a real fragment target rather than post-load scroll restoration: Safari
-// resolves the server-rendered form id as part of normal navigation.
+// Progressive enhancement: the server also emits action='#filter-N' on GET
+// forms, so native Safari submission retains the anchor if this handler does
+// not run. No timing-sensitive scroll restoration is necessary.
 (function(){{
   document.addEventListener('submit',(event)=>{{
     const form=event.target;
