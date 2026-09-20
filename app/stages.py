@@ -62,6 +62,10 @@ class StageContext:
     budget: BudgetManager | None = None
     db_writer: DatabaseWriter | None = None
 
+    def next_requested(self) -> bool:
+        callback = getattr(self.runner, "next_check", None)
+        return bool(callback()) if callable(callback) else False
+
     @property
     def current(self) -> Path:
         path = self.run_dir / "current"
@@ -771,16 +775,45 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     # an empty attack surface. Preserve the candidate origins for re-check.
     katana_pending_origins = list(base_urls) if base_urls else sorted(candidate_base_urls)
     katana_batches_incomplete = 0
+    # On --resume, continue only unfinished origins. Never truncate evidence
+    # from an earlier partial collection in the same run.
+    previous_metrics: dict[str, Any] = {}
+    previous_outcomes: list[dict[str, Any]] = []
+    previous_crawl_lines = ""
+    previous_completed: list[str] = []
+    prior_summary = ctx.current / "url-collection.json"
+    prior_pending = ctx.current / "katana-pending-origins.txt"
+    if prior_summary.is_file() and prior_pending.is_file():
+        try:
+            prior_data = json.loads(prior_summary.read_text(encoding="utf-8"))
+            old_metrics = prior_data.get("metrics", {})
+            if prior_data.get("run_id") == ctx.run_id and old_metrics.get("collection_status") == "partial":
+                previous_metrics = old_metrics
+                old_outcomes = read_jsonl(ctx.current / "katana-batches.jsonl")
+                previous_outcomes = [x for x in old_outcomes if isinstance(x, dict)]
+                old_urls = ctx.current / "katana-urls.txt"
+                if old_urls.exists():
+                    previous_crawl_lines = old_urls.read_text(encoding="utf-8", errors="replace")
+                completed_file = ctx.current / "katana-completed-origins.txt"
+                if completed_file.exists():
+                    previous_completed = completed_file.read_text(encoding="utf-8").splitlines()
+        except (OSError, ValueError, TypeError, KeyError):
+            previous_metrics = {}
+            previous_outcomes = []
+            previous_crawl_lines = ""
+            previous_completed = []
+    katana_origin_successes = [origin for origin in previous_completed if origin in base_urls]
     katana_global_deadline_seconds = 0
     katana_deadline_exhausted = False
     katana_budget_exhausted = False
     katana_budget_metric = ""
-    batch_outcomes: list[dict[str, Any]] = []
-    # Clear stale evidence even when this attempt cannot launch the collector.
-    atomic_write_text(ctx.current / "katana-urls.txt", "")
+    batch_outcomes: list[dict[str, Any]] = list(previous_outcomes)
+    # Keep the prior partial run's raw evidence while rechecking its backlog.
+    atomic_write_text(ctx.current / "katana-urls.txt", previous_crawl_lines)
     atomic_write_text(ctx.current / "katana-base-urls.txt", "")
-    write_jsonl(ctx.current / "katana-batches.jsonl", [])
-    if tool_path("katana") and base_urls:
+    write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
+    operator_next = ctx.next_requested()
+    if tool_path("katana") and base_urls and not operator_next:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
             budget_row = ctx.budget.snapshot().get("http_requests", {})
@@ -813,15 +846,18 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 "crawl_seconds": 0,
                 "wall_seconds": 0,
             })
-        katana_origins = list(plan["origins"])
+        already_completed = set(katana_origin_successes)
+        katana_origins = [
+            origin for origin in plan["origins"] if origin not in already_completed
+        ]
         katana_request_envelope = int(plan["reservation"] or 0)
         katana_crawl_origins = len(katana_origins)
         katana_rate_limit = int(plan["rate_limit"] or 0)
         katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
         katana_global_deadline_seconds = int(plan.get("wall_seconds") or 0)
-        katana_pending_origins = list(
-            dict.fromkeys(katana_origins + [origin for origin in base_urls if origin not in katana_origins])
-        )
+        katana_pending_origins = [
+            origin for origin in base_urls if origin not in already_completed
+        ]
 
         if katana_origins:
             katana_base_path = ctx.current / "katana-base-urls.txt"
@@ -835,12 +871,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             # Successful here means the tool exited normally, NOT that every
             # reachable page on its origins was discovered.
             out = ctx.current / "katana-urls.txt"
-            atomic_write_text(out, "")
+            atomic_write_text(out, previous_crawl_lines)
             crawl_started = time.monotonic()
             requests_per_origin, extra_requests = divmod(
                 katana_request_envelope, len(katana_origins),
             )
             for batch_offset in range(0, len(katana_origins), 5):
+                if ctx.next_requested():
+                    operator_next = True
+                    break
                 if not uncapped_katana:
                     remaining_seconds = (
                         katana_global_deadline_seconds -
@@ -874,7 +913,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                             katana_budget_metric = exc.metric
                             break
                 katana_reserved_requests += batch_reservation
-                batch_number = (batch_offset // 5) + 1
+                batch_number = len(previous_outcomes) + (batch_offset // 5) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
                 atomic_write_text(
@@ -924,8 +963,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 if katana_exit_code in {None, 0} or batch_timed_out:
                     katana_exit_code = batch_exit
                 katana_timed_out = katana_timed_out or batch_timed_out
+                operator_next = operator_next or bool(getattr(result, "operator_next", False)) or ctx.next_requested()
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
-                batch_complete = batch_exit == 0 and not batch_timed_out
+                batch_complete = batch_exit == 0 and not batch_timed_out and not bool(getattr(result, "operator_next", False))
                 batch_outcomes.append({
                     "batch": batch_number,
                     "origins": len(batch_origins),
@@ -941,9 +981,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),
                     "status": "completed" if batch_complete else (
+                        "operator_next" if bool(getattr(result, "operator_next", False)) else
                         "timeout" if batch_timed_out else "nonzero_exit"
                     ),
-                    "stop_reason": "timeout" if batch_timed_out else (
+                    "stop_reason": (
+                        "operator_next" if bool(getattr(result, "operator_next", False)) else
+                        "timeout" if batch_timed_out else
                         "nonzero_exit" if batch_exit else "completed"
                     ),
                 })
@@ -980,12 +1023,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     ctx.current / "katana-completed-origins.txt",
                     "".join(f"{url}\n" for url in katana_origin_successes),
                 )
+                if operator_next:
+                    break
 
             successful = set(katana_origin_successes)
             katana_pending_origins = [
                 origin for origin in katana_pending_origins if origin not in successful
             ]
             katana_status = (
+                "operator_next" if operator_next else
                 "timeout" if katana_timed_out else
                 "nonzero_exit" if katana_batches_incomplete else
                 "budget_exhausted" if katana_budget_exhausted else
@@ -993,6 +1039,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 "completed"
             )
             katana_stop_reason = (
+                "operator_next" if operator_next else
                 "batch_timeout" if katana_timed_out else
                 "nonzero_exit" if katana_batches_incomplete else
                 "global_deadline" if katana_deadline_exhausted else
@@ -1013,9 +1060,13 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         continue
                     add_candidate(raw_candidate, "katana")
         else:
-            katana_status = "budget_exhausted"
-            katana_stop_reason = "request_budget"
+            # A resumed stage can legitimately have no work left for Katana.
+            katana_status = "completed" if not katana_pending_origins else "budget_exhausted"
+            katana_stop_reason = "completed" if not katana_pending_origins else "request_budget"
             atomic_write_text(ctx.current / "katana-base-urls.txt", "")
+    elif operator_next:
+        katana_status = "operator_next"
+        katana_stop_reason = "operator_next"
 
     # Do not silently discard origins that were not attempted, or those
     # belonging to an incomplete batch. They require a later authorized pass.
@@ -1127,16 +1178,21 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_exit_code": katana_exit_code,
         "katana_timed_out": katana_timed_out,
         "katana_duration_seconds": round(katana_duration_seconds, 3),
-        "katana_batches_attempted": katana_batches_attempted,
-        "katana_batches_completed": katana_batches_completed,
+        "katana_batches_attempted": len(batch_outcomes),
+        "katana_batches_this_attempt": katana_batches_attempted,
+        "katana_batches_completed": sum(
+            row.get("status") == "completed" for row in batch_outcomes
+        ),
         "katana_origins_attempted": katana_origins_attempted,
         "katana_origins_completed": len(katana_origin_successes),
         "katana_pending_origins": len(katana_pending_origins),
-        "katana_batches_incomplete": katana_batches_incomplete,
+        "katana_batches_incomplete": sum(
+            row.get("status") != "completed" for row in batch_outcomes
+        ),
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
         "katana_deadline_exhausted": katana_deadline_exhausted,
         "katana_budget_metric": katana_budget_metric,
-        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins"} else "completed",
+        "collection_status": "partial" if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins"} else "completed",
     }
     atomic_write_text(ctx.current / "url-collection.json", json_dumps({
         "run_id": ctx.run_id, "target": ctx.policy.name, "metrics": metrics,
