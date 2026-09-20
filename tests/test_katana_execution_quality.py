@@ -14,7 +14,7 @@ if str(APP) not in sys.path:
 
 from core import TargetPolicy
 from execution import BudgetExceeded
-from stages import _katana_crawl_plan, stage_javascript, stage_urls
+from stages import _katana_crawl_plan, _probe_live_origins, stage_javascript, stage_urls
 
 
 class KatanaExecutionQualityTests(unittest.TestCase):
@@ -181,6 +181,26 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["collection_status"], "partial")
             self.assertEqual(metrics["katana_pending_origins"], 1)
             self.assertIn("https://example.test/app.js", (ctx.current / "urls.txt").read_text())
+
+    def test_safety_stopped_origin_is_not_passed_to_katana(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._context(Path(tmp), SimpleNamespace())
+
+            def fake_probe(_ctx, url):
+                throttled = url.startswith("http://")
+                return {
+                    "url": url,
+                    "live": True,
+                    "status_code": 429 if throttled else 200,
+                    "transport_status": "stopped_for_safety" if throttled else "ok",
+                }
+
+            with patch("stages._origin_probe_one", side_effect=fake_probe):
+                live, observations = _probe_live_origins(
+                    ctx, ["http://example.test", "https://example.test"]
+                )
+            self.assertEqual(live, ["https://example.test"])
+            self.assertEqual(len(observations), 2)
 
     def test_no_live_origins_do_not_create_a_successful_empty_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
