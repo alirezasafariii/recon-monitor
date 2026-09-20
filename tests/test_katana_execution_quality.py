@@ -182,6 +182,30 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual(metrics["katana_pending_origins"], 1)
             self.assertIn("https://example.test/app.js", (ctx.current / "urls.txt").read_text())
 
+    def test_no_live_origins_do_not_create_a_successful_empty_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._context(Path(tmp), SimpleNamespace())
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=([], [
+                    {"url": "https://example.test", "live": False, "transport_status": "error"},
+                    {"url": "http://example.test", "live": False, "transport_status": "error"},
+                ]),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_status"], "no_live_origins")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_input_origins"], 0)
+            self.assertEqual(metrics["katana_batches_attempted"], 0)
+            self.assertEqual(metrics["katana_pending_origins"], 2)
+            self.assertEqual(
+                set((ctx.current / "katana-pending-origins.txt").read_text().splitlines()),
+                {"https://example.test", "http://example.test"},
+            )
+            self.assertEqual(
+                json.loads((ctx.current / "url-collection.json").read_text())["metrics"]["collection_status"],
+                "partial",
+            )
+
     def test_missing_katana_is_incomplete_and_keeps_origins_pending(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ctx = self._context(Path(tmp), SimpleNamespace())
