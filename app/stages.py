@@ -667,6 +667,9 @@ def _probe_live_origins(ctx: StageContext, urls: Iterable[str]) -> tuple[list[st
         str(row["url"])
         for row in results
         if row.get("live")
+        # A 429 or another transport safety stop must never be handed to
+        # Katana just because the origin responded with an HTTP status.
+        and row.get("transport_status") == "ok"
         and not row.get("redirect_outside_scope")
         and ctx.policy.url_in_scope(str(row.get("url") or ""))
     ]
