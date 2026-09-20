@@ -13,7 +13,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from core import TargetPolicy
-from execution import BudgetExceeded
+from execution import BudgetExceeded, BudgetManager
 from stages import _katana_crawl_plan, _probe_live_origins, stage_javascript, stage_urls
 
 
@@ -402,6 +402,69 @@ class KatanaExecutionQualityTests(unittest.TestCase):
         self.assertEqual(len(plan["origins"]), 3)
         self.assertEqual(plan["reservation"], 3)
         self.assertEqual(plan["wall_seconds"], 3)
+
+    def test_explicit_zero_request_and_runtime_caps_keep_known_origins_in_crawl(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            seen = []
+
+            def fake_run(args, **kwargs):
+                origins = Path(args[args.index("-list") + 1]).read_text(
+                    encoding="utf-8",
+                ).splitlines()
+                seen.extend(origins)
+                self.assertIsNone(kwargs["timeout"])
+                self.assertNotIn("-ct", args)
+                self.assertEqual(args[args.index("-rl") + 1], "3")
+                Path(kwargs["output_path"]).write_text(
+                    "".join(f"{origin}/app.js\\n" for origin in origins),
+                    encoding="utf-8",
+                )
+                return SimpleNamespace(
+                    returncode=0, timed_out=False, duration=1.0,
+                    lines=len(origins),
+                )
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.policy.limits.max_http_requests = 0
+            ctx.policy.limits.max_runtime_minutes = 0
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {
+                "http_requests": {"used": 0, "limit": 0},
+            }
+            live = [f"https://{i}.example.test" for i in range(7)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(seen, live)
+            self.assertEqual(metrics["katana_batches_completed"], 2)
+            self.assertEqual(metrics["katana_origins_completed"], 7)
+            self.assertEqual(metrics["katana_pending_origins"], 0)
+            self.assertEqual(metrics["katana_global_deadline_seconds"], 0)
+            self.assertEqual(metrics["katana_reserved_requests"], 0)
+            self.assertEqual(metrics["katana_status"], "completed")
+            self.assertEqual(
+                metrics["katana_request_accounting"],
+                "rate_only_external_requests_unmetered",
+            )
+            ctx.budget.consume.assert_not_called()
+
+    def test_zero_cumulative_budgets_still_meter_http_requests(self) -> None:
+        policy = TargetPolicy.from_dict({
+            "name": "example.test",
+            "roots": ["example.test"],
+            "include": [r"(^|\\.)example\\.test$"],
+            "limits": {"max_http_requests": 0, "max_runtime_minutes": 0},
+        })
+        self.assertEqual(policy.limits.max_http_requests, 0)
+        self.assertEqual(policy.limits.max_runtime_minutes, 0)
+        db = MagicMock()
+        db.budget_consume.return_value = (1000001, 0, True)
+        budget = BudgetManager.create(db, "offline-run", policy.name, policy)
+        budget.started_monotonic -= 10000000
+        self.assertEqual(budget.consume("http_requests", 1), (1000001, 0))
+        self.assertEqual(db.budget_consume.call_count, 1)
+        self.assertEqual(db.budget_init.call_args.args[3]["http_requests"], 0)
 
     def test_no_js_input_is_recorded_as_no_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
