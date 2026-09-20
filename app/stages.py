@@ -681,6 +681,10 @@ def _probe_live_origins(ctx: StageContext, urls: Iterable[str]) -> tuple[list[st
 
 
 def stage_urls(ctx: StageContext) -> dict[str, Any]:
+    def operator_next_requested() -> bool:
+        checker = getattr(ctx, "next_requested", None)
+        return bool(checker()) if callable(checker) else False
+
     hosts_file = ctx.current / "resolved-hosts.txt"
     hosts = _scope_hosts(ctx.policy, hosts_file.read_text(encoding="utf-8", errors="replace").splitlines() if hosts_file.exists() else ctx.policy.roots)
     if not hosts:
@@ -812,7 +816,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     atomic_write_text(ctx.current / "katana-urls.txt", previous_crawl_lines)
     atomic_write_text(ctx.current / "katana-base-urls.txt", "")
     write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
-    operator_next = ctx.next_requested()
+    operator_next = operator_next_requested()
     if tool_path("katana") and base_urls and not operator_next:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -877,7 +881,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_request_envelope, len(katana_origins),
             )
             for batch_offset in range(0, len(katana_origins), 5):
-                if ctx.next_requested():
+                if operator_next_requested():
                     operator_next = True
                     break
                 if not uncapped_katana:
@@ -963,7 +967,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 if katana_exit_code in {None, 0} or batch_timed_out:
                     katana_exit_code = batch_exit
                 katana_timed_out = katana_timed_out or batch_timed_out
-                operator_next = operator_next or bool(getattr(result, "operator_next", False)) or ctx.next_requested()
+                operator_next = operator_next or bool(getattr(result, "operator_next", False)) or operator_next_requested()
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
                 batch_complete = batch_exit == 0 and not batch_timed_out and not bool(getattr(result, "operator_next", False))
                 batch_outcomes.append({
