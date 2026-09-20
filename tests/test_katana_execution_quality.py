@@ -416,7 +416,7 @@ class KatanaExecutionQualityTests(unittest.TestCase):
                 self.assertNotIn("-ct", args)
                 self.assertEqual(args[args.index("-rl") + 1], "3")
                 Path(kwargs["output_path"]).write_text(
-                    "".join(f"{origin}/app.js\\n" for origin in origins),
+                    "".join(f"{origin}/app.js\n" for origin in origins),
                     encoding="utf-8",
                 )
                 return SimpleNamespace(
@@ -453,7 +453,7 @@ class KatanaExecutionQualityTests(unittest.TestCase):
         policy = TargetPolicy.from_dict({
             "name": "example.test",
             "roots": ["example.test"],
-            "include": [r"(^|\\.)example\\.test$"],
+            "include": [r"(^|\.)example\.test$"],
             "limits": {"max_http_requests": 0, "max_runtime_minutes": 0},
         })
         self.assertEqual(policy.limits.max_http_requests, 0)
