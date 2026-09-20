@@ -751,7 +751,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_crawl_origins = 0
     katana_rate_limit = 0
     katana_crawl_seconds = 0
-    katana_status = "tool_missing" if not tool_path("katana") else ("no_input" if not base_urls else "not_run")
+    katana_status = (
+        "tool_missing" if not tool_path("katana") else
+        "no_live_origins" if not base_urls and candidate_base_urls else
+        "no_input" if not base_urls else "not_run"
+    )
     katana_stop_reason = katana_status
     katana_exit_code: int | None = None
     katana_timed_out = False
@@ -760,7 +764,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_batches_completed = 0
     katana_origins_attempted = 0
     katana_origin_successes: list[str] = []
-    katana_pending_origins = list(base_urls)
+    # An unsuccessful live-origin probe is incomplete collection, not proof of
+    # an empty attack surface. Preserve the candidate origins for re-check.
+    katana_pending_origins = list(base_urls) if base_urls else sorted(candidate_base_urls)
     katana_batches_incomplete = 0
     katana_global_deadline_seconds = 0
     katana_deadline_exhausted = False
@@ -1095,7 +1101,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
         "katana_deadline_exhausted": katana_deadline_exhausted,
         "katana_budget_metric": katana_budget_metric,
-        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing"} else "completed",
+        "collection_status": "partial" if katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins"} else "completed",
     }
     atomic_write_text(ctx.current / "url-collection.json", json_dumps({
         "run_id": ctx.run_id, "target": ctx.policy.name, "metrics": metrics,
