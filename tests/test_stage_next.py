@@ -216,8 +216,8 @@ class StageNextTests(unittest.TestCase):
         )
         ctx = StageContext(
             self.paths, Config(self.paths), self.policy, self.db,
-            Logger(self.paths), MagicMock(), MagicMock(), self.run_id,
-            self.run_dir, False,
+            Logger(self.paths), SimpleNamespace(next_check=lambda: False),
+            MagicMock(), self.run_id, self.run_dir, False,
         )
         def fake_download(_ctx, url, _max_bytes):
             if url.startswith("https://a.example.test/"):
