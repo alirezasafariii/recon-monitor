@@ -1529,13 +1529,50 @@ def _prepare_javascript_derived_differentials(
     return signals, meta
 
 
+def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[str], list[str]]:
+    """Choose a deterministic host-balanced subset without losing the backlog.
+
+    A single host's many paths must not consume the whole per-run JS quota.
+    Preserve lexicographic ordering within each host and return the unselected
+    URLs separately so the collection remains explicitly partial.
+    """
+    candidates = sorted(set(urls))
+    by_host: dict[str, list[str]] = {}
+    for url in candidates:
+        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+        by_host.setdefault(host, []).append(url)
+
+    selected: list[str] = []
+    offsets = {host: 0 for host in by_host}
+    hosts = sorted(by_host)
+    while len(selected) < max_files:
+        added = False
+        for host in hosts:
+            position = offsets[host]
+            if position >= len(by_host[host]):
+                continue
+            selected.append(by_host[host][position])
+            offsets[host] = position + 1
+            added = True
+            if len(selected) >= max_files:
+                break
+        if not added:
+            break
+
+    selected_set = set(selected)
+    unselected = [url for url in candidates if url not in selected_set]
+    return selected, unselected
+
+
 def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     urls_path = ctx.current / "urls.txt"
     urls: list[str] = []
     if urls_path.exists():
         urls = [line.strip() for line in urls_path.read_text(encoding="utf-8", errors="replace").splitlines()]
     classified_js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})
-    js_urls = classified_js_urls[: ctx.policy.limits.max_js_files]
+    js_urls, unselected_js_urls = _select_javascript_urls(
+        classified_js_urls, ctx.policy.limits.max_js_files,
+    )
     upstream_metrics: dict[str, Any] = {}
     try:
         upstream = json.loads((ctx.current / "url-collection.json").read_text(encoding="utf-8"))
@@ -1567,12 +1604,21 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "classification_method": "url_path_extension",
         "javascript_discovered": selection.get("javascript_candidates"),
         "javascript_dropped_by_url_limit": dropped_js,
-        "javascript_dropped_by_file_limit": len(classified_js_urls) - len(js_urls),
+        "javascript_dropped_by_file_limit": len(unselected_js_urls),
+        "javascript_selection_method": "host_round_robin_lexical_within_host",
+        "javascript_selected_hosts": len({
+            urllib.parse.urlsplit(url).hostname for url in js_urls
+        }),
+        "javascript_unselected_urls_file": "javascript-unselected-urls.txt",
     }
     # Never turn missing/truncated upstream evidence into removals from a
     # previous complete JS/source-map snapshot.
     input_complete = upstream_status == "completed" and not input_issues
     atomic_write_text(ctx.current / "javascript-urls.txt", "".join(f"{url}\n" for url in js_urls))
+    atomic_write_text(
+        ctx.current / "javascript-unselected-urls.txt",
+        "".join(f"{url}\n" for url in unselected_js_urls),
+    )
     source_map_collection_enabled = bool(
         ctx.policy.raw.get("javascript", {}).get("download_source_maps", True)
     )
