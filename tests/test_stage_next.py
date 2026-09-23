@@ -15,7 +15,7 @@ if str(APP) not in sys.path:
 from core import AppPaths, Config, Database, Logger, NextStageRequested, TargetPolicy
 from dashboard import DashboardHandler
 import recon_monitor_core as runtime
-from stages import StageContext, stage_urls
+from stages import StageContext, _select_javascript_urls, stage_javascript, stage_urls
 
 
 def policy():
@@ -166,6 +166,77 @@ class StageNextTests(unittest.TestCase):
         )
         self.assertIn(old[0] + "/found.js", (current / "katana-urls.txt").read_text())
         ctx.runner.run.assert_not_called()
+
+    def test_javascript_host_balanced_selection_is_deterministic_and_lossless(self):
+        candidates = [
+            "https://a.example.test/z.js",
+            "https://a.example.test/y.js",
+            "https://a.example.test/x.js",
+            "https://b.example.test/a.js",
+            "https://c.example.test/a.js",
+        ]
+        selected, unselected = _select_javascript_urls(candidates, 3)
+        self.assertEqual(selected, [
+            "https://a.example.test/x.js",
+            "https://b.example.test/a.js",
+            "https://c.example.test/a.js",
+        ])
+        self.assertEqual(unselected, [
+            "https://a.example.test/y.js",
+            "https://a.example.test/z.js",
+        ])
+        self.assertEqual(
+            _select_javascript_urls(list(reversed(candidates)) + candidates, 3),
+            (selected, unselected),
+        )
+        self.assertEqual(
+            _select_javascript_urls(candidates, 10),
+            ([
+                "https://a.example.test/x.js",
+                "https://b.example.test/a.js",
+                "https://c.example.test/a.js",
+                "https://a.example.test/y.js",
+                "https://a.example.test/z.js",
+            ], []),
+        )
+        self.assertEqual(_select_javascript_urls(candidates, 0), ([], sorted(candidates)))
+
+    def test_javascript_stage_persists_unselected_urls_without_extra_requests(self):
+        self.policy.limits.max_js_files = 2
+        current = self.run_dir / "current"
+        current.mkdir()
+        candidates = [
+            "https://a.example.test/1.js",
+            "https://a.example.test/2.js",
+            "https://a.example.test/3.js",
+            "https://b.example.test/1.js",
+        ]
+        (current / "urls.txt").write_text(
+            "\n".join(candidates) + "\n", encoding="utf-8",
+        )
+        ctx = StageContext(
+            self.paths, Config(self.paths), self.policy, self.db,
+            Logger(self.paths), MagicMock(), MagicMock(), self.run_id,
+            self.run_dir, False,
+        )
+        with patch("stages._download_url", side_effect=lambda _ctx, url, _max_bytes: {
+            "url": url, "status_code": 404, "not_found": True,
+        }) as download:
+            metrics = stage_javascript(ctx)
+
+        self.assertEqual(download.call_count, 2)
+        self.assertEqual(metrics["selected_input_count"], 2)
+        self.assertEqual(metrics["javascript_dropped_by_file_limit"], 2)
+        self.assertEqual(metrics["javascript_selected_hosts"], 2)
+        self.assertEqual(metrics["collection_status"], "partial")
+        self.assertEqual(
+            (current / "javascript-urls.txt").read_text().splitlines(),
+            ["https://a.example.test/1.js", "https://b.example.test/1.js"],
+        )
+        self.assertEqual(
+            (current / "javascript-unselected-urls.txt").read_text().splitlines(),
+            ["https://a.example.test/2.js", "https://a.example.test/3.js"],
+        )
 
     def test_cooperative_collectors_avoid_new_network_requests_after_next(self):
         from stages import _download_url, _safe_validate_endpoint
