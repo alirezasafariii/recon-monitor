@@ -219,12 +219,26 @@ class StageNextTests(unittest.TestCase):
             Logger(self.paths), MagicMock(), MagicMock(), self.run_id,
             self.run_dir, False,
         )
-        with patch("stages._download_url", side_effect=lambda _ctx, url, _max_bytes: {
-            "url": url, "status_code": 404, "not_found": True,
-        }) as download:
+        def fake_download(_ctx, url, _max_bytes):
+            if url.startswith("https://a.example.test/"):
+                return {
+                    "url": url, "status_code": 400,
+                    "error": "http_error", "final_url": url,
+                }
+            return {"url": url, "status_code": 404, "not_found": True}
+
+        with patch("stages._download_url", side_effect=fake_download) as download:
             metrics = stage_javascript(ctx)
 
         self.assertEqual(download.call_count, 2)
+        self.assertEqual(metrics["errors"], 1)
+        self.assertEqual(metrics["not_found"], 1)
+        error_record = json.loads(
+            (current / "javascript-errors.jsonl").read_text().splitlines()[0],
+        )
+        self.assertEqual(error_record["status_code"], 400)
+        self.assertEqual(error_record["error"], "http_error")
+        self.assertEqual(error_record["final_url"], "https://a.example.test/1.js")
         self.assertEqual(metrics["selected_input_count"], 2)
         self.assertEqual(metrics["javascript_dropped_by_file_limit"], 2)
         self.assertEqual(metrics["javascript_selected_hosts"], 2)
