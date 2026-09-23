@@ -1915,6 +1915,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 {
                     "url": url,
                     "error": error_text,
+                    "status_code": int(result.get("status_code") or 0),
+                    "final_url": str(result.get("final_url") or url),
+                    "transport_status": str(result.get("transport_status") or ""),
                 }
             )
 
@@ -1965,6 +1968,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 {
                     "url": url,
                     "error": error_text,
+                    "status_code": int(result.get("status_code") or 0),
+                    "final_url": str(result.get("final_url") or url),
+                    "content_type": content_type,
                 }
             )
 
