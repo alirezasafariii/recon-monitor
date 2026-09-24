@@ -1223,7 +1223,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     return metrics
 
 
-def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]:
+def _download_url(
+    ctx: StageContext, url: str, max_bytes: int, *, max_redirects: int = 3,
+) -> dict[str, Any]:
     """Download one in-scope resource through the pinned transport boundary."""
     if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
         return {"url": url, "operator_next": True}
@@ -1246,7 +1248,7 @@ def _download_url(ctx: StageContext, url: str, max_bytes: int) -> dict[str, Any]
         headers=headers,
         max_response_bytes=max_bytes,
         timeout=min(45, max(5, ctx.policy.limits.timeout_seconds)),
-        max_redirects=3,
+        max_redirects=max_redirects,
         user_agent=headers["User-Agent"],
         before_request=before_request,
     )
