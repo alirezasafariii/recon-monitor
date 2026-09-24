@@ -112,7 +112,7 @@ class CollectionQualityTests(unittest.TestCase):
             self.assertEqual(javascript["errors"], 3)
             self.assertIn("undownloaded_javascript_files", javascript["not_collected"])
 
-    def test_zero_javascript_run_without_errors_is_complete_no_work(self):
+    def test_historical_zero_javascript_without_diagnosis_is_unknown(self):
         with tempfile.TemporaryDirectory() as td:
             ctx = make_ctx(
                 Path(td),
@@ -133,11 +133,46 @@ class CollectionQualityTests(unittest.TestCase):
             )
             result = snapshot_collection_quality(ctx, persist=False)
             javascript = result["dimensions"]["javascript"]
-            self.assertEqual(javascript["status"], "complete")
+            self.assertEqual(javascript["status"], "unknown")
             self.assertEqual(javascript["files_selected"], 0)
             self.assertEqual(javascript["downloaded"], 0)
             self.assertEqual(javascript["errors"], 0)
-            self.assertEqual(result["status"], "complete")
+            self.assertEqual(result["status"], "unknown")
+
+    def test_partial_katana_is_preserved_in_quality_snapshot(self):
+        with tempfile.TemporaryDirectory() as td:
+            for stage_status in ("partial", "success"):
+                with self.subTest(stage_status=stage_status):
+                    ctx = make_ctx(Path(td), {"urls": {"status": stage_status, "metrics": {
+                        "urls": 119, "truncated": False, "katana_status": "timeout",
+                        "katana_stop_reason": "batch_timeout", "collection_status": "partial",
+                    }}})
+                    result = snapshot_collection_quality(ctx, persist=False)
+                    self.assertEqual(result["dimensions"]["urls"]["status"], "partial")
+                    self.assertEqual(result["dimensions"]["urls"]["katana_status"], "timeout")
+                    self.assertEqual(result["dimensions"]["urls"]["collected"], 119)
+
+    def test_no_input_is_not_complete_coverage(self):
+        with tempfile.TemporaryDirectory() as td:
+            ctx = make_ctx(Path(td), {"javascript": {"metrics": {
+                "files": 0, "downloaded": 0, "errors": 0, "collection_status": "no_input",
+                "collection_reasons": ["no_javascript_urls_classified"],
+            }}})
+            result = snapshot_collection_quality(ctx, persist=False)
+            self.assertEqual(result["dimensions"]["javascript"]["status"], "no_input")
+            self.assertEqual(result["status_counts"]["no_input"], 1)
+            self.assertNotEqual(result["status"], "complete")
+
+    def test_partial_empty_js_input_stays_partial(self):
+        with tempfile.TemporaryDirectory() as td:
+            ctx = make_ctx(Path(td), {"javascript": {"status": "partial", "metrics": {
+                "files": 0, "downloaded": 0, "errors": 0, "collection_status": "partial",
+                "collection_reasons": ["url_selection_limit"],
+            }}})
+            result = snapshot_collection_quality(ctx, persist=False)
+            js = result["dimensions"]["javascript"]
+            self.assertEqual(js["status"], "partial")
+            self.assertEqual(js["collection_reasons"], ["url_selection_limit"])
 
     def test_nonempty_javascript_run_without_errors_remains_unknown(self):
         with tempfile.TemporaryDirectory() as td:
@@ -181,7 +216,7 @@ class CollectionQualityTests(unittest.TestCase):
                             "successful_rrtypes": ["A", "AAAA", "CNAME", "NS"],
                         }
                     },
-                    "urls": {"metrics": {"urls": 42, "truncated": False}},
+                    "urls": {"metrics": {"urls": 42, "truncated": False, "katana_status": "completed"}},
                     "javascript": {
                         "metrics": {
                             "files": 3,
