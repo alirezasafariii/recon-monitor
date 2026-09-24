@@ -63,6 +63,7 @@ class StageContext:
     db_writer: DatabaseWriter | None = None
     download_max_redirects: int = 3
     request_gate: Callable[[str], None] | None = None
+    response_gate: Callable[[int], None] | None = None
 
     def next_requested(self) -> bool:
         callback = getattr(self.runner, "next_check", None)
@@ -1259,6 +1260,9 @@ def _download_url(
     )
     duration = time.monotonic() - started
     status_code = int(result.get("status_code") or 0)
+    response_gate = getattr(ctx, "response_gate", None)
+    if callable(response_gate):
+        response_gate(status_code)
     response_headers = (
         result.get("headers")
         if isinstance(result.get("headers"), Mapping)
