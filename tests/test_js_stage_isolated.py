@@ -14,7 +14,7 @@ for directory in (ROOT / "app", ROOT / "tools"):
         sys.path.insert(0, str(directory))
 
 from core import AppPaths, Config, Database, ReconError, TargetPolicy
-from js_stage_isolated import prior_validation_hashes, run_isolated_stage
+from js_stage_isolated import (prior_isolated_stage_hashes, prior_validation_hashes, run_isolated_stage)
 from js_validation import select_fresh_js
 
 
@@ -164,6 +164,61 @@ class IsolatedJavascriptStageTests(unittest.TestCase):
         self.assertEqual(summary["stopped_after_http_status"], 429)
         self.assertEqual(summary["downloaded"], 1)
         self.assertEqual(summary["collection_status"], "partial")
+
+    def test_prior_isolated_replay_selected_urls_are_excluded_offline(self):
+        urls = ["https://a.example.test/0.js", "https://a.example.test/1.js"]
+
+        def fake_transport(url, _policy, **kwargs):
+            kwargs["before_request"](url)
+            return {
+                "status_code": 200, "final_url": url,
+                "headers": {"Content-Type": "application/javascript"},
+                "data": b"const ready = true;",
+            }
+
+        with patch("stages.perform_pinned_download", side_effect=fake_transport):
+            sandbox, _ = run_isolated_stage(
+                self.paths, self.config, self.policy, self.source_id, urls,
+            )
+
+        prior_hashes = prior_isolated_stage_hashes(
+            self.paths, self.policy.name, self.source_id,
+        )
+        self.assertEqual(
+            prior_hashes,
+            frozenset(hashlib.sha256(url.encode()).hexdigest() for url in urls),
+        )
+        chosen, _ = select_fresh_js(
+            self.current,
+            run_id=self.source_id,
+            target=self.policy.name,
+            policy=self.policy,
+            allowed_hosts=("a.example.test",),
+            max_new=3,
+            per_host=3,
+            excluded_url_sha256=prior_hashes,
+        )
+        self.assertEqual(chosen, ["https://a.example.test/2.js"])
+        self.assertTrue((sandbox / "summary.json").is_file())
+
+    def test_broken_prior_isolated_selection_blocks_repeated_execution(self):
+        root = (
+            self.paths.output / self.policy.name / "js-stage-replays"
+            / f"{self.source_id}-old"
+        )
+        root.mkdir(parents=True)
+        (root / "summary.json").write_text(
+            json.dumps({
+                "source_run_id": self.source_id,
+                "target": self.policy.name,
+                "sandbox_run_id": "20260924-040716-35ce92f8",
+            }),
+            encoding="utf-8",
+        )
+        with self.assertRaises(ReconError):
+            prior_isolated_stage_hashes(
+                self.paths, self.policy.name, self.source_id,
+            )
 
     def test_denies_execution_without_authorization_or_for_out_of_scope(self):
         denied = Config(self.paths)
