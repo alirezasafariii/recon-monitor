@@ -59,6 +59,42 @@ def prior_validation_hashes(paths: AppPaths, target: str, run_id: str) -> frozen
     return frozenset(found)
 
 
+def prior_isolated_stage_hashes(
+    paths: AppPaths, target: str, run_id: str,
+) -> frozenset[str]:
+    """Exclude all URLs selected by a prior isolated replay of this source run.
+
+    The existing sandbox's JS input file records the original submitted URL
+    set, including any URLs skipped after a safety stop. This is intentionally
+    conservative: do not silently retry a prior replay on a new --execute.
+    """
+    if not _valid_run_id(run_id):
+        raise ReconError("Invalid source run ID.")
+    root = paths.output / target / "js-stage-replays"
+    found: set[str] = set()
+    for summary_path in root.glob(f"{run_id}-*/summary.json"):
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if (not isinstance(summary, dict)
+                    or summary.get("source_run_id") != run_id
+                    or summary.get("target") != target
+                    or not _valid_run_id(str(summary.get("sandbox_run_id") or ""))):
+                raise ReconError("Malformed prior isolated JS stage summary.")
+            replay_root = summary_path.parent.resolve()
+            run_path = (
+                replay_root / "output" / target / "runs"
+                / str(summary["sandbox_run_id"]) / "current" / "javascript-urls.txt"
+            ).resolve()
+            if not run_path.is_relative_to(replay_root) or not run_path.is_file():
+                raise ReconError("Prior isolated JS stage URL selection is missing.")
+            for url in run_path.read_text(encoding="utf-8").splitlines():
+                if url:
+                    found.add(hashlib.sha256(url.encode("utf-8")).hexdigest())
+        except (OSError, ValueError, TypeError) as exc:
+            raise ReconError("Cannot inspect a prior isolated JS stage.") from exc
+    return frozenset(found)
+
+
 class SequentialRequestGate:
     """At most one request in flight; retain target-policy global pacing."""
     def __init__(self, rate: int) -> None:
@@ -229,7 +265,9 @@ def main(argv: list[str] | None = None) -> int:
             raise ReconError("Specify exactly one configured target name.")
         policy = match[0]
         hosts = tuple(host.strip().lower() for host in args.hosts)
-        excluded = prior_validation_hashes(paths, policy.name, args.run_id)
+        validated = prior_validation_hashes(paths, policy.name, args.run_id)
+        replayed = prior_isolated_stage_hashes(paths, policy.name, args.run_id)
+        excluded = validated | replayed
         planned, counts = select_fresh_js(
             paths.output / policy.name / "runs" / args.run_id / "current",
             run_id=args.run_id, target=policy.name, policy=policy,
@@ -239,7 +277,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"New, never-validated HTTPS .js subset: {len(planned)}")
         for host in hosts:
             print(f"  {host}: {counts.get(host, 0)}")
-        print(f"Previously validated URL hashes excluded: {len(excluded)}")
+        print(f"Previously validated URL hashes excluded: {len(validated)}")
+        print(f"Previously isolated-stage URL hashes excluded: {len(replayed)}")
+        print(f"Unique previously selected URL hashes excluded: {len(excluded)}")
         if not args.execute:
             print("OFFLINE PREVIEW. No network or source-run changes; add --execute to opt in.")
             return 0
