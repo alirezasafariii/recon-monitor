@@ -52,6 +52,7 @@ def select_fresh_js(
     allowed_hosts: tuple[str, ...],
     max_new: int,
     per_host: int,
+    excluded_url_sha256: frozenset[str] = frozenset(),
 ) -> tuple[list[str], dict[str, int]]:
     """Choose only never-attempted JS from the production host-balanced quota."""
     if not (1 <= max_new <= MAX_NEW and 1 <= per_host <= MAX_PER_HOST):
@@ -95,7 +96,11 @@ def select_fresh_js(
     selected, _ = _select_javascript_urls(candidates, policy.limits.max_js_files)
     eligible: dict[str, list[str]] = {host: [] for host in allowed_hosts}
     for url in selected:
-        if url in attempted or not policy.url_in_scope(url):
+        if (
+            url in attempted
+            or not policy.url_in_scope(url)
+            or hashlib.sha256(url.encode("utf-8")).hexdigest() in excluded_url_sha256
+        ):
             continue
         parts = urllib.parse.urlsplit(url)
         if (
