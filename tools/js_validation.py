@@ -90,6 +90,7 @@ def select_fresh_js(
         url.strip()
         for url in url_file.read_text(encoding="utf-8", errors="replace").splitlines()
         if classify_url(url.strip()) == "javascript"
+        and policy.url_in_scope(url.strip())
     })
     selected, _ = _select_javascript_urls(candidates, policy.limits.max_js_files)
     eligible: dict[str, list[str]] = {host: [] for host in allowed_hosts}
