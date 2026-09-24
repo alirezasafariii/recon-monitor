@@ -57,12 +57,16 @@ class SavedRunJSValidationTests(unittest.TestCase):
         )
 
     def plan(self, **kwargs):
-        return select_fresh_js(
-            self.current,
-            run_id=self.run_id, target=self.policy.name, policy=self.policy,
-            allowed_hosts=("a.example.test", "b.example.test"),
-            max_new=3, per_host=2, **kwargs,
-        )
+        options = {
+            "run_id": self.run_id,
+            "target": self.policy.name,
+            "policy": self.policy,
+            "allowed_hosts": ("a.example.test", "b.example.test"),
+            "max_new": 3,
+            "per_host": 2,
+        }
+        options.update(kwargs)
+        return select_fresh_js(self.current, **options)
 
     def test_preview_selects_only_new_scoped_quota_urls_and_is_read_only(self):
         before = {
