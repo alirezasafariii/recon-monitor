@@ -75,8 +75,8 @@ class SavedRunJSValidationTests(unittest.TestCase):
         }
         chosen, counts = self.plan()
         self.assertEqual(chosen, [
-            "https://b.example.test/0.js",
             "https://a.example.test/1.js",
+            "https://b.example.test/0.js",
         ])
         self.assertEqual(counts, {"a.example.test": 1, "b.example.test": 1})
         self.assertEqual(
