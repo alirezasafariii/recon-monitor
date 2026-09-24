@@ -289,6 +289,20 @@ python3 tools/js_validation.py --run RUN_ID --target abercrombie.com \
 
 گزارش مستقل زیر `output/<target>/js-validations/` نوشته می‌شود. گزارش فقط میزبان، هش URL، کد HTTP، نوع محتوا و نتیجهٔ دانلود را ثبت می‌کند؛ URL کامل و بدنهٔ پاسخ ذخیره نمی‌شوند. این تست جایگزین Scan کامل، یا اثبات دسترسی به تمام فایل‌ها نیست.
 
+### اجرای مستقل مرحلهٔ JavaScript از روی شواهد ذخیره‌شده (آزمایشی)
+
+برای بررسی پردازش واقعی JavaScript، ابزار `tools/js_stage_isolated.py` از `urls.txt` یک Run پیشین استفاده می‌کند، اما مرحلهٔ `stage_javascript` را **فقط روی زیرمجموعه‌ای با سقف سخت ۱۲ URL** در یک Sandbox کاملاً مستقل اجرا می‌کند. خروجی و دیتابیس، Object Store، گزارش‌ها و Run آزمایشی در `output/<target>/js-stage-replays/<source-run>-.../` نوشته می‌شوند؛ دیتابیس و فایل‌های Run اصلی، Baseline، Latest و Alertهای اصلی بازنویسی نمی‌شوند. این ابزار جایگزین Resume روی Run قبلی نیست.
+
+برای پیش‌نمایش بدون شبکه (نام میزبان‌ها باید جداگانه مجاز و در Scope پالیسی باشند):
+
+```bash
+python3 tools/js_stage_isolated.py --run RUN_ID --target abercrombie.com \
+  --hosts giftcards.abercrombie.com track.abercrombie.com \
+  trackukqa.abercrombie.com helpsurvey.abercrombie.com
+```
+
+فقط پس از بررسی پیش‌نمایش و نبودن Run هم‌زمان، برای اجرای صریح گزینهٔ `--execute` را اضافه کنید. برنامه حداکثر ۱۲ GET در کل و سه GET برای هر میزبان، فقط برای HTTPS `.js` بدون Query String اجرا می‌کند، و نمونه‌های آزمون‌شدهٔ قبلی را از روی هش URL در گزارش‌های `js-validations` کنار می‌گذارد. درخواست‌ها تک‌به‌تک، با نرخ `request_rate` تنظیم‌شده و بدون دنبال‌کردن Redirect ارسال می‌شوند؛ دریافت 403 یا 429 جلوی درخواست‌های بعدی را می‌گیرد. Source Map، Crawl و مراحل بعدی خاموش‌اند و هیچ مقایسهٔ تاریخی معتبری با Baseline واقعی ادعا نمی‌شود. حتی اگر تمام فایل‌های زیرمجموعه موفق باشند، **وضعیت Run آزمایشی همیشه `partial` است** چون پوشش کامل اسکن را نشان نمی‌دهد. اطلاعات خام ممکن است حساس باشند؛ تنها خلاصهٔ `summary.json` را برای بررسی به‌اشتراک بگذارید.
+
 ## ۳. Queue، Worker و Resume آیتمی
 
 جدول `work_items` وضعیت هر کار را نگه می‌دارد:
