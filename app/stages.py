@@ -61,6 +61,8 @@ class StageContext:
     allow_active: bool
     budget: BudgetManager | None = None
     db_writer: DatabaseWriter | None = None
+    download_max_redirects: int = 3
+    request_gate: Callable[[str], None] | None = None
 
     def next_requested(self) -> bool:
         callback = getattr(self.runner, "next_check", None)
@@ -1239,6 +1241,9 @@ def _download_url(
     started = time.monotonic()
 
     def before_request(_candidate: str) -> None:
+        gate = getattr(ctx, "request_gate", None)
+        if callable(gate):
+            gate(_candidate)
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
 
@@ -1248,7 +1253,7 @@ def _download_url(
         headers=headers,
         max_response_bytes=max_bytes,
         timeout=min(45, max(5, ctx.policy.limits.timeout_seconds)),
-        max_redirects=max_redirects,
+        max_redirects=getattr(ctx, "download_max_redirects", max_redirects),
         user_agent=headers["User-Agent"],
         before_request=before_request,
     )
