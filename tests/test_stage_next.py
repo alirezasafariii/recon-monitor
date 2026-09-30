@@ -265,25 +265,35 @@ class StageNextTests(unittest.TestCase):
             )
 
     def test_real_subprocess_next_drains_stdout_without_a_wall_clock_deadline(self):
+        import core
         from core import CommandRunner
         runner = CommandRunner(Logger(self.paths))
         runner.next_raise = False
         ticks = {"count": 0}
+        captured = {}
+        original_popen = core.subprocess.Popen
 
         def requested():
             ticks["count"] += 1
             return ticks["count"] >= 2
 
+        def tracked_popen(*args, **kwargs):
+            proc = original_popen(*args, **kwargs)
+            captured["proc"] = proc
+            return proc
+
         runner.next_check = requested
         output = self.run_dir / "current" / "sleeping-tool.txt"
-        result = runner.run(
-            [sys.executable, "-u", "-c", "import time; print('ready', flush=True); time.sleep(30)"],
-            timeout=None, output_path=output,
-        )
+        with patch("core.subprocess.Popen", side_effect=tracked_popen):
+            result = runner.run(
+                [sys.executable, "-u", "-c", "import time; print('ready', flush=True); time.sleep(30)"],
+                timeout=None, output_path=output,
+            )
         self.assertTrue(result.operator_next)
         self.assertFalse(result.timed_out)
         self.assertEqual(result.returncode, 125)
         self.assertIn("ready", output.read_text(encoding="utf-8"))
+        self.assertTrue(captured["proc"].stdout.closed)
 
     def test_non_katana_next_is_partial_not_failed_and_next_stage_runs(self):
         orchestrator = runtime.Orchestrator(
