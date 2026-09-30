@@ -62,36 +62,66 @@ def prior_validation_hashes(paths: AppPaths, target: str, run_id: str) -> frozen
 def prior_isolated_stage_hashes(
     paths: AppPaths, target: str, run_id: str,
 ) -> frozenset[str]:
-    """Exclude all URLs selected by a prior isolated replay of this source run.
+    """Exclude URLs selected by any earlier isolated replay of this source run.
 
-    The existing sandbox's JS input file records the original submitted URL
-    set, including any URLs skipped after a safety stop. This is intentionally
-    conservative: do not silently retry a prior replay on a new --execute.
+    Completed replays carry a summary.json, while an interrupted process may
+    have already persisted javascript-urls.txt before it can write that summary.
+    Scan both forms conservatively so a later --execute does not silently retry
+    URLs merely because the earlier sandbox did not finish bookkeeping.
     """
     if not _valid_run_id(run_id):
         raise ReconError("Invalid source run ID.")
     root = paths.output / target / "js-stage-replays"
     found: set[str] = set()
-    for summary_path in root.glob(f"{run_id}-*/summary.json"):
-        try:
-            summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            if (not isinstance(summary, dict)
-                    or summary.get("source_run_id") != run_id
-                    or summary.get("target") != target
-                    or not _valid_run_id(str(summary.get("sandbox_run_id") or ""))):
-                raise ReconError("Malformed prior isolated JS stage summary.")
-            replay_root = summary_path.parent.resolve()
-            run_path = (
-                replay_root / "output" / target / "runs"
-                / str(summary["sandbox_run_id"]) / "current" / "javascript-urls.txt"
-            ).resolve()
-            if not run_path.is_relative_to(replay_root) or not run_path.is_file():
-                raise ReconError("Prior isolated JS stage URL selection is missing.")
-            for url in run_path.read_text(encoding="utf-8").splitlines():
-                if url:
-                    found.add(hashlib.sha256(url.encode("utf-8")).hexdigest())
-        except (OSError, ValueError, TypeError) as exc:
-            raise ReconError("Cannot inspect a prior isolated JS stage.") from exc
+    for replay_root in root.glob(f"{run_id}-*"):
+        if not replay_root.is_dir():
+            continue
+        resolved_root = replay_root.resolve()
+        runs_root = (replay_root / "output" / target / "runs").resolve()
+        if not runs_root.is_relative_to(resolved_root):
+            raise ReconError("Prior isolated JS stage path escaped its sandbox.")
+
+        selection_files = sorted(
+            path.resolve()
+            for path in runs_root.glob("*/current/javascript-urls.txt")
+            if path.is_file()
+        )
+        if any(not path.is_relative_to(resolved_root) for path in selection_files):
+            raise ReconError("Prior isolated JS stage URL selection escaped its sandbox.")
+
+        summary_path = replay_root / "summary.json"
+        if summary_path.is_file():
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                sandbox_run_id = str(summary.get("sandbox_run_id") or "")
+                if (not isinstance(summary, dict)
+                        or summary.get("source_run_id") != run_id
+                        or summary.get("target") != target
+                        or not _valid_run_id(sandbox_run_id)):
+                    raise ReconError("Malformed prior isolated JS stage summary.")
+                expected = (
+                    replay_root / "output" / target / "runs"
+                    / sandbox_run_id / "current" / "javascript-urls.txt"
+                ).resolve()
+                if (not expected.is_relative_to(resolved_root)
+                        or not expected.is_file()):
+                    raise ReconError("Prior isolated JS stage URL selection is missing.")
+                if expected not in selection_files:
+                    selection_files.append(expected)
+                    selection_files.sort()
+            except (OSError, ValueError, TypeError) as exc:
+                raise ReconError("Cannot inspect a prior isolated JS stage.") from exc
+
+        # No summary can mean an interrupted replay. If it persisted a JS input
+        # set, treat that set as already selected. If no set exists, there is no
+        # evidence that a network-capable JS stage reached candidate execution.
+        for run_path in selection_files:
+            try:
+                for url in run_path.read_text(encoding="utf-8").splitlines():
+                    if url:
+                        found.add(hashlib.sha256(url.encode("utf-8")).hexdigest())
+            except OSError as exc:
+                raise ReconError("Cannot inspect a prior isolated JS stage.") from exc
     return frozenset(found)
 
 
