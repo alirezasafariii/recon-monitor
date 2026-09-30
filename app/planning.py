@@ -68,8 +68,8 @@ def format_plan(plan: dict[str, Any]) -> str:
         limits = target["limits"]
         lines.extend([
             "Budgets:",
-            f"  Runtime: {limits['max_runtime_minutes']} minutes",
-            f"  HTTP requests: {limits['max_http_requests']}",
+            f"  Runtime: {limits['max_runtime_minutes']} minutes" if limits["max_runtime_minutes"] else "  Runtime: no automatic deadline",
+            f"  HTTP requests: {limits['max_http_requests']}" if limits["max_http_requests"] else "  HTTP requests: no cumulative cap (rate limited)",
             f"  DNS queries: {limits['max_dns_queries']}",
             f"  Downloads: {limits['max_download_mb']} MiB",
             f"  New assets: {limits['max_new_assets']}",

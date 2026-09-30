@@ -43,7 +43,7 @@ class BudgetManager:
     def check_runtime(self) -> None:
         limit = self.policy.limits.max_runtime_minutes * 60
         elapsed = int(time.monotonic() - self.started_monotonic)
-        if elapsed > limit:
+        if limit and elapsed > limit:
             raise BudgetExceeded("runtime_seconds", elapsed, limit)
 
     def consume(self, metric: str, amount: int = 1) -> tuple[int, int]:

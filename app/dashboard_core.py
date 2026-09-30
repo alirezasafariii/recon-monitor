@@ -960,6 +960,48 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
 </div></div></div>
 <script>
+(function(){{
+  // Keep the operator at the same reading position when a GET filter/tab
+  // reloads this pathname. New pages and explicit anchor jumps are unaffected.
+  const key='recon-same-page-scroll';
+  const here=window.location.pathname+window.location.search;
+  let saved=null;
+  try{{
+    saved=JSON.parse(sessionStorage.getItem(key)||'null');
+    sessionStorage.removeItem(key);
+  }}catch(_error){{}}
+  if(saved&&saved.next===here&&Number.isFinite(saved.y)){{
+    const restore=()=>{{
+      const root=document.documentElement, previous=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      window.scrollTo(0,saved.y);
+      requestAnimationFrame(()=>{{root.style.scrollBehavior=previous;}});
+    }};
+    restore();
+    window.addEventListener('load',restore,{{once:true}});
+  }}
+  const remember=(next)=>{{
+    try{{sessionStorage.setItem(key,JSON.stringify({{next:next,y:window.scrollY}}));}}catch(_error){{}}
+  }};
+  document.addEventListener('click',(event)=>{{
+    if(!(event.target instanceof Element)||event.defaultPrevented||event.button!==0||
+       event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+    const link=event.target.closest('.content a[href]');
+    if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
+    const next=new URL(link.href,window.location.href);
+    if(next.origin===window.location.origin&&next.pathname===window.location.pathname&&
+       next.search!==window.location.search)remember(next.pathname+next.search);
+  }},true);
+  document.addEventListener('submit',(event)=>{{
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=='get'||
+       !form.closest('.content')||(form.target&&form.target!=='_self'))return;
+    const next=new URL(form.action||window.location.href,window.location.href);
+    if(next.origin!==window.location.origin||next.pathname!==window.location.pathname)return;
+    next.search=new URLSearchParams(new FormData(form)).toString();
+    remember(next.pathname+next.search);
+  }},true);
+}})();
 window.RECON_CSRF={csrf_json};
 document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>{{if(!f.querySelector("input[name='csrf']")){{const i=document.createElement('input');i.type='hidden';i.name='csrf';i.value=window.RECON_CSRF;f.appendChild(i);}}}});
 const root=document.documentElement, savedTheme=localStorage.getItem('recon-theme'); if(savedTheme) root.dataset.theme=savedTheme;
@@ -1272,6 +1314,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "/daily": self.daily,
                 "/targets": self.targets,
                 "/runs": self.runs,
+                "/run-review": self.run_review,
                 "/compare": self.compare,
                 "/alerts": self.alerts,
                 "/signal-alerts": self.signal_alerts,
@@ -1367,6 +1410,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
         db = self.db()
         actor = getattr(self.session, "username", "dashboard") if self.session else "dashboard"
         try:
+            if path == "/run/next-stage":
+                run_id = str((data.get("run_id") or [""])[0]).strip()
+                target = str((data.get("target") or [""])[0]).strip()
+                stage = str((data.get("stage") or [""])[0]).strip()
+                attempt = parse_int((data.get("attempt") or [0])[0], 0, 0, 1000)
+                if not db.request_stage_next(run_id, target, stage, attempt, actor):
+                    self.send_html(
+                        "Stage Next rejected",
+                        "<h1>Stage Next rejected</h1><p>This run, target, stage, or attempt "
+                        "is no longer active. Reload Run review before requesting Next.</p>"
+                        "<p><a class='button' href='/runs'>Run history</a></p>",
+                        409,
+                    )
+                    return
+                self.redirect("/run-review?id=" + urllib.parse.quote(run_id)); return
             if path == "/alerts/status":
                 db.set_alert_status(
                     parse_int((data.get("id") or [0])[0], 0),
@@ -1961,6 +2019,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             # Deep diagnostics, safety/audit verification, coverage reconstruction and
             # target-memory synthesis remain available from their dedicated pages.
             snapshot=_command_center_snapshot(db,target)
+            active_runs=db.all(
+                "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
+                "JOIN runs r ON r.id=rt.run_id "
+                "WHERE r.status='running' AND rt.status='running' "
+                "AND rt.current_stage IS NOT NULL "
+                "AND (?='' OR rt.target=?) "
+                "ORDER BY rt.started_at DESC LIMIT 10",
+                (target, target),
+            )
         finally: db.close()
         data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
         controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
@@ -1989,7 +2056,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
         recent_rows=''.join(f"<tr><td><a class='row-link' href='/runs'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
         recent_panel=f"<section class='panel'><div class='panel-head'><div><h3>Recent research activity</h3><span class='muted small'>A compact operational trail — details stay in Run history.</span></div><a class='small' href='/runs'>Run history →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></section>"
         workspace_strip="<div class='workspace-strip'><a class='workspace-tile' href='/recon'><span class='workspace-tile-icon'>01</span><span><strong>Recon</strong><small>Discover and map the surface</small></span></a><a class='workspace-tile' href='/analysis'><span class='workspace-tile-icon'>02</span><span><strong>Analysis</strong><small>Understand collected evidence</small></span></a><a class='workspace-tile' href='/potential-findings'><span class='workspace-tile-icon'>03</span><span><strong>Potential Findings</strong><small>Review probable security issues</small></span></a><a class='workspace-tile' href='/alerts'><span class='workspace-tile-icon'>04</span><span><strong>Alerts</strong><small>Investigate meaningful change</small></span></a></div>"
-        body=header+hero+controls+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
+        active_rows="".join(
+            "<div class='pulse-row'><div>"
+            + f"<strong>{_esc(r['target'])}</strong><small>{_esc(r['current_stage'])} "
+            + f"· {_esc(r['run_id'])}</small></div>"
+            + f"<a class='button secondary' href='/run-review?id={urllib.parse.quote(str(r['run_id']))}'>Open Next controls</a></div>"
+            for r in active_runs
+        )
+        active_panel=(
+            "<section class='panel' style='margin:16px 0'>"
+            "<div class='panel-head'><h3>Running stages</h3>"
+            "<span class='muted small'>Next saves partial evidence and advances to the next stage.</span></div>"
+            + "<div class='panel-body'>" + active_rows + "</div></section>"
+        ) if active_rows else ""
+        body=header+hero+controls+active_panel+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
         self.send_html('Command center',body)
 
     def workbench(self) -> None:
@@ -2422,6 +2502,147 @@ class DashboardHandler(BaseHTTPRequestHandler):
         body="".join(f"<tr><td>{_esc(r['target'])}</td><td>{r['assets']}</td><td>{r['resolved']}</td><td>{r['confidence']}</td><td>{_esc(r['first_seen'])}</td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
         self.send_html("Targets",f"<h1>Targets</h1><table><thead><tr><th>Target</th><th>Assets</th><th>Resolved</th><th>Confidence</th><th>First</th><th>Last</th></tr></thead><tbody>{body}</tbody></table>")
 
+    def run_review(self) -> None:
+        """Show collector quality separately from overall orchestration status."""
+        run_id = str((self.query().get("id") or [""])[0]).strip()[:120]
+        if not run_id:
+            self.send_html("Run review", "<h1>Select a run from Run history</h1>", 400)
+            return
+        db = self.db()
+        try:
+            run = db.one(
+                "SELECT id,status,started_at,finished_at,error FROM runs WHERE id=?",
+                (run_id,),
+            )
+            stages = db.all(
+                "SELECT target,stage,status,exit_code,duration_seconds,metrics_json "
+                "FROM stage_runs WHERE run_id=? ORDER BY target,started_at,stage",
+                (run_id,),
+            ) if run else []
+            live_stages = db.all(
+                "SELECT rt.target,rt.current_stage stage,sr.attempt,"
+                "nr.requested_at next_requested_at "
+                "FROM run_targets rt "
+                "JOIN stage_runs sr ON sr.run_id=rt.run_id AND sr.target=rt.target "
+                "AND sr.stage=rt.current_stage AND sr.status='running' "
+                "LEFT JOIN stage_next_requests nr ON nr.run_id=sr.run_id AND nr.target=sr.target "
+                "AND nr.stage=sr.stage AND nr.attempt=sr.attempt "
+                "WHERE rt.run_id=? AND rt.status='running' AND rt.current_stage IS NOT NULL "
+                "AND sr.stage<>'report'",
+                (run_id,),
+            ) if run and str(run["status"]) == "running" else []
+        finally:
+            db.close()
+        if not run:
+            self.send_html("Run not found", "<h1>Run not found</h1>", 404)
+            return
+
+        live_controls = []
+        for active in live_stages:
+            if active["next_requested_at"]:
+                control = "<strong>Next requested — waiting for a safe checkpoint.</strong>"
+            else:
+                control = (
+                    "<form method='post' action='/run/next-stage'>"
+                    + f"<input type='hidden' name='run_id' value='{_esc(run_id)}'>"
+                    + f"<input type='hidden' name='target' value='{_esc(active['target'])}'>"
+                    + f"<input type='hidden' name='stage' value='{_esc(active['stage'])}'>"
+                    + f"<input type='hidden' name='attempt' value='{int(active['attempt'])}'>"
+                    + "<button type='submit' class='secondary'>Next stage</button></form>"
+                )
+            live_controls.append(
+                "<section class='panel' style='padding:14px'>"
+                + f"<h3>Running: {_esc(active['target'])} / {_esc(active['stage'])}</h3>"
+                + "<p class='muted'>Next preserves existing evidence, marks this stage partial, "
+                + "and proceeds to the next stage. This does not certify complete coverage.</p>"
+                + control + "</section>"
+            )
+
+        items = []
+        partial_count = 0
+        no_input_count = 0
+        for row in stages:
+            try:
+                metrics = json.loads(row["metrics_json"] or "{}")
+                if not isinstance(metrics, dict):
+                    metrics = {}
+            except (TypeError, ValueError):
+                metrics = {}
+            stage_name = str(row["stage"])
+            raw_status = str(row["status"])
+            quality = str(metrics.get("collection_status") or "")
+            if raw_status == "partial" or quality == "partial":
+                partial_count += 1
+                label = "Partial"
+            elif quality == "no_input":
+                no_input_count += 1
+                label = "No input"
+            else:
+                label = raw_status.replace("_", " ").title()
+
+            highlights = []
+            if stage_name == "urls":
+                highlights.append(f"URLs: {metrics.get('urls', '—')}")
+                if "katana_status" in metrics:
+                    highlights.append(
+                        f"Katana: {metrics['katana_status']} "
+                        f"(exit {metrics.get('katana_exit_code', '—')}; "
+                        f"{metrics.get('katana_duration_seconds', '—')}s)"
+                    )
+                else:
+                    highlights.append("Katana tool outcome was not recorded for this run")
+            elif stage_name == "javascript":
+                highlights.append(f"JS inputs: {metrics.get('files', '—')}")
+                highlights.append(f"Downloaded: {metrics.get('downloaded', '—')}")
+            elif stage_name == "nuclei":
+                highlights.append(f"Targets: {metrics.get('targets', '—')}")
+                highlights.append(f"Findings: {metrics.get('findings', '—')}")
+
+            detail = (
+                "<div class='muted small' style='margin:8px 0'>"
+                + _esc(" · ".join(highlights))
+                + "</div>"
+                + "<pre style='overflow:auto;white-space:pre-wrap'>"
+                + _esc(json.dumps(metrics, ensure_ascii=False, indent=2))
+                + "</pre>"
+            )
+            items.append(
+                "<details class='panel' style='margin:8px 0;padding:12px'>"
+                "<summary style='cursor:pointer'>"
+                + f"<strong>{_esc(row['target'])} · {_esc(stage_name)}</strong>"
+                + f" — {_esc(label)}"
+                + f" <small class='muted'>({_esc(round(float(row['duration_seconds'] or 0), 2))}s)</small>"
+                + "</summary>" + detail + "</details>"
+            )
+
+        if str(run["status"]) == "running":
+            summary = "Run is in progress; stage outcomes may change."
+        elif partial_count:
+            summary = f"Run finished; {partial_count} collection stage(s) incomplete."
+        elif str(run["status"]) != "success":
+            summary = f"Run status: {run['status']}."
+        else:
+            summary = "Run finished. Completion of the entire target cannot be established."
+        note = (
+            f"{no_input_count} stage(s) had no input. " if no_input_count else ""
+        ) + "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
+        header = _page_header(
+            "Run review", "Execution state and observed collection quality.",
+            "<a class='button secondary' href='/runs'>Run history</a>",
+            "Operations",
+        )
+        body = (
+            header
+            + "<section class='panel' style='padding:16px'>"
+            + f"<h2>{_esc(summary)}</h2>"
+            + f"<p><code>{_esc(run_id)}</code> · {_esc(run['status'])}</p>"
+            + f"<p class='muted'>{_esc(note)}</p>"
+            + "</section>"
+            + "".join(live_controls)
+            + ("".join(items) if items else "<p class='muted'>No stage results recorded yet.</p>")
+        )
+        self.send_html("Run review", body)
+
     def runs(self) -> None:
         p=self.query();q=str((p.get('q')or[''])[0]).strip();status=str((p.get('status')or[''])[0]);target=str((p.get('target')or[''])[0]);error_state=str((p.get('error')or[''])[0]);sort=str((p.get('sort')or['newest'])[0]);days=parse_int((p.get('days')or[0])[0],0,0,3650)
         where=[];args=[]
@@ -2443,7 +2664,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search runs<input name='q' value='{_esc(q)}' placeholder='Run ID, selector or error'></label><label>Status{_select('status',statuses,status,'Any status')}</label><label>Target{_select('target',targets,target,'All targets')}</label><label>Error{_select_pairs('error',[('yes','Has error'),('no','No error')],error_state,'Any')}</label><label>Started{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Newest first')}</label>"
         controls=_filter_panel(fields,{'Search':q,'Status':status,'Target':target,'Error':dict([('yes','Has error'),('no','No error')]).get(error_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='newest' else ''},'/runs',title='Run filters',result_count=len(rows))
-        body="".join(f"<tr><td><code>{_esc(r['id'])}</code></td><td>{_pill(r['status'])}</td><td>{_esc(r['started_at'])}</td><td>{_esc(r['finished_at'])}</td><td>{r['target_count']}<br><span class='muted small'>{_esc(r['targets'] or r['target_selector'] or '')}</span></td><td><code>{_esc(r['resumed_from'])}</code></td><td class='muted'>{_esc(r['error'])}</td><td><a class='button ghost' href='/report/{urllib.parse.quote(str(r['id']))}'>Report</a></td></tr>" for r in rows)
+        body="".join(f"<tr><td><code>{_esc(r['id'])}</code></td><td>{_pill(r['status'])}</td><td>{_esc(r['started_at'])}</td><td>{_esc(r['finished_at'])}</td><td>{r['target_count']}<br><span class='muted small'>{_esc(r['targets'] or r['target_selector'] or '')}</span></td><td><code>{_esc(r['resumed_from'])}</code></td><td class='muted'>{_esc(r['error'])}</td><td><a class='button ghost' href='/run-review?id={urllib.parse.quote(str(r['id']))}'>Review</a> <a class='button ghost' href='/report/{urllib.parse.quote(str(r['id']))}'>Report</a></td></tr>" for r in rows)
         header=_page_header("Run history", "Collection and analysis executions with status, target, resume lineage, error and time filters.", "<a class='button secondary' href='/compare'>Compare runs</a><a class='button' href='/health'>Health</a>", "Operations")
         self.send_html("Runs",header+controls+f"<div class='table-wrap'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th><th>Resumed from</th><th>Error</th><th></th></tr></thead><tbody>{body or '<tr><td colspan=8>No runs match the filters</td></tr>'}</tbody></table></div>")
 

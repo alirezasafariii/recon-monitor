@@ -14,7 +14,7 @@ from typing import Any, Mapping
 from core import atomic_write_text, json_dumps, safe_json_loads, utc_now
 
 COLLECTION_QUALITY_VERSION = "1.0.0"
-COLLECTION_QUALITY_RULE_VERSION = "2026.08.16.1"
+COLLECTION_QUALITY_RULE_VERSION = "2026.09.20.1"
 DIMENSION_STATUSES = {
     "complete",
     "partial",
@@ -23,6 +23,7 @@ DIMENSION_STATUSES = {
     "skipped",
     "unavailable",
     "unknown",
+    "no_input",
 }
 
 
@@ -122,7 +123,10 @@ def _base_dimension(ctx: Any, stage: str, *, enabled: bool) -> tuple[dict[str, A
     if stage_status == "success":
         return base, record
 
-    if stage_status == "failed":
+    if stage_status == "partial":
+        base["status"] = "partial"
+        base["reason"] = "Collection stage preserved partial evidence."
+    elif stage_status == "failed":
         base["status"] = "failed"
         base["reason"] = "Collection stage failed."
     elif stage_status in {"running", "pending", "queued"}:
@@ -173,10 +177,20 @@ def _dns_dimension(ctx: Any) -> dict[str, Any]:
 
 def _urls_dimension(ctx: Any) -> dict[str, Any]:
     base, record = _base_dimension(ctx, "urls", enabled=_module_enabled(ctx, "urls", True))
-    if record is None:
+    if record is None and base["status"] != "partial":
         return base
 
-    metrics = record["metrics"]
+    metrics = base["metrics"]
+    katana_status = str(metrics.get("katana_status") or "not_recorded")
+    base["katana_status"] = katana_status
+    base["katana_stop_reason"] = str(metrics.get("katana_stop_reason") or "")
+    if (base["status"] == "partial" or metrics.get("collection_status") == "partial"
+            or katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "tool_missing", "partial"}):
+        base["status"] = "partial"
+        base["collected"] = _int(metrics.get("urls"))
+        base["reason"] = f"URL collection is incomplete; Katana: {katana_status}."
+        base["not_collected"] = ["incomplete_katana_crawl"]
+        return base
     if "truncated" not in metrics or "urls" not in metrics:
         base["status"] = "unknown"
         base["reason"] = (
@@ -193,6 +207,12 @@ def _urls_dimension(ctx: Any) -> dict[str, Any]:
     if truncated:
         base["status"] = "partial"
         base["reason"] = "URL discovery exceeded the configured maximum and was truncated."
+    elif katana_status == "not_recorded":
+        base["status"] = "unknown"
+        base["reason"] = "Katana tool outcomes were not recorded; URL count alone does not establish collection quality."
+    elif katana_status == "no_input":
+        base["status"] = "no_input"
+        base["reason"] = "Katana had no live input origins."
     else:
         base["status"] = "complete"
         base["reason"] = "URL collection completed without recorded truncation."
@@ -205,12 +225,12 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
         "javascript",
         enabled=_module_enabled(ctx, "javascript", True),
     )
-    if record is None:
+    if record is None and base["status"] != "partial":
         return base
 
-    metrics = record["metrics"]
+    metrics = base["metrics"]
     if "files" not in metrics or "downloaded" not in metrics:
-        base["status"] = "unknown"
+        base["status"] = "partial" if base["status"] == "partial" else "unknown"
         base["reason"] = (
             "JavaScript stage succeeded but historical metrics do not contain "
             "files/downloaded completeness metadata."
@@ -221,7 +241,7 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
     downloaded = _int(metrics.get("downloaded"))
     no_work = files == 0 and downloaded == 0
     if "errors" not in metrics and not no_work:
-        base["status"] = "unknown"
+        base["status"] = "partial" if base["status"] == "partial" else "unknown"
         base["reason"] = (
             "JavaScript stage succeeded but historical metrics do not contain "
             "error completeness metadata for a non-empty collection."
@@ -230,9 +250,17 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
 
     errors = _int(metrics.get("errors"), 0)
     limit = _limit(ctx, "max_js_files")
-    truncation_possible = bool(limit and files >= limit)
+    truncation_possible = (
+        bool(_int(metrics.get("javascript_dropped_by_file_limit")))
+        if "javascript_dropped_by_file_limit" in metrics else bool(limit and files >= limit)
+    )
     reasons: list[str] = []
     not_collected: list[str] = []
+    if base["status"] == "partial" or metrics.get("collection_status") == "partial":
+        reasons.append("collector or upstream input was incomplete")
+    recorded_reasons = metrics.get("collection_reasons")
+    if isinstance(recorded_reasons, list):
+        base["collection_reasons"] = [str(reason) for reason in recorded_reasons]
 
     if downloaded < files:
         reasons.append(f"downloaded {downloaded}/{files} selected JavaScript files")
@@ -257,8 +285,12 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
         base["status"] = "partial"
         base["reason"] = "; ".join(reasons) + "."
     elif no_work:
-        base["status"] = "complete"
-        base["reason"] = "JavaScript stage completed successfully with no selected JavaScript files."
+        base["status"] = "no_input" if metrics.get("collection_status") == "no_input" else "unknown"
+        base["reason"] = (
+            "No JavaScript URLs were classified; this does not establish complete JavaScript coverage."
+            if base["status"] == "no_input" else
+            "Zero selected JavaScript files were recorded without an input diagnosis."
+        )
     else:
         base["status"] = "complete"
         base["reason"] = "Selected JavaScript collection completed without recorded gaps."

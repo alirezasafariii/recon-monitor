@@ -27,6 +27,7 @@ from core import (  # noqa: E402
     Config,
     Database,
     Logger,
+    NextStageRequested,
     PolicySet,
     Progress,
     process_alive,
@@ -264,7 +265,7 @@ class Orchestrator:
     ) -> tuple[str, dict[str, Any]]:
         self.progress.configure(target_index, target_total, stage_index, stage_total, label)
         prior = self.db.stage_status(ctx.run_id, ctx.policy.name, stage_name)
-        if resume and prior == "success":
+        if resume and prior == "success" and stage_name != "report":
             metrics_row = self.db.one(
                 "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
                 (ctx.run_id, ctx.policy.name, stage_name),
@@ -287,6 +288,11 @@ class Orchestrator:
         last_error = ""
         for attempt in range(1, attempts + 1):
             self.db.stage_begin(ctx.run_id, ctx.policy.name, stage_name, attempt)
+            # Next is scoped to exactly this run, target, stage and attempt.
+            self.runner.next_check = lambda: self.db.stage_next_requested(
+                ctx.run_id, ctx.policy.name, stage_name, attempt,
+            )
+            self.runner.next_raise = stage_name != "urls"
             started = time.monotonic()
             try:
                 if stage_name == "report":
@@ -294,15 +300,48 @@ class Orchestrator:
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
                 duration = time.monotonic() - started
+                if self.db.stage_next_requested(
+                    ctx.run_id, ctx.policy.name, stage_name, attempt,
+                ):
+                    metrics["collection_status"] = "partial"
+                    metrics["stop_reason"] = "operator_next"
+                    metrics["pending_stage_resume"] = stage_name != "urls"
+                # A collector may preserve useful output while its underlying
+                # tool times out. Persist that quality separately from the
+                # orchestration result so downstream stages can still run.
+                collection_status = str(metrics.get("collection_status") or "")
+                persisted_status = "partial" if collection_status == "partial" else "success"
                 self.db.stage_finish(
                     ctx.run_id,
                     ctx.policy.name,
                     stage_name,
-                    "success",
+                    persisted_status,
                     duration=duration,
                     metrics=metrics,
                 )
-                self.progress.finish_stage("ok", metrics)
+                progress_status = (
+                    "partial" if persisted_status == "partial" else
+                    "no-input" if collection_status == "no_input" else "ok"
+                )
+                self.progress.finish_stage(progress_status, metrics)
+                return "success", metrics
+            except NextStageRequested:
+                # The active tool's stdout has already been flushed to its
+                # per-run output file. Do not retry, report success, or use
+                # the incomplete stage as a clean comparison baseline.
+                duration = time.monotonic() - started
+                metrics = {
+                    "collection_status": "partial",
+                    "stop_reason": "operator_next",
+                    "pending_stage_resume": True,
+                    "evidence_directory": str(ctx.current),
+                }
+                self.db.stage_finish(
+                    ctx.run_id, ctx.policy.name, stage_name, "partial",
+                    exit_code=125, duration=duration, metrics=metrics,
+                    error="operator_next",
+                )
+                self.progress.finish_stage("partial", metrics)
                 return "success", metrics
             except KeyboardInterrupt:
                 duration = time.monotonic() - started
@@ -370,6 +409,14 @@ class Orchestrator:
                 if existing:
                     run_dir = Path(str(existing["run_dir"]))
                     baseline = bool(existing["baseline"])
+                    if resume_id:
+                        # A finished partial target becomes live again during
+                        # --resume; dashboard controls must follow its new stage.
+                        self.db.execute(
+                            "UPDATE run_targets SET status='running',current_stage=NULL,"
+                            "finished_at=NULL WHERE run_id=? AND target=?",
+                            (run_id, policy.name),
+                        )
                 else:
                     run_dir = self.paths.output / policy.name / "runs" / run_id
                     baseline = not self.db.target_has_history(policy.name)
@@ -393,11 +440,20 @@ class Orchestrator:
                     self.db_writer,
                 )
                 target_failed = False
+                target_partial = False
                 report_ran = False
+                # On --resume, a previously partial collector may discover
+                # additional inputs. Re-run every dependent downstream stage
+                # instead of incorrectly keeping its earlier "success".
+                replay_downstream = False
                 for stage_index, (stage_name, label) in enumerate(STAGES, 1):
                     if target_failed and stage_name != "report":
                         # Persist explicit skipped state so resume can continue at the failed stage.
                         continue
+                    if resume_id and self.db.stage_status(
+                        run_id, policy.name, stage_name,
+                    ) != "success":
+                        replay_downstream = True
                     status, _metrics = self._run_stage(
                         ctx,
                         stage_name,
@@ -407,18 +463,21 @@ class Orchestrator:
                         target_index,
                         len(targets),
                         baseline,
-                        bool(resume_id),
+                        bool(resume_id) and not replay_downstream,
                     )
                     if stage_name == "report":
                         report_ran = True
                     if status != "success" and stage_name != "report":
                         target_failed = True
+                    if _metrics.get("collection_status") == "partial":
+                        target_partial = True
                 if target_failed and not report_ran:
                     # Should not normally happen, but preserve partial reporting.
                     with contextlib.suppress(Exception):
                         self._run_stage(ctx, "report", STAGES[-1][1], len(STAGES), len(STAGES), target_index, len(targets), baseline, False)
-                self.db.finish_run_target(run_id, policy.name, "failed" if target_failed else "success")
-                failures += int(target_failed)
+                target_outcome = "failed" if target_failed else "partial" if target_partial else "success"
+                self.db.finish_run_target(run_id, policy.name, target_outcome)
+                failures += int(target_outcome != "success")
                 self._update_latest_pointers(policy.name, run_dir)
                 print(f"  Results: {run_dir}\n")
             status = "success" if failures == 0 else "partial"

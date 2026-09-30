@@ -473,8 +473,8 @@ class TargetPolicy:
             http_threads=parse_int(raw_limits.get("http_threads"), 20, 1, 100),
             naabu_rate=parse_int(raw_limits.get("naabu_rate"), 50, 1, 500),
             nuclei_rate=parse_int(raw_limits.get("nuclei_rate"), 3, 1, 50),
-            max_runtime_minutes=parse_int(raw_limits.get("max_runtime_minutes"), 120, 5, 1440),
-            max_http_requests=parse_int(raw_limits.get("max_http_requests"), 10000, 100, 1000000),
+            max_runtime_minutes=parse_int(raw_limits.get("max_runtime_minutes"), 120, 0, 1440),
+            max_http_requests=parse_int(raw_limits.get("max_http_requests"), 10000, 0, 1000000),
             max_dns_queries=parse_int(raw_limits.get("max_dns_queries"), 5000, 100, 1000000),
             max_download_mb=parse_int(raw_limits.get("max_download_mb"), 500, 10, 100000),
             max_new_assets=parse_int(raw_limits.get("max_new_assets"), 5000, 10, 1000000),
@@ -649,6 +649,16 @@ class Database:
               duration_seconds REAL,
               metrics_json TEXT,
               error TEXT,
+              PRIMARY KEY(run_id,target,stage),
+              FOREIGN KEY(run_id,target) REFERENCES run_targets(run_id,target) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS stage_next_requests (
+              run_id TEXT NOT NULL,
+              target TEXT NOT NULL,
+              stage TEXT NOT NULL,
+              attempt INTEGER NOT NULL,
+              requested_at TEXT NOT NULL,
+              actor TEXT NOT NULL,
               PRIMARY KEY(run_id,target,stage),
               FOREIGN KEY(run_id,target) REFERENCES run_targets(run_id,target) ON DELETE CASCADE
             );
@@ -1858,7 +1868,7 @@ class Database:
             used = int(row["used"]) + amount
             limit_value = int(row["limit_value"])
             self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used,utc_now(),run_id,target,metric))
-        return used, limit_value, used <= limit_value
+        return used, limit_value, limit_value == 0 or used <= limit_value
 
     def enqueue_work(self, run_id: str, target: str, stage: str, item_key: str, payload: Mapping[str, Any] | None = None) -> int:
         now = utc_now()
@@ -2061,6 +2071,11 @@ class Database:
         )
 
     def stage_begin(self, run_id: str, target: str, stage: str, attempt: int) -> None:
+        # A request must never leak across stage retries or --resume.
+        self.execute(
+            "DELETE FROM stage_next_requests WHERE run_id=? AND target=? AND stage=?",
+            (run_id, target, stage),
+        )
         now = utc_now()
         self.execute(
             """
@@ -2112,6 +2127,43 @@ class Database:
             """,
             (status, utc_now(), utc_now(), exit_code, duration, json_dumps(metrics or {}), error, run_id, target, stage),
         )
+
+    def request_stage_next(
+        self, run_id: str, target: str, stage: str, attempt: int, actor: str,
+    ) -> bool:
+        """Atomically reject stale, completed, cross-target and wrong-attempt controls."""
+        if stage == "report" or not run_id or not target or not stage or attempt < 1:
+            return False
+        with self.transaction():
+            row = self.one(
+                "SELECT 1 FROM runs r JOIN run_targets rt ON rt.run_id=r.id "
+                "JOIN stage_runs sr ON sr.run_id=rt.run_id AND sr.target=rt.target "
+                "WHERE r.id=? AND rt.target=? AND rt.current_stage=? "
+                "AND r.status='running' AND rt.status='running' "
+                "AND sr.stage=? AND sr.status='running' AND sr.attempt=?",
+                (run_id, target, stage, stage, attempt),
+            )
+            if not row:
+                return False
+            self.execute(
+                "INSERT INTO stage_next_requests(run_id,target,stage,attempt,requested_at,actor) "
+                "VALUES(?,?,?,?,?,?) ON CONFLICT(run_id,target,stage) DO NOTHING",
+                (run_id, target, stage, attempt, utc_now(), actor[:120]),
+            )
+        return True
+
+    def stage_next_requested(self, run_id: str, target: str, stage: str, attempt: int) -> bool:
+        """Use an independent read-only connection; also safe in the tool watchdog."""
+        connection = sqlite3.connect(self.path, timeout=2)
+        try:
+            row = connection.execute(
+                "SELECT 1 FROM stage_next_requests WHERE run_id=? AND target=? "
+                "AND stage=? AND attempt=?",
+                (run_id, target, stage, attempt),
+            ).fetchone()
+            return row is not None
+        finally:
+            connection.close()
 
     def stage_status(self, run_id: str, target: str, stage: str) -> str | None:
         row = self.one("SELECT status FROM stage_runs WHERE run_id=? AND target=? AND stage=?", (run_id, target, stage))
@@ -2982,6 +3034,10 @@ def redact_command_args(args: Sequence[str]) -> list[str]:
     return redacted
 
 
+class NextStageRequested(Exception):
+    """An operator requested a partial checkpoint and transition to the next stage."""
+
+
 @dataclasses.dataclass(slots=True)
 class CommandResult:
     args: list[str]
@@ -2990,6 +3046,7 @@ class CommandResult:
     lines: int
     timed_out: bool
     output_path: Path | None
+    operator_next: bool = False
 
 
 class CommandRunner:
@@ -2998,6 +3055,8 @@ class CommandRunner:
         self.db = db
         self._active: subprocess.Popen[str] | None = None
         self._stop = threading.Event()
+        self.next_check: Callable[[], bool] | None = None
+        self.next_raise = True
 
     def terminate_active(self) -> None:
         self._stop.set()
@@ -3017,7 +3076,7 @@ class CommandRunner:
         *,
         cwd: Path | None = None,
         env: Mapping[str, str] | None = None,
-        timeout: int = 600,
+        timeout: float | None = 600,
         output_path: Path | None = None,
         line_callback: Callable[[str, int], None] | None = None,
         heartbeat: Callable[[], None] | None = None,
@@ -3028,6 +3087,7 @@ class CommandRunner:
         started = time.monotonic()
         lines = 0
         timed_out = False
+        operator_next = False
         output_handle = None
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3058,7 +3118,7 @@ class CommandRunner:
             proc.stdin.close()
 
         def watchdog() -> None:
-            nonlocal timed_out
+            nonlocal timed_out, operator_next
             heartbeat_interval = 5.0
             next_heartbeat = time.monotonic()
             while proc.poll() is None and not self._stop.wait(0.5):
@@ -3073,7 +3133,22 @@ class CommandRunner:
                             error=str(exc),
                         )
                     next_heartbeat = now + heartbeat_interval
-                if now - started > timeout:
+                if self.next_check is not None:
+                    try:
+                        operator_next = bool(self.next_check())
+                    except Exception as exc:
+                        self.logger.warn("Stage Next poll failed", error=str(exc))
+                    if operator_next:
+                        with contextlib.suppress(ProcessLookupError):
+                            os.killpg(proc.pid, signal.SIGTERM)
+                        # Drain and preserve output before force-killing a
+                        # child that does not honor SIGTERM.
+                        time.sleep(1)
+                        if proc.poll() is None:
+                            with contextlib.suppress(ProcessLookupError):
+                                os.killpg(proc.pid, signal.SIGKILL)
+                        break
+                if timeout is not None and now - started > timeout:
                     timed_out = True
                     with contextlib.suppress(ProcessLookupError):
                         os.killpg(proc.pid, signal.SIGTERM)
@@ -3105,6 +3180,8 @@ class CommandRunner:
         duration = time.monotonic() - started
         if timed_out:
             returncode = 124
+        if operator_next:
+            returncode = 125
         self.logger.info(
             "Tool finished",
             command=display_command,
@@ -3112,8 +3189,14 @@ class CommandRunner:
             duration_seconds=round(duration, 3),
             lines=lines,
             timed_out=timed_out,
+            operator_next=operator_next,
         )
-        return CommandResult(list(args), returncode, duration, lines, timed_out, output_path)
+        if operator_next and self.next_raise:
+            raise NextStageRequested("operator_next")
+        return CommandResult(
+            list(args), returncode, duration, lines, timed_out, output_path,
+            operator_next=operator_next,
+        )
 
 
 class Progress:
