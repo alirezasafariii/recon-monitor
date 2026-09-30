@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import socket
 import time
 import urllib.parse
 from dataclasses import dataclass
@@ -262,6 +263,28 @@ def _dns_values(row: Mapping[str, Any], rrtype: str) -> tuple[str, set[str]]:
     return host, values
 
 
+def _dns_tool_outcome(result: Any, output: Path, input_hosts: int) -> dict[str, Any]:
+    timed_out = bool(getattr(result, "timed_out", False))
+    if bool(getattr(result, "operator_next", False)):
+        stop_reason = "operator_next"
+    elif timed_out:
+        stop_reason = "timeout"
+    elif result.returncode != 0:
+        stop_reason = "nonzero_exit"
+    elif not output.exists():
+        stop_reason = "output_missing"
+    else:
+        stop_reason = "completed"
+    return {
+        "input_hosts": input_hosts,
+        "exit_code": result.returncode,
+        "timed_out": timed_out,
+        "duration_seconds": round(float(getattr(result, "duration", 0)), 3),
+        "lines": int(getattr(result, "lines", 0)),
+        "stop_reason": stop_reason,
+    }
+
+
 def stage_dns(ctx: StageContext) -> dict[str, Any]:
     hosts_path = ctx.current / "subdomains.txt"
     hosts = _scope_hosts(ctx.policy, hosts_path.read_text(encoding="utf-8", errors="replace").splitlines() if hosts_path.exists() else ctx.policy.roots)
@@ -276,6 +299,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     previous = {(str(row["host"]), str(row["rrtype"]), str(row["value"])) for row in previous_rows}
     current_records: set[tuple[str, str, str]] = set()
     successful_rrtypes: set[str] = set()
+    failed_rrtypes: set[str] = set()
+    collection_reasons: set[str] = set()
+    query_outcomes: list[dict[str, Any]] = []
+    wildcard_outcomes: list[dict[str, Any]] = []
+    fallback_failures: list[dict[str, Any]] = []
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
     wildcard_classification_complete = False
@@ -302,9 +330,12 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
                 line_callback=lambda _line, count: ctx.progress.update(count, len(hosts), "wildcard filtering"),
             )
-            if result.returncode == 0 and root_output.exists():
+            outcome = {"root": root, **_dns_tool_outcome(result, root_output, len(root_hosts))}
+            wildcard_outcomes.append(outcome)
+            if outcome["stop_reason"] == "completed":
                 filtered_hosts.update(_scope_hosts(ctx.policy, root_output.read_text(encoding="utf-8", errors="replace").splitlines()))
             else:
+                collection_reasons.add("dns_wildcard_" + outcome["stop_reason"])
                 wildcard_classification_complete = False
                 filtered_hosts.update(root_hosts)
         wildcard_candidates = set(hosts) - filtered_hosts
@@ -333,8 +364,14 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
                 line_callback=lambda _line, count, t=rrtype: ctx.progress.update(count, len(hosts), f"query {t}"),
             )
-            if result.returncode != 0:
-                ctx.logger.warn("dnsx query failed; previous records of this type will not be retired", target=ctx.policy.name, rrtype=rrtype, exit=result.returncode)
+            outcome = {"rrtype": rrtype, **_dns_tool_outcome(
+                result, out, len(ctx.policy.roots) if rrtype == "NS" else len(hosts),
+            )}
+            query_outcomes.append(outcome)
+            if outcome["stop_reason"] != "completed":
+                failed_rrtypes.add(rrtype)
+                collection_reasons.add("dns_query_" + outcome["stop_reason"])
+                ctx.logger.warn("dnsx query failed; previous records of this type will not be retired", target=ctx.policy.name, rrtype=rrtype, exit=result.returncode, stop_reason=outcome["stop_reason"])
                 continue
             successful_rrtypes.add(rrtype)
             for row in read_jsonl(out):
@@ -347,14 +384,26 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                         resolved_hosts.add(host)
     else:
         ctx.logger.warn("dnsx missing; using system resolver fallback", target=ctx.policy.name)
-        successful_rrtypes.update({"A", "AAAA"})
         for index, host in enumerate(hosts, 1):
-            values = query_host_records_fallback(host)
+            try:
+                values = query_host_records_fallback(host)
+            except socket.gaierror as exc:
+                fallback_failures.append({"host": host, "error_code": exc.errno, "error": str(exc)})
+                ctx.logger.warn("System DNS query failed; previous address records will not be retired", target=ctx.policy.name, host=host, error=str(exc))
+                ctx.progress.update(index, len(hosts), "system DNS")
+                continue
             for rrtype, records in values.items():
                 for value in records:
                     current_records.add((host, rrtype, value))
                     resolved_hosts.add(host)
             ctx.progress.update(index, len(hosts), "system DNS")
+        if fallback_failures:
+            # Finalization is type-wide. Keep both address types current when
+            # even one host failed, while retaining positive answers above.
+            failed_rrtypes.update({"A", "AAAA"})
+            collection_reasons.add("system_resolver_error")
+        else:
+            successful_rrtypes.update({"A", "AAAA"})
 
     comparable_previous = {record for record in previous if record[1] in successful_rrtypes}
     comparable_current = {record for record in current_records if record[1] in successful_rrtypes}
@@ -389,6 +438,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         + "".join(f"removed\t{h}\t{t}\t{v}\n" for h, t, v in sorted(removed_records)),
     )
     return {
+        "collection_status": "partial" if collection_reasons else "completed",
+        "collection_reasons": sorted(collection_reasons),
         "hosts": len(hosts),
         "resolved": len(resolved_hosts),
         "records": len(current_records),
@@ -398,6 +449,10 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "wildcard_resolved": len(wildcard_candidates & resolved_hosts),
         "wildcard_classification_complete": wildcard_classification_complete,
         "successful_rrtypes": sorted(successful_rrtypes),
+        "failed_rrtypes": sorted(failed_rrtypes),
+        "dns_query_outcomes": query_outcomes,
+        "dns_wildcard_outcomes": wildcard_outcomes,
+        "dns_fallback_failures": fallback_failures,
     }
 
 
