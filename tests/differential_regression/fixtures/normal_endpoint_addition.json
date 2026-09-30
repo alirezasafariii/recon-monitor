@@ -1,0 +1,13 @@
+{
+  "name": "normal_endpoint_addition",
+  "before": {
+    "exists": false
+  },
+  "after": {
+    "exists": true,
+    "path": "/health"
+  },
+  "expected": {
+    "signals": []
+  }
+}

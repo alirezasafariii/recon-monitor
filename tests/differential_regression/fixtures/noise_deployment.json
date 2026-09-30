@@ -1,0 +1,12 @@
+{
+  "name": "harmless_deployment_change",
+  "before": {
+    "status_code": 200,
+    "response_size": 10000
+  },
+  "after": {
+    "status_code": 200,
+    "response_size": 10120
+  },
+  "expected_signals": []
+}
