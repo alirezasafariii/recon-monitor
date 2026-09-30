@@ -2223,8 +2223,15 @@ class Database:
         return row is None
 
     def finalize_dns_current(self, target: str, run_id: str, rrtypes: Iterable[str] | None = None) -> None:
-        types = sorted({str(x).upper() for x in (rrtypes or [])})
-        if types:
+        """Retire stale records only for successfully collected record types.
+
+        None retains the legacy all-types behavior. An explicit empty iterable
+        means no query completed, so there is no evidence to retire any record.
+        """
+        if rrtypes is not None:
+            types = sorted({str(x).upper() for x in rrtypes})
+            if not types:
+                return
             placeholders = ",".join("?" for _ in types)
             self.execute(
                 f"UPDATE dns_records SET is_current=0 WHERE target=? AND rrtype IN ({placeholders}) AND COALESCE(last_run_id,'')<>?",
@@ -3635,8 +3642,12 @@ def query_host_records_fallback(host: str) -> dict[str, set[str]]:
                 result["A"].add(value)
             elif family == socket.AF_INET6:
                 result["AAAA"].add(value)
-    except socket.gaierror:
-        pass
+    except socket.gaierror as exc:
+        # A nonexistent host / absent address is a valid negative answer.
+        # Resolver failures (for example EAI_AGAIN) are not absence evidence.
+        no_answer_codes = {socket.EAI_NONAME, getattr(socket, "EAI_NODATA", socket.EAI_NONAME)}
+        if exc.errno not in no_answer_codes:
+            raise
     return result
 
 
