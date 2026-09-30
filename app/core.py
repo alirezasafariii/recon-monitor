@@ -3173,6 +3173,12 @@ class CommandRunner:
             returncode = proc.wait()
         finally:
             watcher.join(timeout=1)
+            # Popen does not automatically close the parent-side stdout pipe.
+            # Close it deterministically after draining/waiting so repeated
+            # subprocess runs do not rely on garbage collection and emit
+            # ResourceWarning for an unclosed TextIOWrapper.
+            if proc.stdout is not None:
+                proc.stdout.close()
             if output_handle:
                 output_handle.close()
             self._active = None
