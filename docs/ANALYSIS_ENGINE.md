@@ -40,6 +40,26 @@ Analysis Engine 6.0 is an offline, evidence-based layer for authorized attack-su
 ./recon-monitor.sh analysis feedback
 ```
 
+## Input snapshot revisions
+
+Analysis records the input snapshot's `scope`, `revision` and `integrity_hash`
+in each analysis run's summary. Automatic analysis after Recon resume captures
+the completed inputs as a new immutable revision when they change; unchanged
+inputs reuse the existing revision. Historical revisions and their JavaScript
+CAS artifacts remain available. A superseded run uses preserved inputs rather
+than current collection tables from a newer scan.
+
+Replay defaults to the latest captured revision for the requested run and scope.
+To reproduce an earlier analysis, select its recorded revision explicitly:
+
+```bash
+./recon-monitor.sh analysis replay --run RUN_ID --target example.test --input-revision 1
+```
+
+Missing, incompatible or corrupted snapshots fail closed. Versioning is an
+additive migration: existing snapshots become revision 1 without changing their
+payload or integrity hash.
+
 ## Dashboard
 
 - `/analysis` — analysis history and prioritized results
