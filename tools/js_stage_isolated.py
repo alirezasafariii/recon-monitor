@@ -93,9 +93,10 @@ def prior_isolated_stage_hashes(
         if summary_path.is_file():
             try:
                 summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                if not isinstance(summary, dict):
+                    raise ReconError("Malformed prior isolated JS stage summary.")
                 sandbox_run_id = str(summary.get("sandbox_run_id") or "")
-                if (not isinstance(summary, dict)
-                        or summary.get("source_run_id") != run_id
+                if (summary.get("source_run_id") != run_id
                         or summary.get("target") != target
                         or not _valid_run_id(sandbox_run_id)):
                     raise ReconError("Malformed prior isolated JS stage summary.")
