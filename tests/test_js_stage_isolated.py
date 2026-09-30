@@ -201,6 +201,42 @@ class IsolatedJavascriptStageTests(unittest.TestCase):
         self.assertEqual(chosen, ["https://a.example.test/2.js"])
         self.assertTrue((sandbox / "summary.json").is_file())
 
+    def test_interrupted_prior_replay_without_summary_is_excluded(self):
+        root = (
+            self.paths.output / self.policy.name / "js-stage-replays"
+            / f"{self.source_id}-interrupted"
+        )
+        selected = "https://a.example.test/1.js"
+        current = (
+            root / "output" / self.policy.name / "runs"
+            / "20260924-040716-35ce92f8" / "current"
+        )
+        current.mkdir(parents=True)
+        (current / "javascript-urls.txt").write_text(
+            selected + "\n", encoding="utf-8",
+        )
+
+        prior_hashes = prior_isolated_stage_hashes(
+            self.paths, self.policy.name, self.source_id,
+        )
+        self.assertEqual(
+            prior_hashes,
+            frozenset({hashlib.sha256(selected.encode()).hexdigest()}),
+        )
+
+    def test_interrupted_replay_without_selected_urls_does_not_block_preview(self):
+        root = (
+            self.paths.output / self.policy.name / "js-stage-replays"
+            / f"{self.source_id}-empty-interrupted"
+        )
+        root.mkdir(parents=True)
+        self.assertEqual(
+            prior_isolated_stage_hashes(
+                self.paths, self.policy.name, self.source_id,
+            ),
+            frozenset(),
+        )
+
     def test_broken_prior_isolated_selection_blocks_repeated_execution(self):
         root = (
             self.paths.output / self.policy.name / "js-stage-replays"
