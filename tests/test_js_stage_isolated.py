@@ -237,6 +237,18 @@ class IsolatedJavascriptStageTests(unittest.TestCase):
             frozenset(),
         )
 
+    def test_malformed_prior_replay_summary_fails_closed(self):
+        root = (
+            self.paths.output / self.policy.name / "js-stage-replays"
+            / f"{self.source_id}-malformed"
+        )
+        root.mkdir(parents=True)
+        (root / "summary.json").write_text("[]", encoding="utf-8")
+        with self.assertRaises(ReconError):
+            prior_isolated_stage_hashes(
+                self.paths, self.policy.name, self.source_id,
+            )
+
     def test_broken_prior_isolated_selection_blocks_repeated_execution(self):
         root = (
             self.paths.output / self.policy.name / "js-stage-replays"
