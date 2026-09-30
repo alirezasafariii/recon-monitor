@@ -668,6 +668,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     analysis_cmd = sub.add_parser("analysis", help="Replay and inspect analysis-engine quality and bug candidates")
     analysis_cmd.add_argument("action", choices=["replay", "quality", "calibration", "feedback", "list", "show", "candidates", "hypotheses", "candidate-show", "candidate-set", "candidate-calibration", "candidate-evaluate", "candidate-label", "bundles", "semantic", "behavioral", "boundary-diffs", "response-diffs", "protocols", "identity-graph", "reasoning", "evidence-trace", "reasoning-evaluate", "family-calibration", "shadow-rules", "regression-gate"])
+    analysis_cmd.add_argument("--input-revision", type=int, default=None, help="Immutable input revision for replay; defaults to the latest captured revision")
     analysis_cmd.add_argument("--run", dest="run_id", default="")
     analysis_cmd.add_argument("--target", default=None)
     analysis_cmd.add_argument("--id", dest="analysis_id", default="")
@@ -928,9 +929,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "analysis":
+            if args.input_revision is not None and args.action != "replay":
+                raise ReconError("--input-revision is only available for analysis replay")
             if args.action == "replay":
                 if not args.run_id: raise ReconError("analysis replay requires --run RUN_ID")
-                result = replay_analysis(paths, db, args.run_id, args.target, profile=args.profile)
+                result = replay_analysis(paths, db, args.run_id, args.target, profile=args.profile, revision=args.input_revision)
             elif args.action == "quality":
                 result = analysis_quality(db, args.target)
             elif args.action == "calibration":

@@ -611,11 +611,11 @@ def _analysis_targets(db: Database, run_id: str, target: str | None) -> list[str
     return sorted(targets)
 
 
-def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str | None = None, *, mode: str = "analysis", persist: bool = True, profile: str | None = None) -> dict[str, Any]:
+def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str | None = None, *, mode: str = "analysis", persist: bool = True, profile: str | None = None, input_snapshot: Mapping[str, Any] | None = None) -> dict[str, Any]:
     profile = profile or analysis_profile()
     analysis_id=f"analysis-{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
     started=utc_now()
-    db.execute("INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,mode,status,started_at) VALUES(?,?,?,?,?,?,?,?)",(analysis_id,run_id,target or "*",ENGINE_VERSION,RULE_VERSION,mode,"running",started))
+    db.execute("INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,mode,status,started_at,summary_json) VALUES(?,?,?,?,?,?,?,?,?)",(analysis_id,run_id,target or "*",ENGINE_VERSION,RULE_VERSION,mode,"running",started,json_dumps({"input_snapshot": dict(input_snapshot or {})})))
     for rule_id, rule in RULES.items():
         db.execute("INSERT OR REPLACE INTO analysis_rules(rule_id,rule_version,category,weight,enabled,description,created_at) VALUES(?,?,?,?,1,?,?)",(rule_id,RULE_VERSION,rule_id.split('-',1)[0],int(rule["weight"]),str(rule["description"]),started))
     targets = _analysis_targets(db, run_id, target)
@@ -702,6 +702,7 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
         raw_routing if isinstance(raw_routing, Mapping) else {},
     )
     summary={"alerts":len(alerts),"analysis_inputs":"raw_plus_alerts" if alerts else "raw_only","targets_analyzed":targets,"analysis_profile":profile,"average_original_score":round(sum(parse_int(row["risk_score"],0) for row in alerts)/len(alerts),2) if alerts else 0.0,"average_adjusted_score":round(sum(adjusted_scores)/len(adjusted_scores),2) if adjusted_scores else 0.0,"clusters":len(cluster_members),"duplicate_members":sum(max(0,len(values)-1) for values in cluster_members.values()),"static_intelligence":static,"bug_candidates":candidate_summary,"quality":quality}
+    summary["input_snapshot"] = dict(input_snapshot or {})
     analysis_scope = target or "*"
     previous = db.one(
         "SELECT id,summary_json FROM analysis_runs "
@@ -740,7 +741,7 @@ def _run_analysis_impl(paths: AppPaths, db: Database, run_id: str, target: str |
     return {"analysis_id":analysis_id,"run_id":run_id,"engine_version":ENGINE_VERSION,"rule_version":RULE_VERSION,**summary}
 
 
-def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None = None, *, mode: str = "analysis", persist: bool = True, profile: str | None = None) -> dict[str, Any]:
+def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None = None, *, mode: str = "analysis", persist: bool = True, profile: str | None = None, input_revision: int | None = None) -> dict[str, Any]:
     """Run analysis and always finalize the analysis-run state.
 
     Stabilization wrapper: older versions could leave a row permanently marked
@@ -757,6 +758,8 @@ def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None 
             run_id,
             target,
             replay=mode == "replay",
+            refresh=mode != "replay",
+            revision=input_revision,
         ) as input_snapshot:
             result = _run_analysis_impl(
                 paths,
@@ -766,6 +769,7 @@ def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None 
                 mode=mode,
                 persist=persist,
                 profile=profile,
+                input_snapshot=input_snapshot,
             )
             result["input_snapshot"] = input_snapshot
             return result
@@ -817,8 +821,8 @@ def run_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None 
         raise
 
 
-def replay_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None = None, profile: str | None = None) -> dict[str, Any]:
-    return run_analysis(paths,db,run_id,target,mode="replay",profile=profile)
+def replay_analysis(paths: AppPaths, db: Database, run_id: str, target: str | None = None, profile: str | None = None, *, revision: int | None = None) -> dict[str, Any]:
+    return run_analysis(paths,db,run_id,target,mode="replay",profile=profile,input_revision=revision)
 
 
 def _latest_quality_analysis(
