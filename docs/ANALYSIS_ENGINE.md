@@ -49,6 +49,13 @@ inputs reuse the existing revision. Historical revisions and their JavaScript
 CAS artifacts remain available. A superseded run uses preserved inputs rather
 than current collection tables from a newer scan.
 
+New snapshots include only `alert`, `asset` and `endpoint` entity tags used as
+business-context inputs. Classification tags on `analysis_hypothesis` and
+`candidate` entities remain stored as Analysis outputs and do not advance input
+revisions. Existing archived snapshots retain their original payload and hash;
+refreshing a current snapshot that includes output tags captures the cleaned
+inputs as a new revision once.
+
 Replay defaults to the latest captured revision for the requested run and scope.
 To reproduce an earlier analysis, select its recorded revision explicitly:
 

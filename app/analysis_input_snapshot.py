@@ -21,6 +21,7 @@ from storage import ContentAddressedStore
 
 ANALYSIS_INPUT_SNAPSHOT_SCHEMA_VERSION = 2
 CAS_OWNER_KIND = "analysis_input_snapshot"
+INPUT_TAG_ENTITY_TYPES = ("alert", "asset", "endpoint")
 
 INPUT_TABLES = (
     "assets",
@@ -141,10 +142,19 @@ def _capture_rows(
             if not columns:
                 continue
             sql = f'SELECT * FROM main."{table}"'
+            conditions: list[str] = []
             params: tuple[Any, ...] = ()
             if target and "target" in columns:
-                sql += " WHERE target=?"
+                conditions.append("target=?")
                 params = (target,)
+            if table == "entity_tags":
+                # Analysis reads these tags for business context. Classification
+                # tags on hypotheses/candidates are outputs and must not create
+                # new input revisions when Analysis runs again.
+                conditions.append("entity_type IN (?,?,?)")
+                params += INPUT_TAG_ENTITY_TYPES
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
             records: list[dict[str, Any]] = []
             cursor = db.execute(sql, params)
             while True:
@@ -364,6 +374,8 @@ def _merge_target_snapshots(
                     raise ReconError(
                         "Analysis input snapshot payload is invalid"
                     )
+                if table == "entity_tags" and row.get("entity_type") not in INPUT_TAG_ENTITY_TYPES:
+                    continue
                 bucket[json_dumps(row)] = row
 
     return {
