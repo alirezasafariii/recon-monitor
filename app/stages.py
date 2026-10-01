@@ -814,22 +814,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     for url in base_urls:
         add_candidate(url + "/" if not url.endswith("/") else url, "base")
 
-    if tool_path("waybackurls"):
-        out = ctx.current / "wayback-urls.txt"
-        result = ctx.runner.run(
-            ["waybackurls"],
-            timeout=ctx.policy.limits.timeout_seconds,
-            output_path=out,
-            input_text="".join(f"{host}\n" for host in hosts),
-            heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "urls"),
-            line_callback=lambda _line, count: ctx.progress.update(count, 0, "waybackurls"),
-        )
-        if result.returncode not in {0, 1}:
-            ctx.logger.warn("waybackurls failed", target=ctx.policy.name, exit=result.returncode)
-        if out.exists():
-            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
-                add_candidate(line, "wayback")
-
     katana_observed = 0
     katana_reserved_requests = 0
     katana_request_envelope = 0
@@ -886,6 +870,54 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             previous_crawl_lines = ""
             previous_completed = []
             previous_pending = []
+
+    # Preserve archive evidence across a partial URL-stage resume. Each new
+    # invocation writes a separate file so missing output cannot be masked by
+    # an earlier attempt, and the raw prefix from a timeout remains available.
+    old_wayback_outcomes = previous_metrics.get("wayback_tool_outcomes", [])
+    wayback_outcomes = (
+        [dict(row) for row in old_wayback_outcomes if isinstance(row, dict)]
+        if isinstance(old_wayback_outcomes, list) else []
+    )
+    wayback_output = ctx.current / "wayback-urls.txt"
+    wayback_lines = (
+        wayback_output.read_text(encoding="utf-8", errors="replace")
+        if previous_metrics and wayback_output.exists() else ""
+    )
+    wayback_available = bool(tool_path("waybackurls"))
+    wayback_operator_next = False
+    if wayback_available:
+        attempt = len(wayback_outcomes) + 1
+        out = ctx.current / f"wayback-attempt-{attempt:03d}-urls.txt"
+        while out.exists():
+            attempt += 1
+            out = ctx.current / f"wayback-attempt-{attempt:03d}-urls.txt"
+        result = ctx.runner.run(
+            ["waybackurls"],
+            timeout=ctx.policy.limits.timeout_seconds,
+            output_path=out,
+            input_text="".join(f"{host}\n" for host in hosts),
+            heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "urls"),
+            line_callback=lambda _line, count: ctx.progress.update(count, 0, "waybackurls"),
+        )
+        outcome = {
+            "tool": "waybackurls", "attempt": attempt, "output_file": out.name,
+            **_collector_tool_outcome(result, out, len(hosts)),
+        }
+        wayback_outcomes.append(outcome)
+        wayback_operator_next = bool(getattr(result, "operator_next", False))
+        if outcome["stop_reason"] != "completed":
+            ctx.logger.warn("waybackurls incomplete; preserving output", target=ctx.policy.name, exit=result.returncode, stop_reason=outcome["stop_reason"])
+        if out.exists():
+            if wayback_lines and not wayback_lines.endswith("\n"):
+                wayback_lines += "\n"
+            wayback_lines += out.read_text(encoding="utf-8", errors="replace")
+    wayback_status = str(wayback_outcomes[-1].get("stop_reason") or "unknown") if wayback_outcomes else "not_available"
+    if wayback_available or previous_metrics:
+        atomic_write_text(wayback_output, wayback_lines)
+    for line in wayback_lines.splitlines():
+        add_candidate(line, "wayback")
+
     katana_origin_successes = [
         origin for origin in previous_completed
         if ctx.policy.url_in_scope(origin)
@@ -902,7 +934,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     atomic_write_text(ctx.current / "katana-urls.txt", previous_crawl_lines)
     atomic_write_text(ctx.current / "katana-base-urls.txt", "")
     write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
-    operator_next = operator_next_requested()
+    operator_next = operator_next_requested() or wayback_operator_next
     if tool_path("katana") and base_urls and not operator_next:
         remaining_requests: int | None = None
         if ctx.budget and hasattr(ctx.budget, "snapshot"):
@@ -1141,15 +1173,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             # Machine-readable per-batch evidence and explicit backlog remain
             # accessible even after this run's other stages complete.
             write_jsonl(ctx.current / "katana-batches.jsonl", batch_outcomes)
-            if out.exists():
-                for line in out.read_text(
-                    encoding="utf-8", errors="replace",
-                ).splitlines():
-                    raw_candidate = line.strip()
-                    if _katana_candidate_malformed(raw_candidate):
-                        katana_rejected_malformed += 1
-                        continue
-                    add_candidate(raw_candidate, "katana")
         else:
             # A resumed stage can legitimately have no work left for Katana.
             if not katana_pending_origins:
@@ -1175,6 +1198,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         ctx.current / "katana-completed-origins.txt",
         "".join(f"{url}\n" for url in katana_origin_successes),
     )
+
+    # A Wayback-only retry can leave no pending Katana origins. Reuse the
+    # completed crawler's retained evidence even when no new batch is launched.
+    for line in (ctx.current / "katana-urls.txt").read_text(encoding="utf-8", errors="replace").splitlines():
+        raw_candidate = line.strip()
+        if _katana_candidate_malformed(raw_candidate):
+            katana_rejected_malformed += 1
+            continue
+        add_candidate(raw_candidate, "katana")
 
     urls = _select_diverse_urls(candidates, ctx.policy.limits.max_urls)
     new_count = 0
@@ -1241,6 +1273,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
          "reason": "selected" if url in js_selected else "max_urls"}
         for url in sorted(js_candidates)
     ))
+    collection_reasons: list[str] = []
+    if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins", "no_live_pending"}:
+        collection_reasons.append("katana_" + katana_stop_reason)
+    if wayback_outcomes and wayback_status != "completed":
+        collection_reasons.append("wayback_" + wayback_status)
     metrics = {
         "hosts": len(hosts),
         "candidate_origins": len(candidate_base_urls),
@@ -1255,6 +1292,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "classified_endpoints": classified_count,
         "truncated": len(candidates) > len(urls),
         "url_selection": selection,
+        "wayback_available": wayback_available,
+        "wayback_status": wayback_status,
+        "wayback_tool_outcomes": wayback_outcomes,
         "katana_rejected_malformed": katana_rejected_malformed,
         "katana_observed": katana_observed,
         "katana_reserved_requests": katana_reserved_requests,
@@ -1289,7 +1329,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
         "katana_deadline_exhausted": katana_deadline_exhausted,
         "katana_budget_metric": katana_budget_metric,
-        "collection_status": "partial" if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins", "no_live_pending"} else "completed",
+        "collection_status": "partial" if collection_reasons else "completed",
+        "collection_reasons": collection_reasons,
     }
     atomic_write_text(ctx.current / "url-collection.json", json_dumps({
         "run_id": ctx.run_id, "target": ctx.policy.name, "metrics": metrics,

@@ -184,12 +184,19 @@ def _urls_dimension(ctx: Any) -> dict[str, Any]:
     katana_status = str(metrics.get("katana_status") or "not_recorded")
     base["katana_status"] = katana_status
     base["katana_stop_reason"] = str(metrics.get("katana_stop_reason") or "")
+    wayback_status = str(metrics.get("wayback_status") or "not_recorded")
+    base["wayback_status"] = wayback_status
+    wayback_incomplete = wayback_status not in {"completed", "not_available", "not_recorded"}
+    katana_incomplete = katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "tool_missing", "partial", "no_live_origins", "no_live_pending"}
     if (base["status"] == "partial" or metrics.get("collection_status") == "partial"
-            or katana_status in {"timeout", "nonzero_exit", "budget_exhausted", "tool_missing", "partial"}):
+            or katana_incomplete or wayback_incomplete):
         base["status"] = "partial"
         base["collected"] = _int(metrics.get("urls"))
-        base["reason"] = f"URL collection is incomplete; Katana: {katana_status}."
-        base["not_collected"] = ["incomplete_katana_crawl"]
+        base["reason"] = f"URL collection is incomplete; Katana: {katana_status}; waybackurls: {wayback_status}."
+        base["not_collected"] = (
+            (["incomplete_katana_crawl"] if katana_incomplete else [])
+            + (["incomplete_wayback_archive"] if wayback_incomplete else [])
+        ) or ["incomplete_url_collection"]
         return base
     if "truncated" not in metrics or "urls" not in metrics:
         base["status"] = "unknown"
