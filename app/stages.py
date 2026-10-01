@@ -165,6 +165,8 @@ def _parse_subfinder_row(row: Mapping[str, Any]) -> tuple[str, set[str]]:
 
 def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
     discoveries: dict[str, set[str]] = {}
+    tool_outcomes: list[dict[str, Any]] = []
+    collection_reasons: set[str] = set()
     raw_dir = ctx.current / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -184,8 +186,11 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "subdomains"),
                 line_callback=lambda _line, count: ctx.progress.update(count, 0, f"subfinder root {root_index}/{len(ctx.policy.roots)}"),
             )
-            if result.returncode not in {0, 1}:
-                ctx.logger.warn("subfinder failed; continuing with other sources", target=ctx.policy.name, root=root, exit=result.returncode)
+            outcome = {"tool": "subfinder", "root": root, **_collector_tool_outcome(result, out, 1)}
+            tool_outcomes.append(outcome)
+            if outcome["stop_reason"] != "completed":
+                collection_reasons.add("subfinder_" + outcome["stop_reason"])
+                ctx.logger.warn("subfinder incomplete; preserving output and continuing with other sources", target=ctx.policy.name, root=root, exit=result.returncode, stop_reason=outcome["stop_reason"])
             for row in read_jsonl(out):
                 host, sources = _parse_subfinder_row(row)
                 if host and ctx.policy.host_in_scope(host):
@@ -200,8 +205,11 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "subdomains"),
                 line_callback=lambda _line, count: ctx.progress.update(count, 0, f"assetfinder root {root_index}/{len(ctx.policy.roots)}"),
             )
-            if result.returncode not in {0, 1}:
-                ctx.logger.warn("assetfinder failed; continuing", target=ctx.policy.name, root=root, exit=result.returncode)
+            outcome = {"tool": "assetfinder", "root": root, **_collector_tool_outcome(result, out, 1)}
+            tool_outcomes.append(outcome)
+            if outcome["stop_reason"] != "completed":
+                collection_reasons.add("assetfinder_" + outcome["stop_reason"])
+                ctx.logger.warn("assetfinder incomplete; preserving output and continuing", target=ctx.policy.name, root=root, exit=result.returncode, stop_reason=outcome["stop_reason"])
             if out.exists():
                 for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
                     host = normalize_host(line)
@@ -231,7 +239,14 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
     write_jsonl(ctx.current / "subdomains.jsonl", rows)
     atomic_write_text(ctx.current / "subdomains.txt", "".join(f"{row['host']}\n" for row in rows))
     atomic_write_text(ctx.changes / "new-subdomains.txt", "".join(f"{host}\n" for host in new_hosts))
-    return {"discovered": len(rows), "new": new_count, "sources": len({s for values in discoveries.values() for s in values})}
+    return {
+        "collection_status": "partial" if collection_reasons else "completed",
+        "collection_reasons": sorted(collection_reasons),
+        "subdomain_tool_outcomes": tool_outcomes,
+        "discovered": len(rows),
+        "new": new_count,
+        "sources": len({s for values in discoveries.values() for s in values}),
+    }
 
 
 def _dns_values(row: Mapping[str, Any], rrtype: str) -> tuple[str, set[str]]:
@@ -263,7 +278,8 @@ def _dns_values(row: Mapping[str, Any], rrtype: str) -> tuple[str, set[str]]:
     return host, values
 
 
-def _dns_tool_outcome(result: Any, output: Path, input_hosts: int) -> dict[str, Any]:
+def _collector_tool_outcome(result: Any, output: Path, input_hosts: int) -> dict[str, Any]:
+    """Describe attempted collection without treating partial evidence as success."""
     timed_out = bool(getattr(result, "timed_out", False))
     if bool(getattr(result, "operator_next", False)):
         stop_reason = "operator_next"
@@ -330,7 +346,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
                 line_callback=lambda _line, count: ctx.progress.update(count, len(hosts), "wildcard filtering"),
             )
-            outcome = {"root": root, **_dns_tool_outcome(result, root_output, len(root_hosts))}
+            outcome = {"root": root, **_collector_tool_outcome(result, root_output, len(root_hosts))}
             wildcard_outcomes.append(outcome)
             if outcome["stop_reason"] == "completed":
                 filtered_hosts.update(_scope_hosts(ctx.policy, root_output.read_text(encoding="utf-8", errors="replace").splitlines()))
@@ -364,7 +380,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
                 line_callback=lambda _line, count, t=rrtype: ctx.progress.update(count, len(hosts), f"query {t}"),
             )
-            outcome = {"rrtype": rrtype, **_dns_tool_outcome(
+            outcome = {"rrtype": rrtype, **_collector_tool_outcome(
                 result, out, len(ctx.policy.roots) if rrtype == "NS" else len(hosts),
             )}
             query_outcomes.append(outcome)

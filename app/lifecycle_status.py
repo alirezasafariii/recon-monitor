@@ -126,6 +126,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                 collection_failed = False
                 report_ran = False
                 report_metrics: dict[str, Any] = {}
+                replay_downstream = False
 
                 for stage_index, (stage_name, label) in enumerate(stages, 1):
                     if collection_failed and stage_name != "report":
@@ -133,6 +134,13 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                         # collection after a collection failure, but still run
                         # report for diagnostics and persisted partial evidence.
                         continue
+                    # A resumed collector can add inputs after a partial run.
+                    # Its dependents must refresh even if they previously
+                    # succeeded while using the incomplete collection.
+                    if resume_id and self.db.stage_status(
+                        run_id, policy.name, stage_name,
+                    ) != "success":
+                        replay_downstream = True
                     status, metrics = self._run_stage(
                         ctx,
                         stage_name,
@@ -142,7 +150,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                         target_index,
                         len(targets),
                         baseline,
-                        bool(resume_id),
+                        bool(resume_id) and not replay_downstream,
                     )
                     if stage_name == "report":
                         report_ran = True
