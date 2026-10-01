@@ -21,7 +21,8 @@ from api_server_core import (
     _role_allows,
     create_token,
 )
-from core import AppPaths, CommandRunner, Database, redact_command_args
+from core import AppPaths, CommandRunner, Database, TargetPolicy, redact_command_args
+from worker_scope import worker_scope_snapshot
 from session_auth import (
     create_session,
     create_user,
@@ -277,7 +278,7 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
                 {
                     "kind": "download_url",
                     "url": "https://cdn.example.test/app.js",
-                    "allowed_roots": ["example.test"],
+                    "scope_policy": worker_scope_snapshot(TargetPolicy.from_dict({"roots": ["example.test"]})),
                 }
             )
         transport.assert_called_once()
@@ -313,7 +314,7 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
                 {
                     "kind": "http_head",
                     "url": "https://a.example.test/start",
-                    "allowed_roots": ["example.test"],
+                    "scope_policy": worker_scope_snapshot(TargetPolicy.from_dict({"roots": ["example.test"]})),
                 }
             )
         self.assertEqual(transport.call_count, 2)
@@ -333,7 +334,7 @@ class PreProductionSecurityHardeningTests(unittest.TestCase):
                 {
                     "kind": "http_head",
                     "url": "https://a.example.test/start",
-                    "allowed_roots": ["example.test"],
+                    "scope_policy": worker_scope_snapshot(TargetPolicy.from_dict({"roots": ["example.test"]})),
                 }
             )
         self.assertEqual(transport.call_count, 1)
