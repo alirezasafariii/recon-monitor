@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import codecs
 import contextlib
 import copy
 import dataclasses
 import datetime as dt
 import hashlib
 import ipaddress
+import io
 import json
 import os
 import queue
 import re
+import selectors
 import shutil
 import signal
 import socket
@@ -3068,14 +3071,16 @@ class CommandRunner:
     def terminate_active(self) -> None:
         self._stop.set()
         proc = self._active
-        if proc and proc.poll() is None:
+        if proc:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(proc.pid, signal.SIGTERM)
             try:
                 proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(proc.pid, signal.SIGKILL)
+                pass
+            # Descendants can still hold a pipe after the parent has exited.
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
 
     def run(
         self,
@@ -3096,39 +3101,26 @@ class CommandRunner:
         timed_out = False
         operator_next = False
         output_handle = None
-        if output_path:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_handle = output_path.open("w", encoding="utf-8")
+        proc = None
+        watcher = None
+        selector = None
+        finished = threading.Event()
+        interrupted = threading.Event()
+        interrupted_at = 0.0
+        completed = False
         proc_env = os.environ.copy()
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
         display_command = " ".join(redact_command_args(args))
-        self.logger.info(
-            "Executing tool",
-            command=display_command,
-            cwd=str(cwd or Path.cwd()),
-        )
-        proc = subprocess.Popen(
-            list(args),
-            cwd=str(cwd) if cwd else None,
-            env=proc_env,
-            stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            start_new_session=True,
-        )
-        self._active = proc
-        if input_text is not None and proc.stdin:
-            proc.stdin.write(input_text)
-            proc.stdin.close()
 
         def watchdog() -> None:
-            nonlocal timed_out, operator_next
+            nonlocal timed_out, operator_next, interrupted_at
             heartbeat_interval = 5.0
             next_heartbeat = time.monotonic()
-            while proc.poll() is None and not self._stop.wait(0.5):
+            next_poll = time.monotonic()
+            # Supervise the whole I/O lifetime, including inherited pipes after
+            # the parent exits. Start before feeding any subprocess input.
+            while not finished.wait(0.05):
                 now = time.monotonic()
                 if heartbeat and now >= next_heartbeat:
                     try:
@@ -3140,56 +3132,171 @@ class CommandRunner:
                             error=str(exc),
                         )
                     next_heartbeat = now + heartbeat_interval
-                if self.next_check is not None:
+                if finished.is_set():
+                    return
+                if not self._stop.is_set() and self.next_check is not None and now >= next_poll:
                     try:
                         operator_next = bool(self.next_check())
                     except Exception as exc:
                         self.logger.warn("Stage Next poll failed", error=str(exc))
-                    if operator_next:
-                        with contextlib.suppress(ProcessLookupError):
-                            os.killpg(proc.pid, signal.SIGTERM)
-                        # Drain and preserve output before force-killing a
-                        # child that does not honor SIGTERM.
-                        time.sleep(1)
-                        if proc.poll() is None:
-                            with contextlib.suppress(ProcessLookupError):
-                                os.killpg(proc.pid, signal.SIGKILL)
-                        break
-                if timeout is not None and now - started > timeout:
+                    next_poll = now + 0.5
+                if finished.is_set():
+                    return
+                now = time.monotonic()
+                if not self._stop.is_set() and not operator_next and timeout is not None and now - started >= timeout:
                     timed_out = True
+                if self._stop.is_set() or operator_next or timed_out:
+                    interrupted_at = time.monotonic()
+                    interrupted.set()
                     with contextlib.suppress(ProcessLookupError):
                         os.killpg(proc.pid, signal.SIGTERM)
-                    time.sleep(1)
-                    if proc.poll() is None:
-                        with contextlib.suppress(ProcessLookupError):
-                            os.killpg(proc.pid, signal.SIGKILL)
+                    # Preserve output during shutdown, then kill the entire
+                    # group even if only a descendant is still running.
+                    finished.wait(1)
+                    with contextlib.suppress(ProcessLookupError):
+                        os.killpg(proc.pid, signal.SIGKILL)
                     break
 
-        watcher = threading.Thread(target=watchdog, daemon=True)
-        watcher.start()
         try:
+            if output_path:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_handle = output_path.open("w", encoding="utf-8")
+            self.logger.info(
+                "Executing tool",
+                command=display_command,
+                cwd=str(cwd or Path.cwd()),
+            )
+            proc = subprocess.Popen(
+                list(args),
+                cwd=str(cwd) if cwd else None,
+                env=proc_env,
+                stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                start_new_session=True,
+            )
+            self._active = proc
+            watcher = threading.Thread(target=watchdog, name="command-watchdog", daemon=True)
+            watcher.start()
             assert proc.stdout is not None
-            for raw in proc.stdout:
+            selector = selectors.DefaultSelector()
+            os.set_blocking(proc.stdout.fileno(), False)
+            selector.register(proc.stdout, selectors.EVENT_READ)
+            decoder = codecs.getincrementaldecoder(proc.stdout.encoding)(errors=proc.stdout.errors)
+            newline_decoder = io.IncrementalNewlineDecoder(decoder, translate=True)
+            pending_line = ""
+            stdout_finalized = False
+
+            def emit_line(raw: str) -> None:
+                nonlocal lines
                 lines += 1
                 if output_handle:
                     output_handle.write(raw)
                 if line_callback:
                     line_callback(raw.rstrip("\n"), lines)
-                if self._stop.is_set():
-                    break
-            returncode = proc.wait()
+
+            def consume_text(text: str, *, final: bool = False) -> None:
+                nonlocal pending_line
+                parts = (pending_line + text).split("\n")
+                pending_line = parts.pop()
+                for part in parts:
+                    emit_line(part + "\n")
+                if final and pending_line:
+                    emit_line(pending_line)
+                    pending_line = ""
+
+            def finish_stdout() -> None:
+                nonlocal stdout_finalized
+                if not stdout_finalized:
+                    if interrupted.is_set():
+                        decoder.errors = "replace"
+                    consume_text(newline_decoder.decode(b"", final=True), final=True)
+                    stdout_finalized = True
+
+            def close_pipe(stream: Any) -> None:
+                with contextlib.suppress(KeyError):
+                    selector.unregister(stream)
+                stream.close()
+
+            input_data = memoryview(b"")
+            input_offset = 0
+            if proc.stdin is not None:
+                input_data = memoryview((input_text or "").encode(proc.stdin.encoding, proc.stdin.errors))
+                if input_data:
+                    os.set_blocking(proc.stdin.fileno(), False)
+                    selector.register(proc.stdin, selectors.EVENT_WRITE)
+                else:
+                    proc.stdin.close()
+
+            while selector.get_map() or proc.poll() is None:
+                if interrupted.is_set():
+                    if proc.stdin is not None and not proc.stdin.closed:
+                        close_pipe(proc.stdin)
+                    if time.monotonic() - interrupted_at >= 1.25:
+                        # A detached descendant may retain a pipe beyond the
+                        # process group's lifetime. Do not wait for its EOF.
+                        with contextlib.suppress(ProcessLookupError):
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        break
+                for key, _events in selector.select(0.05):
+                    if key.fileobj is proc.stdin:
+                        if interrupted.is_set():
+                            close_pipe(proc.stdin)
+                            continue
+                        try:
+                            count = os.write(key.fd, input_data[input_offset:input_offset + 65536])
+                        except BlockingIOError:
+                            continue
+                        except BrokenPipeError:
+                            # An early stdin close is part of the child's
+                            # result, as with Popen.communicate, not a runner failure.
+                            close_pipe(proc.stdin)
+                            continue
+                        input_offset += count
+                        if input_offset == len(input_data):
+                            close_pipe(proc.stdin)
+                    else:
+                        try:
+                            data = os.read(key.fd, 65536)
+                        except BlockingIOError:
+                            continue
+                        if data:
+                            consume_text(newline_decoder.decode(data))
+                        else:
+                            close_pipe(proc.stdout)
+                            finish_stdout()
+            finish_stdout()
+            returncode = proc.wait(timeout=1)
+            completed = True
         finally:
-            watcher.join(timeout=1)
-            # Popen does not automatically close the parent-side stdout pipe.
-            # Close it deterministically after draining/waiting so repeated
-            # subprocess runs do not rely on garbage collection and emit
-            # ResourceWarning for an unclosed TextIOWrapper.
-            if proc.stdout is not None:
-                proc.stdout.close()
-            if output_handle:
-                output_handle.close()
-            self._active = None
-            self._stop.clear()
+            finished.set()
+            try:
+                if proc is not None and not completed:
+                    with contextlib.suppress(ProcessLookupError):
+                        os.killpg(proc.pid, signal.SIGKILL)
+                if watcher is not None and watcher.ident is not None:
+                    watcher.join(timeout=1.25)
+            finally:
+                try:
+                    if selector is not None:
+                        selector.close()
+                    if proc is not None:
+                        for stream in (proc.stdin, proc.stdout):
+                            if stream is not None:
+                                with contextlib.suppress(OSError):
+                                    stream.close()
+                        if not completed:
+                            with contextlib.suppress(subprocess.TimeoutExpired):
+                                proc.wait(timeout=1)
+                finally:
+                    try:
+                        if output_handle:
+                            output_handle.close()
+                    finally:
+                        self._active = None
+                        self._stop.clear()
         duration = time.monotonic() - started
         if timed_out:
             returncode = 124

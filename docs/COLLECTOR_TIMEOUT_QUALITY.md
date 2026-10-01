@@ -26,6 +26,24 @@ Resume can retry the archive while reusing a completed Katana crawl's evidence.
 A never-attempted unavailable Wayback tool remains optional; unavailability
 after a known incomplete archive attempt preserves that unresolved gap.
 
+## Subprocess input and shutdown
+
+`CommandRunner` starts supervision before feeding stdin and multiplexes bounded,
+nonblocking stdin writes with stdout/stderr reads. Large input cannot prevent
+Timeout, operator Next, or cancellation, and a tool can emit output before it
+consumes all input. Existing encoding, newline conversion, line callbacks, and
+EOF behavior are preserved; an early stdin close returns the tool's exit result.
+
+The configured deadline covers open pipes even after the parent process exits.
+Shutdown signals the process group, drains output for a bounded interval, then
+force-kills remaining group members. An inherited pipe outside the group cannot
+extend cleanup indefinitely. Collected output is retained, including an EOF tail
+without a newline; a truncated final character during interruption is replaced.
+Pipes, output handles, and runner state are cleaned up on startup and callback
+failures as well as Timeout/Next. Configured timeout values are unchanged.
+
+## Persisted collector results
+
 The Run report and persisted stage metrics include `collection_status`,
 `collection_reasons`, and `subdomain_tool_outcomes`. Each subdomain outcome has:
 
@@ -55,4 +73,5 @@ dependency refresh, and target isolation:
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_subdomain_collection_quality.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_wayback_collection_quality.py' -q
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_command_runner_stdin.py' -q
 ```
