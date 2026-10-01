@@ -12,6 +12,20 @@ invocation has exit code zero, no timeout or operator interruption, and an
 existing output file. An empty output file can represent a completed invocation.
 Configured process timeouts are preserved; offline regressions use 1800 seconds.
 
+The URL stage applies the same contract to `waybackurls`. A failed archive
+invocation makes URL collection partial even when Katana completes. The URL
+metrics record `wayback_available`, `wayback_status`, `wayback_tool_outcomes`,
+and collector-specific `collection_reasons`; quality diagnostics distinguish
+an incomplete archive from an incomplete Katana crawl.
+
+Each Wayback attempt retains its raw output in
+`current/wayback-attempt-NNN-urls.txt`. `current/wayback-urls.txt` combines archive
+evidence across a partial-stage resume, and outcomes retain input-host count,
+exit code, timeout flag, duration, raw line count, stop reason, and output file.
+Resume can retry the archive while reusing a completed Katana crawl's evidence.
+A never-attempted unavailable Wayback tool remains optional; unavailability
+after a known incomplete archive attempt preserves that unresolved gap.
+
 The Run report and persisted stage metrics include `collection_status`,
 `collection_reasons`, and `subdomain_tool_outcomes`. Each subdomain outcome has:
 
@@ -40,4 +54,5 @@ dependency refresh, and target isolation:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_subdomain_collection_quality.py' -q
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_wayback_collection_quality.py' -q
 ```
