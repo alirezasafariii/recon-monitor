@@ -46,6 +46,7 @@ from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
 from safe_transport import fetch_pinned_tls_peer, perform_pinned_download, perform_pinned_request
+from worker_scope import worker_scope_snapshot
 
 
 @dataclass(slots=True)
@@ -1809,7 +1810,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
     fresh_full_js_pass = len(pending_urls) == len(js_urls)
-    work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "allowed_roots": ctx.policy.roots}) for url in pending_urls}
+    work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
     for url, work_id in work_ids.items():
         work_queue.start(work_id, "local-js")
     results: list[dict[str, Any]] = []
@@ -2644,7 +2645,7 @@ def stage_endpoint_validation(ctx: StageContext) -> dict[str, Any]:
                 "kind": "http_head",
                 "url": endpoint,
                 "sources": sources,
-                "allowed_roots": ctx.policy.roots,
+                "scope_policy": worker_scope_snapshot(ctx.policy),
             },
         )
         queue.start(work_id, "local-validation")

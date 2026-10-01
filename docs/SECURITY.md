@@ -24,7 +24,16 @@
 ## Workers and plugins
 
 - Remote workers support only explicitly implemented task types and do not run arbitrary shell commands.
-- Workers validate declared roots before network access.
+- Remote work carries a versioned snapshot of the effective target roots and
+  `include`/`exclude` rules, without target headers or credentials. Workers
+  enforce those rules within the declared roots before DNS or network access
+  and on every redirect hop for both `HEAD` and downloads.
+- Update the API server and remote workers together. The API leases scoped work
+  only to workers advertising the supported scope version and rejects malformed,
+  out-of-scope, or target-mismatched tasks. Legacy roots-only work is not leased
+  remotely; it can still be processed by local Resume. New workers reject
+  roots-only payloads, and new payloads omit `allowed_roots` so old workers cannot
+  silently fall back to a broader policy.
 - External plugins are code and must be reviewed before enabling. Plugin manifests and health checks are not a sandbox.
 
 ## Evidence and storage

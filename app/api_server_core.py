@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_bool, parse_int, safe_json_loads, utc_now
+from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
 from behavioral_intelligence import behavioral_summary
@@ -56,7 +57,6 @@ ROLE_DEFAULT_SCOPES={
     "admin":["read","write","validation","operations","admin","worker"],
     "worker":["worker"],
 }
-WORKER_CAPABILITIES={"http_head","download_url"}
 WORK_LEASE_SECONDS=120
 OPERATIONS_POST_PATHS={
     "/api/v1/suite/revalidation",
@@ -369,31 +369,44 @@ class APIHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok":True}); return
             if path=="/api/v1/work/claim":
                 worker_id=str(data.get('worker_id'))
-                worker=db.one("SELECT capabilities_json,auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
+                worker=db.one("SELECT capabilities_json,metadata_json,auth_token_hash FROM remote_workers WHERE worker_id=?",(worker_id,))
                 if not worker or not secrets.compare_digest(str(worker["auth_token_hash"] or ""),str(getattr(self,"auth_token_hash",""))):
                     self.send_json({"error":"worker identity mismatch"},403); return
                 capabilities=set(map(str,safe_json_loads(worker["capabilities_json"],[],expected_type=list)))
+                if not worker_supports_scope(safe_json_loads(worker["metadata_json"],{},expected_type=dict)):
+                    self.send_json({"work":None}); return
                 lease_token=""
                 chosen_payload=None
                 with db.transaction():
                     db.reclaim_expired_work_leases()
-                    rows=db.all("SELECT * FROM work_items WHERE status IN ('queued','retry_pending') ORDER BY created_at LIMIT 50")
-                    for row in rows:
-                        payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
-                        if kind and kind not in capabilities:
-                            continue
-                        candidate_lease=secrets.token_urlsafe(32)
-                        lease_hash=hashlib.sha256(candidate_lease.encode()).hexdigest()
-                        lease_expires=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(seconds=WORK_LEASE_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00","Z")
-                        if db.work_start(
-                            int(row['id']),
-                            worker_id,
-                            lease_token_hash=lease_hash,
-                            lease_expires_at=lease_expires,
-                        ):
-                            chosen_payload=dict(row)
-                            lease_token=candidate_lease
+                    after_id=0
+                    while chosen_payload is None:
+                        rows=db.all("SELECT * FROM work_items WHERE status IN ('queued','retry_pending') AND id>? ORDER BY id LIMIT 50",(after_id,))
+                        if not rows:
                             break
+                        after_id=int(rows[-1]['id'])
+                        for row in rows:
+                            payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
+                            if kind not in WORKER_CAPABILITIES or kind not in capabilities:
+                                continue
+                            try:
+                                scope_policy=task_scope_policy(payload)
+                            except ReconError:
+                                continue
+                            if scope_policy.target != row['target'] or not scope_policy.url_in_scope(str(payload.get('url',''))):
+                                continue
+                            candidate_lease=secrets.token_urlsafe(32)
+                            lease_hash=hashlib.sha256(candidate_lease.encode()).hexdigest()
+                            lease_expires=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(seconds=WORK_LEASE_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00","Z")
+                            if db.work_start(
+                                int(row['id']),
+                                worker_id,
+                                lease_token_hash=lease_hash,
+                                lease_expires_at=lease_expires,
+                            ):
+                                chosen_payload=dict(row)
+                                lease_token=candidate_lease
+                                break
                 if chosen_payload is None:
                     self.send_json({"work":None}); return
                 chosen_payload["lease_token"]=lease_token

@@ -8,11 +8,11 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from core import ReconError, normalize_host, normalize_url, safe_json_loads
+from core import ReconError, normalize_url, safe_json_loads
 from safe_transport import perform_pinned_download, perform_pinned_request
+from worker_scope import WORKER_CAPABILITIES, WORKER_SCOPE_VERSION, WorkerScopePolicy, task_scope_policy
 
 
-WORKER_CAPABILITIES = ("http_head", "download_url")
 MAX_DOWNLOAD_BYTES = 1024 * 1024
 MAX_REDIRECTS = 3
 
@@ -23,21 +23,6 @@ def _request(server: str, token: str, path: str, payload: dict[str, Any]) -> dic
     req=urllib.request.Request(url,data=data,method='POST',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json','User-Agent':'ReconMonitor-Worker/3.0'})
     with urllib.request.urlopen(req,timeout=30) as response:
         return safe_json_loads(response.read().decode(), {}, expected_type=dict)
-
-
-def _host_allowed(url: str, roots: list[str]) -> bool:
-    normalized=normalize_url(url)
-    if not normalized:return False
-    host=normalize_host(urllib.parse.urlsplit(normalized).hostname or '')
-    return any(host==normalize_host(root) or host.endswith('.'+normalize_host(root)) for root in roots)
-
-
-class _RootPolicy:
-    def __init__(self, roots: list[str]) -> None:
-        self.roots=[normalize_host(root) for root in roots if normalize_host(root)]
-
-    def url_in_scope(self, url: str) -> bool:
-        return _host_allowed(url,self.roots)
 
 
 def _headers_dict(headers: Any) -> dict[str,str]:
@@ -64,7 +49,7 @@ def _head_observation(
     }
 
 
-def _execute_head(url: str, policy: _RootPolicy) -> dict[str,Any]:
+def _execute_head(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
     current=url
     redirect_chain: list[str]=[]
     last: dict[str,Any]={}
@@ -120,7 +105,7 @@ def _execute_head(url: str, policy: _RootPolicy) -> dict[str,Any]:
     }
 
 
-def _execute_download(url: str, policy: _RootPolicy) -> dict[str,Any]:
+def _execute_download(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
     result=perform_pinned_download(
         url,
         policy,
@@ -155,16 +140,16 @@ def _execute_download(url: str, policy: _RootPolicy) -> dict[str,Any]:
 
 
 def execute_task(payload: dict[str, Any]) -> dict[str, Any]:
-    kind=str(payload.get('kind','')); url=str(payload.get('url','')); roots=[str(x) for x in payload.get('allowed_roots',[])]
+    kind=str(payload.get('kind','')); url=str(payload.get('url',''))
     if kind not in WORKER_CAPABILITIES: raise ReconError(f'Unsupported remote task kind: {kind}')
-    if not roots or not _host_allowed(url,roots): raise ReconError('Remote task URL is outside its declared roots')
-    policy=_RootPolicy(roots)
+    policy=task_scope_policy(payload)
+    if not policy.url_in_scope(url): raise ReconError('Remote task URL is outside its declared scope policy')
     return _execute_head(url,policy) if kind=='http_head' else _execute_download(url,policy)
 
 
 def run_worker(server: str, token: str, worker_id: str, name: str = '', interval: int = 5, once: bool = False) -> int:
     capabilities=list(WORKER_CAPABILITIES); name=name or socket.gethostname()
-    registration=_request(server,token,'/api/v1/workers/register',{'worker_id':worker_id,'name':name,'capabilities':capabilities,'metadata':{'host':socket.gethostname()}})
+    registration=_request(server,token,'/api/v1/workers/register',{'worker_id':worker_id,'name':name,'capabilities':capabilities,'metadata':{'host':socket.gethostname(),'scope_policy_versions':[WORKER_SCOPE_VERSION]}})
     worker_id=str(registration.get('worker_id') or worker_id)
     while True:
         _request(server,token,'/api/v1/workers/heartbeat',{'worker_id':worker_id})
