@@ -1364,6 +1364,108 @@ class UpdateManager:
             raise ReconError("Invalid release package: APP_VERSION was not found")
         return match.group(1)
 
+    def _stage_program(self, source: Path, staged: Path) -> tuple[str, ...]:
+        items = []
+        for item in self._program_items(source):
+            src = source / item
+            if not src.exists():
+                continue
+            dst = staged / item
+            if item == "plugins" and self.paths.plugins.is_dir():
+                # Merge custom plugins in isolation, never into the live tree.
+                shutil.copytree(self.paths.plugins, dst, symlinks=True)
+                for entry in (src, *src.rglob("*")):
+                    output = (dst / entry.relative_to(src)).resolve()
+                    if not output.is_relative_to(staged.resolve()):
+                        raise ReconError(f"Plugin update would follow a link outside staging: {entry}")
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+            elif src.is_dir():
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+            items.append(item)
+        for rel in ("recon-monitor.sh", "install.sh", "upgrade-v2.sh", "upgrade-v3.sh", "app/recon_monitor.py"):
+            executable = staged / rel
+            if executable.exists():
+                executable.chmod(executable.stat().st_mode | 0o111)
+        return tuple(items)
+
+    def _replace_program(
+        self, staged: Path, previous: Path, items: Iterable[str], applied: list[tuple[str, bool]],
+    ) -> None:
+        for item in items:
+            live = self.paths.root / item
+            existed = live.exists() or live.is_symlink()
+            # Journal before the first rename, including interruption between
+            # the old rename and activation of the staged item.
+            applied.append((item, existed))
+            if existed:
+                os.replace(live, previous / item)
+            replacement = staged / item
+            if replacement.exists() or replacement.is_symlink():
+                os.replace(replacement, live)
+
+    def _undo_program(
+        self, previous: Path, discarded: Path, applied: Iterable[tuple[str, bool]],
+    ) -> None:
+        failures = []
+        for item, existed in reversed(tuple(applied)):
+            try:
+                original = previous / item
+                if existed and not (original.exists() or original.is_symlink()):
+                    # The old rename failed; the original is still live.
+                    continue
+                live = self.paths.root / item
+                if live.exists() or live.is_symlink():
+                    os.replace(live, discarded / item)
+                if existed:
+                    os.replace(original, live)
+            except OSError as exc:
+                failures.append(f"{item}: {exc}")
+        if failures:
+            raise ReconError("Program recovery failed: " + "; ".join(failures))
+
+    def _stage_database_restore(self, archive: Path) -> Path:
+        # Keep the snapshot on the database filesystem so recovery is a rename,
+        # even when disk-full errors prevent any further copying.
+        fd, name = tempfile.mkstemp(prefix=".recon-update-db-", dir=self.paths.state)
+        snapshot = Path(name)
+        try:
+            with os.fdopen(fd, "wb") as output, tarfile.open(archive, "r:gz") as tar:
+                members = BackupManager._safe_members(tar)
+                databases = [member for member in members if member.name == "state/recon-v2.db" and member.isfile()]
+                if len(databases) != 1:
+                    raise ReconError("Update backup must contain one database snapshot")
+                source = tar.extractfile(databases[0])
+                if source is None:
+                    raise ReconError("Could not read update database snapshot")
+                with source:
+                    shutil.copyfileobj(source, output)
+            return snapshot
+        except BaseException:
+            snapshot.unlink(missing_ok=True)
+            raise
+
+    def _restore_update_database(self, snapshot: Path) -> None:
+        self.db.close()
+        for suffix in ("-wal", "-shm"):
+            Path(str(self.paths.db) + suffix).unlink(missing_ok=True)
+        os.replace(snapshot, self.paths.db)
+
+    def _cleanup_update(self, transaction: Path, database_snapshot: Path | None = None) -> None:
+        for path in (database_snapshot, transaction):
+            if path is None:
+                continue
+            try:
+                if path == transaction:
+                    shutil.rmtree(path)
+                else:
+                    path.unlink(missing_ok=True)
+            except OSError as exc:
+                # Cleanup cannot turn a committed update into a reported failure
+                # or obscure the original error after successful recovery.
+                self.logger.warn("Could not remove update staging", path=str(path), error=str(exc))
+
     def install(self, package: Path, expected_sha256: str = "", signature: Path | None = None, public_key: Path | None = None) -> dict[str, Any]:
         if not package.exists():
             raise ReconError(f"Package not found: {package}")
@@ -1387,53 +1489,49 @@ class UpdateManager:
                 raise ReconError("Release signature verification failed")
             signature_verified = True
 
-        backup = BackupManager(self.paths, self.db, self.logger).create()
-        release_backup = self.paths.releases / f"program-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
-        current_items = self._program_items(self.paths.root)
-        with tarfile.open(release_backup, "w:gz") as tar:
-            for item in current_items:
-                path = self.paths.root / item
-                if path.exists():
-                    tar.add(path, arcname=item)
-
-        target_version = ""
-        with tempfile.TemporaryDirectory(prefix="recon-update-") as temp:
-            temp_root = Path(temp).resolve()
+        transaction = Path(tempfile.mkdtemp(prefix=".recon-update-", dir=self.paths.root))
+        staged = transaction / "staged"
+        previous = transaction / "previous"
+        discarded = transaction / "discarded"
+        applied: list[tuple[str, bool]] = []
+        database_snapshot: Path | None = None
+        preserve_recovery = False
+        checks_started = False
+        try:
+            for directory in (staged, previous, discarded):
+                directory.mkdir()
+            temp_root = transaction / "package"
+            temp_root.mkdir()
             try:
                 with zipfile.ZipFile(package) as zf:
                     self._validate_zip_members(zf, temp_root)
                     zf.extractall(temp_root)
             except zipfile.BadZipFile as exc:
                 raise ReconError("Release package is not a valid ZIP archive") from exc
-            candidates = [p for p in Path(temp).iterdir() if p.is_dir()]
-            source = candidates[0] if len(candidates) == 1 else Path(temp)
+            candidates = [p for p in temp_root.iterdir() if p.is_dir()]
+            source = temp_root
+            if not (source / "app").is_dir() and len(candidates) == 1:
+                source = candidates[0]
             target_version = self._package_version(source)
             if self._version_key(target_version) is None:
                 raise ReconError(f"Invalid release version: {target_version}")
-            program_items = self._program_items(source)
-            for item in program_items:
-                src = source / item
-                if not src.exists():
-                    continue
-                dst = self.paths.root / item
-                if item == "plugins" and dst.exists():
-                    shutil.copytree(src, dst, dirs_exist_ok=True)
-                    continue
-                if dst.is_dir():
-                    shutil.rmtree(dst)
-                elif dst.exists():
-                    dst.unlink()
-                if src.is_dir():
-                    shutil.copytree(src, dst)
-                else:
-                    shutil.copy2(src, dst)
-
-        for rel in ("recon-monitor.sh", "install.sh", "upgrade-v2.sh", "upgrade-v3.sh", "app/recon_monitor.py"):
-            executable = self.paths.root / rel
-            if executable.exists():
-                executable.chmod(executable.stat().st_mode | 0o111)
-
-        try:
+            program_items = self._stage_program(source, staged)
+            backup = BackupManager(self.paths, self.db, self.logger).create()
+            release_backup = self.paths.releases / (
+                f"program-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:12]}.tar.gz"
+            )
+            try:
+                with tarfile.open(release_backup, "w:gz") as tar:
+                    for item in self._program_items(self.paths.root):
+                        path = self.paths.root / item
+                        if path.exists() or path.is_symlink():
+                            tar.add(path, arcname=item)
+            except BaseException:
+                release_backup.unlink(missing_ok=True)
+                raise
+            database_snapshot = self._stage_database_restore(Path(str(backup["path"])))
+            self._replace_program(staged, previous, program_items, applied)
+            checks_started = True
             checks = (
                 [str(self.paths.root / "recon-monitor.sh"), "init", "--no-wizard"],
                 [sys.executable, "-m", "compileall", "-q", str(self.paths.app), str(self.paths.root / "tests")],
@@ -1445,34 +1543,44 @@ class UpdateManager:
                 if result.returncode != 0:
                     output = (result.stderr or result.stdout)[-3000:]
                     raise ReconError(f"Post-update validation failed: {' '.join(command)}\n{output}")
-        except Exception as exc:
-            with tarfile.open(release_backup, "r:gz") as tar:
-                self._safe_tar_restore(tar, self.paths.root)
-            try:
-                self.db.close()
-            except Exception:
-                pass
-            backup_archive = Path(str(backup["path"]))
-            with tempfile.TemporaryDirectory(prefix="recon-update-rollback-") as temp:
-                with tarfile.open(backup_archive, "r:gz") as tar:
-                    members = BackupManager._safe_members(tar)
-                    BackupManager._extract_members(tar, Path(temp), members)
-                shutil.copy2(Path(temp) / "state/recon-v2.db", self.paths.db)
-            raise ReconError(f"Update rolled back after validation failure: {exc}") from exc
+            self.db.audit(
+                "update_installed",
+                entity_type="release",
+                entity_value=actual,
+                details={
+                    "from_version": APP_VERSION,
+                    "to_version": target_version,
+                    "program_backup": str(release_backup),
+                    "data_backup": backup["backup_id"],
+                    "signature_verified": signature_verified,
+                },
+            )
+            atomic_write_text(self.paths.releases / "last-program-backup.txt", str(release_backup) + "\n")
+        except BaseException as exc:
+            if applied:
+                recovery_errors = []
+                try:
+                    self._undo_program(previous, discarded, applied)
+                except BaseException as recovery_exc:
+                    recovery_errors.append(str(recovery_exc))
+                if checks_started and database_snapshot is not None:
+                    try:
+                        self._restore_update_database(database_snapshot)
+                    except BaseException as recovery_exc:
+                        recovery_errors.append(f"Database recovery failed: {recovery_exc}")
+                if recovery_errors:
+                    preserve_recovery = True
+                    raise ReconError(
+                        f"Update failed: {exc}. Automatic rollback failed: {'; '.join(recovery_errors)}. "
+                        f"Recovery files retained at {transaction}; database snapshot: {database_snapshot}"
+                    ) from exc
+                if isinstance(exc, Exception):
+                    raise ReconError(f"Update rolled back after failure: {exc}") from exc
+            raise
+        finally:
+            if not preserve_recovery:
+                self._cleanup_update(transaction, database_snapshot)
 
-        self.db.audit(
-            "update_installed",
-            entity_type="release",
-            entity_value=actual,
-            details={
-                "from_version": APP_VERSION,
-                "to_version": target_version,
-                "program_backup": str(release_backup),
-                "data_backup": backup["backup_id"],
-                "signature_verified": signature_verified,
-            },
-        )
-        atomic_write_text(self.paths.releases / "last-program-backup.txt", str(release_backup) + "\n")
         return {
             "installed": str(package),
             "from_version": APP_VERSION,
@@ -1484,11 +1592,6 @@ class UpdateManager:
             "data_backup": backup["backup_id"],
         }
 
-    @staticmethod
-    def _safe_tar_restore(tar: tarfile.TarFile, destination: Path) -> None:
-        members = BackupManager._safe_members(tar)
-        BackupManager._extract_members(tar, destination, members)
-
     def rollback(self) -> dict[str, Any]:
         marker = self.paths.releases / "last-program-backup.txt"
         if not marker.exists():
@@ -1496,8 +1599,44 @@ class UpdateManager:
         archive = Path(marker.read_text(encoding="utf-8").strip())
         if not archive.exists():
             raise ReconError("Rollback archive is missing")
-        with tarfile.open(archive, "r:gz") as tar:
-            self._safe_tar_restore(tar, self.paths.root)
-        self.db.audit("update_rolled_back", entity_type="release", entity_value=str(archive))
+        transaction = Path(tempfile.mkdtemp(prefix=".recon-rollback-", dir=self.paths.root))
+        staged = transaction / "staged"
+        previous = transaction / "previous"
+        discarded = transaction / "discarded"
+        applied: list[tuple[str, bool]] = []
+        preserve_recovery = False
+        try:
+            for directory in (staged, previous, discarded):
+                directory.mkdir()
+            with tarfile.open(archive, "r:gz") as tar:
+                members = BackupManager._safe_members(tar)
+                allowed = set(self._program_items(staged))
+                for member in members:
+                    parts = Path(member.name).parts
+                    if not parts or (
+                        parts[0] not in allowed
+                        and not (len(parts) == 1 and re.fullmatch(r"MIGRATION-[^/]+\.md", parts[0]) and member.isfile())
+                    ):
+                        raise ReconError(f"Unexpected program backup member: {member.name}")
+                BackupManager._extract_members(tar, staged, members)
+            self._package_version(staged)
+            items = tuple(dict.fromkeys((*self._program_items(self.paths.root), *self._program_items(staged))))
+            self._replace_program(staged, previous, items, applied)
+            self.db.audit("update_rolled_back", entity_type="release", entity_value=str(archive))
+        except BaseException as exc:
+            if applied:
+                try:
+                    self._undo_program(previous, discarded, applied)
+                except BaseException as recovery_exc:
+                    preserve_recovery = True
+                    raise ReconError(
+                        f"Rollback failed: {exc}. Recovery failed: {recovery_exc}. "
+                        f"Recovery files retained at {transaction}"
+                    ) from exc
+                if isinstance(exc, Exception):
+                    raise ReconError(f"Rollback attempt rolled back after failure: {exc}") from exc
+            raise
+        finally:
+            if not preserve_recovery:
+                self._cleanup_update(transaction)
         return {"rolled_back": str(archive), "dashboard_restart_required": True}
-

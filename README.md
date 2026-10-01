@@ -40,7 +40,7 @@ Recon Monitor 8.1.0 adds a private-release update path built around the authenti
 ./recon-monitor.sh update rollback
 ```
 
-`update install` now downloads the matching release ZIP and SHA-256 sidecar automatically, verifies the checksum, creates a data backup and a program backup, installs the release, then runs initialization, Python compilation, the full unit suite, and the integration test. If validation fails, the updater restores both the program files and the pre-update database backup. Manual `--package` installs and the legacy `RECON_UPDATE_MANIFEST` path remain supported. Database schema remains **16**.
+`update install` now downloads the matching release ZIP and SHA-256 sidecar automatically, verifies the checksum, stages the complete program copy, creates a data backup and a program backup, installs the release, then runs initialization, Python compilation, the full unit suite, and the integration test. Copy failures leave the installed program intact. Activation or validation failures restore the previous program tree, including removal of newly introduced files; validation failures also restore the pre-update database using a prepared snapshot. Manual `--package` installs and the legacy `RECON_UPDATE_MANIFEST` path remain supported. See [Update recovery](docs/UPDATE_RECOVERY.md) for failure handling and rollback behavior. Database schema remains **16**.
 
 See `MIGRATION-v8.1.md` for the 8.0.x → 8.1 transition.
 
