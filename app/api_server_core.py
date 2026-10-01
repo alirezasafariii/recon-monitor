@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import secrets
+import shlex
 import signal
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_bool, parse_int, safe_json_loads, utc_now
+from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, atomic_write_text, json_dumps, parse_bool, parse_int, safe_json_loads, utc_now
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
@@ -452,21 +453,219 @@ def serve_api(paths: AppPaths, logger: Logger, host: str, port: int, allow_remot
 
 
 def api_paths(paths: AppPaths): return paths.state/'api.pid',paths.logs/'api.log'
+
+
+def _read_api_record(paths: AppPaths) -> tuple[int, str]:
+    """Read the API PID record, accepting legacy plain-integer files."""
+    pid_path, _ = api_paths(paths)
+    try:
+        raw = pid_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return 0, ""
+    if not raw:
+        return 0, ""
+    try:
+        record = json.loads(raw)
+    except (TypeError, ValueError):
+        try:
+            return int(raw), ""
+        except ValueError:
+            return 0, ""
+    if isinstance(record, int):
+        return record, ""
+    if not isinstance(record, dict):
+        return 0, ""
+    try:
+        pid = int(record.get("pid") or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    return pid, str(record.get("start_token") or "")
+
+
+def _process_alive(pid: int) -> bool:
+    if pid <= 1:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _process_start_token(pid: int) -> str:
+    """Return a boot-relative process-start token where the OS exposes one."""
+    proc_stat = Path(f"/proc/{pid}/stat")
+    try:
+        raw = proc_stat.read_text(encoding="utf-8")
+        # The executable name is enclosed in parentheses and can itself contain
+        # spaces/parentheses. The fields after the final ')' start at field 3;
+        # Linux field 22 (starttime) is therefore offset 19.
+        fields = raw.rsplit(")", 1)[1].split()
+        return fields[19] if len(fields) > 19 else ""
+    except (OSError, IndexError):
+        return ""
+
+
+def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "") -> dict[str, Any] | None:
+    """Validate both the executable command and the process instance.
+
+    A PID file is only a locator. The command must be this checkout's
+    ``api foreground`` process, and a token written by newer starts must still
+    match the current process instance. This prevents a stale/reused PID from
+    being reported as Recon Monitor or signalled by ``api stop``.
+    """
+    if not _process_alive(pid):
+        return None
+    current_start_token = _process_start_token(pid)
+    if expected_start_token and (
+        not current_start_token or current_start_token != expected_start_token
+    ):
+        return None
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    command = str(result.stdout or "").strip()
+    if not command:
+        return None
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    expected_script = str((paths.app / "recon_monitor.py").resolve())
+    indexes = [index for index, value in enumerate(parts) if value == expected_script]
+    if not indexes:
+        return None
+    tail = parts[indexes[-1] + 1:]
+    if len(tail) < 2 or tail[:2] != ["api", "foreground"]:
+        return None
+
+    def option(name: str, default: str) -> str:
+        try:
+            index = tail.index(name)
+            return tail[index + 1]
+        except (ValueError, IndexError):
+            return default
+
+    try:
+        port = int(option("--port", "8790"))
+    except ValueError:
+        port = 8787
+    return {
+        "pid": pid,
+        "host": option("--host", "127.0.0.1"),
+        "port": port,
+        "allow_remote": "--allow-remote" in tail,
+        "command": command,
+        "start_token": current_start_token,
+    }
+
+
+def _remove_api_record(paths: AppPaths) -> None:
+    api_paths(paths)[0].unlink(missing_ok=True)
+
+
 def api_status(paths: AppPaths):
-    pid_path,_=api_paths(paths)
-    if not pid_path.exists():return False,'API is not running'
-    try:pid=int(pid_path.read_text().strip());os.kill(pid,0);return True,f'API running (PID {pid})'
-    except Exception:pid_path.unlink(missing_ok=True);return False,'API is not running'
+    pid, start_token = _read_api_record(paths)
+    info = _api_process_info(paths, pid, start_token)
+    if info is None:
+        _remove_api_record(paths)
+        return False, 'API is not running'
+    return True, f"API running (PID {pid}) at http://{info['host']}:{info['port']}"
+
+
 def start_api(paths: AppPaths,host:str,port:int,allow_remote:bool=False):
     active,detail=api_status(paths)
     if active:raise ReconError(detail)
     pid_path,log_path=api_paths(paths); log=open(log_path,'ab'); cmd=[sys.executable,str(paths.app/'recon_monitor.py'),'api','foreground','--host',host,'--port',str(port)]+(['--allow-remote'] if allow_remote else [])
-    proc=subprocess.Popen(cmd,cwd=paths.root,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True); pid_path.write_text(str(proc.pid)+'\n'); time.sleep(.5); return proc.pid
+    try:
+        proc=subprocess.Popen(cmd,cwd=paths.root,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+    finally:
+        log.close()
+    # Store the process instance token alongside the PID. Legacy integer PID
+    # files remain readable, but all newly started API processes are bound to
+    # the exact instance observed at startup.
+    atomic_write_text(
+        pid_path,
+        json_dumps({"pid": proc.pid, "start_token": _process_start_token(proc.pid)}) + "\n",
+    )
+    time.sleep(.5)
+    return proc.pid
+
+
+def _signal_api_process(
+    paths: AppPaths | None,
+    pid: int,
+    sig: int,
+    expected_start_token: str = "",
+) -> bool:
+    """Signal a specific process instance when Linux pidfds are available."""
+    if expected_start_token and _process_start_token(pid) != expected_start_token:
+        return False
+    pidfd_open = getattr(os, "pidfd_open", None)
+    pidfd_send_signal = getattr(signal, "pidfd_send_signal", None)
+    if callable(pidfd_open) and callable(pidfd_send_signal):
+        try:
+            pidfd = pidfd_open(pid)
+        except OSError:
+            pidfd = None
+        if pidfd is not None:
+            try:
+                if expected_start_token and _process_start_token(pid) != expected_start_token:
+                    return False
+                if paths is not None and _api_process_info(paths, pid, expected_start_token) is None:
+                    return False
+                pidfd_send_signal(pidfd, sig)
+                return True
+            finally:
+                os.close(pidfd)
+    if paths is not None and _api_process_info(paths, pid, expected_start_token) is None:
+        return False
+    os.kill(pid, sig)
+    return True
+
+
 def stop_api(paths: AppPaths):
-    active,_=api_status(paths); pid_path,_=api_paths(paths)
-    if not active:return False
-    pid=int(pid_path.read_text());os.kill(pid,signal.SIGTERM)
+    pid_path,_=api_paths(paths)
+    pid, start_token = _read_api_record(paths)
+    info = _api_process_info(paths, pid, start_token)
+    if info is None:
+        _remove_api_record(paths)
+        return False
+    try:
+        signaled = _signal_api_process(
+            paths,
+            pid,
+            signal.SIGTERM,
+            str(info.get("start_token") or start_token),
+        )
+    except ProcessLookupError:
+        _remove_api_record(paths)
+        return False
+    if not signaled:
+        _remove_api_record(paths)
+        return False
     for _ in range(30):
-        try:os.kill(pid,0);time.sleep(.1)
-        except OSError:break
-    pid_path.unlink(missing_ok=True);return True
+        if not _process_alive(pid):
+            break
+        time.sleep(.1)
+    if _process_alive(pid):
+        try:
+            _signal_api_process(
+                paths,
+                pid,
+                signal.SIGKILL,
+                str(info.get("start_token") or start_token),
+            )
+        except ProcessLookupError:
+            pass
+    pid_path.unlink(missing_ok=True)
+    return True
