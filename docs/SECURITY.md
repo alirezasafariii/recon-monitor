@@ -44,6 +44,23 @@
   supplied as seconds or an HTTP date. The controller records its decision in
   `_worker_outcome`; older workers cannot mark transport failures completed
   simply by sending `ok=true`.
+- Download workers advertise `download_artifact_versions: [1]` and return a
+  complete file as bounded base64 with its byte count and SHA-256. The server
+  verifies the file and current lease before atomically recording CAS ownership
+  and `artifact_ready`. Transfer is capped at 1 MiB and the task's `max_bytes`,
+  within the existing API body limit; received bytes count against an initialized
+  run download budget. Partial HTTP 206 ranges are rejected. Older workers can
+  still perform HEAD tasks, but are not assigned downloads.
+- `artifact_ready` awaits JavaScript processing by local Resume. Resume verifies
+  the work item's CAS reference, current scope, byte count and hash, then uses
+  the retained bytes without another JavaScript download. Only processed files
+  with valid CAS/`js_files` records become `completed`; a verified 404/410
+  availability observation can also complete without a file. In-flight remote
+  leases remain pending, and processing faults retain the artifact for retry.
+  Legacy metadata-only completion and missing/corrupt objects are reopened for
+  repair. Pending artifacts have explicit `work_item` references, so retention
+  and reference-only backups preserve them until processing hands ownership to
+  the current JavaScript file.
 - External plugins are code and must be reviewed before enabling. Plugin manifests and health checks are not a sandbox.
 
 ## Evidence and storage

@@ -94,13 +94,16 @@ class WorkQueue:
             item_key,
         ) == "completed"
 
-    def start(self, work_id: int, worker_id: str = "local") -> None:
-        self._write(
+    def start(self, work_id: int, worker_id: str = "local") -> bool:
+        return self._write(
             lambda db: db.work_start(
                 work_id,
                 worker_id,
             )
         )
+
+    def reopen(self, work_id: int, error: str) -> bool:
+        return self._write(lambda db: db.work_reopen(work_id, error))
 
     def finish(
         self,

@@ -12,9 +12,9 @@ from core import ReconError, normalize_url, safe_json_loads
 from safe_transport import perform_pinned_download, perform_pinned_request
 from worker_scope import WORKER_CAPABILITIES, WORKER_SCOPE_VERSION, WorkerScopePolicy, task_scope_policy
 from worker_results import classify_worker_result, worker_failure
+from worker_artifacts import WORKER_ARTIFACT_VERSION, MAX_DOWNLOAD_BYTES, complete_download, download_limit, encode_artifact
 
 
-MAX_DOWNLOAD_BYTES = 1024 * 1024
 MAX_REDIRECTS = 3
 
 
@@ -107,24 +107,27 @@ def _execute_head(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
     }
 
 
-def _execute_download(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
+def _execute_download(url: str, policy: WorkerScopePolicy, max_bytes: int = MAX_DOWNLOAD_BYTES) -> dict[str,Any]:
     result=perform_pinned_download(
         url,
         policy,
-        headers={"Range":f"bytes=0-{MAX_DOWNLOAD_BYTES-1}"},
-        max_response_bytes=MAX_DOWNLOAD_BYTES,
+        max_response_bytes=max_bytes,
         timeout=20,
         max_redirects=MAX_REDIRECTS,
         user_agent="ReconMonitor-Worker/3.0",
     )
     headers=_headers_dict(result.get("headers",{}))
-    data=result.get("data") if isinstance(result.get("data"),bytes) else b""
+    raw_data=result.get("data")
+    data=raw_data if isinstance(raw_data,bytes) else b""
     error=str(result.get("error") or "")
-    return {
+    report = {
         "url":normalize_url(str(result.get("final_url") or url)) or str(result.get("final_url") or url),
         "status_code":int(result.get("status_code") or 0),
         "content_type":str(headers.get("content-type","")),
         "content_length":len(data),
+        "content_range":str(headers.get("content-range") or ""),
+        "etag":str(headers.get("etag") or ""),
+        "last_modified":str(headers.get("last-modified") or ""),
         "truncated":error=="response_budget_exceeded",
         "transport_status":str(result.get("transport_status") or "error"),
         "transport_error":error,
@@ -140,6 +143,14 @@ def _execute_download(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
         "dns_rebinding_protection":str(result.get("dns_rebinding_protection") or ""),
         "environment_proxy_used":bool(result.get("environment_proxy_used",False)),
     }
+    if report["transport_status"] == "ok" and 200 <= report["status_code"] < 300 and not error:
+        if not isinstance(raw_data,bytes):
+            report.update(transport_status="error",transport_error="Remote download body is missing")
+        elif complete_download(report["status_code"],headers,data):
+            report["artifact"]=encode_artifact(data)
+        else:
+            report.update(transport_status="stopped_for_safety",transport_error="incomplete_download",truncated=True)
+    return report
 
 
 def execute_task(payload: dict[str, Any]) -> dict[str, Any]:
@@ -147,12 +158,12 @@ def execute_task(payload: dict[str, Any]) -> dict[str, Any]:
     if kind not in WORKER_CAPABILITIES: raise ReconError(f'Unsupported remote task kind: {kind}')
     policy=task_scope_policy(payload)
     if not policy.url_in_scope(url): raise ReconError('Remote task URL is outside its declared scope policy')
-    return _execute_head(url,policy) if kind=='http_head' else _execute_download(url,policy)
+    return _execute_head(url,policy) if kind=='http_head' else _execute_download(url,policy,download_limit(payload))
 
 
 def run_worker(server: str, token: str, worker_id: str, name: str = '', interval: int = 5, once: bool = False) -> int:
     capabilities=list(WORKER_CAPABILITIES); name=name or socket.gethostname()
-    registration=_request(server,token,'/api/v1/workers/register',{'worker_id':worker_id,'name':name,'capabilities':capabilities,'metadata':{'host':socket.gethostname(),'scope_policy_versions':[WORKER_SCOPE_VERSION]}})
+    registration=_request(server,token,'/api/v1/workers/register',{'worker_id':worker_id,'name':name,'capabilities':capabilities,'metadata':{'host':socket.gethostname(),'scope_policy_versions':[WORKER_SCOPE_VERSION],'download_artifact_versions':[WORKER_ARTIFACT_VERSION]}})
     worker_id=str(registration.get('worker_id') or worker_id)
     while True:
         _request(server,token,'/api/v1/workers/heartbeat',{'worker_id':worker_id})
