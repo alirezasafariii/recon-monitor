@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.8.1
+# راهنمای Recon Monitor 8.8.2
 
-<!-- recon-monitor-current: app=8.8.1 schema=18 -->
+<!-- recon-monitor-current: app=8.8.2 schema=18 -->
 
-## نسخهٔ فعلی: Correctness، Replay Integrity و Multi-target Reporting
+## نسخهٔ فعلی: صحت جمع‌آوری و پایداری اجرا
 
-Recon Monitor 8.8.1 یک Patch متمرکز بر correctness نسبت به 8.8.0 است. semantics بازه‌های ناقص npm، انتقال شواهد واقعی listing در S3/GCS از مسیر عادی fingerprint، portability بازیابی backup بین rootهای مختلف، replay immutable و calibration، مالکیت lease در notification و telemetry مربوط به raw Analysis و اجرای چندهدفه در این نسخه اصلاح شده‌اند.
+Recon Monitor 8.8.2 اصلاحات جمع‌آوری و اجرای برنامه پس از 8.8.1 را یک‌جا منتشر می‌کند. حفظ داده‌های DNS و خروجی جزئی ابزارها، دسته‌بندی خزش Katana، به‌روزشدن ورودی Analysis پس از Resume، بررسی محدوده و فایل‌های Worker، کنترل ورودی بزرگ subprocess، کپی امن هنگام Update و پاسخ کنترل‌شده به ورودی خالی در این نسخه تکمیل شده‌اند. Resume مربوط به JavaScript و Source Map، ارسال دسته‌ای اعلان‌ها، توقف امن API روی Linux و macOS، بارگذاری تنظیمات درخواست‌های API و هویت رکوردهای PostgreSQL Mirror نیز اصلاح شده‌اند.
 
-نسخهٔ canonical برنامه **8.8.1** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+نسخهٔ canonical برنامه **8.8.2** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.1.md`، `docs/RELEASE_NOTES_v8.8.1.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.2.md`، `docs/RELEASE_NOTES_v8.8.2.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 
