@@ -34,6 +34,16 @@ The additive outbox schema has its own schema metadata and does not change the c
 
 The worker supports `immediate`, `digest`, and `system_warning`. `silent` policies suppress event creation before the outbox.
 
+## Bounded messages and delivery receipts
+
+Each target/mode group is split at event boundaries into messages of at most 15,000 characters, including its header. Every event is rendered in full. A successful message acknowledges only the events it contains; failure leaves only those events eligible for retry or terminal failure.
+
+A single event larger than the message limit is sent in consecutive parts. It is acknowledged once, after every part succeeds through at least one common transport channel. A failed part stops the remaining parts of that event, while independent batches can continue. The worker renews the remaining event leases before each transport call and schedules backoff from the completion time of the failed attempt.
+
+Delivery results include each batch's `event_ids`, `message_parts`, `sent_parts`, and `message_lengths`, alongside its transport result. `sent_parts` counts attempted transport calls, including a failed call; attempt counts and delivery receipts remain per event.
+
+Transport delivery is at least once. Retrying a partially sent oversized event sends all of its parts again. A crash after transport success but before the database receipt can also repeat a message; already recorded `delivered` events are excluded from later attempts.
+
 ## Worker
 
 Run all due Potential Finding notifications:
