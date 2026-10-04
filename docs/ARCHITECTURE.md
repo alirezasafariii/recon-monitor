@@ -81,6 +81,10 @@ Finding notifications are independent from Recon Change Alerts. New or materiall
 
 SQLite under `state/` remains the transactional source of truth. The database uses WAL mode, busy timeouts, connection-wide transaction locking, and a serialized writer path for queued mutation events. Audit-log and audit-integrity rows are appended under the same SQLite write transaction so concurrent writers cannot fork the hash-chain head. Content-addressed evidence and source objects live under the local object store with SHA-256 integrity metadata. PostgreSQL, when configured, is an analytics mirror rather than the primary transactional store.
 
+`postgres sync` identifies mirror rows by the complete SQLite primary key, including every component of composite keys in schema order. The `pk:v1:` row key hashes a typed JSON encoding of those columns and their full values. Payload edits, new non-key columns, and query order keep the same identity, so repeated syncs update the existing row. Missing or null primary keys fail the sync instead of falling back to content or row position.
+
+The first successful sync with this key format upserts all retained source rows and removes legacy content-derived keys for the supported tables in one PostgreSQL transaction. This recovers previously colliding rows that still exist in SQLite and removes obsolete content-key duplicates. Read, write, or cleanup failures roll back both the upserts and legacy cleanup; other table names in `mirror_rows` are untouched. Update all mirror writers before migrating, since old versions can still write legacy keys. Source rows already removed from SQLite cannot be recovered by the migration. Sync retains its upsert behavior for current-format keys; source retention/deletion is a separate operation.
+
 ## Primary components
 
 - `app/recon_monitor.py` and `app/recon_monitor_core.py`: CLI and orchestration surface.
