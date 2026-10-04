@@ -11,6 +11,7 @@ from typing import Any
 from core import ReconError, normalize_url, safe_json_loads
 from safe_transport import perform_pinned_download, perform_pinned_request
 from worker_scope import WORKER_CAPABILITIES, WORKER_SCOPE_VERSION, WorkerScopePolicy, task_scope_policy
+from worker_results import classify_worker_result, worker_failure
 
 
 MAX_DOWNLOAD_BYTES = 1024 * 1024
@@ -96,6 +97,7 @@ def _execute_head(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
         "truncated":False,
         "transport_status":str(last.get("transport_status") or "error"),
         "transport_error":str(last.get("error") or ""),
+        "retry_after":str(headers.get("retry-after") or ""),
         "redirect_outside_scope":bool(last.get("redirect_outside_scope",False)),
         "redirect_chain":redirect_chain,
         "resolved_addresses":list(last.get("resolved_addresses") or []),
@@ -126,6 +128,7 @@ def _execute_download(url: str, policy: WorkerScopePolicy) -> dict[str,Any]:
         "truncated":error=="response_budget_exceeded",
         "transport_status":str(result.get("transport_status") or "error"),
         "transport_error":error,
+        "retry_after":str(headers.get("retry-after") or ""),
         "redirect_outside_scope":bool(result.get("redirect_outside_scope",False)),
         "redirect_chain":[
             str(hop.get("next_url") or hop.get("url") or "")
@@ -159,12 +162,19 @@ def run_worker(server: str, token: str, worker_id: str, name: str = '', interval
             time.sleep(max(1,interval));continue
         work=claimed
         lease_token=str(work.get('lease_token') or '')
+        if not lease_token:
+            raise ReconError('Remote work claim did not include a lease token')
+        result=None
         try:
-            if not lease_token:
-                raise ReconError('Remote work claim did not include a lease token')
             payload=safe_json_loads(work.get('payload_json'), {}, expected_type=dict)
             result=execute_task(payload)
-            _request(server,token,'/api/v1/work/result',{'id':work['id'],'worker_id':worker_id,'lease_token':lease_token,'ok':True,'result':result})
+            outcome=classify_worker_result(payload,result)
+        except ReconError as exc:
+            outcome=worker_failure(str(exc),retry=False,reason='invalid_task')
         except Exception as exc:
-            _request(server,token,'/api/v1/work/result',{'id':work.get('id',0),'worker_id':worker_id,'lease_token':lease_token,'ok':False,'error':str(exc),'retry':True})
+            outcome=worker_failure(str(exc),retry=True)
+        report={'id':work['id'],'worker_id':worker_id,'lease_token':lease_token,
+                'ok':outcome.ok,'retry':outcome.retry,'error':outcome.error,'result':result}
+        # A controller delivery error is not a failure of the target request.
+        _request(server,token,'/api/v1/work/result',report)
         if once:return 0

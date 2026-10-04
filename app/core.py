@@ -1911,7 +1911,7 @@ class Database:
         now = utc_now()
         cursor = self.execute(
             "UPDATE work_items SET status='running',attempts=attempts+1,worker_id=?,"
-            "lease_token_hash=?,lease_expires_at=?,started_at=?,heartbeat_at=?,error=NULL "
+            "lease_token_hash=?,lease_expires_at=?,started_at=?,heartbeat_at=?,error=NULL,finished_at=NULL "
             "WHERE id=? AND status IN ('queued','retry_pending')",
             (
                 worker_id,
@@ -1965,6 +1965,7 @@ class Database:
         error: str,
         retry: bool = True,
         *,
+        result: Mapping[str, Any] | None = None,
         worker_id: str | None = None,
         lease_token_hash: str | None = None,
     ) -> bool:
@@ -1972,15 +1973,15 @@ class Database:
         status = "retry_pending" if retry else "failed"
         if worker_id is None:
             cursor = self.execute(
-                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,"
+                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,result_json=COALESCE(?,result_json),"
                 "lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?",
-                (status, error, now, now, work_id),
+                (status, error, now, now, json_dumps(result) if result is not None else None, work_id),
             )
         else:
             if not lease_token_hash:
                 return False
             cursor = self.execute(
-                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,"
+                "UPDATE work_items SET status=?,error=?,finished_at=?,heartbeat_at=?,result_json=COALESCE(?,result_json),"
                 "lease_token_hash=NULL,lease_expires_at=NULL "
                 "WHERE id=? AND status='running' AND worker_id=? AND lease_token_hash=? "
                 "AND COALESCE(lease_expires_at,'')>=?",
@@ -1989,6 +1990,7 @@ class Database:
                     error,
                     now,
                     now,
+                    json_dumps(result) if result is not None else None,
                     work_id,
                     worker_id,
                     lease_token_hash,

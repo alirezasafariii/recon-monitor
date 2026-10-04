@@ -34,6 +34,16 @@
   remotely; it can still be processed by local Resume. New workers reject
   roots-only payloads, and new payloads omit `allowed_roots` so old workers cannot
   silently fall back to a broader policy.
+- Workers and the receiving API classify transport results against the leased
+  task. Connection errors and timeouts stay `retry_pending`; safety stops and
+  incomplete downloads become `failed`. A valid HEAD response (including 404)
+  completes an observation; downloads require 2xx. HTTP 429 is retryable for
+  either kind, and download HTTP 408/425/5xx responses are also retryable.
+  The API retains failure metadata in `result_json` and enforces a five-second
+  minimum retry delay (60 seconds for 429), extended by `Retry-After` when
+  supplied as seconds or an HTTP date. The controller records its decision in
+  `_worker_outcome`; older workers cannot mark transport failures completed
+  simply by sending `ok=true`.
 - External plugins are code and must be reviewed before enabling. Plugin manifests and health checks are not a sandbox.
 
 ## Evidence and storage

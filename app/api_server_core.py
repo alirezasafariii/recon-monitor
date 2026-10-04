@@ -21,6 +21,7 @@ from typing import Any
 from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, atomic_write_text, json_dumps, parse_bool, parse_int, safe_json_loads, utc_now
 from api_process_control import APIProcessControl, ControlledAPIHTTPServer, valid_control_instance
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
+from worker_results import classify_worker_result, worker_failure, worker_retry_ready
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
 from behavioral_intelligence import behavioral_summary
@@ -390,6 +391,8 @@ class APIHandler(BaseHTTPRequestHandler):
                             break
                         after_id=int(rows[-1]['id'])
                         for row in rows:
+                            if not worker_retry_ready(row):
+                                continue
                             payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
                             if kind not in WORKER_CAPABILITIES or kind not in capabilities:
                                 continue
@@ -425,18 +428,30 @@ class APIHandler(BaseHTTPRequestHandler):
                 if not lease_token:
                     self.send_json({"error":"lease token required"},400); return
                 lease_hash=hashlib.sha256(lease_token.encode()).hexdigest()
-                if data.get('ok',False):
+                work=db.one("SELECT payload_json FROM work_items WHERE id=?",(work_id,))
+                payload=safe_json_loads(work["payload_json"],{},expected_type=dict) if work else {}
+                result=data.get('result')
+                if data.get('ok') is True or (isinstance(result,dict) and result):
+                    outcome=classify_worker_result(payload,result)
+                    if outcome.ok and data.get('ok') is not True:
+                        outcome=worker_failure(str(data.get('error') or 'worker failure'),retry=data.get('retry') is True)
+                else:
+                    outcome=worker_failure(str(data.get('error') or 'worker failure'),retry=data.get('retry') is True)
+                stored_result=dict(result) if isinstance(result,dict) else {}
+                stored_result['_worker_outcome']=outcome.metadata()
+                if outcome.ok:
                     accepted=db.work_finish(
                         work_id,
-                        data.get('result',{}),
+                        stored_result,
                         worker_id=worker_id,
                         lease_token_hash=lease_hash,
                     )
                 else:
                     accepted=db.work_fail(
                         work_id,
-                        str(data.get('error','worker failure')),
-                        retry=bool(data.get('retry',True)),
+                        outcome.error,
+                        retry=outcome.retry,
+                        result=stored_result,
                         worker_id=worker_id,
                         lease_token_hash=lease_hash,
                     )
