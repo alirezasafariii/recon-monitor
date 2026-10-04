@@ -111,6 +111,32 @@ class CommandRunnerStdinTests(unittest.TestCase):
             if proc.stdin is not None:
                 self.assertTrue(proc.stdin.closed)
 
+    def _invoke_after_parent_exit(self, code, **kwargs):
+        """Establish inherited pipes before measuring their cleanup deadline.
+
+        Interpreter startup and a second spawn can exceed a 200ms deadline on
+        a loaded runner. These cases specifically exercise an exited leader,
+        so prepare that state without consuming the captured output. Other
+        tests still supervise a newly spawned process from its initial start.
+        """
+        command = self._command(code)
+        proc = REAL_POPEN(
+            command,
+            stdin=subprocess.PIPE if kwargs.get("input_text") is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            start_new_session=True,
+        )
+        self.processes.append(proc)
+        self.assertEqual(proc.wait(timeout=3), 0, "fixture parent did not exit successfully")
+        with patch("core.subprocess.Popen", return_value=proc) as spawn:
+            result = self._invoke(code, **kwargs)
+        spawn.assert_called_once()
+        self.assertEqual(spawn.call_args.args[0], command)
+        return result
+
     @contextmanager
     def _macos_dead_group_signals(self):
         real_killpg = os.killpg
@@ -240,8 +266,10 @@ class CommandRunnerStdinTests(unittest.TestCase):
         self._assert_clean()
 
     def test_descendant_holding_stdin_cannot_outlive_the_deadline(self):
-        code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'], stdin=sys.stdin, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\nprint('parent-exited', flush=True)"
-        result = self._invoke(code, timeout=0.2, input_text=self.LARGE_INPUT)
+        # A slow fixture bootstrap must not replace the inherited-pipe scenario
+        # with an unrelated timeout before the descendant exists.
+        code = "import subprocess, sys, time\ntime.sleep(0.3)\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'], stdin=sys.stdin, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\nprint('parent-exited', flush=True)"
+        result = self._invoke_after_parent_exit(code, timeout=0.2, input_text=self.LARGE_INPUT)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
         self.assertLess(result.duration, 1.8)
@@ -250,7 +278,7 @@ class CommandRunnerStdinTests(unittest.TestCase):
 
     def test_descendant_holding_stdout_cannot_outlive_the_deadline(self):
         code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'], stdin=subprocess.DEVNULL)\nprint('parent-exited', flush=True)"
-        result = self._invoke(code, timeout=0.7)
+        result = self._invoke_after_parent_exit(code, timeout=0.7)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
         self.assertLess(result.duration, 1.8)
@@ -325,7 +353,7 @@ class CommandRunnerStdinTests(unittest.TestCase):
 
         self.addCleanup(cleanup_detached)
         code = "import subprocess, sys\nfrom pathlib import Path\nchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'], start_new_session=True)\nPath(" + repr(str(pid_path)) + ").write_text(str(child.pid))\nprint('parent-exited', flush=True)"
-        result = self._invoke(code, timeout=0.2, input_text=self.LARGE_INPUT)
+        result = self._invoke_after_parent_exit(code, timeout=0.2, input_text=self.LARGE_INPUT)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
         self.assertLess(result.duration, 2.8)
@@ -338,7 +366,7 @@ class CommandRunnerStdinTests(unittest.TestCase):
         code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(2)'], start_new_session=True)\nprint('parent-exited', flush=True)"
 
         with self._macos_dead_group_signals() as denied, patch("threading.excepthook") as thread_error:
-            result = self._invoke(code, timeout=0.2, input_text=self.LARGE_INPUT)
+            result = self._invoke_after_parent_exit(code, timeout=0.2, input_text=self.LARGE_INPUT)
         self.assertIn(signal.SIGTERM, denied)
         self.assertIn(signal.SIGKILL, denied)
         thread_error.assert_not_called()
