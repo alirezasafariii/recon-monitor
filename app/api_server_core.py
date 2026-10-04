@@ -9,6 +9,7 @@ import secrets
 import select
 import shlex
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -22,6 +23,7 @@ from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, at
 from api_process_control import APIProcessControl, ControlledAPIHTTPServer, valid_control_instance
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
 from worker_results import classify_worker_result, worker_failure, worker_retry_ready
+from worker_artifacts import WorkerArtifactError, receive_work_artifact, without_artifact_body, worker_supports_artifacts
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
 from behavioral_intelligence import behavioral_summary
@@ -396,6 +398,8 @@ class APIHandler(BaseHTTPRequestHandler):
                             payload=safe_json_loads(row['payload_json'], {}, expected_type=dict); kind=str(payload.get('kind',''))
                             if kind not in WORKER_CAPABILITIES or kind not in capabilities:
                                 continue
+                            if kind == 'download_url' and not worker_supports_artifacts(safe_json_loads(worker['metadata_json'],{},expected_type=dict)):
+                                continue
                             try:
                                 scope_policy=task_scope_policy(payload)
                             except ReconError:
@@ -437,8 +441,19 @@ class APIHandler(BaseHTTPRequestHandler):
                         outcome=worker_failure(str(data.get('error') or 'worker failure'),retry=data.get('retry') is True)
                 else:
                     outcome=worker_failure(str(data.get('error') or 'worker failure'),retry=data.get('retry') is True)
-                stored_result=dict(result) if isinstance(result,dict) else {}
+                stored_result=without_artifact_body(result) if isinstance(result,dict) else {}
                 stored_result['_worker_outcome']=outcome.metadata()
+                if outcome.ok and payload.get('kind') == 'download_url':
+                    try:
+                        accepted=receive_work_artifact(self.paths,db,work_id,result,worker_id=worker_id,lease_token_hash=lease_hash)
+                    except (OSError,sqlite3.Error,WorkerArtifactError) as exc:
+                        retry=exc.retryable if isinstance(exc,WorkerArtifactError) else True
+                        outcome=worker_failure(str(exc),retry=retry,reason='artifact_storage_error')
+                        stored_result['_worker_outcome']=outcome.metadata()
+                    else:
+                        if not accepted:
+                            self.send_json({"error":"work lease is invalid, expired, or not owned by this worker"},409); return
+                        self.send_json({"ok":True,"status":"artifact_ready"}); return
                 if outcome.ok:
                     accepted=db.work_finish(
                         work_id,

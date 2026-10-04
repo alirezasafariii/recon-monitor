@@ -215,7 +215,7 @@ class RemoteWorkerScopeTests(unittest.TestCase):
 
     def _register(self, ctx, *, versions=None):
         token = create_token(ctx.db, "offline-worker", "worker")
-        metadata = {} if versions is None else {"scope_policy_versions": versions}
+        metadata = {} if versions is None else {"scope_policy_versions": versions, "download_artifact_versions": [1]}
         self._api(ctx.paths, token, "/api/v1/workers/register", {
             "worker_id": "worker", "capabilities": ["http_head", "download_url"], "metadata": metadata,
         })

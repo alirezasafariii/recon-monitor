@@ -143,9 +143,11 @@ class JavascriptExecutionQualityTests(unittest.TestCase):
     def test_completed_work_is_reported_as_reused_not_no_discovery(self):
         url = "https://example.test/app.js"
         self.inputs([url])
-        item_id = self.ctx.db.enqueue_work(self.ctx.run_id, self.ctx.policy.name, "javascript-items", url)
-        self.ctx.db.work_start(item_id)
-        self.ctx.db.work_finish(item_id, {"raw_hash": "offline"})
+        with patch("stages._download_url", return_value={
+            "url": url, "status_code": 200, "data": b"const value = 1;", "content_type": "application/javascript",
+        }):
+            first = stage_javascript(self.ctx)
+        self.assertEqual(first["downloaded"], 1)
         with patch("stages._download_url") as download:
             result = stage_javascript(self.ctx)
         download.assert_not_called()

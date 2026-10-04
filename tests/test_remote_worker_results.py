@@ -21,6 +21,7 @@ from api_server_core import APIHandler, create_token
 from core import AppPaths, Database, TargetPolicy
 from worker_results import classify_worker_result, worker_retry_ready
 from worker_scope import worker_scope_snapshot
+from worker_artifacts import encode_artifact
 
 
 class RemoteWorkerResultTests(unittest.TestCase):
@@ -42,7 +43,8 @@ class RemoteWorkerResultTests(unittest.TestCase):
 
     def result(self, status=200, transport="ok", **extra):
         return {"url": self.URL, "status_code": status, "transport_status": transport,
-                "transport_error": "", "truncated": False, "redirect_outside_scope": False, **extra}
+                "transport_error": "", "truncated": False, "redirect_outside_scope": False,
+                "content_length": 17, "content_range": "bytes 0-16/17", "artifact": encode_artifact(b"const value = 1;\n"), **extra}
 
     def project(self):
         tmp = tempfile.TemporaryDirectory()
@@ -55,7 +57,7 @@ class RemoteWorkerResultTests(unittest.TestCase):
         token = create_token(db, "offline-worker", "worker")
         self.api(paths, token, "/api/v1/workers/register", {
             "worker_id": "worker", "capabilities": list(remote_worker.WORKER_CAPABILITIES),
-            "metadata": {"scope_policy_versions": [1]},
+            "metadata": {"scope_policy_versions": [1], "download_artifact_versions": [1]},
         })
         return paths, db, run_id, token
 
@@ -228,7 +230,7 @@ class RemoteWorkerResultTests(unittest.TestCase):
                  ("download_url", self.result(503, transport_error="http_error"), "retry_pending"),
                  ("download_url", self.result(200, truncated=True), "failed"),
                  ("download_url", self.result(302, "stopped_for_safety", redirect_outside_scope=True), "failed"),
-                 ("download_url", self.result(), "completed"),
+                 ("download_url", self.result(), "artifact_ready"),
                  ("http_head", self.result(404, transport_error="http_error"), "completed"),
                  ("http_head", self.result(503, transport_error="http_error"), "completed")]
         for index, (kind, result, expected) in enumerate(cases):
@@ -239,7 +241,7 @@ class RemoteWorkerResultTests(unittest.TestCase):
                 self.assertEqual(row["status"], expected)
                 saved = json.loads(row["result_json"])
                 self.assertEqual(saved["status_code"], result["status_code"])
-                self.assertEqual(saved["_worker_outcome"]["ok"], expected == "completed")
+                self.assertEqual(saved["_worker_outcome"]["ok"], expected in {"completed", "artifact_ready"})
 
     def test_api_429_cooldown_is_persisted_and_cannot_be_forged_by_worker(self):
         paths, db, run_id, token = self.project()
@@ -291,7 +293,7 @@ class RemoteWorkerResultTests(unittest.TestCase):
             "id": old["id"], "worker_id": "worker", "lease_token": old["lease_token"], "ok": True, "result": self.result(),
         }, expected_status=409)
         self.deliver(paths, token, new, self.result())
-        self.assertEqual(db.one("SELECT status FROM work_items WHERE id=?", (old["id"],))[0], "completed")
+        self.assertEqual(db.one("SELECT status FROM work_items WHERE id=?", (old["id"],))[0], "artifact_ready")
 
     def test_api_rejects_malformed_and_truthy_success_envelopes(self):
         paths, db, run_id, token = self.project()

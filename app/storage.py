@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+from contextlib import contextmanager, nullcontext
 import mimetypes
 import threading
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping
 
 from core import AppPaths, Database, atomic_write_bytes, sha256_bytes, utc_now
 
@@ -50,6 +51,12 @@ class ContentAddressedStore:
                 (str(CAS_REFERENCE_SCHEMA_VERSION),),
             )
 
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Keep CAS retention and other writers outside an atomic handoff."""
+        with _CAS_LOCK, self.db.transaction():
+            yield
+
     def _path(self, digest: str) -> Path:
         return self.paths.objects / digest[:2] / digest[2:4] / digest
 
@@ -72,7 +79,11 @@ class ContentAddressedStore:
         now = utc_now()
         with _CAS_LOCK:
             created = not path.exists()
-            if created:
+            rewrite = created
+            if not created:
+                with path.open("rb") as existing:
+                    rewrite = existing.read(len(data) + 1) != data
+            if rewrite:
                 atomic_write_bytes(path, data, 0o600)
             rel = self._relative_path(path)
             self.db.execute(
@@ -142,8 +153,8 @@ class ContentAddressedStore:
         kind, key = self._owner(owner_kind, owner_key)
         digest = str(digest or "").strip().lower()
         with _CAS_LOCK, self.db._lock:
-            self.db.conn.execute("BEGIN IMMEDIATE")
-            try:
+            transaction = nullcontext() if self.db.conn.in_transaction else self.db.transaction()
+            with transaction:
                 object_row = self.db.conn.execute(
                     "SELECT relative_path FROM object_store WHERE sha256=?",
                     (digest,),
@@ -167,10 +178,6 @@ class ContentAddressedStore:
                 if old_digest:
                     touched.add(old_digest)
                 self._refresh_counts_locked(touched)
-                self.db.conn.execute("COMMIT")
-            except Exception:
-                self.db.conn.execute("ROLLBACK")
-                raise
 
     def sync_references(
         self,

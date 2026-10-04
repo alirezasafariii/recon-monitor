@@ -1912,7 +1912,7 @@ class Database:
         cursor = self.execute(
             "UPDATE work_items SET status='running',attempts=attempts+1,worker_id=?,"
             "lease_token_hash=?,lease_expires_at=?,started_at=?,heartbeat_at=?,error=NULL,finished_at=NULL "
-            "WHERE id=? AND status IN ('queued','retry_pending')",
+            "WHERE id=? AND (status IN ('queued','retry_pending') OR (status='artifact_ready' AND ?=''))",
             (
                 worker_id,
                 lease_token_hash or None,
@@ -1920,7 +1920,25 @@ class Database:
                 now,
                 now,
                 work_id,
+                lease_token_hash,
             ),
+        )
+        return cursor.rowcount == 1
+
+    def work_reopen(self, work_id: int, error: str) -> bool:
+        cursor = self.execute(
+            "UPDATE work_items SET status='retry_pending',error=?,finished_at=NULL,heartbeat_at=? "
+            "WHERE id=? AND status IN ('completed','failed')",
+            (error, utc_now(), work_id),
+        )
+        return cursor.rowcount == 1
+
+    def work_receive_artifact(self, work_id: int, result: Mapping[str, Any], *, worker_id: str, lease_token_hash: str) -> bool:
+        cursor = self.execute(
+            "UPDATE work_items SET status='artifact_ready',result_json=?,error=NULL,finished_at=NULL,"
+            "heartbeat_at=?,lease_token_hash=NULL,lease_expires_at=NULL,started_at=NULL "
+            "WHERE id=? AND status='running' AND worker_id=? AND lease_token_hash=? AND COALESCE(lease_expires_at,'')>=?",
+            (json_dumps(result), utc_now(), work_id, worker_id, lease_token_hash, utc_now()),
         )
         return cursor.rowcount == 1
 

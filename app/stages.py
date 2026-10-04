@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import contextlib
+import functools
 import json
 import math
 import os
@@ -34,6 +35,7 @@ from core import (
     normalize_url_preserving_semantics,
     query_host_records_fallback,
     read_jsonl,
+    safe_json_loads,
     safe_filename,
     semantic_js_normalize,
     sha256_bytes,
@@ -47,6 +49,7 @@ from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
 from safe_transport import fetch_pinned_tls_peer, perform_pinned_download, perform_pinned_request
 from worker_scope import worker_scope_snapshot
+from worker_artifacts import MAX_DOWNLOAD_BYTES, WorkerArtifactError, load_work_artifact
 
 
 @dataclass(slots=True)
@@ -1688,6 +1691,47 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     return selected, unselected
 
 
+def _javascript_work_processed(ctx: StageContext, store: ContentAddressedStore, url: str, result: Mapping[str, Any]) -> bool:
+    if result.get("status") == "not_found" and type(result.get("status_code")) is int and result["status_code"] in {404, 410}:
+        row = ctx.db.one("SELECT state,status_code FROM js_availability_history WHERE run_id=? AND target=? AND url=?", (ctx.run_id, ctx.policy.name, url))
+        return bool(row and row["state"] == "not_found" and row["status_code"] == result["status_code"])
+    digest = result.get("object_hash")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest) or result.get("raw_hash") != digest:
+        return False
+    row = ctx.db.one("SELECT * FROM js_files WHERE target=? AND url=?", (ctx.policy.name, url))
+    if not row or row["last_run_id"] != ctx.run_id or row["raw_hash"] != digest or row["semantic_hash"] != result.get("semantic_hash"):
+        return False
+    if not isinstance(result.get("semantic_hash"), str) or not re.fullmatch(r"[0-9a-f]{64}", result["semantic_hash"]):
+        return False
+    reference = ctx.db.one("SELECT sha256 FROM cas_references WHERE owner_kind='js_file' AND owner_key=?", (f"{ctx.policy.name}\n{url}",))
+    if not reference or reference["sha256"] != digest:
+        return False
+    try:
+        object_row = ctx.db.one("SELECT relative_path FROM object_store WHERE sha256=?", (digest,))
+        if not object_row or Path(row["blob_path"]).resolve() != (ctx.paths.state / object_row["relative_path"]).resolve():
+            return False
+        data = store.get(digest)
+        return len(data) == row["content_length"] <= ctx.policy.limits.max_js_bytes and sha256_bytes(data) == digest
+    except (OSError, ValueError):
+        return False
+
+
+def _retry_unfinished_javascript_work(fn):
+    @functools.wraps(fn)
+    def guarded(ctx: StageContext):
+        try:
+            return fn(ctx)
+        except Exception as exc:
+            queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
+            with contextlib.suppress(Exception):
+                rows = ctx.db.all("SELECT id FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items' AND status='running' AND worker_id='local-js' AND COALESCE(lease_token_hash,'')=''", (ctx.run_id, ctx.policy.name))
+                for row in rows:
+                    queue.fail(row["id"], str(exc), retry=True)
+            raise
+    return guarded
+
+
+@_retry_unfinished_javascript_work
 def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     urls_path = ctx.current / "urls.txt"
     urls: list[str] = []
@@ -1786,6 +1830,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "zero_download_reasons": input_issues or ["no_javascript_urls_classified"],
             "download_attempts": 0,
             "reused_work_items": 0,
+            "remote_artifacts_reused": 0,
+            "artifact_redownloads": 0,
+            "repaired_completed_work_items": 0,
+            "deferred_work_items": 0,
             "new": 0,
             "raw_changed": 0,
             "semantic_changed": 0,
@@ -1808,16 +1856,64 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
     work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
+    store = ContentAddressedStore(ctx.paths, ctx.db)
+    work_rows = {row["item_key"]: dict(row) for row in ctx.db.all(
+        "SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items'",
+        (ctx.run_id, ctx.policy.name),
+    )}
+    repaired_completed = 0
+    for url in js_urls:
+        row = work_rows.get(url)
+        if row and row["status"] == "completed" and not _javascript_work_processed(ctx, store, url, safe_json_loads(row["result_json"], {}, expected_type=dict)):
+            if work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
+                repaired_completed += 1
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
     fresh_full_js_pass = len(pending_urls) == len(js_urls)
-    work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
-    for url, work_id in work_ids.items():
-        work_queue.start(work_id, "local-js")
+    work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "max_bytes": ctx.policy.limits.max_js_bytes, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
     results: list[dict[str, Any]] = []
+    download_urls: list[str] = []
+    deferred_urls: list[str] = []
+    artifacts_reused = 0
+    artifact_redownloads = 0
+    for url, work_id in list(work_ids.items()):
+        row = work_rows.get(url)
+        stored_result = safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
+        if row and row["status"] == "failed":
+            status = stored_result.get("status_code")
+            if (type(status) is int and status in {404, 410} and stored_result.get("transport_status") == "ok"
+                    and not stored_result.get("truncated") and not stored_result.get("redirect_outside_scope")
+                    and ctx.policy.url_in_scope(str(stored_result.get("url") or ""))):
+                work_queue.reopen(work_id, "Processing remote not-found observation")
+                if work_queue.start(work_id, "local-js"):
+                    results.append({"url": url, "status_code": status, "not_found": True})
+                else:
+                    deferred_urls.append(url)
+            else:
+                results.append({"url": url, "error": row["error"] or "Remote work failed", "status_code": status or 0,
+                                "transport_status": stored_result.get("transport_status", "")})
+                work_ids.pop(url)
+            continue
+        if not work_queue.start(work_id, "local-js"):
+            deferred_urls.append(url)
+            continue
+        # A remote receipt may have arrived after the selection snapshot.
+        row = ctx.db.one("SELECT * FROM work_items WHERE id=?", (work_id,))
+        stored_result = safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
+        if "artifact" in stored_result:
+            try:
+                if not ctx.policy.url_in_scope(str(stored_result.get("url") or "")):
+                    raise WorkerArtifactError("Cached artifact URL is outside current scope")
+                data = load_work_artifact(store, row, stored_result, min(ctx.policy.limits.max_js_bytes, MAX_DOWNLOAD_BYTES))
+                results.append({**stored_result, "url": url, "final_url": stored_result["url"], "data": data})
+                artifacts_reused += 1
+                continue
+            except (OSError, ValueError, WorkerArtifactError):
+                artifact_redownloads += 1
+        download_urls.append(url)
     operator_next_urls: list[str] = []
     next_signaled = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(_download_url, ctx, url, ctx.policy.limits.max_js_bytes): url for url in pending_urls}
+        futures = {pool.submit(_download_url, ctx, url, ctx.policy.limits.max_js_bytes): url for url in download_urls}
         for index, future in enumerate(concurrent.futures.as_completed(futures), 1):
             if (not next_signaled
                 and callable(getattr(ctx, "next_requested", None))
@@ -2112,6 +2208,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             )
             if url in work_ids:
                 work_queue.fail(work_ids[url], error_text, retry=True)
+                store.drop_reference("work_item", str(work_ids[url]))
             continue
         downloaded += 1
         raw_hash = sha256_bytes(data)
@@ -2144,7 +2241,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 with contextlib.suppress(OSError):
                     old_text = old_path.read_text(encoding="utf-8", errors="replace")
 
-        store = ContentAddressedStore(ctx.paths, ctx.db)
         object_hash, blob_path, _object_created = store.put(data, content_type=content_type or "application/javascript")
         source_map_url = _find_source_map_url(url, text)
         is_new, raw_changed, semantic_changed = ctx.db.upsert_js(
@@ -2411,6 +2507,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     "object_hash": object_hash,
                 },
             )
+            store.drop_reference("work_item", str(work_ids[url]))
 
     atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
     atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
@@ -2437,11 +2534,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         sorted(chunk_edge_rows, key=lambda row: (row["js_url"], row["chunk_url"])),
     )
 
-    chunks_complete = fresh_full_js_pass and not errors and input_complete
+    chunks_complete = fresh_full_js_pass and not errors and not deferred_urls and input_complete
     source_maps_complete = (
         fresh_full_js_pass
         and input_complete
         and not errors
+        and not deferred_urls
         and source_map_collection_enabled
         and source_map_failures == 0
     )
@@ -2468,6 +2566,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     collection_reasons = list(input_issues)
     if operator_next_urls:
         collection_reasons.append("operator_next")
+    if deferred_urls:
+        collection_reasons.append("work_in_progress")
     if len(errors) > unexpected_content_types:
         collection_reasons.append("download_errors")
     if unexpected_content_types:
@@ -2486,8 +2586,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "collection_status": "partial" if collection_reasons else "completed",
         "collection_reasons": collection_reasons,
         "zero_download_reasons": zero_download_reasons,
-        "download_attempts": len(pending_urls),
+        "download_attempts": len(download_urls),
         "reused_work_items": len(js_urls) - len(pending_urls),
+        "remote_artifacts_reused": artifacts_reused,
+        "artifact_redownloads": artifact_redownloads,
+        "repaired_completed_work_items": repaired_completed,
+        "deferred_work_items": len(deferred_urls),
         "operator_next_pending_urls": len(operator_next_urls),
         "unexpected_content_types": unexpected_content_types,
         "files": len(js_urls),

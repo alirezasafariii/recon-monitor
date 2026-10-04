@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from core import ReconError, safe_json_loads
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy
+from worker_artifacts import WorkerArtifactError, decode_artifact
 
 
 RETRY_DELAY_SECONDS = 5
@@ -83,7 +84,13 @@ def classify_worker_result(
     if status < 200 or error not in {"", "http_error"}:
         return invalid
     # HEAD records an HTTP observation, including 401/404/5xx. GET must succeed.
-    if kind == "http_head" or 200 <= status < 300:
+    if kind == "http_head":
+        return WorkerOutcome(True)
+    if 200 <= status < 300:
+        try:
+            decode_artifact(payload, result)
+        except WorkerArtifactError as exc:
+            return worker_failure(str(exc), retry=exc.retryable, reason="artifact_missing" if exc.retryable else "invalid_artifact")
         return WorkerOutcome(True)
     retry = status in {408, 425} or status >= 500
     delay = _retry_delay(result.get("retry_after"), RETRY_DELAY_SECONDS, now) if retry else 0
