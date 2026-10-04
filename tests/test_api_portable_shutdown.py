@@ -121,7 +121,7 @@ class PortableShutdownTests(unittest.TestCase):
     def test_non_linux_status_handles_ps_paths_with_spaces(self):
         script = (self.paths.root / "checkout with spaces" / "app" / "recon_monitor.py").resolve()
         paths = AppPaths.from_root(script.parents[1])
-        for prefix in (f"/usr/bin/python {script}", f"'/usr/bin/python' '{script}'"):
+        for prefix in (f"/usr/bin/python {script}", f"'/usr/bin/python' '{script}'", f"/Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python {script}"):
             with self.subTest(prefix=prefix):
                 command = f"{prefix} api foreground --host 127.0.0.1 --port 9090 --control-instance {INSTANCE}"
                 with patch.object(api, "_process_alive", return_value=True), \
@@ -315,7 +315,7 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
                 ready.set()
 
         thread = threading.Thread(target=serve, daemon=True)
-        with patch.object(api, "ControlledAPIHTTPServer", side_effect=create), patch("socket.getfqdn", return_value="localhost"):
+        with patch.object(api, "ControlledAPIHTTPServer", side_effect=create), patch("socket.getfqdn", side_effect=AssertionError("API bind attempted reverse DNS")):
             thread.start()
             self.assertTrue(ready.wait(3), "Fixture failed to start")
         self.assertFalse(errors)
@@ -329,6 +329,17 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
         self.addCleanup(cleanup)
         self.paths.state.joinpath("api.pid").write_text(json.dumps({"version": 2, "pid": os.getpid(), "control_instance": INSTANCE}))
         return servers[0], thread, polled, errors
+
+    def test_server_bind_never_waits_for_reverse_dns(self):
+        with patch("socket.getfqdn", side_effect=AssertionError("Reverse DNS attempted")), \
+             patch("socket.gethostbyaddr", side_effect=AssertionError("Reverse DNS attempted")):
+            server = ControlledAPIHTTPServer(("127.0.0.1", 0), api.APIHandler)
+        try:
+            self.assertEqual(server.server_name, "127.0.0.1")
+            self.assertEqual(server.server_port, server.server_address[1])
+            self.assertGreater(server.server_port, 0)
+        finally:
+            server.server_close()
 
     def test_real_server_closes_listener_before_ack_without_pidfd_or_proc(self):
         server, thread, _, errors = self._server()
@@ -360,6 +371,8 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
         children = []
 
         def spawn(command, **kwargs):
+            if children and command == ["ps", "-ww", "-p", str(children[0].pid), "-o", "command="]:
+                return REAL_POPEN(command, **kwargs)
             self.assertEqual(command[:4], [sys.executable, str(script), "api", "foreground"])
             child = REAL_POPEN(command, **kwargs)
             children.append(child)
@@ -372,13 +385,21 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
                 child.wait(timeout=5)
 
         self.addCleanup(cleanup)
+        def probe(pid, sig):
+            self.assertEqual(pid, children[0].pid)
+            self.assertEqual(sig, 0, "Only a read-only status probe may use a numeric PID")
+            return REAL_KILL(pid, sig)
+
         with patch.object(api.subprocess, "Popen", side_effect=spawn), \
              patch.object(api, "_process_start_token", return_value=""), \
              patch.object(api.os, "pidfd_open", None, create=True), \
              patch.object(api.signal, "pidfd_send_signal", None, create=True), \
-             patch.object(api.os, "kill", side_effect=AssertionError("Unbound PID signal")):
+             patch.object(api.os, "kill", side_effect=probe):
             pid = api.start_api(self.paths, "127.0.0.1", 0)
             self.assertEqual(pid, children[0].pid)
+            if sys.platform == "darwin":
+                active, detail = api.api_status(self.paths)
+                self.assertTrue(active, detail)
             try:
                 self.assertTrue(api.stop_api(self.paths))
             except ReconError as exc:
@@ -432,7 +453,7 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
             return REAL_KILL(pid, sig)
 
         def spawn_ps(command, **kwargs):
-            self.assertEqual(command, ["ps", "-p", str(child.pid), "-o", "command="])
+            self.assertEqual(command, ["ps", "-ww", "-p", str(child.pid), "-o", "command="])
             return REAL_POPEN(command, **kwargs)
 
         with patch.object(api.subprocess, "Popen", side_effect=spawn_ps), \

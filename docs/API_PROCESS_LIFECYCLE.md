@@ -10,7 +10,9 @@ Each `api start` generates a new random 128-bit control instance and passes it
 to the child through an internal CLI option. The atomically written version-2
 PID record contains `pid`, `start_token` and `control_instance`, with file mode
 `0600`. The control instance is a local shutdown capability, separate from
-HTTP authentication and API bearer tokens.
+HTTP authentication and API bearer tokens. Server binding takes its name and
+port from the bound socket address, without a reverse-DNS lookup that could
+delay startup before the control loop runs.
 
 On Linux and macOS, new instances stop cooperatively through
 `state/api-stop-<control_instance>.json`. The API polls only its own instance's

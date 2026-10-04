@@ -531,7 +531,7 @@ def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "",
         return None
     try:
         result = subprocess.run(
-            ["ps", "-p", str(pid), "-o", "command="],
+            ["ps", "-ww", "-p", str(pid), "-o", "command="],
             capture_output=True,
             text=True,
             timeout=2,
@@ -547,7 +547,7 @@ def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "",
     expected_script = str((paths.app / "recon_monitor.py").resolve())
 
     def python_executable(value: str) -> bool:
-        return value == sys.executable or re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", Path(value).name) is not None
+        return value == sys.executable or re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", Path(value).name.lower()) is not None
 
     try:
         # /proc supplies the exact argument boundaries on Linux, including

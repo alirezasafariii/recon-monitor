@@ -7,6 +7,7 @@ import re
 import threading
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from typing import Any
 
 from core import AppPaths, ReconError, atomic_write_text, json_dumps
@@ -71,6 +72,12 @@ class ControlledAPIHTTPServer(ThreadingHTTPServer):
         self.control = control
         self.control_stop_requested = False
         super().__init__(address, handler)
+
+    def server_bind(self) -> None:
+        TCPServer.server_bind(self)
+        # HTTPServer normally calls getfqdn() here. Reverse DNS is unnecessary
+        # for this API and can block startup before its control loop runs.
+        self.server_name, self.server_port = self.server_address[:2]
 
     def service_actions(self) -> None:
         if self.control and not self.control_stop_requested and self.control.stop_requested():
