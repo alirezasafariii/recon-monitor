@@ -320,8 +320,16 @@ class APIHandler(BaseHTTPRequestHandler):
             if path=="/api/v1/validation/feedback": self.send_json(record_validation_feedback(db,str(data.get('run_id') or ''),str(data.get('decision') or ''),str(data.get('reason') or ''),str(data.get('note') or ''),actor=actor)); return
             if path=="/api/v1/suite/sync": self.send_json(platform_v6_sync(self.paths,db,run_id=str(data.get('run_id') or '') or None,analysis_id=str(data.get('analysis_id') or '') or None)); return
             if path=="/api/v1/suite/revalidation": self.send_json(set_revalidation_policy(db,str(data.get('case_id') or ''),str(data.get('trigger') or 'manual'),interval_days=parse_int(data.get('interval_days'),7),enabled=parse_bool(data.get('enabled',True),True),actor=actor)); return
-            if path=="/api/v1/suite/revalidation-process": self.send_json(process_due_revalidations(self.paths,self.config,db,limit=parse_int(data.get('limit'),50),execute_offline=parse_bool(data.get('execute_offline',True),True),actor=actor)); return
-            if path=="/api/v1/suite/scheduled-run": self.send_json(run_scheduled_workflow(self.paths,self.config,db,str(data.get('target') or ''),dry_run=parse_bool(data.get('dry_run',False),False),actor=actor)); return
+            if path=="/api/v1/suite/revalidation-process":
+                self.send_json(process_due_revalidations(
+                    self.paths,Config(self.paths),db,limit=parse_int(data.get('limit'),50),
+                    execute_offline=parse_bool(data.get('execute_offline',True),True),actor=actor,
+                )); return
+            if path=="/api/v1/suite/scheduled-run":
+                self.send_json(run_scheduled_workflow(
+                    self.paths,Config(self.paths),db,str(data.get('target') or ''),
+                    dry_run=parse_bool(data.get('dry_run',False),False),actor=actor,
+                )); return
             if path=="/api/v1/suite/review-value": self.send_json(review_value_for_case(db,str(data.get('case_id') or ''),persist=True)); return
             if path=="/api/v1/suite/burp-export": self.send_json(build_burp_roundtrip_package(self.paths,db,str(data.get('case_id') or ''),actor=actor)); return
             if path=="/api/v1/suite/burp-import": self.send_json(import_burp_roundtrip_result(db,str(data.get('package_id') or ''),data.get('result') if isinstance(data.get('result'),dict) else {},actor=actor)); return
