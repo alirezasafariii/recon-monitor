@@ -12,6 +12,11 @@
 - Dashboard and API default to loopback.
 - Dashboard uses sessions, RBAC, CSRF tokens, HttpOnly/SameSite cookies, expiration, and login throttling.
 - API tokens are stored only as SHA-256 hashes; the plaintext token is displayed once at creation.
+- The `suite/scheduled-run` and `suite/revalidation-process` POST routes require
+  an operations-capable token. After authentication, each request reads that
+  installation's configuration with the supported environment overrides. File
+  changes are picked up on the next request; `dry_run`, offline execution, and
+  actor attribution retain their existing workflow semantics.
 - Neither service provides TLS by itself. Use an SSH tunnel, VPN, or trusted TLS reverse proxy for remote access.
 - A non-loopback bind requires explicit remote enablement.
 
