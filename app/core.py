@@ -28,6 +28,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
+from javascript_normalization import normalize_javascript
+
 APP_VERSION = "8.8.1"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
@@ -2411,12 +2413,14 @@ class Database:
         etag: str = "",
         last_modified: str = "",
         source_map_url: str = "",
+        previous_semantic_hash: str | None = None,
     ) -> tuple[bool, bool, bool]:
         now = utc_now()
         row = self.one("SELECT raw_hash,semantic_hash FROM js_files WHERE target=? AND url=?", (target, url))
         is_new = row is None
         raw_changed = bool(row and row["raw_hash"] != raw_hash)
-        semantic_changed = bool(row and row["semantic_hash"] != semantic_hash)
+        comparison_hash = previous_semantic_hash if previous_semantic_hash is not None else (row["semantic_hash"] if row else "")
+        semantic_changed = bool(raw_changed and comparison_hash != semantic_hash)
         self.execute(
             """
             INSERT INTO js_files(target,url,raw_hash,semantic_hash,blob_path,content_length,etag,last_modified,source_map_url,first_seen,last_seen,last_changed,last_run_id)
@@ -2425,12 +2429,12 @@ class Database:
               raw_hash=excluded.raw_hash,semantic_hash=excluded.semantic_hash,blob_path=excluded.blob_path,
               content_length=excluded.content_length,etag=excluded.etag,last_modified=excluded.last_modified,
               source_map_url=excluded.source_map_url,last_seen=excluded.last_seen,
-              last_changed=CASE WHEN js_files.semantic_hash<>excluded.semantic_hash THEN excluded.last_seen ELSE js_files.last_changed END,
+              last_changed=CASE WHEN ? THEN excluded.last_seen ELSE js_files.last_changed END,
               last_run_id=excluded.last_run_id
             """,
             (
                 target, url, raw_hash, semantic_hash, blob_path, content_length, etag, last_modified, source_map_url,
-                now, now, now if semantic_changed else None, run_id,
+                now, now, now if semantic_changed else None, run_id, int(semantic_changed),
             ),
         )
         return is_new, raw_changed, semantic_changed
@@ -3519,17 +3523,7 @@ def collect_tool_versions(names: Iterable[str]) -> dict[str, dict[str, str]]:
 
 
 def semantic_js_normalize(text: str) -> str:
-    # Conservative normalization: remove comments, source-map trailer, volatile build
-    # timestamps and whitespace while preserving strings and identifiers as much as possible.
-    text = re.sub(r"(?m)^\s*//#\s*sourceMappingURL=.*$", "", text)
-    text = re.sub(r"(?m)^\s*//[@#]\s*sourceURL=.*$", "", text)
-    text = re.sub(r"/\*![\s\S]*?\*/", "", text)
-    text = re.sub(r"/\*(?!\!)[\s\S]*?\*/", "", text)
-    text = re.sub(r"(?m)(?<!:)//[^\n\r]*", "", text)
-    text = re.sub(r"\b(?:buildTime|buildTimestamp|compiledAt)\s*[:=]\s*[\"']?\d{10,13}[\"']?", "VOLATILE_BUILD_TIME", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    text = re.sub(r"\s*([=,:;{}()\[\]])\s*", r"\1", text)
-    return text
+    return normalize_javascript(text).text
 
 
 def extract_js_indicators(text: str) -> list[tuple[str, str, bool]]:
@@ -3677,7 +3671,9 @@ def explain_risk(category: str, item: str, details: Mapping[str, Any] | None = N
         diff_summary = details.get("diff_summary") if isinstance(details.get("diff_summary"), Mapping) else {}
         added_endpoints = diff_summary.get("added_endpoints") if isinstance(diff_summary, Mapping) else []
         removed_endpoints = diff_summary.get("removed_endpoints") if isinstance(diff_summary, Mapping) else []
-        if not semantic_changed:
+        if details.get("semantic_comparison") == "unknown":
+            reasons.append("JavaScript semantic comparison unknown; raw change preserved")
+        elif not semantic_changed:
             score = max(0, score - 12)
             reasons.append("Raw-only JavaScript change with no semantic change: -12")
         if isinstance(added_endpoints, list) and added_endpoints:

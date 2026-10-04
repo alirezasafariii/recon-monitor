@@ -107,10 +107,10 @@ def _redact_diff_text(text: str) -> str:
 def build_js_diff(old_text: str, new_text: str, *, max_diff_lines: int = 1200) -> tuple[str, dict[str, Any]]:
     old_normalized = semantic_js_normalize(_redact_diff_text(old_text))
     new_normalized = semantic_js_normalize(_redact_diff_text(new_text))
-    # Add strategic line breaks so minified files still produce a useful diff.
+    # Keep literal whitespace visible, including raw-fallback templates. Splitting
+    # at every brace/semicolon or stripping each line can erase actual string data.
     def lines(value: str) -> list[str]:
-        value = re.sub(r"([;{}])", r"\1\n", value)
-        return [line.strip() for line in value.splitlines() if line.strip()]
+        return value.splitlines()
 
     diff_lines = list(
         difflib.unified_diff(

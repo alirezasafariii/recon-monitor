@@ -37,7 +37,6 @@ from core import (
     read_jsonl,
     safe_json_loads,
     safe_filename,
-    semantic_js_normalize,
     sha256_bytes,
     sha256_text,
     tool_path,
@@ -50,6 +49,7 @@ from storage import ContentAddressedStore
 from safe_transport import fetch_pinned_tls_peer, perform_pinned_download, perform_pinned_request
 from worker_scope import worker_scope_snapshot
 from worker_artifacts import MAX_DOWNLOAD_BYTES, WorkerArtifactError, load_work_artifact
+from javascript_normalization import JS_NORMALIZATION_VERSION, normalize_javascript, normalize_javascript_bytes
 
 
 @dataclass(slots=True)
@@ -1517,6 +1517,7 @@ def _source_map_entries(source_map_url: str, source_map: Mapping[str, Any]) -> l
         if index < len(contents) and isinstance(contents[index], str):
             embedded_content = str(contents[index])
         content_bytes = embedded_content.encode("utf-8") if embedded_content else b""
+        normalization = normalize_javascript(embedded_content) if embedded_content else None
         entries.append(
             {
                 "source_index": index,
@@ -1527,7 +1528,10 @@ def _source_map_entries(source_map_url: str, source_map: Mapping[str, Any]) -> l
                 "embedded": bool(embedded_content),
                 "content_size": len(content_bytes),
                 "content_hash": sha256_bytes(content_bytes) if content_bytes else "",
-                "semantic_hash": sha256_text(semantic_js_normalize(embedded_content)) if embedded_content else "",
+                "semantic_hash": normalization.fingerprint if normalization else "",
+                "semantic_normalization": normalization.mode if normalization else "",
+                "semantic_normalization_reason": normalization.reason if normalization else "",
+                "semantic_normalization_version": JS_NORMALIZATION_VERSION,
                 "embedded_content": embedded_content,
             }
         )
@@ -1571,6 +1575,7 @@ def _prepare_javascript_derived_differentials(
         "truncated_sets": 0,
     }
     signals: list[dict[str, Any]] = []
+    source_store: ContentAddressedStore | None = None
     if not callable(replace_state):
         return signals, meta
 
@@ -1632,6 +1637,29 @@ def _prepare_javascript_derived_differentials(
                 item_key = str(row.get("item_key") or "")
                 before = dict(row.get("before") or {})
                 after = dict(row.get("after") or {})
+                if state_type == "source_map_source" and change == "changed":
+                    # Semantic digests are algorithm-dependent metadata. Equal
+                    # source/map bytes must not become a change after an upgrade.
+                    if {k: v for k, v in before.items() if k != "semantic_hash"} == {k: v for k, v in after.items() if k != "semantic_hash"}:
+                        continue
+                    source_modes: list[str] = []
+                    for payload in (before, after):
+                        source_mode = ""
+                        if getattr(ctx, "paths", None) and re.fullmatch(r"[0-9a-f]{64}", str(payload.get("content_hash") or "")):
+                            with contextlib.suppress(OSError, ValueError):
+                                if source_store is None:
+                                    source_store = ContentAddressedStore(ctx.paths, ctx.db)
+                                source_data = source_store.get(payload["content_hash"])
+                                if sha256_bytes(source_data) == payload["content_hash"]:
+                                    source_normalization = normalize_javascript_bytes(source_data)
+                                    payload["semantic_hash"] = source_normalization.fingerprint
+                                    source_mode = source_normalization.mode
+                        source_modes.append(source_mode)
+                    semantic_comparison = (
+                        "changed" if before.get("semantic_hash") != after.get("semantic_hash") else "unchanged"
+                    ) if source_modes == ["tokens", "tokens"] else "unknown"
+                else:
+                    semantic_comparison = ""
                 payload = after or before
                 item = str(
                     payload.get("source_name")
@@ -1650,6 +1678,8 @@ def _prepare_javascript_derived_differentials(
                     "before": before,
                     "after": after,
                 }
+                if semantic_comparison:
+                    signal["semantic_comparison"] = semantic_comparison
                 signals.append(signal)
 
     signals.sort(key=lambda row: (row["state_type"], row["change"], row["item_key"]))
@@ -1864,7 +1894,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         ctx.policy.raw.get("javascript", {}).get("download_source_maps", True)
     )
     if not js_urls:
-        for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "new-js-indicators.tsv", "not-found-js-files.txt"):
+        for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt", "semantic-js-unknown.txt", "new-js-indicators.tsv", "not-found-js-files.txt"):
             atomic_write_text(ctx.changes / filename, "")
         write_jsonl(ctx.current / "javascript-errors.jsonl", [])
         write_jsonl(
@@ -1911,6 +1941,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "new": 0,
             "raw_changed": 0,
             "semantic_changed": 0,
+            "semantic_unknown": 0,
+            "semantic_normalization_fallbacks": 0,
             "indicators": 0,
             "diffs": 0,
             "not_found": 0,
@@ -2026,6 +2058,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     new_files: list[str] = []
     changed_files: list[str] = []
     semantic_changes: list[str] = []
+    semantic_unknown: list[str] = []
+    js_normalizations: dict[str, dict[str, Any]] = {}
     indicator_lines: list[str] = []
     downloaded = 0
     indicator_count = 0
@@ -2295,9 +2329,14 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         downloaded += 1
         raw_hash = sha256_bytes(data)
         text = data.decode("utf-8", "replace")
-        semantic_hash = sha256_text(
-            semantic_js_normalize(text)
-        )
+        normalization = normalize_javascript_bytes(data)
+        js_normalizations[url] = {
+            "semantic_hash": normalization.fingerprint,
+            "semantic_normalization": normalization.mode,
+            "semantic_normalization_reason": normalization.reason,
+            "semantic_normalization_version": JS_NORMALIZATION_VERSION,
+        }
+        semantic_hash = normalization.fingerprint
 
         record_availability(
             url,
@@ -2317,11 +2356,15 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             (ctx.policy.name, url),
         )
         old_text = ""
+        old_normalization = None
         if old_row and old_row["blob_path"]:
-            old_path = Path(str(old_row["blob_path"]))
-            if old_path.exists():
-                with contextlib.suppress(OSError):
-                    old_text = old_path.read_text(encoding="utf-8", errors="replace")
+            # Compare both versions under the current algorithm, using verified
+            # original bytes rather than a legacy digest or newline conversion.
+            with contextlib.suppress(OSError, ValueError):
+                old_data = store.get(str(old_row["raw_hash"]))
+                if sha256_bytes(old_data) == old_row["raw_hash"]:
+                    old_normalization = normalize_javascript_bytes(old_data)
+                    old_text = old_data.decode("utf-8", "replace")
 
         object_hash, blob_path, _object_created = store.put(data, content_type=content_type or "application/javascript")
         source_map_url = _find_source_map_url(url, text)
@@ -2336,7 +2379,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             etag=str(result.get("etag", "")),
             last_modified=str(result.get("last_modified", "")),
             source_map_url=source_map_url,
+            previous_semantic_hash=old_normalization.fingerprint if old_normalization else None,
         )
+        comparison_known = bool(old_normalization and old_normalization.mode == normalization.mode == "tokens")
+        semantic_comparison = ("changed" if semantic_changed else "unchanged") if comparison_known else "unknown"
+        old_semantic_hash = old_normalization.fingerprint if old_normalization else str(old_row["semantic_hash"] if old_row else "")
         js_owner_key = f"{ctx.policy.name}\n{url}"
         store.set_reference("js_file", js_owner_key, object_hash)
         if ctx.policy.analysis.get("asset_graph", True):
@@ -2357,7 +2404,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 url,
                 str(old_row["raw_hash"] if old_row else ""),
                 raw_hash,
-                str(old_row["semantic_hash"] if old_row else ""),
+                old_semantic_hash,
                 semantic_hash,
                 diff_summary,
                 diff_text,
@@ -2367,22 +2414,30 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
 
         if is_new:
             new_files.append(url)
-            emit_event(ctx, "new_js", url, "New JavaScript file", {"raw_hash": raw_hash, "semantic_hash": semantic_hash})
+            emit_event(ctx, "new_js", url, "New JavaScript file", {"raw_hash": raw_hash, "semantic_hash": semantic_hash,
+                       "semantic_normalization": normalization.mode, "semantic_normalization_reason": normalization.reason,
+                       "semantic_normalization_version": JS_NORMALIZATION_VERSION})
         elif raw_changed:
             changed_files.append(url)
             details: dict[str, Any] = {
                 "raw_changed": True,
-                "semantic_changed": semantic_changed,
+                "semantic_changed": semantic_changed if comparison_known else None,
+                "semantic_comparison": semantic_comparison,
+                "semantic_normalization": normalization.mode,
+                "semantic_normalization_reason": normalization.reason,
+                "semantic_normalization_version": JS_NORMALIZATION_VERSION,
                 "raw_hash": raw_hash,
                 "semantic_hash": semantic_hash,
                 "old_raw_hash": str(old_row["raw_hash"] if old_row else ""),
-                "old_semantic_hash": str(old_row["semantic_hash"] if old_row else ""),
+                "old_semantic_hash": old_semantic_hash,
                 "diff_id": diff_id,
                 "diff_path": diff_path,
                 "diff_summary": diff_summary,
             }
             emit_event(ctx, "changed_js", url, "JavaScript file changed", details)
-        if semantic_changed:
+        if raw_changed and not comparison_known:
+            semantic_unknown.append(url)
+        elif semantic_changed:
             semantic_changes.append(url)
 
         for kind, value, redacted in current_indicators:
@@ -2428,6 +2483,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     "raw_hash": raw_hash,
                     "semantic_hash": semantic_hash,
                     "object_hash": object_hash,
+                    "semantic_normalization": normalization.mode,
+                    "semantic_normalization_reason": normalization.reason,
+                    "semantic_normalization_version": JS_NORMALIZATION_VERSION,
                 },
             )
             store.drop_reference("work_item", str(work_ids[url]))
@@ -2458,6 +2516,27 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             continue
         processed_parents.add(url)
         text = data.decode("utf-8", "replace")
+        normalization_metadata = js_normalizations.get(url)
+        if normalization_metadata is None:
+            normalization = normalize_javascript_bytes(data)
+            normalization_metadata = {
+                "semantic_hash": normalization.fingerprint,
+                "semantic_normalization": normalization.mode,
+                "semantic_normalization_reason": normalization.reason,
+                "semantic_normalization_version": JS_NORMALIZATION_VERSION,
+            }
+            js_normalizations[url] = normalization_metadata
+        if any(parent_result.get(key) != value for key, value in normalization_metadata.items()):
+            # Upgrade a verified completed artifact offline. This is an algorithm
+            # refresh, so preserve attempts, completion time, last_changed and events.
+            parent_result.update(normalization_metadata)
+            with ctx.db.transaction():
+                ctx.db.execute("UPDATE js_files SET semantic_hash=? WHERE target=? AND url=? AND raw_hash=? AND last_run_id=?",
+                               (normalization_metadata["semantic_hash"], ctx.policy.name, url, raw_hash, ctx.run_id))
+                ctx.db.execute("UPDATE js_availability_history SET semantic_hash=? WHERE run_id=? AND target=? AND url=? AND raw_hash=?",
+                               (normalization_metadata["semantic_hash"], ctx.run_id, ctx.policy.name, url, raw_hash))
+                ctx.db.execute("UPDATE work_items SET result_json=? WHERE id=? AND status='completed'",
+                               (json_dumps(parent_result), parent["id"]))
         if url not in chunk_parents:
             chunk_edge_rows.extend({"js_url": url, "chunk_url": chunk_url}
                                    for chunk_url in _extract_js_chunk_references(url, text)
@@ -2637,6 +2716,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
     atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
     atomic_write_text(ctx.changes / "semantic-js-changes.txt", "".join(f"{x}\n" for x in semantic_changes))
+    atomic_write_text(ctx.changes / "semantic-js-unknown.txt", "".join(f"{x}\n" for x in semantic_unknown))
     atomic_write_text(ctx.changes / "new-js-indicators.tsv", "".join(f"{x}\n" for x in sorted(indicator_lines)))
     write_jsonl(
         ctx.current / "javascript-errors.jsonl",
@@ -2731,6 +2811,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "new": len(new_files),
         "raw_changed": len(changed_files),
         "semantic_changed": len(semantic_changes),
+        "semantic_unknown": len(semantic_unknown),
+        "semantic_normalization_fallbacks": sum(value["semantic_normalization"] == "raw_fallback" for value in js_normalizations.values()),
         "indicators": indicator_count,
         "classified_endpoints": classified_endpoints,
         "diffs": diff_count,
