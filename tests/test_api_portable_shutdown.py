@@ -379,17 +379,24 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
              patch.object(api.os, "kill", side_effect=AssertionError("Unbound PID signal")):
             pid = api.start_api(self.paths, "127.0.0.1", 0)
             self.assertEqual(pid, children[0].pid)
-            self.assertTrue(api.stop_api(self.paths))
+            try:
+                self.assertTrue(api.stop_api(self.paths))
+            except ReconError as exc:
+                log = api.api_paths(self.paths)[1].read_text()
+                actual_instance = json.loads(api.api_paths(self.paths)[0].read_text())["control_instance"]
+                response = APIProcessControl(self.paths, actual_instance)
+                payload = response.path.read_text() if response.path.exists() else "<missing>"
+                self.fail(f"{exc}; child_returncode={children[0].poll()}; child_log={log!r}; control={payload!r}")
             self.assertEqual(children[0].wait(timeout=5), 0)
 
     def _fixture_script(self):
         self.paths.app.mkdir()
         script = self.paths.app / "recon_monitor.py"
         script.write_text(
-            "import argparse, sys\nfrom pathlib import Path\n"
+            "import argparse, json, os, sys\nfrom pathlib import Path\n"
             f"sys.path.insert(0, {str(APP)!r})\n"
             "from api_server_core import serve_api\nfrom core import AppPaths\n"
-            "class Logger:\n    def info(self, *args, **kwargs):\n        if args[0] == 'API started': print('ready', flush=True)\n"
+            "class Logger:\n    def info(self, *args, **kwargs):\n        if args[0] == 'API started':\n            print('ready', flush=True)\n            print(json.dumps({'pid': os.getpid(), 'root': str(Path(__file__).resolve().parents[1])}), flush=True)\n"
             "parser = argparse.ArgumentParser()\n"
             "parser.add_argument('command')\nparser.add_argument('action')\n"
             "parser.add_argument('--host')\nparser.add_argument('--port', type=int)\n"
