@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.13']
+        python-version: ['3.11', '3.13', '3.14']
 
     steps:
       - name: Checkout
@@ -64,6 +64,31 @@ jobs:
 
       - name: Integration test
         run: python tests/integration_runner.py
+
+  test-macos:
+    name: macOS ${{ matrix.runner }} Python 3.14
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ['macos-latest', 'macos-15-intel']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Verify release metadata
+        run: python tools/check_release_consistency.py
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Integration test
+        run: python tests/integration_runner.py
+      - name: Command cleanup without resource leaks
+        run: python -W error::ResourceWarning -m unittest discover -s tests -p 'test_command_runner_stdin.py' -v
 
   api-macos:
     name: API shutdown (macOS)
