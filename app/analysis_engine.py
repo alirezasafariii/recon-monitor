@@ -307,7 +307,9 @@ def _evidence(alert: Mapping[str, Any], details: Mapping[str, Any]) -> tuple[lis
         evidence_against.append({"type": "access_control", "weight": weight, "text": f"Endpoint returned {status_code}, indicating an access-control boundary"})
 
     if category == "changed_js":
-        if details.get("semantic_changed"):
+        if details.get("semantic_comparison") == "unknown":
+            evidence_for.append({"type": "javascript", "weight": 0, "text": "Raw JavaScript content changed; semantic comparison is unknown"})
+        elif details.get("semantic_changed"):
             weight = int(RULES["evidence-semantic-js"]["weight"]); adjustment += weight; rules.append("evidence-semantic-js")
             evidence_for.append({"type": "javascript", "weight": weight, "text": "Semantic JavaScript content changed"})
         else:

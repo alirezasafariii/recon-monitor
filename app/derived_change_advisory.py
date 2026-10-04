@@ -173,7 +173,7 @@ def _signal_affinity(
     if score and state_type == "source_map_source" and change == "changed":
         before_semantic = str(before.get("semantic_hash") or "")
         after_semantic = str(after.get("semantic_hash") or "")
-        if before_semantic and after_semantic and before_semantic != after_semantic:
+        if row.get("semantic_comparison") != "unknown" and before_semantic and after_semantic and before_semantic != after_semantic:
             score = min(100, score + 8)
             reasons.append("embedded source semantic hash changed")
 
@@ -217,6 +217,7 @@ def _validated_signal(
         "target": target,
         "before": dict(before),
         "after": dict(after),
+        "semantic_comparison": str(row.get("semantic_comparison") or ""),
     }
 
 
