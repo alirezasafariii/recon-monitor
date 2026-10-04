@@ -407,12 +407,28 @@ def process_due_revalidations(paths: AppPaths, config: Config, db: Database, *, 
 # Data quality and blind-spot engine
 # ---------------------------------------------------------------------------
 
+class DataQualityUnavailable(ReconError):
+    """A requested run or target has no data-quality input to summarize."""
+
+    def __init__(self, message: str, *, code: str):
+        super().__init__(message)
+        self.code = code
+
+
 def data_quality_snapshot(db: Database, run_id: str | None = None, target: str | None = None, *, persist: bool = True) -> dict[str, Any]:
+    run_id = str(run_id or "").strip() or None
+    target = str(target or "").strip() or None
     run_id = run_id or _latest_run(db, target)
     if not run_id:
-        raise ReconError("No completed recon run is available")
+        raise DataQualityUnavailable("No completed recon run is available", code="no_completed_run")
+    if not db.one("SELECT id FROM runs WHERE id=?", (run_id,)):
+        raise DataQualityUnavailable("Recon run not found", code="run_not_found")
     targets = [str(row["target"]) for row in db.all("SELECT target FROM run_targets WHERE run_id=? ORDER BY target", (run_id,))]
+    if not targets:
+        raise DataQualityUnavailable("No targets are recorded for this recon run", code="run_targets_unavailable")
     if target:
+        if target not in targets:
+            raise DataQualityUnavailable("Target is not recorded for this recon run", code="target_not_in_run")
         targets = [item for item in targets if item == target]
     stages = [dict(row) for row in db.all("SELECT target,stage,status,metrics_json,error FROM stage_runs WHERE run_id=?", (run_id,))]
     stage_map = {(str(row["target"]), str(row["stage"])): row for row in stages}
@@ -420,7 +436,7 @@ def data_quality_snapshot(db: Database, run_id: str | None = None, target: str |
 
     target_results: dict[str, Any] = {}
     all_blind_spots: list[dict[str, str]] = []
-    for item in targets or [target or "*"]:
+    for item in targets:
         statuses = {stage: str(stage_map.get((item, stage), {}).get("status") or "missing") for stage in expected_stages}
         stage_success = sum(1 for status in statuses.values() if status in {"success", "skipped"})
         tool_success = round(100 * stage_success / len(expected_stages))
@@ -1416,7 +1432,14 @@ def platform_v6_sync(paths: AppPaths, db: Database, *, run_id: str | None = None
     started = time.perf_counter()
     run_id = run_id or _latest_run(db)
     analysis_id = analysis_id or _latest_analysis(db)
-    data_quality = data_quality_snapshot(db, run_id, persist=True) if run_id else {}
+    data_quality: dict[str, Any] = {}
+    if run_id:
+        try:
+            data_quality = data_quality_snapshot(db, run_id, persist=True)
+        except DataQualityUnavailable as exc:
+            # Legacy analysis inputs can lack recon target records. Continue
+            # the other sync work while making the missing coverage explicit.
+            data_quality = {"run_id": run_id, "unavailable": True, "error": str(exc), "code": exc.code}
     story = correlate_security_stories(db, analysis_id, persist=True) if analysis_id else {}
     cases = [str(row["case_id"]) for row in db.all("SELECT case_id FROM security_cases WHERE state NOT IN ('rejected','reported','closed') ORDER BY updated_at DESC LIMIT 1000")]
     rankings = 0

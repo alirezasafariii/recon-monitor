@@ -2206,9 +2206,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_html('Security cases',header+controls+tab_html+f"<section class='panel' style='margin-top:14px'><div class='panel-head'><h3>Case queue</h3><span class='muted small'>{len(rows)} shown</span></div>{''.join(cards) or _empty('No cases in this view','Sync the latest analysis or change the filters.')}{pager}</section>")
 
     def case_page(self) -> None:
-        case_id = str((self.query().get('id') or [''])[0])
+        case_id = str((self.query().get('id') or [''])[0]).strip()
+        if not case_id:
+            self.send_html("Case ID required", "<h1>Case ID is required</h1><p><a href='/cases'>Choose a case</a></p>", 400)
+            return
         db = self.db()
         try:
+            if not db.one("SELECT case_id FROM security_cases WHERE case_id=?", (case_id,)):
+                self.send_html("Case not found", "<h1>Case not found</h1><p><a href='/cases'>Choose a case</a></p>", 404)
+                return
             detail = case_detail(db, case_id)
             gap = evidence_gap_for_case(db, case_id, persist=False)
             auto = case_autopilot(db, case_id, actor='dashboard-preview', persist=False)
@@ -3380,10 +3386,30 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         self.send_html('Search', header + form + summary + ''.join(sections))
 
     def evidence_export(self) -> None:
-        p=self.query(); alert_id=parse_int((p.get('alert_id') or [0])[0],0); target=str((p.get('target') or [''])[0]); entity_type=str((p.get('entity_type') or [''])[0]); entity_value=str((p.get('entity_value') or [''])[0])
+        p = self.query()
+        raw_alert_id = str((p.get('alert_id') or [''])[0]).strip()
+        target = str((p.get('target') or [''])[0]).strip()
+        entity_type = str((p.get('entity_type') or [''])[0])
+        entity_value = str((p.get('entity_value') or [''])[0])
+        try:
+            alert_id = int(raw_alert_id) if raw_alert_id else 0
+        except ValueError:
+            self.send_html("Invalid alert ID", "<h1>Alert ID must be a positive integer</h1>", 400)
+            return
+        if raw_alert_id and not 1 <= alert_id <= 2**63 - 1:
+            self.send_html("Invalid alert ID", "<h1>Alert ID must be a positive integer</h1>", 400)
+            return
+        if not target and not alert_id:
+            self.send_html("Evidence selector required", "<h1>Target or alert ID is required</h1><p>Choose a target or an alert to export its evidence.</p>", 400)
+            return
         db=self.db()
-        try: filename,data=build_evidence_export(db,target=target,entity_type=entity_type,entity_value=entity_value,alert_id=alert_id)
-        finally: db.close()
+        try:
+            if alert_id and not db.one("SELECT id FROM alerts WHERE id=?", (alert_id,)):
+                self.send_html("Alert not found", "<h1>Alert not found</h1><p><a href='/alerts'>Choose an alert</a></p>", 404)
+                return
+            filename,data=build_evidence_export(db,target=target,entity_type=entity_type,entity_value=entity_value,alert_id=alert_id)
+        finally:
+            db.close()
         self.send_attachment(filename,data)
 
     def metrics(self) -> None:

@@ -44,6 +44,19 @@ The engine reports explicit blind spots such as:
 
 A low candidate count is therefore not presented as evidence that the target is secure.
 
+`GET /api/v1/suite/data-quality` selects the latest successful run when `run_id`
+is omitted or blank, optionally filtered by `target`. It returns HTTP 404 with
+JSON `error` and `code` when there is no matching completed run
+(`no_completed_run`), an explicit run does not exist (`run_not_found`), a run has
+no recorded targets (`run_targets_unavailable`), or the requested target is not
+in that run (`target_not_in_run`). These responses do not fabricate a zero-score
+snapshot or persist quality data. An explicitly selected, existing incomplete
+run remains inspectable so that its missing stages and blind spots are visible.
+Platform sync continues its analysis, case, and validation work if quality inputs
+are unavailable, including legacy runs without `run_targets` records. Its
+`data_quality` result carries `unavailable: true`, `run_id`, `error`, and `code`
+instead of a fabricated score; unrelated internal failures still propagate.
+
 ## 4. Cost-aware review priority
 
 Open cases receive separate estimates for:
@@ -94,6 +107,15 @@ Version 6 adds:
 - security-posture checks;
 - safe file-permission repair;
 - tamper-evident audit hash chaining.
+
+Authenticated dashboard read requests validate their selectors before rendering
+or exporting. `/case` requires a nonblank `id` (HTTP 400) and returns HTTP 404
+for an unknown case. `/evidence/export` requires a nonblank `target` or a valid
+positive `alert_id` (HTTP 400); an unknown alert returns HTTP 404 even if a target
+is also supplied. A valid alert alone still selects its stored target and
+downloads the ZIP. These expected request errors do not create internal-error
+events. Unexpected renderer, exporter, or database failures retain their normal
+error behavior, and authentication checks still precede input validation.
 
 Audit appends are serialized as one SQLite transaction across the administrative
 log row, previous-chain head lookup and integrity row. Calls made inside an
