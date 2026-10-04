@@ -612,6 +612,7 @@ def build_parser() -> argparse.ArgumentParser:
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8790)
     api.add_argument("--allow-remote", action="store_true")
+    api.add_argument("--control-instance", default="", help=argparse.SUPPRESS)
     api.add_argument("--name", default="cli")
     api.add_argument("--role", choices=["viewer","analyst","worker","lead_analyst","admin"], default="viewer")
     api.add_argument("--scopes", default="", help="Comma-separated: read,write,validation,operations,admin,worker")
@@ -1339,7 +1340,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "api":
-            if args.action == "foreground": serve_api(paths,logger,args.host,args.port,args.allow_remote)
+            if args.action == "foreground": serve_api(paths,logger,args.host,args.port,args.allow_remote,control_instance=args.control_instance)
             elif args.action == "start": print(f"API PID: {start_api(paths,args.host,args.port,args.allow_remote)}")
             elif args.action == "stop": print("stopped" if stop_api(paths) else "not running")
             elif args.action == "status":

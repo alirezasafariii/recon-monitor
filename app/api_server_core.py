@@ -4,7 +4,9 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import secrets
+import select
 import shlex
 import signal
 import subprocess
@@ -17,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, atomic_write_text, json_dumps, parse_bool, parse_int, safe_json_loads, utc_now
+from api_process_control import APIProcessControl, ControlledAPIHTTPServer, valid_control_instance
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
@@ -444,42 +447,47 @@ class APIHandler(BaseHTTPRequestHandler):
         finally: db.close()
 
 
-def serve_api(paths: AppPaths, logger: Logger, host: str, port: int, allow_remote: bool=False):
+def serve_api(paths: AppPaths, logger: Logger, host: str, port: int, allow_remote: bool=False, *, control_instance: str=""):
     if host not in {'127.0.0.1','localhost','::1'} and not allow_remote: raise ReconError("Remote API bind requires --allow-remote")
+    control = APIProcessControl(paths, control_instance) if control_instance else None
     handler=type('BoundAPIHandler',(APIHandler,),{'paths':paths,'logger':logger})
-    server=ThreadingHTTPServer((host,port),handler); logger.info("API started",host=host,port=port)
+    server=ControlledAPIHTTPServer((host,port),handler,control); logger.info("API started",host=host,port=port)
     try: server.serve_forever(poll_interval=.5)
-    finally: server.server_close(); logger.info("API stopped")
+    finally:
+        server.server_close()
+        if control and server.control_stop_requested:
+            control.acknowledge_stop()
+        logger.info("API stopped")
 
 
 def api_paths(paths: AppPaths): return paths.state/'api.pid',paths.logs/'api.log'
 
 
-def _read_api_record(paths: AppPaths) -> tuple[int, str]:
+def _read_api_record(paths: AppPaths) -> tuple[dict[str, Any], str]:
     """Read the API PID record, accepting legacy plain-integer files."""
     pid_path, _ = api_paths(paths)
     try:
-        raw = pid_path.read_text(encoding="utf-8").strip()
-    except OSError:
-        return 0, ""
-    if not raw:
-        return 0, ""
+        raw = pid_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return {}, ""
     try:
         record = json.loads(raw)
-    except (TypeError, ValueError):
-        try:
-            return int(raw), ""
-        except ValueError:
-            return 0, ""
-    if isinstance(record, int):
-        return record, ""
+    except ValueError:
+        return {}, raw
+    if type(record) is int:
+        record = {"pid": record}
     if not isinstance(record, dict):
-        return 0, ""
-    try:
-        pid = int(record.get("pid") or 0)
-    except (TypeError, ValueError):
-        pid = 0
-    return pid, str(record.get("start_token") or "")
+        return {}, raw
+    pid = record.get("pid")
+    token = record.get("start_token", "")
+    instance = record.get("control_instance", "")
+    if type(pid) is not int or pid <= 1 or not isinstance(token, str):
+        return {}, raw
+    if "version" in record and record["version"] != 2:
+        return {}, raw
+    if ("control_instance" in record or record.get("version") == 2) and not valid_control_instance(instance):
+        return {}, raw
+    return {"pid": pid, "start_token": token, "control_instance": instance}, raw
 
 
 def _process_alive(pid: int) -> bool:
@@ -506,13 +514,13 @@ def _process_start_token(pid: int) -> str:
         return ""
 
 
-def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "") -> dict[str, Any] | None:
+def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "", expected_control_instance: str = "") -> dict[str, Any] | None:
     """Validate both the executable command and the process instance.
 
     A PID file is only a locator. The command must be this checkout's
     ``api foreground`` process, and a token written by newer starts must still
-    match the current process instance. This prevents a stale/reused PID from
-    being reported as Recon Monitor or signalled by ``api stop``.
+    match the current process instance. Command inspection is status evidence;
+    shutdown requires an instance-specific control acknowledgement or pidfd.
     """
     if not _process_alive(pid):
         return None
@@ -536,15 +544,34 @@ def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "")
     command = str(result.stdout or "").strip()
     if not command:
         return None
-    try:
-        parts = shlex.split(command)
-    except ValueError:
-        parts = command.split()
     expected_script = str((paths.app / "recon_monitor.py").resolve())
-    indexes = [index for index, value in enumerate(parts) if value == expected_script]
-    if not indexes:
+
+    def python_executable(value: str) -> bool:
+        return value == sys.executable or re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", Path(value).name) is not None
+
+    try:
+        # /proc supplies the exact argument boundaries on Linux, including
+        # checkout paths containing spaces. Elsewhere ps is read-only evidence;
+        # it is never used to authorize an unbound PID signal.
+        parts = Path(f"/proc/{pid}/cmdline").read_bytes().decode().rstrip("\0").split("\0")
+    except (OSError, UnicodeError):
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            parts = []
+        if len(parts) < 2 or parts[1] != expected_script:
+            # macOS ps prints argv without shell quoting. Recover this known
+            # script boundary rather than splitting a path containing spaces.
+            executable, separator, arguments = command.partition(f" {expected_script} ")
+            if not separator or not python_executable(executable):
+                return None
+            try:
+                parts = [executable, expected_script, *shlex.split(arguments)]
+            except ValueError:
+                return None
+    if len(parts) < 4 or parts[1] != expected_script or not python_executable(parts[0]):
         return None
-    tail = parts[indexes[-1] + 1:]
+    tail = parts[2:]
     if len(tail) < 2 or tail[:2] != ["api", "foreground"]:
         return None
 
@@ -555,6 +582,8 @@ def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "")
         except (ValueError, IndexError):
             return default
 
+    if expected_control_instance and option("--control-instance", "") != expected_control_instance:
+        return None
     try:
         port = int(option("--port", "8790"))
     except ValueError:
@@ -566,18 +595,29 @@ def _api_process_info(paths: AppPaths, pid: int, expected_start_token: str = "")
         "allow_remote": "--allow-remote" in tail,
         "command": command,
         "start_token": current_start_token,
+        "control_instance": option("--control-instance", ""),
     }
 
 
-def _remove_api_record(paths: AppPaths) -> None:
-    api_paths(paths)[0].unlink(missing_ok=True)
+def _remove_api_record(paths: AppPaths, expected_raw: str) -> bool:
+    pid_path, _ = api_paths(paths)
+    try:
+        if pid_path.read_text(encoding="utf-8") == expected_raw:
+            pid_path.unlink(missing_ok=True)
+            return True
+    except FileNotFoundError:
+        return True
+    except (OSError, UnicodeError):
+        pass
+    return False
 
 
 def api_status(paths: AppPaths):
-    pid, start_token = _read_api_record(paths)
-    info = _api_process_info(paths, pid, start_token)
+    record, raw = _read_api_record(paths)
+    pid = record.get("pid", 0)
+    info = _api_process_info(paths, pid, record.get("start_token", ""), record.get("control_instance", ""))
     if info is None:
-        _remove_api_record(paths)
+        _remove_api_record(paths, raw)
         return False, 'API is not running'
     return True, f"API running (PID {pid}) at http://{info['host']}:{info['port']}"
 
@@ -585,87 +625,77 @@ def api_status(paths: AppPaths):
 def start_api(paths: AppPaths,host:str,port:int,allow_remote:bool=False):
     active,detail=api_status(paths)
     if active:raise ReconError(detail)
-    pid_path,log_path=api_paths(paths); log=open(log_path,'ab'); cmd=[sys.executable,str(paths.app/'recon_monitor.py'),'api','foreground','--host',host,'--port',str(port)]+(['--allow-remote'] if allow_remote else [])
+    instance = secrets.token_hex(16)
+    pid_path,log_path=api_paths(paths); log=open(log_path,'ab'); cmd=[sys.executable,str(paths.app/'recon_monitor.py'),'api','foreground','--host',host,'--port',str(port),'--control-instance',instance]+(['--allow-remote'] if allow_remote else [])
     try:
         proc=subprocess.Popen(cmd,cwd=paths.root,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
     finally:
         log.close()
-    # Store the process instance token alongside the PID. Legacy integer PID
-    # files remain readable, but all newly started API processes are bound to
-    # the exact instance observed at startup.
+    # The random control instance binds shutdown on every platform. The Linux
+    # start token is additional status evidence, not a portable signal handle.
     atomic_write_text(
         pid_path,
-        json_dumps({"pid": proc.pid, "start_token": _process_start_token(proc.pid)}) + "\n",
+        json_dumps({"version": 2, "pid": proc.pid, "start_token": _process_start_token(proc.pid), "control_instance": instance}) + "\n",
+        mode=0o600,
     )
     time.sleep(.5)
     return proc.pid
 
 
-def _signal_api_process(
-    paths: AppPaths | None,
-    pid: int,
-    sig: int,
-    expected_start_token: str = "",
-) -> bool:
-    """Signal a specific process instance when Linux pidfds are available."""
-    if expected_start_token and _process_start_token(pid) != expected_start_token:
-        return False
+def _stop_legacy_api_process(paths: AppPaths, pid: int, expected_start_token: str) -> None:
+    """Legacy processes require one validated pidfd held through escalation."""
     pidfd_open = getattr(os, "pidfd_open", None)
     pidfd_send_signal = getattr(signal, "pidfd_send_signal", None)
-    if callable(pidfd_open) and callable(pidfd_send_signal):
+    if not expected_start_token or not callable(pidfd_open) or not callable(pidfd_send_signal):
+        raise ReconError("Cannot safely stop this legacy API: no instance-bound control or pidfd. Stop it through its owning terminal/service, then use api start. PID record retained.")
+    try:
+        pidfd = pidfd_open(pid)
         try:
-            pidfd = pidfd_open(pid)
-        except OSError:
-            pidfd = None
-        if pidfd is not None:
-            try:
-                if expected_start_token and _process_start_token(pid) != expected_start_token:
-                    return False
-                if paths is not None and _api_process_info(paths, pid, expected_start_token) is None:
-                    return False
-                pidfd_send_signal(pidfd, sig)
-                return True
-            finally:
-                os.close(pidfd)
-    if paths is not None and _api_process_info(paths, pid, expected_start_token) is None:
-        return False
-    os.kill(pid, sig)
-    return True
+            if _api_process_info(paths, pid, expected_start_token) is None:
+                raise ReconError("API process identity changed before pidfd validation; no signal sent. PID record retained.")
+            pidfd_send_signal(pidfd, signal.SIGTERM)
+            if not select.select([pidfd], [], [], 3.0)[0]:
+                pidfd_send_signal(pidfd, signal.SIGKILL)
+                if not select.select([pidfd], [], [], 3.0)[0]:
+                    raise ReconError("API exit was not confirmed through its pidfd. PID record retained.")
+        finally:
+            os.close(pidfd)
+    except ProcessLookupError:
+        # A pinned process disappearing cannot redirect the signal to a new
+        # process that inherited its numeric PID.
+        return
+    except OSError as exc:
+        raise ReconError(f"Cannot safely stop API through pidfd: {exc}. No PID signal fallback; PID record retained.") from exc
 
 
 def stop_api(paths: AppPaths):
-    pid_path,_=api_paths(paths)
-    pid, start_token = _read_api_record(paths)
-    info = _api_process_info(paths, pid, start_token)
-    if info is None:
-        _remove_api_record(paths)
-        return False
-    try:
-        signaled = _signal_api_process(
-            paths,
-            pid,
-            signal.SIGTERM,
-            str(info.get("start_token") or start_token),
-        )
-    except ProcessLookupError:
-        _remove_api_record(paths)
-        return False
-    if not signaled:
-        _remove_api_record(paths)
-        return False
-    for _ in range(30):
-        if not _process_alive(pid):
-            break
-        time.sleep(.1)
-    if _process_alive(pid):
+    record, raw = _read_api_record(paths)
+    pid = record.get("pid", 0)
+    instance = record.get("control_instance", "")
+    if instance:
+        # The unique local channel belongs to the server instance, so there is
+        # no check-then-kill window even when /proc and pidfds do not exist.
+        # An acknowledgement is also valid after that process has exited.
+        control = APIProcessControl(paths, instance)
         try:
-            _signal_api_process(
-                paths,
-                pid,
-                signal.SIGKILL,
-                str(info.get("start_token") or start_token),
-            )
-        except ProcessLookupError:
-            pass
-    pid_path.unlink(missing_ok=True)
+            control.request_stop(pid)
+            deadline = time.monotonic() + 3.0
+            while not control.is_stopped(pid):
+                if time.monotonic() >= deadline:
+                    raise ReconError("API stop was not acknowledged by its control instance. No PID signal sent; PID record retained.")
+                time.sleep(.1)
+        except OSError as exc:
+            raise ReconError(f"Cannot write API stop request: {exc}. No PID signal sent; PID record retained.") from exc
+        if _remove_api_record(paths, raw):
+            try:
+                control.path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        return True
+    info = _api_process_info(paths, pid, record.get("start_token", ""))
+    if info is None:
+        _remove_api_record(paths, raw)
+        return False
+    _stop_legacy_api_process(paths, pid, str(info.get("start_token") or ""))
+    _remove_api_record(paths, raw)
     return True

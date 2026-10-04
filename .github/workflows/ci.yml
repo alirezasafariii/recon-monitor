@@ -64,3 +64,20 @@ jobs:
 
       - name: Integration test
         run: python tests/integration_runner.py
+
+  api-macos:
+    name: API shutdown (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Portable API shutdown regressions
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -W error::ResourceWarning -m unittest discover -s tests -p 'test_api_process_identity.py' -v
+          python -W error::ResourceWarning -m unittest discover -s tests -p 'test_api_portable_shutdown.py' -v
