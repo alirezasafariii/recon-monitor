@@ -69,6 +69,16 @@
 - Evidence exports may contain sensitive metadata and should be encrypted in transit and at rest.
 - Evidence manifests and content-addressed object hashes help detect modification but are not a legal digital-signature system.
 - Backup archives may contain configuration, database history, notes, and evidence. Referenced CAS/evidence artifacts are included even without `--include-objects`; verification fails if a database reference cannot be recovered from the archive.
+- Source Maps have separate, controller-only work items keyed by the parent
+  JavaScript URL, its raw hash and the map URL. A failed or interrupted map keeps
+  the collection partial and retries on Resume while the verified JavaScript
+  file stays completed. Completed maps require a valid JSON object, matching
+  CAS bytes and an owner reference before reuse. Resume reconstructs the full
+  source/chunk snapshot from verified artifacts; incomplete maps cannot advance
+  the successful source snapshot or retire prior embedded-source references.
+  Per-map status, attempts, duration and error are written to
+  `current/source-map-work.jsonl`. Map requests use the existing scoped, pinned
+  downloader and request/byte budgets; embedded source URLs are not fetched.
 
 ## Updates and restore
 

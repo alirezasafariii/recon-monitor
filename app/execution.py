@@ -124,12 +124,15 @@ class WorkQueue:
         error: str,
         *,
         retry: bool = True,
+        result: Mapping[str, Any] | None = None,
     ) -> None:
+        payload = dict(result) if result is not None else None
         self._write(
             lambda db: db.work_fail(
                 work_id,
                 error,
                 retry=retry,
+                **({"result": payload} if payload is not None else {}),
             )
         )
 

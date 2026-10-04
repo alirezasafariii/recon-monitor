@@ -1716,16 +1716,89 @@ def _javascript_work_processed(ctx: StageContext, store: ContentAddressedStore, 
         return False
 
 
+def _source_map_work(
+    ctx: StageContext,
+    store: ContentAddressedStore,
+    queue: WorkQueue,
+    js_url: str,
+    js_raw_hash: str,
+    source_map_url: str,
+) -> tuple[int, dict[str, Any]]:
+    """Resume a controller-only map subtask tied to the exact parent JS bytes."""
+    identity = {"js_url": js_url, "js_raw_hash": js_raw_hash, "source_map_url": source_map_url}
+    work_id = queue.enqueue(sha256_text(json_dumps(identity)), {
+        "kind": "source_map", **identity, "url": source_map_url,
+        "max_bytes": ctx.policy.limits.max_js_bytes,
+    })
+    row = ctx.db.one("SELECT * FROM work_items WHERE id=?", (work_id,))
+    saved = safe_json_loads(row["result_json"], {}, expected_type=dict)
+    if row["status"] == "completed":
+        try:
+            digest, size = saved.get("object_hash"), saved.get("size")
+            if (any(saved.get(key) != value for key, value in identity.items())
+                    or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or type(size) is not int or not 0 <= size <= ctx.policy.limits.max_js_bytes
+                    or type(saved.get("status_code")) is not int
+                    or not 200 <= saved["status_code"] < 300 or saved["status_code"] == 206):
+                raise ValueError("Invalid processed Source Map metadata")
+            reference = ctx.db.one(
+                "SELECT sha256 FROM cas_references WHERE owner_kind='source_map' AND owner_key=?",
+                (f"{ctx.policy.name}\n{js_url}",),
+            )
+            if not reference or reference["sha256"] != digest:
+                raise ValueError("Missing Source Map CAS reference")
+            data = store.get(digest)
+            if len(data) != size or sha256_bytes(data) != digest:
+                raise ValueError("Source Map CAS content does not match its receipt")
+            parsed = json.loads(data.decode("utf-8", "replace"))
+            if not isinstance(parsed, dict):
+                raise ValueError("Source Map JSON must be an object")
+            return work_id, {**saved, "data": data, "parsed": parsed, "duration": 0,
+                             "reused": True, "work_status": "completed"}
+        except (OSError, ValueError):
+            queue.reopen(work_id, "Completed Source Map work has no verified artifact")
+    if not queue.start(work_id, "local-source-map"):
+        current = ctx.db.one("SELECT status,error FROM work_items WHERE id=?", (work_id,))
+        return work_id, {"error": current["error"] or "Source Map work is in progress",
+                         "work_status": current["status"], "deferred": current["status"] != "failed"}
+    result: dict[str, Any] = {}
+    try:
+        result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
+        if "data" not in result or result.get("error") or result.get("operator_next"):
+            raise ValueError(str(result.get("error") or ("operator_next" if result.get("operator_next") else "Source Map download failed")))
+        status = result.get("status_code")
+        if (type(status) is not int or not 200 <= status < 300 or status == 206
+                or result.get("truncated") or result.get("redirect_outside_scope")
+                or not ctx.policy.url_in_scope(str(result.get("final_url") or source_map_url))):
+            raise ValueError("Source Map requires a complete in-scope successful response")
+        data = result["data"]
+        if not isinstance(data, (bytes, bytearray)) or len(data) > ctx.policy.limits.max_js_bytes:
+            raise ValueError("Source Map body exceeds the file limit or is not bytes")
+        parsed = json.loads(data.decode("utf-8", "replace"))
+        if not isinstance(parsed, dict):
+            raise ValueError("Source Map JSON must be an object")
+        return work_id, {**result, "data": bytes(data), "parsed": parsed, "reused": False,
+                         "attempted": True, "work_status": "running"}
+    except Exception as exc:
+        failure = {**identity, "error": str(exc), "work_status": "retry_pending",
+                   "attempted": True, "status_code": int(result.get("status_code") or 0),
+                   "transport_status": str(result.get("transport_status") or ""),
+                   "duration": float(result.get("duration") or 0),
+                   "operator_next": bool(result.get("operator_next"))}
+        queue.fail(work_id, str(exc), retry=True, result=failure)
+        return work_id, failure
+
+
 def _retry_unfinished_javascript_work(fn):
     @functools.wraps(fn)
     def guarded(ctx: StageContext):
         try:
             return fn(ctx)
-        except Exception as exc:
-            queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
+        except (Exception, KeyboardInterrupt) as exc:
             with contextlib.suppress(Exception):
-                rows = ctx.db.all("SELECT id FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items' AND status='running' AND worker_id='local-js' AND COALESCE(lease_token_hash,'')=''", (ctx.run_id, ctx.policy.name))
+                rows = ctx.db.all("SELECT id,stage FROM work_items WHERE run_id=? AND target=? AND status='running' AND ((stage='javascript-items' AND worker_id='local-js') OR (stage='javascript-source-map-items' AND worker_id='local-source-map')) AND COALESCE(lease_token_hash,'')=''", (ctx.run_id, ctx.policy.name))
                 for row in rows:
+                    queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, row["stage"], ctx.db_writer)
                     queue.fail(row["id"], str(exc), retry=True)
             raise
     return guarded
@@ -1806,6 +1879,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             ctx.current / "source-map-sources.jsonl",
             [],
         )
+        write_jsonl(ctx.current / "source-map-work.jsonl", [])
         write_jsonl(
             ctx.current / "javascript-chunk-edges.jsonl",
             [],
@@ -1846,6 +1920,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "disappeared": 0,
             "source_maps": 0,
             "source_map_sources": 0,
+            "source_map_attempts": 0,
+            "source_map_failures": 0,
+            "source_map_reused_work_items": 0,
+            "source_map_pending_work_items": 0,
+            "source_map_deferred_work_items": 0,
             "embedded_sources": 0,
             "embedded_source_indicators": 0,
             "chunk_edges": 0,
@@ -1868,7 +1947,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             if work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
                 repaired_completed += 1
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
-    fresh_full_js_pass = len(pending_urls) == len(js_urls)
     work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "max_bytes": ctx.policy.limits.max_js_bytes, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
     results: list[dict[str, Any]] = []
     download_urls: list[str] = []
@@ -1963,6 +2041,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     embedded_source_indicators = 0
     source_map_attempts = 0
     source_map_failures = 0
+    source_map_reused = 0
+    source_map_deferred = 0
+    source_map_work_rows: list[dict[str, Any]] = []
+    source_map_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-source-map-items", ctx.db_writer)
     unexpected_content_types = 0
 
     availability_rows: list[dict[str, Any]] = []
@@ -2256,7 +2338,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             source_map_url=source_map_url,
         )
         js_owner_key = f"{ctx.policy.name}\n{url}"
-        source_map_source_prefix = js_owner_key + "\n"
         store.set_reference("js_file", js_owner_key, object_hash)
         if ctx.policy.analysis.get("asset_graph", True):
             host = urllib.parse.urlsplit(url).hostname or ""
@@ -2340,23 +2421,69 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     {"discovery": "static_string"},
                 )
 
+        if url in work_ids:
+            work_queue.finish(
+                work_ids[url],
+                {
+                    "raw_hash": raw_hash,
+                    "semantic_hash": semantic_hash,
+                    "object_hash": object_hash,
+                },
+            )
+            store.drop_reference("work_item", str(work_ids[url]))
+
+    # Maps have their own lifecycle. A completed JS parent remains reusable
+    # while its map retries, and every verified parent contributes to the snapshot.
+    processed_parents: set[str] = set()
+    chunk_parents = {row["js_url"] for row in chunk_edge_rows}
+    for url in js_urls:
+        parent = ctx.db.one("SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items' AND item_key=?",
+                            (ctx.run_id, ctx.policy.name, url))
+        if not parent or parent["status"] != "completed":
+            continue
+        parent_result = safe_json_loads(parent["result_json"], {}, expected_type=dict)
+        try:
+            if not _javascript_work_processed(ctx, store, url, parent_result):
+                raise ValueError("Processed JavaScript artifact is unavailable")
+            if parent_result.get("status") == "not_found":
+                processed_parents.add(url)
+                continue
+            raw_hash = parent_result["object_hash"]
+            data = store.get(raw_hash)
+            if sha256_bytes(data) != raw_hash or len(data) > ctx.policy.limits.max_js_bytes:
+                raise ValueError("Processed JavaScript artifact changed during Resume")
+        except (OSError, ValueError) as exc:
+            work_queue.reopen(parent["id"], str(exc))
+            errors.append({"url": url, "error": str(exc)})
+            continue
+        processed_parents.add(url)
+        text = data.decode("utf-8", "replace")
+        if url not in chunk_parents:
+            chunk_edge_rows.extend({"js_url": url, "chunk_url": chunk_url}
+                                   for chunk_url in _extract_js_chunk_references(url, text)
+                                   if ctx.policy.url_in_scope(chunk_url))
+        source_map_url = _find_source_map_url(url, text)
+        js_owner_key = f"{ctx.policy.name}\n{url}"
+        source_map_source_prefix = js_owner_key + "\n"
         if not source_map_url and source_map_collection_enabled:
             store.drop_reference("source_map", js_owner_key)
-            store.sync_references(
-                "source_map_source",
-                {},
-                owner_prefix=source_map_source_prefix,
-            )
-
+            store.sync_references("source_map_source", {}, owner_prefix=source_map_source_prefix)
         if source_map_url and ctx.policy.url_in_scope(source_map_url) and source_map_collection_enabled:
-            source_map_attempts += 1
-            map_result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
+            map_work_id, map_result = _source_map_work(ctx, store, source_map_queue, url, raw_hash, source_map_url)
+            source_map_attempts += int(bool(map_result.get("attempted")))
+            observation = {"work_id": map_work_id, "js_url": url, "js_raw_hash": raw_hash,
+                           "source_map_url": source_map_url, "work_status": map_result["work_status"],
+                           "reused": bool(map_result.get("reused")),
+                           "status_code": int(map_result.get("status_code") or 0),
+                           "transport_status": str(map_result.get("transport_status") or ""),
+                           "duration": float(map_result.get("duration") or 0),
+                           "operator_next": bool(map_result.get("operator_next"))}
             if "data" in map_result:
                 map_data = map_result["data"]
                 map_hash, map_path, _ = store.put(map_data, content_type="application/json")
                 store.set_reference("source_map", js_owner_key, map_hash)
                 current_embedded_refs: dict[str, str] = {}
-                maps_downloaded += 1
+                maps_downloaded += int(not map_result.get("reused"))
                 if ctx.policy.analysis.get("asset_graph", True):
                     ctx.db.upsert_edge(
                         ctx.policy.name,
@@ -2368,146 +2495,144 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         ctx.run_id,
                         {"content_hash": map_hash, "blob_path": str(map_path)},
                     )
-                try:
-                    parsed_source_map = json.loads(map_data.decode("utf-8", "replace"))
-                except json.JSONDecodeError:
-                    parsed_source_map = None
-                if not isinstance(parsed_source_map, dict):
-                    source_map_failures += 1
-                with contextlib.suppress(json.JSONDecodeError):
-                    source_map = json.loads(map_data.decode("utf-8", "replace"))
-                    if isinstance(source_map, dict):
-                        entries = _source_map_entries(source_map_url, source_map)
-                        source_map_sources += len(entries)
-                        for entry in entries:
-                            embedded_content = str(entry.pop("embedded_content", "") or "")
-                            source_name = str(entry["source_name"])
-                            source_identity = str(entry["source_identity"])
-                            resolved_source_url = str(entry.get("resolved_source_url") or "")
-                            source_value = source_name[:500]
-                            if ctx.db.upsert_js_indicator(ctx.policy.name, url, "source_map_source", source_value, False, ctx.run_id):
-                                indicator_count += 1
-                                indicator_lines.append(f"source_map_source\t{source_value}\t{url}")
+                source_map = map_result["parsed"]
+                entries = _source_map_entries(source_map_url, source_map)
+                source_map_sources += len(entries)
+                for entry in entries:
+                    embedded_content = str(entry.pop("embedded_content", "") or "")
+                    source_name = str(entry["source_name"])
+                    source_identity = str(entry["source_identity"])
+                    resolved_source_url = str(entry.get("resolved_source_url") or "")
+                    source_value = source_name[:500]
+                    if ctx.db.upsert_js_indicator(ctx.policy.name, url, "source_map_source", source_value, False, ctx.run_id):
+                        indicator_count += 1
+                        indicator_lines.append(f"source_map_source\t{source_value}\t{url}")
 
-                            if embedded_content:
-                                embedded_sources += 1
-                                source_bytes = embedded_content.encode("utf-8")
-                                source_hash, source_path, _ = store.put(source_bytes, content_type="text/plain")
-                                current_embedded_refs[
-                                    source_map_source_prefix + source_identity
-                                ] = source_hash
-                                entry["object_hash"] = source_hash
-                                entry["blob_path"] = str(source_path)
-                                embedded_indicators = extract_js_indicators(embedded_content)
-                                embedded_source_indicators += len(embedded_indicators)
-                                for kind, value, redacted in embedded_indicators:
-                                    is_new_indicator = ctx.db.upsert_js_indicator(
-                                        ctx.policy.name,
-                                        url,
-                                        kind,
-                                        value,
-                                        redacted,
-                                        ctx.run_id,
-                                    )
-                                    classification: dict[str, Any] | None = None
-                                    if kind in {"endpoint", "absolute_url", "graphql_operation"}:
-                                        classification = classify_endpoint(
-                                            value,
-                                            kind=kind,
-                                            context={
-                                                "redacted": redacted,
-                                                "source_map_source": source_name,
-                                            },
-                                        )
-                                        if ctx.db.upsert_endpoint_intelligence(
-                                            ctx.policy.name,
-                                            value,
-                                            kind,
-                                            classification,
-                                            source_identity,
-                                            ctx.run_id,
-                                        ):
-                                            classified_endpoints += 1
-                                    if ctx.policy.analysis.get("asset_graph", True):
-                                        metadata: dict[str, Any] = {
-                                            "redacted": redacted,
-                                            "embedded_source": True,
-                                        }
-                                        if classification:
-                                            metadata["classification"] = classification
-                                        ctx.db.upsert_edge(
-                                            ctx.policy.name,
-                                            "source_map_source",
-                                            source_identity,
-                                            "references",
-                                            kind,
-                                            value,
-                                            ctx.run_id,
-                                            metadata,
-                                        )
-                                    if is_new_indicator:
-                                        indicator_count += 1
-                                        indicator_lines.append(f"{kind}\t{value}\t{source_identity}")
-                                        details = {
-                                            "kind": kind,
-                                            "value": value,
-                                            "js_url": url,
-                                            "redacted": redacted,
-                                            "source_map_url": source_map_url,
-                                            "source_map_source": source_name,
-                                            "embedded_source": True,
-                                        }
-                                        if classification:
-                                            details["endpoint_classification"] = classification
-                                        emit_event(
-                                            ctx,
-                                            "js_indicator",
-                                            f"{kind}:{value}@{source_identity}",
-                                            "New embedded source-map intelligence",
-                                            details,
-                                        )
-
-                            if ctx.policy.analysis.get("asset_graph", True):
-                                ctx.db.upsert_edge(
-                                    ctx.policy.name,
-                                    "source_map",
-                                    source_map_url,
-                                    "contains_source",
-                                    "source_map_source",
-                                    source_identity,
-                                    ctx.run_id,
-                                    {
-                                        "source_name": source_name,
-                                        "resolved_source_url": resolved_source_url,
-                                        "embedded": bool(entry.get("embedded")),
-                                        "content_hash": str(entry.get("content_hash") or ""),
+                    if embedded_content:
+                        embedded_sources += 1
+                        source_bytes = embedded_content.encode("utf-8")
+                        source_hash, source_path, _ = store.put(source_bytes, content_type="text/plain")
+                        current_embedded_refs[
+                            source_map_source_prefix + source_identity
+                        ] = source_hash
+                        entry["object_hash"] = source_hash
+                        entry["blob_path"] = str(source_path)
+                        embedded_indicators = extract_js_indicators(embedded_content)
+                        embedded_source_indicators += len(embedded_indicators)
+                        for kind, value, redacted in embedded_indicators:
+                            is_new_indicator = ctx.db.upsert_js_indicator(
+                                ctx.policy.name,
+                                url,
+                                kind,
+                                value,
+                                redacted,
+                                ctx.run_id,
+                            )
+                            classification: dict[str, Any] | None = None
+                            if kind in {"endpoint", "absolute_url", "graphql_operation"}:
+                                classification = classify_endpoint(
+                                    value,
+                                    kind=kind,
+                                    context={
+                                        "redacted": redacted,
+                                        "source_map_source": source_name,
                                     },
                                 )
-                            source_map_rows.append(
-                                {
-                                    "js_url": url,
-                                    "source_map_url": source_map_url,
-                                    "source_map_hash": map_hash,
-                                    **entry,
+                                if ctx.db.upsert_endpoint_intelligence(
+                                    ctx.policy.name,
+                                    value,
+                                    kind,
+                                    classification,
+                                    source_identity,
+                                    ctx.run_id,
+                                ):
+                                    classified_endpoints += 1
+                            if ctx.policy.analysis.get("asset_graph", True):
+                                metadata: dict[str, Any] = {
+                                    "redacted": redacted,
+                                    "embedded_source": True,
                                 }
-                            )
+                                if classification:
+                                    metadata["classification"] = classification
+                                ctx.db.upsert_edge(
+                                    ctx.policy.name,
+                                    "source_map_source",
+                                    source_identity,
+                                    "references",
+                                    kind,
+                                    value,
+                                    ctx.run_id,
+                                    metadata,
+                                )
+                            if is_new_indicator:
+                                indicator_count += 1
+                                indicator_lines.append(f"{kind}\t{value}\t{source_identity}")
+                                details = {
+                                    "kind": kind,
+                                    "value": value,
+                                    "js_url": url,
+                                    "redacted": redacted,
+                                    "source_map_url": source_map_url,
+                                    "source_map_source": source_name,
+                                    "embedded_source": True,
+                                }
+                                if classification:
+                                    details["endpoint_classification"] = classification
+                                emit_event(
+                                    ctx,
+                                    "js_indicator",
+                                    f"{kind}:{value}@{source_identity}",
+                                    "New embedded source-map intelligence",
+                                    details,
+                                )
+
+                    if ctx.policy.analysis.get("asset_graph", True):
+                        ctx.db.upsert_edge(
+                            ctx.policy.name,
+                            "source_map",
+                            source_map_url,
+                            "contains_source",
+                            "source_map_source",
+                            source_identity,
+                            ctx.run_id,
+                            {
+                                "source_name": source_name,
+                                "resolved_source_url": resolved_source_url,
+                                "embedded": bool(entry.get("embedded")),
+                                "content_hash": str(entry.get("content_hash") or ""),
+                            },
+                        )
+                    source_map_rows.append(
+                        {
+                            "js_url": url,
+                            "source_map_url": source_map_url,
+                            "source_map_hash": map_hash,
+                            **entry,
+                        }
+                    )
                 store.sync_references(
                     "source_map_source",
                     current_embedded_refs,
                     owner_prefix=source_map_source_prefix,
                 )
+                if not map_result.get("reused"):
+                    source_map_queue.finish(map_work_id, {
+                        "js_url": url, "js_raw_hash": raw_hash, "source_map_url": source_map_url,
+                        "object_hash": map_hash, "size": len(map_data),
+                        "status_code": observation["status_code"],
+                        "transport_status": observation["transport_status"],
+                        "duration": observation["duration"],
+                    })
+                source_map_reused += int(bool(map_result.get("reused")))
+                observation.update(work_status="completed", object_hash=map_hash, size=len(map_data))
+            elif map_result.get("deferred"):
+                source_map_deferred += 1
             else:
                 source_map_failures += 1
-        if url in work_ids:
-            work_queue.finish(
-                work_ids[url],
-                {
-                    "raw_hash": raw_hash,
-                    "semantic_hash": semantic_hash,
-                    "object_hash": object_hash,
-                },
-            )
-            store.drop_reference("work_item", str(work_ids[url]))
+            state = ctx.db.one("SELECT attempts,error,finished_at FROM work_items WHERE id=?", (map_work_id,))
+            observation.update(attempts=state["attempts"], error=state["error"] or "",
+                               finished_at=state["finished_at"] or "")
+            source_map_work_rows.append(observation)
 
     atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
     atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
@@ -2529,19 +2654,22 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         ctx.current / "source-map-sources.jsonl",
         source_map_rows,
     )
+    write_jsonl(ctx.current / "source-map-work.jsonl", source_map_work_rows)
     write_jsonl(
         ctx.current / "javascript-chunk-edges.jsonl",
         sorted(chunk_edge_rows, key=lambda row: (row["js_url"], row["chunk_url"])),
     )
 
-    chunks_complete = fresh_full_js_pass and not errors and not deferred_urls and input_complete
+    parents_complete = len(processed_parents) == len(js_urls)
+    chunks_complete = parents_complete and not errors and not deferred_urls and input_complete
     source_maps_complete = (
-        fresh_full_js_pass
+        parents_complete
         and input_complete
         and not errors
         and not deferred_urls
         and source_map_collection_enabled
         and source_map_failures == 0
+        and source_map_deferred == 0
     )
     derived_signals, derived_meta = _prepare_javascript_derived_differentials(
         ctx,
@@ -2574,6 +2702,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         collection_reasons.append("unexpected_content_type")
     if source_map_failures:
         collection_reasons.append("source_map_download_errors")
+    if source_map_deferred:
+        collection_reasons.append("source_map_work_in_progress")
+    if any(row["operator_next"] for row in source_map_work_rows) and "operator_next" not in collection_reasons:
+        collection_reasons.append("operator_next")
     zero_download_reasons = []
     if downloaded == 0:
         zero_download_reasons.extend(collection_reasons)
@@ -2609,6 +2741,9 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "chunk_edges": len(chunk_edge_rows),
         "source_map_attempts": source_map_attempts,
         "source_map_failures": source_map_failures,
+        "source_map_reused_work_items": source_map_reused,
+        "source_map_pending_work_items": source_map_failures + source_map_deferred,
+        "source_map_deferred_work_items": source_map_deferred,
         "derived_differentials": len(derived_signals),
         "derived_sets_prepared": int(derived_meta.get("prepared_sets", 0)),
         "derived_sets_initialized": int(derived_meta.get("initialized_sets", 0)),
