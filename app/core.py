@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 from javascript_normalization import normalize_javascript
 
-APP_VERSION = "8.8.2"
+APP_VERSION = "8.8.3"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 
@@ -3092,19 +3092,35 @@ class CommandRunner:
         self.next_check: Callable[[], bool] | None = None
         self.next_raise = True
 
+    def _signal_process_group(self, proc: subprocess.Popen[str], sig: int) -> None:
+        try:
+            os.killpg(proc.pid, sig)
+        except ProcessLookupError:
+            return
+        except PermissionError as exc:
+            # Darwin can retain a process group after its leader has exited
+            # and deny further signals. Keep bounded pipe cleanup possible,
+            # but do not hide a permission failure for a live child or Linux.
+            if sys.platform != "darwin" or proc.poll() is None:
+                raise
+            self.logger.warn(
+                "Process-group signal denied after child exit",
+                pid=proc.pid,
+                signal=int(sig),
+                error=str(exc),
+            )
+
     def terminate_active(self) -> None:
         self._stop.set()
         proc = self._active
         if proc:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(proc.pid, signal.SIGTERM)
+            self._signal_process_group(proc, signal.SIGTERM)
             try:
                 proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 pass
             # Descendants can still hold a pipe after the parent has exited.
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(proc.pid, signal.SIGKILL)
+            self._signal_process_group(proc, signal.SIGKILL)
 
     def run(
         self,
@@ -3132,13 +3148,14 @@ class CommandRunner:
         interrupted = threading.Event()
         interrupted_at = 0.0
         completed = False
+        shutdown_error: OSError | None = None
         proc_env = os.environ.copy()
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
         display_command = " ".join(redact_command_args(args))
 
         def watchdog() -> None:
-            nonlocal timed_out, operator_next, interrupted_at
+            nonlocal timed_out, operator_next, interrupted_at, shutdown_error
             heartbeat_interval = 5.0
             next_heartbeat = time.monotonic()
             next_poll = time.monotonic()
@@ -3172,13 +3189,16 @@ class CommandRunner:
                 if self._stop.is_set() or operator_next or timed_out:
                     interrupted_at = time.monotonic()
                     interrupted.set()
-                    with contextlib.suppress(ProcessLookupError):
-                        os.killpg(proc.pid, signal.SIGTERM)
-                    # Preserve output during shutdown, then kill the entire
-                    # group even if only a descendant is still running.
-                    finished.wait(1)
-                    with contextlib.suppress(ProcessLookupError):
-                        os.killpg(proc.pid, signal.SIGKILL)
+                    try:
+                        self._signal_process_group(proc, signal.SIGTERM)
+                        # Preserve output during shutdown, then kill the entire
+                        # group even if only a descendant is still running.
+                        finished.wait(1)
+                        self._signal_process_group(proc, signal.SIGKILL)
+                    except OSError as exc:
+                        # Report a real signal failure to the calling thread;
+                        # it must not disappear as an unhandled thread error.
+                        shutdown_error = exc
                     break
 
         try:
@@ -3255,14 +3275,15 @@ class CommandRunner:
                     proc.stdin.close()
 
             while selector.get_map() or proc.poll() is None:
+                if shutdown_error is not None:
+                    raise shutdown_error
                 if interrupted.is_set():
                     if proc.stdin is not None and not proc.stdin.closed:
                         close_pipe(proc.stdin)
                     if time.monotonic() - interrupted_at >= 1.25:
                         # A detached descendant may retain a pipe beyond the
                         # process group's lifetime. Do not wait for its EOF.
-                        with contextlib.suppress(ProcessLookupError):
-                            os.killpg(proc.pid, signal.SIGKILL)
+                        self._signal_process_group(proc, signal.SIGKILL)
                         break
                 for key, _events in selector.select(0.05):
                     if key.fileobj is proc.stdin:
@@ -3297,11 +3318,12 @@ class CommandRunner:
         finally:
             finished.set()
             try:
-                if proc is not None and not completed:
-                    with contextlib.suppress(ProcessLookupError):
-                        os.killpg(proc.pid, signal.SIGKILL)
-                if watcher is not None and watcher.ident is not None:
-                    watcher.join(timeout=1.25)
+                try:
+                    if proc is not None and not completed:
+                        self._signal_process_group(proc, signal.SIGKILL)
+                finally:
+                    if watcher is not None and watcher.ident is not None:
+                        watcher.join(timeout=1.25)
             finally:
                 try:
                     if selector is not None:
@@ -3321,6 +3343,8 @@ class CommandRunner:
                     finally:
                         self._active = None
                         self._stop.clear()
+        if shutdown_error is not None:
+            raise shutdown_error
         duration = time.monotonic() - started
         if timed_out:
             returncode = 124

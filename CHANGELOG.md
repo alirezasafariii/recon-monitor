@@ -1,3 +1,13 @@
+# Recon Monitor 8.8.3 — macOS Process Cleanup
+
+Recon Monitor 8.8.3 corrects the macOS process-group PermissionError that blocked 8.8.2 installation validation. The core database schema remains **18**.
+
+- Centralize CommandRunner group signalling and allow bounded pipe cleanup after macOS denies a signal for an exited direct child; retain captured output and Timeout/Next results.
+- Preserve genuine live-child/other-platform permission failures and unexpected signal errors, and propagate watchdog shutdown errors to the caller.
+- Add seven offline regressions covering Timeout, Next, cancellation, original callback failures, genuine permission failures, and unexpected signal errors. Keep the real detached-child regression enabled.
+- Run the full unit suite and fixture integration on macOS Intel/Apple Silicon with Python 3.14, and add Python 3.14 to Linux CI. Keep strict macOS API checks and add strict cleanup resource checks.
+- Publish matching ZIP/SHA-256 assets as 8.8.3 so existing 8.8.1 installations can retry the normal update path without disabling validation.
+
 # Recon Monitor 8.8.2 — Collection Integrity & Operational Reliability
 
 Recon Monitor 8.8.2 packages the fixes and bounded collection tools merged since 8.8.1. The core database schema remains **18**.

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+
+import errno
 import hashlib
 import os
 import signal
@@ -57,6 +60,9 @@ class CommandRunnerStdinTests(unittest.TestCase):
                 os.killpg(proc.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                if sys.platform != "darwin" or proc.poll() is None:
+                    raise
             try:
                 proc.wait(timeout=1)
             except subprocess.TimeoutExpired:
@@ -98,11 +104,27 @@ class CommandRunnerStdinTests(unittest.TestCase):
     def _assert_clean(self):
         self.assertIsNone(self.runner._active)
         self.assertFalse(self.runner._stop.is_set())
+        self.assertFalse(any(thread.name == "command-watchdog" for thread in threading.enumerate()))
         for proc in self.processes:
             self.assertIsNotNone(proc.poll())
             self.assertTrue(proc.stdout.closed)
             if proc.stdin is not None:
                 self.assertTrue(proc.stdin.closed)
+
+    @contextmanager
+    def _macos_dead_group_signals(self):
+        real_killpg = os.killpg
+        denied = []
+
+        def deny_exited_group(pid, sig):
+            proc = next(proc for proc in self.processes if proc.pid == pid)
+            if proc.poll() is not None:
+                denied.append(sig)
+                raise PermissionError(errno.EPERM, "exited macOS process group")
+            return real_killpg(pid, sig)
+
+        with patch("core.sys.platform", "darwin"), patch("core.os.killpg", side_effect=deny_exited_group):
+            yield denied
 
     def test_timeout_applies_while_large_stdin_is_not_read(self):
         result = self._invoke("import time\nprint('prefix', flush=True)\ntime.sleep(2)", timeout=0.2, input_text=self.LARGE_INPUT)
@@ -308,6 +330,109 @@ class CommandRunnerStdinTests(unittest.TestCase):
         self.assertTrue(result.timed_out)
         self.assertLess(result.duration, 2.8)
         self.assertEqual(self.output.read_text(), "parent-exited\n")
+        self._assert_clean()
+
+    def test_macos_dead_group_permission_error_keeps_timeout_and_output(self):
+        # Retain both pipes after the group leader exits, without creating any
+        # live member of its original process group.
+        code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(2)'], start_new_session=True)\nprint('parent-exited', flush=True)"
+
+        with self._macos_dead_group_signals() as denied, patch("threading.excepthook") as thread_error:
+            result = self._invoke(code, timeout=0.2, input_text=self.LARGE_INPUT)
+        self.assertIn(signal.SIGTERM, denied)
+        self.assertIn(signal.SIGKILL, denied)
+        thread_error.assert_not_called()
+        self.assertEqual(result.returncode, 124)
+        self.assertTrue(result.timed_out)
+        self.assertLess(result.duration, 2.8)
+        self.assertEqual(self.output.read_text(), "parent-exited\n")
+        self._assert_clean()
+        following = self._invoke("print('reusable')", timeout=2)
+        self.assertEqual(following.returncode, 0)
+        self._assert_clean()
+
+    def test_macos_dead_group_permission_error_keeps_next_checkpoint(self):
+        self.runner.next_raise = False
+        requested = threading.Event()
+        self.runner.next_check = requested.is_set
+        code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(2)'], start_new_session=True)\nprint('checkpoint', flush=True)"
+
+        def request_next(_line, _count):
+            self.processes[-1].wait(timeout=1)
+            requested.set()
+
+        with self._macos_dead_group_signals(), patch("threading.excepthook") as thread_error:
+            result = self._invoke(code, timeout=10, line_callback=request_next)
+        thread_error.assert_not_called()
+        self.assertTrue(result.operator_next)
+        self.assertFalse(result.timed_out)
+        self.assertEqual(result.returncode, 125)
+        self.assertLess(result.duration, 2.8)
+        self.assertEqual(self.output.read_text(), "checkpoint\n")
+        self._assert_clean()
+
+    def test_macos_dead_group_permission_error_does_not_mask_callback_failure(self):
+        def broken_callback(_line, _count):
+            self.processes[-1].wait(timeout=1)
+            raise RuntimeError("original callback failure")
+
+        with self._macos_dead_group_signals():
+            with self.assertRaisesRegex(RuntimeError, "original callback failure"):
+                self._invoke("print('saved')", timeout=2, line_callback=broken_callback)
+        self.assertEqual(self.output.read_text(), "saved\n")
+        self._assert_clean()
+
+    def test_macos_dead_group_permission_error_allows_external_cancellation(self):
+        code = "import subprocess, sys\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(2)'], start_new_session=True)\nprint('cancelled', flush=True)"
+
+        def cancel(_line, _count):
+            self.processes[-1].wait(timeout=1)
+            self.runner.terminate_active()
+
+        with self._macos_dead_group_signals() as denied, patch("threading.excepthook") as thread_error:
+            result = self._invoke(code, timeout=10, line_callback=cancel)
+        thread_error.assert_not_called()
+        self.assertIn(signal.SIGTERM, denied)
+        self.assertIn(signal.SIGKILL, denied)
+        self.assertFalse(result.timed_out)
+        self.assertFalse(result.operator_next)
+        self.assertEqual(self.output.read_text(), "cancelled\n")
+        self.assertLess(result.duration, 2.8)
+        self._assert_clean()
+
+    def test_live_child_signal_permission_error_reaches_caller_without_thread_failure(self):
+        real_killpg = os.killpg
+
+        def deny_sigterm(pid, sig):
+            if sig == signal.SIGTERM:
+                raise PermissionError(errno.EPERM, "live process group denied")
+            return real_killpg(pid, sig)
+
+        with patch("core.sys.platform", "darwin"), patch("core.os.killpg", side_effect=deny_sigterm), patch("threading.excepthook") as thread_error:
+            with self.assertRaisesRegex(PermissionError, "live process group denied"):
+                self._invoke("import time\nprint('saved', flush=True)\ntime.sleep(2)", timeout=0.2)
+        thread_error.assert_not_called()
+        self.assertEqual(self.output.read_text(), "saved\n")
+        self._assert_clean()
+
+    def test_linux_exited_group_permission_error_is_not_suppressed(self):
+        def on_exit(_line, _count):
+            self.processes[-1].wait(timeout=1)
+            self.runner.terminate_active()
+
+        with patch("core.sys.platform", "linux"), patch("core.os.killpg", side_effect=PermissionError(errno.EPERM, "Linux group denied")):
+            with self.assertRaisesRegex(PermissionError, "Linux group denied"):
+                self._invoke("print('saved')", timeout=2, line_callback=on_exit)
+        self._assert_clean()
+
+    def test_macos_unexpected_signal_error_is_not_suppressed(self):
+        def on_exit(_line, _count):
+            self.processes[-1].wait(timeout=1)
+            self.runner.terminate_active()
+
+        with patch("core.sys.platform", "darwin"), patch("core.os.killpg", side_effect=OSError(errno.EINVAL, "unexpected signal error")):
+            with self.assertRaisesRegex(OSError, "unexpected signal error"):
+                self._invoke("print('saved')", timeout=2, line_callback=on_exit)
         self._assert_clean()
 
 
