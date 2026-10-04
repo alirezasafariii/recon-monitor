@@ -393,10 +393,11 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
         self.paths.app.mkdir()
         script = self.paths.app / "recon_monitor.py"
         script.write_text(
-            "import argparse, json, os, sys\nfrom pathlib import Path\n"
+            "import argparse, faulthandler, json, os, sys\nfrom pathlib import Path\n"
+            "faulthandler.dump_traceback_later(2)\n"
             f"sys.path.insert(0, {str(APP)!r})\n"
             "from api_server_core import serve_api\nfrom core import AppPaths\n"
-            "class Logger:\n    def info(self, *args, **kwargs):\n        if args[0] == 'API started':\n            print('ready', flush=True)\n            print(json.dumps({'pid': os.getpid(), 'root': str(Path(__file__).resolve().parents[1])}), flush=True)\n"
+            "class Logger:\n    def info(self, *args, **kwargs):\n        if args[0] == 'API started':\n            faulthandler.cancel_dump_traceback_later()\n            print('ready', flush=True)\n            print(json.dumps({'pid': os.getpid(), 'root': str(Path(__file__).resolve().parents[1])}), flush=True)\n"
             "parser = argparse.ArgumentParser()\n"
             "parser.add_argument('command')\nparser.add_argument('action')\n"
             "parser.add_argument('--host')\nparser.add_argument('--port', type=int)\n"
