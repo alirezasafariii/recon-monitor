@@ -39,7 +39,7 @@ from product_platform import (
     scope_center, set_case_state, set_notification_policy, set_rule_state, set_schedule_policy, storage_health, target_learning_profiles,
 )
 from platform_v6 import (
-    apply_retention, apply_target_template, build_burp_roundtrip_package, correlate_security_stories,
+    DataQualityUnavailable, apply_retention, apply_target_template, build_burp_roundtrip_package, correlate_security_stories,
     data_quality_snapshot, deliver_notifications, due_revalidations, generate_schedule_job,
     import_burp_roundtrip_result, list_target_templates, performance_diagnostics, platform_v6_sync, process_due_revalidations,
     run_scheduled_workflow,
@@ -272,7 +272,12 @@ class APIHandler(BaseHTTPRequestHandler):
             if path=="/api/v1/validation/plans":
                 self.send_json(validation_detail(db,case_id=str((q.get('case_id')or[''])[0]),plan_id=str((q.get('plan_id')or[''])[0]),limit=parse_int((q.get('limit')or[100])[0],100,1,500))); return
             if path=="/api/v1/suite/review-queue": self.send_json(rank_review_queue(db,target=str((q.get('target')or[''])[0]) or None,limit=parse_int((q.get('limit')or[100])[0],100,1,1000),refresh=False)); return
-            if path=="/api/v1/suite/data-quality": self.send_json(data_quality_snapshot(db,str((q.get('run_id')or[''])[0]) or None,str((q.get('target')or[''])[0]) or None,persist=False)); return
+            if path=="/api/v1/suite/data-quality":
+                try:
+                    payload=data_quality_snapshot(db,str((q.get('run_id')or[''])[0]) or None,str((q.get('target')or[''])[0]) or None,persist=False)
+                except DataQualityUnavailable as exc:
+                    self.send_json({"error":str(exc),"code":exc.code},404); return
+                self.send_json(payload); return
             if path=="/api/v1/suite/validation-intelligence":
                 run_id=str((q.get('validation_run_id')or[''])[0]);
                 if not run_id: self.send_json({"error":"validation_run_id required"},400); return
