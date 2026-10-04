@@ -1,14 +1,14 @@
-# Recon Monitor 8.8.1
+# Recon Monitor 8.8.2
 
-<!-- recon-monitor-current: app=8.8.1 schema=18 -->
+<!-- recon-monitor-current: app=8.8.2 schema=18 -->
 
-## Current release: Correctness, Replay Integrity & Multi-target Reporting
+## Current release: Collection Integrity & Operational Reliability
 
-Recon Monitor 8.8.1 is a correctness-focused patch over 8.8.0. It fixes npm partial-range semantics, preserves real S3/GCS listing evidence through the normal httpx fingerprint path, makes cross-root backup restore portable, strengthens immutable replay and calibration semantics, enforces notification lease ownership, and makes bounded raw-analysis and multi-target telemetry explicit and target-aware.
+Recon Monitor 8.8.2 consolidates collection and operational fixes since 8.8.1. It preserves DNS and partial collector evidence, batches scoped Katana crawling, keeps Analysis inputs current after Resume, verifies remote worker scope and artifacts, supervises large subprocess input, stages updates safely, and returns controlled errors for empty read requests. JavaScript/source-map Resume, finding-notification batching, portable API lifecycle, per-request API configuration, and PostgreSQL mirror identity are also corrected.
 
-The canonical application version is **8.8.1** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
+The canonical application version is **8.8.2** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
 
-See `CHANGELOG.md`, `MIGRATION-v8.8.1.md`, `docs/RELEASE_NOTES_v8.8.1.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
+See `CHANGELOG.md`, `MIGRATION-v8.8.2.md`, `docs/RELEASE_NOTES_v8.8.2.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 

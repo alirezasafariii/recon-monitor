@@ -1,3 +1,28 @@
+# Recon Monitor 8.8.2 — Collection Integrity & Operational Reliability
+
+Recon Monitor 8.8.2 packages the fixes and bounded collection tools merged since 8.8.1. The core database schema remains **18**.
+
+## Collection, Resume, and Analysis
+
+- Preserve DNS records and raw collector output after incomplete collection; retain truthful partial Run/baseline state for Subdomains, DNS, Wayback, and Katana.
+- Crawl authorized Katana origins in small sequential batches, checkpoint completed/pending work, and supervise large stdin under Timeout/Next/cancellation.
+- Refresh Analysis inputs after resumed collection changes, excluding tags produced by Analysis itself.
+- Retain host-balanced JavaScript selection/backlog evidence, independent source-map Resume, literal-aware fingerprints, and opt-in bounded validation/isolated replay tools.
+
+## Worker and operational reliability
+
+- Enforce versioned worker scope on every request hop, preserve transport/retry outcomes, and verify retained JavaScript artifacts before reusing completed work.
+- Stage Update copies before activation and restore the previous program tree after activation/validation failure.
+- Stop local APIs through instance-bound control on Linux/macOS; use validated Linux pidfd handling for supported legacy processes and avoid reverse-DNS bind stalls.
+- Load project configuration per suite API request, split finding notifications with per-batch receipts, and preserve PostgreSQL composite/text mirror identity.
+- Return controlled HTTP 400/404 responses for empty dashboard selectors and unavailable quality inputs; keep legacy Analysis sync running with explicit unavailable quality.
+
+## Release and compatibility
+
+- Application version advances to **8.8.2**; core schema remains **18** with additive compatibility initialization.
+- Keep legacy Analysis snapshot regeneration and httpx `-er` requirements; update remote workers with their coordinator.
+- Publish the tested source as a ZIP plus matching SHA-256 sidecar for the authenticated GitHub Update path.
+
 # Recon Monitor 8.8.1 — Correctness, Replay Integrity & Multi-target Reporting
 
 Recon Monitor 8.8.1 is a backward-compatible correctness patch over 8.8.0. The core database schema remains **18**.

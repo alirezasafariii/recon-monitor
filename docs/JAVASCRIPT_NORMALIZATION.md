@@ -12,4 +12,4 @@ Comparisons re-fingerprint the previous verified CAS bytes under the current alg
 
 Embedded Source Map content uses the same normalizer. Equal source/map bytes do not produce an algorithm-upgrade differential. Changed-source signals re-fingerprint verified previous/current source bytes and preserve `semantic_comparison` through advisory validation, so parser-dependent changes cannot gain a semantic-change priority bonus.
 
-No JavaScript execution, parser subprocess, notification delivery or target request is needed for normalization or its regression tests. The application/schema versions remain 8.8.1/18; normalization metadata version 1 is additive and needs no database schema migration.
+No JavaScript execution, parser subprocess, notification delivery or target request is needed for normalization or its regression tests. The application/schema versions remain 8.8.2/18; normalization metadata version 1 is additive and needs no database schema migration.
