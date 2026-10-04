@@ -1469,7 +1469,7 @@ def _install_dashboard_tracking() -> None:
         summary = (
             "<section class='panel' id='analysis-fast-summary' style='margin-top:16px'>"
             "<div class='panel-head'><div><h3>Analysis workspace</h3>"
-            "<span class='muted small'>Fast status surface · deep summaries are on demand</span></div>"
+            "<span class='muted small'>Current analysis and its source evidence</span></div>"
             + dash._pill(status)
             + "</div><div class='panel-body'>"
             "<div class='attention-grid'>"
@@ -1478,8 +1478,7 @@ def _install_dashboard_tracking() -> None:
             f"<div class='attention-card'><span>Target</span><strong>{dash._esc(row_target)}</strong><small>analysis scope</small></div>"
             f"<div class='attention-card'><span>Status</span><strong>{dash._esc(status)}</strong><small>current analysis state</small></div>"
             "</div>"
-            "<div class='callout' style='margin-top:14px'><strong>Fast Analysis view</strong>"
-            "<span>Deep vulnerability-intelligence correlation is deferred. Evidence totals, candidate aggregation, quality metrics and deep reasoning are intentionally loaded only when you open their dedicated views.</span></div>"
+            "<p class='muted small'>Open a finding to review its evidence, alternatives and missing observations. Quality and reasoning views keep the detailed assessment available.</p>"
             "<div class='page-actions' style='margin-top:14px'>"
             "<a class='button' href='/potential-findings'>Potential Findings</a>"
             "<a class='button secondary' href='/analysis-quality'>Analysis Quality</a>"
@@ -1487,7 +1486,13 @@ def _install_dashboard_tracking() -> None:
             "<a class='button secondary' href='/candidate-quality'>Candidate Quality</a>"
             "</div></div></section>"
         )
-        self.send_html("Analysis", panel + summary)
+        # Deep vulnerability-intelligence correlation is deferred on this status page.
+        # Keep the existing bounded snapshot and all specialist views available.
+        header = dash._page_header("Analysis", "Track analysis and follow its evidence into the review workspace.", eyebrow="02 · Understand")
+        if target:
+            import re
+            summary = re.sub(r"href='(/[^']+)'", lambda m: "href='" + dash._esc(dash._query_link(m[1], target=target)) + "'", summary)
+        self.send_html("Analysis", header + panel + summary)
 
     def recon_with_progress(self: Any) -> None:
         title, body, status = _capture_dashboard_html(self, original_recon)

@@ -1144,17 +1144,34 @@ def _bug_candidates_with_queue(self: Any) -> None:
                 + _base._empty("Cluster not available in this view", "The selected cluster may belong to a different target/family filter or a different completed analysis.")
                 + "</div></section>"
             )
-    fragments.append(
+    guidance: list[str] = []
+    guidance.append(
         _change_guidance_policy_proposal_panel(
             review_packets,
             policy_proposals,
             target=target,
         )
     )
-    fragments.append(_change_guidance_review_packet_panel(review_packets))
-    fragments.append(_change_guidance_drift_panel(drift))
-    fragments.append(_change_guidance_calibration_panel(calibration))
-    fragments.append(_change_guidance_evaluation_panel(evaluation))
+    guidance.append(_change_guidance_review_packet_panel(review_packets))
+    guidance.append(_change_guidance_drift_panel(drift))
+    guidance.append(_change_guidance_calibration_panel(calibration))
+    guidance.append(_change_guidance_evaluation_panel(evaluation))
+    proposal_states: dict[str, int] = {}
+    for proposal in policy_proposals:
+        state = str(proposal.get('state') or 'unknown')
+        proposal_states[state] = proposal_states.get(state, 0) + 1
+    guidance_summary = ' · '.join(f'{count} {state.replace("_", " ")}' for state, count in sorted(proposal_states.items()))
+    ready = int(review_packets.get('ready_for_manual_review_count') or 0)
+    if ready: guidance_summary += (' · ' if guidance_summary else '') + f'{ready} packet(s) ready for manual review'
+    drift_states = sorted({str(row.get('drift_status') or '') for row in drift.get('signals', []) if isinstance(row, Mapping)})
+    if drift_states: guidance_summary += (' · ' if guidance_summary else '') + ', '.join(drift_states)
+    fragments.append(
+        "<details class='panel guidance-details' style='margin:16px 0;padding:14px'>"
+        "<summary>Change guidance quality &amp; review controls"
+        + (f"<span class='muted small'> · {_base._esc(guidance_summary)} in this view</span>" if guidance_summary else "<span class='muted small'> · proposals, packets, drift and calibration</span>")
+        + '</summary>'
+        + ''.join(guidance) + '</details>'
+    )
     fragments.append(_investigation_queue_panel(analysis_id, queue))
     body = _insert_before(body, "<section class='filter-panel'>", "".join(fragments))
     self.send_html(title, body, status)
