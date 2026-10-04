@@ -38,15 +38,21 @@ function click(env, href, extras = {}) {
   env.events.click({target: new env.Element(link), button: 0, defaultPrevented: false, ...extras});
 }
 
-async function pollingContext({focus = false, selected = false, above = true, visible = true, fail = false} = {}) {
+async function pollingContext({focus = false, selected = false, above = true, visible = true, fail = false, disclosureOpen = false} = {}) {
   let fetches = 0, replacements = 0;
   const active = {};
   const anchor = {};
   const scrolls = [];
-  const fresh = {getBoundingClientRect: () => ({height: 140})};
+  const nextDisclosure = {open: !disclosureOpen};
+  const fresh = {getBoundingClientRect: () => ({height: 140}), querySelector: selector => {
+    assert.equal(selector, '#live-progress-details'); return nextDisclosure;
+  }};
   const panel = {
     contains: node => (focus && node === active) || (selected && node === anchor),
     getBoundingClientRect: () => ({height: 100, bottom: above ? 0 : 600}),
+    querySelectorAll: selector => {
+      assert.equal(selector, 'details[id]'); return [{id: 'live-progress-details', open: disclosureOpen}];
+    },
     replaceWith: node => {assert.equal(node, fresh); replacements++;},
   };
   const ctx = {
@@ -70,7 +76,7 @@ async function pollingContext({focus = false, selected = false, above = true, vi
   await ctx.refreshLiveProgress();
   assert.equal(vm.runInContext('liveProgressBusy', ctx), false);
   assert.equal(ctx.document.activeElement, active);
-  return {fetches, replacements, scrolls, ctx};
+  return {fetches, replacements, scrolls, ctx, nextDisclosure};
 }
 
 (async () => {
@@ -97,6 +103,11 @@ async function pollingContext({focus = false, selected = false, above = true, vi
   }
   const above = await pollingContext(); assert.equal(above.replacements,1); assert.deepEqual(above.scrolls,[540]);
   const below = await pollingContext({above:false}); assert.equal(below.replacements,1); assert.equal(below.scrolls.length,0);
+  for (const disclosureOpen of [true, false]) {
+    const updated = await pollingContext({disclosureOpen});
+    assert.equal(updated.replacements, 1);
+    assert.equal(updated.nextDisclosure.open, disclosureOpen);
+  }
   const hidden = await pollingContext({visible:false}); assert.equal(hidden.fetches,0); assert.equal(hidden.replacements,0);
   const error = await pollingContext({fail:true}); assert.equal(error.replacements,0); assert.equal(error.scrolls.length,0);
   console.log('Dashboard scroll and live-progress behavior passed.');

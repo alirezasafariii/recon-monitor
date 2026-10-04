@@ -294,6 +294,7 @@ def _tone(value: Any) -> str:
         "new": "blue", "reported": "purple", "reappeared": "purple", "strong-candidate": "danger", "strong_candidate": "danger", "plausible": "orange", "possible": "amber", "weak-signal": "neutral", "weak_signal": "neutral", "confirmed-by-analyst": "success", "confirmed_by_analyst": "success", "rejected": "neutral", "needs-more-evidence": "info", "needs_more_evidence": "info",
         "ignored": "neutral", "false-positive": "neutral", "false_positive": "neutral", "out-of-scope": "neutral", "out_of_scope": "neutral",
         "inactive": "neutral", "retired": "neutral", "skipped": "neutral",
+        "partial": "amber", "timeout": "amber", "no-input": "amber",
     }
     return aliases.get(text, "neutral")
 
@@ -901,9 +902,10 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     for section_id, section, group_icon, hint, links in NAV_SECTIONS:
         href=_query_link(primary_hrefs[section_id],target=focus_target)
         group_active=any(active_path == item_href or (item_href != "/" and active_path.startswith(item_href)) for item_href,_,_ in links)
+        sidebar_label = section.split(" · ", 1)[-1]
         nav.append(
-            f"<a class='nav-item{' active' if group_active else ''}' href='{_esc(href)}' data-nav-group='{_esc(section_id)}' data-primary-workspace='1'>"
-            f"<span class='nav-icon'>{_esc(group_icon)}</span><span class='nav-group-copy'><strong>{_esc(section)}</strong><small>{_esc(hint)}</small></span><b>→</b></a>"
+            f"<a class='nav-item{' active' if group_active else ''}' href='{_esc(href)}' aria-label='{_esc(section)}' data-nav-group='{_esc(section_id)}' data-primary-workspace='1'>"
+            f"<span class='nav-icon'>{_esc(group_icon)}</span><span class='nav-group-copy'><strong>{_esc(sidebar_label)}</strong><small>{_esc(hint)}</small></span><b>→</b></a>"
         )
     advanced_links=[link for _,links in ADVANCED_NAV_SECTIONS for link in links]
     advanced_active=any(active_path == href or active_path.startswith(href) for href,_,_ in advanced_links)
@@ -1159,6 +1161,11 @@ async function refreshLiveProgress(){{
       const selection=window.getSelection();
       if(panel.contains(document.activeElement)||(selection&&!selection.isCollapsed&&
          (panel.contains(selection.anchorNode)||panel.contains(selection.focusNode))))return;
+      // Keep the operator's disclosure choices while the snapshot changes.
+      panel.querySelectorAll('details[id]').forEach(detail=>{{
+        const nextDetail=fresh.querySelector('#'+detail.id);
+        if(nextDetail)nextDetail.open=detail.open;
+      }});
       const oldRect=panel.getBoundingClientRect();
       const headerBottom=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;
       const keepReadingPosition=oldRect.bottom<headerBottom;

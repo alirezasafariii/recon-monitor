@@ -684,21 +684,29 @@ def _investigation_queue_panel(analysis_id: str, queue: list[dict[str, Any]]) ->
     high = sum(str(x.get("hunt_priority") or "").upper() == "HIGH" for x in queue)
     strong = sum(_base.parse_int(x.get("cluster_strength"), 0, 0, 100) >= 60 for x in queue)
     change_linked = sum(bool(x.get("change_linked")) for x in queue)
-    content = "".join(_queue_item_card(item) for item in queue[:8]) or _base._empty(
-        "No investigation clusters match this view",
-        "Potential Findings remain available below. A cluster appears here only when a persisted Meta Ranker result can be correlated across the selected analysis context.",
+    content = "".join(_queue_item_card(item) for item in queue[:8])
+    counts = (
+        "<div class='queue-counts'>"
+        f"<span>Clusters <strong>{len(queue)}</strong></span>"
+        f"<span>High priority <strong>{high}</strong></span>"
+        f"<span>Strong correlation <strong>{strong}</strong></span>"
+        f"<span>Change-linked <strong>{change_linked}</strong></span></div>"
+    )
+    method = (
+        "<details class='queue-method'><summary>How queue priorities are calculated</summary><div class='details-body'>"
+        + (counts if not queue else "")
+        + "<p><strong>What this queue changes</strong><br>Related hypotheses are collapsed into analyst-sized clusters and ranked by proximity, target evidence, cluster strength and hunt priority. Recent derived Recon changes are shown as advisory provenance and are already represented inside proximity, so they are not double-counted. The complete Potential Findings inventory remains below and unchanged.</p>"
+        "<p>High priority means hunt priority HIGH; strong correlation means cluster strength ≥60. Change-linked clusters have recent source-map/chunk affinity. These priorities are not confirmed vulnerabilities.</p>"
+        "</div></details>"
     )
     return (
         "<section class='panel' id='investigation-queue' style='margin-top:16px'><div class='panel-head'><div><h3>Investigation Queue</h3><span class='muted small'>Cluster-deduplicated priorities inside Potential Findings · not a confirmation queue</span></div>"
-        + _base._pill("investigation only", "info")
-        + "</div><div class='panel-body'><div class='attention-grid'>"
-        f"<div class='attention-card'><span>Clusters</span><strong>{len(queue)}</strong><small>deduplicated work items</small></div>"
-        f"<div class='attention-card'><span>High priority</span><strong>{high}</strong><small>hunt priority HIGH</small></div>"
-        f"<div class='attention-card'><span>Strong correlation</span><strong>{strong}</strong><small>cluster strength ≥60</small></div>"
-        f"<div class='attention-card'><span>Change-linked</span><strong>{change_linked}</strong><small>recent source-map/chunk affinity</small></div>"
-        f"<div class='attention-card'><span>Analysis</span><strong>{_base._esc(analysis_id[:8] if analysis_id else '—')}</strong><small>latest completed analysis</small></div>"
-        "</div><div class='callout' style='margin-top:14px'><strong>What this queue changes</strong><span>Related hypotheses are collapsed into analyst-sized clusters and ranked by proximity, target evidence, cluster strength and hunt priority. Recent derived Recon changes are shown as advisory provenance and are already represented inside proximity, so they are not double-counted. The complete Potential Findings inventory remains below and unchanged.</span></div>"
-        f"<div class='stack' style='margin-top:16px'>{content}</div></div></section>"
+        + _base._pill("investigation only" if queue else "0 clusters", "info" if queue else "neutral")
+        + "</div><div class='panel-body'>"
+        + f"<div class='queue-context'>Latest completed analysis <code>{_base._esc(analysis_id or '—')}</code></div>"
+        + (counts + f"<div class='stack' style='margin-top:12px'>{content}</div>" if queue else
+           "<p class='queue-empty-copy'>No investigation clusters match this view. Potential Findings remain available below. A cluster appears here only when a persisted Meta Ranker result can be correlated across the selected analysis context.</p>")
+        + method + "</div></section>"
     )
 
 

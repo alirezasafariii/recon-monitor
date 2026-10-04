@@ -18,6 +18,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.parse import urlencode
 
 from core import AppPaths, ReconError, atomic_write_text, json_dumps, process_alive, safe_filename, utc_now
 
@@ -120,6 +121,8 @@ def _health(status: str, heartbeat_at: Any, *, heartbeat_available: bool = True)
         return "cancelled", "Operation was stopped before completion"
     if normalized == "failed":
         return "failed", "Operation stopped with an error"
+    if normalized == "partial":
+        return "partial", "Operation ended with incomplete collection"
     if normalized == "stale":
         return "stale", "Stored operation state says running, but no matching live process could be verified"
     if normalized != "running":
@@ -147,6 +150,43 @@ def _format_seconds(value: float | None) -> str:
     if minutes:
         return f"{minutes}m {sec}s"
     return f"{sec}s"
+
+
+def _stage_collection(name: str, metrics: Mapping[str, Any]) -> dict[str, Any]:
+    """Describe stored collection quality without changing execution status."""
+    quality = str(metrics.get("collection_status") or "")
+    timed_out = bool(metrics.get("katana_timed_out") or metrics.get("timed_out") or metrics.get("katana_status") == "timeout")
+    no_input = quality == "no_input" or (name == "javascript" and metrics.get("files") == 0)
+    zero_downloads = name == "javascript" and metrics.get("downloaded") == 0 and not no_input
+    label = {"success": "Recorded complete", "partial": "Partial", "no_input": "No input"}.get(quality, "Not recorded")
+    tone = "success" if quality == "success" else "amber" if quality in {"partial", "no_input"} else "neutral"
+    detail = ""
+    if timed_out:
+        label, tone = "Partial / Timeout", "amber"
+        detail = str(metrics.get("katana_stop_reason") or "Tool timed out; collected output was preserved")
+    if no_input and name == "javascript":
+        label = ("Partial / " if quality == "partial" or timed_out else "") + "No JS input"
+        if timed_out:
+            label = "Partial / Timeout / No JS input"
+        tone = "amber"
+        detail = "0 JS files; inspect discovery, URL selection and classification"
+    elif zero_downloads:
+        label = ("Partial / " if quality == "partial" or timed_out else "") + "No JS downloads"
+        if timed_out:
+            label = "Partial / Timeout / No JS downloads"
+        tone = "amber"
+        reasons = metrics.get("zero_download_reasons") or []
+        if not isinstance(reasons, list):
+            reasons = [reasons]
+        detail = "0 downloaded files; " + (", ".join(str(reason) for reason in reasons) or "inspect fetch results")
+    return {
+        "collection_label": label,
+        "collection_tone": tone,
+        "collection_detail": detail,
+        "collection_timed_out": timed_out,
+        "collection_no_input": no_input,
+        "collection_partial": quality == "partial" or timed_out or zero_downloads,
+    }
 
 
 class ProgressRecord:
@@ -1201,6 +1241,12 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
         1,
     ):
         stage_row = by_stage.get(name, {})
+        try:
+            metrics = json.loads(stage_row.get("metrics_json") or "{}")
+            if not isinstance(metrics, dict):
+                metrics = {}
+        except (TypeError, ValueError):
+            metrics = {}
 
         stage_status = str(
             stage_row.get("status")
@@ -1239,6 +1285,7 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
                 stage_row.get("error")
                 or ""
             ),
+            **_stage_collection(name, metrics),
         })
 
     heartbeat_available = bool(heartbeat)
@@ -1354,11 +1401,13 @@ def _progress_tone(health: str) -> str:
         "cancelled": "amber",
         "completed": "success",
         "stale": "amber",
+        "partial": "amber",
     }.get(str(health), "neutral")
 
 
 def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
     status = str(snapshot.get("status") or "not_run")
+    running = status == "running"
     health = str(snapshot.get("health") or "unknown")
     percent = snapshot.get("estimated_percent")
     percent_text = f"{float(percent):.1f}%" if isinstance(percent, (int, float)) else "—"
@@ -1381,8 +1430,9 @@ def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
         "Recent database activity is used when available; restart/re-run with this version for precise heartbeat and phase progress.</span></div>"
         if visibility == "legacy" and status == "running" else ""
     )
+    stages = snapshot.get("stages", []) if isinstance(snapshot.get("stages"), list) else []
     stage_rows = ""
-    for stage in snapshot.get("stages", []) if isinstance(snapshot.get("stages"), list) else []:
+    for stage in stages:
         stage_percent = stage.get("phase_percent")
         stage_work = ""
         if isinstance(stage.get("current"), int) and isinstance(stage.get("total"), int) and stage.get("total") > 0:
@@ -1390,28 +1440,60 @@ def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
         progress_cell = f"{float(stage_percent):.1f}%" if isinstance(stage_percent, (int, float)) else stage_work or "—"
         stage_rows += (
             f"<tr><td>{base._esc(stage.get('label'))}</td><td>{base._pill(stage.get('status'))}</td>"
+            f"<td>{base._pill(stage.get('collection_label') or 'Not recorded', stage.get('collection_tone') or 'neutral')}"
+            f"<div class='muted small'>{base._esc(stage.get('collection_detail') or '')}</div></td>"
             f"<td>{base._esc(progress_cell)}</td><td>{base._esc(_format_seconds(stage.get('duration_seconds')))}</td>"
             f"<td class='muted small'>{base._esc(stage.get('error') or '')}</td></tr>"
         )
     stages_html = (
-        "<div class='table-wrap' style='margin-top:14px'><table><thead><tr><th>Stage</th><th>Status</th><th>Progress</th><th>Duration</th><th>Error</th></tr></thead><tbody>"
+        "<div class='table-wrap' style='margin-top:14px'><table><thead><tr><th>Stage</th><th>Execution</th><th>Collection</th><th>Progress</th><th>Duration</th><th>Error</th></tr></thead><tbody>"
         + stage_rows + "</tbody></table></div>"
         if stage_rows else ""
     )
-    refresh = ""
+    phase_label = "Current phase" if running else "Last recorded phase"
+    percent_label = "Estimated progress" if running else "Last recorded progress"
+    overview = (
+        "<div class='progress-overview'>"
+        f"<div><span>{percent_label}</span><strong>{base._esc(percent_text)}</strong><small>work completion, not time remaining</small></div>"
+        f"<div><span>{phase_label}</span><strong>{base._esc(snapshot.get('phase_label') or '—')}</strong><small>{base._esc(work)}</small></div>"
+        f"<div><span>Elapsed</span><strong>{base._esc(elapsed)}</strong><small>since operation start</small></div></div>"
+    )
+    context = []
+    run_id = str(snapshot.get("run_id") or "")
+    if run_id:
+        run_url = "/run-review?" + urlencode({"id": run_id})
+        context.append(f"<a href='{base._esc(run_url)}'>Run <code>{base._esc(run_id)}</code></a>")
+    if snapshot.get("analysis_id"):
+        context.append(f"<span>Analysis <code>{base._esc(snapshot['analysis_id'])}</code></span>")
+    if snapshot.get("target"):
+        context.append(f"<span>Target <code>{base._esc(snapshot['target'])}</code></span>")
+    warnings = []
+    for key, label in (("collection_partial", "partial stage(s)"), ("collection_timed_out", "timeout(s)"), ("collection_no_input", "stage(s) without input")):
+        count = sum(bool(stage.get(key)) for stage in stages)
+        if count:
+            warnings.append(f"{count} {label}")
+    warning_html = f"<p class='progress-alert'>{base._esc(' · '.join(warnings))}</p>" if warnings else ""
+    panel_title = title if running else title.replace("Live ", "Latest ").replace(" Progress", " run")
+    status_pill = base._pill(health, _progress_tone(health)) if running else base._pill(status, _progress_tone(health))
+    health_html = (
+        f"<p class='muted small'>{base._esc(snapshot.get('health_detail') or health)}"
+        + (f" · {base._esc(snapshot.get('message'))}" if snapshot.get("message") else "") + "</p>"
+    ) if running or status in {"partial", "failed", "stale", "cancelled", "interrupted"} else ""
+    detail_html = (
+        "<details class='progress-detail' id='live-progress-details'><summary>"
+        + ("Heartbeat and stage outcomes" if running else "Recorded progress and stage outcomes")
+        + "</summary><div class='details-body'>"
+        + ("" if running else overview)
+        + f"<p class='muted small'>Heartbeat age: {base._esc(heartbeat_age)} · Last measurable progress: {base._esc(progress_age)}"
+        + (" ago" if snapshot.get("progress_age_seconds") is not None else "") + "</p>"
+        + stages_html + "</div></details>"
+    )
     return (
-        f"<section class='panel' id='live-progress' style='margin-top:16px'><div class='panel-head'><div><h3>{base._esc(title)}</h3>"
-        f"<span class='muted small'>Progress Tracking {PROGRESS_TRACKING_VERSION} · auto-refresh while running</span></div>"
-        + base._pill(health, _progress_tone(health)) + "</div><div class='panel-body'>"
-        "<div class='attention-grid'>"
-        f"<div class='attention-card'><span>Estimated progress</span><strong>{base._esc(percent_text)}</strong><small>work completion, not time remaining</small></div>"
-        f"<div class='attention-card'><span>Current phase</span><strong>{base._esc(snapshot.get('phase_label') or '—')}</strong><small>{base._esc(work)}</small></div>"
-        f"<div class='attention-card'><span>Elapsed</span><strong>{base._esc(elapsed)}</strong><small>since operation start</small></div>"
-        f"<div class='attention-card'><span>Heartbeat age</span><strong>{base._esc(heartbeat_age)}</strong><small>last measurable progress {base._esc(progress_age)} ago</small></div>"
-        "</div>"
-        f"<div style='height:12px;background:rgba(127,127,127,.18);border-radius:999px;overflow:hidden;margin-top:14px'><div style='height:100%;width:{width:.1f}%;background:currentColor;border-radius:999px'></div></div>"
-        f"<div class='callout' style='margin-top:12px'><strong>{base._esc(snapshot.get('health_detail') or health)}</strong><span>{base._esc(snapshot.get('message') or '')}</span></div>"
-        + error_html + legacy + stages_html + "</div></section>" + refresh
+        f"<section class='panel' id='live-progress' style='margin:0 0 16px'><div class='panel-head progress-heading'><h3>{base._esc(panel_title)}</h3>"
+        + status_pill + "</div><div class='progress-summary'>"
+        + ("<div class='progress-context'>" + "".join(context) + "</div>" if context else "")
+        + (overview + f"<div class='progress-bar'><div style='width:{width:.1f}%'></div></div>" if running else "")
+        + health_html + warning_html + error_html + legacy + detail_html + "</div></section>"
     )
 
 

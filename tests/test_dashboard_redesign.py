@@ -345,6 +345,21 @@ class DashboardRedesignTests(unittest.TestCase):
         self.assertIn("id='focusToggle'", markup)
         self.assertIn("id='themeToggle'", markup)
 
+    def test_empty_investigation_queue_retains_context_without_empty_metric_tiles(self):
+        from dashboard import _investigation_queue_panel
+        analysis_id = 'AN-20261004-long-context-identifier'
+        markup = _investigation_queue_panel(analysis_id, [])
+        parsed = FormInventory(markup)
+        self.assertIn(analysis_id, markup)
+        self.assertIn('0 clusters', markup)
+        self.assertIn('Potential Findings remain available below', markup)
+        self.assertNotIn("class='attention-card'", markup)
+        self.assertNotIn("class='empty-state'", markup)
+        self.assertEqual(len(parsed.details), 1)
+        self.assertNotIn('open', parsed.details[0])
+        for field in ['Clusters', 'High priority', 'Strong correlation', 'Change-linked', 'cluster strength ≥60', 'not confirmed vulnerabilities']:
+            self.assertIn(field, markup)
+
     def test_pagination_escapes_query_values_without_losing_their_meaning(self):
         markup = pagination('/search', {'q':"a&b'<>"}, 200, 1, 100)
         href = FormInventory(markup).links[0]
