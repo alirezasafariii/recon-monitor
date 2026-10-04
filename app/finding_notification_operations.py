@@ -341,6 +341,7 @@ def run_finding_notification_worker(
         (run_id, str(trigger or "scheduler"), int(before["due_now"]), current),
     )
     try:
+        # Delivery needs the live clock between messages unless the caller pins time.
         result = deliver_finding_notification_outbox(
             config=config,
             logger=logger,
@@ -348,7 +349,7 @@ def run_finding_notification_worker(
             target=str(target or ""),
             mode=str(mode or ""),
             limit=batch_limit,
-            now=current,
+            now=str(now or ""),
             transport=transport,
         )
         _sync_dead_letters(db)
