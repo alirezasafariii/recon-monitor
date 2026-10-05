@@ -2811,7 +2811,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if highlights else 'See recorded metrics'
             )
             observations += (f"<p class='run-status-error'>{_esc(reason)}</p>" if reason else '')
-            observations += f"<a class='small' href='#stage-{len(items)}'>Full metrics ↓</a>"
+            observations += f"<a class='small run-metrics-link' href='#stage-{len(items)}'>Full metrics ↓</a>"
             stage_rows.append(
                 "<tr role='row'>"
                 + labeled_cell('Target / Stage', f"{_esc(row['target'])}<br><strong>{_esc(stage_name)}</strong><br><span class='muted small'>Attempt {row['attempt']} · {_esc(raw_status)}</span>")
@@ -3652,11 +3652,18 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         )
         pager = pagination('/search', params, total, data['page'], data['page_size'])
         sections = []
+        columns = (
+            "<colgroup><col class='search-target-column'><col><col>"
+            "<col class='search-source-column'><col class='search-seen-column'></colgroup>"
+        )
         for name, rows in data['rows'].items():
             body_rows = []
             for row in rows:
                 value = row.get('value', '')
-                source = ' · '.join(str(row.get(k) or '') for k in ('source_run_id', 'analysis_id') if row.get(k))
+                source = ''.join(
+                    f"<div class='search-source-item'><span class='small muted'>{label}</span><code>{_esc(row[key])}</code></div>"
+                    for key, label in (('source_run_id', 'Run'), ('analysis_id', 'Analysis')) if row.get(key)
+                ) or '—'
                 detail_href = _query_link('/search', **{**params, 'group': name, 'target': row.get('target') or '', 'record': value})
                 detail_link = f"<br><a class='small' href='{_esc(detail_href)}'>Stored details →</a>" if not record and name!='Stored text' else ''
                 record_href = detail_href if name != 'Stored text' and urllib.parse.urlsplit(row['href']).path == '/search' else row['href']
@@ -3665,7 +3672,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
                     + labeled_cell('Target', _esc(row.get('target','') or 'Global'))
                     + labeled_cell('Record', f"<a href='{_esc(record_href)}'><code>{_esc(value)}</code></a>{detail_link}")
                     + labeled_cell('Context', _esc(row.get('extra','') or '—'))
-                    + labeled_cell('Run / Analysis', f"<code>{_esc(source or '—')}</code>")
+                    + labeled_cell('Run / Analysis', source)
                     + labeled_cell('Seen', _esc(row.get('seen','') or 'Not recorded'))
                     + '</tr>'
                 )
@@ -3681,7 +3688,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
             route = next((g.route for g in SEARCH_GROUPS if g.name == name), '/alerts' if name=='Change alerts' else '/javascript')
             route = {'/case':'/cases','/asset':'/assets','/bug-candidate':'/potential-findings','/run-review':'/runs','/js-diff':'/javascript','/alert':'/signal-alerts'}.get(route,route)
             workspace = _query_link(route, target=target)
-            sections.append(f"<section class='panel search-results-panel'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} shown · {data['counts'][name]} matching records</span><a href='{workspace}'>Open workspace →</a></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='{_esc(name)}'><thead role='rowgroup'><tr role='row'><th scope='col'>Target</th><th scope='col'>Record</th><th scope='col'>Context</th><th scope='col'>Run / Analysis</th><th scope='col'>Seen</th></tr></thead><tbody role='rowgroup'>{''.join(body_rows)}</tbody></table></div></section>")
+            sections.append(f"<section class='panel search-results-panel'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} shown · {data['counts'][name]} matching records</span><a href='{workspace}'>Open workspace →</a></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='{_esc(name)}'>{columns}<thead role='rowgroup'><tr role='row'><th scope='col'>Target</th><th scope='col'>Record</th><th scope='col'>Context</th><th scope='col'>Run / Analysis</th><th scope='col'>Seen</th></tr></thead><tbody role='rowgroup'>{''.join(body_rows)}</tbody></table></div></section>")
         if not total: sections.append(_empty('No matching records', 'Change the query or clear the active filters.'))
         if data['unavailable']: sections.append(f"<p class='muted'>Unavailable in this database: {_esc(', '.join(data['unavailable']))}.</p>")
         if data['unavailable_files']: sections.append(f"<p class='run-status-error'>{data['unavailable_files']} referenced file(s) could not be searched. File-text results cover readable stored artifacts only.</p>")
