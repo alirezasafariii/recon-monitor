@@ -252,6 +252,71 @@ class DashboardRedesignTests(unittest.TestCase):
         data = search_workspace(self.db, '*', target='example.test', group='Analyses')
         self.assertEqual([r['value'] for r in data['rows']['Analyses']], ['GLOBAL-A'])
 
+    def test_command_center_saved_counts_are_complete_and_review_count_uses_selected_analysis(self):
+        self.run_row('RA', 'example.test', started='2026-10-01T00:00:00Z')
+        self.run_row('RB', 'other.test', started='2026-10-02T00:00:00Z')
+        for aid, target, source, date in [('OLD','example.test','RA','2026-09-01'),('AA','example.test','RA','2026-10-01'),('AB','other.test','RB','2026-10-02')]:
+            self.insert('analysis_runs', id=aid, target=target, source_run_id=source, engine_version='test', rule_version='test', status='success', started_at=date)
+        for cid, aid, target, state, decision in [('C1','AA','example.test','plausible','unreviewed'),('C2','AA','example.test','weak_signal','unreviewed'),('C3','AA','example.test','strong_candidate','confirmed_by_analyst'),('C4','OLD','example.test','plausible','unreviewed'),('C5','AB','other.test','plausible','unreviewed')]:
+            self.insert('bug_candidates', candidate_id=cid, candidate_fingerprint=cid, analysis_id=aid, source_run_id='RA' if target=='example.test' else 'RB', target=target, bug_family='bola', bug_variant='object', title=cid, summary='Stored evidence', likelihood_score=50, evidence_strength=50, impact_potential=50, priority_score=50, candidate_state=state, analyst_decision=decision, safe_next_action='Review evidence', rule_version='test', created_at=self.now, updated_at=self.now)
+        self.urls()
+        self.urls(3, target='other.test')
+        for target in ['example.test','other.test']:
+            self.insert('assets', target=target, host='api.'+target, first_seen=self.now, last_seen=self.now)
+            self.insert('fingerprints', target=target, url='https://'+target+'/', fingerprint_hash='hash', first_seen=self.now, last_seen=self.now)
+            self.insert('endpoint_intelligence', target=target, endpoint='/api/item', kind='path', primary_category='api', confidence=70, first_seen=self.now, last_seen=self.now)
+            self.insert('ports', target=target, host=target, port=443, first_seen=self.now, last_seen=self.now)
+            self.insert('js_files', target=target, url='https://'+target+'/app.js', raw_hash='hash', semantic_hash='sem', blob_path=str(self.paths.blobs/'app.js'), content_length=10, first_seen=self.now, last_seen=self.now)
+        snapshot=_command_center_snapshot(self.db,'example.test')
+        self.assertEqual(snapshot['inventory'], {'hosts':1,'http':1,'urls':2055,'endpoints':1,'javascript':1,'ports':1})
+        self.assertEqual(snapshot['unreviewed_candidates'], 2)
+        self.assertEqual(snapshot['inventory_updated'],self.now)
+        self.assertEqual(_command_center_snapshot(self.db)['inventory']['urls'],2058)
+        body=self.render('overview',{'target':['example.test']},'/')
+        parsed=FormInventory(body)
+        self.assertIn('2055',body)
+        self.assertIn('Analysis AA · unconfirmed',body)
+        self.assertIn('not full scope coverage',body)
+        review=next(h for h in parsed.links if '/potential-findings?' in h and 'decision=unreviewed' in h)
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(review).query),{'target':['example.test'],'view':['all'],'decision':['unreviewed']})
+        ports=next(h for h in parsed.links if 'raw=port' in h)
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(ports).query),{'target':['example.test'],'view':['raw'],'raw':['port']})
+        routes=json.loads((ROOT/'docs/dashboard-redesign-baseline.json').read_text())['routes']
+        self.assertTrue(all(urllib.parse.urlsplit(h).path in routes for h in parsed.links))
+
+    def test_command_center_keeps_critical_collection_warning_visible_and_refresh_post_scoped(self):
+        self.run_row(status='success',started='2026-10-01T00:00:00Z')
+        self.db.execute("UPDATE runs SET finished_at='2026-10-01T00:30:00Z',error=? WHERE id='R1'", ('Stop detail <script>unsafe</script>',))
+        self.insert('stage_runs',run_id='R1',target='example.test',stage='urls',status='partial',started_at=self.now,metrics_json='{"collection_status":"partial","katana_timed_out":true}')
+        self.insert('stage_runs',run_id='R1',target='example.test',stage='javascript',status='success',started_at=self.now,metrics_json='{"files":0,"downloaded":0}')
+        body=self.render('overview',{'target':['example.test']},'/')
+        visible=body.split('<details',1)[0]
+        for value in ['Partial / Timeout','1 partial stage(s)','1 timeout(s)','1 stage(s) without input','30m 00s','R1','Stop detail &lt;script&gt;unsafe&lt;/script&gt;']:
+            self.assertIn(value,visible)
+        self.assertNotIn('<script>unsafe</script>',body)
+        self.assertIn('No completed analysis',body)
+        parsed=FormInventory(_layout('Command Center',body,csrf='test-csrf',current_path='/?target=example.test'))
+        form=next(f for f in parsed.forms if f['attrs'].get('action')=='/workspace/sync')
+        self.assertEqual(form['attrs']['method'],'post')
+        self.assertEqual({v['name']:v.get('value') for v in form['fields']},{'target':'example.test','return':'/?target=example.test','csrf':'test-csrf'})
+        for route in ['/workbench','/evidence-gaps','/safe-validation','/recon-coverage','/security-stories','/analysis','/run-review','/diagnostics','/safety-center']:
+            self.assertTrue(any(urllib.parse.urlsplit(h).path==route for h in parsed.links),route)
+        self.assertTrue(all('open' not in detail for detail in FormInventory(body).details))
+
+    def test_command_center_no_analysis_and_running_next_controls_do_not_mix_targets(self):
+        empty=self.render('overview',{},'/')
+        self.assertIn('No completed analysis',empty)
+        self.assertIn('No recon run recorded yet',empty)
+        self.run_row('RUN-A','example.test',status='running')
+        self.run_row('RUN-B','other.test',status='running')
+        self.db.execute("UPDATE run_targets SET current_stage='urls'")
+        body=self.render('overview',{'target':['example.test']},'/')
+        visible=body.split('<details',1)[0]
+        self.assertIn('Open Next controls',visible)
+        self.assertIn('/run-review?id=RUN-A',visible)
+        self.assertNotIn('RUN-B',body)
+        self.assertIn('No completed analysis',body)
+
     def test_read_only_search_does_not_commit_or_rollback_an_existing_transaction(self):
         with self.db.transaction():
             self.insert('urls', target='example.test', url='https://example.test/in-transaction', first_seen=self.now, last_seen=self.now)

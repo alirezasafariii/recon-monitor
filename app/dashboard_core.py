@@ -49,7 +49,7 @@ from session_auth import parse_session, create_session, destroy_session, verify_
 from evidence import build_evidence_export
 from plugins import PluginManager
 from notification_operations_center import combined_dead_letters, notification_delivery_action
-from dashboard_design import MINIMAL_CSS, pagination, query_page, split_filter_fields
+from dashboard_design import MINIMAL_CSS, pagination, query_page, read_snapshot, split_filter_fields
 from dashboard_search import SEARCH_GROUPS, search_workspace, search_targets
 
 ALERT_STATUSES = [
@@ -443,6 +443,14 @@ def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
         )
         quality = {key: int(row[key] or 0) for key in quality}
     analysis_id = str(latest_analysis['id']) if latest_analysis else ''
+    inventory = {}
+    inventory_seen = []
+    for name, table in [('hosts','assets'),('http','fingerprints'),('urls','urls'),('endpoints','endpoint_intelligence'),('javascript','js_files'),('ports','ports')]:
+        row = db.one(f"SELECT COUNT(*) count,MAX(last_seen) updated FROM {table}" + (' WHERE target=?' if target else ''), (target,) if target else ())
+        inventory[name] = int(row['count'])
+        if row['updated']: inventory_seen.append(str(row['updated']))
+    review_where = "analysis_id=? AND analyst_decision='unreviewed'" + (' AND target=?' if target else '')
+    unreviewed = int(db.one('SELECT COUNT(*) FROM bug_candidates WHERE ' + review_where, (analysis_id,target) if target else (analysis_id,))[0]) if analysis_id else 0
     candidate_args: list[Any] = [analysis_id]
     candidate_where = ["analysis_id=?", "analyst_decision='unreviewed'", "candidate_state IN ('strong_candidate','plausible')"]
     if target:
@@ -520,6 +528,7 @@ def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
         'cockpit':data,'latest_run':dict(latest_run) if latest_run else None,'latest_analysis':dict(latest_analysis) if latest_analysis else None,
         'candidates':candidates,'cases':cases,'changes':changes,'recent_runs':recent_runs,'decisions':decisions[:8],'next_action':next_action,
         'high_changes':high_changes,'medium_changes':medium_changes,'collection_quality':quality,
+        'inventory':inventory,'inventory_updated':max(inventory_seen,default=''),'unreviewed_candidates':unreviewed,
     }
 
 
@@ -2131,28 +2140,43 @@ class DashboardHandler(BaseHTTPRequestHandler):
         runtime_config = getattr(self, 'config', Config(runtime_paths))
         db=self.db()
         try:
-            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
+            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM js_files UNION SELECT DISTINCT target FROM fingerprints UNION SELECT DISTINCT target FROM ports) ORDER BY target")]
             # Keep the post-login Command Center on a bounded, DB-only fast path.
             # Deep diagnostics, safety/audit verification, coverage reconstruction and
             # target-memory synthesis remain available from their dedicated pages.
-            snapshot=_command_center_snapshot(db,target)
-            active_runs=db.all(
-                "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
-                "JOIN runs r ON r.id=rt.run_id "
-                "WHERE r.status='running' AND rt.status='running' "
-                "AND rt.current_stage IS NOT NULL "
-                "AND (?='' OR rt.target=?) "
-                "ORDER BY rt.started_at DESC LIMIT 10",
-                (target, target),
-            )
+            with read_snapshot(db):
+                snapshot=_command_center_snapshot(db,target)
+                active_runs=db.all(
+                    "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
+                    "JOIN runs r ON r.id=rt.run_id "
+                    "WHERE r.status='running' AND rt.status='running' "
+                    "AND rt.current_stage IS NOT NULL "
+                    "AND (?='' OR rt.target=?) "
+                    "ORDER BY rt.started_at DESC LIMIT 10",
+                    (target, target),
+                )
         finally: db.close()
         data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
-        controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
-        header=_breadcrumb('Workspace','Command Center')+_page_header('Command Center','Review changes, collection health and the next investigation step.',"<form method='post' action='/workspace/sync' style='display:inline'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='/'><button>Refresh intelligence</button></form><a class='button secondary' href='/search?q=*'>Search workspace</a>",f'Recon Monitor {APP_VERSION} · Decision workspace')
-        kpis="<div class='command-kpi-row'>"+_attention_item('Decisions now',len(decisions),'Ranked actions worth analyst attention','/workbench','info')+_attention_item('High-interest preview',snapshot['high_changes'],'Recent preview · open Alerts for complete counts',_query_link('/alerts',target=target),'danger')+_attention_item('High-value findings',data['high_value_candidates'],'Unreviewed candidates with priority ≥70',_query_link('/potential-findings',target=target),'orange')+_attention_item('Evidence gaps',data['needs_evidence'],'Cases blocked by missing observations',_query_link('/evidence-gaps',target=target),'amber')+'</div>'
+        quality=snapshot['collection_quality']; inventory=snapshot['inventory']
+        findings_href=_query_link('/potential-findings',target=target,view='all',decision='unreviewed')
+        run_href=_query_link('/run-review',id=latest_run['id']) if latest_run else _query_link('/runs',target=target)
+        controls=f"<form class='command-context-form' method='get' action='/'><label>Focus target {_select('target',targets,target,'All targets')}</label><button class='secondary'>Apply focus</button><a class='command-text-link' href='/'>Clear</a></form>"
+        header=_page_header('Command Center','What needs attention, and what was collected.',f"<a class='button secondary' href='{_query_link('/runs',target=target)}'>Run history →</a>")
+        metric_specs=[('Saved hosts',inventory['hosts'],f"{inventory['http']} HTTP / TLS records",_query_link('/assets',target=target)),('Saved URLs',inventory['urls'],'Collection partial' if quality['partial'] or quality['timeout'] else 'Stored URL records',_query_link('/urls',target=target)),('To review',snapshot['unreviewed_candidates'] if latest_analysis else '—','Unconfirmed potential findings' if latest_analysis else 'No completed analysis',findings_href)]
+        kpis="<section class='command-saved-metrics' aria-label='Saved inventory and review counts'>"+''.join(f"<a class='command-saved-metric' href='{_esc(href)}'><span>{_esc(label)}</span><strong>{_esc(value)}</strong><small>{_esc(note)}</small></a>" for label,value,note,href in metric_specs)+'</section>'
+        attention_items=[]
+        if quality['no_input']:
+            attention_items.append(('Review collection inputs',f"{quality['no_input']} stage(s) without input · inspect discovery, selection and classification",run_href,'No inputs','amber'))
+        analysis_meta=f"Analysis {latest_analysis['id']} · unconfirmed" if latest_analysis else 'A completed analysis is needed before reviewing findings'
+        attention_items.append(('Review potential findings',analysis_meta,findings_href,str(snapshot['unreviewed_candidates']) if latest_analysis else 'Not run','neutral'))
+        attention_items.append(('Review observed changes','Successful re-checks · complete list in Alerts',_query_link('/alerts',target=target),'Open','neutral'))
+        if data['open_cases']:
+            attention_items.append(('Continue open investigations',f"{data['needs_evidence']} evidence gaps · {data['validation_ready']} ready for validation",_query_link('/cases',target=target),str(data['open_cases']),'amber' if data['needs_evidence'] else 'neutral'))
+        attention_rows=''.join(f"<a class='command-attention-row' href='{_esc(href)}'><span><strong>{_esc(title)}</strong><small>{_esc(note)}</small></span><span class='command-row-end'>{_pill(badge,tone) if tone!='neutral' else '<span>'+_esc(badge)+'</span>'}<i aria-hidden='true'>→</i></span></a>" for title,note,href,badge,tone in attention_items)
         decision_html=''.join(_command_decision_item(item,idx) for idx,item in enumerate(decisions,1))
-        inbox=f"<section class='panel'><div class='panel-head'><div><h3>What needs your attention?</h3><span class='muted small'>Decision inbox · ranked across run health, potential findings, open cases and material surface changes.</span></div><div class='page-actions'><a class='small' href='{_query_link('/workbench',target=target)}'>Full review queue →</a><a class='small' href='{_query_link('/security-stories',target=target)}'>Security stories →</a></div></div><div class='panel-body command-decision-list'>{decision_html or _empty('Nothing urgent is competing for attention','Refresh workspace intelligence or run the next authorized recon.')}</div></section>"
-        action=f"<section class='command-primary-action'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><h2>{_esc(next_action.get('title'))}</h2><p>{_esc(next_action.get('detail'))}</p><a class='button' href='{_esc(next_action.get('href') or '/')}'>Open next action →</a></section>"
+        review_summary=f"<div class='command-review-summary'><a href='{_query_link('/workbench',target=target)}'>{len(decisions)} ranked preview items</a><a href='{_query_link('/potential-findings',target=target)}'>{data['high_value_candidates']} high-value candidates</a><a href='{_query_link('/evidence-gaps',target=target)}'>{data['needs_evidence']} evidence gaps</a><a href='{_query_link('/safe-validation',target=target)}'>{data['validation_ready']} ready for validation</a></div>"
+        decision_details=f"<details class='command-details' id='decision-inbox'><summary>Decision inbox · ranked review preview ({len(decisions)})</summary><p class='small muted'>Stored review backlog; candidates may come from earlier analyses. Open the complete queue for all matching items.</p><div class='command-decision-list'>{decision_html or '<p class="small muted">No ranked items in this preview.</p>'}</div><p class='small'><a href='{_query_link('/workbench',target=target)}'>Full review queue →</a> · <a href='{_query_link('/security-stories',target=target)}'>Security stories →</a></p><div class='command-next-row'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><a href='{_esc(next_action.get('href') or '/')}'>{_esc(next_action.get('title'))} →</a><p>{_esc(next_action.get('detail'))}</p></div><p class='small muted'>High-interest change preview: {snapshot['high_changes']} · complete counts in <a href='{_query_link('/alerts',target=target)}'>Alerts</a>.</p></details>"
+        inbox=f"<section class='panel command-balanced-panel' aria-label='What needs your attention?'><div class='panel-head'><h2>Needs attention</h2><span class='small muted'>{len(attention_items)} groups</span></div><div class='panel-body'>{attention_rows}{review_summary}{decision_details}</div></section>"
         latest_run_label=str(latest_run.get('status')) if latest_run else 'No run yet'; latest_run_meta=(str(latest_run.get('finished_at') or latest_run.get('started_at') or '') if latest_run else 'Create a baseline to unlock change intelligence')
         latest_analysis_label=str(latest_analysis.get('id')) if latest_analysis else 'No analysis'; latest_analysis_meta=(str(latest_analysis.get('finished_at') or latest_analysis.get('started_at') or '') if latest_analysis else 'Analysis will appear after collected evidence is processed')
         pulse_rows=[
@@ -2164,14 +2188,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
         ]
         pulse_links={'Coverage snapshot':_query_link('/recon-coverage',target=target),'Latest recon':_query_link('/run-review',id=latest_run['id']) if latest_run else '/runs','Latest analysis':_query_link('/analysis',target=target),'Platform health':'/diagnostics','Safety gate':'/safety-center'}
         pulse=''.join(f"<div class='pulse-row'><div><a href='{_esc(pulse_links[label])}'>{_esc(label)}</a><small>{_esc(detail)}</small></div><b>{_esc(value)}</b></div>" for label,value,detail in pulse_rows)
-        side=f"<aside class='stack'>{action}<section class='panel'><div class='panel-head'><h3>Workspace pulse</h3><a class='small' href='/diagnostics'>Diagnostics</a></div><div class='panel-body command-pulse'>{pulse}</div></section></aside>"
+        inventory_specs=[('Subdomains','hosts',_query_link('/assets',target=target)),('HTTP / TLS','http',_query_link('/fingerprints',target=target)),('URLs','urls',_query_link('/urls',target=target)),('Endpoints','endpoints',_query_link('/endpoints',target=target)),('JavaScript files','javascript',_query_link('/javascript',target=target)),('Ports','ports',_query_link('/recon',target=target,view='raw',raw='port'))]
+        inventory_rows=''.join(f"<a class='command-inventory-row' href='{_esc(href)}'><span>{_esc(label)}</span><strong>{inventory[key]}</strong></a>" for label,key,href in inventory_specs)
+        sync_form="<form method='post' action='/workspace/sync'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='"+_esc(_query_link('/',target=target))+"'><button class='secondary'>Refresh intelligence</button></form>"
+        tools=f"<details class='command-details' id='workspace-pulse'><summary>Workspace health &amp; tools</summary><div class='command-pulse'>{pulse}</div><div class='command-tools'>{sync_form}<a class='command-text-link' href='{_query_link('/search',q='*',target=target)}'>Search all saved records →</a></div></details>"
+        side=f"<section class='panel command-balanced-panel'><div class='panel-head'><h2>Saved inventory</h2><a class='small' href='{_query_link('/recon',target=target,view='raw')}'>Open →</a></div><div class='panel-body'>{inventory_rows}<p class='small muted'>Counts describe stored records, not full scope coverage. <a href='{_query_link('/recon-coverage',target=target)}'>Coverage snapshot →</a></p>{tools}</div></section>"
         change_cards=[]
         for event in changes[:6]:
             tone='danger' if event.get('priority')=='high' else 'amber' if event.get('priority')=='medium' else 'neutral'
             change_cards.append(f"<a class='change-event' href='{_query_link('/alerts',target=str(event.get('target') or target))}'><i class='tone-{tone}'></i><div><strong>{_esc(str(event.get('kind') or 'surface').replace('_',' ').title())} · {_esc(event.get('change'))}</strong><span>{_esc(event.get('value'))}</span><small>{_esc(event.get('details'))}</small></div><b class='tone-{tone}'>{_esc(event.get('priority'))}</b></a>")
-        change_panel=f"<section class='panel'><div class='panel-head'><div><h3>What changed?</h3><span class='muted small'>Latest successful re-check · open Alerts for the complete change list.</span></div><a class='small' href='{_query_link('/change-intelligence',target=target)}'>Open change intelligence →</a></div><div class='panel-body change-stream'>{''.join(change_cards) or _empty('No material re-check delta yet','Choose a target with at least two successful recon runs to compare baselines.')}</div></section>"
+        change_panel=f"<details class='command-details' id='recent-changes'><summary>Recent observed changes · preview ({len(change_cards)})</summary><p class='small muted'>Latest successful re-check; open Alerts for the complete change list.</p><div class='change-stream'>{''.join(change_cards) or '<p class="small muted">No material re-check delta yet. Two successful recon runs are needed to compare baselines.</p>'}</div><p class='small'><a href='{_query_link('/change-intelligence',target=target)}'>Open change intelligence →</a> · <a href='{_query_link('/alerts',target=target)}'>All changes →</a></p></details>"
         recent_rows=''.join(f"<tr><td><a class='row-link' href='{_query_link('/run-review',id=r.get('id'))}'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
-        recent_panel=f"<section class='panel'><div class='panel-head'><div><h3>Recent research activity</h3><span class='muted small'>A compact operational trail — details stay in Run history.</span></div><a class='small' href='/runs'>Run history →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></section>"
+        recent_details=f"<details class='command-details' id='recent-runs'><summary>Recent run details ({len(snapshot['recent_runs'])})</summary><div class='table-wrap'><table><thead><tr><th>Run</th><th>Execution</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></details>"
+        run_label=(latest_run_label if latest_run_label in {'failed','running','cancelled'} else 'Partial / Timeout' if quality['timeout'] else 'Partial' if quality['partial'] else latest_run_label)
+        run_tone='danger' if latest_run_label=='failed' else 'amber' if quality['timeout'] else _tone(run_label)
+        activity_rows=(f"<a class='command-attention-row' href='{run_href}'><span><strong>Latest recon · {_esc(latest_run['id'])}</strong><small>{_esc(latest_run_meta)}</small></span>{_pill(run_label,run_tone)}</a>" if latest_run else '<p class="small muted">No runs recorded yet.</p>')
+        if latest_analysis:
+            activity_rows+=f"<a class='command-attention-row' href='{_query_link('/analysis',target=target)}'><span><strong>Analysis {_esc(latest_analysis['id'])} completed</strong><small>{snapshot['unreviewed_candidates']} candidates awaiting review · {_esc(latest_analysis_meta)}</small></span><i aria-hidden='true'>→</i></a>"
+        recent_panel=f"<section class='command-recent'><div class='command-section-head'><h2>Recent activity</h2><a class='small' href='{_query_link('/runs',target=target)}'>All activity →</a></div>{activity_rows}{recent_details}{change_panel}</section>"
         active_rows="".join(
             "<div class='pulse-row'><div>"
             + f"<strong>{_esc(r['target'])}</strong><small>{_esc(r['current_stage'])} "
@@ -2185,11 +2219,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "<span class='muted small'>Next saves partial evidence and advances to the next stage.</span></div>"
             + "<div class='panel-body'>" + active_rows + "</div></section>"
         ) if active_rows else ""
-        quality=snapshot['collection_quality']
-        run_label=(latest_run_label if latest_run_label in {'failed','running','cancelled'} else 'Partial / Timeout' if quality['timeout'] else 'Partial' if quality['partial'] else latest_run_label)
         attention=' · '.join(text for count,text in [(quality['partial'],f"{quality['partial']} partial stage(s)"),(quality['timeout'],f"{quality['timeout']} timeout(s)"),(quality['no_input'],f"{quality['no_input']} stage(s) without input")] if count)
-        run_strip=(f"<section class='run-status-strip'><div class='run-status-copy'><strong>Latest recon · {_esc(run_label)}</strong><small>{_esc(latest_run['id'])} · {_esc(latest_run_meta)}</small></div><a class='button secondary' href='{_query_link('/run-review',id=latest_run['id'])}'>Review execution</a>"+ (f"<div class='run-status-error'>{_esc(attention)}</div>" if attention else '') + '</section>') if latest_run else ''
-        body=header+controls+run_strip+active_panel+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"
+        run_error=str(latest_run.get('error') or '') if latest_run else ''
+        run_detail=' · '.join(value for value in [attention,run_error] if value)
+        duration=''
+        if latest_run and latest_run['finished_at']:
+            try:
+                started=dt.datetime.fromisoformat(str(latest_run['started_at']).replace('Z','+00:00')); finished=dt.datetime.fromisoformat(str(latest_run['finished_at']).replace('Z','+00:00'))
+                seconds=int((finished-started).total_seconds())
+                if seconds>=0: duration=f" · {seconds//60}m {seconds%60:02d}s"
+            except (TypeError,ValueError,OverflowError): pass
+        run_strip=(f"<section class='run-status-strip'><div class='run-status-copy'>{_pill(run_label,run_tone)}<strong>Latest recon · {_esc(latest_run['id'])}</strong><small>{_esc(latest_run_meta)}{duration}</small></div><a class='command-text-link' href='{run_href}'>Review execution →</a>"+ (f"<div class='run-status-error'>{_esc(run_detail)}</div>" if run_detail else '') + '</section>') if latest_run else "<div class='command-no-run'>No recon run recorded yet. <a href='/runs'>Open Run history →</a></div>"
+        updated=f"<footer class='command-footer'>Saved records last seen: {_esc(snapshot['inventory_updated'] or 'Not recorded')} · {_esc(target or 'All targets')}</footer>"
+        body="<div class='command-balanced'>"+header+controls+run_strip+active_panel+kpis+f"<div class='command-balanced-grid'>{inbox}{side}</div>"+recent_panel+updated+'</div>'
         self.send_html('Command center',body)
 
     def workbench(self) -> None:
