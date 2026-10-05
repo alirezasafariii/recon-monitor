@@ -1051,14 +1051,26 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     sessionStorage.removeItem(key);
   }}catch(_error){{}}
   if(saved&&saved.next===here&&Number.isFinite(saved.y)&&!window.location.hash){{
+    const root=document.documentElement, previous=root.style.scrollBehavior;
+    const history=window.history, previousRestoration=history?.scrollRestoration;
+    if(history&&previousRestoration!==undefined)history.scrollRestoration='manual';
     const restore=()=>{{
-      const root=document.documentElement, previous=root.style.scrollBehavior;
       root.style.scrollBehavior='auto';
       window.scrollTo(0,saved.y);
-      requestAnimationFrame(()=>{{root.style.scrollBehavior=previous;}});
+    }};
+    // Safari can restore its own scroll after load. Finish after pageshow and
+    // layout, then return normal history restoration for Back/Forward.
+    const settle=()=>{{
+      restore();
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{{
+        restore();
+        root.style.scrollBehavior=previous;
+        if(history&&previousRestoration!==undefined)history.scrollRestoration=previousRestoration;
+      }}));
     }};
     restore();
-    window.addEventListener('load',restore,{{once:true}});
+    window.addEventListener('load',settle,{{once:true}});
+    window.addEventListener('pageshow',settle,{{once:true}});
   }}
   const remember=(next)=>{{
     try{{sessionStorage.setItem(key,JSON.stringify({{next:next,y:window.scrollY}}));}}catch(_error){{}}

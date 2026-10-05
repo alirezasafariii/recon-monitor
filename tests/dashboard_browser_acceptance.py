@@ -307,6 +307,9 @@ class Safari:
         return value["element-6066-11e4-a52e-4f735466cecf"]
 
     def click(self, selector):
+        # Position a visible control before Safari's native pointer action.
+        # Hidden controls still fail; callers must open their actual disclosure.
+        self.js("const e=document.querySelector(arguments[0]);if(e && e.tagName!=='OPTION' && e.getClientRects().length)e.scrollIntoView({block:'center',behavior:'instant'});", selector)
         self.command("POST", "/element/" + self.element(selector) + "/click", {})
 
     def fill(self, selector, value):
@@ -324,15 +327,13 @@ class Safari:
             if value:
                 return value
             time.sleep(0.15)
-        raise AssertionError(f"Safari condition not reached: {script}")
+        state = self.js("return {url:location.href,y:scrollY,ready:document.readyState,saved:sessionStorage.getItem('recon-same-page-scroll'),submit:window.__uiSubmit||null,history:history.scrollRestoration}")
+        raise AssertionError(f"Safari condition not reached: {script}; state={state}")
 
     def screenshot(self, name):
         data = self.command("GET", "/screenshot")
         (OUTPUT / (name + ".png")).write_bytes(base64.b64decode(data, validate=True))
         EVIDENCE["screenshots"].append(name + ".png")
-        # Three small, synthetic-only captures can also be recovered from CI logs.
-        if name in {"search-desktop-light", "run-desktop-dark", "search-narrow-light"}:
-            print("DASHBOARD_SCREENSHOT " + json.dumps({"name": name + ".png", "png": data}), flush=True)
 
     def close(self):
         if self.session:
@@ -376,6 +377,12 @@ class SafariDashboardTests(unittest.TestCase):
     def text(self):
         return self.browser.js("return document.querySelector('.content').innerText")
 
+    def appearance(self, button):
+        if not self.browser.js("return document.querySelector('.display-menu').open"):
+            self.browser.click(".display-menu > summary")
+        self.browser.click("#" + button)
+        self.browser.click(".display-menu > summary")
+
     def test_native_search_form_and_record_round_trip(self):
         b = self.browser
         b.fill(".filter-panel input[name='q']", "catalogneedle")
@@ -392,16 +399,20 @@ class SafariDashboardTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(b.js("return document.querySelectorAll('table[aria-label=\"URLs\"] tbody>tr').length"), 100)
         b.click("table[aria-label='URLs'] a.small")
+        b.wait("return new URLSearchParams(location.search).has('record') && !!document.querySelector('.search-record-details')")
         self.assertIn("Stored record details", self.text())
         detail = b.command("GET", "/url")
         params = urllib.parse.parse_qs(urllib.parse.urlsplit(detail).query)
         for key in expected:
             self.assertEqual(params[key], expected[key])
         b.command("POST", "/back", {})
+        b.wait("return !new URLSearchParams(location.search).has('record') && !!document.querySelector('.pager')")
         self.assertIn("210 matching records", self.text())
         b.command("POST", "/forward", {})
+        b.wait("return new URLSearchParams(location.search).has('record') && !!document.querySelector('.search-record-details')")
         self.assertEqual(b.command("GET", "/url"), detail)
         b.click(".page-header a[href^='/search?']")
+        b.wait("return !new URLSearchParams(location.search).has('record') && !!document.querySelector('.pager')")
         self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(b.command("GET", "/url")).query), expected)
         self.assertIn("210 matching records", self.text())
 
@@ -461,14 +472,14 @@ class SafariDashboardTests(unittest.TestCase):
                 self.assertEqual(b.js("return [...document.querySelectorAll('.responsive-records tbody>tr:first-child .record-field-label')].filter(x=>getComputedStyle(x).display!=='none').length"), 5)
             for theme in ("light", "dark"):
                 if b.js("return document.documentElement.dataset.theme") != theme:
-                    b.click("#themeToggle")
+                    self.appearance("themeToggle")
                 self.assertEqual(b.js("return document.documentElement.dataset.theme"), theme)
                 b.screenshot(name + "-" + theme)
-            b.click("#densityToggle")
+            self.appearance("densityToggle")
             compact = b.js("return document.body.classList.contains('compact')")
             b.command("POST", "/refresh", {})
             self.assertEqual(b.js("return document.body.classList.contains('compact')"), compact)
-            b.click("#densityToggle")
+            self.appearance("densityToggle")
 
     def live(self, label):
         self.fixture.progress.update(label=label, message=label)
@@ -487,13 +498,13 @@ class SafariDashboardTests(unittest.TestCase):
         self.live("Safari reading position baseline")
         b = self.browser
         b.click("#live-progress-details > summary")
-        b.click(".filter-panel input[name='q']")  # Focus outside the replaceable panel.
+        b.click(".filter-panel input[name='q']:not([type='hidden'])")
         b.js("document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,1200);window.__uiPanel=document.querySelector('#live-progress');")
-        before = b.js("return document.querySelector('.filter-panel').getBoundingClientRect().top")
+        before = b.js("return document.querySelector('.page-header').getBoundingClientRect().top")
         self.fixture.progress.update(message="Safari reading position changed. " + "A longer synthetic progress message. " * 24)
         b.wait("return window.__uiPanel!==document.querySelector('#live-progress') && document.querySelector('#live-progress').textContent.includes('Safari reading position changed')")
         self.assertTrue(b.js("return document.querySelector('#live-progress-details').open"))
-        self.assertAlmostEqual(b.js("return document.querySelector('.filter-panel').getBoundingClientRect().top"), before, delta=8)
+        self.assertAlmostEqual(b.js("return document.querySelector('.page-header').getBoundingClientRect().top"), before, delta=8)
 
     def test_polling_keeps_focused_control(self):
         self.live("Safari focus baseline")
@@ -505,7 +516,7 @@ class SafariDashboardTests(unittest.TestCase):
         self.wait_poll(count)
         self.assertTrue(b.js("return window.__uiPanel===document.querySelector('#live-progress')"))
         self.assertTrue(b.js("return document.activeElement===document.querySelector('#live-progress-details > summary')"))
-        b.click(".filter-panel input[name='q']")
+        b.click(".filter-panel input[name='q']:not([type='hidden'])")
         b.wait("return document.querySelector('#live-progress').textContent.includes('Safari focus changed')")
 
     def test_polling_keeps_selected_text_until_released(self):
@@ -540,6 +551,11 @@ class RecordingResult(unittest.TextTestResult):
 
     def stopTest(self, test):
         if isinstance(test, SafariDashboardTests):
+            try:
+                state = test.browser.js("return {url:location.href,y:scrollY,ready:document.readyState,saved:sessionStorage.getItem('recon-same-page-scroll'),history:history.scrollRestoration,viewport:innerWidth}")
+                EVIDENCE.setdefault("browser_states", []).append({"test": test.id(), **state})
+            except Exception:
+                pass
             if any(row["test"] == test.id() and row["status"] != "passed" for row in self.records):
                 try:
                     test.browser.screenshot("failure-" + test._testMethodName)

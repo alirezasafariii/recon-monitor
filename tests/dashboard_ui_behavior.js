@@ -27,7 +27,7 @@ function scrollContext(saved = null, hash = '') {
     sessionStorage: { getItem: k => storage.get(k) || null, removeItem: k => storage.delete(k), setItem: (k,v) => storage.set(k,v) },
     requestAnimationFrame: fn => fn(),
     document: { documentElement: {style: {scrollBehavior: 'auto'}}, addEventListener: (name, fn) => events[name] = fn },
-    window: { location: {href: 'http://localhost/recon?q=old' + hash, pathname: '/recon', search: '?q=old', origin: 'http://localhost', hash}, scrollY: 500, scrollTo: (x,y) => scrolls.push(y), addEventListener: (name,fn) => events[name] = fn },
+    window: { history: {scrollRestoration: 'auto'}, location: {href: 'http://localhost/recon?q=old' + hash, pathname: '/recon', search: '?q=old', origin: 'http://localhost', hash}, scrollY: 500, scrollTo: (x,y) => scrolls.push(y), addEventListener: (name,fn) => events[name] = fn },
   };
   vm.createContext(ctx); vm.runInContext(scrollSource, ctx);
   return {ctx, events, storage, scrolls, Element, Form};
@@ -82,7 +82,11 @@ async function pollingContext({focus = false, selected = false, above = true, vi
 (async () => {
   const restored = scrollContext({next:'/recon?q=old', y:725});
   assert.deepEqual(restored.scrolls, [725]);
-  restored.events.load(); assert.deepEqual(restored.scrolls, [725,725]);
+  assert.equal(restored.ctx.window.history.scrollRestoration, 'manual');
+  restored.events.load();
+  assert.equal(restored.ctx.window.history.scrollRestoration, 'auto');
+  restored.events.pageshow();
+  assert.ok(restored.scrolls.length >= 3 && restored.scrolls.every(y => y === 725));
   assert.equal(scrollContext({next:'/analysis',y:725}).scrolls.length, 0);
   assert.equal(scrollContext({next:'/recon?q=old',y:725}, '#evidence').scrolls.length, 0);
 
