@@ -19,7 +19,10 @@ function scrollContext(saved = null, hash = '') {
   class Form extends Element {
     constructor(method, fields, action = 'http://localhost/recon') {
       super({}); this.method = method; this.fields = fields; this.action = action;
+      this.attributes = {method, action, target: ''};
+      for (const [name] of fields) if (['target','method','action'].includes(name)) this[name] = {tagName:'INPUT'};
     }
+    getAttribute(name) { return this.attributes[name] ?? null; }
   }
   const ctx = {
     URL, URLSearchParams, Element, HTMLFormElement: Form,
@@ -82,11 +85,7 @@ async function pollingContext({focus = false, selected = false, above = true, vi
 (async () => {
   const restored = scrollContext({next:'/recon?q=old', y:725});
   assert.deepEqual(restored.scrolls, [725]);
-  assert.equal(restored.ctx.window.history.scrollRestoration, 'manual');
-  restored.events.load();
-  assert.equal(restored.ctx.window.history.scrollRestoration, 'auto');
-  restored.events.pageshow();
-  assert.ok(restored.scrolls.length >= 3 && restored.scrolls.every(y => y === 725));
+  restored.events.load(); assert.deepEqual(restored.scrolls, [725,725]);
   assert.equal(scrollContext({next:'/analysis',y:725}).scrolls.length, 0);
   assert.equal(scrollContext({next:'/recon?q=old',y:725}, '#evidence').scrolls.length, 0);
 
@@ -100,6 +99,12 @@ async function pollingContext({focus = false, selected = false, above = true, vi
   const get = scrollContext();
   get.events.submit({target:new get.Form('get', [['q','a&b'],['source','katana'],['target','example.test']])});
   assert.deepEqual(JSON.parse(get.storage.get('recon-same-page-scroll')), {next:'/recon?q=a%26b&source=katana&target=example.test',y:500});
+  const named = scrollContext();
+  named.events.submit({target:new named.Form('get', [['target','example.test'],['method','literal'],['action','recorded']])});
+  assert.deepEqual(JSON.parse(named.storage.get('recon-same-page-scroll')), {next:'/recon?target=example.test&method=literal&action=recorded',y:500});
+  const newTab = scrollContext(), newTabForm = new newTab.Form('get', [['target','example.test']]);
+  newTabForm.attributes.target = '_blank';
+  newTab.events.submit({target:newTabForm}); assert.equal(newTab.storage.size, 0);
   const post = scrollContext(); post.events.submit({target:new post.Form('post', [['run_id','R1']])}); assert.equal(post.storage.size, 0);
 
   for (const opts of [{focus:true},{selected:true}]) {

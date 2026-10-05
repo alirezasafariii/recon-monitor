@@ -1051,26 +1051,14 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     sessionStorage.removeItem(key);
   }}catch(_error){{}}
   if(saved&&saved.next===here&&Number.isFinite(saved.y)&&!window.location.hash){{
-    const root=document.documentElement, previous=root.style.scrollBehavior;
-    const history=window.history, previousRestoration=history?.scrollRestoration;
-    if(history&&previousRestoration!==undefined)history.scrollRestoration='manual';
     const restore=()=>{{
+      const root=document.documentElement, previous=root.style.scrollBehavior;
       root.style.scrollBehavior='auto';
       window.scrollTo(0,saved.y);
-    }};
-    // Safari can restore its own scroll after load. Finish after pageshow and
-    // layout, then return normal history restoration for Back/Forward.
-    const settle=()=>{{
-      restore();
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{{
-        restore();
-        root.style.scrollBehavior=previous;
-        if(history&&previousRestoration!==undefined)history.scrollRestoration=previousRestoration;
-      }}));
+      requestAnimationFrame(()=>{{root.style.scrollBehavior=previous;}});
     }};
     restore();
-    window.addEventListener('load',settle,{{once:true}});
-    window.addEventListener('pageshow',settle,{{once:true}});
+    window.addEventListener('load',restore,{{once:true}});
   }}
   const remember=(next)=>{{
     try{{sessionStorage.setItem(key,JSON.stringify({{next:next,y:window.scrollY}}));}}catch(_error){{}}
@@ -1087,9 +1075,12 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
   }},true);
   document.addEventListener('submit',(event)=>{{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=='get'||
-       !form.closest('.content')||(form.target&&form.target!=='_self'))return;
-    const next=new URL(form.action||window.location.href,window.location.href);
+    if(!(form instanceof HTMLFormElement))return;
+    // Controls named target/method/action shadow the form's DOM properties.
+    const method=(form.getAttribute('method')||'get').toLowerCase();
+    const target=form.getAttribute('target')||'';
+    if(method!=='get'||!form.closest('.content')||(target&&target!=='_self'))return;
+    const next=new URL(form.getAttribute('action')||window.location.href,window.location.href);
     if(next.hash)return;
     if(next.origin!==window.location.origin||next.pathname!==window.location.pathname)return;
     next.search=new URLSearchParams(new FormData(form)).toString();
