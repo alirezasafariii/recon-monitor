@@ -64,6 +64,9 @@ jobs:
 
       - name: Integration test
         run: python tests/integration_runner.py
+      - name: Real dashboard HTTP acceptance
+        if: matrix.python-version == '3.13'
+        run: python tests/dashboard_browser_acceptance.py --http-only --output "$RUNNER_TEMP/dashboard-http"
 
   test-macos:
     name: macOS ${{ matrix.runner }} Python 3.14
@@ -106,3 +109,27 @@ jobs:
         run: |
           python -W error::ResourceWarning -m unittest discover -s tests -p 'test_api_process_identity.py' -v
           python -W error::ResourceWarning -m unittest discover -s tests -p 'test_api_portable_shutdown.py' -v
+
+  dashboard-safari:
+    name: Dashboard acceptance (native Safari)
+    runs-on: macos-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Enable Safari automation on the disposable runner
+        run: sudo /usr/bin/safaridriver --enable
+      - name: Real HTTP and Safari dashboard acceptance
+        run: python tests/dashboard_browser_acceptance.py --browser safari --output "$RUNNER_TEMP/dashboard-browser"
+      - name: Preserve browser results and captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-native-safari
+          path: ${{ runner.temp }}/dashboard-browser
+          retention-days: 7
+          if-no-files-found: warn

@@ -1257,6 +1257,17 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
             )
         )
 
+        # stage_begin keeps the last attempt's metrics/duration until completion.
+        # A running retry has no recorded outcome for its current attempt yet.
+        running_stage = stage_status == "running"
+        collection = _stage_collection(name, {} if running_stage else metrics)
+        if running_stage:
+            collection.update(
+                collection_label="In progress",
+                collection_tone="info",
+                collection_detail="Current attempt has no recorded outcome yet",
+            )
+
         phase_percent = None
         current = None
         total = None
@@ -1278,14 +1289,12 @@ def recon_progress_snapshot(paths: AppPaths, db: Any, target: str = "") -> dict[
             "heartbeat_at": stage_row.get(
                 "heartbeat_at"
             ),
-            "duration_seconds": stage_row.get(
-                "duration_seconds"
-            ),
+            "duration_seconds": None if running_stage else stage_row.get("duration_seconds"),
             "error": str(
                 stage_row.get("error")
                 or ""
             ),
-            **_stage_collection(name, metrics),
+            **collection,
         })
 
     heartbeat_available = bool(heartbeat)
