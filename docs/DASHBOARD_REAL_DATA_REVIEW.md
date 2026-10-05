@@ -32,7 +32,16 @@ occupied, select another unused port with `--port`.
   must exist and match their hashes in the snapshot. Absolute JS, evidence,
   screenshot, diff and Run-directory paths inside these managed trees are rebased
   to the copy. Unreferenced files in these trees are copied too.
-- Symlinks and non-regular files are rejected rather than followed. Missing,
+- The app-generated `output/<target>/latest` and macOS `latest-run` symlinks are
+  recognized only when they point directly to that target's `runs/<run-id>`
+  directory. These redundant aliases are recorded and omitted without following
+  them; every available real Run directory is copied through `runs/`. References
+  through a recognized alias are normalized to its canonical Run directory in
+  the snapshot only, before artifact verification and destination-path rebasing.
+  A dangling recognized alias is recorded without blocking unrelated stored data;
+  missing referenced artifacts still fail verification. No symlinks are created
+  in the review, and original aliases are left untouched.
+- Other symlinks and non-regular files are rejected rather than followed. Missing,
   changed or unsafe referenced artifacts stop preparation; no incomplete review
   directory is left behind. Existing/overlapping destinations are never replaced.
 

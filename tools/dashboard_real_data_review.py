@@ -77,21 +77,58 @@ def _regular_file(path: Path, root: Path) -> None:
         raise ReconError(f"Cannot read review input: {path}") from exc
 
 
-def _copy_tree(source: Path, destination: Path, root: Path) -> tuple[int, int]:
+def _run_pointer_target(path: Path, root: Path) -> Path | None:
+    """Recognize the app's redundant latest/latest-run alias without walking it."""
+    relative = path.relative_to(root)
+    if len(relative.parts) != 3 or relative.parts[0] != "output" or relative.name not in {"latest", "latest-run"}:
+        return None
+    raw = Path(os.readlink(path))
+    if ".." in raw.parts:
+        return None
+    target = raw if raw.is_absolute() else path.parent / raw
+    try:
+        leaf = target.relative_to(path.parent / "runs")
+        if len(leaf.parts) != 1:
+            return None
+        current = root
+        for part in target.relative_to(root).parts:
+            current = current / part
+            if current.is_symlink():
+                return None
+        if target.exists() and not target.is_dir():
+            return None
+    except (OSError, ValueError):
+        return None
+    return target
+
+
+def _copy_tree(source: Path, destination: Path, root: Path, run_aliases: list[dict]) -> tuple[int, int]:
     if not source.exists() and not source.is_symlink():
         return 0, 0
     if source.is_symlink() or not source.is_dir():
         raise ReconError(f"Review requires a real artifact directory: {source}")
     files = size = 0
+
+    def skip_run_pointer(path: Path) -> bool:
+        if not path.is_symlink():
+            return False
+        target = _run_pointer_target(path, root)
+        if target is None:
+            raise ReconError(f"Review does not follow symlinks: {path}")
+        run_aliases.append({"path": path.relative_to(root).as_posix(),
+                            "canonical_run": target.relative_to(root).as_posix(),
+                            "run_directory_present": target.is_dir()})
+        return True
+
     for current, directories, names in os.walk(source, followlinks=False):
         current_path = Path(current)
-        for name in directories:
-            if (current_path / name).is_symlink():
-                raise ReconError(f"Review does not follow symlinks: {current_path / name}")
+        directories[:] = [name for name in directories if not skip_run_pointer(current_path / name)]
         target = destination / current_path.relative_to(source)
         target.mkdir(parents=True, exist_ok=True)
         for name in names:
             original = current_path / name
+            if skip_run_pointer(original):
+                continue
             _regular_file(original, root)
             copied = target / name
             shutil.copyfile(original, copied)
@@ -108,6 +145,13 @@ def _map_path(value: str, source: Path, destination: Path) -> str:
         if ".." not in relative.parts and any(
             relative == Path(tree) or Path(tree) in relative.parents for tree in ARTIFACT_TREES
         ):
+            if len(relative.parts) >= 3 and relative.parts[0] == "output" and relative.parts[2] in {"latest", "latest-run"}:
+                pointer = source / Path(*relative.parts[:3])
+                if pointer.is_symlink():
+                    canonical = _run_pointer_target(pointer, source)
+                    if canonical is None:
+                        raise ReconError(f"Review does not follow symlinks: {pointer}")
+                    relative = canonical.relative_to(source) / Path(*relative.parts[3:])
             return str(destination / relative)
     except ValueError:
         pass
@@ -192,14 +236,18 @@ def prepare_review(source: Path, destination: Path) -> dict:
         db = Database(paths.db)
         try:
             logger = Logger(paths, verbose=False)
+            # Normalize alias-based references in the snapshot only. The source
+            # manifest must inspect canonical artifacts before paths are rebased.
+            _rebase_paths(db.conn, source, source)
             source_manager = BackupManager(source_paths, db, logger)
             inventory = source_manager._materialize_reference_manifest(paths.db, strict=True)
             for relative in inventory["required_files"]:
                 if not any(Path(tree) in Path(relative).parents for tree in ARTIFACT_TREES):
                     raise ReconError(f"Referenced file is outside managed artifact directories: {relative}")
             file_count = byte_count = 0
+            run_aliases: list[dict] = []
             for tree in ARTIFACT_TREES:
-                count, size = _copy_tree(source / tree, destination / tree, source)
+                count, size = _copy_tree(source / tree, destination / tree, source, run_aliases)
                 file_count += count
                 byte_count += size
             _rebase_paths(db.conn, source, destination)
@@ -225,6 +273,7 @@ def prepare_review(source: Path, destination: Path) -> dict:
             "all_table_counts_preserved": True, "snapshot_table_counts": before,
             "copied_files": file_count, "copied_bytes": byte_count,
             "verified_referenced_files": copied_inventory["required_count"],
+            "skipped_run_pointer_aliases": run_aliases,
             "snapshot_seconds": round(time.monotonic() - started, 3),
         }
         (destination / "review-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -396,6 +445,7 @@ def main(argv=None) -> int:
             (paths.root / "review-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
             print(f"All table counts preserved: {report['all_table_counts_preserved']}")
             print(f"Copied files: {report['copied_files']}; verified references: {report['verified_referenced_files']}")
+            print(f"Skipped redundant run pointer aliases: {len(report['skipped_run_pointer_aliases'])}")
             print(f"HTTP checks passed: {report['http_checks_passed']}")
             for check in report["http_checks"]:
                 result = "OK" if check["passed"] else "FAIL"

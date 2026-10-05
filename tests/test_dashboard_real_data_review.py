@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import dashboard_real_data_review as review
 from core import APP_VERSION, AppPaths, Database, ReconError, utc_now
 from dashboard_artifact_search import search_artifact_text
+from recon_monitor_core import Orchestrator
 from session_auth import create_user
 from storage import ContentAddressedStore
 
@@ -137,6 +138,134 @@ class RealDataReviewTests(unittest.TestCase):
             review.prepare_review(self.source.root, self.destination)
         self.assertFalse(self.destination.exists())
         self.assertEqual(unrelated.read_text(), "not part of this installation")
+
+    def test_app_generated_run_pointers_preserve_runs_and_original_aliases(self):
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.paths = self.source
+        orchestrator.logger = review.Logger(self.source, verbose=False)
+        # Use the actual volume's case detection, then exercise the macOS layout
+        # even on a case-sensitive CI volume. Never force the unsafe reverse.
+        orchestrator._update_latest_pointers("example.test", self.run_dir)
+        with patch.object(Orchestrator, "_pointer_names_collide", return_value=True):
+            orchestrator._update_latest_pointers("example.test", self.run_dir)
+        target_dir = self.run_dir.parent.parent
+        aliases = {path: os.readlink(path) for path in target_dir.iterdir() if path.is_symlink()}
+        self.assertIn(target_dir / "latest-run", aliases)
+        latest_text = (target_dir / "LATEST").read_bytes()
+        before = self.fingerprint_source()
+        counts = review._counts(self.db.conn)
+
+        report = review.prepare_review(self.source.root, self.destination)
+
+        self.assertEqual(report["snapshot_table_counts"], counts)
+        self.assertEqual(before, self.fingerprint_source())
+        self.assertEqual(latest_text, (target_dir / "LATEST").read_bytes())
+        self.assertEqual(aliases, {path: os.readlink(path) for path in aliases})
+        self.assertEqual({item["path"] for item in report["skipped_run_pointer_aliases"]},
+                         {path.relative_to(self.source.root).as_posix() for path in aliases})
+        self.assertTrue(all(item["run_directory_present"] for item in report["skipped_run_pointer_aliases"]))
+        output = AppPaths.from_root(self.destination).output
+        self.assertEqual({path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()},
+                         {"example.test/LATEST", f"example.test/runs/{self.run_id}/urls.txt",
+                          f"example.test/runs/{self.run_id}/report.html"})
+        self.assertFalse(any(path.is_symlink() for path in self.destination.rglob("*")))
+
+    def test_alias_based_database_references_resolve_to_independent_copied_runs(self):
+        alias = self.run_dir.parent.parent / "latest-run"
+        alias.symlink_to(self.run_dir.relative_to(alias.parent))
+        run_blob = self.run_dir / "current" / "app.js"
+        run_blob.parent.mkdir()
+        run_blob.write_bytes(self.blob.read_bytes())
+        relative_blob = "output/example.test/latest-run/current/app.js"
+        absolute_blob = str(alias / "current" / "app.js")
+        self.db.execute("UPDATE run_targets SET run_dir=?", (str(alias),))
+        self.db.execute("UPDATE js_files SET blob_path=?", (relative_blob,))
+        self.db.execute("UPDATE asset_edges SET metadata_json=?",
+                        (json.dumps({"blob_path": absolute_blob, "object_hash": self.digest}),))
+        before = self.fingerprint_source()
+
+        report = review.prepare_review(self.source.root, self.destination)
+        paths = AppPaths.from_root(self.destination)
+        clone = Database(paths.db)
+        self.addCleanup(clone.close)
+        directory = paths.output / "example.test" / "runs" / self.run_id
+        copied_blob = directory / "current" / "app.js"
+        self.assertEqual(clone.one("SELECT run_dir FROM run_targets")["run_dir"], str(directory))
+        self.assertEqual(clone.one("SELECT blob_path FROM js_files")["blob_path"], str(copied_blob))
+        self.assertEqual(json.loads(clone.one("SELECT metadata_json FROM asset_edges")["metadata_json"])["blob_path"],
+                         str(copied_blob))
+        self.assertEqual(report["verified_referenced_files"], 2)
+        self.assertEqual(before, self.fingerprint_source())
+        self.assertEqual(self.db.one("SELECT run_dir FROM run_targets")["run_dir"], str(alias))
+        self.assertEqual(self.db.one("SELECT blob_path FROM js_files")["blob_path"], relative_blob)
+        self.assertEqual(json.loads(self.db.one("SELECT metadata_json FROM asset_edges")["metadata_json"])["blob_path"],
+                         absolute_blob)
+        self.assertFalse((paths.output / "example.test" / "latest-run").exists())
+        # Removing only synthetic originals proves File text and reports cannot
+        # silently fall back to the installed run or its aliases.
+        run_blob.unlink()
+        self.blob.unlink()
+        (self.run_dir / "urls.txt").unlink()
+        (self.run_dir / "report.html").unlink()
+        matches, unavailable = search_artifact_text(clone, paths, "snapshotneedle", target="example.test", run_id=self.run_id)
+        self.assertEqual(unavailable, 0)
+        self.assertEqual(len(matches), 2)
+        self.assertIn("existing saved report", (directory / "report.html").read_text())
+
+    def test_dangling_run_alias_does_not_discard_available_historical_data(self):
+        alias = self.run_dir.parent.parent / "latest-run"
+        alias.symlink_to("runs/removed-run")
+        before = self.fingerprint_source()
+        report = review.prepare_review(self.source.root, self.destination)
+        self.assertEqual(report["skipped_run_pointer_aliases"], [{
+            "path": "output/example.test/latest-run", "canonical_run": "output/example.test/runs/removed-run",
+            "run_directory_present": False,
+        }])
+        self.assertEqual(report["snapshot_table_counts"]["urls"], 205)
+        self.assertTrue((self.destination / "output/example.test/runs" / self.run_id / "urls.txt").is_file())
+        self.assertEqual(before, self.fingerprint_source())
+        self.assertEqual(os.readlink(alias), "runs/removed-run")
+
+    def test_missing_file_referenced_through_run_alias_still_fails_verification(self):
+        alias = self.run_dir.parent.parent / "latest-run"
+        alias.symlink_to(self.run_dir.relative_to(alias.parent))
+        self.db.execute("UPDATE js_files SET blob_path=?", (str(alias / "missing.js"),))
+        before = self.fingerprint_source()
+        with self.assertRaisesRegex(ReconError, "artifact missing"):
+            review.prepare_review(self.source.root, self.destination)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(before, self.fingerprint_source())
+        self.assertTrue(alias.is_symlink())
+
+    def test_named_run_alias_cannot_escape_chain_or_point_to_a_file(self):
+        outside = self.root / "private"
+        outside.mkdir()
+        private_file = outside / "keep.txt"
+        private_file.write_text("not part of this installation")
+        target_dir = self.run_dir.parent.parent
+        linked_run = target_dir / "runs" / "linked-run"
+        (target_dir / "runs" / "file-run").write_text("a file cannot be a Run directory")
+        other_run = self.source.output / "other.test" / "runs" / "other-run"
+        other_run.mkdir(parents=True)
+        alias = target_dir / "latest-run"
+        for link_target in (outside, other_run, "runs/linked-run", "runs/file-run", "latest-run",
+                            "runs/../runs/" + self.run_id, "runs/" + self.run_id + "/urls.txt"):
+            with self.subTest(link_target=str(link_target)):
+                if link_target == "runs/linked-run":
+                    linked_run.symlink_to(outside, target_is_directory=True)
+                alias.symlink_to(link_target)
+                before = self.fingerprint_source()
+                try:
+                    with self.assertRaises(ReconError) as raised:
+                        review.prepare_review(self.source.root, self.destination)
+                    self.assertIn(f"symlinks: {alias}", str(raised.exception))
+                    self.assertFalse(self.destination.exists())
+                    self.assertEqual(before, self.fingerprint_source())
+                    self.assertEqual(private_file.read_text(), "not part of this installation")
+                finally:
+                    alias.unlink()
+                    if linked_run.is_symlink():
+                        linked_run.unlink()
 
     def test_existing_and_overlapping_destinations_are_never_overwritten(self):
         self.destination.mkdir()
