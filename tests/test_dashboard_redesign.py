@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import datetime as dt
+import html
 import json
 import re
 import shutil
@@ -51,6 +52,38 @@ class FormInventory(HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'form': self.current = None
         if tag == 'details' and self.detail_stack: self.detail_stack.pop()
+
+
+class RecordTableInventory(HTMLParser):
+    """Inspect the same fields used by desktop tables and stacked mobile rows."""
+    def __init__(self, markup: str):
+        super().__init__()
+        self.tables = []
+        self.table = self.row = self.cell = None
+        self.feed(markup)
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == 'table' and 'responsive-records' in values.get('class', '').split():
+            self.table = {'attrs': values, 'rows': []}
+            self.tables.append(self.table)
+        elif self.table is not None and tag == 'tr':
+            self.row = []
+        elif self.row is not None and tag == 'td':
+            self.cell = {'attrs': values, 'text': ''}
+
+    def handle_data(self, data):
+        if self.cell is not None: self.cell['text'] += data
+
+    def handle_endtag(self, tag):
+        if tag == 'td' and self.cell is not None:
+            self.row.append(self.cell)
+            self.cell = None
+        elif tag == 'tr' and self.row is not None:
+            if self.row: self.table['rows'].append(self.row)
+            self.row = None
+        elif tag == 'table':
+            self.table = self.row = self.cell = None
 
 
 class DashboardRedesignTests(unittest.TestCase):
@@ -131,6 +164,37 @@ class DashboardRedesignTests(unittest.TestCase):
         self.assertEqual(data['total'], 2)
         self.assertTrue(all(r['target']=='example.test' and r['source_run_id']=='R1' for r in data['rows']['URLs']))
         self.assertEqual(search_workspace(self.db, '*', target='example.test', run_id='R2', group='URLs')['total'], 0)
+
+    def test_search_drilldown_and_matching_records_keep_scope_and_filters(self):
+        self.run_row('R1')
+        self.urls(2)
+        self.insert('urls', target='example.test', url='https://example.test/catalogneedle/other-run', first_seen=self.now, last_seen=self.now, last_run_id='R2')
+        self.urls(1, target='other.test')
+        params = {'q':['catalogneedle'], 'target':['example.test'], 'group':['URLs'], 'run':['R1'], 'days':['7'], 'files':['1']}
+        body = self.render('search', params, '/search')
+        parsed = FormInventory(body)
+        browser = next(d for d in parsed.details if d.get('id') == 'search-record-types')
+        self.assertNotIn('open', browser)
+        self.assertIn('URLs · 2 matching records', body)
+        self.assertTrue(all('disabled' not in field for _,field,_ in parsed.fields))
+        self.assertIn('/?target=example.test', parsed.links)
+        detail_query = next(urllib.parse.parse_qs(urllib.parse.urlsplit(href).query) for href in parsed.links if 'record=' in href)
+        for key, values in params.items(): self.assertEqual(detail_query[key], values)
+        detail = self.render('search', detail_query, '/search')
+        self.assertIn('Stored record details', detail)
+        self.assertNotIn('other-run</code>', detail)
+        tables = RecordTableInventory(detail).tables
+        table = next(t for t in tables if t['attrs']['aria-label'] == 'URLs')
+        self.assertEqual(table['attrs']['role'], 'table')
+        self.assertEqual(len(table['rows']), 2)  # One result and its complete stored details.
+        fields = table['rows'][0]
+        self.assertEqual(len(fields), 5)
+        self.assertTrue(all(cell['attrs']['role'] == 'cell' for cell in fields))
+        for cell, value in zip(fields, ['example.test', detail_query['record'][0], 'katana', 'R1', self.now]):
+            self.assertIn(value, cell['text'])
+        matching_query = next(urllib.parse.parse_qs(urllib.parse.urlsplit(href).query) for href in FormInventory(detail).links if href.startswith('/search?') and 'record=' not in href and 'group=URLs' in href)
+        self.assertEqual(matching_query, params)
+        self.assertIn('URLs · 2 matching records', self.render('search', matching_query, '/search'))
 
     def test_literal_percent_underscore_and_quotes_are_not_sql_wildcards(self):
         self.insert('urls', target='example.test', url='https://example.test/a%_b', first_seen=self.now, last_seen=self.now)
@@ -339,6 +403,63 @@ class DashboardRedesignTests(unittest.TestCase):
         snapshot = _command_center_snapshot(self.db)
         self.assertEqual(snapshot['collection_quality'], {'partial':1,'timeout':1,'no_input':1})
         self.assertEqual(snapshot['decisions'][0]['kind'], 'run')
+
+    def test_run_review_keeps_failed_tool_outcomes_and_timing_in_mobile_fields(self):
+        self.run_row(status='failed')
+        finished = (dt.datetime.fromisoformat(self.now.replace('Z', '+00:00')) + dt.timedelta(minutes=30)).isoformat().replace('+00:00', 'Z')
+        metrics = {'collection_status':'partial', 'katana_status':'timeout', 'katana_timed_out':True,
+                   'katana_input_origins':24, 'katana_origins_completed':15, 'katana_pending_origins':9,
+                   'katana_observed':73, 'katana_stop_reason':'batch_timeout', 'katana_exit_code':124,
+                   'katana_duration_seconds':1800, 'katana_batches_completed':5, 'katana_batches_attempted':6}
+        self.insert('stage_runs', run_id='R1', target='example.test', stage='urls', status='failed', attempt=2,
+                    started_at=self.now, finished_at=finished, exit_code=124, duration_seconds=1800,
+                    metrics_json=json.dumps(metrics), error='<script>tool failure</script>')
+        body = self.render('run_review', {'id':['R1']}, '/run-review')
+        table = RecordTableInventory(body).tables[0]
+        self.assertEqual(table['attrs']['role'], 'table')
+        self.assertEqual(len(table['rows']), 1)
+        fields = table['rows'][0]
+        self.assertEqual(len(fields), 5)
+        for field, values in zip(fields, [
+            ['example.test', 'urls', 'Attempt 2', 'failed'], ['Failed / Timeout'],
+            ['Started: '+self.now, 'Finished: '+finished, '1800.0s'], ['124'],
+            ['24 input', '15 completed', '9 pending', '73 lines', 'batches 5/6', 'batch_timeout', 'tool failure', 'Full metrics']]):
+            for value in values: self.assertIn(value, field['text'])
+        self.assertIn('Execution: failed', body)
+        self.assertIn('Run failed; 1 collection stage(s) incomplete.', body)
+        self.assertNotIn('<script>tool failure', body)
+        self.assertIn('&lt;script&gt;tool failure', body)
+        self.assertEqual(len([href for href in FormInventory(body).links if href.startswith('#stage-')]), 1)
+        raw_metrics = re.search(r'<pre[^>]*>(.*?)</pre>', body, re.S).group(1)
+        self.assertEqual(json.loads(html.unescape(raw_metrics)), metrics)
+
+    def test_running_retry_does_not_reuse_previous_timeout_metrics_or_duration(self):
+        self.run_row(status='running')
+        previous = {'collection_status':'partial', 'katana_status':'timeout', 'katana_timed_out':True, 'katana_duration_seconds':1800}
+        self.db.stage_begin('R1', 'example.test', 'urls', 1)
+        self.db.stage_finish('R1', 'example.test', 'urls', 'partial', duration=1800, metrics=previous)
+        self.db.stage_begin('R1', 'example.test', 'urls', 2)
+        self.assertEqual(_command_center_snapshot(self.db, 'example.test')['collection_quality'], {'partial':0, 'timeout':0, 'no_input':0})
+        body = self.render('run_review', {'id':['R1']}, '/run-review')
+        visible = body.split("<details class='panel' id='stage-", 1)[0]
+        self.assertIn('Run is in progress', visible)
+        self.assertNotIn('Partial / Timeout', visible)
+        self.assertNotIn('1800.0s', visible)
+        fields = RecordTableInventory(body).tables[0]['rows'][0]
+        self.assertIn('Attempt 2', fields[0]['text'])
+        self.assertIn('Running', fields[1]['text'])
+        self.assertIn('In progress', fields[2]['text'])
+        self.assertIn('Collection outcome is not recorded for the running attempt.', fields[4]['text'])
+        self.assertIn('Earlier attempt metrics', body)
+        raw_metrics = re.search(r'<pre[^>]*>(.*?)</pre>', body, re.S).group(1)
+        self.assertEqual(json.loads(html.unescape(raw_metrics)), previous)
+        next_form = next(f for f in FormInventory(body).forms if f['attrs'].get('action') == '/run/next-stage')
+        self.assertEqual(next(v['value'] for v in next_form['fields'] if v['name'] == 'attempt'), '2')
+        self.db.stage_finish('R1', 'example.test', 'urls', 'success', duration=2, metrics={'collection_status':'complete', 'urls':12})
+        complete = self.render('run_review', {'id':['R1']}, '/run-review')
+        self.assertIn('URLs: 12', complete)
+        self.assertNotIn('Earlier attempt metrics', complete)
+        self.assertNotIn('katana_timed_out', complete)
 
     def test_live_next_stage_form_keeps_attempt_target_and_post_contract(self):
         self.run_row(status='running')

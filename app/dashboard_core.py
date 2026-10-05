@@ -49,7 +49,7 @@ from session_auth import parse_session, create_session, destroy_session, verify_
 from evidence import build_evidence_export
 from plugins import PluginManager
 from notification_operations_center import combined_dead_letters, notification_delivery_action
-from dashboard_design import MINIMAL_CSS, pagination, query_page, read_snapshot, split_filter_fields
+from dashboard_design import MINIMAL_CSS, labeled_cell, pagination, query_page, read_snapshot, split_filter_fields
 from dashboard_search import SEARCH_GROUPS, search_workspace, search_targets
 
 ALERT_STATUSES = [
@@ -438,7 +438,7 @@ def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
             "SELECT SUM(status='partial' OR CASE WHEN json_valid(metrics_json) THEN json_extract(metrics_json,'$.collection_status')='partial' ELSE 0 END) partial,"
             "SUM(CASE WHEN json_valid(metrics_json) THEN COALESCE(json_extract(metrics_json,'$.katana_timed_out'),json_extract(metrics_json,'$.timed_out'),0) OR json_extract(metrics_json,'$.katana_status')='timeout' ELSE 0 END) timeout,"
             "SUM(CASE WHEN json_valid(metrics_json) THEN json_extract(metrics_json,'$.collection_status')='no_input' OR (stage='javascript' AND json_extract(metrics_json,'$.files')=0) ELSE 0 END) no_input "
-            "FROM stage_runs WHERE run_id=?" + (" AND target=?" if target else ""),
+            "FROM stage_runs WHERE run_id=? AND status<>'running'" + (" AND target=?" if target else ""),
             (latest_run['id'], target) if target else (latest_run['id'],),
         )
         quality = {key: int(row[key] or 0) for key in quality}
@@ -2741,6 +2741,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 metrics = {}
             stage_name = str(row["stage"])
             raw_status = str(row["status"])
+            recorded_metrics = metrics
+            # stage_begin retains the preceding attempt's metrics and duration
+            # until stage_finish writes this attempt's result.
+            if raw_status == 'running': metrics = {}
             quality = str(metrics.get("collection_status") or "")
             if raw_status == "partial" or quality == "partial":
                 partial_count += 1
@@ -2786,27 +2790,43 @@ class DashboardHandler(BaseHTTPRequestHandler):
             elif stage_name == "nuclei":
                 highlights.append(f"Targets: {metrics.get('targets', '—')}")
                 highlights.append(f"Findings: {metrics.get('findings', '—')}")
+            if raw_status == 'running':
+                highlights = ['Collection outcome is not recorded for the running attempt.']
 
             reasons = metrics.get('collection_reasons') or []
             if isinstance(reasons, str): reasons = [reasons]
             reason = ' · '.join(str(x) for x in reasons)
             if row['error']: reason = str(row['error']) + (' · ' + reason if reason else '')
-            duration = '—' if row['duration_seconds'] is None else str(round(float(row['duration_seconds']), 2)) + 's'
+            duration = 'In progress' if raw_status == 'running' else '—' if row['duration_seconds'] is None else str(round(float(row['duration_seconds']), 2)) + 's'
             tone = 'danger' if raw_status == 'failed' else 'amber' if 'Partial' in label or 'input' in label.lower() else _tone(raw_status)
+            timing = (
+                _esc(duration)
+                + f"<br><span class='muted small'>Started: {_esc(row['started_at'] or 'Not recorded')}<br>"
+                + f"Finished: {_esc(row['finished_at'] or ('In progress' if raw_status == 'running' else 'Not recorded'))}</span>"
+            )
+            observations = (
+                "<ul class='run-observations'>" + ''.join(f"<li>{_esc(item)}</li>" for item in highlights) + '</ul>'
+                if highlights else 'See recorded metrics'
+            )
+            observations += (f"<p class='run-status-error'>{_esc(reason)}</p>" if reason else '')
+            observations += f"<a class='small' href='#stage-{len(items)}'>Full metrics ↓</a>"
             stage_rows.append(
-                f"<tr><td>{_esc(row['target'])}<br><strong>{_esc(stage_name)}</strong><br><span class='muted small'>Attempt {row['attempt']} · {_esc(raw_status)}</span></td>"
-                f"<td>{_pill(label,tone)}</td><td>{_esc(duration)}<br><span class='muted small'>{_esc(row['finished_at'] or ('In progress' if raw_status == 'running' else 'End time not recorded'))}</span></td>"
-                f"<td>{_esc(row['exit_code'] if row['exit_code'] is not None else '—')}</td><td>{_esc(' · '.join(highlights) or 'See recorded metrics')}"
-                + (f"<p class='run-status-error'>{_esc(reason)}</p>" if reason else '')
-                + f"<a class='small' href='#stage-{len(items)}'>Full metrics ↓</a></td></tr>"
+                "<tr role='row'>"
+                + labeled_cell('Target / Stage', f"{_esc(row['target'])}<br><strong>{_esc(stage_name)}</strong><br><span class='muted small'>Attempt {row['attempt']} · {_esc(raw_status)}</span>")
+                + labeled_cell('Collection', _pill(label,tone))
+                + labeled_cell('Timing', timing)
+                + labeled_cell('Exit code', _esc(row['exit_code'] if row['exit_code'] is not None else '—'))
+                + labeled_cell('Observed result / Stop reason', observations)
+                + '</tr>'
             )
 
             detail = (
                 "<div class='muted small' style='margin:8px 0'>"
                 + _esc(" · ".join(highlights))
                 + "</div>"
+                + ("<p class='small muted'>Earlier attempt metrics — these do not describe the running attempt.</p>" if raw_status == 'running' and recorded_metrics else '')
                 + "<pre style='overflow:auto;white-space:pre-wrap'>"
-                + _esc(json.dumps(metrics, ensure_ascii=False, indent=2))
+                + _esc(json.dumps(recorded_metrics, ensure_ascii=False, indent=2))
                 + "</pre>"
             )
             items.append(
@@ -2814,12 +2834,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "<summary style='cursor:pointer'>"
                 + f"<strong>{_esc(row['target'])} · {_esc(stage_name)}</strong>"
                 + f" — {_esc(label)}"
-                + f" <small class='muted'>({_esc(duration)})</small>"
+                + f" <small class='muted'>(Attempt {row['attempt']} · {_esc(duration)})</small>"
                 + "</summary>" + detail + "</details>"
             )
 
         if str(run["status"]) == "running":
             summary = "Run is in progress; stage outcomes may change."
+        elif str(run["status"]) == "failed":
+            summary = f"Run failed; {partial_count} collection stage(s) incomplete." if partial_count else 'Run failed.'
+        elif str(run["status"]) == "cancelled":
+            summary = f"Run cancelled; {partial_count} collection stage(s) incomplete." if partial_count else 'Run cancelled.'
         elif partial_count:
             summary = f"Run finished; {partial_count} collection stage(s) incomplete."
         elif str(run["status"]) != "success":
@@ -2838,13 +2862,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             header
             + "<section class='panel' style='padding:16px'>"
             + f"<h2>{_esc(summary)}</h2>"
-            + f"<p><code>{_esc(run_id)}</code> · {_esc(run['status'])}</p>"
+            + f"<p><code>{_esc(run_id)}</code> · Execution: {_esc(run['status'])}</p>"
             + f"<p class='muted small'>Started: {_esc(run['started_at'])} · Finished: {_esc(run['finished_at'] or '—')}</p>"
             + (f"<p class='run-status-error'>{_esc(run['error'])}</p>" if run['error'] else '')
             + f"<p class='muted'>{_esc(note)}</p>"
             + "</section>"
             + "".join(live_controls)
-            + ("<section class='panel run-stage-summary'><div class='panel-head'><h3>Stage outcomes</h3><span class='muted small'>Collection quality stays separate from run status.</span></div><div class='table-wrap'><table><thead><tr><th>Target / Stage</th><th>Collection</th><th>Duration / Finished</th><th>Exit code</th><th>Observed result / Stop reason</th></tr></thead><tbody>" + ''.join(stage_rows) + "</tbody></table></div></section>" if stage_rows else '')
+            + ("<section class='panel run-stage-summary'><div class='panel-head'><h3>Stage outcomes</h3><span class='muted small'>Collection quality stays separate from run status.</span></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='Stage outcomes'><thead role='rowgroup'><tr role='row'><th scope='col'>Target / Stage</th><th scope='col'>Collection</th><th scope='col'>Timing</th><th scope='col'>Exit code</th><th scope='col'>Observed result / Stop reason</th></tr></thead><tbody role='rowgroup'>" + ''.join(stage_rows) + "</tbody></table></div></section>" if stage_rows else '')
             + ("".join(items) if items else "<p class='muted'>No stage results recorded yet.</p>")
         )
         self.send_html("Run review", body)
@@ -3592,7 +3616,11 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         finally:
             db.close()
         total = data['total']
-        header = _page_header('Universal search', 'Search stored research observations, investigations, evidence and execution records.', "<a class='button secondary' href='/'>Command center</a>", 'Workspace index')
+        params = {'q': q, 'target': target, 'group': group, 'run': run_id, 'days': days or '', 'record': record, 'files': '1' if include_files else ''}
+        actions = f"<a class='button secondary' href='{_esc(_query_link('/', target=target))}'>Command center</a>"
+        if record:
+            actions += f"<a class='button secondary' href='{_esc(_query_link('/search', **{**params, 'record': ''}))}'>Matching records →</a>"
+        header = _page_header('Universal search', 'Search stored research observations, investigations, evidence and execution records.', actions, 'Workspace index')
         fields = (f"<label class='filter-wide'>Search query<input name='q' value='{_esc(q)}' placeholder='Host, endpoint, evidence, run ID…'></label>"
                   f"<label>Target{_select('target', targets, target, 'All targets')}</label>"
                   f"<label>Record type{_select('group', [g.name for g in SEARCH_GROUPS] + ['Change alerts','Stored text'], group, 'All record types')}</label>"
@@ -3604,10 +3632,14 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         if not q and not record:
             self.send_html('Search', header + form + _empty('Search your workspace', 'Enter literal text or use * to browse every indexed record. Use ⌘K for workspace commands or / to focus search.'))
             return
-        params = {'q': q, 'target': target, 'group': group, 'run': run_id, 'days': days or '', 'record': record, 'files': '1' if include_files else ''}
-        summary = "<nav class='search-groups' aria-label='Matching record types'>" + f"<a class='{'active' if not group else ''}' href='{_query_link('/search', **{**params, 'group': ''})}'>All types <b>{sum(data['counts'].values())}</b></a>" + ''.join(
+        type_links = "<nav class='search-groups' aria-label='Matching record types'>" + f"<a class='{'active' if not group else ''}' href='{_query_link('/search', **{**params, 'group': ''})}'>All types <b>{sum(data['counts'].values())}</b></a>" + ''.join(
             f"<a class='{'active' if group == name else ''}' href='{_query_link('/search', **{**params, 'group': name})}'>{_esc(name)} <b>{count}</b></a>" for name, count in data['counts'].items() if count or name == group
         ) + "</nav>"
+        summary = (
+            "<details class='search-type-browser' id='search-record-types'><summary>Record types"
+            + f"<span class='small'>{_esc(group or 'All types')} · {total} matching records</span></summary>"
+            + type_links + '</details>'
+        )
         pager = pagination('/search', params, total, data['page'], data['page_size'])
         sections = []
         for name, rows in data['rows'].items():
@@ -3615,9 +3647,18 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
             for row in rows:
                 value = row.get('value', '')
                 source = ' · '.join(str(row.get(k) or '') for k in ('source_run_id', 'analysis_id') if row.get(k))
-                detail_href = _query_link('/search', q='*', group=name, target=row.get('target') or '', record=value, files='1' if name=='Stored text' else '')
+                detail_href = _query_link('/search', **{**params, 'group': name, 'target': row.get('target') or '', 'record': value})
                 detail_link = f"<br><a class='small' href='{_esc(detail_href)}'>Stored details →</a>" if not record and name!='Stored text' else ''
-                body_rows.append(f"<tr><td>{_esc(row.get('target','') or 'Global')}</td><td><a href='{_esc(row['href'])}'><code>{_esc(value)}</code></a>{detail_link}</td><td>{_esc(row.get('extra',''))}</td><td><code>{_esc(source or '—')}</code></td><td>{_esc(row.get('seen',''))}</td></tr>")
+                record_href = detail_href if name != 'Stored text' and urllib.parse.urlsplit(row['href']).path == '/search' else row['href']
+                body_rows.append(
+                    "<tr role='row'>"
+                    + labeled_cell('Target', _esc(row.get('target','') or 'Global'))
+                    + labeled_cell('Record', f"<a href='{_esc(record_href)}'><code>{_esc(value)}</code></a>{detail_link}")
+                    + labeled_cell('Context', _esc(row.get('extra','') or '—'))
+                    + labeled_cell('Run / Analysis', f"<code>{_esc(source or '—')}</code>")
+                    + labeled_cell('Seen', _esc(row.get('seen','') or 'Not recorded'))
+                    + '</tr>'
+                )
                 if row.get('record_details'):
                     details = _json(row['record_details'], {})
                     facts = []
@@ -3626,11 +3667,11 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
                             try: detail = json.dumps(json.loads(detail), ensure_ascii=False, indent=2)
                             except (TypeError, ValueError): pass
                         facts.append(f"<dt>{_esc(key.replace('_',' '))}</dt><dd><pre>{_esc(detail if detail is not None else '—')}</pre></dd>")
-                    body_rows.append("<tr><td colspan='5'><details class='search-record-details' open><summary>Stored record details</summary><dl>" + ''.join(facts) + '</dl></details></td></tr>')
+                    body_rows.append("<tr role='row'><td role='cell' colspan='5'><details class='search-record-details' open><summary>Stored record details</summary><dl>" + ''.join(facts) + '</dl></details></td></tr>')
             route = next((g.route for g in SEARCH_GROUPS if g.name == name), '/alerts' if name=='Change alerts' else '/javascript')
             route = {'/case':'/cases','/asset':'/assets','/bug-candidate':'/potential-findings','/run-review':'/runs','/js-diff':'/javascript','/alert':'/signal-alerts'}.get(route,route)
             workspace = _query_link(route, target=target)
-            sections.append(f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} shown · {data['counts'][name]} matching records</span><a href='{workspace}'>Open workspace →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Target</th><th>Record</th><th>Context</th><th>Run / Analysis</th><th>Seen</th></tr></thead><tbody>{''.join(body_rows)}</tbody></table></div></section>")
+            sections.append(f"<section class='panel search-results-panel'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} shown · {data['counts'][name]} matching records</span><a href='{workspace}'>Open workspace →</a></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='{_esc(name)}'><thead role='rowgroup'><tr role='row'><th scope='col'>Target</th><th scope='col'>Record</th><th scope='col'>Context</th><th scope='col'>Run / Analysis</th><th scope='col'>Seen</th></tr></thead><tbody role='rowgroup'>{''.join(body_rows)}</tbody></table></div></section>")
         if not total: sections.append(_empty('No matching records', 'Change the query or clear the active filters.'))
         if data['unavailable']: sections.append(f"<p class='muted'>Unavailable in this database: {_esc(', '.join(data['unavailable']))}.</p>")
         if data['unavailable_files']: sections.append(f"<p class='run-status-error'>{data['unavailable_files']} referenced file(s) could not be searched. File-text results cover readable stored artifacts only.</p>")
