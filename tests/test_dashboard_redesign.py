@@ -396,6 +396,9 @@ class DashboardRedesignTests(unittest.TestCase):
                     metrics_json=json.dumps({'collection_status':'partial','katana_status':'timeout','katana_timed_out':True,'katana_input_origins':24,'katana_origins_completed':15,'katana_pending_origins':9,'katana_observed':73,'katana_stop_reason':'batch_timeout','katana_exit_code':124,'katana_duration_seconds':1800}))
         self.insert('stage_runs', run_id='R1', target='example.test', stage='javascript', status='success', started_at=self.now, metrics_json='{"files":0,"downloaded":0}')
         body = self.render('run_review', {'id':['R1']}, '/run-review')
+        summary = body.split("<section class='panel run-stage-summary'>", 1)[0]
+        self.assertIn('1 timeout(s) · 1 stage(s) had no input', summary)
+        self.assertIn('Execution: partial', summary)
         visible = body.split("<details class='panel' id='stage-", 1)[0]
         for value in ['Partial / Timeout','No JS input','24 input','15 completed','9 pending','73 lines','batch_timeout','124','1800']:
             self.assertIn(value, visible)
@@ -427,6 +430,9 @@ class DashboardRedesignTests(unittest.TestCase):
             for value in values: self.assertIn(value, field['text'])
         self.assertIn('Execution: failed', body)
         self.assertIn('Run failed; 1 collection stage(s) incomplete.', body)
+        summary = body.split("<section class='panel run-stage-summary'>", 1)[0]
+        self.assertIn('1 timeout(s)', summary)
+        self.assertNotIn('2 timeout(s)', summary)
         self.assertNotIn('<script>tool failure', body)
         self.assertIn('&lt;script&gt;tool failure', body)
         self.assertEqual(len([href for href in FormInventory(body).links if href.startswith('#stage-')]), 1)
@@ -444,6 +450,7 @@ class DashboardRedesignTests(unittest.TestCase):
         visible = body.split("<details class='panel' id='stage-", 1)[0]
         self.assertIn('Run is in progress', visible)
         self.assertNotIn('Partial / Timeout', visible)
+        self.assertNotIn('timeout(s)', visible)
         self.assertNotIn('1800.0s', visible)
         fields = RecordTableInventory(body).tables[0]['rows'][0]
         self.assertIn('Attempt 2', fields[0]['text'])

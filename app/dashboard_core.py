@@ -2731,6 +2731,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         items = []
         stage_rows = []
         partial_count = 0
+        timeout_count = 0
         no_input_count = 0
         for row in stages:
             try:
@@ -2757,6 +2758,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if raw_status == 'failed' and label == 'Partial': label = 'Failed / Partial'
             timed_out = bool(metrics.get('katana_timed_out') or metrics.get('timed_out') or metrics.get('katana_status') == 'timeout')
             if timed_out:
+                timeout_count += 1
                 if not (raw_status == 'partial' or quality == 'partial'): partial_count += 1
                 label = ('Failed' if raw_status == 'failed' else 'Partial') + ' / Timeout'
             if stage_name == 'javascript' and metrics.get('files') == 0 and quality != 'no_input':
@@ -2850,9 +2852,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             summary = f"Run status: {run['status']}."
         else:
             summary = "Run finished. Completion of the entire target cannot be established."
-        note = (
-            f"{no_input_count} stage(s) had no input. " if no_input_count else ""
-        ) + "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
+        quality_flags = []
+        if timeout_count:
+            quality_flags.append(f"{timeout_count} timeout(s)")
+        if no_input_count:
+            quality_flags.append(f"{no_input_count} stage(s) had no input")
+        quality_summary = (
+            "<p class='run-status-error'>" + _esc(' · '.join(quality_flags)) + '</p>'
+            if quality_flags else ''
+        )
+        note = "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
         header = _page_header(
             "Run review", "Execution state and observed collection quality.",
             "<a class='button secondary' href='/runs'>Run history</a>",
@@ -2860,12 +2869,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         )
         body = (
             header
-            + "<section class='panel' style='padding:16px'>"
+            + "<section class='panel run-review-summary'>"
             + f"<h2>{_esc(summary)}</h2>"
+            + quality_summary
             + f"<p><code>{_esc(run_id)}</code> · Execution: {_esc(run['status'])}</p>"
             + f"<p class='muted small'>Started: {_esc(run['started_at'])} · Finished: {_esc(run['finished_at'] or '—')}</p>"
             + (f"<p class='run-status-error'>{_esc(run['error'])}</p>" if run['error'] else '')
-            + f"<p class='muted'>{_esc(note)}</p>"
+            + f"<p class='muted small'>{_esc(note)}</p>"
             + "</section>"
             + "".join(live_controls)
             + ("<section class='panel run-stage-summary'><div class='panel-head'><h3>Stage outcomes</h3><span class='muted small'>Collection quality stays separate from run status.</span></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='Stage outcomes'><thead role='rowgroup'><tr role='row'><th scope='col'>Target / Stage</th><th scope='col'>Collection</th><th scope='col'>Timing</th><th scope='col'>Exit code</th><th scope='col'>Observed result / Stop reason</th></tr></thead><tbody role='rowgroup'>" + ''.join(stage_rows) + "</tbody></table></div></section>" if stage_rows else '')
