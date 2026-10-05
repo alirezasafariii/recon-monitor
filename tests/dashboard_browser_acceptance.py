@@ -309,7 +309,7 @@ class Safari:
     def click(self, selector):
         # Position a visible control before Safari's native pointer action.
         # Hidden controls still fail; callers must open their actual disclosure.
-        self.js("const e=document.querySelector(arguments[0]);if(e && e.tagName!=='OPTION' && e.getClientRects().length)e.scrollIntoView({block:'center',behavior:'instant'});", selector)
+        self.js("const e=document.querySelector(arguments[0]);if(e && e.tagName!=='OPTION' && e.getClientRects().length){const r=e.getBoundingClientRect(),top=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;if(r.top<top||r.bottom>innerHeight)e.scrollIntoView({block:'center',behavior:'instant'});}", selector)
         self.command("POST", "/element/" + self.element(selector) + "/click", {})
 
     def fill(self, selector, value):
@@ -327,7 +327,7 @@ class Safari:
             if value:
                 return value
             time.sleep(0.15)
-        state = self.js("return {url:location.href,y:scrollY,ready:document.readyState,saved:sessionStorage.getItem('recon-same-page-scroll'),submit:window.__uiSubmit||null,history:history.scrollRestoration}")
+        state = self.js("return {url:location.href,y:scrollY,ready:document.readyState,saved:sessionStorage.getItem('recon-same-page-scroll'),submission:sessionStorage.getItem('ui-submission-debug'),submit:window.__uiSubmit||null,history:history.scrollRestoration}")
         raise AssertionError(f"Safari condition not reached: {script}; state={state}")
 
     def screenshot(self, name):
@@ -422,7 +422,7 @@ class SafariDashboardTests(unittest.TestCase):
         b.js("document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,900)")
         before = b.js("return window.scrollY")
         self.assertGreater(before, 600)
-        b.js("window.__uiSubmit='old-document';document.querySelector('.filter-panel form').requestSubmit()")
+        b.js("document.addEventListener('submit',()=>sessionStorage.setItem('ui-submission-debug',JSON.stringify({y:scrollY,saved:sessionStorage.getItem('recon-same-page-scroll')})),{capture:true,once:true});window.__uiSubmit='old-document';document.querySelector('.filter-panel form').requestSubmit()")
         b.wait("return window.__uiSubmit===undefined && document.readyState==='complete' && Math.abs(window.scrollY-900)<5")
         self.assertAlmostEqual(b.js("return window.scrollY"), before, delta=5)
         # Bottom pagination is a real native link with the same number of rows.
@@ -435,6 +435,18 @@ class SafariDashboardTests(unittest.TestCase):
         self.assertNotIn("/catalogneedle/00000", self.text())
         b.command("POST", "/back", {})
         self.assertIn("/catalogneedle/00000", self.text())
+
+    def test_native_pagination_preserves_scroll_and_complete_pages(self):
+        self.go(search_path())
+        b = self.browser
+        b.js("document.documentElement.style.scrollBehavior='auto';const a=[...document.querySelectorAll('.pager a')].filter(a=>a.textContent.includes('Next')).pop();a.id='acceptance-next-native';a.scrollIntoView({block:'center',behavior:'instant'});")
+        before = b.js("return window.scrollY")
+        self.assertGreater(before, 900)
+        b.click("#acceptance-next-native")
+        b.wait("return new URLSearchParams(location.search).get('page')==='2'")
+        b.wait("return Math.abs(window.scrollY-" + str(before) + ")<8")
+        self.assertIn("/catalogneedle/00100", self.text())
+        self.assertNotIn("/catalogneedle/00000", self.text())
 
     def test_native_disclosures_and_metrics_hash(self):
         self.go(search_path())
