@@ -565,7 +565,7 @@ class SafariDashboardTests(unittest.TestCase):
     def test_recon_native_filters_and_complete_pagination(self):
         b=self.browser
         self.go('/recon?target='+TARGET+'&view=categories')
-        b.fill("input[name='q']:not([type='hidden'])",'catalogneedle')
+        b.fill(".filter-panel input[name='q']:not([type='hidden'])",'catalogneedle')
         b.click('.filter-advanced > summary')
         b.click("select[name='category'] option[value='other']")
         b.click("select[name='days'] option[value='7']")
