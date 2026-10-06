@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.8.4
+# راهنمای Recon Monitor 8.8.5
 
-<!-- recon-monitor-current: app=8.8.4 schema=18 -->
+<!-- recon-monitor-current: app=8.8.5 schema=18 -->
 
 ## نسخهٔ فعلی: اصلاح پاک‌سازی فرایند در macOS
 
-Recon Monitor 8.8.4 داشبورد مینیمال، جست‌وجوی کامل، حفظ فیلترها و اطلاعات، نمایش دقیق وضعیت جمع‌آوری، منابع خوانا و تفکیک یافته‌های اصلی از صف هم‌بستگی را ارائه می‌کند. همهٔ اصلاحات macOS و جمع‌آوری نسخهٔ 8.8.3 حفظ شده‌اند.
+Recon Monitor 8.8.5 خطای Validation هنگام آپدیت از نسخه‌های قدیمی را اصلاح می‌کند. پیاده‌سازی بررسی داشبورد همراه app نصب می‌شود و تست‌ها به پوشهٔ tools وابسته نیستند. آپدیت‌های بعدی tools را نیز در کپی، بکاپ برنامه و Rollback پوشش می‌دهند. همهٔ اصلاحات داشبورد 8.8.4 حفظ شده‌اند.
 
-نسخهٔ canonical برنامه **8.8.4** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+نسخهٔ canonical برنامه **8.8.5** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.4.md`، `docs/RELEASE_NOTES_v8.8.4.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.5.md`، `docs/RELEASE_NOTES_v8.8.5.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

@@ -18,8 +18,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
-import dashboard_real_data_review as review
+sys.path.insert(0, str(ROOT / "app"))
+import dashboard_review_support as review
 from core import APP_VERSION, AppPaths, Database, ReconError, utc_now
 from dashboard_artifact_search import search_artifact_text
 from recon_monitor_core import Orchestrator

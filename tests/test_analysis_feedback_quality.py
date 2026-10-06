@@ -15,7 +15,7 @@ class FeedbackQualityTests(unittest.TestCase):
         self.db=Database(self.paths.db);self.addCleanup(self.db.close)
         guard=patch('socket.socket.connect',side_effect=AssertionError('No network in quality tests'));guard.start();self.addCleanup(guard.stop)
         now=utc_now()
-        self.db.execute("INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) VALUES('r','8.8.4','success',?,?,?,1)",(now,now,'example.test'))
+        self.db.execute("INSERT INTO runs(id,version,status,started_at,finished_at,target_selector,target_count) VALUES('r','8.8.5','success',?,?,?,1)",(now,now,'example.test'))
     def alert(self,key,state='new',target='example.test'):
         alert,_,_=self.db.upsert_alert(target,key,'changed_js','HIGH',78,'Saved observation','/api/admin/export',{},'r')
         if state!='new': self.db.set_alert_status(alert,state,'test feedback')

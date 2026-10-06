@@ -1331,7 +1331,7 @@ class UpdateManager:
     @staticmethod
     def _program_items(root: Path) -> tuple[str, ...]:
         fixed = [
-            "app", "docs", "tests", "fixtures", "plugins",
+            "app", "docs", "tests", "fixtures", "plugins", "tools",
             "recon-monitor.sh", "install.sh", "upgrade-v2.sh", "upgrade-v3.sh",
             "README.md", "README_FA.md", "CHANGELOG.md", "MANIFEST.sha256",
             "config.env.example", "tool-compatibility.json",
