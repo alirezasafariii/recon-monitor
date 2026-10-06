@@ -551,7 +551,7 @@ class SafariDashboardTests(unittest.TestCase):
             self.assertIn(self.fixture.selected_analysis,self.text());self.assertNotIn(self.fixture.other_analysis,self.text())
             self.assertIn('Insufficient feedback',self.text())
             self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table')].every(t=>t.getBoundingClientRect().right<=t.parentElement.getBoundingClientRect().right+1)"))
-            self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table tbody .pill')].every(p=>p.getBoundingClientRect().right<=p.closest('td').getBoundingClientRect().right+1)"))
+            self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table tbody .quality-status')].every(p=>p.getBoundingClientRect().right<=p.closest('td').getBoundingClientRect().right+1)"))
             self.assertTrue(b.js('return document.documentElement.scrollWidth<=document.documentElement.clientWidth+1'))
             self.assertFalse(b.js("return document.querySelector('.quality-playbook').open"))
             b.click('.quality-playbook > summary');self.assertTrue(b.js("return document.querySelector('.quality-playbook').open"))
