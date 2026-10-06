@@ -63,6 +63,9 @@ class Links(HTMLParser):
             self.hrefs.append(values["href"])
 
 
+LONG_ENDPOINT='/api/admin/'+'complete-observation-'*24+"?name=<saved>&literal='value'"
+LONG_SOURCE='https://example.test/assets/'+'complete-source-'*32+'.js'
+
 class DashboardFixture:
     def __init__(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="recon-ui-acceptance-")
@@ -98,6 +101,14 @@ class DashboardFixture:
                         "VALUES(?,?,'url','katana',?,?,?)",
                         (target, f"https://{target}/{label}/{index:05}", seen, seen, source),
                     )
+            db.upsert_endpoint_intelligence(TARGET,LONG_ENDPOINT,'endpoint',{'primary_category':'administration','confidence':88,'categories':['administration']},LONG_SOURCE,SOURCE)
+            self.selected_analysis='analysis-selected-complete-identifier'
+            self.other_analysis='analysis-other-complete-identifier'
+            for analysis,target,state,finished in [(self.selected_analysis,TARGET,'new',now),(self.other_analysis,'other.test','false_positive','2099-01-01T00:00:00Z')]:
+                alert,_,_=db.upsert_alert(target,'quality-'+target,'changed_js','HIGH',78,'Saved observation','/api/admin/export',{},SOURCE)
+                if state!='new':db.set_alert_status(alert,state,'synthetic feedback')
+                db.execute("INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,status,started_at,finished_at) VALUES(?,?,?,'fixture','fixture','success',?,?)",(analysis,SOURCE,target,now,finished))
+                db.execute("INSERT INTO analysis_results(analysis_id,alert_id,target,source_run_id,category,original_score,adjusted_score,confidence,hypothesis,next_action,playbook_id,business_context,duplicate_cluster,created_at) VALUES(?,?,?,?,'changed_js',78,78,55,'Synthetic only','Review','general','fixture','fixture',?)",(analysis,alert,target,SOURCE,now))
             db.stage_begin(PARTIAL, TARGET, "urls", 1)
             self.timeout_metrics = {
                 "collection_status": "partial", "katana_status": "timeout",
@@ -174,6 +185,23 @@ class LiveHTTPTests(unittest.TestCase):
         with self.client.open(self.fixture.base + "/login", data=data, timeout=10) as response:
             self.assertEqual(response.status, 200)
             self.assertEqual(urllib.parse.urlsplit(response.geturl()).path, "/")
+
+    def test_quality_scope_and_unknown_feedback(self):
+        self.login()
+        _,_,body=self.get('/analysis-quality?target='+TARGET)
+        self.assertIn(self.fixture.selected_analysis,body);self.assertNotIn(self.fixture.other_analysis,body)
+        self.assertIn('Insufficient feedback',body);self.assertNotIn('>0.0%<',body);self.assertNotIn('overconfident',body)
+        _,_,body=self.get('/analysis-quality?target=other.test')
+        self.assertIn(self.fixture.other_analysis,body);self.assertNotIn(self.fixture.selected_analysis,body)
+        self.assertIn('>0.0%<',body);self.assertIn('>100.0%<',body)
+
+    def test_recon_long_values_remain_complete(self):
+        import html
+        self.login()
+        for view in ('categories','raw'):
+            _,_,body=self.get('/recon?'+urllib.parse.urlencode({'target':TARGET,'view':view,'q':'complete-observation'}))
+            self.assertIn(html.escape(LONG_ENDPOINT,quote=True),body);self.assertIn(html.escape(LONG_SOURCE,quote=True),body)
+            self.assertIn('responsive-records recon-records',body)
 
     def test_login_logout_and_authentication_wall(self):
         self.assertEqual(urllib.parse.urlsplit(self.get(search_path())[1]).path, "/login")
@@ -492,6 +520,76 @@ class SafariDashboardTests(unittest.TestCase):
             b.command("POST", "/refresh", {})
             self.assertEqual(b.js("return document.body.classList.contains('compact')"), compact)
             self.appearance("densityToggle")
+
+    def test_recon_long_sources_and_mobile_labels(self):
+        b=self.browser
+        for view in ('categories','raw'):
+            for width in (1366,390):
+                b.command('POST','/window/rect',{'width':width,'height':900})
+                self.go('/recon?'+urllib.parse.urlencode({'target':TARGET,'view':view,'q':'complete-observation'}))
+                values=b.js("return [...document.querySelectorAll('.recon-records tbody tr:first-child .record-field-value')].map(x=>x.textContent)")
+                self.assertEqual(len(values),8);self.assertTrue(any(LONG_ENDPOINT in v for v in values));self.assertTrue(any(LONG_SOURCE in v for v in values))
+                bounds=b.js("const row=document.querySelector('.recon-records tbody tr');return {client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,height:row.getBoundingClientRect().height,valueWidth:row.children["+('3' if view=='categories' else '2')+"].getBoundingClientRect().width,labels:[...row.querySelectorAll('.record-field-label')].filter(x=>getComputedStyle(x).display!=='none').length}")
+                self.assertLessEqual(bounds['scroll'],bounds['client']+1)
+                if width==390:self.assertEqual(bounds['labels'],8)
+                else:self.assertGreaterEqual(bounds['valueWidth'],200)
+                for theme in ('light','dark'):
+                    if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
+                    b.screenshot('recon-'+view+'-'+str(width)+'-'+theme)
+
+    def test_quality_contained_tables_and_native_target_filter(self):
+        b=self.browser
+        for width in (1366,390):
+            b.command('POST','/window/rect',{'width':width,'height':900})
+            self.go('/analysis-quality?target='+TARGET)
+            self.assertIn(self.fixture.selected_analysis,self.text());self.assertNotIn(self.fixture.other_analysis,self.text())
+            self.assertIn('Insufficient feedback',self.text())
+            self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table')].every(t=>t.getBoundingClientRect().right<=t.parentElement.getBoundingClientRect().right+1)"))
+            self.assertTrue(b.js('return document.documentElement.scrollWidth<=document.documentElement.clientWidth+1'))
+            self.assertFalse(b.js("return document.querySelector('.quality-playbook').open"))
+            b.click('.quality-playbook > summary');self.assertTrue(b.js("return document.querySelector('.quality-playbook').open"))
+            b.click('.quality-playbook > summary')
+            for theme in ('light','dark'):
+                if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
+                b.screenshot('quality-'+str(width)+'-'+theme)
+        b.click("select[name=target] option[value='other.test']")
+        b.click('.filter-panel form button');b.wait("return location.search.includes('other.test')")
+        self.assertIn(self.fixture.other_analysis,self.text());self.assertNotIn(self.fixture.selected_analysis,self.text());self.assertIn('0.0%',self.text())
+
+    def test_recon_native_filters_and_complete_pagination(self):
+        b=self.browser
+        self.go('/recon?target='+TARGET+'&view=categories')
+        b.fill("input[name='q']",'catalogneedle')
+        b.click('.filter-advanced > summary')
+        b.click("select[name='category'] option[value='other']")
+        b.click("select[name='days'] option[value='7']")
+        b.click('.filter-panel form button')
+        b.wait("return location.search.includes('catalogneedle')")
+        self.assertIn('212 results',self.text())
+        b.click("a[href*='view=raw']")
+        b.wait("return location.search.includes('view=raw')")
+        if not b.js("return document.querySelector('.filter-advanced').open"):b.click('.filter-advanced > summary')
+        b.click("select[name='raw'] option[value='url']")
+        b.click('.filter-panel form button')
+        b.wait("return location.search.includes('raw=url')")
+        values=[]
+        for page,count in ((1,100),(2,100),(3,12)):
+            if page>1:
+                b.click(".pager a[href*='page="+str(page)+"']")
+                b.wait("return new URL(location.href).searchParams.get('page')==='"+str(page)+"'")
+            observed=b.js("return [...document.querySelectorAll('.recon-records tbody tr')].map(r=>r.children[2].querySelector('.record-field-value').textContent)")
+            self.assertEqual(len(observed),count);values.extend(observed)
+            params=b.js("return Object.fromEntries(new URL(location.href).searchParams)")
+            for key,value in {'target':TARGET,'view':'raw','raw':'url','q':'catalogneedle','days':'7'}.items():self.assertEqual(params.get(key),value)
+        self.assertEqual(len(set(values)),212)
+        self.assertFalse(any('catalogneedle-old' in v for v in values))
+
+    def test_analysis_has_one_complete_identity(self):
+        self.go('/analysis?target='+TARGET)
+        content=self.text()
+        self.assertEqual(content.count(self.fixture.selected_analysis),1)
+        self.assertIn('Potential Findings',content);self.assertIn('Analysis Quality',content)
+        self.browser.screenshot('analysis-compact-desktop')
 
     def live(self, label):
         self.fixture.progress.update(label=label, message=label)

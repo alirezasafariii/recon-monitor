@@ -124,6 +124,61 @@ class DashboardRedesignTests(unittest.TestCase):
         self.assertEqual(result['status'], 200)
         return result['body']
 
+    def test_quality_target_unknown_feedback_and_read_only_snapshot(self):
+        from analysis_engine import run_analysis, PLAYBOOKS
+        self.run_row()
+        self.db.upsert_alert('example.test','selected','changed_js','HIGH',78,'Saved','/api/admin',{},'R1')
+        selected=run_analysis(self.paths,self.db,'R1','example.test')['analysis_id']
+        self.run_row('R2','other.test')
+        other,_,_=self.db.upsert_alert('other.test','other','changed_js','HIGH',78,'Other','/api/admin',{},'R2')
+        self.db.set_alert_status(other,'interesting','useful')
+        newer=run_analysis(self.paths,self.db,'R2','other.test')['analysis_id']
+        self.db.execute("UPDATE analysis_runs SET finished_at='2099-01-01T00:00:00Z' WHERE id=?",(newer,))
+        before=self.db.one('SELECT COUNT(*) n FROM analysis_quality_snapshots')['n']
+        body=self.render('analysis_quality_page',{'target':['example.test']})
+        self.assertIn(selected,body);self.assertNotIn(newer,body)
+        self.assertIn('Insufficient feedback',body);self.assertNotIn(">0.0%<",body);self.assertNotIn('overconfident',body)
+        self.assertEqual(before,self.db.one('SELECT COUNT(*) n FROM analysis_quality_snapshots')['n'])
+        self.assertIn('Scored results',body);self.assertIn('Reviewed results',body)
+        playbooks=[d for d in FormInventory(body).details if d.get('class')=='quality-playbook']
+        self.assertEqual(len(playbooks),len(PLAYBOOKS));self.assertTrue(all('open' not in d for d in playbooks))
+        for value in PLAYBOOKS.values():
+            for check in value['checks']:self.assertIn(html.escape(check,quote=True),body)
+
+    def test_recon_complete_long_values_and_mobile_field_labels(self):
+        self.run_row()
+        endpoint='/api/admin/'+'full-observation-'*24+"?name=<saved>&literal='value'"
+        source='https://example.test/assets/'+'complete-source-'*32+'.js'
+        self.insert('endpoint_intelligence',target='example.test',endpoint=endpoint,kind='endpoint',primary_category='administration',confidence=88,sources_json=json.dumps([source]),first_seen=self.now,last_seen=self.now,last_run_id='R1')
+        for view in ('categories','raw'):
+            body=self.render('recon_workspace',{'target':['example.test'],'view':[view]})
+            self.assertIn(html.escape(endpoint,quote=True),body);self.assertIn(html.escape(source,quote=True),body)
+            self.assertNotIn('<saved>',body)
+            tables=RecordTableInventory(body).tables
+            self.assertEqual(len(tables),1);self.assertEqual(len(tables[0]['rows'][0]),8)
+            for cell in tables[0]['rows'][0]:self.assertEqual(cell['attrs'].get('role'),'cell')
+
+    def test_queue_details_preserve_all_ranking_context(self):
+        from dashboard import _queue_item_card
+        endpoints=['/api/complete/'+str(i) for i in range(9)]
+        why=['Full ranking reason '+str(i) for i in range(7)]
+        objects=['object-'+str(i) for i in range(8)]
+        body=_queue_item_card({'cluster_id':'full-cluster','target':'example.test','hunt_priority':'HIGH','queue_score':77,'bug_proximity_score':61,'target_evidence_confidence':49,'cluster_strength':84,'endpoints':endpoints,'why':why,'object_tokens':objects})
+        details=FormInventory(body).details
+        self.assertEqual(len(details),1);self.assertNotIn('open',details[0])
+        for value in endpoints+why+objects:self.assertIn(value,body)
+        self.assertIn('not confirmed',body);self.assertIn('Open cluster',body)
+
+    def test_investigation_queue_uses_selected_target_analysis(self):
+        from dashboard import _latest_analysis_queue
+        self.run_row();self.run_row('R2','other.test')
+        for analysis,run,target,finished in [('selected','R1','example.test',self.now),('other','R2','other.test','2099-01-01T00:00:00Z')]:
+            self.insert('analysis_runs',id=analysis,source_run_id=run,target=target,engine_version='test',rule_version='test',mode='analysis',status='success',started_at=self.now,finished_at=finished,summary_json='{}')
+        handler=object.__new__(DashboardHandler);handler.db_path=self.paths.db
+        with patch('dashboard.investigation_queue',return_value=[]) as queue:
+            analysis,_=_latest_analysis_queue(handler,target='example.test')
+        self.assertEqual(analysis,'selected');self.assertEqual(queue.call_args.args[1],'selected')
+
     def test_closed_advanced_filters_preserve_native_controls_and_active_summary(self):
         fields = "<label>Query<input name='q' value='a&amp;b'></label><label>Target<select name='target'><option selected>x.test</option></select></label><label>Risk<input type='number' name='risk' value='70'></label><input type='hidden' name='display' value='table'>"
         markup = _filter_panel(fields, {'Risk': 70, 'Search': 'a&b'}, '/search', title='Filters', result_count=2055)

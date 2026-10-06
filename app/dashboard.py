@@ -109,7 +109,7 @@ def _dedupe_dicts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _latest_analysis_queue(self: Any, *, target: str = "", limit: int = 50) -> tuple[str, list[dict[str, Any]]]:
     db = self.db()
     try:
-        latest = db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+        latest = _base._latest_completed_analysis(db, target)
         analysis_id = str(latest["id"]) if latest else ""
         queue = investigation_queue(db, analysis_id, target=target or None, limit=limit) if analysis_id else []
         return analysis_id, queue
@@ -203,19 +203,19 @@ def _queue_item_card(item: dict[str, Any]) -> str:
     derived_change = _base.parse_int(item.get("derived_change_score"), 0, 0, 100)
     priority = str(item.get("hunt_priority") or "NOISE").upper()
     endpoints = [str(v) for v in item.get("endpoints", []) if str(v).strip()]
-    why = "".join(f"<li>{_base._esc(v)}</li>" for v in item.get("why", [])[:4]) or "<li>No additional ranking explanation recorded.</li>"
+    why = "".join(f"<li>{_base._esc(v)}</li>" for v in item.get("why", [])) or "<li>No additional ranking explanation recorded.</li>"
     change_matches = [
         row
         for row in item.get("derived_change_matches", [])
         if isinstance(row, Mapping)
-    ][:4]
+    ]
     change_reasons = "".join(
         "<li><code>"
         + _base._esc(str(row.get("signal_type") or "derived_change"))
         + "</code> "
         + _base._esc(str(row.get("item") or "changed artifact"))
         + (
-            " — " + _base._esc("; ".join(str(value) for value in row.get("reasons", [])[:2]))
+            " — " + _base._esc("; ".join(str(value) for value in row.get("reasons", [])))
             if isinstance(row.get("reasons"), list) and row.get("reasons")
             else ""
         )
@@ -224,24 +224,24 @@ def _queue_item_card(item: dict[str, Any]) -> str:
     ) or "<li>No matched derived Recon change is attached to this cluster.</li>"
     families = " ".join(
         _base._pill(f"{str(row.get('family') or '').replace('_',' ')} {_base.parse_int(row.get('score'),0,0,100)}")
-        for row in item.get("families", [])[:3] if isinstance(row, Mapping)
+        for row in item.get("families", []) if isinstance(row, Mapping)
     )
     context: list[str] = []
     if item.get("object_tokens"):
-        context.append("objects: " + ", ".join(str(v) for v in item.get("object_tokens", [])[:6]))
+        context.append("objects: " + ", ".join(str(v) for v in item.get("object_tokens", [])))
     if item.get("auth_boundaries"):
-        context.append("auth: " + ", ".join(str(v) for v in item.get("auth_boundaries", [])[:4]))
+        context.append("auth: " + ", ".join(str(v) for v in item.get("auth_boundaries", [])))
     return (
         f"<article class='candidate-card investigation-queue-card' data-cluster-id='{_base._esc(item.get('cluster_id') or '')}'>"
         f"<div class='candidate-accent tone-{_base._tone(priority)}'></div><div class='candidate-main'>"
         f"<div class='candidate-heading'><div><div class='candidate-kicker'>{_base._pill(priority)}{_base._pill('not confirmed','neutral')}{_base._pill('change-linked','info') if derived_change else ''}<span>{_base._esc(item.get('target') or '')}</span></div>"
         f"<h3>{_base._esc(item.get('primary_bug') or item.get('primary_family') or 'Investigation cluster')}</h3>"
-        f"<div class='muted small'>{''.join(f'<code>{_base._esc(v)}</code> ' for v in endpoints[:4])}</div></div>"
-        f"<div class='investigation-score'><span>Queue</span><strong>{queue_score}</strong></div></div>"
+        f"<div class='muted small'>{''.join(f'<code>{_base._esc(v)}</code> ' for v in endpoints[:1])}</div></div>"
+        f"<div class='queue-item-actions'><a href='{_base._esc(_cluster_href(item))}'>Open cluster →</a><div class='investigation-score'><span>Queue</span><strong>{queue_score}</strong></div></div></div>"
         f"<div class='score-triad'><div><span>Bug proximity</span><strong class='tone-purple'>{proximity}</strong></div><div><span>Target evidence</span><strong class='tone-info'>{evidence}</strong></div><div><span>Cluster strength</span><strong class='tone-orange'>{cluster}</strong></div><div><span>Recent change</span><strong class='tone-info'>{derived_change}</strong></div><div><span>Surfaces</span><strong class='tone-success'>{len(endpoints)}</strong></div></div>"
-        f"<div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div><div><strong>Recent Recon change</strong><ul>{change_reasons}</ul><p class='muted small'>Change affinity is non-evidentiary and is already reflected inside bug proximity; it is not counted again in Queue score.</p></div></div>"
+        f"<details class='queue-item-details'><summary>Evidence, ranking and change context</summary><div class='queue-surfaces'><strong>Surfaces</strong><ul>{''.join(f'<li><code>{_base._esc(v)}</code></li>' for v in endpoints)}</ul></div><div class='candidate-reasoning'><div><strong>Top families</strong><p>{families or 'No ranked alternatives recorded.'}</p></div><div><strong>Why it deserves review</strong><ul>{why}</ul></div><div><strong>Correlation context</strong><p>{_base._esc(' · '.join(context) or 'Cross-surface context is limited for this cluster.')}</p></div><div><strong>Recent Recon change</strong><ul>{change_reasons}</ul><p class='muted small'>Change affinity is non-evidentiary and is already reflected inside bug proximity; it is not counted again in Queue score.</p></div></div>"
         "<div class='next-step'><span>Interpretation</span><p>This cluster is an investigation priority only. Review the underlying Potential Findings and target evidence before any vulnerability claim.</p></div>"
-        f"</div><a class='candidate-open' href='{_base._esc(_cluster_href(item))}'>Open cluster →</a></article>"
+        "</details></div></article>"
     )
 
 
@@ -1222,7 +1222,7 @@ def _do_post_with_investigation(self: Any) -> None:
         if path == "/investigation/start":
             analysis_id = str((data.get("analysis_id") or [""])[0]).strip()
             if not analysis_id:
-                latest = db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+                latest = _base._latest_completed_analysis(db, target)
                 analysis_id = str(latest["id"]) if latest else ""
             ensure_cluster_case(
                 db,

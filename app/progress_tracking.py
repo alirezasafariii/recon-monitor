@@ -1498,7 +1498,7 @@ def _progress_panel(base: Any, snapshot: Mapping[str, Any], title: str) -> str:
         + stages_html + "</div></details>"
     )
     return (
-        f"<section class='panel' id='live-progress' style='margin:0 0 16px'><div class='panel-head progress-heading'><h3>{base._esc(panel_title)}</h3>"
+        f"<section class='panel progress-panel' id='live-progress' style='margin:0 0 16px'><div class='panel-head progress-heading'><h3>{base._esc(panel_title)}</h3>"
         + status_pill + "</div><div class='progress-summary'>"
         + ("<div class='progress-context'>" + "".join(context) + "</div>" if context else "")
         + (overview + f"<div class='progress-bar'><div style='width:{width:.1f}%'></div></div>" if running else "")
@@ -1553,23 +1553,12 @@ def _install_dashboard_tracking() -> None:
             db.close()
 
         panel = _progress_panel(dash, snapshot, "Live Analysis Progress")
-        analysis_id = str(snapshot.get("analysis_id") or "")
-        run_id = str(snapshot.get("run_id") or "")
-        row_target = str(snapshot.get("target") or target or "*")
-        status = str(snapshot.get("status") or "not_run")
         summary = (
             "<section class='panel' id='analysis-fast-summary' style='margin-top:16px'>"
             "<div class='panel-head'><div><h3>Analysis workspace</h3>"
             "<span class='muted small'>Current analysis and its source evidence</span></div>"
-            + dash._pill(status)
-            + "</div><div class='panel-body'>"
-            "<div class='attention-grid'>"
-            f"<div class='attention-card'><span>Analysis</span><strong>{dash._esc(analysis_id or '—')}</strong><small>latest tracked analysis</small></div>"
-            f"<div class='attention-card'><span>Source run</span><strong>{dash._esc(run_id or '—')}</strong><small>recon evidence source</small></div>"
-            f"<div class='attention-card'><span>Target</span><strong>{dash._esc(row_target)}</strong><small>analysis scope</small></div>"
-            f"<div class='attention-card'><span>Status</span><strong>{dash._esc(status)}</strong><small>current analysis state</small></div>"
-            "</div>"
-            "<p class='muted small'>Open a finding to review its evidence, alternatives and missing observations. Quality and reasoning views keep the detailed assessment available.</p>"
+            "</div><div class='panel-body'>"
+            "<p class='muted small'>The analysis identity, source run and current status are shown above. Open a finding to review its evidence, alternatives and missing observations.</p>"
             "<div class='page-actions' style='margin-top:14px'>"
             "<a class='button' href='/potential-findings'>Potential Findings</a>"
             "<a class='button secondary' href='/analysis-quality'>Analysis Quality</a>"
