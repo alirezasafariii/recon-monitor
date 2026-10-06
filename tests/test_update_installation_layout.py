@@ -39,9 +39,10 @@ class InstalledReviewLayoutTests(unittest.TestCase):
                 self.assertTrue((installed / 'app/dashboard_review_support.py').is_file())
                 code = (
                     "import sys,unittest;sys.path.insert(0,'app');"
-                    "s=unittest.defaultTestLoader.discover('tests',pattern='test_dashboard_real_data_review.py');"
+                    "patterns=['test_dashboard_real_data_review.py','test_dependency_range_coverage.py','test_js_stage_isolated.py','test_js_validation.py'];"
+                    "s=unittest.TestSuite(unittest.defaultTestLoader.discover('tests',pattern=p) for p in patterns);"
                     "r=unittest.TextTestRunner(verbosity=1).run(s);"
-                    "assert r.testsRun==16,r.testsRun;sys.exit(not r.wasSuccessful())"
+                    "assert r.testsRun==32,r.testsRun;sys.exit(not r.wasSuccessful())"
                 )
                 result = subprocess.run([sys.executable, '-I', '-c', code], cwd=installed,
                                         text=True, capture_output=True, timeout=60)
