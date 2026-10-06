@@ -137,6 +137,29 @@ class CommandRunnerStdinTests(unittest.TestCase):
         self.assertEqual(spawn.call_args.args[0], command)
         return result
 
+    def _invoke_after_ready(self, prefix_code, body_code, **kwargs):
+        """Start the short timeout only after the fixture has emitted its bytes.
+
+        Interpreter startup is not the behavior under test here. Do not read
+        stdout: CommandRunner must still drain and decode the original pipe.
+        """
+        ready = self.paths.root / "fixture.ready"
+        code = prefix_code + "\nfrom pathlib import Path\nPath(" + repr(str(ready)) + ").touch()\n" + body_code
+        command = self._command(code)
+        proc = REAL_POPEN(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, bufsize=1,
+                          start_new_session=True)
+        self.processes.append(proc)
+        deadline = time.monotonic() + 3
+        while not ready.exists() and proc.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(ready.exists(), "fixture did not emit its prefix before timeout test")
+        with patch("core.subprocess.Popen", return_value=proc) as spawn:
+            result = self._invoke(code, **kwargs)
+        spawn.assert_called_once()
+        self.assertEqual(spawn.call_args.args[0], command)
+        return result
+
     @contextmanager
     def _macos_dead_group_signals(self):
         real_killpg = os.killpg
@@ -153,7 +176,7 @@ class CommandRunnerStdinTests(unittest.TestCase):
             yield denied
 
     def test_timeout_applies_while_large_stdin_is_not_read(self):
-        result = self._invoke("import time\nprint('prefix', flush=True)\ntime.sleep(2)", timeout=0.2, input_text=self.LARGE_INPUT)
+        result = self._invoke_after_ready("import time\nprint('prefix', flush=True)", "time.sleep(5)", timeout=0.2, input_text=self.LARGE_INPUT)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
         self.assertFalse(result.operator_next)
@@ -308,7 +331,7 @@ class CommandRunnerStdinTests(unittest.TestCase):
         self._assert_clean()
 
     def test_truncated_multibyte_stdout_does_not_hide_timeout(self):
-        result = self._invoke("import os, time\nos.write(1, b'prefix\\n\\xf0')\ntime.sleep(2)", timeout=0.2, input_text=self.LARGE_INPUT)
+        result = self._invoke_after_ready("import os, time\nos.write(1, b'prefix\\n\\xf0')", "time.sleep(5)", timeout=0.2, input_text=self.LARGE_INPUT)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
         self.assertEqual(self.output.read_text(), "prefix\n\ufffd")

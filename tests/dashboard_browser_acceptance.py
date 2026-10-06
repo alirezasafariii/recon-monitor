@@ -340,6 +340,10 @@ class Safari:
         # Position a visible control before Safari's native pointer action.
         # Hidden controls still fail; callers must open their actual disclosure.
         self.js("const e=document.querySelector(arguments[0]);if(e && e.tagName!=='OPTION' && e.getClientRects().length){const r=e.getBoundingClientRect(),top=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;if(r.top<top||r.bottom>innerHeight)e.scrollIntoView({block:'center',behavior:'instant'});}", selector)
+        # Back/forward restoration may move the viewport after navigation.
+        # Poll the actual hit target; retain native WebDriver clicks so an
+        # overlay or unusable link cannot be hidden by a synthetic JS click.
+        self.wait("const e=document.querySelector(" + json.dumps(selector) + ");if(!e)return false;if(e.tagName==='OPTION')return true;if(!e.getClientRects().length)return false;const r=e.getBoundingClientRect(),top=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;if(r.top<top||r.bottom>innerHeight){e.scrollIntoView({block:'center',behavior:'instant'});return false;}const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!hit && (hit===e || e.contains(hit));")
         self.command("POST", "/element/" + self.element(selector) + "/click", {})
 
     def fill(self, selector, value):
@@ -398,11 +402,12 @@ class SafariDashboardTests(unittest.TestCase):
     def setUp(self):
         self.browser.command("POST", "/window/rect", {"width": 1366, "height": 900})
         self.go("/search")
+        self.browser.wait("return location.pathname==='/search' && !!document.querySelector('details[data-filter-panel]')")
         self.browser.js("window.getSelection().removeAllRanges();document.activeElement.blur();localStorage.removeItem('recon-filters-/search-Search filters');document.querySelector('details[data-filter-panel]').open=false;")
 
     def go(self, path):
         self.browser.go(self.fixture.base + path)
-        self.browser.wait("return document.readyState==='complete'")
+        self.browser.wait("return document.readyState==='complete' && location.pathname===" + json.dumps(urllib.parse.urlsplit(path).path))
 
     def text(self):
         return self.browser.js("return document.querySelector('.content').innerText")
