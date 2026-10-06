@@ -1915,7 +1915,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         else:
             content=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Ranked candidates</h3><span class='muted small'>{len(rows)} shown · {total_count} matching</span></div>{''.join(_candidate_card(r) for r in rows) or _empty('No candidates match this view')}</section>"
         pager=pagination('/potential-findings',{k:v[0] for k,v in p.items() if v},total_count,page,100)
-        self.send_html('Potential findings',header+presets+metrics+controls+pager+content+pager)
+        self.send_html('Potential findings',header+controls+presets+metrics+pager+content+pager)
 
     def bug_candidate_detail(self) -> None:
         candidate_id=str((self.query().get('id') or [''])[0]); db=self.db()

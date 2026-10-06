@@ -603,6 +603,22 @@ class DashboardRedesignTests(unittest.TestCase):
         self.assertIn("id='focusToggle'", markup)
         self.assertIn("id='themeToggle'", markup)
 
+    def test_potential_filters_precede_inventory_and_secondary_queue(self):
+        from dashboard import _bug_candidates_with_queue
+        captured=[]
+        class Handler:
+            def query(self): return {}
+            def db(self): return Database(self_paths.db)
+            def send_html(self,title,body,status=200): captured.append(body)
+        self_paths=self.paths
+        markup="<header>Potential</header><section class='filter-panel'>Search</section><section>Ranked candidates</section>"
+        with patch('dashboard._capture_html',return_value=('Potential',markup,200)), patch('dashboard._latest_analysis_queue',return_value=('analysis',[])):
+            _bug_candidates_with_queue(Handler())
+        body=captured[0]
+        self.assertLess(body.index('Search'),body.index('Ranked candidates'))
+        self.assertLess(body.index('Ranked candidates'),body.index("id='investigation-queue'"))
+        self.assertIn('not comparable to candidate Investigation values',body)
+
     def test_empty_investigation_queue_retains_context_without_empty_metric_tiles(self):
         from dashboard import _investigation_queue_panel
         analysis_id = 'AN-20261004-long-context-identifier'
@@ -610,7 +626,7 @@ class DashboardRedesignTests(unittest.TestCase):
         parsed = FormInventory(markup)
         self.assertIn(analysis_id, markup)
         self.assertIn('0 clusters', markup)
-        self.assertIn('Potential Findings remain available below', markup)
+        self.assertIn('Potential Findings remain available above', markup)
         self.assertNotIn("class='attention-card'", markup)
         self.assertNotIn("class='empty-state'", markup)
         self.assertEqual(len(parsed.details), 1)
