@@ -135,6 +135,55 @@ class ReconP0HardeningTests(unittest.TestCase):
         self.assertNotIn("authorization", record["response_headers"])
         self.assertNotIn("x-internal-debug", record["response_headers"])
 
+    def test_httpx_json_header_names_are_restored_before_allowlisting(self) -> None:
+        # Contract fixture: httpx normalizeHeaders lowercases and replaces '-' with '_'.
+        import json
+        headers = json.loads("""{
+            "strict_transport_security": "max-age=31536000; includeSubDomains; preload",
+            "content_security_policy": "default-src 'self'; frame-ancestors 'self'",
+            "x_frame_options": "DENY", "x_content_type_options": "nosniff",
+            "referrer_policy": "strict-origin-when-cross-origin",
+            "permissions_policy": "camera=()",
+            "content_security_policy_report_only": "default-src 'self'",
+            "cross_origin_opener_policy": "same-origin",
+            "cross_origin_resource_policy": "same-origin",
+            "cross_origin_embedder_policy": "require-corp",
+            "set_cookie": "session=secret", "proxy_authorization": "Bearer secret",
+            "x_internal_debug": "secret"
+        }""")
+        _, record = _httpx_record({'url':'https://example.test/','header':headers})
+        self.assertEqual(record['response_headers'], {
+            'strict-transport-security':'max-age=31536000; includeSubDomains; preload',
+            'content-security-policy':"default-src 'self'; frame-ancestors 'self'",
+            'x-frame-options':'DENY','x-content-type-options':'nosniff',
+            'referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=()',
+            'content-security-policy-report-only':"default-src 'self'",
+            'cross-origin-opener-policy':'same-origin','cross-origin-resource-policy':'same-origin',
+            'cross-origin-embedder-policy':'require-corp',
+        })
+        self.assertTrue(record['response_headers_observed'])
+        self.assertNotIn('secret', json.dumps(record['response_headers']))
+
+    def test_httpx_header_privacy_bounds_and_observation_are_independent(self) -> None:
+        headers={' X_CONTENT_TYPE_OPTIONS ':['nosniff',None],
+                 'content_security_policy':'a'*3000+'\r\nsecret',
+                 'set_cookie':'private','strict_transport_security':{'invalid':'nested'}}
+        _, record=_httpx_record({'url':'https://example.test/','header':headers})
+        self.assertEqual(record['response_headers']['x-content-type-options'],'nosniff')
+        self.assertEqual(len(record['response_headers']['content-security-policy']),2048)
+        self.assertNotIn('strict-transport-security',record['response_headers'])
+        self.assertNotIn('set-cookie',record['response_headers'])
+        self.assertNotIn('\n',record['response_headers']['content-security-policy'])
+        for raw in (None, 'not a header mapping', []):
+            with self.subTest(raw=raw):
+                _,parsed=_httpx_record({'url':'https://example.test/','header':raw})
+                self.assertFalse(parsed['response_headers_observed'])
+        for raw in ({}, {'server':'test','set_cookie':'private'}):
+            with self.subTest(raw=raw):
+                _,parsed=_httpx_record({'url':'https://example.test/','header':raw})
+                self.assertTrue(parsed['response_headers_observed'])
+                self.assertEqual(parsed['response_headers'],{})
+
     def test_raw_url_evidence_keeps_security_significant_semantics(self) -> None:
         raw = normalize_url_preserving_semantics(
             "HTTPS://Example.COM:443//api/a%2Fb?ref=one&x=2&x=1#fragment"
