@@ -357,7 +357,9 @@ class Safari:
     def wait(self, script, timeout=15):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            value = self.js(script)
+            # Safari may expose the destination URL while its new document
+            # is still loading. Never inspect/assert records in that interval.
+            value = self.js("if(document.readyState!=='complete')return false;\n" + script)
             if value:
                 return value
             time.sleep(0.15)
@@ -407,7 +409,7 @@ class SafariDashboardTests(unittest.TestCase):
 
     def go(self, path):
         self.browser.go(self.fixture.base + path)
-        self.browser.wait("return document.readyState==='complete' && location.pathname===" + json.dumps(urllib.parse.urlsplit(path).path))
+        self.browser.wait("return location.href===" + json.dumps(self.fixture.base + path))
 
     def text(self):
         return self.browser.js("return document.querySelector('.content').innerText")
