@@ -552,6 +552,7 @@ class SafariDashboardTests(unittest.TestCase):
             for theme in ('light','dark'):
                 if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
                 b.screenshot('quality-'+str(width)+'-'+theme)
+        b.click("select[name=target]")
         b.click("select[name=target] option[value='other.test']")
         b.click('.filter-panel form button');b.wait("return location.search.includes('other.test')")
         self.assertIn(self.fixture.other_analysis,self.text());self.assertNotIn(self.fixture.selected_analysis,self.text());self.assertIn('0.0%',self.text())
@@ -559,18 +560,18 @@ class SafariDashboardTests(unittest.TestCase):
     def test_recon_native_filters_and_complete_pagination(self):
         b=self.browser
         self.go('/recon?target='+TARGET+'&view=categories')
-        b.fill("input[name='q']",'catalogneedle')
+        b.fill("input[name='q']:not([type='hidden'])",'catalogneedle')
         b.click('.filter-advanced > summary')
         b.click("select[name='category'] option[value='other']")
         b.click("select[name='days'] option[value='7']")
-        b.click("form.filters:has(input[name='q']) button")
+        b.click("form.filters:has(input[name='q']:not([type='hidden'])) button")
         b.wait("return location.search.includes('catalogneedle')")
         self.assertIn('212 results',self.text())
         b.click("a[href*='view=raw']")
         b.wait("return location.search.includes('view=raw')")
         if not b.js("return document.querySelector('.filter-advanced').open"):b.click('.filter-advanced > summary')
         b.click("select[name='raw'] option[value='url']")
-        b.click("form.filters:has(input[name='q']) button")
+        b.click("form.filters:has(input[name='q']:not([type='hidden'])) button")
         b.wait("return location.search.includes('raw=url')")
         values=[]
         for page,count in ((1,100),(2,100),(3,12)):
