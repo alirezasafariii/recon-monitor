@@ -539,6 +539,7 @@ class SafariDashboardTests(unittest.TestCase):
                 b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start'});scrollBy(0,-80)")
                 for theme in ('light','dark'):
                     if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
+                    b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start'});scrollBy(0,-80)")
                     b.screenshot('recon-'+view+'-'+str(width)+'-'+theme)
 
     def test_quality_contained_tables_and_native_target_filter(self):
