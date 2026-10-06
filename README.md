@@ -1,14 +1,14 @@
-# Recon Monitor 8.8.5
+# Recon Monitor 8.8.6
 
-<!-- recon-monitor-current: app=8.8.5 schema=18 -->
+<!-- recon-monitor-current: app=8.8.6 schema=18 -->
 
-## Current release: macOS Process Cleanup
+## Current release: httpx Security Header Integrity
 
-Recon Monitor 8.8.5 fixes post-update validation from older installations that omit the tools directory. The dashboard review implementation is installed with app, and its tests no longer depend on tools. Future updates include tools in staging, program backup and rollback. The complete 8.8.4 dashboard redesign remains included.
+Recon Monitor 8.8.6 restores httpx JSON security-header names before fingerprint allowlisting, preventing valid HSTS/CSP policies from being discarded and turned into false missing-header evidence. Existing privacy limits, macOS update fixes and the complete dashboard remain included. Historical discarded headers and Analysis snapshots are not automatically repaired.
 
-The canonical application version is **8.8.5** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
+The canonical application version is **8.8.6** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
 
-See `CHANGELOG.md`, `MIGRATION-v8.8.5.md`, `docs/RELEASE_NOTES_v8.8.5.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
+See `CHANGELOG.md`, `MIGRATION-v8.8.6.md`, `docs/RELEASE_NOTES_v8.8.6.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 
