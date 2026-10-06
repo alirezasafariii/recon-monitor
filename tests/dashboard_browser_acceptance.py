@@ -409,7 +409,8 @@ class SafariDashboardTests(unittest.TestCase):
         if not self.browser.js("return document.querySelector('.display-menu').open"):
             self.browser.click(".display-menu > summary")
         self.browser.click("#" + button)
-        self.browser.click(".display-menu > summary")
+        if self.browser.js("return document.querySelector('.display-menu').open"):
+            self.browser.click(".display-menu > summary")
 
     def test_native_search_form_and_record_round_trip(self):
         b = self.browser
@@ -533,6 +534,7 @@ class SafariDashboardTests(unittest.TestCase):
                 self.assertLessEqual(bounds['scroll'],bounds['client']+1)
                 if width==390:self.assertEqual(bounds['labels'],8)
                 else:self.assertGreaterEqual(bounds['valueWidth'],200)
+                b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start'});scrollBy(0,-80)")
                 for theme in ('light','dark'):
                     if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
                     b.screenshot('recon-'+view+'-'+str(width)+'-'+theme)
@@ -545,6 +547,7 @@ class SafariDashboardTests(unittest.TestCase):
             self.assertIn(self.fixture.selected_analysis,self.text());self.assertNotIn(self.fixture.other_analysis,self.text())
             self.assertIn('Insufficient feedback',self.text())
             self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table')].every(t=>t.getBoundingClientRect().right<=t.parentElement.getBoundingClientRect().right+1)"))
+            self.assertTrue(b.js("return [...document.querySelectorAll('.quality-table tbody .pill')].every(p=>p.getBoundingClientRect().right<=p.closest('td').getBoundingClientRect().right+1)"))
             self.assertTrue(b.js('return document.documentElement.scrollWidth<=document.documentElement.clientWidth+1'))
             self.assertFalse(b.js("return document.querySelector('.quality-playbook').open"))
             b.click('.quality-playbook > summary');self.assertTrue(b.js("return document.querySelector('.quality-playbook').open"))
