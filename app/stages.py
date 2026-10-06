@@ -3111,7 +3111,9 @@ def _persistable_response_headers(raw: Any) -> dict[str, str]:
     """Return a bounded allow-listed response-header snapshot.
 
     The fingerprint stage never persists cookies, authorization material, or
-    arbitrary vendor headers. Header names are normalized to lower case and
+    arbitrary vendor headers. httpx JSON replaces hyphens with underscores;
+    restore the canonical HTTP spelling before matching the allowlist. Names
+    are normalized to lower case and
     values are flattened to short single-line strings for deterministic JSON
     persistence and later passive evidence extraction.
     """
@@ -3120,7 +3122,7 @@ def _persistable_response_headers(raw: Any) -> dict[str, str]:
         return {}
     result: dict[str, str] = {}
     for key, value in raw.items():
-        name = str(key or "").strip().lower()
+        name = str(key or "").strip().lower().replace("_", "-")
         if name not in _PERSISTED_RESPONSE_HEADER_NAMES:
             continue
         if isinstance(value, (list, tuple, set)):

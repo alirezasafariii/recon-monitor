@@ -357,6 +357,53 @@ class PassiveEvidenceExtractorTests(unittest.TestCase):
             ),
         )
 
+    def test_httpx_header_contract_survives_db_and_analysis(self):
+        import json
+        from stages import _httpx_record
+        temp,paths,db,now=self._project()
+        try:
+            endpoint='https://example.test/account/protected'
+            self._insert_surface(db,now,endpoint=endpoint,category='account',status=200,
+                                 content_type='text/html',title='Protected Account',content_length=2048,
+                                 response_headers={},response_headers_observed=True)
+            # Replace a damaged fingerprint even when the main fingerprint hash is unchanged.
+            old=db.one('SELECT fingerprint_hash FROM fingerprints WHERE url=?',(endpoint,))
+            url,record=_httpx_record({'url':endpoint,'status_code':200,'content_type':'text/html',
+                'title':'Protected Account','tech':['HSTS'],'header':{
+                    'strict_transport_security':'max-age=31536000; includeSubDomains; preload',
+                    'x_content_type_options':'nosniff','referrer_policy':'strict-origin-when-cross-origin',
+                    'x_frame_options':'DENY','content_security_policy':"default-src 'self'; frame-ancestors 'self'",
+                    'set_cookie':'session=must-not-persist'}})
+            _,changed,_=db.upsert_fingerprint('example.test',url,record,old['fingerprint_hash'],'RUN-PASSIVE')
+            self.assertFalse(changed)
+            stored=dict(db.one('SELECT * FROM fingerprints WHERE url=?',(endpoint,)))
+            self.assertEqual(json.loads(stored['response_headers_json'])['strict-transport-security'],
+                             'max-age=31536000; includeSubDomains; preload')
+            self.assertNotIn('must-not-persist',stored['response_headers_json'])
+            evidence=extract_passive_family_evidence(endpoint=endpoint,details=stored,target='example.test')
+            self.assertTrue(evidence['hsts_policy_valid_observed'])
+            self.assertTrue(evidence['required_security_headers_valid_observed'])
+            self.assertNotIn('hsts_policy_weak_or_missing_observed',evidence)
+            self.assertNotIn('required_security_header_missing_or_invalid_observed',evidence)
+            result=run_analysis(paths,db,'RUN-PASSIVE','example.test')
+            rows=db.all("SELECT bug_family FROM bug_candidates WHERE analysis_id=? AND endpoint=?",(result['analysis_id'],endpoint))
+            self.assertFalse({'tls_hsts_weakness','security_headers','clickjacking'} & {r['bug_family'] for r in rows})
+        finally:
+            db.close();temp.cleanup()
+
+    def test_httpx_missing_weak_and_unobserved_headers_are_distinguished(self):
+        from stages import _httpx_record
+        cases=[('missing',{'server':'test','set_cookie':'private'},True),
+               ('weak',{'strict_transport_security':'max-age=0'},True),
+               ('unknown',None,False)]
+        for name,raw,weak in cases:
+            with self.subTest(case=name):
+                url,record=_httpx_record({'url':'https://example.test/account/settings','status_code':200,
+                                         'content_type':'text/html','tech':['HSTS'],'header':raw})
+                evidence=extract_passive_family_evidence(endpoint=url,details=record,target='example.test')
+                self.assertEqual(bool(evidence.get('hsts_policy_weak_or_missing_observed')),weak)
+                self.assertNotIn('hsts_policy_valid_observed',evidence)
+
     def test_raw_analysis_promotes_only_concrete_passive_observations(self):
         temp, paths, db, now = self._project()
         try:
