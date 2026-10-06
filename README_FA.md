@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.8.3
+# راهنمای Recon Monitor 8.8.4
 
-<!-- recon-monitor-current: app=8.8.3 schema=18 -->
+<!-- recon-monitor-current: app=8.8.4 schema=18 -->
 
 ## نسخهٔ فعلی: اصلاح پاک‌سازی فرایند در macOS
 
-Recon Monitor 8.8.3 خطای پاک‌سازی گروه فرایند در macOS را اصلاح می‌کند؛ این خطا باعث شکست Validation هنگام نصب 8.8.2 می‌شد. پس از خروج فرایند اصلی، نگه‌داشتن Pipe توسط فرایند جداشده دیگر نتیجهٔ Timeout، Next یا توقف و خروجی ذخیره‌شده را با PermissionError جایگزین نمی‌کند. خطای مجوز برای فرایند زنده همچنان گزارش می‌شود. همهٔ اصلاحات جمع‌آوری و اجرای 8.8.2 در این نسخه وجود دارند و CI اکنون کل تست‌ها را با Python 3.14 روی مک Intel و Apple Silicon اجرا می‌کند.
+Recon Monitor 8.8.4 داشبورد مینیمال، جست‌وجوی کامل، حفظ فیلترها و اطلاعات، نمایش دقیق وضعیت جمع‌آوری، منابع خوانا و تفکیک یافته‌های اصلی از صف هم‌بستگی را ارائه می‌کند. همهٔ اصلاحات macOS و جمع‌آوری نسخهٔ 8.8.3 حفظ شده‌اند.
 
-نسخهٔ canonical برنامه **8.8.3** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+نسخهٔ canonical برنامه **8.8.4** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.3.md`، `docs/RELEASE_NOTES_v8.8.3.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.4.md`، `docs/RELEASE_NOTES_v8.8.4.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 
