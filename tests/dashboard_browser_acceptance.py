@@ -563,14 +563,14 @@ class SafariDashboardTests(unittest.TestCase):
         b.click('.filter-advanced > summary')
         b.click("select[name='category'] option[value='other']")
         b.click("select[name='days'] option[value='7']")
-        b.click('.filter-panel form button')
+        b.click("form.filters:has(input[name='q']) button")
         b.wait("return location.search.includes('catalogneedle')")
         self.assertIn('212 results',self.text())
         b.click("a[href*='view=raw']")
         b.wait("return location.search.includes('view=raw')")
         if not b.js("return document.querySelector('.filter-advanced').open"):b.click('.filter-advanced > summary')
         b.click("select[name='raw'] option[value='url']")
-        b.click('.filter-panel form button')
+        b.click("form.filters:has(input[name='q']) button")
         b.wait("return location.search.includes('raw=url')")
         values=[]
         for page,count in ((1,100),(2,100),(3,12)):
