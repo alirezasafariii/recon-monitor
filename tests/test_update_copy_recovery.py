@@ -46,6 +46,7 @@ class UpdateCopyRecoveryTests(unittest.TestCase):
             "app/core.py": 'APP_VERSION = "8.8.1"\n',
             "app/old_only.py": "old code\n",
             "docs/old.md": "old documentation\n",
+            "tools/old_tool.py": "old program tool\n",
             "README.md": "old readme\n",
             "recon-monitor.sh": "#!/bin/sh\nexit 0\n",
             "plugins/builtin/plugin.py": "old builtin\n",
@@ -66,6 +67,7 @@ class UpdateCopyRecoveryTests(unittest.TestCase):
             for name, content in {
                 "app/core.py": 'APP_VERSION = "8.8.2"\n',
                 "app/new_only.py": "new code\n",
+                "tools/new_tool.py": "new program tool\n",
                 "README.md": "new readme\n",
                 "recon-monitor.sh": "#!/bin/sh\nexit 0\n# new\n",
                 "plugins/builtin/plugin.py": "new builtin\n",
