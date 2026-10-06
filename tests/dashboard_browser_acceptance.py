@@ -602,6 +602,7 @@ class SafariDashboardTests(unittest.TestCase):
         b=self.browser
         self.go('/potential-findings?target='+TARGET)
         b.wait("return document.querySelector('.investigation-queue-card')")
+        self.assertEqual(b.js("return document.querySelector('.filter-panel select[name=target]').value"),TARGET)
         self.assertFalse(b.js("return document.querySelector('.queue-item-details').open"))
         card=b.js("const e=document.querySelector('.investigation-queue-card');return {height:e.getBoundingClientRect().height,text:e.innerText}")
         self.assertLessEqual(card['height'],320)

@@ -1888,11 +1888,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             order={'investigation':'investigation_value DESC,calibrated_likelihood DESC','likelihood':'calibrated_likelihood DESC,evidence_strength DESC','evidence':'evidence_strength DESC,investigation_value DESC','exploitability':'exploitability_confidence DESC,impact_potential DESC','impact':'impact_potential DESC,investigation_value DESC','updated':'updated_at DESC,investigation_value DESC'}.get(sort,'investigation_value DESC,calibrated_likelihood DESC')
             page_rows,total_count,page=query_page(db,f"SELECT * FROM bug_candidates WHERE {' AND '.join(where)} ORDER BY {order},candidate_id",args,p)
             rows=[dict(r) for r in page_rows]
-            targets=[str(r[0]) for r in db.all("SELECT DISTINCT target FROM bug_candidates WHERE analysis_id=? ORDER BY target",(analysis_id,))] if analysis_id else []
+            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT target FROM bug_candidates UNION SELECT target FROM run_targets UNION SELECT target FROM analysis_runs) WHERE target NOT IN ('','*') ORDER BY target")]
             families=[str(r[0]) for r in db.all("SELECT DISTINCT bug_family FROM bug_candidates WHERE analysis_id=? ORDER BY bug_family",(analysis_id,))] if analysis_id else []
             reachabilities=[str(r[0]) for r in db.all("SELECT DISTINCT reachability_state FROM bug_candidates WHERE analysis_id=? ORDER BY reachability_state",(analysis_id,))] if analysis_id else []
             counts=db.one("SELECT COUNT(*) total,SUM(candidate_state='strong_candidate') strong,SUM(candidate_state='plausible') plausible,SUM(analyst_decision='unreviewed') unreviewed FROM bug_candidates WHERE analysis_id=?",(analysis_id,)) if analysis_id else None
         finally: db.close()
+        for current,options in ((target,targets),(family,families),(reachability,reachabilities)):
+            if current and current not in options: options.append(current)
         total=int(counts['total'] or 0) if counts else 0; strong=int(counts['strong'] or 0) if counts else 0; plausible=int(counts['plausible'] or 0) if counts else 0; unreviewed=int(counts['unreviewed'] or 0) if counts else 0
         shared=dict(target=target,family=family,state=state,decision=decision,q=q,reachability=reachability,min_likelihood=min_likelihood,min_evidence=min_evidence,min_exploitability=min_exploitability,min_investigation=min_investigation,sort=sort,view=view)
         toggle_url=_query_link('/potential-findings',**{**{k:v[0] for k,v in p.items() if v},'display':'table' if display!='table' else 'cards'})

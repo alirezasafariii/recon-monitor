@@ -179,6 +179,16 @@ class DashboardRedesignTests(unittest.TestCase):
             analysis,_=_latest_analysis_queue(handler,target='example.test')
         self.assertEqual(analysis,'selected');self.assertEqual(queue.call_args.args[1],'selected')
 
+    def test_empty_finding_results_keep_scope_and_available_targets(self):
+        self.run_row();self.run_row('R2','other.test')
+        self.insert('analysis_runs',id='selected-analysis',source_run_id='R1',target='example.test',engine_version='test',rule_version='test',mode='analysis',status='success',started_at=self.now,finished_at=self.now,summary_json='{}')
+        body=self.render('bug_candidates',{'target':['example.test'],'family':['saved_family'],'reachability':['saved_reachability']})
+        self.assertIn("<option value='example.test' selected>",body)
+        self.assertIn("<option value='other.test'>",body)
+        self.assertIn("<option value='saved_family' selected>",body)
+        self.assertIn("<option value='saved_reachability' selected>",body)
+        self.assertIn('0 results',body)
+
     def test_closed_advanced_filters_preserve_native_controls_and_active_summary(self):
         fields = "<label>Query<input name='q' value='a&amp;b'></label><label>Target<select name='target'><option selected>x.test</option></select></label><label>Risk<input type='number' name='risk' value='70'></label><input type='hidden' name='display' value='table'>"
         markup = _filter_panel(fields, {'Risk': 70, 'Search': 'a&b'}, '/search', title='Filters', result_count=2055)
