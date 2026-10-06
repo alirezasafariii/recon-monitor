@@ -343,7 +343,7 @@ class Safari:
         # Back/forward restoration may move the viewport after navigation.
         # Poll the actual hit target; retain native WebDriver clicks so an
         # overlay or unusable link cannot be hidden by a synthetic JS click.
-        self.wait("const e=document.querySelector(" + json.dumps(selector) + ");if(!e)return false;if(e.tagName==='OPTION')return true;if(!e.getClientRects().length)return false;const r=e.getBoundingClientRect(),top=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;if(r.top<top||r.bottom>innerHeight){e.scrollIntoView({block:'center',behavior:'instant'});return false;}const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!hit && (hit===e || e.contains(hit));")
+        self.wait("const e=document.querySelector(" + json.dumps(selector) + ");if(!e)return false;if(e.tagName==='OPTION')return true;if(!e.getClientRects().length)return false;const r=e.getBoundingClientRect(),bar=document.querySelector('.topbar'),top=bar && !bar.contains(e)?bar.getBoundingClientRect().bottom:0;if(r.top<top||r.bottom>innerHeight){e.scrollIntoView({block:'center',behavior:'instant'});return false;}const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!hit && (hit===e || e.contains(hit));")
         self.command("POST", "/element/" + self.element(selector) + "/click", {})
 
     def fill(self, selector, value):
