@@ -536,10 +536,11 @@ class SafariDashboardTests(unittest.TestCase):
                 self.assertLessEqual(bounds['scroll'],bounds['client']+1)
                 if width==390:self.assertEqual(bounds['labels'],8)
                 else:self.assertGreaterEqual(bounds['valueWidth'],200)
-                b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start'});scrollBy(0,-80)")
+                b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start',behavior:'instant'});scrollBy({top:-80,behavior:'instant'})")
                 for theme in ('light','dark'):
                     if b.js('return document.documentElement.dataset.theme')!=theme:self.appearance('themeToggle')
-                    b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start'});scrollBy(0,-80)")
+                    b.js("document.querySelector('.recon-table-panel').scrollIntoView({block:'start',behavior:'instant'});scrollBy({top:-80,behavior:'instant'})")
+                    self.assertTrue(b.js("const r=document.querySelector('.recon-table-panel').getBoundingClientRect();return r.top<innerHeight && r.bottom>document.querySelector('.topbar').getBoundingClientRect().bottom"))
                     b.screenshot('recon-'+view+'-'+str(width)+'-'+theme)
 
     def test_quality_contained_tables_and_native_target_filter(self):
