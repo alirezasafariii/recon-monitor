@@ -109,6 +109,8 @@ class DashboardFixture:
                 if state!='new':db.set_alert_status(alert,state,'synthetic feedback')
                 db.execute("INSERT INTO analysis_runs(id,source_run_id,target,engine_version,rule_version,status,started_at,finished_at) VALUES(?,?,?,'fixture','fixture','success',?,?)",(analysis,SOURCE,target,now,finished))
                 db.execute("INSERT INTO analysis_results(analysis_id,alert_id,target,source_run_id,category,original_score,adjusted_score,confidence,hypothesis,next_action,playbook_id,business_context,duplicate_cluster,created_at) VALUES(?,?,?,?,'changed_js',78,78,55,'Synthetic only','Review','general','fixture','fixture',?)",(analysis,alert,target,SOURCE,now))
+            admission={'knowledge_context':{'meta_ranker':{'primary':{'family':'broken_object_authorization','label':'Synthetic investigation','bug_proximity_score':61,'target_evidence_confidence':49,'hunt_priority':'HIGH','why':['Saved observation requires review','No vulnerability is confirmed']},'rankings':[{'family':'broken_object_authorization','bug_proximity_score':61}]}}}
+            db.execute("INSERT INTO analysis_hypotheses(hypothesis_id,hypothesis_fingerprint,analysis_id,source_run_id,target,endpoint,bug_family,bug_variant,state,admission_json,rule_version,first_seen_at,last_seen_at,created_at,updated_at) VALUES('fixture-hypothesis','fixture-fingerprint',?,?,?,?,'broken_object_authorization','object','context_only',?,'fixture',?,?,?,?)",(self.selected_analysis,SOURCE,TARGET,LONG_ENDPOINT,json.dumps(admission),now,now,now,now))
             db.stage_begin(PARTIAL, TARGET, "urls", 1)
             self.timeout_metrics = {
                 "collection_status": "partial", "katana_status": "timeout",
@@ -594,6 +596,26 @@ class SafariDashboardTests(unittest.TestCase):
         self.assertEqual(content.count(self.fixture.selected_analysis),1)
         self.assertIn('Potential Findings',content);self.assertIn('Analysis Quality',content)
         self.browser.screenshot('analysis-compact-desktop')
+
+    def test_compact_investigation_keeps_details_and_cluster_navigation(self):
+        b=self.browser
+        self.go('/potential-findings?target='+TARGET)
+        b.wait("return document.querySelector('.investigation-queue-card')")
+        self.assertFalse(b.js("return document.querySelector('.queue-item-details').open"))
+        card=b.js("const e=document.querySelector('.investigation-queue-card');return {height:e.getBoundingClientRect().height,text:e.innerText}")
+        self.assertLessEqual(card['height'],320)
+        for text in ('HIGH','NOT CONFIRMED',TARGET,'49','Open cluster'):self.assertIn(text,card['text'])
+        b.js("document.querySelector('.investigation-queue-card').scrollIntoView({block:'center'})")
+        b.screenshot('investigation-compact-desktop')
+        b.click('.queue-item-details > summary')
+        self.assertIn(LONG_ENDPOINT,self.text());self.assertIn('No vulnerability is confirmed',self.text())
+        b.click('.queue-item-details > summary')
+        b.command('POST','/window/rect',{'width':390,'height':900})
+        self.assertTrue(b.js('return document.documentElement.scrollWidth<=document.documentElement.clientWidth+1'))
+        b.screenshot('investigation-compact-narrow')
+        b.click('.queue-item-actions a')
+        b.wait("return document.querySelector('#investigation-cluster-detail')")
+        self.assertIn(LONG_ENDPOINT,self.text());self.assertIn('target=example.test',b.js('return location.search'))
 
     def live(self, label):
         self.fixture.progress.update(label=label, message=label)
