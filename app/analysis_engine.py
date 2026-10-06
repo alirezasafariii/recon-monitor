@@ -534,8 +534,9 @@ def _quality_snapshot(
     analysis_id: str,
     target: str | None = None,
     raw_routing: Mapping[str, Any] | None = None,
+    *, persist: bool = True,
 ) -> dict[str, Any]:
-    """Persist backward-compatible Alert feedback plus raw-native diagnostics."""
+    """Report feedback availability and optionally archive raw-native diagnostics."""
 
     where=" WHERE target=?" if target else ""; params=(target,) if target else ()
     rows=db.all(f"SELECT category,status,COUNT(*) AS count FROM alerts{where} GROUP BY category,status",params)
@@ -550,18 +551,23 @@ def _quality_snapshot(
         raw_routing=raw_routing,
     )
     metrics={
-        "quality_engine_version":"2.0.0",
+        "quality_engine_version":"2.1.0",
+        "analysis_id":analysis_id,
+        "target":target or "*",
+        "feedback_count":useful+noisy,
+        "feedback_status":"available" if useful+noisy else "insufficient_feedback",
         "raw_analysis_quality_version":RAW_ANALYSIS_QUALITY_VERSION,
         "alerts":total,
         "useful":useful,
         "noisy":noisy,
-        "precision_proxy":round(useful/max(1,useful+noisy),3),
-        "false_positive_proxy":round(noisy/max(1,total),3),
+        "precision_proxy":round(useful/(useful+noisy),3) if useful+noisy else None,
+        "false_positive_proxy":round(noisy/total,3) if useful+noisy else None,
         "unreviewed_backlog":int(unresolved["count"] if unresolved else 0),
         "categories":{category:dict(counter) for category,counter in by_category.items()},
         "raw_analysis":raw_quality,
     }
-    db.execute("INSERT INTO analysis_quality_snapshots(analysis_id,target,metrics_json,created_at) VALUES(?,?,?,?)",(analysis_id,target or "*",json_dumps(metrics),utc_now()))
+    if persist:
+        db.execute("INSERT INTO analysis_quality_snapshots(analysis_id,target,metrics_json,created_at) VALUES(?,?,?,?)",(analysis_id,target or "*",json_dumps(metrics),utc_now()))
     return metrics
 
 
@@ -877,25 +883,30 @@ def analysis_quality(db: Database, target: str | None = None) -> dict[str, Any]:
     summary = _loads(latest["summary_json"], {})
     candidate_summary = summary.get("bug_candidates", {}) if isinstance(summary, Mapping) else {}
     raw_routing = candidate_summary.get("raw_surface_routing", {}) if isinstance(candidate_summary, Mapping) else {}
-    return _quality_snapshot(
-        db,
-        str(latest["id"]),
-        target,
-        raw_routing if isinstance(raw_routing, Mapping) else {},
+    quality = _quality_snapshot(
+        db, str(latest["id"]), target,
+        raw_routing if isinstance(raw_routing, Mapping) else {}, persist=False,
     )
+    quality["source_run_id"] = str(latest["source_run_id"])
+    return quality
 
 
 def calibration_report(db: Database, target: str | None = None) -> dict[str, Any]:
-    where=" WHERE r.target=?" if target else ""; params=(target,) if target else ()
-    rows=db.all(f"SELECT r.confidence,a.status FROM analysis_results r JOIN alerts a ON a.id=r.alert_id{where}",params)
+    where=" AND r.target=?" if target else ""; params=(target,) if target else ()
+    rows=db.all(f"SELECT r.confidence,a.status FROM analysis_results r JOIN alerts a ON a.id=r.alert_id JOIN analysis_runs ar ON ar.id=r.analysis_id WHERE ar.status='success'{where}",params)
     buckets={"0-39":[],"40-59":[],"60-79":[],"80-100":[]}
     for row in rows:
-        confidence=parse_int(row["confidence"],0); key="0-39" if confidence<40 else "40-59" if confidence<60 else "60-79" if confidence<80 else "80-100"; buckets[key].append(str(row["status"]))
+        confidence=parse_int(row["confidence"],0)
+        key="0-39" if confidence<40 else "40-59" if confidence<60 else "60-79" if confidence<80 else "80-100"
+        buckets[key].append(str(row["status"]))
     result={}
     for key,states in buckets.items():
-        useful=sum(1 for state in states if state in USEFUL_STATES); noisy=sum(1 for state in states if state in NOISY_STATES); observed=useful/max(1,useful+noisy)
+        useful=sum(state in USEFUL_STATES for state in states)
+        noisy=sum(state in NOISY_STATES for state in states)
+        reviewed=useful+noisy
+        observed=useful/reviewed if reviewed else None
         midpoint={"0-39":0.2,"40-59":0.5,"60-79":0.7,"80-100":0.9}[key]
-        result[key]={"count":len(states),"useful":useful,"noisy":noisy,"observed_useful_rate":round(observed,3),"expected_midpoint":midpoint,"calibration_gap":round(observed-midpoint,3),"status":"overconfident" if observed+0.15<midpoint else "underconfident" if observed-0.15>midpoint else "reasonable"}
+        result[key]={"count":len(states),"reviewed_count":reviewed,"unreviewed_count":len(states)-reviewed,"useful":useful,"noisy":noisy,"observed_useful_rate":round(observed,3) if observed is not None else None,"expected_midpoint":midpoint,"calibration_gap":round(observed-midpoint,3) if observed is not None else None,"status":"insufficient_feedback" if observed is None else "overconfident" if observed+0.15<midpoint else "underconfident" if observed-0.15>midpoint else "reasonable"}
     return {"target":target or "*","buckets":result}
 
 

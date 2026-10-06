@@ -49,6 +49,8 @@ from session_auth import parse_session, create_session, destroy_session, verify_
 from evidence import build_evidence_export
 from plugins import PluginManager
 from notification_operations_center import combined_dead_letters, notification_delivery_action
+from dashboard_design import MINIMAL_CSS, labeled_cell, pagination, query_page, read_snapshot, split_filter_fields
+from dashboard_search import SEARCH_GROUPS, search_workspace, search_targets
 
 ALERT_STATUSES = [
     "new", "triaged", "acknowledged", "investigating", "interesting",
@@ -91,11 +93,20 @@ def _filter_panel(fields: str, active: Mapping[str, Any], reset_href: str, *, ti
     count = len(chips)
     result = f"<span class='filter-result'>{_esc(result_count)} results</span>" if result_count is not None else ""
     chip_html = f"<div class='filter-chips'>{''.join(chips)}</div>" if chips else "<span class='filter-empty'>Showing the default view</span>"
-    return f"<section class='filter-panel'><div class='filter-head'><div><span class='filter-icon'>⌁</span><div><strong>{_esc(title)}</strong><small>{count} active filter{'s' if count != 1 else ''}</small></div></div>{result}</div><form class='filters filter-grid' method='get'>{fields}<div class='filter-actions'><button>{_esc(submit_label)}</button><a class='button ghost' href='{_esc(reset_href)}'>Reset</a></div></form><div class='filter-summary'>{chip_html}</div></section>"
+    basic, advanced = split_filter_fields(fields)
+    more = (f"<details class='filter-advanced' data-filter-panel='{_esc(title)}'><summary>Advanced filters</summary><div class='filter-advanced-fields'>{advanced}</div></details>") if advanced else ''
+    return f"<section class='filter-panel'><div class='filter-head'><div><span class='filter-icon'>⌁</span><div><strong>{_esc(title)}</strong><small>{count} active filter{'s' if count != 1 else ''}</small></div></div>{result}</div><form class='filters filter-grid' method='get'>{basic}{more}<div class='filter-actions'><button>{_esc(submit_label)}</button><a class='button ghost' href='{_esc(reset_href)}'>Reset</a></div></form><div class='filter-summary'>{chip_html}</div></section>"
 
 
-def _quick_views(items: Iterable[tuple[str, str, bool]]) -> str:
+def _quick_views(items: Iterable[tuple[str, str, bool]], *, preserve: Mapping[str, Any] | None = None) -> str:
     """Small, consistent preset links for high-volume research datasets."""
+    if preserve:
+        scoped = []
+        for label, href, active in items:
+            parsed = urllib.parse.urlsplit(href)
+            query = {**preserve, **dict(urllib.parse.parse_qsl(parsed.query))}
+            scoped.append((label, _query_link(parsed.path, **query), active))
+        items = scoped
     return "<nav class='quick-views' aria-label='Quick views'>" + "".join(
         f"<a class='quick-view{' active' if active else ''}' href='{_esc(href)}'>{_esc(label)}</a>"
         for label, href, active in items
@@ -283,6 +294,7 @@ def _tone(value: Any) -> str:
         "new": "blue", "reported": "purple", "reappeared": "purple", "strong-candidate": "danger", "strong_candidate": "danger", "plausible": "orange", "possible": "amber", "weak-signal": "neutral", "weak_signal": "neutral", "confirmed-by-analyst": "success", "confirmed_by_analyst": "success", "rejected": "neutral", "needs-more-evidence": "info", "needs_more_evidence": "info",
         "ignored": "neutral", "false-positive": "neutral", "false_positive": "neutral", "out-of-scope": "neutral", "out_of_scope": "neutral",
         "inactive": "neutral", "retired": "neutral", "skipped": "neutral",
+        "partial": "amber", "timeout": "amber", "no-input": "amber",
     }
     return aliases.get(text, "neutral")
 
@@ -409,11 +421,36 @@ def _command_decision_item(item: Mapping[str, Any], rank: int) -> str:
     )
 
 
+def _latest_completed_analysis(db: Database, target: str = '') -> Any:
+    clause = " AND (ar.target=? OR (ar.target='*' AND (EXISTS(SELECT 1 FROM run_targets rt WHERE rt.run_id=ar.source_run_id AND rt.target=?) OR EXISTS(SELECT 1 FROM bug_candidates bc WHERE bc.analysis_id=ar.id AND bc.target=?))))" if target else ''
+    return db.one("SELECT ar.* FROM analysis_runs ar WHERE ar.status='success'" + clause + " ORDER BY COALESCE(ar.finished_at,ar.started_at) DESC,ar.id DESC LIMIT 1", (target,target,target) if target else ())
+
+
 def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
     data = cockpit(db, target=target)
-    latest_run = db.one("SELECT id,status,started_at,finished_at,error,target_count FROM runs ORDER BY started_at DESC LIMIT 1")
-    latest_analysis = db.one("SELECT id,status,target,started_at,finished_at FROM analysis_runs WHERE status='success' ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1")
+    run_where = "WHERE EXISTS(SELECT 1 FROM run_targets rt WHERE rt.run_id=r.id AND rt.target=?)" if target else ""
+    run_args = (target,) if target else ()
+    latest_run = db.one(f"SELECT id,status,started_at,finished_at,error,target_count FROM runs r {run_where} ORDER BY started_at DESC,id DESC LIMIT 1", run_args)
+    latest_analysis = _latest_completed_analysis(db, target)
+    quality = {'partial': 0, 'timeout': 0, 'no_input': 0}
+    if latest_run:
+        row = db.one(
+            "SELECT SUM(status='partial' OR CASE WHEN json_valid(metrics_json) THEN json_extract(metrics_json,'$.collection_status')='partial' ELSE 0 END) partial,"
+            "SUM(CASE WHEN json_valid(metrics_json) THEN COALESCE(json_extract(metrics_json,'$.katana_timed_out'),json_extract(metrics_json,'$.timed_out'),0) OR json_extract(metrics_json,'$.katana_status')='timeout' ELSE 0 END) timeout,"
+            "SUM(CASE WHEN json_valid(metrics_json) THEN json_extract(metrics_json,'$.collection_status')='no_input' OR (stage='javascript' AND json_extract(metrics_json,'$.files')=0) ELSE 0 END) no_input "
+            "FROM stage_runs WHERE run_id=? AND status<>'running'" + (" AND target=?" if target else ""),
+            (latest_run['id'], target) if target else (latest_run['id'],),
+        )
+        quality = {key: int(row[key] or 0) for key in quality}
     analysis_id = str(latest_analysis['id']) if latest_analysis else ''
+    inventory = {}
+    inventory_seen = []
+    for name, table in [('hosts','assets'),('http','fingerprints'),('urls','urls'),('endpoints','endpoint_intelligence'),('javascript','js_files'),('ports','ports')]:
+        row = db.one(f"SELECT COUNT(*) count,MAX(last_seen) updated FROM {table}" + (' WHERE target=?' if target else ''), (target,) if target else ())
+        inventory[name] = int(row['count'])
+        if row['updated']: inventory_seen.append(str(row['updated']))
+    review_where = "analysis_id=? AND analyst_decision='unreviewed'" + (' AND target=?' if target else '')
+    unreviewed = int(db.one('SELECT COUNT(*) FROM bug_candidates WHERE ' + review_where, (analysis_id,target) if target else (analysis_id,))[0]) if analysis_id else 0
     candidate_args: list[Any] = [analysis_id]
     candidate_where = ["analysis_id=?", "analyst_decision='unreviewed'", "candidate_state IN ('strong_candidate','plausible')"]
     if target:
@@ -430,15 +467,15 @@ def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
         f"SELECT case_id,target,title,state,priority_score,evidence_gap_score,autopilot_score,updated_at FROM security_cases WHERE {' AND '.join(case_where)} ORDER BY priority_score DESC,updated_at DESC LIMIT 8",
         tuple(case_args),
     )]
-    changes = _change_alert_events(db, target)
+    changes = _change_alert_events(db, target, per_source_limit=300)
     recent_runs = [dict(r) for r in db.all(
-        "SELECT id,status,started_at,finished_at,error,target_count FROM runs ORDER BY started_at DESC LIMIT 5"
+        f"SELECT id,status,started_at,finished_at,error,target_count FROM runs r {run_where} ORDER BY started_at DESC,id DESC LIMIT 5", run_args
     )]
     decisions: list[dict[str, Any]] = []
-    if latest_run and str(latest_run['status']) == 'failed':
+    if latest_run and (str(latest_run['status']) in {'failed', 'partial'} or quality['partial'] or quality['timeout'] or quality['no_input']):
         decisions.append({
-            'kind':'run','eyebrow':'Run failure','title':'Repair the latest recon run','detail':str(latest_run['error'] or 'The latest recon did not complete successfully.'),
-            'href':'/runs','score':98,'tone':'danger','meta':str(latest_run['id']),
+            'kind':'run','eyebrow':'Collection needs attention','title':'Review the latest recon run','detail':str(latest_run['error'] or f"{quality['partial']} partial stage(s) · {quality['timeout']} timeout(s) · {quality['no_input']} stage(s) without input."),
+            'href':_query_link('/run-review',id=latest_run['id']),'score':98,'tone':'danger' if latest_run['status']=='failed' else 'amber','meta':str(latest_run['id']),
         })
     for row in candidates:
         score=parse_int(row.get('investigation_value'),0)
@@ -490,7 +527,8 @@ def _command_center_snapshot(db: Database, target: str = "") -> dict[str, Any]:
     return {
         'cockpit':data,'latest_run':dict(latest_run) if latest_run else None,'latest_analysis':dict(latest_analysis) if latest_analysis else None,
         'candidates':candidates,'cases':cases,'changes':changes,'recent_runs':recent_runs,'decisions':decisions[:8],'next_action':next_action,
-        'high_changes':high_changes,'medium_changes':medium_changes,
+        'high_changes':high_changes,'medium_changes':medium_changes,'collection_quality':quality,
+        'inventory':inventory,'inventory_updated':max(inventory_seen,default=''),'unreviewed_candidates':unreviewed,
     }
 
 
@@ -614,7 +652,8 @@ def _latest_successful_runs(db: Database, target: str = "") -> list[dict[str, st
     return out
 
 
-def _change_alert_events(db: Database, target: str = "") -> list[dict[str, Any]]:
+def _change_alert_events(db: Database, target: str = "", *, per_source_limit: int | None = None) -> list[dict[str, Any]]:
+    source_limit = max(1, int(per_source_limit)) if per_source_limit is not None else -1
     events: list[dict[str, Any]] = []
     for run in _latest_successful_runs(db, target):
         # The first successful run is the baseline. Alerts begin on re-checks.
@@ -629,16 +668,16 @@ def _change_alert_events(db: Database, target: str = "") -> list[dict[str, Any]]
             ("technology", "technology_observations", "technology", "technology", "first_seen"),
         ]
         for kind, table, value_col, label_col, first_col in specs:
-            rows=db.all(f"SELECT {value_col} value,{first_col} first_seen,last_seen FROM {table} WHERE target=? AND last_run_id=? AND {first_col}>=? ORDER BY {first_col} DESC LIMIT 300",(t,rid,started))
+            rows=db.all(f"SELECT {value_col} value,{first_col} first_seen,last_seen FROM {table} WHERE target=? AND last_run_id=? AND {first_col}>=? ORDER BY {first_col} DESC LIMIT ?",(t,rid,started,source_limit))
             for row in rows:
                 value=str(row['value'] or '')
                 priority,score=_change_priority(kind,'added',value)
                 events.append({"target":t,"run_id":rid,"previous_run":run['previous_run'],"kind":kind,"change":"added","value":value,"priority":priority,"score":score,"detected":str(row['first_seen'] or run['finished_at']),"details":"Newly observed during the latest successful recon."})
-        for row in db.all("SELECT host,ip,port,protocol,first_seen FROM ports WHERE target=? AND last_run_id=? AND first_seen>=? ORDER BY first_seen DESC LIMIT 300",(t,rid,started)):
+        for row in db.all("SELECT host,ip,port,protocol,first_seen FROM ports WHERE target=? AND last_run_id=? AND first_seen>=? ORDER BY first_seen DESC LIMIT ?",(t,rid,started,source_limit)):
             value=f"{row['host']}:{row['port']}/{row['protocol']}"
             priority,score=_change_priority('port','added',value)
             events.append({"target":t,"run_id":rid,"previous_run":run['previous_run'],"kind":"port","change":"added","value":value,"priority":priority,"score":score,"detected":str(row['first_seen'] or run['finished_at']),"details":f"New service exposure{(' · '+str(row['ip'])) if row['ip'] else ''}."})
-        for row in db.all("SELECT url,status_code,title,webserver,last_changed FROM fingerprints WHERE target=? AND last_run_id=? AND COALESCE(last_changed,'')>=? ORDER BY last_changed DESC LIMIT 300",(t,rid,started)):
+        for row in db.all("SELECT url,status_code,title,webserver,last_changed FROM fingerprints WHERE target=? AND last_run_id=? AND COALESCE(last_changed,'')>=? ORDER BY last_changed DESC LIMIT ?",(t,rid,started,source_limit)):
             value=str(row['url'] or '')
             priority,score=_change_priority('response','changed',value)
             details=f"HTTP response fingerprint changed · status {row['status_code'] or 'unknown'}"
@@ -647,12 +686,12 @@ def _change_alert_events(db: Database, target: str = "") -> list[dict[str, Any]]
         analysis=db.one("SELECT id FROM analysis_runs WHERE status='success' AND target IN (?, '*') AND started_at>=? ORDER BY COALESCE(finished_at,started_at) DESC LIMIT 1",(t,started))
         if analysis:
             aid=str(analysis['id'])
-            for row in db.all("SELECT endpoint,transition,confidence,severity,created_at FROM authentication_boundary_diffs WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT 100",(aid,t)):
+            for row in db.all("SELECT endpoint,transition,confidence,severity,created_at FROM authentication_boundary_diffs WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT ?",(aid,t,source_limit)):
                 value=str(row['endpoint'] or '')
                 priority,score=_change_priority('authentication_boundary','changed',value)
                 score=max(score,parse_int(row['confidence'],0))
                 events.append({"target":t,"run_id":rid,"previous_run":run['previous_run'],"kind":"authentication","change":"changed","value":value,"priority":priority,"score":score,"detected":str(row['created_at'] or run['finished_at']),"details":f"Authentication boundary changed: {row['transition']} · confidence {row['confidence']}%"})
-            for row in db.all("SELECT endpoint,transition,confidence,severity,sensitive_added_json,created_at FROM response_shape_diffs WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT 100",(aid,t)):
+            for row in db.all("SELECT endpoint,transition,confidence,severity,sensitive_added_json,created_at FROM response_shape_diffs WHERE analysis_id=? AND target=? ORDER BY confidence DESC LIMIT ?",(aid,t,source_limit)):
                 sensitive=_json(row['sensitive_added_json'],[])
                 if not sensitive and parse_int(row['confidence'],0)<70:
                     continue
@@ -722,7 +761,7 @@ def _recon_surface_items(db: Database, target: str = "") -> tuple[list[dict[str,
     args: tuple[Any,...] = (target,) if target else ()
     changes = _change_alert_events(db, target)
     change_map: dict[tuple[str,str,str],dict[str,Any]] = {}
-    kind_alias = {"subdomain":"host","endpoint":"endpoint","url":"url","port":"port","javascript":"javascript","fingerprint":"fingerprint"}
+    kind_alias = {"subdomain":"host","endpoint":"endpoint","url":"url","port":"port","javascript":"javascript","fingerprint":"fingerprint","response":"fingerprint","authentication":"endpoint","response_shape":"endpoint"}
     for event in changes:
         kind = kind_alias.get(str(event.get("kind") or ""))
         if not kind: continue
@@ -736,6 +775,7 @@ def _recon_surface_items(db: Database, target: str = "") -> tuple[list[dict[str,
         if not src: src=["stored recon observation"]
         event=change_map.get((str(row.get("target") or ""),kind,value))
         change_state=str(event.get("change") if event else "stable")
+        change_state={"added":"new","removed":"disappeared"}.get(change_state,change_state)
         cats=_recon_security_categories(kind,value,detail,existing)
         items.append({
             "kind":kind,"target":str(row.get("target") or ""),"value":value,"detail":detail,
@@ -744,38 +784,39 @@ def _recon_surface_items(db: Database, target: str = "") -> tuple[list[dict[str,
             "change_state":change_state,"sources":src,"first_seen":str(row.get("first_seen") or ""),
             "last_seen":str(row.get("last_seen") or ""),"last_run_id":str(row.get("last_run_id") or ""),
         })
-    for r in db.all("SELECT target,host,sources_json,confidence,first_seen,last_seen,last_run_id FROM assets"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+    for r in db.all("SELECT target,host,sources_json,confidence,first_seen,last_seen,last_run_id FROM assets"+clause+" ORDER BY last_seen DESC",args):
         add("host",r,str(r["host"]),"Discovered host",parse_int(r["confidence"],0),_json(r["sources_json"],[]))
-    for r in db.all("SELECT target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id FROM endpoint_intelligence"+clause+" ORDER BY confidence DESC,last_seen DESC LIMIT 2000",args):
+    for r in db.all("SELECT target,endpoint,kind,primary_category,confidence,categories_json,reasons_json,sources_json,first_seen,last_seen,last_run_id FROM endpoint_intelligence"+clause+" ORDER BY confidence DESC,last_seen DESC",args):
         cats=_json(r["categories_json"],[]); reasons=_json(r["reasons_json"],[])
         detail=" · ".join([str(r["primary_category"] or "endpoint")]+[str(x) for x in reasons[:2]])
         add("endpoint",r,str(r["endpoint"]),detail,parse_int(r["confidence"],0),_json(r["sources_json"],[]),cats)
-    for r in db.all("SELECT target,url,kind,source,first_seen,last_seen,last_run_id FROM urls"+clause+" ORDER BY last_seen DESC LIMIT 2000",args):
+    for r in db.all("SELECT target,url,kind,source,first_seen,last_seen,last_run_id FROM urls"+clause+" ORDER BY last_seen DESC",args):
         add("url",r,str(r["url"]),str(r["kind"] or "URL"),0,[str(r["source"] or "")])
-    for r in db.all("SELECT target,host,ip,port,protocol,first_seen,last_seen,last_run_id,is_current FROM ports"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+    for r in db.all("SELECT target,host,ip,port,protocol,first_seen,last_seen,last_run_id,is_current FROM ports"+clause+" ORDER BY last_seen DESC",args):
         value=f"{r['host']}:{r['port']}/{r['protocol']}"; detail=f"{r['ip'] or 'IP not recorded'} · {'current' if r['is_current'] else 'not current'}"
         add("port",r,value,detail,0,["stored port observation"])
-    for r in db.all("SELECT target,url,source_map_url,first_seen,last_seen,last_changed,last_run_id FROM js_files"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+    for r in db.all("SELECT target,url,source_map_url,first_seen,last_seen,last_changed,last_run_id FROM js_files"+clause+" ORDER BY last_seen DESC",args):
         detail="Source map observed" if r["source_map_url"] else "JavaScript resource"
         add("javascript",r,str(r["url"]),detail,0,["stored JavaScript observation"],["client-side"])
-    for r in db.all("SELECT target,url,status_code,title,webserver,technologies_json,content_type,ip,cdn,first_seen,last_seen,last_changed,last_run_id FROM fingerprints"+clause+" ORDER BY last_seen DESC LIMIT 1500",args):
+    for r in db.all("SELECT target,url,status_code,title,webserver,technologies_json,content_type,ip,cdn,first_seen,last_seen,last_changed,last_run_id FROM fingerprints"+clause+" ORDER BY last_seen DESC",args):
         tech=[str(x) for x in _json(r["technologies_json"],[])[:4]]
         detail=" · ".join(x for x in [str(r["status_code"] or ""),str(r["webserver"] or ""),", ".join(tech),str(r["cdn"] or "")] if x)
         add("fingerprint",r,str(r["url"]),detail,0,["stored HTTP/TLS observation"],tech)
+    items.sort(key=lambda x:(x['target'],x['kind'],x['value']))
     items.sort(key=lambda x:(parse_int(x.get("interest"),0),str(x.get("last_seen") or "")),reverse=True)
-    targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
+    targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM run_targets UNION SELECT DISTINCT target FROM ports UNION SELECT DISTINCT target FROM js_files UNION SELECT DISTINCT target FROM fingerprints) ORDER BY target")]
     coverage_rows=[]
-    for tgt in ([target] if target else targets[:25]):
+    for tgt in ([target] if target else []):
         if not tgt: continue
         try: coverage_rows.append(recon_coverage(db,target=tgt,persist=False))
         except Exception: continue
-    coverage_overall=round(sum(parse_int(x.get("overall"),0) for x in coverage_rows)/len(coverage_rows)) if coverage_rows else 0
+    coverage_overall=round(sum(parse_int(x.get("overall"),0) for x in coverage_rows)/len(coverage_rows)) if coverage_rows else None
     blind=[]
     for row in coverage_rows:
         for spot in row.get("blind_spots",[]):
             label=f"{row.get('target')}: {spot}" if not target else str(spot)
             if label not in blind: blind.append(label)
-    return items,{"targets":targets,"coverage_overall":coverage_overall,"blind_spots":blind[:8],"changes":changes}
+    return items,{"targets":targets,"coverage_overall":coverage_overall,"blind_spots":blind,"changes":changes}
 
 
 NAV_SECTIONS = [
@@ -828,25 +869,52 @@ ADVANCED_NAV_SECTIONS = [
 ]
 
 
+def _workspace_access(section_id: str, current_path: str, target: str) -> str:
+    """Expose expert destinations without adding another permanent sidebar."""
+    excluded = {'/asset', '/case', '/alert', '/bug-candidate', '/bug-candidates', '/js-diff'}
+    links = [(href, label) for key, _, _, _, entries in NAV_SECTIONS if key == section_id
+             for href, label, _ in entries if href not in excluded]
+    if section_id == 'analysis':
+        links.extend([
+            ('/analysis-quality', 'Analysis quality'), ('/security-reasoning', 'Security reasoning'),
+            ('/semantic-intelligence', 'Semantic intelligence'), ('/behavioral-intelligence', 'Behavioral intelligence'),
+            ('/differential-intelligence', 'Differential intelligence'), ('/auth-contexts', 'Authentication contexts'),
+            ('/hypotheses', 'Hypotheses'), ('/clusters', 'Clusters'), ('/dataflows', 'Dataflows'),
+            ('/evidence-gaps', 'Evidence gaps'), ('/security-stories', 'Security stories'),
+        ])
+    if section_id in {'recon', 'findings', 'analysis'}:
+        links.append(('/notes', 'Investigation notes'))
+    if not links:
+        return ''
+    rendered = []
+    for href, label in links:
+        active = " aria-current='page'" if href == current_path else ''
+        rendered.append(f"<a href='{_esc(_query_link(href, target=target))}'{active}>{_esc(label)}</a>")
+    return "<details class='workspace-access'><summary>Workspace views ▾</summary><nav class='workspace-access-links' aria-label='Workspace pages'>" + ''.join(rendered) + '</nav></details>'
+
+
 def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str = "", current_path: str = "") -> str:
     body = _inject_csrf_inputs(body, csrf)
     csrf_json = json.dumps(csrf)
     path_only = urllib.parse.urlsplit(current_path or "/").path
+    parsed_path=urllib.parse.urlsplit(current_path or '/')
+    focus_target=str((urllib.parse.parse_qs(parsed_path.query).get('target') or [''])[0])
     active_path = {'/alert':'/potential-findings','/asset':'/recon','/js-diff':'/recon','/bug-candidate':'/potential-findings','/bug-candidates':'/potential-findings','/case':'/potential-findings','/signal-alerts':'/alerts','/behavioral-intelligence':'/analysis','/differential-intelligence':'/analysis','/evidence-gaps':'/analysis','/security-reasoning':'/analysis','/semantic-intelligence':'/analysis','/auth-contexts':'/analysis','/hypotheses':'/analysis','/clusters':'/analysis','/dataflows':'/analysis','/analysis-quality':'/analysis','/security-stories':'/analysis'}.get(path_only, path_only)
     login_mode = path_only == '/login'
     nav = []
     command_active = active_path == "/"
     nav.append(
-        f"<a class='nav-item{' active' if command_active else ''}' href='/' data-command-center='1'>"
+        f"<a class='nav-item{' active' if command_active else ''}' href='{_esc(_query_link('/',target=focus_target))}' data-command-center='1'>"
         f"<span class='nav-icon'>CC</span><span class='nav-group-copy'><strong>Command Center</strong><small>Overview and decision inbox</small></span><b>→</b></a>"
     )
     primary_hrefs={"recon":"/recon","analysis":"/analysis","findings":"/potential-findings","alerts":"/alerts"}
     for section_id, section, group_icon, hint, links in NAV_SECTIONS:
-        href=primary_hrefs[section_id]
+        href=_query_link(primary_hrefs[section_id],target=focus_target)
         group_active=any(active_path == item_href or (item_href != "/" and active_path.startswith(item_href)) for item_href,_,_ in links)
+        sidebar_label = section.split(" · ", 1)[-1]
         nav.append(
-            f"<a class='nav-item{' active' if group_active else ''}' href='{href}' data-nav-group='{_esc(section_id)}' data-primary-workspace='1'>"
-            f"<span class='nav-icon'>{_esc(group_icon)}</span><span class='nav-group-copy'><strong>{_esc(section)}</strong><small>{_esc(hint)}</small></span><b>→</b></a>"
+            f"<a class='nav-item{' active' if group_active else ''}' href='{_esc(href)}' aria-label='{_esc(section)}' data-nav-group='{_esc(section_id)}' data-primary-workspace='1'>"
+            f"<span class='nav-icon'>{_esc(group_icon)}</span><span class='nav-group-copy'><strong>{_esc(sidebar_label)}</strong><small>{_esc(hint)}</small></span><b>→</b></a>"
         )
     advanced_links=[link for _,links in ADVANCED_NAV_SECTIONS for link in links]
     advanced_active=any(active_path == href or active_path.startswith(href) for href,_,_ in advanced_links)
@@ -861,14 +929,25 @@ def _layout(title: str, body: str, csrf: str = "", username: str = "", role: str
     legacy_nav_contract="<div hidden aria-hidden='true'><details data-nav-group='workspace'><summary>Decide, validate, report</summary></details><details data-nav-group='analysis'><summary>Candidates and reasoning</summary></details><details data-nav-group='quality'></details><details data-nav-group='operations'><summary>Scope, runs and platform health</summary></details><details data-nav-group='inventory'></details></div>"
     user = _esc(username or "local")
     user_role = _esc(role or "viewer")
-    parsed_path=urllib.parse.urlsplit(current_path or '/')
-    focus_target=str((urllib.parse.parse_qs(parsed_path.query).get('target') or [''])[0])
     focus_chip=f"<span class='focus-chip'><small>Focus</small><strong>{_esc(focus_target)}</strong></span>" if focus_target else ""
     section_name='Command Center' if active_path == '/' else 'Workspace'
-    for _,section,_,_,links in NAV_SECTIONS:
+    section_id = ''
+    for key,section,_,_,links in NAV_SECTIONS:
         if any(active_path == href or (href != '/' and active_path.startswith(href)) for href,_,_ in links):
-            section_name=section; break
+            section_name=section; section_id=key; break
     if advanced_active: section_name='System'
+    workspace_access = _workspace_access(section_id, path_only, focus_target)
+    search_target = f"<input type='hidden' name='target' value='{_esc(focus_target)}'>" if focus_target else ''
+    # Every specialist destination can also be found from the keyboard palette.
+    palette_routes: dict[str, str] = {}
+    for _, _, _, _, entries in NAV_SECTIONS:
+        for href, label, _ in entries:
+            if href not in {'/asset','/case','/alert','/bug-candidate','/bug-candidates','/js-diff'}:
+                palette_routes[href] = label
+    for href, label, _ in advanced_links: palette_routes[href] = label
+    palette_routes.update({'/analysis-quality':'Analysis quality','/security-reasoning':'Security reasoning','/semantic-intelligence':'Semantic intelligence','/behavioral-intelligence':'Behavioral intelligence','/differential-intelligence':'Differential intelligence','/auth-contexts':'Authentication contexts','/hypotheses':'Hypotheses','/clusters':'Clusters','/dataflows':'Dataflows','/evidence-gaps':'Evidence gaps','/security-stories':'Security stories','/notes':'Investigation notes'})
+    existing_palette = {'/recon-coverage','/change-intelligence','/attack-surface','/recon','/analysis','/potential-findings','/alerts','/cases','/safe-validation','/workbench','/safety-center','/diagnostics','/browser-capture','/report-builder','/smart-recon'}
+    expert_commands = ''.join(f"<a class='command-item' data-command='{_esc(label.lower())}' href='{_esc(_query_link(href,target=focus_target))}'><span class='command-copy'><strong>{_esc(label)}</strong><small>Workspace view</small></span></a>" for href,label in palette_routes.items() if href not in existing_palette)
     return f"""<!doctype html>
 <html lang='en' data-theme='dark'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>{_esc(title)} — Recon Monitor</title>
@@ -937,10 +1016,11 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 @media(max-width:820px){{.workspace-strip{{grid-template-columns:1fr}}.workspace-hero{{padding:18px}}}}
 @media(max-width:1120px){{.attention-grid{{grid-template-columns:1fr 1fr}} .command-grid,.command-v2-grid{{grid-template-columns:1fr}} .command-kpi-row{{grid-template-columns:1fr 1fr}} .candidate-reasoning{{grid-template-columns:1fr}} .three-col{{grid-template-columns:1fr 1fr}} .two-col{{grid-template-columns:1fr}} .sticky-rail{{position:static}} .pipeline{{grid-template-columns:repeat(3,1fr)}}}}
 @media(max-width:820px){{.filter-grid{{grid-template-columns:1fr 1fr}} .attention-grid,.command-kpi-row{{grid-template-columns:1fr}} .command-decision{{grid-template-columns:34px minmax(0,1fr) 52px}} .command-decision>i{{display:none}} .score-triad{{grid-template-columns:1fr 1fr}} .view-context,.focus-chip,.primary-work{{display:none}} :root{{--sidebar:274px}} .sidebar{{transform:translateX(-100%);transition:.2s}} body.nav-open .sidebar{{transform:none;box-shadow:var(--shadow)}} .main-shell{{margin-left:0}} .mobile-toggle{{display:inline-flex}} .content{{padding:22px 16px 44px}} .topbar{{padding:0 15px}} .global-search{{width:100%}} .top-actions .user-mini{{display:none}} .page-header{{display:block}} .page-actions{{margin-top:14px}} .three-col{{grid-template-columns:1fr}} .pipeline{{grid-template-columns:repeat(2,1fr)}} .graph-panel{{position:static;width:auto;max-height:none;margin:10px}} .graph-wrap{{height:auto;min-height:620px}} .filter-actions{{grid-column:1/-1}}}}
+{MINIMAL_CSS}
 </style></head><body class='{'login-mode' if login_mode else ''}'>
 <div class='app-shell'><aside class='sidebar'><div class='brand'><div class='brand-mark' aria-label='Recon Monitor'>R</div><div class='brand-copy'><strong>Recon Monitor</strong><small>Decision Console · {APP_VERSION}</small></div></div>{''.join(nav)}{advanced_nav}{legacy_nav_contract}<div class='sidebar-footer'><div class='user-card'><div class='avatar'>{_esc((username or 'L')[:1].upper())}</div><div class='user-meta'><strong>{user}</strong><small>{user_role}</small></div><a href='/logout' title='Sign out' class='button ghost icon-button'>↪</a></div></div></aside>
-<div class='main-shell'><header class='topbar'><button class='secondary icon-button mobile-toggle' id='navToggle' aria-label='Open navigation'>☰</button><div class='view-context'><small>{_esc(section_name)}</small><strong>{_esc(title)}</strong></div>{focus_chip}<form class='global-search' action='/search' method='get'><span class='search-icon'>⌕</span><input id='globalSearch' name='q' placeholder='Search assets, endpoints, candidates, evidence…' required><span class='shortcut'>⌘ K</span></form><div class='top-actions'><span class='workspace-hero-status' title='Local-first workspace'><span class='status-dot'></span><strong>Local</strong></span><a class='button secondary primary-work' href='/potential-findings'>Potential findings</a><button class='secondary icon-button' type='button' id='densityToggle' title='Toggle compact density'>≡</button><button class='secondary icon-button' type='button' id='focusToggle' title='Toggle focus mode'>◧</button><button class='secondary icon-button' type='button' id='themeToggle' title='Toggle theme'>◐</button></div></header>
-<main class='content'>{body}</main></div></div>
+<div class='main-shell'><header class='topbar'><button class='secondary icon-button mobile-toggle' id='navToggle' aria-label='Open navigation'>☰</button><div class='view-context'><small>{_esc(section_name)}</small><strong>{_esc(title)}</strong></div>{focus_chip}<form class='global-search' action='/search' method='get'><span class='search-icon'>⌕</span><input id='globalSearch' name='q' aria-label='Search workspace' placeholder='Search workspace…' required>{search_target}<span class='shortcut'>⌘ K</span></form><div class='top-actions'><details class='display-menu'><summary>Appearance</summary><div class='display-options'><button class='secondary' type='button' id='densityToggle' aria-pressed='false'>Compact density</button><button class='secondary' type='button' id='focusToggle' aria-pressed='false'>Focus mode</button><button class='secondary' type='button' id='themeToggle'>Light / dark theme</button></div></details></div></header>
+<main class='content'>{workspace_access}{body}</main></div></div>
 <div class='command-palette' id='commandPalette' role='dialog' aria-modal='true' aria-label='Command palette'><div class='command-box'><input id='commandInput' placeholder='Type a command or search term…' autocomplete='off'><div class='command-list' id='commandList'>
 <a class='command-item' data-command='search universal find endpoint asset case evidence' href='/search'><span class='nav-icon'>⌕</span><span class='command-copy'><strong>Universal search</strong><small>Search cases, candidates, endpoints and evidence</small></span><span class='command-key'>Enter</span></a>
 <a class='command-item' data-command='command center home cockpit attention' href='/'><span class='nav-icon'>CC</span><span class='command-copy'><strong>Command center</strong><small>Four-step research workflow</small></span></a>
@@ -958,7 +1038,7 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
 <a class='command-item' data-command='attack surface graph map' href='/attack-surface'><span class='nav-icon'>AG</span><span class='command-copy'><strong>Attack surface graph</strong><small>Visualize assets, endpoints, contexts and candidates</small></span></a>
 <a class='command-item' data-command='safety scope authorization audit safe to run' href='/safety-center'><span class='nav-icon'>SC</span><span class='command-copy'><strong>Safety Center</strong><small>Scope, authorization and exposure gates</small></span></a>
 <a class='command-item' data-command='diagnostics health repair errors browser' href='/diagnostics'><span class='nav-icon'>DX</span><span class='command-copy'><strong>Diagnostics & repair</strong><small>Self-check and preview-first safe recovery</small></span></a>
-</div></div></div>
+{expert_commands}</div></div></div>
 <script>
 (function(){{
   // Keep the operator at the same reading position when a GET filter/tab
@@ -970,7 +1050,7 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     saved=JSON.parse(sessionStorage.getItem(key)||'null');
     sessionStorage.removeItem(key);
   }}catch(_error){{}}
-  if(saved&&saved.next===here&&Number.isFinite(saved.y)){{
+  if(saved&&saved.next===here&&Number.isFinite(saved.y)&&!window.location.hash){{
     const restore=()=>{{
       const root=document.documentElement, previous=root.style.scrollBehavior;
       root.style.scrollBehavior='auto';
@@ -989,14 +1069,19 @@ button,.button{{border-radius:10px}}button:not(.secondary):not(.ghost):not(.dang
     const link=event.target.closest('.content a[href]');
     if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
     const next=new URL(link.href,window.location.href);
+    if(next.hash)return;
     if(next.origin===window.location.origin&&next.pathname===window.location.pathname&&
        next.search!==window.location.search)remember(next.pathname+next.search);
   }},true);
   document.addEventListener('submit',(event)=>{{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=='get'||
-       !form.closest('.content')||(form.target&&form.target!=='_self'))return;
-    const next=new URL(form.action||window.location.href,window.location.href);
+    if(!(form instanceof HTMLFormElement))return;
+    // Controls named target/method/action shadow the form's DOM properties.
+    const method=(form.getAttribute('method')||'get').toLowerCase();
+    const target=form.getAttribute('target')||'';
+    if(method!=='get'||!form.closest('.content')||(target&&target!=='_self'))return;
+    const next=new URL(form.getAttribute('action')||window.location.href,window.location.href);
+    if(next.hash)return;
     if(next.origin!==window.location.origin||next.pathname!==window.location.pathname)return;
     next.search=new URLSearchParams(new FormData(form)).toString();
     remember(next.pathname+next.search);
@@ -1007,17 +1092,39 @@ document.querySelectorAll("form[method='post'],form[method='POST']").forEach(f=>
 const root=document.documentElement, savedTheme=localStorage.getItem('recon-theme'); if(savedTheme) root.dataset.theme=savedTheme;
 document.getElementById('themeToggle')?.addEventListener('click',()=>{{root.dataset.theme=root.dataset.theme==='light'?'dark':'light';localStorage.setItem('recon-theme',root.dataset.theme);}});
 const density=localStorage.getItem('recon-density');if(density==='compact')document.body.classList.add('compact');
-document.getElementById('densityToggle')?.addEventListener('click',()=>{{document.body.classList.toggle('compact');localStorage.setItem('recon-density',document.body.classList.contains('compact')?'compact':'comfortable');}});
+document.getElementById('densityToggle')?.setAttribute('aria-pressed',String(document.body.classList.contains('compact')));
+document.getElementById('densityToggle')?.addEventListener('click',()=>{{document.body.classList.toggle('compact');const enabled=document.body.classList.contains('compact');localStorage.setItem('recon-density',enabled?'compact':'comfortable');document.getElementById('densityToggle').setAttribute('aria-pressed',String(enabled));}});
 const focusMode=localStorage.getItem('recon-focus-mode');if(focusMode==='on')document.body.classList.add('focus-mode');
-document.getElementById('focusToggle')?.addEventListener('click',()=>{{document.body.classList.toggle('focus-mode');localStorage.setItem('recon-focus-mode',document.body.classList.contains('focus-mode')?'on':'off');}});
+document.getElementById('focusToggle')?.setAttribute('aria-pressed',String(document.body.classList.contains('focus-mode')));
+document.getElementById('focusToggle')?.addEventListener('click',()=>{{document.body.classList.toggle('focus-mode');const enabled=document.body.classList.contains('focus-mode');localStorage.setItem('recon-focus-mode',enabled?'on':'off');document.getElementById('focusToggle').setAttribute('aria-pressed',String(enabled));}});
 document.getElementById('navToggle')?.addEventListener('click',()=>document.body.classList.toggle('nav-open'));
 document.querySelectorAll('details[data-nav-group]').forEach(group=>{{const key='recon-nav-'+group.dataset.navGroup;const saved=localStorage.getItem(key);if(group.dataset.active==='1')group.open=true;else if(saved!==null)group.open=saved==='open';group.addEventListener('toggle',()=>localStorage.setItem(key,group.open?'open':'closed'));}});
 document.querySelectorAll('.nav-item').forEach(link=>link.addEventListener('click',()=>document.body.classList.remove('nav-open')));
+document.querySelectorAll('details[data-filter-panel]').forEach(panel=>{{
+  const key='recon-filters-'+window.location.pathname+'-'+panel.dataset.filterPanel;
+  try{{panel.open=localStorage.getItem(key)==='open';}}catch(_error){{}}
+  panel.addEventListener('toggle',()=>{{try{{localStorage.setItem(key,panel.open?'open':'closed');}}catch(_error){{}}}});
+}});
+function revealDetailHash(hash){{
+  let id;try{{id=decodeURIComponent(hash.replace(/^#/,''));}}catch(_error){{return;}}
+  const target=document.getElementById(id);if(!target)return;
+  if(target.tagName==='DETAILS')target.open=true;
+  let parent=target.parentElement;
+  while(parent){{if(parent.tagName==='DETAILS')parent.open=true;parent=parent.parentElement;}}
+}}
+if(window.location.hash)revealDetailHash(window.location.hash);
+window.addEventListener('hashchange',()=>revealDetailHash(window.location.hash));
+document.addEventListener('click',event=>{{
+  if(!(event.target instanceof Element))return;
+  const link=event.target.closest('a[href]');if(!link)return;
+  const url=new URL(link.href,window.location.href);
+  if(url.origin===window.location.origin&&url.pathname===window.location.pathname&&url.search===window.location.search&&url.hash)revealDetailHash(url.hash);
+}});
 const palette=document.getElementById('commandPalette'),commandInput=document.getElementById('commandInput'),commandItems=[...document.querySelectorAll('.command-item')];
 function openPalette(){{if(!palette)return;palette.classList.add('open');commandInput.value='';commandItems.forEach(x=>x.style.display='flex');setTimeout(()=>commandInput.focus(),0);}}
 function closePalette(){{palette?.classList.remove('open');}}
 commandInput?.addEventListener('input',()=>{{const q=commandInput.value.trim().toLowerCase();commandItems.forEach(x=>x.style.display=(!q||(x.dataset.command||'').includes(q)||x.textContent.toLowerCase().includes(q))?'flex':'none');}});
-commandInput?.addEventListener('keydown',e=>{{if(e.key==='Enter'){{const q=commandInput.value.trim();const visible=commandItems.find(x=>x.style.display!=='none');if(q&&(!visible||q.length>2))window.location='/search?q='+encodeURIComponent(q);else if(visible)window.location=visible.href;}}}});
+commandInput?.addEventListener('keydown',e=>{{if(e.key==='Enter'){{const q=commandInput.value.trim();const visible=commandItems.find(x=>x.style.display!=='none');if(visible)window.location=visible.href;else if(q){{const params=new URLSearchParams({{q}});const target=new URLSearchParams(window.location.search).get('target');if(target)params.set('target',target);window.location='/search?'+params.toString();}}}}}});
 palette?.addEventListener('click',e=>{{if(e.target===palette)closePalette();}});
 document.addEventListener('keydown',e=>{{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){{e.preventDefault();openPalette();return;}} if(e.key==='Escape'&&palette?.classList.contains('open')){{closePalette();return;}} if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){{e.preventDefault();document.getElementById('globalSearch')?.focus();}}}});
 document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{{await navigator.clipboard.writeText(b.dataset.copy||'');const old=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=old,1200);}}));
@@ -1062,7 +1169,21 @@ async function refreshLiveProgress(){{
     const fresh=template.content.querySelector('#live-progress');
 
     if(fresh){{
+      // Do not replace controls or text that the operator is currently using.
+      const selection=window.getSelection();
+      if(panel.contains(document.activeElement)||(selection&&!selection.isCollapsed&&
+         (panel.contains(selection.anchorNode)||panel.contains(selection.focusNode))))return;
+      // Keep the operator's disclosure choices while the snapshot changes.
+      panel.querySelectorAll('details[id]').forEach(detail=>{{
+        const nextDetail=fresh.querySelector('#'+detail.id);
+        if(nextDetail)nextDetail.open=detail.open;
+      }});
+      const oldRect=panel.getBoundingClientRect();
+      const headerBottom=document.querySelector('.topbar')?.getBoundingClientRect().bottom||0;
+      const keepReadingPosition=oldRect.bottom<headerBottom;
+      const beforeY=window.scrollY;
       panel.replaceWith(fresh);
+      if(keepReadingPosition)window.scrollTo(0,beforeY+fresh.getBoundingClientRect().height-oldRect.height);
     }}
   }}catch(error){{
     console.debug('Live progress refresh failed:',error);
@@ -1635,40 +1756,40 @@ class DashboardHandler(BaseHTTPRequestHandler):
         since=''
         if days: since=(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=days)).replace(microsecond=0).isoformat().replace('+00:00','Z')
         filtered=[x for x in items if (not q or q.lower() in (' '.join([str(x.get('value','')),str(x.get('detail','')),str(x.get('target','')),' '.join(x.get('categories',[])),' '.join(x.get('sources',[]))])).lower()) and (not since or str(x.get('last_seen') or '')>=since)]
-        counts={kind:sum(1 for x in items if x['kind']==kind) for kind in RECON_RAW_META}
-        category_counts={key:sum(1 for x in items if key in x['categories']) for key in RECON_CATEGORY_ORDER}
-        state_counts={state:sum(1 for x in items if x['change_state']==state) for state in ('new','changed','reappeared','disappeared','stable')}
+        counts={kind:sum(1 for x in filtered if x['kind']==kind) for kind in RECON_RAW_META}
+        category_counts={key:sum(1 for x in filtered if key in x['categories']) for key in RECON_CATEGORY_ORDER}
+        state_counts={state:sum(1 for x in filtered if x['change_state']==state) for state in ('new','changed','reappeared','disappeared','stable')}
         high_interest=[x for x in filtered if parse_int(x.get('interest'),0)>=70]
         tabs="<nav class='segmented' aria-label='Recon views'>"+''.join(
-            f"<a class='{'active' if view==key else ''}' href='{_query_link('/recon',view=key,target=target)}'>{label}</a>"
+            f"<a class='{'active' if view==key else ''}' href='{_query_link('/recon',view=key,target=target,q=q,days=days or '')}'>{label}</a>"
             for key,label in [('overview','Overview'),('categories','Categories'),('raw','Raw Data')]
         )+"</nav>"
         target_controls=_filter_panel(
-            f"<label>Target{_select('target',targets,target,'All targets')}</label><input type='hidden' name='view' value='{_esc(view)}'>",
-            {'Target':target},_query_link('/recon',view=view),title='Recon focus',result_count=len(filtered)
+            f"<label>Target{_select('target',targets,target,'All targets')}</label><input type='hidden' name='view' value='{_esc(view)}'><input type='hidden' name='q' value='{_esc(q)}'><input type='hidden' name='days' value='{days or ''}'><input type='hidden' name='category' value='{_esc(category if view == 'categories' else '')}'><input type='hidden' name='raw' value='{_esc(raw if view == 'raw' else '')}'>",
+            {'Target':target,'Search':q,'Window':f'{days} days' if days else ''},_query_link('/recon',view=view),title='Recon focus',result_count=len(filtered)
         )
         header=_page_header('Recon','Understand the attack surface first. Overview explains the current picture, Categories organize security context, and Raw Data preserves full evidence.',"<a class='button secondary' href='/smart-recon'>Next recon action</a><a class='button' href='/runs'>Run history</a>",'01 · Discover')
         common=header+tabs+target_controls
         if view=='overview':
-            summary="<div class='metrics-grid'>"+''.join([
-                _metric_card('Attack-surface items',len(items),'Unified observations across all recon sources','info',_query_link('/recon',view='raw',target=target)),
-                _metric_card('High-interest',len([x for x in items if parse_int(x.get('interest'),0)>=70]),'Prioritized surface — not vulnerability claims','orange',_query_link('/recon',view='categories',target=target)),
+            summary="<div class='metrics-grid recon-metrics'>"+''.join([
+                _metric_card('Attack-surface items',len(filtered),'Unified observations across all recon sources','info',_query_link('/recon',view='raw',target=target)),
+                _metric_card('High-interest',len([x for x in filtered if parse_int(x.get('interest'),0)>=70]),'Prioritized surface — not vulnerability claims','orange',_query_link('/recon',view='categories',target=target)),
                 _metric_card('New / changed',state_counts['new']+state_counts['changed']+state_counts['reappeared'],'Material change states from run comparisons','purple',_query_link('/recon',view='overview',target=target)+'#changes'),
-                _metric_card('Coverage',str(meta['coverage_overall'])+'%','Observation confidence across selected scope','success' if meta['coverage_overall']>=75 else 'amber','/recon-coverage'+(('?target='+urllib.parse.quote(target)) if target else '')),
+                _metric_card('Coverage',str(meta['coverage_overall'])+'%' if meta['coverage_overall'] is not None else 'Unknown','Observation confidence across selected scope','success' if meta['coverage_overall'] is not None and meta['coverage_overall']>=75 else 'amber','/recon-coverage'+(('?target='+urllib.parse.quote(target)) if target else '')),
             ])+"</div>"
-            raw_pulse="<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Attack Surface Summary</h3><span class='muted small'>Inventory by raw evidence source</span></div><div class='attention-grid'>"+''.join(
-                f"<a class='attention-card' href='{_query_link('/recon',view='raw',raw=k,target=target)}'><span>{_esc(RECON_RAW_META[k][1])}</span><strong>{counts[k]}</strong><small>{_esc(RECON_RAW_META[k][0])}</small></a>" for k in RECON_RAW_META
+            raw_pulse="<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Attack Surface Summary</h3><span class='muted small'>Inventory by raw evidence source</span></div><div class='recon-inventory'>"+''.join(
+                f"<a class='recon-inventory-item' href='{_query_link('/recon',view='raw',raw=k,target=target,q=q,days=days or '')}'><span>{_esc(RECON_RAW_META[k][1])}<small>{_esc(RECON_RAW_META[k][0])}</small></span><strong>{counts[k]}</strong></a>" for k in RECON_RAW_META
             )+"</div></section>"
             change_cards=''.join(
-                f"<a class='attention-card' href='{_query_link('/recon',view='raw',target=target)}'><span>{_esc(label)}</span><strong>{state_counts[key]}</strong><small>surface items</small></a>"
+                f"<a class='recon-change-item' href='{_query_link('/recon',view='raw',target=target,q=q,days=days or '')}'><span>{_esc(label)}</span><strong>{state_counts[key]}</strong><small>surface items</small></a>"
                 for key,label in [('new','New'),('changed','Changed'),('reappeared','Reappeared'),('disappeared','Disappeared')]
             )
-            changes=f"<section class='panel' id='changes' style='margin-top:16px'><div class='panel-head'><h3>New / Changed Surface</h3><span class='muted small'>Run-to-run state, not a vulnerability verdict</span></div><div class='attention-grid'>{change_cards}</div></section>"
+            changes=f"<section class='panel' id='changes' style='margin-top:16px'><div class='panel-head'><h3>New / Changed Surface</h3><span class='muted small'>Run-to-run state, not a vulnerability verdict</span></div><div class='recon-change-counts'>{change_cards}</div></section>"
             top=high_interest[:12]
-            top_rows=''.join(f"<tr><td><strong>{x['interest']}</strong></td><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code></td><td>{' '.join(_pill(RECON_CATEGORY_META[c][0],'info') for c in x['categories'])}</td><td>{_pill(x['change_state'])}</td><td>{_esc(', '.join(x['sources'][:3]))}</td></tr>" for x in top)
-            interest=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>High-interest Areas</h3><span class='muted small'>Interest ranks review value only; it does not claim a vulnerability.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Categories</th><th>Change</th><th>Provenance</th></tr></thead><tbody>{top_rows or '<tr><td colspan=7>No high-interest surface is currently indexed</td></tr>'}</tbody></table></div></section>"
-            blind=''.join(f"<li>{_esc(x)}</li>" for x in meta['blind_spots']) or '<li>No major blind spot identified by current coverage heuristics.</li>'
-            coverage=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Coverage / Blind Spots</h3><span class='muted small'>Coverage {meta['coverage_overall']}%</span></div><div class='panel-body'><ul>{blind}</ul><p class='muted small'>Low coverage means observations are missing; it never means the target is safe.</p></div></section>"
+            top_rows=''.join('<tr>'+labeled_cell('Interest',f"<strong>{x['interest']}</strong>")+labeled_cell('Type',_esc(x['kind']))+labeled_cell('Target',_esc(x['target']))+labeled_cell('Surface',f"<code>{_esc(x['value'])}</code>")+labeled_cell('Categories',' '.join(_pill(RECON_CATEGORY_META[k][0],'info') for k in x['categories']))+labeled_cell('Change',_pill(x['change_state']))+labeled_cell('Provenance',_esc(', '.join(x['sources'])))+'</tr>' for x in top)
+            interest=f"<section class='panel recon-table-panel' style='margin-top:16px'><div class='panel-head'><h3>High-interest Areas</h3><span class='muted small'>Interest ranks review value only; it does not claim a vulnerability.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table class='responsive-records recon-records recon-interest-table'><colgroup><col style='width:6%'><col style='width:10%'><col style='width:12%'><col style='width:28%'><col style='width:18%'><col style='width:9%'><col style='width:17%'></colgroup><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Categories</th><th>Change</th><th>Provenance</th></tr></thead><tbody>{top_rows or '<tr><td colspan=7>No high-interest surface is currently indexed</td></tr>'}</tbody></table></div></section>"
+            blind=''.join(f"<li>{_esc(x)}</li>" for x in meta['blind_spots']) or ('<li>No major blind spot identified by current coverage heuristics.</li>' if meta['coverage_overall'] is not None else '<li>Choose a target to inspect its coverage and blind spots.</li>')
+            coverage=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Coverage / Blind Spots</h3><span class='muted small'>Coverage {_esc(str(meta['coverage_overall'])+'%' if meta['coverage_overall'] is not None else 'unknown')}</span></div><div class='panel-body'><ul>{blind}</ul><p class='muted small'>Low coverage means observations are missing; it never means the target is safe.</p></div></section>"
             self.send_html('Recon',common+summary+raw_pulse+changes+interest+coverage); return
         if view=='categories':
             cards=[]
@@ -1677,25 +1798,31 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 members=[x for x in filtered if key in x['categories']]
                 high=sum(1 for x in members if parse_int(x.get('interest'),0)>=70)
                 changed=sum(1 for x in members if x['change_state']!='stable')
-                cards.append(f"<a class='workspace-tile' href='{_query_link('/recon',view='categories',category=key,target=target)}'><span class='workspace-tile-icon'>{_esc(icon)}</span><span><strong>{_esc(label)}</strong><small>{len(members)} items · {high} high-interest · {changed} changed<br>{_esc(desc)}</small></span></a>")
+                cards.append(f"<a class='workspace-tile' href='{_query_link('/recon',view='categories',category=key,target=target,q=q,days=days or '')}'><span class='workspace-tile-icon'>{_esc(icon)}</span><span><strong>{_esc(label)}</strong><small>{len(members)} items · {high} high-interest · {changed} changed<br>{_esc(desc)}</small></span></a>")
             category_grid="<div class='workspace-strip' style='grid-template-columns:repeat(auto-fit,minmax(260px,1fr))'>"+''.join(cards)+"</div>"
             chosen=category if category in RECON_CATEGORY_META else ''
             members=[x for x in filtered if not chosen or chosen in x['categories']]
+            page_size=100; page=min(parse_int((p.get('page') or [1])[0],1,1),max(1,(len(members)+page_size-1)//page_size))
+            page_members=members[(page-1)*page_size:page*page_size]
+            pager=pagination('/recon',{'target':target,'view':view,'q':q,'days':days or '', 'category':chosen if view=='categories' else '', 'raw':chosen if view=='raw' else ''},len(members),page,page_size)
             fields=f"<label class='filter-wide'>Search categorized surface<input name='q' value='{_esc(q)}' placeholder='Host, route, category, source…'></label><label>Category{_select_pairs('category',[(k,RECON_CATEGORY_META[k][0]) for k in RECON_CATEGORY_ORDER],chosen,'All categories')}</label><label>Seen{_select_pairs('days',[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')],str(days) if days else '','Any time')}</label><input type='hidden' name='view' value='categories'><input type='hidden' name='target' value='{_esc(target)}'>"
             controls=_filter_panel(fields,{'Category':RECON_CATEGORY_META.get(chosen,('',))[0] if chosen else '', 'Search':q,'Window':str(days)+' days' if days else ''},_query_link('/recon',view='categories',target=target),title='Category filters',result_count=len(members))
-            rows=''.join(f"<tr><td><strong>{x['interest']}</strong></td><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span></td><td>{' '.join(_pill(RECON_CATEGORY_META[c][0],'info') for c in x['categories'])}</td><td>{_pill(x['change_state'])}</td><td>{_esc(', '.join(x['sources'][:3]))}</td><td>{_esc(x['last_seen'])}</td></tr>" for x in members[:500])
+            rows=''.join('<tr>'+labeled_cell('Interest',f"<strong>{x['interest']}</strong>")+labeled_cell('Type',_esc(x['kind']))+labeled_cell('Target',_esc(x['target']))+labeled_cell('Surface',f"<code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span>")+labeled_cell('Labels',' '.join(_pill(RECON_CATEGORY_META[k][0],'info') for k in x['categories']))+labeled_cell('Change',_pill(x['change_state']))+labeled_cell('Provenance',_esc(', '.join(x['sources'])))+labeled_cell('Last seen',_esc(x['last_seen']))+'</tr>' for x in page_members)
             title=RECON_CATEGORY_META[chosen][0] if chosen else 'All categorized surface'
-            table=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(title)}</h3><span class='muted small'>Multi-label categories: one item may appear in more than one security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Labels</th><th>Change</th><th>Provenance</th><th>Last seen</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No surface matches this category</td></tr>'}</tbody></table></div></section>"
-            self.send_html('Recon categories',common+category_grid+controls+table); return
+            table=f"<section class='panel recon-table-panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(title)}</h3><span class='muted small'>Multi-label categories: one item may appear in more than one security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table class='responsive-records recon-records recon-category-table'><colgroup><col style='width:6%'><col style='width:9%'><col style='width:11%'><col style='width:26%'><col style='width:14%'><col style='width:8%'><col style='width:15%'><col style='width:11%'></colgroup><thead><tr><th>Interest</th><th>Type</th><th>Target</th><th>Surface</th><th>Labels</th><th>Change</th><th>Provenance</th><th>Last seen</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No surface matches this category</td></tr>'}</tbody></table></div></section>"
+            self.send_html('Recon categories',common+category_grid+controls+pager+table+pager); return
         # Raw Data: source-faithful evidence with minimal interpretation.
         chosen=raw if raw in RECON_RAW_META else ''
         members=[x for x in filtered if not chosen or x['kind']==chosen]
-        raw_tiles="<div class='workspace-strip'>"+''.join(f"<a class='workspace-tile' href='{_query_link('/recon',view='raw',raw=k,target=target)}'><span class='workspace-tile-icon'>{_esc(k[:2].upper())}</span><span><strong>{_esc(RECON_RAW_META[k][0])}</strong><small>{counts[k]} · {_esc(RECON_RAW_META[k][1])}</small></span></a>" for k in RECON_RAW_META)+"</div>"
+        page_size=100; page=min(parse_int((p.get('page') or [1])[0],1,1),max(1,(len(members)+page_size-1)//page_size))
+        page_members=members[(page-1)*page_size:page*page_size]
+        pager=pagination('/recon',{'target':target,'view':view,'q':q,'days':days or '', 'category':chosen if view=='categories' else '', 'raw':chosen if view=='raw' else ''},len(members),page,page_size)
+        raw_tiles="<div class='workspace-strip'>"+''.join(f"<a class='workspace-tile' href='{_query_link('/recon',view='raw',raw=k,target=target,q=q,days=days or '')}'><span class='workspace-tile-icon'>{_esc(k[:2].upper())}</span><span><strong>{_esc(RECON_RAW_META[k][0])}</strong><small>{counts[k]} · {_esc(RECON_RAW_META[k][1])}</small></span></a>" for k in RECON_RAW_META)+"</div>"
         fields=f"<label class='filter-wide'>Search raw recon data<input name='q' value='{_esc(q)}' placeholder='Exact host, URL, route, service or source…'></label><label>Raw type{_select_pairs('raw',[(k,v[0]) for k,v in RECON_RAW_META.items()],chosen,'All raw data')}</label><label>Seen{_select_pairs('days',[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')],str(days) if days else '','Any time')}</label><input type='hidden' name='view' value='raw'><input type='hidden' name='target' value='{_esc(target)}'>"
         controls=_filter_panel(fields,{'Type':RECON_RAW_META.get(chosen,('',))[0] if chosen else '', 'Search':q,'Window':str(days)+' days' if days else ''},_query_link('/recon',view='raw',target=target),title='Raw data filters',result_count=len(members))
-        rows=''.join(f"<tr><td>{_pill(x['kind'])}</td><td>{_esc(x['target'])}</td><td><code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span></td><td>{_confidence(x['confidence']) if x['confidence'] else '—'}</td><td>{_esc(', '.join(x['sources'][:4]))}</td><td>{_esc(x['first_seen'])}</td><td>{_esc(x['last_seen'])}</td><td>{_esc(x['last_run_id'])}</td></tr>" for x in members[:500])
-        table=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(RECON_RAW_META[chosen][0] if chosen else 'All raw recon data')}</h3><span class='muted small'>Source-faithful inventory; use Categories for security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Type</th><th>Target</th><th>Observation</th><th>Confidence</th><th>Provenance</th><th>First seen</th><th>Last seen</th><th>Run</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No raw observations match the current filters</td></tr>'}</tbody></table></div></section>"
-        self.send_html('Recon raw data',common+raw_tiles+controls+table)
+        rows=''.join('<tr>'+labeled_cell('Type',_esc(x['kind']))+labeled_cell('Target',_esc(x['target']))+labeled_cell('Observation',f"<code>{_esc(x['value'])}</code><br><span class='muted small'>{_esc(x['detail'])}</span>")+labeled_cell('Confidence',_confidence(x['confidence']) if x['confidence'] else '—')+labeled_cell('Provenance',_esc(', '.join(x['sources'])))+labeled_cell('First seen',_esc(x['first_seen']))+labeled_cell('Last seen',_esc(x['last_seen']))+labeled_cell('Run',_esc(x['last_run_id']))+'</tr>' for x in page_members)
+        table=f"<section class='panel recon-table-panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(RECON_RAW_META[chosen][0] if chosen else 'All raw recon data')}</h3><span class='muted small'>Source-faithful inventory; use Categories for security context.</span></div><div class='table-wrap' style='border:0;border-radius:0'><table class='responsive-records recon-records recon-raw-table'><colgroup><col style='width:9%'><col style='width:11%'><col style='width:30%'><col style='width:8%'><col style='width:16%'><col style='width:9%'><col style='width:9%'><col style='width:8%'></colgroup><thead><tr><th>Type</th><th>Target</th><th>Observation</th><th>Confidence</th><th>Provenance</th><th>First seen</th><th>Last seen</th><th>Run</th></tr></thead><tbody>{rows or '<tr><td colspan=8>No raw observations match the current filters</td></tr>'}</tbody></table></div></section>"
+        self.send_html('Recon raw data',common+raw_tiles+controls+pager+table+pager)
 
     def analysis_engine(self) -> None:
         db=self.db()
@@ -1736,7 +1863,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         min_likelihood=parse_int((p.get('min_likelihood')or[0])[0],0,0,100); min_evidence=parse_int((p.get('min_evidence')or[0])[0],0,0,100); min_exploitability=parse_int((p.get('min_exploitability')or[0])[0],0,0,100); min_investigation=parse_int((p.get('min_investigation')or[0])[0],0,0,100)
         db=self.db()
         try:
-            latest=db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
+            latest=_latest_completed_analysis(db,target)
             analysis_id=str(latest['id']) if latest else ''
             where=['analysis_id=?']; args:list[Any]=[analysis_id]
             if view=='actionable':
@@ -1759,32 +1886,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if min_exploitability:where.append('exploitability_confidence>=?');args.append(min_exploitability)
             if min_investigation:where.append('investigation_value>=?');args.append(min_investigation)
             order={'investigation':'investigation_value DESC,calibrated_likelihood DESC','likelihood':'calibrated_likelihood DESC,evidence_strength DESC','evidence':'evidence_strength DESC,investigation_value DESC','exploitability':'exploitability_confidence DESC,impact_potential DESC','impact':'impact_potential DESC,investigation_value DESC','updated':'updated_at DESC,investigation_value DESC'}.get(sort,'investigation_value DESC,calibrated_likelihood DESC')
-            rows=[dict(r) for r in db.all(f"SELECT * FROM bug_candidates WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 500",args)] if analysis_id else []
-            targets=[str(r[0]) for r in db.all("SELECT DISTINCT target FROM bug_candidates WHERE analysis_id=? ORDER BY target",(analysis_id,))] if analysis_id else []
+            page_rows,total_count,page=query_page(db,f"SELECT * FROM bug_candidates WHERE {' AND '.join(where)} ORDER BY {order},candidate_id",args,p)
+            rows=[dict(r) for r in page_rows]
+            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT target FROM bug_candidates UNION SELECT target FROM run_targets UNION SELECT target FROM analysis_runs) WHERE target NOT IN ('','*') ORDER BY target")]
             families=[str(r[0]) for r in db.all("SELECT DISTINCT bug_family FROM bug_candidates WHERE analysis_id=? ORDER BY bug_family",(analysis_id,))] if analysis_id else []
             reachabilities=[str(r[0]) for r in db.all("SELECT DISTINCT reachability_state FROM bug_candidates WHERE analysis_id=? ORDER BY reachability_state",(analysis_id,))] if analysis_id else []
             counts=db.one("SELECT COUNT(*) total,SUM(candidate_state='strong_candidate') strong,SUM(candidate_state='plausible') plausible,SUM(analyst_decision='unreviewed') unreviewed FROM bug_candidates WHERE analysis_id=?",(analysis_id,)) if analysis_id else None
         finally: db.close()
+        for current,options in ((target,targets),(family,families),(reachability,reachabilities)):
+            if current and current not in options: options.append(current)
         total=int(counts['total'] or 0) if counts else 0; strong=int(counts['strong'] or 0) if counts else 0; plausible=int(counts['plausible'] or 0) if counts else 0; unreviewed=int(counts['unreviewed'] or 0) if counts else 0
         shared=dict(target=target,family=family,state=state,decision=decision,q=q,reachability=reachability,min_likelihood=min_likelihood,min_evidence=min_evidence,min_exploitability=min_exploitability,min_investigation=min_investigation,sort=sort,view=view)
-        toggle_url=_query_link('/potential-findings',display='table' if display!='table' else 'cards',**shared)
+        toggle_url=_query_link('/potential-findings',**{**{k:v[0] for k,v in p.items() if v},'display':'table' if display!='table' else 'cards'})
         toggle_label='Table view' if display!='table' else 'Card view'
         header=_breadcrumb(('Analysis','/analysis'),'Potential findings')+_page_header('Potential findings','Reviewed analysis output where a probable security issue is worth analyst attention. These are not confirmed vulnerabilities until validated.',f"<a class='button secondary' href='{toggle_url}'>{toggle_label}</a><a class='button' href='/workbench'>Review queue</a>",'03 · Investigate · probability, not proof')
         sort_pairs=[('investigation','Investigation value'),('likelihood','Likelihood'),('evidence','Evidence strength'),('exploitability','Exploitability'),('impact','Impact potential'),('updated','Recently updated')]
         fields=f"<label class='filter-wide'>Search candidates<input name='q' value='{_esc(q)}' placeholder='Title, endpoint or summary'></label><label>View{_select_pairs('view',[('actionable','Actionable'),('strong','Strong / confirmed'),('needs_review','Needs review'),('needs_evidence','Needs evidence'),('all','All candidates')],view,'Actionable')}</label><label>Target{_select('target',targets,target,'All targets')}</label><label>Bug family{_select('family',families,family,'All families')}</label><label>State{_select('state',['weak_signal','insufficient_evidence','possible','plausible','strong_candidate','confirmed_by_analyst','rejected'],state,'Any state')}</label><label>Decision{_select('decision',ANALYST_DECISIONS,decision,'Any decision')}</label><label>Reachability{_select('reachability',reachabilities,reachability,'Any reachability')}</label><label>Likelihood ≥<input type='number' name='min_likelihood' min='0' max='100' value='{min_likelihood or ''}'></label><label>Evidence ≥<input type='number' name='min_evidence' min='0' max='100' value='{min_evidence or ''}'></label><label>Exploitability ≥<input type='number' name='min_exploitability' min='0' max='100' value='{min_exploitability or ''}'></label><label>Investigation ≥<input type='number' name='min_investigation' min='0' max='100' value='{min_investigation or ''}'></label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Investigation value')}</label><input type='hidden' name='display' value='{_esc(display)}'>"
         view_labels={'actionable':'Actionable','strong':'Strong / confirmed','needs_review':'Needs review','needs_evidence':'Needs evidence','all':'All candidates'}
-        controls=_filter_panel(fields,{'View':view_labels.get(view,view),'Search':q,'Target':target,'Family':family,'State':state,'Decision':decision,'Reachability':reachability,'Likelihood ≥':min_likelihood,'Evidence ≥':min_evidence,'Exploitability ≥':min_exploitability,'Investigation ≥':min_investigation,'Sort':dict(sort_pairs).get(sort,'') if sort!='investigation' else ''},'/potential-findings?view=actionable',title='Potential finding search & filters',result_count=len(rows))
-        presets=_quick_views([('Actionable','/potential-findings?view=actionable',view=='actionable'),('Strong','/potential-findings?view=strong',view=='strong'),('Needs review','/potential-findings?view=needs_review',view=='needs_review'),('Needs evidence','/potential-findings?view=needs_evidence',view=='needs_evidence'),('All','/potential-findings?view=all',view=='all')])
+        controls=_filter_panel(fields,{'View':view_labels.get(view,view),'Search':q,'Target':target,'Family':family,'State':state,'Decision':decision,'Reachability':reachability,'Likelihood ≥':min_likelihood,'Evidence ≥':min_evidence,'Exploitability ≥':min_exploitability,'Investigation ≥':min_investigation,'Sort':dict(sort_pairs).get(sort,'') if sort!='investigation' else ''},'/potential-findings?view=actionable',title='Potential finding search & filters',result_count=total_count)
+        presets=_quick_views([('Actionable','/potential-findings?view=actionable',view=='actionable'),('Strong','/potential-findings?view=strong',view=='strong'),('Needs review','/potential-findings?view=needs_review',view=='needs_review'),('Needs evidence','/potential-findings?view=needs_evidence',view=='needs_evidence'),('All','/potential-findings?view=all',view=='all')],preserve={k:v[0] for k,v in p.items() if v and k not in {'state', 'cluster', 'view', 'page', 'decision'}})
         metrics="<div class='attention-grid'>"+_attention_item('All candidates',total,'Latest completed analysis','/potential-findings','info')+_attention_item('Strong',strong,'Highest-priority review set','/potential-findings?state=strong_candidate','danger')+_attention_item('Plausible',plausible,'Worth analyst attention','/potential-findings?state=plausible','orange')+_attention_item('Unreviewed',unreviewed,'No decision recorded','/potential-findings?decision=unreviewed','amber')+'</div>'
         if display=='table':
             table=[]
             for r in rows:
                 link=f"/bug-candidate?id={urllib.parse.quote(str(r['candidate_id']))}"
                 table.append(f"<tr><td><a class='row-link' href='{link}'>{_esc(r['title'])}</a><br><code>{_esc(r['endpoint'] or r['source_ref'])}</code></td><td>{_esc(r['target'])}</td><td>{_pill(r['candidate_state'])}</td><td>{_pill(r.get('reachability_state','unknown'))}</td><td>{r.get('calibrated_likelihood',r['likelihood_score'])} / {r['evidence_strength']} / {r.get('exploitability_confidence',0)} / {r['impact_potential']}</td><td><strong>{r.get('investigation_value',r['priority_score'])}</strong></td><td>{_pill(r['analyst_decision'])}</td></tr>")
-            content=f"<div class='table-wrap' style='margin-top:16px'><table><thead><tr><th>Candidate</th><th>Target</th><th>State</th><th>Reachability</th><th>L / E / X / I</th><th>Investigation</th><th>Decision</th></tr></thead><tbody>{''.join(table) or '<tr><td colspan=7>No candidates match this view</td></tr>'}</tbody></table></div>"
+            content=f"<div class='table-wrap' style='margin-top:16px'><table><thead><tr><th>Candidate</th><th>Target</th><th>State</th><th>Reachability</th><th>Likelihood / Evidence / Exploitability / Impact</th><th>Investigation</th><th>Decision</th></tr></thead><tbody>{''.join(table) or '<tr><td colspan=7>No candidates match this view</td></tr>'}</tbody></table></div>"
         else:
-            content=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Ranked candidates</h3><span class='muted small'>{len(rows)} shown</span></div>{''.join(_candidate_card(r) for r in rows) or _empty('No candidates match this view')}</section>"
-        self.send_html('Potential findings',header+presets+metrics+controls+content)
+            content=f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Ranked candidates</h3><span class='muted small'>{len(rows)} shown · {total_count} matching</span></div>{''.join(_candidate_card(r) for r in rows) or _empty('No candidates match this view')}</section>"
+        pager=pagination('/potential-findings',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('Potential findings',header+controls+presets+metrics+pager+content+pager)
 
     def bug_candidate_detail(self) -> None:
         candidate_id=str((self.query().get('id') or [''])[0]); db=self.db()
@@ -1966,19 +2097,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_html("JavaScript intelligence",body)
 
     def analysis_quality_page(self) -> None:
+        target=str((self.query().get('target') or [''])[0]).strip()
         db=self.db()
         try:
-            quality=analysis_quality(db); calibration=calibration_report(db)
-            latest=db.one("SELECT id FROM analysis_runs WHERE status='success' ORDER BY finished_at DESC LIMIT 1")
-            playbooks=PLAYBOOKS
+            quality=analysis_quality(db,target or None)
+            calibration=calibration_report(db,target or None)
+            targets=[str(row[0]) for row in db.all("SELECT target FROM (SELECT target FROM run_targets UNION SELECT target FROM alerts UNION SELECT target FROM analysis_runs UNION SELECT target FROM analysis_results) ORDER BY target") if str(row[0] or '') not in {'','*'}]
         finally: db.close()
-        buckets=calibration.get('buckets',{})
-        bucket_rows="".join(f"<tr><td>{_esc(name)}</td><td>{int(value.get('count',0))}</td><td>{float(value.get('observed_useful_rate',0)):.1%}</td><td>{float(value.get('expected_midpoint',0)):.0%}</td><td>{_pill(value.get('status'))}</td></tr>" for name,value in buckets.items())
-        category_rows="".join(f"<tr><td>{_esc(category)}</td><td><code>{_esc(json_dumps(states))}</code></td></tr>" for category,states in quality.get('categories',{}).items())
-        playbook_cards="".join(f"<div class='card'><h3>{_esc(value['title'])}</h3><ol>{''.join(f'<li>{_esc(check)}</li>' for check in value['checks'])}</ol></div>" for value in playbooks.values())
-        cards="".join([_metric_card("Precision proxy",f"{quality.get('precision_proxy',0):.1%}","Useful / useful + noisy","success"),_metric_card("False-positive proxy",f"{quality.get('false_positive_proxy',0):.1%}","Based on analyst workflow states","orange"),_metric_card("Backlog",quality.get('unreviewed_backlog',0),"New through investigating","blue"),_metric_card("Latest analysis",latest['id'] if latest else '—',"Replay-safe and versioned","purple")])
-        body=_page_header("Analysis quality","Calibration, feedback outcomes, noisy categories and analyst playbooks.","<a class='button secondary' href='/analysis'>Analysis overview</a>","Engine observability")+f"<div class='metrics-grid'>{cards}</div><div class='two-col'><div class='card'><h2>Confidence calibration</h2><table><thead><tr><th>Bucket</th><th>Decisions</th><th>Observed useful</th><th>Expected</th><th>Status</th></tr></thead><tbody>{bucket_rows}</tbody></table></div><div class='card'><h2>Category outcomes</h2><table><thead><tr><th>Category</th><th>Workflow outcomes</th></tr></thead><tbody>{category_rows or '<tr><td colspan=2>No reviewed alerts yet</td></tr>'}</tbody></table></div></div><h2>Review playbooks</h2><div class='card-grid'>{playbook_cards}</div>"
-        self.send_html("Analysis quality",body)
+        if target and target not in targets: targets.append(target)
+        def percent(value):
+            return f"{float(value):.1%}" if value is not None else '—'
+        bucket_rows=''.join('<tr>'+''.join(labeled_cell(label,markup) for label,markup in [
+            ('Bucket',_esc(name)),('Scored results',str(value['count'])),('Reviewed results',str(value['reviewed_count'])),('Observed useful',percent(value['observed_useful_rate'])),('Expected',percent(value['expected_midpoint'])),('Status',f"<span class='quality-status' data-status='{_esc(value['status'])}'>{_esc(value['status'].replace('_',' ').capitalize())}</span>")])+ '</tr>' for name,value in calibration['buckets'].items())
+        category_rows=''.join('<tr>'+labeled_cell('Category',_esc(category))+labeled_cell('Workflow outcomes',"<div class='workflow-counts'>"+''.join(f"<span><code>{_esc(state)}</code><strong>{count}</strong></span>" for state,count in sorted(states.items()))+'</div>')+'</tr>' for category,states in quality.get('categories',{}).items())
+        playbooks=''.join(f"<details class='quality-playbook'><summary>{_esc(value['title'])}<span class='muted small'>{len(value['checks'])} checks</span></summary><ol>{''.join(f'<li>{_esc(check)}</li>' for check in value['checks'])}</ol></details>" for value in PLAYBOOKS.values())
+        available=bool(quality.get('feedback_count'))
+        cards=''.join([_metric_card('Precision proxy',percent(quality.get('precision_proxy')),'Useful / reviewed Alerts' if available else 'Insufficient feedback','success' if available else 'neutral'),_metric_card('False-positive proxy',percent(quality.get('false_positive_proxy')),'Noisy / all Alerts' if available else 'Insufficient feedback','orange' if available else 'neutral'),_metric_card('Backlog',quality.get('unreviewed_backlog',0),'New through investigating','blue'),_metric_card('Reviewed Alerts',quality.get('feedback_count',0),'Unique Alerts with useful/noisy feedback','purple')])
+        controls=_filter_panel(f"<label>Target{_select_pairs('target',[(t,t) for t in targets],target,'All targets')}</label>",{'Target':target},'/analysis-quality',title='Quality scope')
+        context=f"<div class='quality-context'><span>Analysis <code>{_esc(quality.get('analysis_id') or '—')}</code></span><span>Source run <a href='{_esc(_query_link('/run-review',id=quality.get('source_run_id') or ''))}'><code>{_esc(quality.get('source_run_id') or '—')}</code></a></span></div>"
+        note="<p class='feedback-note'>Insufficient feedback: quality rates and calibration verdicts stay unknown until useful or noisy feedback is recorded. Zero is shown only when measured.</p>" if not available else ''
+        if quality.get('message'): note+=f"<p class='muted'>{_esc(quality['message'])}</p>"
+        body=_page_header('Analysis quality','Calibration, feedback outcomes, noisy categories and analyst playbooks.',f"<a class='button secondary' href='{_esc(_query_link('/analysis',target=target))}'>Analysis overview</a>",'Engine observability')+controls+context+f"<div class='metrics-grid'>{cards}</div>"+note
+        body+=f"<div class='quality-grid'><section class='panel'><div class='panel-head'><h3>Confidence calibration</h3></div><div class='table-wrap'><table class='responsive-records quality-table'><thead><tr><th>Bucket</th><th>Scored results</th><th>Reviewed results</th><th>Observed useful</th><th>Expected</th><th>Status</th></tr></thead><tbody>{bucket_rows}</tbody></table></div><p class='panel-note'>Scored results can include replays of the same Alert. Reviewed results use its current useful/noisy feedback; they are not a count of unique analyst decisions.</p></section><section class='panel'><div class='panel-head'><h3>Category outcomes</h3></div><div class='table-wrap'><table class='responsive-records quality-table'><thead><tr><th>Category</th><th>Workflow outcomes</th></tr></thead><tbody>{category_rows or '<tr><td colspan=2>No Alert outcomes in this scope</td></tr>'}</tbody></table></div></section></div><section class='quality-playbooks'><h2>Review playbooks</h2><div class='playbook-list'>{playbooks}</div></section>"
+        self.send_html('Analysis quality',body)
 
     def incidents(self) -> None:
         db=self.db()
@@ -2014,48 +2155,74 @@ class DashboardHandler(BaseHTTPRequestHandler):
         runtime_config = getattr(self, 'config', Config(runtime_paths))
         db=self.db()
         try:
-            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets) ORDER BY target")]
+            targets=[str(r[0]) for r in db.all("SELECT target FROM (SELECT DISTINCT target FROM security_cases UNION SELECT DISTINCT target FROM alerts UNION SELECT DISTINCT target FROM assets UNION SELECT DISTINCT target FROM run_targets UNION SELECT DISTINCT target FROM urls UNION SELECT DISTINCT target FROM endpoint_intelligence UNION SELECT DISTINCT target FROM js_files UNION SELECT DISTINCT target FROM fingerprints UNION SELECT DISTINCT target FROM ports) ORDER BY target")]
             # Keep the post-login Command Center on a bounded, DB-only fast path.
             # Deep diagnostics, safety/audit verification, coverage reconstruction and
             # target-memory synthesis remain available from their dedicated pages.
-            snapshot=_command_center_snapshot(db,target)
-            active_runs=db.all(
-                "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
-                "JOIN runs r ON r.id=rt.run_id "
-                "WHERE r.status='running' AND rt.status='running' "
-                "AND rt.current_stage IS NOT NULL "
-                "AND (?='' OR rt.target=?) "
-                "ORDER BY rt.started_at DESC LIMIT 10",
-                (target, target),
-            )
+            with read_snapshot(db):
+                snapshot=_command_center_snapshot(db,target)
+                active_runs=db.all(
+                    "SELECT rt.run_id,rt.target,rt.current_stage FROM run_targets rt "
+                    "JOIN runs r ON r.id=rt.run_id "
+                    "WHERE r.status='running' AND rt.status='running' "
+                    "AND rt.current_stage IS NOT NULL "
+                    "AND (?='' OR rt.target=?) "
+                    "ORDER BY rt.started_at DESC LIMIT 10",
+                    (target, target),
+                )
         finally: db.close()
         data=snapshot['cockpit']; latest_run=snapshot['latest_run']; latest_analysis=snapshot['latest_analysis']; decisions=snapshot['decisions']; changes=snapshot['changes']; next_action=snapshot['next_action']
-        controls=f"<form class='filters'><label>Focus target<br>{_select('target',targets,target,'All targets')}</label><button>Apply focus</button><a class='button ghost' href='/'>Clear</a></form>"
-        header=_breadcrumb('Workspace','Command Center')+_page_header('Command Center','A decision-first view of what changed, what deserves attention, and the single best next action.',"<form method='post' action='/workspace/sync' style='display:inline'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='/'><button>Refresh intelligence</button></form><a class='button secondary' href='/search?q=*'>Search workspace</a>",f'Recon Monitor {APP_VERSION} · Decision workspace')
-        focus_name=_esc(target) if target else 'All authorized targets'
-        hero=f"<section class='workspace-hero'><div class='workspace-hero-copy'><small>Command Center 2.0 · Decision inbox · Security stories · Coverage snapshot</small><strong>{focus_name}</strong><p>Start with the highest-value decision. Recon, analysis, findings and change intelligence stay connected, while low-value inventory stays out of the way.</p></div><div class='workspace-hero-status'><span class='status-dot'></span><span>Workspace</span><strong>FAST VIEW</strong></div></section>"
-        kpis="<div class='command-kpi-row'>"+_attention_item('Decisions now',len(decisions),'Ranked actions worth analyst attention','/workbench','info')+_attention_item('High-interest changes',snapshot['high_changes'],'Material changes since the latest baseline',_query_link('/alerts',target=target),'danger')+_attention_item('High-value findings',data['high_value_candidates'],'Unreviewed candidates with priority ≥70',_query_link('/potential-findings',target=target),'orange')+_attention_item('Evidence gaps',data['needs_evidence'],'Cases blocked by missing observations',_query_link('/evidence-gaps',target=target),'amber')+'</div>'
+        quality=snapshot['collection_quality']; inventory=snapshot['inventory']
+        findings_href=_query_link('/potential-findings',target=target,view='all',decision='unreviewed')
+        run_href=_query_link('/run-review',id=latest_run['id']) if latest_run else _query_link('/runs',target=target)
+        controls=f"<form class='command-context-form' method='get' action='/'><label>Focus target {_select('target',targets,target,'All targets')}</label><button class='secondary'>Apply focus</button><a class='command-text-link' href='/'>Clear</a></form>"
+        header=_page_header('Command Center','What needs attention, and what was collected.',f"<a class='button secondary' href='{_query_link('/runs',target=target)}'>Run history →</a>")
+        metric_specs=[('Saved hosts',inventory['hosts'],f"{inventory['http']} HTTP / TLS records",_query_link('/assets',target=target)),('Saved URLs',inventory['urls'],'Collection partial' if quality['partial'] or quality['timeout'] else 'Stored URL records',_query_link('/urls',target=target)),('To review',snapshot['unreviewed_candidates'] if latest_analysis else '—','Unconfirmed potential findings' if latest_analysis else 'No completed analysis',findings_href)]
+        kpis="<section class='command-saved-metrics' aria-label='Saved inventory and review counts'>"+''.join(f"<a class='command-saved-metric' href='{_esc(href)}'><span>{_esc(label)}</span><strong>{_esc(value)}</strong><small>{_esc(note)}</small></a>" for label,value,note,href in metric_specs)+'</section>'
+        attention_items=[]
+        if quality['no_input']:
+            attention_items.append(('Review collection inputs',f"{quality['no_input']} stage(s) without input · inspect discovery, selection and classification",run_href,'No inputs','amber'))
+        analysis_meta=f"Analysis {latest_analysis['id']} · unconfirmed" if latest_analysis else 'A completed analysis is needed before reviewing findings'
+        attention_items.append(('Review potential findings',analysis_meta,findings_href,str(snapshot['unreviewed_candidates']) if latest_analysis else 'Not run','neutral'))
+        attention_items.append(('Review observed changes','Successful re-checks · complete list in Alerts',_query_link('/alerts',target=target),'Open','neutral'))
+        if data['open_cases']:
+            attention_items.append(('Continue open investigations',f"{data['needs_evidence']} evidence gaps · {data['validation_ready']} ready for validation",_query_link('/cases',target=target),str(data['open_cases']),'amber' if data['needs_evidence'] else 'neutral'))
+        attention_rows=''.join(f"<a class='command-attention-row' href='{_esc(href)}'><span><strong>{_esc(title)}</strong><small>{_esc(note)}</small></span><span class='command-row-end'>{_pill(badge,tone) if tone!='neutral' else '<span>'+_esc(badge)+'</span>'}<i aria-hidden='true'>→</i></span></a>" for title,note,href,badge,tone in attention_items)
         decision_html=''.join(_command_decision_item(item,idx) for idx,item in enumerate(decisions,1))
-        inbox=f"<section class='panel'><div class='panel-head'><div><h3>What needs your attention?</h3><span class='muted small'>Decision inbox · ranked across run health, potential findings, open cases and material surface changes.</span></div><a class='small' href='/workbench'>Full review queue →</a></div><div class='panel-body command-decision-list'>{decision_html or _empty('Nothing urgent is competing for attention','Refresh workspace intelligence or run the next authorized recon.')}</div></section>"
-        action=f"<section class='command-primary-action'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><h2>{_esc(next_action.get('title'))}</h2><p>{_esc(next_action.get('detail'))}</p><a class='button' href='{_esc(next_action.get('href') or '/')}'>Open next action →</a></section>"
+        decision_rows=decision_html or "<p class='small muted'>No ranked items in this preview.</p>"
+        review_summary=f"<div class='command-review-summary'><a href='{_query_link('/workbench',target=target)}'>{len(decisions)} ranked preview items</a><a href='{_query_link('/potential-findings',target=target)}'>{data['high_value_candidates']} high-value candidates</a><a href='{_query_link('/evidence-gaps',target=target)}'>{data['needs_evidence']} evidence gaps</a><a href='{_query_link('/safe-validation',target=target)}'>{data['validation_ready']} ready for validation</a></div>"
+        decision_details=f"<details class='command-details' id='decision-inbox'><summary>Decision inbox · ranked review preview ({len(decisions)})</summary><p class='small muted'>Stored review backlog; candidates may come from earlier analyses. Open the complete queue for all matching items.</p><div class='command-decision-list'>{decision_rows}</div><p class='small'><a href='{_query_link('/workbench',target=target)}'>Full review queue →</a> · <a href='{_query_link('/security-stories',target=target)}'>Security stories →</a></p><div class='command-next-row'><small>{_esc(next_action.get('eyebrow') or 'Next best action')}</small><a href='{_esc(next_action.get('href') or '/')}'>{_esc(next_action.get('title'))} →</a><p>{_esc(next_action.get('detail'))}</p></div><p class='small muted'>High-interest change preview: {snapshot['high_changes']} · complete counts in <a href='{_query_link('/alerts',target=target)}'>Alerts</a>.</p></details>"
+        inbox=f"<section class='panel command-balanced-panel' aria-label='What needs your attention?'><div class='panel-head'><h2>Needs attention</h2><span class='small muted'>{len(attention_items)} groups</span></div><div class='panel-body'>{attention_rows}{review_summary}{decision_details}</div></section>"
         latest_run_label=str(latest_run.get('status')) if latest_run else 'No run yet'; latest_run_meta=(str(latest_run.get('finished_at') or latest_run.get('started_at') or '') if latest_run else 'Create a baseline to unlock change intelligence')
         latest_analysis_label=str(latest_analysis.get('id')) if latest_analysis else 'No analysis'; latest_analysis_meta=(str(latest_analysis.get('finished_at') or latest_analysis.get('started_at') or '') if latest_analysis else 'Analysis will appear after collected evidence is processed')
         pulse_rows=[
             ('Latest recon',latest_run_label,latest_run_meta),
             ('Latest analysis',latest_analysis_label,latest_analysis_meta),
+            ('Coverage snapshot','ON DEMAND','Open Recon coverage to inspect observed coverage and blind spots'),
             ('Platform health','ON DEMAND','Open Diagnostics for a full subsystem check'),
             ('Safety gate','ON DEMAND','Open Safety Center for authorization, scope and audit integrity'),
         ]
-        pulse=''.join(f"<div class='pulse-row'><div><span>{_esc(label)}</span><small>{_esc(detail)}</small></div><b>{_esc(value)}</b></div>" for label,value,detail in pulse_rows)
-        side=f"<aside class='stack'>{action}<section class='panel'><div class='panel-head'><h3>Workspace pulse</h3><a class='small' href='/diagnostics'>Diagnostics</a></div><div class='panel-body command-pulse'>{pulse}</div></section></aside>"
+        pulse_links={'Coverage snapshot':_query_link('/recon-coverage',target=target),'Latest recon':_query_link('/run-review',id=latest_run['id']) if latest_run else '/runs','Latest analysis':_query_link('/analysis',target=target),'Platform health':'/diagnostics','Safety gate':'/safety-center'}
+        pulse=''.join(f"<div class='pulse-row'><div><a href='{_esc(pulse_links[label])}'>{_esc(label)}</a><small>{_esc(detail)}</small></div><b>{_esc(value)}</b></div>" for label,value,detail in pulse_rows)
+        inventory_specs=[('Subdomains','hosts',_query_link('/assets',target=target)),('HTTP / TLS','http',_query_link('/fingerprints',target=target)),('URLs','urls',_query_link('/urls',target=target)),('Endpoints','endpoints',_query_link('/endpoints',target=target)),('JavaScript files','javascript',_query_link('/javascript',target=target)),('Ports','ports',_query_link('/recon',target=target,view='raw',raw='port'))]
+        inventory_rows=''.join(f"<a class='command-inventory-row' href='{_esc(href)}'><span>{_esc(label)}</span><strong>{inventory[key]}</strong></a>" for label,key,href in inventory_specs)
+        sync_form="<form method='post' action='/workspace/sync'><input type='hidden' name='target' value='"+_esc(target)+"'><input type='hidden' name='return' value='"+_esc(_query_link('/',target=target))+"'><button class='secondary'>Refresh intelligence</button></form>"
+        tools=f"<details class='command-details' id='workspace-pulse'><summary>Workspace health &amp; tools</summary><div class='command-pulse'>{pulse}</div><div class='command-tools'>{sync_form}<a class='command-text-link' href='{_query_link('/search',q='*',target=target)}'>Search all saved records →</a></div></details>"
+        side=f"<section class='panel command-balanced-panel'><div class='panel-head'><h2>Saved inventory</h2><a class='small' href='{_query_link('/recon',target=target,view='raw')}'>Open →</a></div><div class='panel-body'>{inventory_rows}<p class='small muted'>Counts describe stored records, not full scope coverage. <a href='{_query_link('/recon-coverage',target=target)}'>Coverage snapshot →</a></p>{tools}</div></section>"
         change_cards=[]
         for event in changes[:6]:
             tone='danger' if event.get('priority')=='high' else 'amber' if event.get('priority')=='medium' else 'neutral'
             change_cards.append(f"<a class='change-event' href='{_query_link('/alerts',target=str(event.get('target') or target))}'><i class='tone-{tone}'></i><div><strong>{_esc(str(event.get('kind') or 'surface').replace('_',' ').title())} · {_esc(event.get('change'))}</strong><span>{_esc(event.get('value'))}</span><small>{_esc(event.get('details'))}</small></div><b class='tone-{tone}'>{_esc(event.get('priority'))}</b></a>")
-        change_panel=f"<section class='panel'><div class='panel-head'><div><h3>What changed?</h3><span class='muted small'>Newest material changes from the latest successful re-check.</span></div><a class='small' href='{_query_link('/change-intelligence',target=target)}'>Open change intelligence →</a></div><div class='panel-body change-stream'>{''.join(change_cards) or _empty('No material re-check delta yet','Choose a target with at least two successful recon runs to compare baselines.')}</div></section>"
-        recent_rows=''.join(f"<tr><td><a class='row-link' href='/runs'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
-        recent_panel=f"<section class='panel'><div class='panel-head'><div><h3>Recent research activity</h3><span class='muted small'>A compact operational trail — details stay in Run history.</span></div><a class='small' href='/runs'>Run history →</a></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></section>"
-        workspace_strip="<div class='workspace-strip'><a class='workspace-tile' href='/recon'><span class='workspace-tile-icon'>01</span><span><strong>Recon</strong><small>Discover and map the surface</small></span></a><a class='workspace-tile' href='/analysis'><span class='workspace-tile-icon'>02</span><span><strong>Analysis</strong><small>Understand collected evidence</small></span></a><a class='workspace-tile' href='/potential-findings'><span class='workspace-tile-icon'>03</span><span><strong>Potential Findings</strong><small>Review probable security issues</small></span></a><a class='workspace-tile' href='/alerts'><span class='workspace-tile-icon'>04</span><span><strong>Alerts</strong><small>Investigate meaningful change</small></span></a></div>"
+        change_rows=''.join(change_cards) or "<p class='small muted'>No material re-check delta yet. Two successful recon runs are needed to compare baselines.</p>"
+        change_panel=f"<details class='command-details' id='recent-changes'><summary>Recent observed changes · preview ({len(change_cards)})</summary><p class='small muted'>Latest successful re-check; open Alerts for the complete change list.</p><div class='change-stream'>{change_rows}</div><p class='small'><a href='{_query_link('/change-intelligence',target=target)}'>Open change intelligence →</a> · <a href='{_query_link('/alerts',target=target)}'>All changes →</a></p></details>"
+        recent_rows=''.join(f"<tr><td><a class='row-link' href='{_query_link('/run-review',id=r.get('id'))}'>{_esc(r.get('id'))}</a></td><td>{_pill(r.get('status'))}</td><td>{_esc(r.get('started_at'))}</td><td>{_esc(r.get('finished_at') or '—')}</td><td>{_esc(r.get('target_count'))}</td></tr>" for r in snapshot['recent_runs'])
+        recent_details=f"<details class='command-details' id='recent-runs'><summary>Recent run details ({len(snapshot['recent_runs'])})</summary><div class='table-wrap'><table><thead><tr><th>Run</th><th>Execution</th><th>Started</th><th>Finished</th><th>Targets</th></tr></thead><tbody>{recent_rows or '<tr><td colspan=5>No runs recorded yet</td></tr>'}</tbody></table></div></details>"
+        run_label=(latest_run_label if latest_run_label in {'failed','running','cancelled'} else 'Partial / Timeout' if quality['timeout'] else 'Partial' if quality['partial'] else latest_run_label)
+        run_tone='danger' if latest_run_label=='failed' else 'amber' if quality['timeout'] else _tone(run_label)
+        activity_rows=(f"<a class='command-attention-row' href='{run_href}'><span><strong>Latest recon · {_esc(latest_run['id'])}</strong><small>{_esc(latest_run_meta)}</small></span>{_pill(run_label,run_tone)}</a>" if latest_run else '<p class="small muted">No runs recorded yet.</p>')
+        if latest_analysis:
+            activity_rows+=f"<a class='command-attention-row' href='{_query_link('/analysis',target=target)}'><span><strong>Analysis {_esc(latest_analysis['id'])} completed</strong><small>{snapshot['unreviewed_candidates']} candidates awaiting review · {_esc(latest_analysis_meta)}</small></span><i aria-hidden='true'>→</i></a>"
+        recent_panel=f"<section class='command-recent'><div class='command-section-head'><h2>Recent activity</h2><a class='small' href='{_query_link('/runs',target=target)}'>All activity →</a></div>{activity_rows}{recent_details}{change_panel}</section>"
         active_rows="".join(
             "<div class='pulse-row'><div>"
             + f"<strong>{_esc(r['target'])}</strong><small>{_esc(r['current_stage'])} "
@@ -2069,7 +2236,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "<span class='muted small'>Next saves partial evidence and advances to the next stage.</span></div>"
             + "<div class='panel-body'>" + active_rows + "</div></section>"
         ) if active_rows else ""
-        body=header+hero+controls+active_panel+kpis+f"<div class='command-v2-grid'>{inbox}{side}</div>"+f"<div class='two-col' style='margin-top:16px'>{change_panel}{recent_panel}</div>"+workspace_strip
+        attention=' · '.join(text for count,text in [(quality['partial'],f"{quality['partial']} partial stage(s)"),(quality['timeout'],f"{quality['timeout']} timeout(s)"),(quality['no_input'],f"{quality['no_input']} stage(s) without input")] if count)
+        run_error=str(latest_run.get('error') or '') if latest_run else ''
+        run_detail=' · '.join(value for value in [attention,run_error] if value)
+        duration=''
+        if latest_run and latest_run['finished_at']:
+            try:
+                started=dt.datetime.fromisoformat(str(latest_run['started_at']).replace('Z','+00:00')); finished=dt.datetime.fromisoformat(str(latest_run['finished_at']).replace('Z','+00:00'))
+                seconds=int((finished-started).total_seconds())
+                if seconds>=0: duration=f" · {seconds//60}m {seconds%60:02d}s"
+            except (TypeError,ValueError,OverflowError): pass
+        run_strip=(f"<section class='run-status-strip'><div class='run-status-copy'>{_pill(run_label,run_tone)}<strong>Latest recon · {_esc(latest_run['id'])}</strong><small>{_esc(latest_run_meta)}{duration}</small></div><a class='command-text-link' href='{run_href}'>Review execution →</a>"+ (f"<div class='run-status-error'>{_esc(run_detail)}</div>" if run_detail else '') + '</section>') if latest_run else "<div class='command-no-run'>No recon run recorded yet. <a href='/runs'>Open Run history →</a></div>"
+        updated=f"<footer class='command-footer'>Saved records last seen: {_esc(snapshot['inventory_updated'] or 'Not recorded')} · {_esc(target or 'All targets')}</footer>"
+        body="<div class='command-balanced'>"+header+controls+run_strip+active_panel+kpis+f"<div class='command-balanced-grid'>{inbox}{side}</div>"+recent_panel+updated+'</div>'
         self.send_html('Command center',body)
 
     def workbench(self) -> None:
@@ -2521,7 +2700,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 (run_id,),
             )
             stages = db.all(
-                "SELECT target,stage,status,exit_code,duration_seconds,metrics_json "
+                "SELECT target,stage,status,attempt,started_at,finished_at,exit_code,duration_seconds,metrics_json,error "
                 "FROM stage_runs WHERE run_id=? ORDER BY target,started_at,stage",
                 (run_id,),
             ) if run else []
@@ -2565,7 +2744,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             )
 
         items = []
+        stage_rows = []
         partial_count = 0
+        timeout_count = 0
         no_input_count = 0
         for row in stages:
             try:
@@ -2576,6 +2757,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 metrics = {}
             stage_name = str(row["stage"])
             raw_status = str(row["status"])
+            recorded_metrics = metrics
+            # stage_begin retains the preceding attempt's metrics and duration
+            # until stage_finish writes this attempt's result.
+            if raw_status == 'running': metrics = {}
             quality = str(metrics.get("collection_status") or "")
             if raw_status == "partial" or quality == "partial":
                 partial_count += 1
@@ -2585,6 +2770,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 label = "No input"
             else:
                 label = raw_status.replace("_", " ").title()
+            if raw_status == 'failed' and label == 'Partial': label = 'Failed / Partial'
+            timed_out = bool(metrics.get('katana_timed_out') or metrics.get('timed_out') or metrics.get('katana_status') == 'timeout')
+            if timed_out:
+                timeout_count += 1
+                if not (raw_status == 'partial' or quality == 'partial'): partial_count += 1
+                label = ('Failed' if raw_status == 'failed' else 'Partial') + ' / Timeout'
+            if stage_name == 'javascript' and metrics.get('files') == 0 and quality != 'no_input':
+                no_input_count += 1
+                label += ' / No JS input'
 
             highlights = []
             if stage_name == "urls":
@@ -2595,43 +2789,94 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         f"(exit {metrics.get('katana_exit_code', '—')}; "
                         f"{metrics.get('katana_duration_seconds', '—')}s)"
                     )
+                    highlights.append(f"Origins: {metrics.get('katana_input_origins', '—')} input · {metrics.get('katana_origins_completed', '—')} completed · {metrics.get('katana_pending_origins', '—')} pending")
+                    highlights.append(f"Katana output: {metrics.get('katana_observed', '—')} lines · batches {metrics.get('katana_batches_completed', '—')}/{metrics.get('katana_batches_attempted', '—')}")
+                    highlights.append(f"Stop: {metrics.get('katana_stop_reason', '—')}")
                 else:
                     highlights.append("Katana tool outcome was not recorded for this run")
             elif stage_name == "javascript":
+                highlights.append(f"Source URLs: {metrics.get('source_url_count', '—')}")
+                highlights.append(f"Classified JS: {metrics.get('input_url_count', '—')}")
+                highlights.append(f"Selected JS: {metrics.get('selected_input_count', '—')} · dropped by URL limit: {metrics.get('javascript_dropped_by_url_limit', '—')} · file limit: {metrics.get('javascript_dropped_by_file_limit', '—')}")
                 highlights.append(f"JS inputs: {metrics.get('files', '—')}")
                 highlights.append(f"Downloaded: {metrics.get('downloaded', '—')}")
+                if metrics.get('files') == 0:
+                    highlights.append('No JavaScript input: inspect discovery, URL selection and classification')
+                if metrics.get('downloaded') == 0:
+                    highlights.append('Zero-download reasons: ' + (', '.join(str(x) for x in metrics.get('zero_download_reasons', []) or []) or 'Not recorded'))
             elif stage_name == "nuclei":
                 highlights.append(f"Targets: {metrics.get('targets', '—')}")
                 highlights.append(f"Findings: {metrics.get('findings', '—')}")
+            if raw_status == 'running':
+                highlights = ['Collection outcome is not recorded for the running attempt.']
+
+            reasons = metrics.get('collection_reasons') or []
+            if isinstance(reasons, str): reasons = [reasons]
+            reason = ' · '.join(str(x) for x in reasons)
+            if row['error']: reason = str(row['error']) + (' · ' + reason if reason else '')
+            duration = 'In progress' if raw_status == 'running' else '—' if row['duration_seconds'] is None else str(round(float(row['duration_seconds']), 2)) + 's'
+            tone = 'danger' if raw_status == 'failed' else 'amber' if 'Partial' in label or 'input' in label.lower() else _tone(raw_status)
+            timing = (
+                _esc(duration)
+                + f"<br><span class='muted small'>Started: {_esc(row['started_at'] or 'Not recorded')}<br>"
+                + f"Finished: {_esc(row['finished_at'] or ('In progress' if raw_status == 'running' else 'Not recorded'))}</span>"
+            )
+            observations = (
+                "<ul class='run-observations'>" + ''.join(f"<li>{_esc(item)}</li>" for item in highlights) + '</ul>'
+                if highlights else 'See recorded metrics'
+            )
+            observations += (f"<p class='run-status-error'>{_esc(reason)}</p>" if reason else '')
+            observations += f"<a class='small run-metrics-link' href='#stage-{len(items)}'>Full metrics ↓</a>"
+            stage_rows.append(
+                "<tr role='row'>"
+                + labeled_cell('Target / Stage', f"{_esc(row['target'])}<br><strong>{_esc(stage_name)}</strong><br><span class='muted small'>Attempt {row['attempt']} · {_esc(raw_status)}</span>")
+                + labeled_cell('Collection', _pill(label,tone))
+                + labeled_cell('Timing', timing)
+                + labeled_cell('Exit code', _esc(row['exit_code'] if row['exit_code'] is not None else '—'))
+                + labeled_cell('Observed result / Stop reason', observations)
+                + '</tr>'
+            )
 
             detail = (
                 "<div class='muted small' style='margin:8px 0'>"
                 + _esc(" · ".join(highlights))
                 + "</div>"
+                + ("<p class='small muted'>Earlier attempt metrics — these do not describe the running attempt.</p>" if raw_status == 'running' and recorded_metrics else '')
                 + "<pre style='overflow:auto;white-space:pre-wrap'>"
-                + _esc(json.dumps(metrics, ensure_ascii=False, indent=2))
+                + _esc(json.dumps(recorded_metrics, ensure_ascii=False, indent=2))
                 + "</pre>"
             )
             items.append(
-                "<details class='panel' style='margin:8px 0;padding:12px'>"
+                f"<details class='panel' id='stage-{len(items)}' style='margin:8px 0;padding:12px'>"
                 "<summary style='cursor:pointer'>"
                 + f"<strong>{_esc(row['target'])} · {_esc(stage_name)}</strong>"
                 + f" — {_esc(label)}"
-                + f" <small class='muted'>({_esc(round(float(row['duration_seconds'] or 0), 2))}s)</small>"
+                + f" <small class='muted'>(Attempt {row['attempt']} · {_esc(duration)})</small>"
                 + "</summary>" + detail + "</details>"
             )
 
         if str(run["status"]) == "running":
             summary = "Run is in progress; stage outcomes may change."
+        elif str(run["status"]) == "failed":
+            summary = f"Run failed; {partial_count} collection stage(s) incomplete." if partial_count else 'Run failed.'
+        elif str(run["status"]) == "cancelled":
+            summary = f"Run cancelled; {partial_count} collection stage(s) incomplete." if partial_count else 'Run cancelled.'
         elif partial_count:
             summary = f"Run finished; {partial_count} collection stage(s) incomplete."
         elif str(run["status"]) != "success":
             summary = f"Run status: {run['status']}."
         else:
             summary = "Run finished. Completion of the entire target cannot be established."
-        note = (
-            f"{no_input_count} stage(s) had no input. " if no_input_count else ""
-        ) + "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
+        quality_flags = []
+        if timeout_count:
+            quality_flags.append(f"{timeout_count} timeout(s)")
+        if no_input_count:
+            quality_flags.append(f"{no_input_count} stage(s) had no input")
+        quality_summary = (
+            "<p class='run-status-error'>" + _esc(' · '.join(quality_flags)) + '</p>'
+            if quality_flags else ''
+        )
+        note = "A completed stage is not proof of full target coverage; zero findings is not proof of no vulnerabilities."
         header = _page_header(
             "Run review", "Execution state and observed collection quality.",
             "<a class='button secondary' href='/runs'>Run history</a>",
@@ -2639,12 +2884,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
         )
         body = (
             header
-            + "<section class='panel' style='padding:16px'>"
+            + "<section class='panel run-review-summary'>"
             + f"<h2>{_esc(summary)}</h2>"
-            + f"<p><code>{_esc(run_id)}</code> · {_esc(run['status'])}</p>"
-            + f"<p class='muted'>{_esc(note)}</p>"
+            + quality_summary
+            + f"<p><code>{_esc(run_id)}</code> · Execution: {_esc(run['status'])}</p>"
+            + f"<p class='muted small'>Started: {_esc(run['started_at'])} · Finished: {_esc(run['finished_at'] or '—')}</p>"
+            + (f"<p class='run-status-error'>{_esc(run['error'])}</p>" if run['error'] else '')
+            + f"<p class='muted small'>{_esc(note)}</p>"
             + "</section>"
             + "".join(live_controls)
+            + ("<section class='panel run-stage-summary'><div class='panel-head'><h3>Stage outcomes</h3><span class='muted small'>Collection quality stays separate from run status.</span></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='Stage outcomes'><thead role='rowgroup'><tr role='row'><th scope='col'>Target / Stage</th><th scope='col'>Collection</th><th scope='col'>Timing</th><th scope='col'>Exit code</th><th scope='col'>Observed result / Stop reason</th></tr></thead><tbody role='rowgroup'>" + ''.join(stage_rows) + "</tbody></table></div></section>" if stage_rows else '')
             + ("".join(items) if items else "<p class='muted'>No stage results recorded yet.</p>")
         )
         self.send_html("Run review", body)
@@ -2663,16 +2912,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
         order={'newest':'r.started_at DESC','oldest':'r.started_at ASC','status':'r.status,r.started_at DESC','targets':'r.target_count DESC,r.started_at DESC'}.get(sort,'r.started_at DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT r.*,GROUP_CONCAT(rt.target, ', ') targets FROM runs r LEFT JOIN run_targets rt ON rt.run_id=r.id{clause} GROUP BY r.id ORDER BY {order} LIMIT 500",tuple(args))
+            rows,total_count,page=query_page(db,f"SELECT r.*,GROUP_CONCAT(rt.target, ', ') targets FROM runs r LEFT JOIN run_targets rt ON rt.run_id=r.id{clause} GROUP BY r.id ORDER BY {order},r.id",tuple(args),p)
             statuses=[str(row[0]) for row in db.all("SELECT DISTINCT status FROM runs ORDER BY status")];targets=[str(row[0]) for row in db.all("SELECT DISTINCT target FROM run_targets ORDER BY target")]
         finally: db.close()
         sort_pairs=[('newest','Newest first'),('oldest','Oldest first'),('status','Status'),('targets','Target count')]
         day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search runs<input name='q' value='{_esc(q)}' placeholder='Run ID, selector or error'></label><label>Status{_select('status',statuses,status,'Any status')}</label><label>Target{_select('target',targets,target,'All targets')}</label><label>Error{_select_pairs('error',[('yes','Has error'),('no','No error')],error_state,'Any')}</label><label>Started{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Newest first')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Status':status,'Target':target,'Error':dict([('yes','Has error'),('no','No error')]).get(error_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='newest' else ''},'/runs',title='Run filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Status':status,'Target':target,'Error':dict([('yes','Has error'),('no','No error')]).get(error_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='newest' else ''},'/runs',title='Run filters',result_count=total_count)
         body="".join(f"<tr><td><code>{_esc(r['id'])}</code></td><td>{_pill(r['status'])}</td><td>{_esc(r['started_at'])}</td><td>{_esc(r['finished_at'])}</td><td>{r['target_count']}<br><span class='muted small'>{_esc(r['targets'] or r['target_selector'] or '')}</span></td><td><code>{_esc(r['resumed_from'])}</code></td><td class='muted'>{_esc(r['error'])}</td><td><a class='button ghost' href='/run-review?id={urllib.parse.quote(str(r['id']))}'>Review</a> <a class='button ghost' href='/report/{urllib.parse.quote(str(r['id']))}'>Report</a></td></tr>" for r in rows)
         header=_page_header("Run history", "Collection and analysis executions with status, target, resume lineage, error and time filters.", "<a class='button secondary' href='/compare'>Compare runs</a><a class='button' href='/health'>Health</a>", "Operations")
-        self.send_html("Runs",header+controls+f"<div class='table-wrap'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th><th>Resumed from</th><th>Error</th><th></th></tr></thead><tbody>{body or '<tr><td colspan=8>No runs match the filters</td></tr>'}</tbody></table></div>")
+        pager=pagination('/runs',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html("Runs",header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Targets</th><th>Resumed from</th><th>Error</th><th></th></tr></thead><tbody>{body or '<tr><td colspan=8>No runs match the filters</td></tr>'}</tbody></table></div>"+pager)
 
     def compare(self) -> None:
         params=self.query(); old=str((params.get("old") or [""])[0]); new=str((params.get("new") or [""])[0]); target=str((params.get("target") or [""])[0])
@@ -2712,14 +2962,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
         day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')];sort_pairs=[('recent','Most recent'),('priority','Priority'),('target','Target')]
         fields=f"<label class='filter-wide'>Search change alerts<input name='q' value='{_esc(q)}' placeholder='Endpoint, host, URL, technology, change detail…'></label><label>View{_select_pairs('view',[('attention','Attention'),('all','All changes')],view,'Attention')}</label><label>Target{_select('target',targets,target,'All targets')}</label><label>Change type{_select('kind',kinds,kind,'All types')}</label><label>Delta{_select_pairs('change',[('added','New'),('changed','Changed'),('removed','Removed')],change,'All changes')}</label><label>Priority{_select('priority',['high','medium','low'],priority,'Any priority')}</label><label>Detected{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Most recent')}</label>"
         controls=_filter_panel(fields,{'View':'Attention' if view=='attention' else 'All changes','Search':q,'Target':target,'Type':kind,'Delta':change,'Priority':priority,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/alerts?view=attention',title='Alert search & filters',result_count=len(events))
-        presets=_quick_views([('Attention','/alerts?view=attention',view=='attention'),('High interest','/alerts?view=all&priority=high',priority=='high'),('New endpoints','/alerts?view=all&kind=endpoint&change=added',kind=='endpoint' and change=='added'),('Last 24h','/alerts?view=all&days=1',days==1),('All changes','/alerts?view=all',view=='all' and not priority and not kind and not change and not days)])
+        presets=_quick_views([('Attention','/alerts?view=attention',view=='attention'),('High interest','/alerts?view=all&priority=high',priority=='high'),('New endpoints','/alerts?view=all&kind=endpoint&change=added',kind=='endpoint' and change=='added'),('Last 24h','/alerts?view=all&days=1',days==1),('All changes','/alerts?view=all',view=='all' and not priority and not kind and not change and not days)],preserve={k:v[0] for k,v in p.items() if v and k not in {'priority', 'kind', 'change', 'view', 'page', 'days'}})
         high=sum(1 for e in events if e.get('priority')=='high');new=sum(1 for e in events if e.get('change')=='added');changed=sum(1 for e in events if e.get('change')=='changed')
         metrics="<div class='metrics-grid'>"+_metric_card('New',new,'Newly discovered attack-surface items','info')+_metric_card('Changed',changed,'Behavior or structure changed','amber')+_metric_card('High interest',high,'Changes worth reviewing first','danger')+_metric_card('Total alerts',len(events),'Current filtered view','purple')+"</div>"
-        rows=''.join(f"<tr><td>{_pill(e['priority'],'danger' if e['priority']=='high' else 'amber' if e['priority']=='medium' else 'neutral')}</td><td>{_pill(e['change'],'success' if e['change']=='added' else 'amber')}</td><td>{_esc(e['kind'])}</td><td>{_esc(e['target'])}</td><td><code>{_esc(e['value'])}</code><div class='muted small'>{_esc(e['details'])}</div></td><td><code>{_esc(e['previous_run'])}</code> → <code>{_esc(e['run_id'])}</code></td><td>{_esc(e['detected'])}</td><td><a class='button ghost' href='{_query_link('/analysis',target=e['target'],q=e['value'])}'>Analyze</a></td></tr>" for e in events)
+        page_size=100; page=min(parse_int((p.get('page') or [1])[0],1,1),max(1,(len(events)+page_size-1)//page_size))
+        page_events=events[(page-1)*page_size:page*page_size]
+        pager=pagination('/alerts',{k:v[0] for k,v in p.items() if v},len(events),page,page_size)
+        rows=''.join(f"<tr><td>{_pill(e['priority'],'danger' if e['priority']=='high' else 'amber' if e['priority']=='medium' else 'neutral')}</td><td>{_pill(e['change'],'success' if e['change']=='added' else 'amber')}</td><td>{_esc(e['kind'])}</td><td>{_esc(e['target'])}</td><td><code>{_esc(e['value'])}</code><div class='muted small'>{_esc(e['details'])}</div></td><td><code>{_esc(e['previous_run'])}</code> → <code>{_esc(e['run_id'])}</code></td><td>{_esc(e['detected'])}</td><td><a class='button ghost' href='{_query_link('/analysis',target=e['target'],q=e['value'])}'>Analyze</a></td></tr>" for e in page_events)
         header=_page_header('Alerts','Run-to-run change inbox. After a target is checked again, newly discovered or materially changed surface appears here.',"<a class='button secondary' href='/compare'>Compare runs</a><a class='button' href='/change-intelligence'>Change intelligence</a>",'04 · What changed?')
         note="<div class='callout'><strong>Alert policy</strong><span>The first successful run is treated as a baseline. Change alerts begin when the same target is reconned again, preventing initial-discovery noise.</span></div>"
         noise=f"<div class='noise-note'><span><strong>Noise control:</strong> Attention view hides low-priority metadata changes so meaningful surface changes stay visible.</span><a href='/alerts?view=all'>Show all changes ({low_priority_total} low-priority)</a></div>" if view=='attention' and low_priority_total else ''
-        self.send_html('Alerts',header+metrics+note+presets+noise+"<!-- Alert filters legacy contract: name='owner' name='priority' -->"+controls+f"<section class='panel'><div class='panel-head'><h3>Change inbox</h3><span class='muted small'>{len(events)} alerts</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Priority</th><th>Delta</th><th>Type</th><th>Target</th><th>Finding</th><th>Run comparison</th><th>Detected</th><th></th></tr></thead><tbody>{rows or '<tr><td colspan=8>No change alerts match this view. Re-run an authorized target to establish a comparison.</td></tr>'}</tbody></table></div></section>")
+        self.send_html('Alerts',header+metrics+note+presets+noise+"<!-- Alert filters legacy contract: name='owner' name='priority' -->"+controls+pager+f"<section class='panel'><div class='panel-head'><h3>Change inbox</h3><span class='muted small'>{len(events)} alerts</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Priority</th><th>Delta</th><th>Type</th><th>Target</th><th>Finding</th><th>Run comparison</th><th>Detected</th><th></th></tr></thead><tbody>{rows or '<tr><td colspan=8>No change alerts match this view. Re-run an authorized target to establish a comparison.</td></tr>'}</tbody></table></div></section>"+pager)
 
     def signal_alerts(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); status=str((p.get('status') or [''])[0]); severity=str((p.get('severity') or [''])[0]); priority=str((p.get('priority') or [''])[0]); tag=str((p.get('tag') or [''])[0]); q=str((p.get('q') or [''])[0]).strip();owner=str((p.get('owner')or[''])[0]);sort=str((p.get('sort')or['priority'])[0]);min_risk=parse_int((p.get('min_risk')or[0])[0],0,0,100);days=parse_int((p.get('days')or[0])[0],0,0,3650)
@@ -2738,15 +2991,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
         order={'priority':"CASE a.priority WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END DESC,a.risk_score DESC,a.last_seen DESC",'risk':'a.risk_score DESC,a.last_seen DESC','recent':'a.last_seen DESC,a.risk_score DESC','oldest':'a.last_seen ASC,a.risk_score DESC'}.get(sort,"a.risk_score DESC,a.last_seen DESC")
         db=self.db()
         try:
-            rows=db.all(f"SELECT a.* FROM alerts a WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 1500",args)
+            rows,total_count,page=query_page(db,f"SELECT a.* FROM alerts a WHERE {' AND '.join(where)} ORDER BY {order},a.id",args,p)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM alerts ORDER BY target')]; tags=[str(r[0]) for r in db.all("SELECT DISTINCT tag FROM entity_tags WHERE entity_type='alert' ORDER BY tag")];owners=[str(r[0]) for r in db.all("SELECT DISTINCT assignee FROM alerts WHERE assignee<>'' ORDER BY assignee")]
         finally: db.close()
         header=_page_header("Signal workflow", "Legacy and engine-generated signals with explicit ownership, status, evidence, and analyst decisions.", "<a class='button' href='/workbench'>Open workbench</a>", "Advanced · Signal triage")
         sort_pairs=[('priority','Priority'),('risk','Risk score'),('recent','Recently seen'),('oldest','Oldest seen')];day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')];owner_pairs=[('__unassigned__','Unassigned')]+[(x,x) for x in owners]
         fields=f"<label class='filter-wide'>Search alerts<input name='q' value='{_esc(q)}' placeholder='Title, item or details'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Status{_select('status',ALERT_STATUSES,status,'Any status')}</label><label>Severity{_select('severity',['CRITICAL','HIGH','MEDIUM','LOW','INFO'],severity,'Any severity')}</label><label>Priority{_select('priority',PRIORITIES,priority,'Any priority')}</label><label>Owner{_select_pairs('owner',owner_pairs,owner,'Any owner')}</label><label>Tag{_select('tag',tags,tag,'Any tag')}</label><label>Risk ≥<input type='number' name='min_risk' min='0' max='100' value='{min_risk or ''}'></label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Priority')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Status':status,'Severity':severity,'Priority':priority,'Owner':'Unassigned' if owner=='__unassigned__' else owner,'Tag':tag,'Risk ≥':min_risk,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='priority' else ''},'/signal-alerts',title='Signal filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Status':status,'Severity':severity,'Priority':priority,'Owner':'Unassigned' if owner=='__unassigned__' else owner,'Tag':tag,'Risk ≥':min_risk,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='priority' else ''},'/signal-alerts',title='Signal filters',result_count=total_count)
         body="".join(f"<tr><td><a class='row-link' href='/alert?id={r['id']}'>#{r['id']}</a></td><td>{_esc(r['target'])}</td><td>{_pill(r['severity'])}</td><td><strong class='tone-{_tone(r['severity'])}'>{r['risk_score']}</strong></td><td>{_pill(r['priority'])}</td><td>{_pill(r['status'])}</td><td><strong>{_esc(r['title'])}</strong><br><code>{_esc(r['item'])}</code></td><td>{r['occurrences']}</td><td>{_esc(r['assignee'] or '—')}</td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
-        self.send_html("Alerts",header+controls+f"<div class='table-wrap'><table><thead><tr><th>ID</th><th>Target</th><th>Severity</th><th>Risk</th><th>Priority</th><th>Status</th><th>Signal</th><th>Hits</th><th>Owner</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=10>No alerts match this view</td></tr>'}</tbody></table></div>")
+        pager=pagination('/signal-alerts',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html("Alerts",header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>ID</th><th>Target</th><th>Severity</th><th>Risk</th><th>Priority</th><th>Status</th><th>Signal</th><th>Hits</th><th>Owner</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=10>No alerts match this view</td></tr>'}</tbody></table></div>"+pager)
 
     def alert_detail(self) -> None:
         alert_id=parse_int((self.query().get('id') or [0])[0],0); db=self.db()
@@ -2802,15 +3056,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
         order={'recent':'a.last_seen DESC','confidence':'a.confidence DESC,a.last_seen DESC','host':'a.host,a.target','first':'a.first_seen DESC'}.get(sort,'a.last_seen DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT a.*,{lifecycle_expr} lifecycle FROM assets a LEFT JOIN asset_lifecycle l ON l.target=a.target AND l.host=a.host WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 1500",args)
+            rows,total_count,page=query_page(db,f"SELECT a.*,{lifecycle_expr} lifecycle FROM assets a LEFT JOIN asset_lifecycle l ON l.target=a.target AND l.host=a.host WHERE {' AND '.join(where)} ORDER BY {order},a.target,a.host",args,p)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM assets ORDER BY target')]; tags=[str(r[0]) for r in db.all("SELECT DISTINCT tag FROM entity_tags WHERE entity_type='asset' ORDER BY tag")];lifecycles=[str(r[0]) for r in db.all("SELECT DISTINCT state FROM asset_lifecycle ORDER BY state")]
         finally: db.close()
         header=_page_header("Assets", "Inventory of discovered hosts with confidence, resolution, lifecycle, wildcard and recency filters.", "<a class='button secondary' href='/graph'>Open graph</a>", "Attack surface")
         sort_pairs=[('recent','Recently seen'),('confidence','Confidence'),('host','Host name'),('first','Recently discovered')];day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search hosts<input name='q' value='{_esc(q)}' placeholder='Hostname contains…'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Resolved{_select_pairs('resolved',[('1','Resolved'),('0','Unresolved')],resolved,'Any')}</label><label>Lifecycle{_select('lifecycle',lifecycles,lifecycle,'Any lifecycle')}</label><label>Wildcard{_select_pairs('wildcard',[('1','Wildcard'),('0','Not wildcard')],wildcard,'Any')}</label><label>Tag{_select('tag',tags,tag,'Any tag')}</label><label>Confidence ≥<input type='number' name='min_confidence' min='0' max='100' value='{min_conf or ''}'></label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Recently seen')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Resolved':dict([('1','Resolved'),('0','Unresolved')]).get(resolved,''),'Lifecycle':lifecycle,'Wildcard':dict([('1','Wildcard'),('0','Not wildcard')]).get(wildcard,''),'Tag':tag,'Confidence ≥':min_conf,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/assets',title='Asset filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Resolved':dict([('1','Resolved'),('0','Unresolved')]).get(resolved,''),'Lifecycle':lifecycle,'Wildcard':dict([('1','Wildcard'),('0','Not wildcard')]).get(wildcard,''),'Tag':tag,'Confidence ≥':min_conf,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/assets',title='Asset filters',result_count=total_count)
         body=''.join(f"<tr><td>{_esc(r['target'])}</td><td><a class='row-link mono' href='{_query_link('/asset',target=r['target'],host=r['host'])}'>{_esc(r['host'])}</a></td><td>{_confidence(r['confidence'])}</td><td>{_pill(r['lifecycle'])}</td><td>{_pill('resolved','success') if r['resolved'] else _pill('unresolved','neutral')}</td><td>{_pill('wildcard','amber') if r['wildcard'] else '—'}</td><td><code>{_esc(r['sources_json'])}</code></td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
-        self.send_html('Assets',header+controls+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Host</th><th>Confidence</th><th>Lifecycle</th><th>Resolution</th><th>Wildcard</th><th>Sources</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=8>No assets match the filters</td></tr>'}</tbody></table></div>")
+        pager=pagination('/assets',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('Assets',header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Host</th><th>Confidence</th><th>Lifecycle</th><th>Resolution</th><th>Wildcard</th><th>Sources</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=8>No assets match the filters</td></tr>'}</tbody></table></div>"+pager)
 
     def asset_detail(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); host=str((p.get('host') or [''])[0]); db=self.db()
@@ -2885,15 +3140,16 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         order={'recent':'last_seen DESC,first_seen DESC','first':'first_seen DESC,last_seen DESC','url':'url,target','target':'target,url'}.get(sort,'last_seen DESC,first_seen DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT target,url,kind,source,first_seen,last_seen FROM urls WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 2000",args)
+            rows,total_count,page=query_page(db,f"SELECT target,url,kind,source,first_seen,last_seen FROM urls WHERE {' AND '.join(where)} ORDER BY {order},target,url",args,p)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM urls ORDER BY target')]; kinds=[str(r[0]) for r in db.all('SELECT DISTINCT kind FROM urls ORDER BY kind')]; sources=[str(r[0]) for r in db.all("SELECT DISTINCT source FROM urls WHERE COALESCE(source,'')<>'' ORDER BY source")]
         finally: db.close()
         day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]; sort_pairs=[('recent','Recently seen'),('first','Recently discovered'),('url','URL'),('target','Target')]
         fields=f"<label class='filter-wide'>Search URLs<input name='q' value='{_esc(q)}' placeholder='URL or collection source'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Kind{_select('kind',kinds,kind,'All kinds')}</label><label>Source{_select('source',sources,source,'All sources')}</label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Recently seen')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Kind':kind,'Source':source,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/urls',title='URL filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Kind':kind,'Source':source,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/urls',title='URL filters',result_count=total_count)
         body=''.join(f"<tr><td>{_esc(r['target'])}</td><td><code>{_esc(r['url'])}</code></td><td>{_pill(r['kind'],'info')}</td><td>{_esc(r['source'])}</td><td>{_esc(r['first_seen'])}</td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
         header=_page_header('URL inventory','Historical and live URLs separated by target, kind, collection source and recency.',eyebrow='Application surface')
-        self.send_html('URLs',header+controls+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>URL</th><th>Kind</th><th>Source</th><th>First</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=6>No URLs match the filters</td></tr>'}</tbody></table></div>")
+        pager=pagination('/urls',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('URLs',header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>URL</th><th>Kind</th><th>Source</th><th>First</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=6>No URLs match the filters</td></tr>'}</tbody></table></div>"+pager)
 
     def javascript(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); kind=str((p.get('kind') or [''])[0]); q=str((p.get('q') or [''])[0]).strip();redacted=str((p.get('redacted')or[''])[0]);sort=str((p.get('sort')or['recent'])[0]);days=parse_int((p.get('days')or[0])[0],0,0,3650);where=['1=1']; args=[]
@@ -2907,22 +3163,25 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         order={'recent':'last_seen DESC','first':'first_seen DESC','kind':'kind,last_seen DESC','value':'value,last_seen DESC'}.get(sort,'last_seen DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT target,js_url,kind,value,redacted,first_seen,last_seen FROM js_indicators WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 1500",args)
+            rows,total_count,page=query_page(db,f"SELECT target,js_url,kind,value,redacted,first_seen,last_seen FROM js_indicators WHERE {' AND '.join(where)} ORDER BY {order},target,js_url,kind,value",args,p)
             diff_where=[];diff_args=[]
             if target:diff_where.append('target=?');diff_args.append(target)
             if q:diff_where.append('js_url LIKE ?');diff_args.append(f'%{q}%')
             if since:diff_where.append('created_at>=?');diff_args.append(since)
             diff_clause=' WHERE '+' AND '.join(diff_where) if diff_where else ''
-            diffs=db.all(f"SELECT id,run_id,target,js_url,summary_json,created_at FROM js_diffs{diff_clause} ORDER BY created_at DESC LIMIT 200",tuple(diff_args))
+            diffs,diff_total,diff_page=query_page(db,f"SELECT id,run_id,target,js_url,summary_json,created_at FROM js_diffs{diff_clause} ORDER BY created_at DESC,id DESC",tuple(diff_args),p,page_key='diff_page',page_size=50)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM js_indicators ORDER BY target')]; kinds=[str(r[0]) for r in db.all('SELECT DISTINCT kind FROM js_indicators ORDER BY kind')]
         finally: db.close()
         sort_pairs=[('recent','Recently seen'),('first','Recently discovered'),('kind','Kind'),('value','Value')];day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search JavaScript data<input name='q' value='{_esc(q)}' placeholder='Indicator or JavaScript URL'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Indicator kind{_select('kind',kinds,kind,'All kinds')}</label><label>Redaction{_select_pairs('redacted',[('1','Redacted'),('0','Not redacted')],redacted,'Any')}</label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Recently seen')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Kind':kind,'Redaction':dict([('1','Redacted'),('0','Not redacted')]).get(redacted,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/javascript',title='JavaScript filters',result_count=len(rows)+len(diffs))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Kind':kind,'Redaction':dict([('1','Redacted'),('0','Not redacted')]).get(redacted,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/javascript',title='JavaScript filters',result_count=total_count+diff_total)
         diff_rows=''.join(f"<tr><td><a href='/js-diff?id={r['id']}'>{r['id']}</a></td><td>{_esc(r['target'])}</td><td><code>{_esc(r['js_url'])}</code></td><td><code>{_esc(r['run_id'])}</code></td><td>{_esc(r['created_at'])}</td></tr>" for r in diffs)
         body=''.join(f"<tr><td>{_esc(r['target'])}</td><td><code>{_esc(r['kind'])}</code></td><td><code>{_esc(r['value'])}</code></td><td><code>{_esc(r['js_url'])}</code></td><td>{'yes' if r['redacted'] else 'no'}</td><td>{_esc(r['first_seen'])}</td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
         header=_page_header('JavaScript intelligence','Extracted indicators and semantic diffs with Target, kind, redaction, recency and text filters.',eyebrow='Client-side intelligence')
-        self.send_html('JavaScript',header+controls+f"<section class='panel'><div class='panel-head'><h3>Recent detailed diffs</h3><span class='muted small'>{len(diffs)} shown</span></div><div class='table-wrap'><table><thead><tr><th>ID</th><th>Target</th><th>JS URL</th><th>Run</th><th>Created</th></tr></thead><tbody>{diff_rows or '<tr><td colspan=5>No diffs match the filters</td></tr>'}</tbody></table></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Extracted indicators</h3><span class='muted small'>{len(rows)} shown</span></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Kind</th><th>Value</th><th>JS URL</th><th>Redacted</th><th>First</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=7>No indicators match the filters</td></tr>'}</tbody></table></div></section>")
+        page_params={k:v[0] for k,v in p.items() if v}
+        pager=pagination('/javascript',page_params,total_count,page,100)
+        diff_pager=pagination('/javascript',page_params,diff_total,diff_page,50,page_key='diff_page')
+        self.send_html('JavaScript',header+controls+diff_pager+f"<section class='panel'><div class='panel-head'><h3>Recent detailed diffs</h3><span class='muted small'>{len(diffs)} shown · {diff_total} matching</span></div><div class='table-wrap'><table><thead><tr><th>ID</th><th>Target</th><th>JS URL</th><th>Run</th><th>Created</th></tr></thead><tbody>{diff_rows or '<tr><td colspan=5>No diffs match the filters</td></tr>'}</tbody></table></div></section>{pager}<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Extracted indicators</h3><span class='muted small'>{len(rows)} shown · {total_count} matching</span></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Kind</th><th>Value</th><th>JS URL</th><th>Redacted</th><th>First</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=7>No indicators match the filters</td></tr>'}</tbody></table></div></section>"+pager)
 
     def js_diff(self) -> None:
         diff_id=parse_int((self.query().get('id') or [0])[0],0); db=self.db()
@@ -2951,7 +3210,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         order={'confidence':'confidence DESC,last_seen DESC','recent':'last_seen DESC,confidence DESC','first':'first_seen DESC,confidence DESC','endpoint':'endpoint,target'}.get(sort,'confidence DESC,last_seen DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT * FROM endpoint_intelligence WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 2000",args)
+            rows,total_count,page=query_page(db,f"SELECT * FROM endpoint_intelligence WHERE {' AND '.join(where)} ORDER BY {order},target,endpoint",args,p)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM endpoint_intelligence ORDER BY target')]; categories=[str(r[0]) for r in db.all('SELECT DISTINCT primary_category FROM endpoint_intelligence ORDER BY primary_category')];kinds=[str(r[0]) for r in db.all('SELECT DISTINCT kind FROM endpoint_intelligence ORDER BY kind')]
             source_values=[]
             for row in db.all('SELECT sources_json FROM endpoint_intelligence LIMIT 5000'):
@@ -2963,12 +3222,13 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         header=_page_header("Endpoint intelligence", "Classified API and route candidates with evidence-backed confidence, kind, source and recency filters.", eyebrow="Application surface")
         sort_pairs=[('confidence','Confidence'),('recent','Recently seen'),('first','Recently discovered'),('endpoint','Endpoint')];day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')]
         fields=f"<label class='filter-wide'>Search endpoints<input name='q' value='{_esc(q)}' placeholder='Endpoint, reason or source'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Class{_select('category',categories,category,'All classes')}</label><label>Kind{_select('kind',kinds,kind,'All kinds')}</label><label>Source{_select('source',source_values,source,'Any source')}</label><label>Confidence ≥<input type='number' name='confidence' min='0' max='100' value='{min_conf or ''}'></label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Confidence')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Class':category,'Kind':kind,'Source':source,'Confidence ≥':min_conf,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='confidence' else ''},'/endpoints',title='Endpoint filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Class':category,'Kind':kind,'Source':source,'Confidence ≥':min_conf,'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='confidence' else ''},'/endpoints',title='Endpoint filters',result_count=total_count)
         body=[]
         for r in rows:
             reasons=_json(r['reasons_json'],[]); sources=_json(r['sources_json'],[])
             body.append(f"<tr><td>{_esc(r['target'])}</td><td><code>{_esc(r['endpoint'])}</code></td><td>{_pill(r['kind'],'info')}</td><td>{_pill(r['primary_category'],'purple')}</td><td>{_confidence(r['confidence'])}</td><td>{_badges(reasons[:3])}</td><td>{_badges(sources[:3])}</td><td>{_esc(r['last_seen'])}</td></tr>")
-        self.send_html('Endpoints',header+controls+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Endpoint</th><th>Kind</th><th>Class</th><th>Confidence</th><th>Reasons</th><th>Sources</th><th>Last</th></tr></thead><tbody>{''.join(body) or '<tr><td colspan=8>No endpoints match the filters</td></tr>'}</tbody></table></div>")
+        pager=pagination('/endpoints',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('Endpoints',header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Endpoint</th><th>Kind</th><th>Class</th><th>Confidence</th><th>Reasons</th><th>Sources</th><th>Last</th></tr></thead><tbody>{''.join(body) or '<tr><td colspan=8>No endpoints match the filters</td></tr>'}</tbody></table></div>"+pager)
 
     def fingerprints(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); q=str((p.get('q') or [''])[0]).strip(); status=str((p.get('status') or [''])[0]);status_class=str((p.get('status_class')or[''])[0]);server=str((p.get('server')or[''])[0]);technology=str((p.get('technology')or[''])[0]);cdn=str((p.get('cdn')or[''])[0]);tls_state=str((p.get('tls')or[''])[0]);sort=str((p.get('sort')or['recent'])[0]);days=parse_int((p.get('days')or[0])[0],0,0,3650);where=['1=1']; args=[]
@@ -2993,15 +3253,16 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         order={'recent':'f.last_seen DESC','status':'f.status_code,f.last_seen DESC','url':'f.url','tls':'f.tls_expiry ASC,f.last_seen DESC'}.get(sort,'f.last_seen DESC')
         db=self.db()
         try:
-            rows=db.all(f"SELECT f.target,f.url,f.status_code,f.title,f.webserver,f.ip,f.cname,f.cdn,f.tls_issuer,f.tls_expiry,f.last_seen,GROUP_CONCAT(DISTINCT t.technology) technologies FROM fingerprints f LEFT JOIN technology_observations t ON t.target=f.target AND t.url=f.url AND t.is_current=1 WHERE {' AND '.join(where)} GROUP BY f.target,f.url ORDER BY {order} LIMIT 1500",args)
+            rows,total_count,page=query_page(db,f"SELECT f.target,f.url,f.status_code,f.title,f.webserver,f.ip,f.cname,f.cdn,f.tls_issuer,f.tls_expiry,f.last_seen,GROUP_CONCAT(DISTINCT t.technology) technologies FROM fingerprints f LEFT JOIN technology_observations t ON t.target=f.target AND t.url=f.url AND t.is_current=1 WHERE {' AND '.join(where)} GROUP BY f.target,f.url ORDER BY {order},f.target,f.url",args,p)
             targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM fingerprints ORDER BY target')];servers=[str(r[0]) for r in db.all("SELECT DISTINCT webserver FROM fingerprints WHERE webserver<>'' ORDER BY webserver")];technologies=[str(r[0]) for r in db.all("SELECT DISTINCT technology FROM technology_observations WHERE is_current=1 ORDER BY technology")];cdns=[str(r[0]) for r in db.all("SELECT DISTINCT cdn FROM fingerprints WHERE cdn<>'' ORDER BY cdn")]
         finally: db.close()
         header=_page_header("HTTP / TLS intelligence", "Current web services with status class, technology, CDN, TLS posture and recency filters.", eyebrow="Service intelligence")
         sort_pairs=[('recent','Recently seen'),('status','Status code'),('url','URL'),('tls','TLS expiry')];day_pairs=[('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')];status_pairs=[('2xx','2xx success'),('3xx','3xx redirect'),('4xx','4xx client error'),('5xx','5xx server error'),('unknown','Unknown')];tls_pairs=[('expired','Expired'),('expiring','Expires in 30 days'),('valid','Valid beyond 30 days'),('none','No TLS expiry')]
         fields=f"<label class='filter-wide'>Search services<input name='q' value='{_esc(q)}' placeholder='URL, title, IP, CNAME or technology'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Exact status<input name='status' value='{_esc(status)}' placeholder='e.g. 200'></label><label>Status class{_select_pairs('status_class',status_pairs,status_class,'Any class')}</label><label>Server{_select('server',servers,server,'Any server')}</label><label>Technology{_select('technology',technologies,technology,'Any technology')}</label><label>CDN{_select('cdn',cdns,cdn,'Any CDN')}</label><label>TLS{_select_pairs('tls',tls_pairs,tls_state,'Any TLS state')}</label><label>Seen{_select_pairs('days',day_pairs,str(days) if days else '','Any time')}</label><label>Sort{_select_pairs('sort',sort_pairs,sort,'Recently seen')}</label>"
-        controls=_filter_panel(fields,{'Search':q,'Target':target,'Status':status,'Class':dict(status_pairs).get(status_class,''),'Server':server,'Technology':technology,'CDN':cdn,'TLS':dict(tls_pairs).get(tls_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/fingerprints',title='HTTP / TLS filters',result_count=len(rows))
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Status':status,'Class':dict(status_pairs).get(status_class,''),'Server':server,'Technology':technology,'CDN':cdn,'TLS':dict(tls_pairs).get(tls_state,''),'Window':dict(day_pairs).get(str(days),'') if days else '','Sort':dict(sort_pairs).get(sort,'') if sort!='recent' else ''},'/fingerprints',title='HTTP / TLS filters',result_count=total_count)
         body=''.join(f"<tr><td>{_esc(r['target'])}</td><td><code>{_esc(r['url'])}</code><br><span class='muted small'>{_esc(r['title'])}</span></td><td>{_pill(r['status_code'],'success' if 200<=int(r['status_code'] or 0)<400 else 'amber')}</td><td>{_esc(r['webserver'])}</td><td>{_badges(str(r['technologies'] or '').split(',')[:4])}</td><td><code>{_esc(r['ip'])}</code><br><span class='muted small'>{_esc(r['cname'])}</span></td><td>{_esc(r['cdn'])}</td><td>{_esc(r['tls_issuer'])}<br><span class='muted small'>{_esc(r['tls_expiry'])}</span></td><td>{_esc(r['last_seen'])}</td></tr>" for r in rows)
-        self.send_html('HTTP/TLS',header+controls+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Service</th><th>Status</th><th>Server</th><th>Technology</th><th>Network</th><th>CDN</th><th>TLS</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=9>No services match the filters</td></tr>'}</tbody></table></div>")
+        pager=pagination('/fingerprints',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('HTTP/TLS',header+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>Target</th><th>Service</th><th>Status</th><th>Server</th><th>Technology</th><th>Network</th><th>CDN</th><th>TLS</th><th>Last</th></tr></thead><tbody>{body or '<tr><td colspan=9>No services match the filters</td></tr>'}</tbody></table></div>"+pager)
 
     def validation_intelligence_page(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0]); result=str((p.get('result') or [''])[0]); min_conf=parse_int((p.get('min_conf') or [0])[0],0,0,100)
@@ -3345,45 +3606,108 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         self.send_html('Attack surface',header+controls+graph)
 
     def notes(self) -> None:
+        p=self.query(); target=str((p.get('target') or [''])[0]); q=str((p.get('q') or [''])[0]).strip(); kind=str((p.get('kind') or [''])[0])
+        where=['1=1']; args=[]
+        if target: where.append('target=?'); args.append(target)
+        if q: where.append('(entity_value LIKE ? OR note LIKE ?)'); args.extend([f'%{q}%']*2)
+        if kind: where.append('entity_type=?'); args.append(kind)
         db=self.db()
-        try: rows=db.all('SELECT id,target,entity_type,entity_value,note,created_at FROM investigation_notes ORDER BY created_at DESC LIMIT 500')
+        try:
+            rows,total_count,page=query_page(db,f"SELECT id,target,entity_type,entity_value,note,created_at FROM investigation_notes WHERE {' AND '.join(where)} ORDER BY created_at DESC,id DESC",args,p)
+            targets=[str(r[0]) for r in db.all('SELECT DISTINCT target FROM investigation_notes ORDER BY target')]
+            kinds=[str(r[0]) for r in db.all('SELECT DISTINCT entity_type FROM investigation_notes ORDER BY entity_type')]
         finally: db.close()
         body=''.join(f"<tr><td>{r['id']}</td><td>{_esc(r['target'])}</td><td>{_esc(r['entity_type'])}</td><td><code>{_esc(r['entity_value'])}</code></td><td>{_esc(r['note'])}</td><td>{_esc(r['created_at'])}</td><td><form method='post' action='/notes/delete'><input type='hidden' name='id' value='{r['id']}'><input type='hidden' name='return' value='/notes'><button class='danger'>Delete</button></form></td></tr>" for r in rows)
-        self.send_html('Notes',f"<h1>Investigation notes</h1><table><thead><tr><th>ID</th><th>Target</th><th>Type</th><th>Entity</th><th>Note</th><th>Created</th><th></th></tr></thead><tbody>{body}</tbody></table>")
+        fields=f"<label class='filter-wide'>Search notes<input name='q' value='{_esc(q)}'></label><label>Target{_select('target',targets,target,'All targets')}</label><label>Entity type{_select('kind',kinds,kind,'All types')}</label>"
+        controls=_filter_panel(fields,{'Search':q,'Target':target,'Type':kind},'/notes',title='Note filters',result_count=total_count)
+        pager=pagination('/notes',{k:v[0] for k,v in p.items() if v},total_count,page,100)
+        self.send_html('Notes',_page_header('Investigation notes','Observations and review context stored with their entities.')+controls+pager+f"<div class='table-wrap'><table><thead><tr><th>ID</th><th>Target</th><th>Type</th><th>Entity</th><th>Note</th><th>Created</th><th></th></tr></thead><tbody>{body or '<tr><td colspan=7>No notes match these filters</td></tr>'}</tbody></table></div>"+pager)
 
     def search(self) -> None:
-        q = str((self.query().get('q') or [''])[0]).strip()
+        p = self.query()
+        q = str((p.get('q') or [''])[0]).strip()
+        target = str((p.get('target') or [''])[0]).strip()
+        group = str((p.get('group') or [''])[0])
+        if group not in {item.name for item in SEARCH_GROUPS} | {'Stored text','Change alerts'}: group = ''
+        include_files = str((p.get('files') or [''])[0]) == '1' or group == 'Stored text'
+        run_id = str((p.get('run') or [''])[0]).strip()
+        record = str((p.get('record') or [''])[0]).strip()
+        days = parse_int((p.get('days') or [0])[0], 0, 0, 3650)
+        page = parse_int((p.get('page') or [1])[0], 1, 1)
         db = self.db()
         try:
-            results = universal_search(db, q, limit=100) if q else {}
+            targets = search_targets(db)
+            data = search_workspace(db, q, target=target, group=group, run_id=run_id, days=days, page=page, record=record, include_files=include_files, paths=self.paths)
         finally:
             db.close()
-        total = sum(len(rows) for rows in results.values())
-        header = _page_header('Universal search', f"Search cases, stories, candidates, endpoints, assets, JavaScript, evidence and redacted browser captures.{f' {total} matches found.' if q else ''}", "<a class='button secondary' href='/'>Command center</a>", f'Recon Monitor {APP_VERSION} · Workspace index')
-        form = f"<form class='filters'><label style='flex:1'>Search query<br><input style='width:100%' name='q' value='{_esc(q)}' placeholder='CASE-18, /api/orders, auth context, evidence…' required autofocus></label><button>Search</button></form>"
-        if not q:
-            self.send_html('Search', header + form + _empty('Start a universal research search', 'Use ⌘K for the command palette or / to focus this search.'))
+        total = data['total']
+        params = {'q': q, 'target': target, 'group': group, 'run': run_id, 'days': days or '', 'record': record, 'files': '1' if include_files else ''}
+        actions = f"<a class='button secondary' href='{_esc(_query_link('/', target=target))}'>Command center</a>"
+        if record:
+            actions += f"<a class='button secondary' href='{_esc(_query_link('/search', **{**params, 'record': ''}))}'>Matching records →</a>"
+        header = _page_header('Universal search', 'Search stored research observations, investigations, evidence and execution records.', actions, 'Workspace index')
+        fields = (f"<label class='filter-wide'>Search query<input name='q' value='{_esc(q)}' placeholder='Host, endpoint, evidence, run ID…'></label>"
+                  f"<label>Target{_select('target', targets, target, 'All targets')}</label>"
+                  f"<label>Record type{_select('group', [g.name for g in SEARCH_GROUPS] + ['Change alerts','Stored text'], group, 'All record types')}</label>"
+                  f"<label>Source run<input name='run' value='{_esc(run_id)}' placeholder='Exact run ID'></label>"
+                  f"<label>Seen{_select_pairs('days', [('1','Last 24 hours'),('7','Last 7 days'),('30','Last 30 days'),('90','Last 90 days')], str(days) if days else '', 'Any time')}</label>"
+                  f"<label>Stored JavaScript &amp; run output text{_select_pairs('files',[('1','Include file text (slower)')], '1' if include_files else '', 'Metadata only')}</label>")
+        if record: fields += f"<input type='hidden' name='record' value='{_esc(record)}'>"
+        form = _filter_panel(fields, {'Search': q, 'Target': target, 'Type': group, 'Source run': run_id, 'Window': f'{days} days' if days else '', 'Exact record': record, 'File text': 'Included' if include_files else ''}, '/search', title='Search filters', result_count=total if q or record else None)
+        if not q and not record:
+            self.send_html('Search', header + form + _empty('Search your workspace', 'Enter literal text or use * to browse every indexed record. Use ⌘K for workspace commands or / to focus search.'))
             return
-        summary = "<div class='metrics-grid'>" + ''.join(_metric_card(name, len(rows), 'Matching records', 'info') for name, rows in results.items()) + "</div>"
-        href_map = {
-            'Cases': lambda v: '/case?id=' + urllib.parse.quote(str(v)),
-            'Candidates': lambda v: '/bug-candidate?id=' + urllib.parse.quote(str(v)),
-            'Stories': lambda v: '/security-stories',
-            'Endpoints': lambda v: '/endpoints?q=' + urllib.parse.quote(str(v)),
-            'Assets': lambda v: '/assets?q=' + urllib.parse.quote(str(v)),
-            'JavaScript': lambda v: '/javascript?q=' + urllib.parse.quote(str(v)),
-            'Evidence': lambda v: '/evidence-gaps',
-            'Captures': lambda v: '/browser-capture',
-        }
+        type_links = "<nav class='search-groups' aria-label='Matching record types'>" + f"<a class='{'active' if not group else ''}' href='{_query_link('/search', **{**params, 'group': ''})}'>All types <b>{sum(data['counts'].values())}</b></a>" + ''.join(
+            f"<a class='{'active' if group == name else ''}' href='{_query_link('/search', **{**params, 'group': name})}'>{_esc(name)} <b>{count}</b></a>" for name, count in data['counts'].items() if count or name == group
+        ) + "</nav>"
+        summary = (
+            "<details class='search-type-browser' id='search-record-types'><summary>Record types"
+            + f"<span class='small'>{_esc(group or 'All types')} · {total} matching records</span></summary>"
+            + type_links + '</details>'
+        )
+        pager = pagination('/search', params, total, data['page'], data['page_size'])
         sections = []
-        for name, rows in results.items():
+        columns = (
+            "<colgroup><col class='search-target-column'><col><col>"
+            "<col class='search-source-column'><col class='search-seen-column'></colgroup>"
+        )
+        for name, rows in data['rows'].items():
             body_rows = []
             for row in rows:
                 value = row.get('value', '')
-                href = href_map.get(name, lambda v: '/search?q=' + urllib.parse.quote(str(v)))(value)
-                body_rows.append(f"<tr><td>{_esc(row.get('target',''))}</td><td><a href='{_esc(href)}'><code>{_esc(value)}</code></a></td><td>{_esc(row.get('extra',''))}</td><td>{_esc(row.get('seen',''))}</td></tr>")
-            sections.append(f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} matches</span></div><div class='table-wrap' style='border:0;border-radius:0'><table><thead><tr><th>Target</th><th>Value</th><th>Context</th><th>Seen</th></tr></thead><tbody>{''.join(body_rows) or '<tr><td colspan=4>No matches</td></tr>'}</tbody></table></div></section>")
-        self.send_html('Search', header + form + summary + ''.join(sections))
+                source = ''.join(
+                    f"<div class='search-source-item'><span class='small muted'>{label}</span><code>{_esc(row[key])}</code></div>"
+                    for key, label in (('source_run_id', 'Run'), ('analysis_id', 'Analysis')) if row.get(key)
+                ) or '—'
+                detail_href = _query_link('/search', **{**params, 'group': name, 'target': row.get('target') or '', 'record': value})
+                detail_link = f"<br><a class='small' href='{_esc(detail_href)}'>Stored details →</a>" if not record and name!='Stored text' else ''
+                record_href = detail_href if name != 'Stored text' and urllib.parse.urlsplit(row['href']).path == '/search' else row['href']
+                body_rows.append(
+                    "<tr role='row'>"
+                    + labeled_cell('Target', _esc(row.get('target','') or 'Global'))
+                    + labeled_cell('Record', f"<a href='{_esc(record_href)}'><code>{_esc(value)}</code></a>{detail_link}")
+                    + labeled_cell('Context', _esc(row.get('extra','') or '—'))
+                    + labeled_cell('Run / Analysis', source)
+                    + labeled_cell('Seen', _esc(row.get('seen','') or 'Not recorded'))
+                    + '</tr>'
+                )
+                if row.get('record_details'):
+                    details = _json(row['record_details'], {})
+                    facts = []
+                    for key, detail in details.items():
+                        if isinstance(detail, str) and key.endswith('_json'):
+                            try: detail = json.dumps(json.loads(detail), ensure_ascii=False, indent=2)
+                            except (TypeError, ValueError): pass
+                        facts.append(f"<dt>{_esc(key.replace('_',' '))}</dt><dd><pre>{_esc(detail if detail is not None else '—')}</pre></dd>")
+                    body_rows.append("<tr role='row'><td role='cell' colspan='5'><details class='search-record-details' open><summary>Stored record details</summary><dl>" + ''.join(facts) + '</dl></details></td></tr>')
+            route = next((g.route for g in SEARCH_GROUPS if g.name == name), '/alerts' if name=='Change alerts' else '/javascript')
+            route = {'/case':'/cases','/asset':'/assets','/bug-candidate':'/potential-findings','/run-review':'/runs','/js-diff':'/javascript','/alert':'/signal-alerts'}.get(route,route)
+            workspace = _query_link(route, target=target)
+            sections.append(f"<section class='panel search-results-panel'><div class='panel-head'><h3>{_esc(name)}</h3><span class='muted small'>{len(rows)} shown · {data['counts'][name]} matching records</span><a href='{workspace}'>Open workspace →</a></div><div class='table-wrap'><table class='responsive-records' role='table' aria-label='{_esc(name)}'>{columns}<thead role='rowgroup'><tr role='row'><th scope='col'>Target</th><th scope='col'>Record</th><th scope='col'>Context</th><th scope='col'>Run / Analysis</th><th scope='col'>Seen</th></tr></thead><tbody role='rowgroup'>{''.join(body_rows)}</tbody></table></div></section>")
+        if not total: sections.append(_empty('No matching records', 'Change the query or clear the active filters.'))
+        if data['unavailable']: sections.append(f"<p class='muted'>Unavailable in this database: {_esc(', '.join(data['unavailable']))}.</p>")
+        if data['unavailable_files']: sections.append(f"<p class='run-status-error'>{data['unavailable_files']} referenced file(s) could not be searched. File-text results cover readable stored artifacts only.</p>")
+        self.send_html('Search', header + form + summary + pager + ''.join(sections) + pager)
 
     def evidence_export(self) -> None:
         p = self.query()

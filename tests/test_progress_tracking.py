@@ -252,6 +252,86 @@ class ProgressTrackingTests(unittest.TestCase):
         self.assertEqual(snapshot["stages"][0]["status"], "success")
         self.assertEqual(snapshot["stages"][1]["status"], "running")
 
+    def test_recon_collection_outcomes_do_not_turn_empty_or_timed_out_work_into_success(self):
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        recon = {
+            "run_id": "run-partial", "target": "example.com", "status": "partial",
+            "run_status": "partial", "started_at": now, "finished_at": now,
+            "current_stage": "report", "run_dir": str(self.paths.output / "run-partial"),
+        }
+        stages = [
+            {"stage": "urls", "status": "success", "metrics_json": json.dumps({"collection_status": "partial", "katana_timed_out": True, "katana_stop_reason": "batch_timeout"})},
+            {"stage": "javascript", "status": "success", "metrics_json": '{"files":0,"downloaded":0}'},
+            {"stage": "dns", "status": "success", "metrics_json": '["invalid shape"]'},
+            {"stage": "ports", "status": "skipped", "metrics_json": 'invalid json'},
+        ]
+        snapshot = recon_progress_snapshot(self.paths, FakeDB(recon=recon, stages=stages), "example.com")
+        self.assertEqual(snapshot["health"], "partial")
+        by_stage = {stage["stage"]: stage for stage in snapshot["stages"]}
+        self.assertEqual(by_stage["urls"]["status"], "success")
+        self.assertEqual(by_stage["urls"]["collection_label"], "Partial / Timeout")
+        self.assertEqual(by_stage["javascript"]["status"], "success")
+        self.assertEqual(by_stage["javascript"]["collection_label"], "No JS input")
+        self.assertEqual(by_stage["dns"]["collection_label"], "Not recorded")
+        self.assertEqual(by_stage["ports"]["collection_label"], "Not recorded")
+        base = SimpleNamespace(_esc=lambda value: str(value), _pill=lambda value, tone="": f"[{value}:{tone}]")
+        markup = _progress_panel(base, snapshot, "Live Recon Progress")
+        visible = markup.split("<details class='progress-detail'", 1)[0]
+        self.assertIn("Latest Recon run", visible)
+        self.assertIn("1 timeout(s)", visible)
+        self.assertIn("1 stage(s) without input", visible)
+        self.assertNotIn("Current phase", markup)
+        self.assertNotIn("Estimated progress", markup)
+        self.assertNotIn("No active operation", markup)
+        self.assertIn("Last recorded phase", markup)
+        self.assertIn("<th>Execution</th><th>Collection</th>", markup)
+        self.assertIn("batch_timeout", markup)
+        self.assertIn("No JS input", markup)
+        self.assertNotIn("id='live-progress-details' open", markup)
+
+    def test_zero_js_downloads_preserve_the_reason_and_execution_result(self):
+        from progress_tracking import _stage_collection
+        outcome = _stage_collection("javascript", {"files": 3, "downloaded": 0, "zero_download_reasons": ["fetch_errors"]})
+        self.assertEqual(outcome["collection_label"], "No JS downloads")
+        self.assertTrue(outcome["collection_partial"])
+        self.assertFalse(outcome["collection_no_input"])
+        self.assertIn("fetch_errors", outcome["collection_detail"])
+
+    def test_live_retry_does_not_report_earlier_timeout_or_duration_as_current(self):
+        from core import APP_VERSION, Database, utc_now
+        import dashboard
+        now = utc_now()
+        db = Database(self.paths.db)
+        try:
+            db.execute("INSERT INTO runs(id,version,status,started_at,target_count) VALUES('retry',?,'running',?,1)", (APP_VERSION, now))
+            db.execute("INSERT INTO run_targets(run_id,target,policy_hash,status,started_at,run_dir) VALUES('retry','example.test','test','running',?,?)", (now, str(self.paths.output / 'retry')))
+            previous = {"collection_status": "partial", "katana_timed_out": True, "katana_stop_reason": "batch_timeout"}
+            db.stage_begin("retry", "example.test", "urls", 1)
+            db.stage_finish("retry", "example.test", "urls", "partial", duration=1800, metrics=previous)
+            db.stage_begin("retry", "example.test", "urls", 2)
+            record = ProgressRecord(self.paths, "recon", "retry", "example.test")
+            record.start(phase="urls", label="URL collection", percent=20)
+            snapshot = recon_progress_snapshot(self.paths, db, "example.test")
+            current = next(stage for stage in snapshot["stages"] if stage["stage"] == "urls")
+            self.assertEqual(current["status"], "running")
+            self.assertEqual(current["collection_label"], "In progress")
+            self.assertIsNone(current["duration_seconds"])
+            self.assertFalse(current["collection_timed_out"])
+            self.assertFalse(current["collection_partial"])
+            markup = _progress_panel(dashboard, snapshot, "Live Recon Progress")
+            self.assertNotIn("timeout(s)", markup)
+            self.assertNotIn("batch_timeout", markup)
+            stored = db.one("SELECT metrics_json,duration_seconds FROM stage_runs WHERE run_id='retry'")
+            self.assertEqual(json.loads(stored["metrics_json"]), previous)
+            self.assertEqual(stored["duration_seconds"], 1800)
+            db.stage_finish("retry", "example.test", "urls", "success", duration=12, metrics={"collection_status": "success"})
+            finished = recon_progress_snapshot(self.paths, db, "example.test")
+            stage = next(s for s in finished["stages"] if s["stage"] == "urls")
+            self.assertEqual(stage["collection_label"], "Recorded complete")
+            self.assertEqual(stage["duration_seconds"], 12)
+        finally:
+            db.close()
+
     def test_recon_snapshot_ignores_older_stale_running_row_after_newer_completed_run(self):
         stale = {
             "run_id": "run-old",

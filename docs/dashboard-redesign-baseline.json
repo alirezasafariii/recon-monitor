@@ -1,0 +1,2522 @@
+{
+  "schema": 1,
+  "reference_release": "8.8.3",
+  "source_tree": "e449ffe748e29fa251cb8dd224c02e2c83b6d49a",
+  "scope": "Static baseline of routed handlers, categories and runtime overlays; not proof of redesign implementation or runtime behavior.",
+  "limitations": "Form candidates include action fields as well as filters. Query keys include selectors and compatibility aliases. Helper-generated columns/actions require the accompanying manual review.",
+  "file_sha256": {
+    "app/dashboard_core.py": "2f0641d92eb69dab602b416c6294959c8f65f5e630cedbb06e6e6fbe42dc1e1b",
+    "app/dashboard.py": "58f6aa6be6409807a998eb481c8b52c49c8b1e9e95a8d399d2a3e69c67560777",
+    "app/progress_tracking.py": "f7ec0fd7f827f6374d50ea8ce93c75debb4d4b84acf365073cef96d493b90cf1",
+    "app/workspace_v7.py": "97b95f1735c0395c3c656aba822dc00e84e383363ec0387df2651e36f93cb47f"
+  },
+  "categories": {
+    "hosts": [
+      "Hosts & Subdomains",
+      "Hosts, subdomains and discovered network names",
+      "HS"
+    ],
+    "apis": [
+      "APIs",
+      "REST, GraphQL, WebSocket and API-like routes",
+      "API"
+    ],
+    "authentication": [
+      "Authentication",
+      "Login, session, token, recovery, OAuth and identity surfaces",
+      "AU"
+    ],
+    "admin_internal": [
+      "Admin / Internal",
+      "Administrative, internal, debug and management surfaces",
+      "AI"
+    ],
+    "file_upload": [
+      "File & Upload",
+      "Upload, download, import, export and file-handling surfaces",
+      "FU"
+    ],
+    "data_object": [
+      "Data / Object",
+      "Object identifiers and business-data access surfaces",
+      "DO"
+    ],
+    "client_side": [
+      "Client-side / JavaScript",
+      "JavaScript, source maps and client-discovered routes",
+      "JS"
+    ],
+    "infrastructure": [
+      "Infrastructure",
+      "Ports, services, HTTP/TLS fingerprints and technologies",
+      "IF"
+    ],
+    "other": [
+      "Other",
+      "Observed surface not yet classified into a stronger security context",
+      "OT"
+    ]
+  },
+  "raw_types": {
+    "host": [
+      "Hosts",
+      "Hosts and subdomains"
+    ],
+    "url": [
+      "URLs",
+      "Observed web locations"
+    ],
+    "endpoint": [
+      "Endpoints",
+      "Normalized route intelligence"
+    ],
+    "port": [
+      "Ports",
+      "Network services"
+    ],
+    "javascript": [
+      "JavaScript",
+      "Client-side resources"
+    ],
+    "fingerprint": [
+      "Fingerprints",
+      "HTTP, TLS and technology observations"
+    ]
+  },
+  "workspace_navigation": [
+    [
+      "recon",
+      "01 · Recon",
+      "01",
+      "Discover and map",
+      [
+        [
+          "/recon",
+          "Recon workspace",
+          "RC"
+        ],
+        [
+          "/assets",
+          "Assets",
+          "AS"
+        ],
+        [
+          "/asset",
+          "Asset",
+          "AS"
+        ],
+        [
+          "/endpoints",
+          "Endpoints",
+          "EP"
+        ],
+        [
+          "/urls",
+          "URLs",
+          "URL"
+        ],
+        [
+          "/javascript",
+          "JavaScript",
+          "JS"
+        ],
+        [
+          "/js-diff",
+          "JavaScript diff",
+          "JD"
+        ],
+        [
+          "/fingerprints",
+          "HTTP / TLS",
+          "HT"
+        ],
+        [
+          "/runs",
+          "Run history",
+          "RN"
+        ],
+        [
+          "/attack-surface",
+          "Attack surface",
+          "AG"
+        ],
+        [
+          "/graph",
+          "Asset graph",
+          "GR"
+        ],
+        [
+          "/recon-coverage",
+          "Recon coverage",
+          "CV"
+        ],
+        [
+          "/target-memory",
+          "Target memory",
+          "TM"
+        ],
+        [
+          "/smart-recon",
+          "Smart recon planner",
+          "SP"
+        ],
+        [
+          "/browser-capture",
+          "Browser capture",
+          "BC"
+        ],
+        [
+          "/lifecycle",
+          "Lifecycle",
+          "LC"
+        ]
+      ]
+    ],
+    [
+      "analysis",
+      "02 · Analysis",
+      "02",
+      "Understand what the evidence means",
+      [
+        [
+          "/analysis",
+          "Analysis",
+          "AN"
+        ]
+      ]
+    ],
+    [
+      "findings",
+      "03 · Potential Findings",
+      "03",
+      "Review probable bugs",
+      [
+        [
+          "/potential-findings",
+          "Potential findings",
+          "PF"
+        ],
+        [
+          "/bug-candidates",
+          "Potential findings",
+          "PF"
+        ],
+        [
+          "/bug-candidate",
+          "Finding detail",
+          "PF"
+        ],
+        [
+          "/cases",
+          "Reviewed cases",
+          "CS"
+        ],
+        [
+          "/case",
+          "Case detail",
+          "CS"
+        ],
+        [
+          "/safe-validation",
+          "Validation",
+          "SV"
+        ],
+        [
+          "/case-autopilot",
+          "Case autopilot",
+          "AP"
+        ],
+        [
+          "/report-builder",
+          "Reports",
+          "RP"
+        ],
+        [
+          "/candidate-quality",
+          "Candidate quality",
+          "CQ"
+        ],
+        [
+          "/candidate-bundles",
+          "Candidate bundles",
+          "CB"
+        ],
+        [
+          "/workbench",
+          "Review queue",
+          "RQ"
+        ],
+        [
+          "/validation-intelligence",
+          "Validation intelligence",
+          "VI"
+        ],
+        [
+          "/review-priority",
+          "Review priority",
+          "PR"
+        ],
+        [
+          "/report-quality",
+          "Report quality",
+          "RQ"
+        ],
+        [
+          "/learning",
+          "False-positive learning",
+          "FL"
+        ]
+      ]
+    ],
+    [
+      "alerts",
+      "04 · Alerts",
+      "04",
+      "See what changed",
+      [
+        [
+          "/alerts",
+          "Change alerts",
+          "AL"
+        ],
+        [
+          "/signal-alerts",
+          "Signal workflow",
+          "SG"
+        ],
+        [
+          "/alert",
+          "Alert detail",
+          "AL"
+        ],
+        [
+          "/change-intelligence",
+          "Change intelligence",
+          "CH"
+        ],
+        [
+          "/compare",
+          "Compare runs",
+          "CR"
+        ],
+        [
+          "/daily",
+          "Recent changes",
+          "RC"
+        ],
+        [
+          "/incidents",
+          "Incidents",
+          "IN"
+        ]
+      ]
+    ]
+  ],
+  "system_navigation": [
+    [
+      "Operations",
+      [
+        [
+          "/operations-center",
+          "Operations center",
+          "OC"
+        ],
+        [
+          "/storage-health",
+          "Storage health",
+          "SH"
+        ],
+        [
+          "/automation",
+          "Automation",
+          "AU"
+        ],
+        [
+          "/performance",
+          "Performance",
+          "PF"
+        ],
+        [
+          "/retention",
+          "Retention",
+          "RT"
+        ],
+        [
+          "/views",
+          "Saved views",
+          "VW"
+        ]
+      ]
+    ],
+    [
+      "Safety & governance",
+      [
+        [
+          "/scope-center",
+          "Scope center",
+          "SC"
+        ],
+        [
+          "/targets",
+          "Targets",
+          "TG"
+        ],
+        [
+          "/safety-center",
+          "Safety center",
+          "SF"
+        ],
+        [
+          "/platform-security",
+          "Platform security",
+          "PS"
+        ],
+        [
+          "/diagnostics",
+          "Diagnostics",
+          "DX"
+        ],
+        [
+          "/rules",
+          "Rule governance",
+          "RG"
+        ],
+        [
+          "/audit",
+          "Audit trail",
+          "AT"
+        ]
+      ]
+    ],
+    [
+      "System quality & configuration",
+      [
+        [
+          "/engine-quality",
+          "Engine quality",
+          "EQ"
+        ],
+        [
+          "/data-quality",
+          "Data quality",
+          "DQ"
+        ],
+        [
+          "/templates",
+          "Target templates",
+          "TP"
+        ],
+        [
+          "/plugins",
+          "Plugins",
+          "PL"
+        ]
+      ]
+    ]
+  ],
+  "routes": {
+    "/": "overview",
+    "/alert": "alert_detail",
+    "/alerts": "alerts",
+    "/analysis": "analysis_engine",
+    "/analysis-quality": "analysis_quality_page",
+    "/api/attack-surface": "attack_surface_api",
+    "/api/graph": "graph_api",
+    "/asset": "asset_detail",
+    "/assets": "assets",
+    "/attack-surface": "attack_surface_page",
+    "/audit": "audit_page",
+    "/auth-contexts": "auth_contexts_page",
+    "/automation": "automation_page",
+    "/behavioral-intelligence": "behavioral_intelligence_page",
+    "/browser-capture": "browser_capture_page",
+    "/bug-candidate": "bug_candidate_detail",
+    "/bug-candidates": "bug_candidates",
+    "/candidate-bundles": "candidate_bundles_page",
+    "/candidate-quality": "candidate_quality_page",
+    "/case": "case_page",
+    "/case-autopilot": "case_autopilot_page",
+    "/cases": "cases_page",
+    "/change-intelligence": "change_intelligence_page",
+    "/clusters": "analysis_clusters",
+    "/compare": "compare",
+    "/daily": "daily",
+    "/data-quality": "data_quality_page",
+    "/dataflows": "dataflows",
+    "/diagnostics": "diagnostics_page",
+    "/differential-intelligence": "differential_intelligence_page",
+    "/endpoints": "endpoints",
+    "/engine-quality": "engine_quality_platform_page",
+    "/evidence-gaps": "evidence_gaps_page",
+    "/evidence/export": "evidence_export",
+    "/fingerprints": "fingerprints",
+    "/graph": "graph",
+    "/health": "health",
+    "/hypotheses": "hypotheses",
+    "/incidents": "incidents",
+    "/javascript": "javascript",
+    "/js-diff": "js_diff",
+    "/learning": "false_positive_learning_page",
+    "/lifecycle": "lifecycle",
+    "/metrics": "metrics",
+    "/notes": "notes",
+    "/operations-center": "operations_center_page",
+    "/performance": "performance_page",
+    "/platform-security": "platform_security_page",
+    "/plugins": "plugins_page",
+    "/potential-findings": "bug_candidates",
+    "/recon": "recon_workspace",
+    "/recon-coverage": "recon_coverage_page",
+    "/report-builder": "report_builder_page",
+    "/report-quality": "report_quality_page",
+    "/retention": "retention_page",
+    "/review-priority": "review_priority_page",
+    "/rules": "rules_page",
+    "/run-review": "run_review",
+    "/runs": "runs",
+    "/safe-validation": "safe_validation_page",
+    "/safety-center": "safety_center_page",
+    "/scope-center": "scope_center_page",
+    "/search": "search",
+    "/security-reasoning": "security_reasoning_page",
+    "/security-stories": "security_stories_page",
+    "/semantic-intelligence": "semantic_intelligence_page",
+    "/signal-alerts": "signal_alerts",
+    "/smart-recon": "smart_recon_page",
+    "/storage-health": "storage_health_page",
+    "/target-memory": "target_memory_page",
+    "/targets": "targets",
+    "/templates": "templates_page",
+    "/urls": "urls",
+    "/validation-intelligence": "validation_intelligence_page",
+    "/views": "views",
+    "/workbench": "workbench"
+  },
+  "pages": [
+    {
+      "handler": "alert_detail",
+      "routes": [
+        "/alert"
+      ],
+      "query_parameters": [
+        "id"
+      ],
+      "form_field_candidates": [
+        "assignee",
+        "entity_type",
+        "entity_value",
+        "id",
+        "note",
+        "priority",
+        "return",
+        "status",
+        "tag",
+        "target",
+        "workflow_note"
+      ],
+      "table_columns": [
+        "Action",
+        "New",
+        "Note",
+        "Old",
+        "Time"
+      ],
+      "post_action_candidates": [
+        "/alerts/status",
+        "/alerts/workflow",
+        "/notes/add",
+        "/notes/delete",
+        "/tags/add",
+        "/tags/remove"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2751
+    },
+    {
+      "handler": "alerts",
+      "routes": [
+        "/alerts"
+      ],
+      "query_parameters": [
+        "change",
+        "days",
+        "kind",
+        "priority",
+        "q",
+        "sort",
+        "target",
+        "view"
+      ],
+      "form_field_candidates": [
+        "change",
+        "days",
+        "kind",
+        "priority",
+        "q",
+        "sort",
+        "target",
+        "view"
+      ],
+      "table_columns": [
+        "Delta",
+        "Detected",
+        "Finding",
+        "Priority",
+        "Run comparison",
+        "Target",
+        "Type"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2692
+    },
+    {
+      "handler": "analysis_clusters",
+      "routes": [
+        "/clusters"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Alert IDs",
+        "Category",
+        "Cluster",
+        "Members",
+        "Primary",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1944
+    },
+    {
+      "handler": "analysis_engine",
+      "routes": [
+        "/analysis"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Analysis",
+        "Engine / rules",
+        "Finished",
+        "Source run",
+        "Status",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1700
+    },
+    {
+      "handler": "analysis_quality_page",
+      "routes": [
+        "/analysis-quality"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Bucket",
+        "Category",
+        "Decisions",
+        "Expected",
+        "Observed useful",
+        "Status",
+        "Workflow outcomes"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1968
+    },
+    {
+      "handler": "asset_detail",
+      "routes": [
+        "/asset"
+      ],
+      "query_parameters": [
+        "host",
+        "target"
+      ],
+      "form_field_candidates": [
+        "entity_type",
+        "entity_value",
+        "id",
+        "note",
+        "return",
+        "tag",
+        "target"
+      ],
+      "table_columns": [
+        "Destination",
+        "First",
+        "ID",
+        "Last",
+        "Priority",
+        "Relation",
+        "Risk",
+        "Seen",
+        "Severity",
+        "Signal",
+        "Source",
+        "State",
+        "Status",
+        "Type",
+        "Value"
+      ],
+      "post_action_candidates": [
+        "/notes/add",
+        "/notes/delete",
+        "/tags/add",
+        "/tags/remove"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2815
+    },
+    {
+      "handler": "assets",
+      "routes": [
+        "/assets"
+      ],
+      "query_parameters": [
+        "days",
+        "lifecycle",
+        "min_confidence",
+        "q",
+        "resolved",
+        "sort",
+        "tag",
+        "target",
+        "wildcard"
+      ],
+      "form_field_candidates": [
+        "days",
+        "lifecycle",
+        "min_confidence",
+        "q",
+        "resolved",
+        "sort",
+        "tag",
+        "target",
+        "wildcard"
+      ],
+      "table_columns": [
+        "Confidence",
+        "Host",
+        "Last",
+        "Lifecycle",
+        "Resolution",
+        "Sources",
+        "Target",
+        "Wildcard"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2790
+    },
+    {
+      "handler": "attack_surface_api",
+      "routes": [
+        "/api/attack-surface"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3324
+    },
+    {
+      "handler": "attack_surface_page",
+      "routes": [
+        "/attack-surface"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3332
+    },
+    {
+      "handler": "audit_page",
+      "routes": [
+        "/audit"
+      ],
+      "query_parameters": [
+        "action",
+        "actor"
+      ],
+      "form_field_candidates": [
+        "action",
+        "actor"
+      ],
+      "table_columns": [
+        "Action",
+        "Actor",
+        "Details",
+        "Entity",
+        "Target",
+        "Time"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2459
+    },
+    {
+      "handler": "auth_contexts_page",
+      "routes": [
+        "/auth-contexts"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3168
+    },
+    {
+      "handler": "automation_page",
+      "routes": [
+        "/automation"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [
+        "Cadence",
+        "Case",
+        "Generated file",
+        "Job",
+        "Next due",
+        "Policy",
+        "Target",
+        "Trigger",
+        "Validation"
+      ],
+      "post_action_candidates": [
+        "/suite/revalidation-process",
+        "/suite/schedule-generate"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3063
+    },
+    {
+      "handler": "behavioral_intelligence_page",
+      "routes": [
+        "/behavioral-intelligence"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Added",
+        "Confidence",
+        "Destination",
+        "Endpoint",
+        "Entity",
+        "Finding",
+        "Protocol",
+        "Relation",
+        "Sensitive",
+        "Severity",
+        "Source",
+        "Summary",
+        "Transition",
+        "Type"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1908
+    },
+    {
+      "handler": "browser_capture_page",
+      "routes": [
+        "/browser-capture"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "capture_json",
+        "context",
+        "target"
+      ],
+      "table_columns": [
+        "Context",
+        "Imported",
+        "Method",
+        "Status",
+        "Target",
+        "Type",
+        "URL"
+      ],
+      "post_action_candidates": [
+        "/workspace/capture-import"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3284
+    },
+    {
+      "handler": "bug_candidate_detail",
+      "routes": [
+        "/bug-candidate"
+      ],
+      "query_parameters": [
+        "id"
+      ],
+      "form_field_candidates": [
+        "candidate_id",
+        "decision",
+        "note",
+        "reason",
+        "return"
+      ],
+      "table_columns": [
+        "Coverage",
+        "Created",
+        "Engine / rules",
+        "Event",
+        "Evidence",
+        "Likelihood",
+        "Records",
+        "Reference",
+        "Run",
+        "Snapshot hash",
+        "Source group",
+        "State",
+        "Type",
+        "Version",
+        "When"
+      ],
+      "post_action_candidates": [
+        "/bug-candidates/decision"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 1789
+    },
+    {
+      "handler": "bug_candidates",
+      "routes": [
+        "/bug-candidates",
+        "/potential-findings"
+      ],
+      "query_parameters": [
+        "decision",
+        "display",
+        "family",
+        "min_evidence",
+        "min_exploitability",
+        "min_investigation",
+        "min_likelihood",
+        "q",
+        "reachability",
+        "sort",
+        "state",
+        "target",
+        "view"
+      ],
+      "form_field_candidates": [
+        "decision",
+        "display",
+        "family",
+        "min_evidence",
+        "min_exploitability",
+        "min_investigation",
+        "min_likelihood",
+        "q",
+        "reachability",
+        "sort",
+        "state",
+        "target",
+        "view"
+      ],
+      "table_columns": [
+        "Candidate",
+        "Decision",
+        "Investigation",
+        "L / E / X / I",
+        "Reachability",
+        "State",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1733
+    },
+    {
+      "handler": "candidate_bundles_page",
+      "routes": [
+        "/candidate-bundles"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1877
+    },
+    {
+      "handler": "candidate_quality_page",
+      "routes": [
+        "/candidate-quality"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Candidates",
+        "Family",
+        "Investigation value",
+        "Observation quality",
+        "Observed confirmed",
+        "Predicted",
+        "Profile",
+        "Reviewed",
+        "Status",
+        "Total"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1862
+    },
+    {
+      "handler": "case_autopilot_page",
+      "routes": [
+        "/case-autopilot"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "case_id",
+        "return",
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/workspace/autopilot",
+        "/workspace/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3129
+    },
+    {
+      "handler": "case_page",
+      "routes": [
+        "/case"
+      ],
+      "query_parameters": [
+        "id"
+      ],
+      "form_field_candidates": [
+        "assigned_to",
+        "case_id",
+        "note",
+        "return",
+        "state"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/cases/report-draft",
+        "/cases/state",
+        "/cases/validation-package",
+        "/workspace/autopilot",
+        "/workspace/evidence-gap"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2208
+    },
+    {
+      "handler": "cases_page",
+      "routes": [
+        "/cases"
+      ],
+      "query_parameters": [
+        "family",
+        "min_priority",
+        "min_readiness",
+        "owner",
+        "page",
+        "q",
+        "scope",
+        "sort",
+        "state",
+        "target",
+        "validation"
+      ],
+      "form_field_candidates": [
+        "family",
+        "min_priority",
+        "min_readiness",
+        "owner",
+        "q",
+        "return",
+        "scope",
+        "sort",
+        "state",
+        "target",
+        "validation"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/platform/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2163
+    },
+    {
+      "handler": "change_intelligence_page",
+      "routes": [
+        "/change-intelligence"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3211
+    },
+    {
+      "handler": "compare",
+      "routes": [
+        "/compare"
+      ],
+      "query_parameters": [
+        "new",
+        "old",
+        "target"
+      ],
+      "form_field_candidates": [
+        "new",
+        "old",
+        "target"
+      ],
+      "table_columns": [
+        "Added",
+        "Added sample",
+        "Category",
+        "Removed",
+        "Removed sample"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2677
+    },
+    {
+      "handler": "daily",
+      "routes": [
+        "/daily"
+      ],
+      "query_parameters": [
+        "hours",
+        "target"
+      ],
+      "form_field_candidates": [
+        "hours",
+        "target"
+      ],
+      "table_columns": [
+        "Class",
+        "Confidence",
+        "Endpoint",
+        "First seen",
+        "ID",
+        "Priority",
+        "Risk",
+        "Seen",
+        "Severity",
+        "Signal",
+        "Status",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2476
+    },
+    {
+      "handler": "data_quality_page",
+      "routes": [
+        "/data-quality"
+      ],
+      "query_parameters": [
+        "refresh",
+        "run_id",
+        "target"
+      ],
+      "form_field_candidates": [
+        "run_id",
+        "target"
+      ],
+      "table_columns": [
+        "Auth contexts",
+        "Blind spots",
+        "Endpoints",
+        "HTTP",
+        "JavaScript",
+        "Overall",
+        "Shapes",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3023
+    },
+    {
+      "handler": "dataflows",
+      "routes": [
+        "/dataflows"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Assessment",
+        "Confidence",
+        "Context",
+        "Fingerprint",
+        "Internal",
+        "JavaScript",
+        "Kind",
+        "Map",
+        "Sink",
+        "Source",
+        "Sources"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1954
+    },
+    {
+      "handler": "diagnostics_page",
+      "routes": [
+        "/diagnostics"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "max_age_hours"
+      ],
+      "table_columns": [
+        "ID",
+        "Observed",
+        "Recommended action",
+        "Status",
+        "Subsystem"
+      ],
+      "post_action_candidates": [
+        "/workspace/repair"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3270
+    },
+    {
+      "handler": "differential_intelligence_page",
+      "routes": [
+        "/differential-intelligence"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [
+        "Confidence",
+        "Dimensions",
+        "Endpoint",
+        "Kind",
+        "Severity",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3181
+    },
+    {
+      "handler": "endpoints",
+      "routes": [
+        "/endpoints"
+      ],
+      "query_parameters": [
+        "category",
+        "confidence",
+        "days",
+        "kind",
+        "q",
+        "sort",
+        "source",
+        "target"
+      ],
+      "form_field_candidates": [
+        "category",
+        "confidence",
+        "days",
+        "kind",
+        "q",
+        "sort",
+        "source",
+        "target"
+      ],
+      "table_columns": [
+        "Class",
+        "Confidence",
+        "Endpoint",
+        "Kind",
+        "Last",
+        "Reasons",
+        "Sources",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2941
+    },
+    {
+      "handler": "engine_quality_platform_page",
+      "routes": [
+        "/engine-quality"
+      ],
+      "query_parameters": [
+        "family",
+        "min_total",
+        "parser",
+        "rule",
+        "target",
+        "view"
+      ],
+      "form_field_candidates": [
+        "family",
+        "min_total",
+        "parser",
+        "return",
+        "rule",
+        "target",
+        "view"
+      ],
+      "table_columns": [
+        "Coverage",
+        "Evidence",
+        "Exploitability",
+        "Family",
+        "Generated",
+        "Likelihood",
+        "Negative",
+        "Noise",
+        "Parser",
+        "Precision",
+        "Precision proxy",
+        "Quality",
+        "Reviewed",
+        "Rule",
+        "Total",
+        "Trust",
+        "Useful"
+      ],
+      "post_action_candidates": [
+        "/platform/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2127
+    },
+    {
+      "handler": "evidence_export",
+      "routes": [
+        "/evidence/export"
+      ],
+      "query_parameters": [
+        "alert_id",
+        "entity_type",
+        "entity_value",
+        "target"
+      ],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3388
+    },
+    {
+      "handler": "evidence_gaps_page",
+      "routes": [
+        "/evidence-gaps"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "return",
+        "target"
+      ],
+      "table_columns": [
+        "Best next action",
+        "Case",
+        "Coverage",
+        "Family",
+        "Missing evidence",
+        "Target"
+      ],
+      "post_action_candidates": [
+        "/workspace/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3148
+    },
+    {
+      "handler": "false_positive_learning_page",
+      "routes": [
+        "/learning"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [
+        "Confirmed",
+        "Family",
+        "Needs evidence",
+        "Precision",
+        "Recommendation",
+        "Rejected",
+        "Target",
+        "Total"
+      ],
+      "post_action_candidates": [
+        "/workspace/learning"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3299
+    },
+    {
+      "handler": "fingerprints",
+      "routes": [
+        "/fingerprints"
+      ],
+      "query_parameters": [
+        "cdn",
+        "days",
+        "q",
+        "server",
+        "sort",
+        "status",
+        "status_class",
+        "target",
+        "technology",
+        "tls"
+      ],
+      "form_field_candidates": [
+        "cdn",
+        "days",
+        "q",
+        "server",
+        "sort",
+        "status",
+        "status_class",
+        "target",
+        "technology",
+        "tls"
+      ],
+      "table_columns": [
+        "CDN",
+        "Last",
+        "Network",
+        "Server",
+        "Service",
+        "Status",
+        "TLS",
+        "Target",
+        "Technology"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2973
+    },
+    {
+      "handler": "graph",
+      "routes": [
+        "/graph"
+      ],
+      "query_parameters": [
+        "q",
+        "target"
+      ],
+      "form_field_candidates": [
+        "limit",
+        "q",
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2858
+    },
+    {
+      "handler": "graph_api",
+      "routes": [
+        "/api/graph"
+      ],
+      "query_parameters": [
+        "limit",
+        "q",
+        "target"
+      ],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2842
+    },
+    {
+      "handler": "health",
+      "routes": [
+        "/health"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Component",
+        "Error ID",
+        "ID",
+        "Observed",
+        "Recommended action",
+        "Status",
+        "Subsystem",
+        "Summary",
+        "Time"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3425
+    },
+    {
+      "handler": "hypotheses",
+      "routes": [
+        "/hypotheses"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1929
+    },
+    {
+      "handler": "incidents",
+      "routes": [
+        "/incidents"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1983
+    },
+    {
+      "handler": "javascript",
+      "routes": [
+        "/javascript"
+      ],
+      "query_parameters": [
+        "days",
+        "kind",
+        "q",
+        "redacted",
+        "sort",
+        "target"
+      ],
+      "form_field_candidates": [
+        "days",
+        "kind",
+        "q",
+        "redacted",
+        "sort",
+        "target"
+      ],
+      "table_columns": [
+        "Created",
+        "First",
+        "ID",
+        "JS URL",
+        "Kind",
+        "Last",
+        "Redacted",
+        "Run",
+        "Target",
+        "Value"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2898
+    },
+    {
+      "handler": "js_diff",
+      "routes": [
+        "/js-diff"
+      ],
+      "query_parameters": [
+        "id"
+      ],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2927
+    },
+    {
+      "handler": "lifecycle",
+      "routes": [
+        "/lifecycle"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Confidence",
+        "First",
+        "Host",
+        "Last",
+        "Resolution",
+        "State",
+        "Target",
+        "Transitions"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1996
+    },
+    {
+      "handler": "metrics",
+      "routes": [
+        "/metrics"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Assets",
+        "Average confidence",
+        "Average seconds",
+        "Executions",
+        "Failures",
+        "Maximum seconds",
+        "Resolved",
+        "Stage",
+        "Target",
+        "Technology",
+        "URLs"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3415
+    },
+    {
+      "handler": "notes",
+      "routes": [
+        "/notes"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "id",
+        "return"
+      ],
+      "table_columns": [
+        "Created",
+        "Entity",
+        "ID",
+        "Note",
+        "Target",
+        "Type"
+      ],
+      "post_action_candidates": [
+        "/notes/delete"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3347
+    },
+    {
+      "handler": "operations_center_page",
+      "routes": [
+        "/operations-center"
+      ],
+      "query_parameters": [
+        "refresh"
+      ],
+      "form_field_candidates": [
+        "action",
+        "batch_limit",
+        "cadence",
+        "enabled",
+        "event_id",
+        "event_type",
+        "interval_seconds",
+        "max_batches",
+        "max_runtime",
+        "minimum_score",
+        "mode",
+        "quiet_hours",
+        "request_budget",
+        "target",
+        "worker"
+      ],
+      "table_columns": [
+        "Attempts",
+        "Backup",
+        "Budget",
+        "Bytes",
+        "Cadence",
+        "Context",
+        "Coverage",
+        "Created",
+        "Dead-lettered",
+        "Event",
+        "Last error",
+        "Metric",
+        "Opened",
+        "Reason",
+        "Records",
+        "Runtime",
+        "Scope",
+        "Severity",
+        "Stage",
+        "Status",
+        "Target",
+        "Value",
+        "Verified",
+        "Warn / Critical",
+        "Worker"
+      ],
+      "post_action_candidates": [
+        "/notification-workers/action",
+        "/notifications/set",
+        "/schedules/set"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2370
+    },
+    {
+      "handler": "overview",
+      "routes": [
+        "/"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "return",
+        "target"
+      ],
+      "table_columns": [
+        "Finished",
+        "Run",
+        "Started",
+        "Status",
+        "Targets"
+      ],
+      "post_action_candidates": [
+        "/workspace/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2011
+    },
+    {
+      "handler": "performance_page",
+      "routes": [
+        "/performance"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Category",
+        "Details",
+        "Duration",
+        "Name",
+        "Rows",
+        "Table",
+        "Time"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3084
+    },
+    {
+      "handler": "platform_security_page",
+      "routes": [
+        "/platform-security"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "apply_permissions"
+      ],
+      "table_columns": [
+        "Check",
+        "Detail",
+        "Status"
+      ],
+      "post_action_candidates": [
+        "/suite/security-check"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3117
+    },
+    {
+      "handler": "plugins_page",
+      "routes": [
+        "/plugins"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Checked",
+        "Details",
+        "Plugin",
+        "Status",
+        "Version"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2448
+    },
+    {
+      "handler": "recon_coverage_page",
+      "routes": [
+        "/recon-coverage"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3196
+    },
+    {
+      "handler": "recon_workspace",
+      "routes": [
+        "/recon"
+      ],
+      "query_parameters": [
+        "category",
+        "days",
+        "kind",
+        "q",
+        "raw",
+        "target",
+        "view"
+      ],
+      "form_field_candidates": [
+        "category",
+        "days",
+        "q",
+        "raw",
+        "target",
+        "view"
+      ],
+      "table_columns": [
+        "Categories",
+        "Change",
+        "Confidence",
+        "First seen",
+        "Interest",
+        "Labels",
+        "Last seen",
+        "Observation",
+        "Provenance",
+        "Run",
+        "Surface",
+        "Target",
+        "Type"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1617
+    },
+    {
+      "handler": "report_builder_page",
+      "routes": [
+        "/report-builder"
+      ],
+      "query_parameters": [
+        "case_id"
+      ],
+      "form_field_candidates": [
+        "case_id",
+        "return"
+      ],
+      "table_columns": [
+        "Case",
+        "Draft",
+        "Readiness",
+        "Status",
+        "Title",
+        "Updated"
+      ],
+      "post_action_candidates": [
+        "/workspace/report"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3311
+    },
+    {
+      "handler": "report_quality_page",
+      "routes": [
+        "/report-quality"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "draft_id"
+      ],
+      "table_columns": [
+        "Case",
+        "Draft",
+        "Missing",
+        "Quality",
+        "Status"
+      ],
+      "post_action_candidates": [
+        "/suite/report-quality"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3076
+    },
+    {
+      "handler": "retention_page",
+      "routes": [
+        "/retention"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Category",
+        "Days",
+        "Keep count",
+        "State",
+        "Updated"
+      ],
+      "post_action_candidates": [
+        "/suite/retention-preview"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3094
+    },
+    {
+      "handler": "review_priority_page",
+      "routes": [
+        "/review-priority"
+      ],
+      "query_parameters": [
+        "effort",
+        "min_value",
+        "target"
+      ],
+      "form_field_candidates": [
+        "case_id",
+        "effort",
+        "min_value",
+        "return",
+        "target"
+      ],
+      "table_columns": [
+        "Action",
+        "Case",
+        "Effort",
+        "Family",
+        "Information gain",
+        "Review value",
+        "State",
+        "Target"
+      ],
+      "post_action_candidates": [
+        "/suite/burp-export",
+        "/suite/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3045
+    },
+    {
+      "handler": "rules_page",
+      "routes": [
+        "/rules"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "rule_id",
+        "rule_version",
+        "state"
+      ],
+      "table_columns": [
+        "Change state",
+        "Description",
+        "Family",
+        "Rule",
+        "State"
+      ],
+      "post_action_candidates": [
+        "/rules/state"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2434
+    },
+    {
+      "handler": "run_review",
+      "routes": [
+        "/run-review"
+      ],
+      "query_parameters": [
+        "id"
+      ],
+      "form_field_candidates": [
+        "attempt",
+        "run_id",
+        "stage",
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/run/next-stage"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2511
+    },
+    {
+      "handler": "runs",
+      "routes": [
+        "/runs"
+      ],
+      "query_parameters": [
+        "days",
+        "error",
+        "q",
+        "sort",
+        "status",
+        "target"
+      ],
+      "form_field_candidates": [
+        "days",
+        "error",
+        "q",
+        "sort",
+        "status",
+        "target"
+      ],
+      "table_columns": [
+        "Error",
+        "Finished",
+        "Resumed from",
+        "Run",
+        "Started",
+        "Status",
+        "Targets"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2652
+    },
+    {
+      "handler": "safe_validation_page",
+      "routes": [
+        "/safe-validation"
+      ],
+      "query_parameters": [
+        "case_id",
+        "case_state",
+        "family",
+        "level",
+        "plan_id",
+        "plan_status",
+        "q",
+        "result",
+        "target",
+        "validation_state"
+      ],
+      "form_field_candidates": [
+        "allow_live",
+        "case_id",
+        "case_state",
+        "confirmation",
+        "decision",
+        "family",
+        "level",
+        "note",
+        "plan_id",
+        "plan_status",
+        "q",
+        "reason",
+        "result",
+        "return",
+        "run_id",
+        "target",
+        "validation_state"
+      ],
+      "table_columns": [
+        "Method/check",
+        "Sensitive categories",
+        "Status",
+        "Type",
+        "URL"
+      ],
+      "post_action_candidates": [
+        "/validation/approve",
+        "/validation/feedback",
+        "/validation/plan",
+        "/validation/run"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 2260
+    },
+    {
+      "handler": "safety_center_page",
+      "routes": [
+        "/safety-center"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Authorization",
+        "Snapshot",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3260
+    },
+    {
+      "handler": "scope_center_page",
+      "routes": [
+        "/scope-center"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2356
+    },
+    {
+      "handler": "search",
+      "routes": [
+        "/search"
+      ],
+      "query_parameters": [
+        "q"
+      ],
+      "form_field_candidates": [
+        "q"
+      ],
+      "table_columns": [
+        "Context",
+        "Seen",
+        "Target",
+        "Value"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3354
+    },
+    {
+      "handler": "security_reasoning_page",
+      "routes": [
+        "/security-reasoning"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Count",
+        "Coverage",
+        "Exploitability",
+        "Family",
+        "Likelihood",
+        "Observed useful",
+        "Predicted",
+        "Samples",
+        "Status",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1845
+    },
+    {
+      "handler": "security_stories_page",
+      "routes": [
+        "/security-stories"
+      ],
+      "query_parameters": [
+        "days",
+        "min_priority",
+        "q",
+        "sort",
+        "status",
+        "target"
+      ],
+      "form_field_candidates": [
+        "days",
+        "min_priority",
+        "q",
+        "sort",
+        "status",
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2327
+    },
+    {
+      "handler": "semantic_intelligence_page",
+      "routes": [
+        "/semantic-intelligence"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Authentication boundary",
+        "Confidence",
+        "Endpoint",
+        "Flag",
+        "JavaScript",
+        "Keys",
+        "Method",
+        "Output fields",
+        "Sensitive",
+        "Status",
+        "Unit",
+        "Value"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 1891
+    },
+    {
+      "handler": "signal_alerts",
+      "routes": [
+        "/signal-alerts"
+      ],
+      "query_parameters": [
+        "days",
+        "min_risk",
+        "owner",
+        "priority",
+        "q",
+        "severity",
+        "sort",
+        "status",
+        "tag",
+        "target"
+      ],
+      "form_field_candidates": [
+        "days",
+        "min_risk",
+        "owner",
+        "priority",
+        "q",
+        "severity",
+        "sort",
+        "status",
+        "tag",
+        "target"
+      ],
+      "table_columns": [
+        "Hits",
+        "ID",
+        "Last",
+        "Owner",
+        "Priority",
+        "Risk",
+        "Severity",
+        "Signal",
+        "Status",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2724
+    },
+    {
+      "handler": "smart_recon_page",
+      "routes": [
+        "/smart-recon"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/workspace/plan"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3244
+    },
+    {
+      "handler": "storage_health_page",
+      "routes": [
+        "/storage-health"
+      ],
+      "query_parameters": [
+        "refresh"
+      ],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Area",
+        "Size"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2418
+    },
+    {
+      "handler": "target_memory_page",
+      "routes": [
+        "/target-memory"
+      ],
+      "query_parameters": [
+        "target"
+      ],
+      "form_field_candidates": [
+        "target"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 3226
+    },
+    {
+      "handler": "targets",
+      "routes": [
+        "/targets"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Assets",
+        "Confidence",
+        "First",
+        "Last",
+        "Resolved",
+        "Target"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2504
+    },
+    {
+      "handler": "templates_page",
+      "routes": [
+        "/templates"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [
+        "target",
+        "template_id"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [
+        "/suite/template-apply"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3106
+    },
+    {
+      "handler": "urls",
+      "routes": [
+        "/urls"
+      ],
+      "query_parameters": [
+        "days",
+        "kind",
+        "q",
+        "sort",
+        "source",
+        "target"
+      ],
+      "form_field_candidates": [
+        "days",
+        "kind",
+        "q",
+        "sort",
+        "source",
+        "target"
+      ],
+      "table_columns": [
+        "First",
+        "Kind",
+        "Last",
+        "Source",
+        "Target",
+        "URL"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2877
+    },
+    {
+      "handler": "validation_intelligence_page",
+      "routes": [
+        "/validation-intelligence"
+      ],
+      "query_parameters": [
+        "min_conf",
+        "result",
+        "target"
+      ],
+      "form_field_candidates": [
+        "min_conf",
+        "result",
+        "return",
+        "target"
+      ],
+      "table_columns": [
+        "Case",
+        "Comparability",
+        "Contexts",
+        "Finished",
+        "Limitations",
+        "Overall",
+        "Reliability",
+        "Result",
+        "Target"
+      ],
+      "post_action_candidates": [
+        "/suite/sync"
+      ],
+      "source": "app/dashboard_core.py",
+      "source_line": 3006
+    },
+    {
+      "handler": "views",
+      "routes": [
+        "/views"
+      ],
+      "query_parameters": [],
+      "form_field_candidates": [],
+      "table_columns": [
+        "Name",
+        "Owner",
+        "Query",
+        "Type",
+        "Updated"
+      ],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2004
+    },
+    {
+      "handler": "workbench",
+      "routes": [
+        "/workbench"
+      ],
+      "query_parameters": [
+        "assignee",
+        "family",
+        "lifecycle",
+        "min_investigation",
+        "q",
+        "state",
+        "target",
+        "view"
+      ],
+      "form_field_candidates": [
+        "assignee",
+        "family",
+        "lifecycle",
+        "min_investigation",
+        "q",
+        "state",
+        "target",
+        "view"
+      ],
+      "table_columns": [],
+      "post_action_candidates": [],
+      "source": "app/dashboard_core.py",
+      "source_line": 2075
+    }
+  ],
+  "runtime_overlays": [
+    {
+      "function": "_analysis_engine_with_intelligence",
+      "source": "app/dashboard.py",
+      "source_line": 1071,
+      "query_parameters": [],
+      "route_literals": []
+    },
+    {
+      "function": "_bug_candidates_with_queue",
+      "source": "app/dashboard.py",
+      "source_line": 1097,
+      "query_parameters": [
+        "cluster",
+        "family",
+        "target"
+      ],
+      "route_literals": []
+    },
+    {
+      "function": "_do_post_with_investigation",
+      "source": "app/dashboard.py",
+      "source_line": 1168,
+      "query_parameters": [],
+      "route_literals": [
+        "/investigation/decision",
+        "/investigation/policy-proposal/create",
+        "/investigation/policy-proposal/decision",
+        "/investigation/policy-proposal/submit",
+        "/investigation/refresh",
+        "/investigation/start",
+        "/investigation/task-feedback",
+        "/potential-findings"
+      ]
+    },
+    {
+      "function": "analysis_with_progress",
+      "source": "app/progress_tracking.py",
+      "source_line": 1452,
+      "query_parameters": [
+        "target"
+      ],
+      "route_literals": [
+        "/analysis-quality",
+        "/candidate-quality",
+        "/potential-findings",
+        "/security-reasoning"
+      ]
+    },
+    {
+      "function": "recon_with_progress",
+      "source": "app/progress_tracking.py",
+      "source_line": 1492,
+      "query_parameters": [
+        "target"
+      ],
+      "route_literals": []
+    },
+    {
+      "function": "do_get_with_live_progress",
+      "source": "app/progress_tracking.py",
+      "source_line": 1504,
+      "query_parameters": [
+        "kind",
+        "target"
+      ],
+      "route_literals": [
+        "/api/live-progress"
+      ]
+    }
+  ],
+  "dynamic_routes": [
+    "/report/<run_id>"
+  ]
+}
