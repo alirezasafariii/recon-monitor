@@ -482,8 +482,6 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             row["state"] != "unknown" for row in wildcard_reports
         )
         wildcard_candidates = {row["host"] for row in wildcard_reports if row["state"] == "wildcard_candidate"}
-        if not wildcard_classification_complete:
-            collection_reasons.add("dns_wildcard_incomplete")
         for row in wildcard_reports:
             if row["state"] in {"wildcard_candidate", "non_wildcard"}:
                 ctx.db.execute(
@@ -508,6 +506,10 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     return {
         "collection_status": "partial" if collection_reasons else "completed",
         "collection_reasons": sorted(collection_reasons),
+        "dns_collection_complete": not collection_reasons,
+        "wildcard_coverage_reasons": sorted({
+            row["reason"] for row in wildcard_reports if row["state"] == "unknown"
+        }) if wildcard_reports else (["dnsx_unavailable"] if not wildcard_classification_complete else []),
         "hosts": len(hosts),
         "observed_hosts": len({host for host, _ in observed_pairs}),
         "unobserved_hosts": len(set(hosts) - {host for host, _ in observed_pairs}),

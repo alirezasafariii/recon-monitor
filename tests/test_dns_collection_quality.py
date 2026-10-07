@@ -432,6 +432,7 @@ class DNSCollectionQualityTests(unittest.TestCase):
                 lifecycle = db.one("SELECT * FROM target_run_lifecycle WHERE run_id=?", (run_id,))
                 self.assertEqual(lifecycle["collection_status"], "partial")
                 self.assertFalse(lifecycle["baseline_eligible"])
+                self.assertFalse(captured["dns"]["metrics"]["dns_collection_complete"])
                 self.assertEqual(captured["dns"]["status"], "partial")
                 self.assertEqual(captured["dns"]["metrics"]["failed_rrtypes"], ["A", "AAAA", "CNAME", "NS"])
                 snapshot = db.successful_snapshot_status(self.TARGET)

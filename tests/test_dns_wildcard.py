@@ -143,6 +143,9 @@ class WildcardIntegrationTests(unittest.TestCase):
         for mode in ('warning', 'timeout'):
             host, metrics = self.detect_stage(mode)
             self.assertFalse(metrics['wildcard_classification_complete'])
+            self.assertTrue(metrics['dns_collection_complete'])
+            self.assertEqual(metrics['collection_status'], 'completed')
+            self.assertTrue(metrics['wildcard_coverage_reasons'])
             self.assertEqual(self.db.one('SELECT wildcard FROM assets WHERE host=?', (host,))[0], 1)
             self.assertEqual(metrics['wildcard_unknown_hosts'], 1)
             self.assertEqual((self.current / 'resolved-hosts.txt').read_text().splitlines(), [host])
@@ -152,6 +155,8 @@ class WildcardIntegrationTests(unittest.TestCase):
         host, metrics = self.detect_stage('positive')
         self.assertFalse(metrics['wildcard_classification_complete'])
         self.assertEqual(metrics['wildcard_probe_queries'], 0)
+        self.assertEqual(metrics['collection_status'], 'completed')
+        self.assertEqual(metrics['wildcard_coverage_reasons'], ['control_scope_or_collision'])
         self.assertEqual(self.db.one('SELECT wildcard FROM assets WHERE host=?', (host,))[0], 1)
 
     def test_budget_exhaustion_prevents_control_queries(self):
@@ -159,6 +164,8 @@ class WildcardIntegrationTests(unittest.TestCase):
         host, metrics = self.detect_stage('positive')
         self.assertEqual(metrics['wildcard_probe_queries'], 0)
         self.assertFalse(metrics['wildcard_classification_complete'])
+        self.assertTrue(metrics['dns_collection_complete'])
+        self.assertEqual(metrics['wildcard_coverage_reasons'], ['probe_budget'])
 
 
     def test_real_detector_100_host_warning_only_preserves_all_state(self):
@@ -174,6 +181,9 @@ class WildcardIntegrationTests(unittest.TestCase):
         with patch('stages.tool_path', return_value='dnsx'), patch('stages.detect_dns_wildcards', side_effect=detect):
             metrics = stage_dns(self._context(runner))
         self.assertEqual(metrics['removed_records'], 0)
+        self.assertFalse(metrics['dns_collection_complete'])
+        self.assertEqual(metrics['collection_status'], 'partial')
+        self.assertIn('dns_zero_observation', metrics['collection_reasons'])
         self.assertEqual(metrics['effective_resolved_hosts'], 100)
         self.assertEqual(metrics['wildcard_candidates'], 0)
         self.assertFalse(metrics['wildcard_classification_complete'])
@@ -212,3 +222,76 @@ class WildcardIntegrationTests(unittest.TestCase):
         ctx.budget.consume.assert_not_called()
         self.assertEqual(rows[0]['reason'], 'probe_budget')
         self.assertEqual(reserved, 0)
+
+
+    def test_129_siblings_preserve_flags_and_complete_primary_collection(self):
+        hosts = [f'h{i}.{self.TARGET}' for i in range(129)]
+        (self.current / 'subdomains.txt').write_text('\n'.join(hosts))
+        for host in hosts:
+            self.db.upsert_asset(self.TARGET, host, ['fixture'], 'previous', wildcard=True)
+        with patch('stages.tool_path', return_value='dnsx'), patch('stages.detect_dns_wildcards', side_effect=detect):
+            metrics = stage_dns(self._context(self.runner()))
+        self.assertEqual(metrics['collection_status'], 'completed')
+        self.assertTrue(metrics['dns_collection_complete'])
+        self.assertEqual(metrics['collection_reasons'], [])
+        self.assertFalse(metrics['wildcard_classification_complete'])
+        self.assertEqual(metrics['wildcard_coverage_reasons'], ['probe_limit'])
+        self.assertEqual(metrics['wildcard_unknown_hosts'], 129)
+        self.assertEqual(metrics['wildcard_probe_queries'], 0)
+        self.assertEqual(metrics['effective_resolved_hosts'], 129)
+        self.assertEqual(self.db.one('SELECT COUNT(*) FROM assets WHERE wildcard=1')[0], 129)
+
+    def test_seventeenth_parent_is_a_visible_gap_not_partial_dns(self):
+        hosts = [f'app.p{i:02d}.{self.TARGET}' for i in range(17)]
+        (self.current / 'subdomains.txt').write_text('\n'.join(hosts))
+        with patch('stages.tool_path', return_value='dnsx'), patch('stages.detect_dns_wildcards', side_effect=detect):
+            metrics = stage_dns(self._context(self.runner()))
+        self.assertEqual(metrics['collection_status'], 'completed')
+        self.assertTrue(metrics['dns_collection_complete'])
+        self.assertFalse(metrics['wildcard_classification_complete'])
+        self.assertEqual(metrics['wildcard_unknown_hosts'], 1)
+        self.assertEqual(metrics['wildcard_candidates'], 16)
+        self.assertEqual(metrics['effective_resolved_hosts'], 17)
+        self.assertEqual(metrics['wildcard_coverage_reasons'], ['probe_limit'])
+
+    def test_healthy_dns_with_wildcard_gaps_persists_successful_baseline(self):
+        import contextlib, io
+        from core import AppPaths, Config, Logger, PolicySet
+        import recon_monitor_core as runtime
+        from reporting import _stage_metrics
+        for mode, count in [('positive',129), ('warning',1)]:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp, contextlib.ExitStack() as stack:
+                paths = AppPaths.from_root(Path(temp)); paths.ensure()
+                paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\nAUTO_RETENTION="no"\nAUTO_DIGEST_HOURS="0"\n')
+                db = runtime.Database(paths.db); stack.callback(db.close)
+                orchestrator = runtime.Orchestrator(paths, Config(paths), Logger(paths), db,
+                                                    progress=False, allow_active=False)
+                hosts = [f'h{i}.{self.TARGET}' for i in range(count)]
+                def offline_stage(ctx):
+                    (ctx.current / 'subdomains.txt').write_text('\n'.join(hosts))
+                    return {'collection_status':'completed'}
+                captured = {}
+                def report(ctx, baseline):
+                    captured.update(_stage_metrics(ctx))
+                    return {'analysis':{'analysis_id':'offline'}, 'finding_notifications':{'status':'success'}}
+                stages = {name:offline_stage for name in runtime.STAGE_FUNCTIONS}
+                stages['dns'] = stage_dns
+                stack.enter_context(patch.dict(runtime.STAGE_FUNCTIONS, stages))
+                stack.enter_context(patch('recon_monitor_core.stage_report', side_effect=report))
+                stack.enter_context(patch.object(orchestrator, '_record_versions'))
+                stack.enter_context(patch.object(orchestrator, 'install_signal_handlers'))
+                stack.enter_context(patch.object(orchestrator.runner, 'run', side_effect=self.runner(mode)))
+                stack.enter_context(patch('stages.tool_path', return_value='dnsx'))
+                stack.enter_context(patch('stages.detect_dns_wildcards', side_effect=detect))
+                stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+                self.assertEqual(orchestrator.run(PolicySet({}, [self.policy], paths.policy)), 0)
+                run = orchestrator.current_run_id
+                self.assertEqual(db.stage_status(run,self.TARGET,'dns'), 'success')
+                lifecycle = db.one('SELECT * FROM target_run_lifecycle WHERE run_id=?',(run,))
+                self.assertTrue(lifecycle['baseline_eligible'])
+                self.assertEqual(lifecycle['collection_status'], 'success')
+                self.assertEqual(db.successful_snapshot_status(self.TARGET)['run_id'], run)
+                self.assertEqual(captured['dns']['status'], 'success')
+                self.assertFalse(captured['dns']['metrics']['wildcard_classification_complete'])
+                self.assertTrue(captured['dns']['metrics']['dns_collection_complete'])
+                self.assertTrue(captured['dns']['metrics']['wildcard_coverage_reasons'])

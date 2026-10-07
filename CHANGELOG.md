@@ -1,5 +1,9 @@
 # Recon Monitor 8.8.9 — Explicit DNS Wildcard Evidence
 
+## Unreleased — wildcard coverage and DNS baseline independence
+
+- Track bounded wildcard enrichment gaps independently of primary DNS collection. Caps, scope restrictions, insufficient probe budget and ambiguous control responses preserve flags and remain visible without blocking a healthy DNS baseline. Primary DNS failures still report partial and remain baseline-ineligible.
+
 Application version: **8.8.9**. Database schema: **18**, unchanged.
 
 - Classify wildcard candidates using three in-scope random sibling controls and two observations for A/AAAA/CNAME.
