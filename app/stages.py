@@ -4,6 +4,7 @@ import concurrent.futures
 import contextlib
 import functools
 import json
+import ipaddress
 import math
 import os
 import re
@@ -319,6 +320,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     previous = {(str(row["host"]), str(row["rrtype"]), str(row["value"])) for row in previous_rows}
     current_records: set[tuple[str, str, str]] = set()
     successful_rrtypes: set[str] = set()
+    observed_pairs: set[tuple[str, str]] = set()
     failed_rrtypes: set[str] = set()
     collection_reasons: set[str] = set()
     query_outcomes: list[dict[str, Any]] = []
@@ -353,12 +355,21 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             outcome = {"root": root, **_collector_tool_outcome(result, root_output, len(root_hosts))}
             wildcard_outcomes.append(outcome)
             if outcome["stop_reason"] == "completed":
-                filtered_hosts.update(_scope_hosts(ctx.policy, root_output.read_text(encoding="utf-8", errors="replace").splitlines()))
+                lines = root_output.read_text(encoding="utf-8", errors="replace").splitlines()
+                returned = {line.strip().lower().rstrip(".") for line in lines if line.strip().lower().rstrip(".") in root_hosts}
+                warnings = [line for line in lines if line.strip() and line.strip().lower().rstrip(".") not in root_hosts]
+                outcome.update(observed_hosts=len(returned), unobserved_hosts=len(set(root_hosts) - returned), collector_warnings=warnings)
+                filtered_hosts.update(returned)
+                if warnings or returned != set(root_hosts):
+                    wildcard_classification_complete = False
+                    collection_reasons.add("dns_wildcard_unobserved_hosts")
             else:
                 collection_reasons.add("dns_wildcard_" + outcome["stop_reason"])
                 wildcard_classification_complete = False
                 filtered_hosts.update(root_hosts)
-        wildcard_candidates = set(hosts) - filtered_hosts
+        # Plain wildcard-filter output cannot distinguish filtered wildcard
+        # hosts from unresolved/dropped hosts. Absence is not classification.
+        wildcard_candidates = set()
         filtered_hosts.update(ctx.policy.roots)
         # Keep the non-wildcard set as classification metadata for stability
         # logic, but query every discovered host. Wildcard DNS is a property,
@@ -393,15 +404,58 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 collection_reasons.add("dns_query_" + outcome["stop_reason"])
                 ctx.logger.warn("dnsx query failed; previous records of this type will not be retired", target=ctx.policy.name, rrtype=rrtype, exit=result.returncode, stop_reason=outcome["stop_reason"])
                 continue
-            successful_rrtypes.add(rrtype)
-            for row in read_jsonl(out):
-                host, values = _dns_values(row, rrtype)
-                if not host or not ctx.policy.host_in_scope(host):
+            expected_hosts = set(ctx.policy.roots if rrtype == "NS" else hosts)
+            observed: set[str] = set()
+            unknown: set[str] = set()
+            positive: set[tuple[str, str, str]] = set()
+            valid_json_rows = 0
+            warnings = []
+            for line in out.read_text(encoding="utf-8", errors="replace").splitlines():
+                if not line.strip():
                     continue
-                for value in values:
-                    current_records.add((host, rrtype, value))
-                    if rrtype in {"A", "AAAA", "CNAME"}:
-                        resolved_hosts.add(host)
+                try:
+                    row = json.loads(line)
+                    if not isinstance(row, dict):
+                        raise ValueError("not an object")
+                except (ValueError, TypeError):
+                    warnings.append(line)
+                    continue
+                host, values = _dns_values(row, rrtype)
+                if host not in expected_hosts or not ctx.policy.host_in_scope(host):
+                    continue
+                valid_json_rows += 1
+                try:
+                    if rrtype in {"A", "AAAA"}:
+                        invalid_values = any(ipaddress.ip_address(value).version != (4 if rrtype == "A" else 6) for value in values)
+                    else:
+                        invalid_values = any(not re.fullmatch(r"[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?", value) for value in values)
+                except ValueError:
+                    invalid_values = True
+                if invalid_values:
+                    unknown.add(host)
+                    continue
+                status = str(row.get("status_code") or row.get("rcode") or "").upper()
+                if row.get("error") or status not in {"", "NOERROR", "NXDOMAIN", "NODATA"} or (status == "NXDOMAIN" and values):
+                    unknown.add(host)
+                    continue
+                if values or status in {"NOERROR", "NXDOMAIN", "NODATA"}:
+                    observed.add(host)
+                    positive.update((host, rrtype, value) for value in values)
+                else:
+                    unknown.add(host)
+            observed -= unknown
+            observed_pairs.update((host, rrtype) for host in observed)
+            missing = expected_hosts - observed
+            outcome.update(valid_json_rows=valid_json_rows, observed_hosts=len(observed), unobserved_hosts=len(missing), collector_warnings=warnings)
+            if missing or warnings:
+                failed_rrtypes.add(rrtype)
+                collection_reasons.add("dns_zero_observation" if not observed else "dns_unobserved_hosts")
+            else:
+                successful_rrtypes.add(rrtype)
+            for host, _, value in positive:
+                current_records.add((host, rrtype, value))
+                if rrtype in {"A", "AAAA", "CNAME"}:
+                    resolved_hosts.add(host)
     else:
         ctx.logger.warn("dnsx missing; using system resolver fallback", target=ctx.policy.name)
         for index, host in enumerate(hosts, 1):
@@ -412,22 +466,23 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 ctx.logger.warn("System DNS query failed; previous address records will not be retired", target=ctx.policy.name, host=host, error=str(exc))
                 ctx.progress.update(index, len(hosts), "system DNS")
                 continue
+            observed_pairs.update((host, rrtype) for rrtype in ("A", "AAAA"))
             for rrtype, records in values.items():
                 for value in records:
                     current_records.add((host, rrtype, value))
                     resolved_hosts.add(host)
             ctx.progress.update(index, len(hosts), "system DNS")
         if fallback_failures:
-            # Finalization is type-wide. Keep both address types current when
-            # even one host failed, while retaining positive answers above.
+            # Report incomplete coverage while finalizing only the successful
+            # host/type pairs collected above.
             failed_rrtypes.update({"A", "AAAA"})
             collection_reasons.add("system_resolver_error")
         else:
             successful_rrtypes.update({"A", "AAAA"})
 
-    comparable_previous = {record for record in previous if record[1] in successful_rrtypes}
-    comparable_current = {record for record in current_records if record[1] in successful_rrtypes}
-    new_records = comparable_current - comparable_previous
+    comparable_previous = {record for record in previous if record[:2] in observed_pairs}
+    comparable_current = {record for record in current_records if record[:2] in observed_pairs}
+    new_records = current_records - previous
     removed_records = comparable_previous - comparable_current
     for host, rrtype, value in sorted(current_records):
         ctx.db.upsert_dns(ctx.policy.name, host, rrtype, value, ctx.run_id)
@@ -441,7 +496,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     if wildcard_classification_complete:
         for host in sorted(set(hosts) - wildcard_candidates):
             ctx.db.execute("UPDATE assets SET wildcard=0,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
-    ctx.db.finalize_dns_current(ctx.policy.name, ctx.run_id, successful_rrtypes)
+    ctx.db.finalize_dns_observed(ctx.policy.name, ctx.run_id, observed_pairs)
 
     for host, rrtype, value in sorted(new_records):
         emit_event(ctx, "dns_change", f"{host} {rrtype} {value}", "New DNS record", {"action": "added", "host": host, "rrtype": rrtype, "value": value})
@@ -461,6 +516,10 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "collection_status": "partial" if collection_reasons else "completed",
         "collection_reasons": sorted(collection_reasons),
         "hosts": len(hosts),
+        "observed_hosts": len({host for host, _ in observed_pairs}),
+        "unobserved_hosts": len(set(hosts) - {host for host, _ in observed_pairs}),
+        "observed_pairs": len(observed_pairs),
+        "valid_json_rows": sum(outcome.get("valid_json_rows", 0) for outcome in query_outcomes),
         "resolved": len(resolved_hosts),
         "records": len(current_records),
         "new_records": len(new_records),
