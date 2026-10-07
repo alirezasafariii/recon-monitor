@@ -1,3 +1,13 @@
+# Recon Monitor 8.8.11 — Explicit Negative DNS Evidence
+
+Application version: **8.8.11**. Database schema: **18**, unchanged.
+
+- Recover omitted wildcard DNS observations with bounded optional dig replies.
+- Validate explicit negative evidence, question, resolver, flags and record counts; preserve unknown on failure.
+- Scope, budget, rate, runtime/operator checks and a 128-attempt fallback cap protect collection.
+- Retain primary DNS/baseline independence and downstream coverage; add strict parser and full-path regression coverage.
+
+
 # Recon Monitor 8.8.10 — DNS Baseline Independence
 
 Application version: **8.8.10**. Database schema: **18**, unchanged.

@@ -190,6 +190,35 @@ class WildcardIntegrationTests(unittest.TestCase):
         self.assertEqual(self.db.one('SELECT COUNT(*) FROM assets WHERE wildcard=1 AND resolved=1')[0], 100)
         self.assertEqual(set((self.current / 'resolved-hosts.txt').read_text().splitlines()), set(hosts))
 
+    def test_dnsx_omissions_use_explicit_controls_without_changing_primary_state(self):
+        from test_dns_explicit import packet
+        host = 'app.' + self.TARGET
+        (self.current / 'subdomains.txt').write_text(host+'\n')
+        self.db.upsert_asset(self.TARGET, host, ['fixture'], 'previous', wildcard=True)
+        ordinary = self.runner()
+        def run(args, **kwargs):
+            if args[0] == 'dig':
+                name, rrtype = args[3:5]
+                status = 'NXDOMAIN' if name.startswith('recon-wc-') else 'NOERROR'
+                answer = f'{name}. 30 IN A 192.0.2.20' if status == 'NOERROR' and rrtype == 'A' else ''
+                Path(kwargs['output_path']).write_text(packet(name, rrtype, status, answer))
+                return SimpleNamespace(returncode=0, timed_out=False)
+            if '-retry' in args:
+                rrtype = next(v for flag, v in self.FLAGS.items() if flag in args)
+                rows = [{'host': host, 'a': ['192.0.2.20'], 'status_code': 'NOERROR'}] if rrtype == 'A' else []
+                Path(kwargs['output_path']).write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                return SimpleNamespace(returncode=0, timed_out=False, duration=.1)
+            return ordinary(args, **kwargs)
+        with patch('dns_explicit.tool_path', return_value='dig'), patch('stages.tool_path', return_value='dnsx'), patch('stages.detect_dns_wildcards', side_effect=detect):
+            metrics = stage_dns(self._context(run))
+        self.assertTrue(metrics['dns_collection_complete'])
+        self.assertTrue(metrics['wildcard_classification_complete'])
+        self.assertEqual(metrics['wildcard_candidates'], 0)
+        self.assertEqual(self.db.one('SELECT wildcard FROM assets WHERE target=? AND host=?', (self.TARGET, host))[0], 0)
+        self.assertEqual(metrics['effective_resolved_hosts'], 1)
+        self.assertEqual(metrics['wildcard_probe_queries'], 46)  # 24 dnsx + 22 explicit omissions
+        self.assertEqual(self.db.one('SELECT COUNT(*) FROM assets')[0], 1)
+
     def test_real_budget_reservation_and_runtime_failure(self):
         from execution import BudgetExceeded
         ctx = self._context(self.runner())
