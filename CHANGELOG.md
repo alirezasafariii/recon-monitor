@@ -1,12 +1,14 @@
+# Recon Monitor 8.8.9 — Explicit DNS Wildcard Evidence
+
+Application version: **8.8.9**. Database schema: **18**, unchanged.
+
+- Classify wildcard candidates using three in-scope random sibling controls and two observations for A/AAAA/CNAME.
+- Require stable response profiles; preserve unknown flags and all downstream coverage.
+- Bound queries by scope, parent/host caps and the shared budget; save per-host evidence.
+- Require successful CI for the exact main commit before creating or publishing a release.
+- See docs/DNS_WILDCARD_DETECTION.md and docs/VERIFIED_RELEASES.md.
+
 # Recon Monitor 8.8.8 — DNS Downstream Coverage
-
-## Unreleased — explicit wildcard candidates
-
-- Classify from repeated in-scope random sibling DNS controls, never omitted collector output.
-- Preserve unknown flags, require explicit negative controls to clear flags, and retain all downstream hosts.
-- Bound and audit additional DNS queries; validate dnsx rcode/retry flags in doctor.
-- See docs/DNS_WILDCARD_DETECTION.md for classification semantics and limitations.
-
 
 - Build downstream resolved hosts from surviving current DNS records, including preserved unobserved hosts, within the current discovered scope.
 - Recompute asset resolution after explicit observations; NS-only answers cannot establish resolution.
