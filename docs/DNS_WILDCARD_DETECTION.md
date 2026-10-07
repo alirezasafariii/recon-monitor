@@ -1,4 +1,4 @@
-# Explicit DNS wildcard candidate detection (unreleased)
+# Explicit DNS wildcard candidate detection (8.8.9)
 
 The DNS stage no longer uses omission from dnsx wildcard-filter output as evidence. It separately queries each eligible discovered host and three independently generated 96-bit random sibling names under the host's immediate parent, in two rounds, for A, AAAA and CNAME. All queried names must match the target include/exclude scope and remain below a configured policy root. Random names are not added to assets or DNS records. Policy roots themselves are not synthetic wildcard host candidates.
 
