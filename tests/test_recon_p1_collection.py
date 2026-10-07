@@ -134,8 +134,8 @@ class ReconP1CollectionTests(unittest.TestCase):
         self.assertIn('else query_input', source)
         self.assertIn('"wildcard_resolved"', source)
         self.assertIn("wildcard_classification_complete", source)
-        self.assertIn("if wildcard_classification_complete:", source)
-        self.assertIn("wildcard=0", source)
+        self.assertIn("detect_dns_wildcards(ctx, hosts)", source)
+        self.assertIn("UPDATE assets SET wildcard=?", source)
 
     def test_port_results_feed_url_pipeline_and_probe_precedes_katana(self) -> None:
         port_source = inspect.getsource(stage_ports)

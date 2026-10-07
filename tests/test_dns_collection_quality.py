@@ -36,6 +36,11 @@ class DNSCollectionQualityTests(unittest.TestCase):
             guard = patch(name, side_effect=AssertionError("offline test attempted I/O"))
             guard.start()
             self.addCleanup(guard.stop)
+        wildcard = patch("stages.detect_dns_wildcards", side_effect=lambda ctx, hosts: (
+            [{"host": h, "state": "non_wildcard", "reason": "collection_fixture"} for h in hosts], [], 0,
+        ))
+        wildcard.start()
+        self.addCleanup(wildcard.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.paths = AppPaths.from_root(Path(self.temp.name))
@@ -177,7 +182,12 @@ class DNSCollectionQualityTests(unittest.TestCase):
             if output is not None:
                 Path(kwargs["output_path"]).write_text(output)
             return result
-        with patch("stages.tool_path", return_value="dnsx"):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(patch("stages.tool_path", return_value="dnsx"))
+            if wildcard_output is not None:
+                stack.enter_context(patch("stages.detect_dns_wildcards", side_effect=lambda ctx, hosts: (
+                    [{"host": h, "state": "unknown", "reason": "warning_only"} for h in hosts], [], 0,
+                )))
             return stage_dns(self._context(run))
 
     def test_explicit_nodata_and_nxdomain_retire_observed_pairs(self):
@@ -219,10 +229,11 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["effective_resolved_hosts"], 100)
         self.assertEqual(metrics["valid_json_rows"], 0)
         self.assertEqual(metrics["successful_rrtypes"], [])
-        self.assertFalse(metrics["wildcard_classification_complete"])
         self.assertEqual(metrics["wildcard_candidates"], 0)
-        self.assertEqual(self.db.one("SELECT COUNT(*) FROM dns_records WHERE is_current=1")[0], 100)
+        self.assertFalse(metrics["wildcard_classification_complete"])
         self.assertEqual(self.db.one("SELECT COUNT(*) FROM assets WHERE wildcard=1")[0], 100)
+        self.assertEqual(self.db.one("SELECT COUNT(*) FROM dns_records WHERE is_current=1")[0], 100)
+
         self.assertEqual(self.db.one("SELECT COUNT(*) FROM assets WHERE resolved=1")[0], 100)
         ctx = self._context(self._tool())
         with patch("stages.tool_path", return_value=None), patch(
@@ -328,7 +339,11 @@ class DNSCollectionQualityTests(unittest.TestCase):
     def test_wildcard_timeout_keeps_classification_and_reports_partial(self) -> None:
         self._seed()
         self.db.execute("UPDATE assets SET wildcard=1 WHERE target=?", (self.TARGET,))
-        metrics = self._dnsx_stage(wildcard_exit=124)
+        with patch("stages.detect_dns_wildcards", return_value=(
+            [{"host": self.TARGET, "state": "unknown", "reason": "collector_failure"}],
+            [{"stop_reason": "timeout"}], 0,
+        )):
+            metrics = self._dnsx_stage()
         self.assertEqual(metrics["collection_status"], "partial")
         self.assertFalse(metrics["wildcard_classification_complete"])
         self.assertEqual(self.db.one("SELECT wildcard FROM assets WHERE target=?", (self.TARGET,))[0], 1)

@@ -246,3 +246,5 @@ The primary workflow is now `Command center → Review queue → technical drill
 ## 5.0.1 dashboard performance
 
 See `docs/DASHBOARD_PERFORMANCE.md` for snapshot caching, bounded pagination, and explicit deep-refresh behavior.
+
+Unreleased wildcard detection work: see [explicit DNS wildcard candidates](docs/DNS_WILDCARD_DETECTION.md) for evidence, scope, budget and limitations.
