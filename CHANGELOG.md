@@ -1,3 +1,13 @@
+# Recon Monitor 8.8.7 — DNS Observation Integrity
+
+Application version: **8.8.7**. Core database schema: **18**, unchanged.
+
+- DNS retirement now requires explicit observations for each host and record type. Empty or warning-only dnsx output, missing hosts, SERVFAIL/REFUSED and malformed values preserve previous records instead of treating process exit zero as negative DNS evidence.
+- Explicit NOERROR/NODATA without requested values and explicit NXDOMAIN allow retirement only for the queried host/type. Positive observations remain available when other hosts are unknown.
+- Query metrics report valid JSON rows, observed/unobserved hosts and collector warnings. Zero observations produce partial collection and cannot replace a successful baseline.
+- Plain wildcard-filter omissions cannot distinguish wildcard filtering from dropped or unresolved hosts. Ambiguous output preserves existing wildcard state and reports classification incomplete; it does not infer wildcard candidates from absence.
+- No database schema or timeout change. Historical false removals and wildcard flags require a separately reviewed recovery; installation does not reconstruct them automatically.
+
 # Recon Monitor 8.8.6 — httpx Security Header Integrity
 
 Application version: **8.8.6**. Core database schema: **18**, unchanged.

@@ -148,37 +148,124 @@ class DNSCollectionQualityTests(unittest.TestCase):
             "CNAME": (1, False, []),
         })
         self.assertEqual(self._current_records(), {
-            ("A", "192.0.2.20"), ("AAAA", "2001:db8::10"), ("CNAME", "edge.example.test"),
+            ("A", "192.0.2.20"), ("AAAA", "2001:db8::10"), ("CNAME", "edge.example.test"), ("NS", "ns.example.test"),
         })
         self.assertEqual(metrics["collection_status"], "partial")
-        self.assertEqual(metrics["successful_rrtypes"], ["A", "NS"])
-        self.assertEqual(metrics["failed_rrtypes"], ["AAAA", "CNAME"])
+        self.assertEqual(metrics["successful_rrtypes"], ["A"])
+        self.assertEqual(metrics["failed_rrtypes"], ["AAAA", "CNAME", "NS"])
         self.assertEqual(metrics["new_records"], 1)
-        self.assertEqual(metrics["removed_records"], 2)
+        self.assertEqual(metrics["removed_records"], 1)
         changes = (self.changes / "dns-changes.tsv").read_text()
         self.assertNotIn("AAAA", changes)
         self.assertNotIn("CNAME", changes)
 
-    def test_successful_empty_answers_can_retire_previous_records(self) -> None:
+    def test_zero_output_preserves_previous_records(self) -> None:
         self._seed()
         metrics = self._dnsx_stage()
-        self.assertEqual(self._current_records(), set())
-        self.assertEqual(metrics["collection_status"], "completed")
-        self.assertEqual(metrics["successful_rrtypes"], ["A", "AAAA", "CNAME", "NS"])
-        self.assertEqual(metrics["failed_rrtypes"], [])
-        self.assertEqual(metrics["removed_records"], 4)
+        self.assertEqual(self._current_records(), self.RECORDS)
+        self.assertEqual(metrics["collection_status"], "partial")
+        self.assertEqual(metrics["successful_rrtypes"], [])
+        self.assertEqual(metrics["removed_records"], 0)
+        self.assertIn("dns_zero_observation", metrics["collection_reasons"])
+
+    def _raw_stage(self, query_output, wildcard_output=None):
+        base = self._tool()
+        def run(args, **kwargs):
+            result = base(args, **kwargs)
+            rrtype = next((value for flag, value in self.FLAGS.items() if flag in args), None)
+            output = query_output(rrtype) if rrtype else wildcard_output
+            if output is not None:
+                Path(kwargs["output_path"]).write_text(output)
+            return result
+        with patch("stages.tool_path", return_value="dnsx"):
+            return stage_dns(self._context(run))
+
+    def test_explicit_nodata_and_nxdomain_retire_observed_pairs(self):
+        for status in ("NOERROR", "NXDOMAIN", "NODATA"):
+            with self.subTest(status=status):
+                self._seed()
+                metrics = self._raw_stage(lambda t: json.dumps({"host": self.TARGET, "status_code": status}) + "\n")
+                self.assertEqual(self._current_records(), set())
+                self.assertEqual(metrics["removed_records"], 4)
+                self.assertEqual(metrics["collection_status"], "completed")
+
+    def test_servfail_refused_and_missing_status_are_unknown(self):
+        for status in ("SERVFAIL", "REFUSED", ""):
+            with self.subTest(status=status):
+                self._seed()
+                metrics = self._raw_stage(lambda t: json.dumps({"host": self.TARGET, "status_code": status}) + "\n")
+                self.assertEqual(self._current_records(), self.RECORDS)
+                self.assertEqual(metrics["removed_records"], 0)
+                self.assertEqual(metrics["collection_status"], "partial")
+
+    def test_warning_only_100_hosts_preserve_dns_and_wildcard(self):
+        hosts = [self.TARGET] + [f"h{i}.{self.TARGET}" for i in range(99)]
+        (self.current / "subdomains.txt").write_text("\n".join(hosts))
+        for host in hosts:
+            self.db.upsert_asset(self.TARGET, host, ["fixture"], "previous-run")
+            self.db.upsert_dns(self.TARGET, host, "A", "192.0.2.10", "previous-run")
+        self.db.execute("UPDATE assets SET wildcard=1 WHERE target=?", (self.TARGET,))
+        warning = "[WRN] 100 domains failed to resolve\n"
+        metrics = self._raw_stage(lambda t: warning, warning)
+        self.assertEqual(metrics["removed_records"], 0)
+        self.assertEqual(metrics["observed_hosts"], 0)
+        self.assertEqual(metrics["unobserved_hosts"], 100)
+        self.assertEqual(metrics["valid_json_rows"], 0)
+        self.assertEqual(metrics["successful_rrtypes"], [])
+        self.assertFalse(metrics["wildcard_classification_complete"])
+        self.assertEqual(metrics["wildcard_candidates"], 0)
+        self.assertEqual(self.db.one("SELECT COUNT(*) FROM dns_records WHERE is_current=1")[0], 100)
+        self.assertEqual(self.db.one("SELECT COUNT(*) FROM assets WHERE wildcard=1")[0], 100)
+
+    def test_99_observed_hosts_do_not_retire_the_missing_host(self):
+        hosts = [self.TARGET] + [f"h{i}.{self.TARGET}" for i in range(99)]
+        (self.current / "subdomains.txt").write_text("\n".join(hosts))
+        for host in hosts:
+            self.db.upsert_dns(self.TARGET, host, "A", "192.0.2.10", "previous-run")
+        metrics = self._raw_stage(lambda t: "".join(json.dumps({"host": h, "status_code": "NOERROR"}) + "\n" for h in (hosts[:1] if t == "NS" else hosts[:-1])))
+        self.assertEqual(metrics["removed_records"], 99)
+        self.assertEqual(self.db.one("SELECT host FROM dns_records WHERE is_current=1")[0], hosts[-1])
+        self.assertEqual(metrics["collection_status"], "partial")
+
+    def test_unknown_duplicate_prevents_retirement_but_keeps_positive(self):
+        self._seed()
+        metrics = self._raw_stage(lambda t: "\n".join(json.dumps(row) for row in (
+            {"host": self.TARGET, t.lower(): ["192.0.2.20"]} if t == "A" else {"host": self.TARGET, "status_code": "SERVFAIL"},
+            {"host": self.TARGET, "status_code": "REFUSED"},
+        )) + "\n")
+        self.assertEqual(self._current_records(), self.RECORDS | {("A", "192.0.2.20")})
+        self.assertEqual(metrics["removed_records"], 0)
+
+    def test_malformed_address_is_not_dns_observation(self):
+        self._seed()
+        metrics = self._raw_stage(lambda t: json.dumps({"host": self.TARGET, "status_code": "NOERROR", t.lower(): ["not-an-address"]}) + "\n" if t in {"A", "AAAA"} else "")
+        self.assertEqual(self._current_records(), self.RECORDS)
+        self.assertEqual(metrics["observed_pairs"], 0)
+        self.assertEqual(metrics["removed_records"], 0)
+
+    def test_database_finalization_scopes_host_type_and_target(self):
+        self._seed()
+        self.db.upsert_dns(self.TARGET, "api.example.test", "A", "192.0.2.30", "previous-run")
+        self.db.upsert_dns("other.test", self.TARGET, "A", "192.0.2.40", "previous-run")
+        self.db.finalize_dns_observed(self.TARGET, "current-run", iter([(self.TARGET, "a")]))
+        remaining = self.db.all("SELECT target,host,rrtype FROM dns_records WHERE is_current=1")
+        self.assertEqual(len(remaining), 5)
+        self.assertFalse(any(r["target"] == self.TARGET and r["host"] == self.TARGET and r["rrtype"] == "A" for r in remaining))
+        before = [tuple(r) for r in remaining]
+        self.db.finalize_dns_observed(self.TARGET, "current-run", iter(()))
+        self.assertEqual(before, [tuple(r) for r in self.db.all("SELECT target,host,rrtype FROM dns_records WHERE is_current=1")])
 
     def test_timeout_flag_overrides_zero_exit_code(self) -> None:
         self._seed()
         metrics = self._dnsx_stage(outcomes={"A": (0, True, ["192.0.2.20"])})
-        self.assertEqual(self._current_records(), {("A", "192.0.2.10")})
+        self.assertEqual(self._current_records(), self.RECORDS)
         self.assertNotIn("A", metrics["successful_rrtypes"])
         self.assertEqual(metrics["collection_status"], "partial")
 
     def test_missing_output_is_not_an_empty_successful_answer(self) -> None:
         self._seed()
         metrics = self._dnsx_stage(missing_output="A")
-        self.assertEqual(self._current_records(), {("A", "192.0.2.10")})
+        self.assertEqual(self._current_records(), self.RECORDS)
         self.assertEqual(metrics["dns_query_outcomes"][0]["stop_reason"], "output_missing")
         self.assertEqual(metrics["collection_status"], "partial")
 
@@ -227,7 +314,7 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["successful_rrtypes"], ["A", "AAAA"])
 
     def test_timeout_is_partial_through_run_report_and_baseline_persistence(self) -> None:
-        for with_baseline in (False, True):
+        for with_baseline, zero_output in ((False, False), (True, False), (False, True), (True, True)):
             with self.subTest(with_baseline=with_baseline), tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
                 paths = AppPaths.from_root(Path(tmp))
                 paths.ensure()
@@ -262,7 +349,7 @@ class DNSCollectionQualityTests(unittest.TestCase):
                 stages["dns"] = real_dns
                 stack.enter_context(patch.dict(runtime.STAGE_FUNCTIONS, stages))
                 stack.enter_context(patch("recon_monitor_core.stage_report", side_effect=offline_report))
-                stack.enter_context(patch.object(orchestrator.runner, "run", side_effect=self._tool(outcomes={rrtype: (124, True, []) for rrtype, _ in self.RECORDS})))
+                stack.enter_context(patch.object(orchestrator.runner, "run", side_effect=self._tool(outcomes={rrtype: (0 if zero_output else 124, not zero_output, []) for rrtype, _ in self.RECORDS})))
                 stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
                 code = orchestrator.run(PolicySet({}, [self.policy], paths.policy))
                 run_id = orchestrator.current_run_id

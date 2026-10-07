@@ -1,14 +1,14 @@
-# راهنمای Recon Monitor 8.8.6
+# راهنمای Recon Monitor 8.8.7
 
-<!-- recon-monitor-current: app=8.8.6 schema=18 -->
+<!-- recon-monitor-current: app=8.8.7 schema=18 -->
 
 ## نسخهٔ فعلی: اصلاح ثبت headerهای امنیتی httpx
 
-Recon Monitor 8.8.6 نام headerهای JSON ابزار httpx را پیش از allowlist به فرمت استاندارد برمی‌گرداند تا HSTS و CSP معتبر حذف نشوند و Finding اشتباه ساخته نشود. محدودیت‌های امنیتی، اصلاحات آپدیت macOS و داشبورد کامل حفظ شده‌اند. headerهای حذف‌شده و Snapshotهای تاریخی خودکار ترمیم نمی‌شوند.
+Recon Monitor 8.8.7 نام headerهای JSON ابزار httpx را پیش از allowlist به فرمت استاندارد برمی‌گرداند تا HSTS و CSP معتبر حذف نشوند و Finding اشتباه ساخته نشود. محدودیت‌های امنیتی، اصلاحات آپدیت macOS و داشبورد کامل حفظ شده‌اند. headerهای حذف‌شده و Snapshotهای تاریخی خودکار ترمیم نمی‌شوند.
 
-نسخهٔ canonical برنامه **8.8.6** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+نسخهٔ canonical برنامه **8.8.7** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.6.md`، `docs/RELEASE_NOTES_v8.8.6.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.7.md`، `docs/RELEASE_NOTES_v8.8.7.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 

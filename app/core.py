@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 from javascript_normalization import normalize_javascript
 
-APP_VERSION = "8.8.6"
+APP_VERSION = "8.8.7"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 
@@ -2246,6 +2246,15 @@ class Database:
             (target, host, rrtype, value, now, now, run_id),
         )
         return row is None
+
+    def finalize_dns_observed(self, target: str, run_id: str, observed_pairs: Iterable[tuple[str, str]]) -> None:
+        """Retire only host/type pairs supported by explicit DNS observations."""
+        with self.transaction():
+            for host, rrtype in sorted({(str(h), str(t).upper()) for h, t in observed_pairs}):
+                self.execute(
+                    "UPDATE dns_records SET is_current=0 WHERE target=? AND host=? AND rrtype=? AND COALESCE(last_run_id,'')<>?",
+                    (target, host, rrtype, run_id),
+                )
 
     def finalize_dns_current(self, target: str, run_id: str, rrtypes: Iterable[str] | None = None) -> None:
         """Retire stale records only for successfully collected record types.
