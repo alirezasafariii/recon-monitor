@@ -1,8 +1,12 @@
+# Recon Monitor 8.8.10 — DNS Baseline Independence
+
+Application version: **8.8.10**. Database schema: **18**, unchanged.
+
+- Track bounded wildcard enrichment independently of primary DNS collection. Probe caps, scope restrictions, insufficient probe budget and ambiguous controls remain visible without blocking a healthy DNS baseline.
+- Preserve unknown wildcard flags and downstream coverage. Primary DNS failures still report partial and remain baseline-ineligible.
+- Add 129-host, 17-parent and full lifecycle/report/baseline regression tests.
+
 # Recon Monitor 8.8.9 — Explicit DNS Wildcard Evidence
-
-## Unreleased — wildcard coverage and DNS baseline independence
-
-- Track bounded wildcard enrichment gaps independently of primary DNS collection. Caps, scope restrictions, insufficient probe budget and ambiguous control responses preserve flags and remain visible without blocking a healthy DNS baseline. Primary DNS failures still report partial and remain baseline-ineligible.
 
 Application version: **8.8.9**. Database schema: **18**, unchanged.
 
