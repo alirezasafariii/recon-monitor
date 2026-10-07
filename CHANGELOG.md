@@ -1,3 +1,13 @@
+# Recon Monitor 8.8.8 — DNS Downstream Coverage
+
+- Build downstream resolved hosts from surviving current DNS records, including preserved unobserved hosts, within the current discovered scope.
+- Recompute asset resolution after explicit observations; NS-only answers cannot establish resolution.
+- Separate fresh, preserved and effective host metrics; document the limitation on new wildcard classification.
+- Add offline downstream, negative-state, scope and NS-only regressions. Schema 18 and timeouts remain unchanged.
+
+
+Application version: **8.8.8**. Core database schema: **18**, unchanged.
+
 # Recon Monitor 8.8.7 — DNS Observation Integrity
 
 Application version: **8.8.7**. Core database schema: **18**, unchanged.

@@ -486,7 +486,6 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     removed_records = comparable_previous - comparable_current
     for host, rrtype, value in sorted(current_records):
         ctx.db.upsert_dns(ctx.policy.name, host, rrtype, value, ctx.run_id)
-        ctx.db.mark_asset_resolved(ctx.policy.name, host, ctx.run_id, True)
         if ctx.policy.analysis.get("asset_graph", True):
             destination_type = "ip" if rrtype in {"A", "AAAA"} else "host"
             relation = {"A": "resolves_to", "AAAA": "resolves_to", "CNAME": "aliases_to", "NS": "uses_nameserver"}.get(rrtype, "dns_record")
@@ -497,6 +496,28 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         for host in sorted(set(hosts) - wildcard_candidates):
             ctx.db.execute("UPDATE assets SET wildcard=0,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
     ctx.db.finalize_dns_observed(ctx.policy.name, ctx.run_id, observed_pairs)
+
+    # Downstream input uses the surviving DNS projection, including preserved
+    # observations, restricted to this invocation's discovered in-scope hosts.
+    resolution_types = {"A", "AAAA", "CNAME"}
+    fresh_resolved_hosts = {
+        host for host, rrtype, _ in current_records if rrtype in resolution_types
+    }
+    effective_rows = ctx.db.all(
+        "SELECT DISTINCT host FROM dns_records WHERE target=? AND is_current=1 "
+        "AND rrtype IN ('A','AAAA','CNAME')",
+        (ctx.policy.name,),
+    )
+    current_resolved_hosts = {str(row["host"]) for row in effective_rows}
+    resolved_hosts = current_resolved_hosts & set(hosts)
+    preserved_resolved_hosts = resolved_hosts - fresh_resolved_hosts
+    resolution_observed_hosts = {
+        host for host, rrtype in observed_pairs if rrtype in resolution_types
+    } | fresh_resolved_hosts
+    for host in sorted(resolution_observed_hosts):
+        ctx.db.mark_asset_resolved(
+            ctx.policy.name, host, ctx.run_id, host in current_resolved_hosts,
+        )
 
     for host, rrtype, value in sorted(new_records):
         emit_event(ctx, "dns_change", f"{host} {rrtype} {value}", "New DNS record", {"action": "added", "host": host, "rrtype": rrtype, "value": value})
@@ -521,6 +542,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "observed_pairs": len(observed_pairs),
         "valid_json_rows": sum(outcome.get("valid_json_rows", 0) for outcome in query_outcomes),
         "resolved": len(resolved_hosts),
+        "fresh_resolved_hosts": len(fresh_resolved_hosts & set(hosts)),
+        "preserved_resolved_hosts": len(preserved_resolved_hosts),
+        "effective_resolved_hosts": len(resolved_hosts),
         "records": len(current_records),
         "new_records": len(new_records),
         "removed_records": len(removed_records),

@@ -18,7 +18,7 @@ if str(APP) not in sys.path:
 import recon_monitor_core as runtime
 from core import AppPaths, Config, Logger, PolicySet, TargetPolicy, query_host_records_fallback
 from reporting import _stage_metrics
-from stages import StageContext, stage_dns
+from stages import StageContext, stage_dns, stage_ports, stage_urls
 
 
 class DNSCollectionQualityTests(unittest.TestCase):
@@ -184,9 +184,12 @@ class DNSCollectionQualityTests(unittest.TestCase):
         for status in ("NOERROR", "NXDOMAIN", "NODATA"):
             with self.subTest(status=status):
                 self._seed()
+                self.db.mark_asset_resolved(self.TARGET, self.TARGET, "previous-run", True)
                 metrics = self._raw_stage(lambda t: json.dumps({"host": self.TARGET, "status_code": status}) + "\n")
                 self.assertEqual(self._current_records(), set())
                 self.assertEqual(metrics["removed_records"], 4)
+                self.assertEqual(self.db.one("SELECT resolved FROM assets WHERE target=? AND host=?", (self.TARGET, self.TARGET))[0], 0)
+                self.assertEqual((self.current / "resolved-hosts.txt").read_text(), "")
                 self.assertEqual(metrics["collection_status"], "completed")
 
     def test_servfail_refused_and_missing_status_are_unknown(self):
@@ -204,18 +207,45 @@ class DNSCollectionQualityTests(unittest.TestCase):
         for host in hosts:
             self.db.upsert_asset(self.TARGET, host, ["fixture"], "previous-run")
             self.db.upsert_dns(self.TARGET, host, "A", "192.0.2.10", "previous-run")
-        self.db.execute("UPDATE assets SET wildcard=1 WHERE target=?", (self.TARGET,))
+        self.db.execute("UPDATE assets SET wildcard=1,resolved=1 WHERE target=?", (self.TARGET,))
         warning = "[WRN] 100 domains failed to resolve\n"
         metrics = self._raw_stage(lambda t: warning, warning)
         self.assertEqual(metrics["removed_records"], 0)
         self.assertEqual(metrics["observed_hosts"], 0)
         self.assertEqual(metrics["unobserved_hosts"], 100)
+        self.assertEqual(set((self.current / "resolved-hosts.txt").read_text().splitlines()), set(hosts))
+        self.assertEqual(metrics["fresh_resolved_hosts"], 0)
+        self.assertEqual(metrics["preserved_resolved_hosts"], 100)
+        self.assertEqual(metrics["effective_resolved_hosts"], 100)
         self.assertEqual(metrics["valid_json_rows"], 0)
         self.assertEqual(metrics["successful_rrtypes"], [])
         self.assertFalse(metrics["wildcard_classification_complete"])
         self.assertEqual(metrics["wildcard_candidates"], 0)
         self.assertEqual(self.db.one("SELECT COUNT(*) FROM dns_records WHERE is_current=1")[0], 100)
         self.assertEqual(self.db.one("SELECT COUNT(*) FROM assets WHERE wildcard=1")[0], 100)
+        self.assertEqual(self.db.one("SELECT COUNT(*) FROM assets WHERE resolved=1")[0], 100)
+        ctx = self._context(self._tool())
+        with patch("stages.tool_path", return_value=None), patch(
+            "stages._probe_live_origins", side_effect=lambda ctx, urls: (urls, [])
+        ) as probe:
+            stage_urls(ctx)
+        self.assertEqual(
+            set(probe.call_args.args[1]),
+            {f"{scheme}://{host}" for host in hosts for scheme in ("http", "https")},
+        )
+        ctx.policy.modules["ports"] = True
+        def port_runner(args, **kwargs):
+            self.tool_calls.append((args, kwargs))
+            Path(kwargs["output_path"]).write_text("")
+            return SimpleNamespace(returncode=0)
+        ctx.runner = SimpleNamespace(run=port_runner)
+        with patch("stages.tool_path", return_value="naabu"), patch.object(
+            TargetPolicy, "active_allowed", return_value=True,
+        ):
+            stage_ports(ctx)
+        args, kwargs = self.tool_calls[-1]
+        self.assertEqual(args[0], "naabu")
+        self.assertEqual(set(Path(args[args.index("-list") + 1]).read_text().splitlines()), set(hosts))
 
     def test_99_observed_hosts_do_not_retire_the_missing_host(self):
         hosts = [self.TARGET] + [f"h{i}.{self.TARGET}" for i in range(99)]
@@ -225,7 +255,33 @@ class DNSCollectionQualityTests(unittest.TestCase):
         metrics = self._raw_stage(lambda t: "".join(json.dumps({"host": h, "status_code": "NOERROR"}) + "\n" for h in (hosts[:1] if t == "NS" else hosts[:-1])))
         self.assertEqual(metrics["removed_records"], 99)
         self.assertEqual(self.db.one("SELECT host FROM dns_records WHERE is_current=1")[0], hosts[-1])
+        self.assertEqual((self.current / "resolved-hosts.txt").read_text().splitlines(), [hosts[-1]])
         self.assertEqual(metrics["collection_status"], "partial")
+
+
+    def test_effective_hosts_exclude_undiscovered_out_of_scope_and_ns_only(self):
+        self._seed()
+        for host, rrtype in (("undiscovered.example.test", "A"),
+                             ("outside.test", "A"), (self.TARGET, "NS")):
+            self.db.upsert_dns(self.TARGET, host, rrtype, "192.0.2.20", "previous-run")
+        metrics = self._raw_stage(lambda t: "")
+        self.assertEqual((self.current / "resolved-hosts.txt").read_text().splitlines(), [self.TARGET])
+        self.assertEqual(metrics["effective_resolved_hosts"], 1)
+
+    def test_partial_negative_preserves_other_resolution_and_unknown_asset(self):
+        self._seed()
+        self.db.mark_asset_resolved(self.TARGET, self.TARGET, "previous-run", True)
+        metrics = self._raw_stage(lambda t: json.dumps({"host": self.TARGET, "status_code": "NOERROR"}) + "\n" if t == "A" else "")
+        self.assertEqual(metrics["effective_resolved_hosts"], 1)
+        self.assertEqual(self.db.one("SELECT resolved FROM assets WHERE host=?", (self.TARGET,))[0], 1)
+        self._raw_stage(lambda t: "")
+        self.assertEqual(self.db.one("SELECT resolved FROM assets WHERE host=?", (self.TARGET,))[0], 1)
+
+    def test_ns_only_does_not_mark_asset_resolved(self):
+        self.db.upsert_asset(self.TARGET, self.TARGET, ["root"], "previous-run")
+        metrics = self._dnsx_stage(outcomes={"NS": (0, False, ["ns.example.test"])})
+        self.assertEqual(metrics["effective_resolved_hosts"], 0)
+        self.assertEqual(self.db.one("SELECT resolved FROM assets WHERE host=?", (self.TARGET,))[0], 0)
 
     def test_unknown_duplicate_prevents_retirement_but_keeps_positive(self):
         self._seed()
