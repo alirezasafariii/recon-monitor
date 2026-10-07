@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -37,16 +38,35 @@ class InstalledReviewLayoutTests(unittest.TestCase):
                     manager._stage_program(ROOT, installed)
                 self.assertFalse((installed / 'tools').exists())
                 self.assertTrue((installed / 'app/dashboard_review_support.py').is_file())
-                code = (
-                    "import sys,unittest;sys.path.insert(0,'app');"
+                # Bound each regression independently. A shared 60-second
+                # deadline for all 32 cases falsely fails on slower Intel hosts.
+                discovery = (
+                    "import sys,unittest,json;sys.path.insert(0,'app');"
                     "patterns=['test_dashboard_real_data_review.py','test_dependency_range_coverage.py','test_js_stage_isolated.py','test_js_validation.py'];"
                     "s=unittest.TestSuite(unittest.defaultTestLoader.discover('tests',pattern=p) for p in patterns);"
-                    "r=unittest.TextTestRunner(verbosity=1).run(s);"
-                    "assert r.testsRun==32,r.testsRun;sys.exit(not r.wasSuccessful())"
+                    "\ndef flatten(suite):\n"
+                    " for item in suite:\n"
+                    "  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n"
+                    "  else: yield item.id()\n"
+                    "print(json.dumps(list(flatten(s))))"
                 )
-                result = subprocess.run([sys.executable, '-I', '-c', code], cwd=installed,
+                result = subprocess.run([sys.executable, '-I', '-c', discovery], cwd=installed,
                                         text=True, capture_output=True, timeout=60)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                case_ids = json.loads(result.stdout)
+                self.assertEqual(len(case_ids), 32)
+                self.assertEqual(len(set(case_ids)), 32)
+                code = (
+                    "import sys,unittest;sys.path[:0]=['app','tests'];"
+                    "s=unittest.defaultTestLoader.loadTestsFromName(sys.argv[1]);"
+                    "r=unittest.TextTestRunner(verbosity=1).run(s);"
+                    "assert r.testsRun==1,r.testsRun;sys.exit(not r.wasSuccessful())"
+                )
+                for case_id in case_ids:
+                    with self.subTest(installed_regression=case_id):
+                        result = subprocess.run([sys.executable, '-I', '-c', code, case_id],
+                                                cwd=installed, text=True, capture_output=True, timeout=60)
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             finally:
                 db.close()
 
