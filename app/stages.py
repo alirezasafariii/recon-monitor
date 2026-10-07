@@ -44,6 +44,7 @@ from core import (
     utc_now,
     write_jsonl,
 )
+from dns_wildcard import detect as detect_dns_wildcards
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
@@ -330,52 +331,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     wildcard_candidates: set[str] = set()
     wildcard_classification_complete = False
 
-    filtered_hosts = set(hosts)
     if tool_path("dnsx"):
-        wildcard_classification_complete = True
-        filtered_hosts = set()
-        for root in ctx.policy.roots:
-            root_hosts = [host for host in hosts if host == root or host.endswith("." + root)]
-            if not root_hosts:
-                continue
-            root_input = ctx.current / f"dns-{safe_filename(root)}-input.txt"
-            root_output = ctx.current / f"dns-{safe_filename(root)}-filtered.txt"
-            atomic_write_text(root_input, "".join(f"{host}\n" for host in root_hosts))
-            result = ctx.runner.run(
-                [
-                    "dnsx", "-l", str(root_input), "-wd", root, "-silent", "-duc",
-                    "-t", str(min(200, ctx.policy.limits.dns_rate)),
-                    "-rl", str(ctx.policy.limits.dns_rate),
-                ],
-                timeout=ctx.policy.limits.timeout_seconds,
-                output_path=root_output,
-                heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
-                line_callback=lambda _line, count: ctx.progress.update(count, len(hosts), "wildcard filtering"),
-            )
-            outcome = {"root": root, **_collector_tool_outcome(result, root_output, len(root_hosts))}
-            wildcard_outcomes.append(outcome)
-            if outcome["stop_reason"] == "completed":
-                lines = root_output.read_text(encoding="utf-8", errors="replace").splitlines()
-                returned = {line.strip().lower().rstrip(".") for line in lines if line.strip().lower().rstrip(".") in root_hosts}
-                warnings = [line for line in lines if line.strip() and line.strip().lower().rstrip(".") not in root_hosts]
-                outcome.update(observed_hosts=len(returned), unobserved_hosts=len(set(root_hosts) - returned), collector_warnings=warnings)
-                filtered_hosts.update(returned)
-                if warnings or returned != set(root_hosts):
-                    wildcard_classification_complete = False
-                    collection_reasons.add("dns_wildcard_unobserved_hosts")
-            else:
-                collection_reasons.add("dns_wildcard_" + outcome["stop_reason"])
-                wildcard_classification_complete = False
-                filtered_hosts.update(root_hosts)
-        # Plain wildcard-filter output cannot distinguish filtered wildcard
-        # hosts from unresolved/dropped hosts. Absence is not classification.
-        wildcard_candidates = set()
-        filtered_hosts.update(ctx.policy.roots)
-        # Keep the non-wildcard set as classification metadata for stability
-        # logic, but query every discovered host. Wildcard DNS is a property,
-        # not a reason to discard a potentially distinct virtual host.
+        # Omission from dnsx filtering is not classification. Explicit controls
+        # are evaluated separately after ordinary DNS collection.
         filtered_path = ctx.current / "dns-filtered-hosts.txt"
-        atomic_write_text(filtered_path, "".join(f"{host}\n" for host in sorted(filtered_hosts)))
+        atomic_write_text(filtered_path, "".join(f"{host}\n" for host in sorted(hosts)))
         query_input = ctx.current / "dns-query-hosts.txt"
         atomic_write_text(query_input, "".join(f"{host}\n" for host in sorted(hosts)))
 
@@ -490,11 +450,6 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             destination_type = "ip" if rrtype in {"A", "AAAA"} else "host"
             relation = {"A": "resolves_to", "AAAA": "resolves_to", "CNAME": "aliases_to", "NS": "uses_nameserver"}.get(rrtype, "dns_record")
             ctx.db.upsert_edge(ctx.policy.name, "host", host, relation, destination_type, value, ctx.run_id, {"rrtype": rrtype})
-    for host in wildcard_candidates:
-        ctx.db.execute("UPDATE assets SET wildcard=1,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
-    if wildcard_classification_complete:
-        for host in sorted(set(hosts) - wildcard_candidates):
-            ctx.db.execute("UPDATE assets SET wildcard=0,last_run_id=? WHERE target=? AND host=?", (ctx.run_id, ctx.policy.name, host))
     ctx.db.finalize_dns_observed(ctx.policy.name, ctx.run_id, observed_pairs)
 
     # Downstream input uses the surviving DNS projection, including preserved
@@ -518,6 +473,23 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         ctx.db.mark_asset_resolved(
             ctx.policy.name, host, ctx.run_id, host in current_resolved_hosts,
         )
+
+    wildcard_probe_queries = 0
+    wildcard_reports = []
+    if tool_path("dnsx"):
+        wildcard_reports, wildcard_outcomes, wildcard_probe_queries = detect_dns_wildcards(ctx, hosts)
+        wildcard_classification_complete = all(
+            row["state"] != "unknown" for row in wildcard_reports
+        )
+        wildcard_candidates = {row["host"] for row in wildcard_reports if row["state"] == "wildcard_candidate"}
+        if not wildcard_classification_complete:
+            collection_reasons.add("dns_wildcard_incomplete")
+        for row in wildcard_reports:
+            if row["state"] in {"wildcard_candidate", "non_wildcard"}:
+                ctx.db.execute(
+                    "UPDATE assets SET wildcard=?,last_run_id=? WHERE target=? AND host=?",
+                    (int(row["state"] == "wildcard_candidate"), ctx.run_id, ctx.policy.name, row["host"]),
+                )
 
     for host, rrtype, value in sorted(new_records):
         emit_event(ctx, "dns_change", f"{host} {rrtype} {value}", "New DNS record", {"action": "added", "host": host, "rrtype": rrtype, "value": value})
@@ -555,6 +527,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "failed_rrtypes": sorted(failed_rrtypes),
         "dns_query_outcomes": query_outcomes,
         "dns_wildcard_outcomes": wildcard_outcomes,
+        "wildcard_probe_queries": wildcard_probe_queries,
+        "wildcard_unknown_hosts": sum(row["state"] == "unknown" for row in wildcard_reports),
         "dns_fallback_failures": fallback_failures,
     }
 

@@ -92,7 +92,7 @@ def run_doctor(paths: AppPaths, config: Config, logger: Logger, *, network: bool
 
     compatibility = {
         "subfinder": ["-oJ", "-cs", "-rl"],
-        "dnsx": ["-json", "-wd", "-rl"],
+        "dnsx": ["-json", "-rl", "-rcode", "-retry", "-omit-raw"],
         "katana": ["-jc", "-rl", "-cs", "-ct", "-mrs", "-retry", "-c", "-p"],
         "httpx": ["-json", "-hash", "-jarm", "-include-chain", "-er"],
         "naabu": ["-json", "-rate"],

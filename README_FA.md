@@ -883,3 +883,5 @@ Schema دیتابیس در این نسخه 10 است. هیچ AI، Exploit خود
 ## بهینه‌سازی داشبورد در نسخه 5.0.1
 
 برای معماری Cache، صفحه‌بندی و Deep Refresh به `docs/DASHBOARD_PERFORMANCE.md` مراجعه کنید.
+
+تشخیص wildcard در حال توسعه: [شواهد، scope، بودجه و محدودیت‌ها](docs/DNS_WILDCARD_DETECTION.md). این قابلیت هنوز در release منتشرشده نیست.
