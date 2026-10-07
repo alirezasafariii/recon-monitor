@@ -13,6 +13,7 @@ from pathlib import Path
 
 from core import atomic_write_text, normalize_host, valid_domain, write_jsonl
 from execution import BudgetExceeded
+from dns_explicit import RESOLVER, fill_missing
 
 TYPES = (("A", "-a"), ("AAAA", "-aaaa"), ("CNAME", "-cname"))
 CONTROL_COUNT = 3
@@ -108,6 +109,7 @@ def detect(ctx, hosts):
         if any(parent == r or parent.endswith("." + r) for r in ctx.policy.roots):
             grouped[parent].append(host)
     reserved = 0
+    fallback_state = {'used': 0, 'reserved': 0}
     local_limit = max(0, ctx.policy.limits.max_dns_queries - len(hosts) * 4)
     used_hosts = 0
     for index, (parent, members) in enumerate(sorted(grouped.items())):
@@ -139,6 +141,7 @@ def detect(ctx, hosts):
                 reports[h]["reason"] = "probe_budget"
             continue
         reserved += cost
+        fallback_state['reserved'] = len(hosts) * 4 + reserved
         used_hosts += len(members)
         input_path = ctx.current / f"dns-wildcard-{index}-input.txt"
         atomic_write_text(input_path, "".join(h + "\n" for h in sorted(expected)))
@@ -160,13 +163,30 @@ def detect(ctx, hosts):
                 output.unlink(missing_ok=True)
                 result = ctx.runner.run(
                     ["dnsx", "-l", str(input_path), "-silent", "-json", "-omit-raw", flag,
-                     "-rcode", "noerror,nxdomain", "-retry", "1", "-duc",
+                     "-rcode", "noerror,nxdomain", "-retry", "1", "-duc", "-r", RESOLVER,
                      "-t", str(min(200, ctx.policy.limits.dns_rate)), "-rl", str(ctx.policy.limits.dns_rate)],
                     timeout=ctx.policy.limits.timeout_seconds, output_path=output,
                     heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, "dns"),
                 )
                 stop = "completed" if result.returncode == 0 and not getattr(result, "timed_out", False) and output.is_file() else "collector_failure"
                 values, warnings = observations(output, expected, rrtype) if stop == "completed" else ({}, 0)
+                # Retry only omissions from an otherwise clean collector invocation.
+                # Warning/timeout/failure remains unknown rather than being concealed.
+                if stop == 'completed' and not warnings and not ctx.next_requested():
+                    reported = set()
+                    for line in output.read_text(errors='replace').splitlines():
+                        try:
+                            row = json.loads(line)
+                            if isinstance(row, dict):
+                                reported.add(normalize_host(str(row.get('host') or row.get('input') or '')))
+                        except ValueError:
+                            pass
+                    # Explicit error/conflict/malformed rows must stay unknown.
+                    # A fallback is only for names omitted entirely by dnsx.
+                    extra, cost_used = fill_missing(ctx, expected - reported, rrtype, values,
+                                                    index, repeat, fallback_state)
+                    outcomes.extend(extra)
+                    reserved += cost_used
                 evidence[rrtype] = values
                 outcomes.append({"parent": parent, "round": repeat, "rrtype": rrtype,
                                  "stop_reason": stop, "exit_code": result.returncode,

@@ -32,6 +32,9 @@ class DNSCollectionQualityTests(unittest.TestCase):
     FLAGS = {"-a": "A", "-aaaa": "AAAA", "-cname": "CNAME", "-ns": "NS"}
 
     def setUp(self) -> None:
+        dig_guard = patch('dns_explicit.tool_path', return_value=None)
+        dig_guard.start()
+        self.addCleanup(dig_guard.stop)
         for name in ("subprocess.Popen", "socket.getaddrinfo", "socket.socket.connect"):
             guard = patch(name, side_effect=AssertionError("offline test attempted I/O"))
             guard.start()
