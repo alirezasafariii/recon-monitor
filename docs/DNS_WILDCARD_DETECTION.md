@@ -1,4 +1,4 @@
-# Explicit DNS wildcard candidate detection (8.8.9)
+# Explicit DNS wildcard candidate detection
 
 The DNS stage no longer uses omission from dnsx wildcard-filter output as evidence. It separately queries each eligible discovered host and three independently generated 96-bit random sibling names under the host's immediate parent, in two rounds, for A, AAAA and CNAME. All queried names must match the target include/exclude scope and remain below a configured policy root. Random names are not added to assets or DNS records. Policy roots themselves are not synthetic wildcard host candidates.
 
@@ -16,7 +16,7 @@ Producer flags: https://github.com/projectdiscovery/dnsx (JSON, rcode filtering,
 
 ## Explicit negative fallback
 
-Some dnsx 1.2.3 invocations omit NXDOMAIN and empty requested RRsets from JSON despite rcode filtering. For wildcard enrichment only, clean dnsx omissions are retried with optional `dig`. Both control collectors use the explicit resolver 8.8.8.8; this does not change primary DNS collection. `dig -r` ignores user digrc settings. One attempt, two-second DNS timeout, no automatic TCP retry, and a process deadline of at most five seconds bound each fallback. Production timeout configuration is unchanged.
+Some dnsx 1.2.3 invocations omit NXDOMAIN and empty requested RRsets from JSON despite rcode filtering. For wildcard enrichment only, clean dnsx omissions are retried with optional `dig`. Both control collectors use the explicit resolver 8.8.8.8; this does not change primary DNS collection. Apple dig 9.10 rejects `-r`. The fallback omits that option and runs only when `~/.digrc` is absent; existing files, symlinks or unreadable configuration preserve unknown without sending a query. One attempt, two-second DNS timeout, no automatic TCP retry, and a process deadline of at most five seconds bound each fallback. Production timeout configuration is unchanged.
 
 Only complete responses with the matching question, resolver, non-truncated QR flags and consistent record counts are accepted. NXDOMAIN or empty NOERROR requires an authority SOA for the question or terminal CNAME zone. Failure, malformed/conflicting dnsx rows, warnings, timeout and missing dig preserve unknown. Fallback never updates DNS records or adds control assets.
 

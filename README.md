@@ -2,7 +2,7 @@
 
 <!-- recon-monitor-current: app=8.8.11 schema=18 -->
 
-## Current release: httpx Security Header Integrity
+## Current release: Explicit Negative DNS Evidence
 
 Recon Monitor 8.8.11 preserves downstream DNS coverage through collector failures and recomputes asset resolution after explicit negative observations. Fresh, preserved and effective host counts are reported separately. New wildcard-positive classification requires explicit evidence and is not inferred from omitted output. Historical DNS damage is not automatically repaired.
 
