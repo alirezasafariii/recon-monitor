@@ -32,9 +32,6 @@ class DNSCollectionQualityTests(unittest.TestCase):
     FLAGS = {"-a": "A", "-aaaa": "AAAA", "-cname": "CNAME", "-ns": "NS"}
 
     def setUp(self) -> None:
-        config_guard = patch('dns_explicit.digrc_absent', return_value=True)
-        config_guard.start()
-        self.addCleanup(config_guard.stop)
         dig_guard = patch('dns_explicit.tool_path', return_value=None)
         dig_guard.start()
         self.addCleanup(dig_guard.stop)

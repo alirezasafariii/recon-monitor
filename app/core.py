@@ -3137,6 +3137,7 @@ class CommandRunner:
         *,
         cwd: Path | None = None,
         env: Mapping[str, str] | None = None,
+        env_unset: Sequence[str] = (),
         timeout: float | None = 600,
         output_path: Path | None = None,
         line_callback: Callable[[str, int], None] | None = None,
@@ -3161,6 +3162,8 @@ class CommandRunner:
         proc_env = os.environ.copy()
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
+        for key in env_unset:
+            proc_env.pop(str(key), None)
         display_command = " ".join(redact_command_args(args))
 
         def watchdog() -> None:
