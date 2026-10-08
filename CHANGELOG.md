@@ -1,3 +1,11 @@
+# Recon Monitor 8.8.12 — macOS dig Compatibility
+
+Application version: **8.8.12**. Database schema: **18**, unchanged.
+
+- Remove unsupported -r from Apple dig invocation; guard against implicit .digrc configuration.
+- Add real CommandRunner producer-contract and configuration regressions; preserve all DNS integrity and resource bounds.
+- Refresh stale release and wildcard documentation headings.
+
 # Recon Monitor 8.8.11 — Explicit Negative DNS Evidence
 
 Application version: **8.8.11**. Database schema: **18**, unchanged.
