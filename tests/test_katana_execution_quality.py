@@ -88,6 +88,36 @@ class KatanaExecutionQualityTests(unittest.TestCase):
                 ctx.current / "urls.txt"
             ).read_text(encoding="utf-8"))
 
+    def _check_internal_deadline_exit(self, multiplier):
+        with tempfile.TemporaryDirectory() as tmp:
+            def fake_run(args, **kwargs):
+                seconds = int(args[args.index("-ct") + 1][:-1])
+                Path(kwargs["output_path"]).write_text("https://0.example.test/app.js\n")
+                return SimpleNamespace(returncode=0, timed_out=False,
+                                       duration=seconds * multiplier, lines=1)
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            live = [f"https://{i}.example.test" for i in range(5)]
+            with patch("stages.tool_path", side_effect=lambda t: t == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(metrics["katana_exit_code"], 0)
+            self.assertFalse(metrics["katana_timed_out"])
+            self.assertEqual(metrics["katana_status"], "partial")
+            self.assertEqual(metrics["katana_stop_reason"], "crawl_completion_unverified")
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_origins_completed"], 0)
+            self.assertEqual(metrics["katana_pending_origins"], 5)
+            self.assertFalse(metrics["katana_batch_outcomes"][0]["completion_verified"])
+            self.assertEqual((ctx.current / "katana-pending-origins.txt").read_text().splitlines(), live)
+            self.assertIn("https://0.example.test/app.js", (ctx.current / "urls.txt").read_text())
+
+    def test_zero_exit_after_five_internal_deadlines_is_partial(self):
+        self._check_internal_deadline_exit(5.015)
+
+    def test_one_origin_deadline_is_conservative_before_batch_deadline(self):
+        self._check_internal_deadline_exit(1)
+
     def test_katana_is_batched_and_scoped_to_each_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             batches = []

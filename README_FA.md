@@ -1,14 +1,16 @@
-# راهنمای Recon Monitor 8.8.13
+# راهنمای Recon Monitor 8.8.14
 
-<!-- recon-monitor-current: app=8.8.13 schema=18 -->
+<!-- recon-monitor-current: app=8.8.14 schema=18 -->
 
-## نسخهٔ فعلی: شواهد صریح DNS و سازگاری dig در macOS
+## نسخهٔ فعلی: صحت ثبت نتیجهٔ خزش Katana
 
-Recon Monitor 8.8.13 میزبان‌های دارای DNS حفظ‌شده را در ورودی مراحل بعد نگه می‌دارد و وضعیت resolved را پس از مشاهدهٔ منفی معتبر اصلاح می‌کند. تعداد میزبان‌های تازه، حفظ‌شده و مؤثر جدا گزارش می‌شود. wildcard جدید از حذف خطوط خروجی حدس زده نمی‌شود؛ آسیب تاریخی DNS خودکار بازیابی نمی‌شود.
+در نسخهٔ 8.8.14، خروج صفر Katana پس از احتمال رسیدن به سقف داخلی خزش، به‌صورت `completion_unverified` ثبت می‌شود. URLهای جزئی حفظ می‌شوند و مبدأهای نامطمئن pending می‌مانند. زمان اجرا فقط نشانهٔ ابهام است؛ Timeout و بودجه افزایش نیافته‌اند. ارتقای فایل اجرایی Katana جداگانه انجام می‌شود و آزمون محلی نسخهٔ 1.8.0 به‌معنی تأیید پوشش کامل هدف نیست.
 
-نسخهٔ canonical برنامه **8.8.13** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+Recon Monitor 8.8.14 میزبان‌های دارای DNS حفظ‌شده را در ورودی مراحل بعد نگه می‌دارد و وضعیت resolved را پس از مشاهدهٔ منفی معتبر اصلاح می‌کند. تعداد میزبان‌های تازه، حفظ‌شده و مؤثر جدا گزارش می‌شود. wildcard جدید از حذف خطوط خروجی حدس زده نمی‌شود؛ آسیب تاریخی DNS خودکار بازیابی نمی‌شود.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.13.md`، `docs/RELEASE_NOTES_v8.8.13.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+نسخهٔ canonical برنامه **8.8.14** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.14.md`، `docs/RELEASE_NOTES_v8.8.14.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 
