@@ -1,3 +1,11 @@
+# Recon Monitor 8.8.13 — dig Configuration Isolation
+
+Application version: **8.8.13**. Database schema: **18**, unchanged.
+
+- Isolate dig from implicit user configuration in the child environment; remove check-before-execution race without changing user files or parent environment.
+- Correct Persian release and wildcard documentation; installed macOS live acceptance remains pending.
+- Verify child environment isolation through real offline subprocess regressions.
+
 # Recon Monitor 8.8.12 — macOS dig Compatibility
 
 Application version: **8.8.12**. Database schema: **18**, unchanged.
