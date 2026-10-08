@@ -1,12 +1,13 @@
 from __future__ import annotations
 import sys
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'app'))
-from dns_explicit import parse_response, fill_missing, digrc_absent as actual_digrc_absent
+from dns_explicit import parse_response, fill_missing
 from dns_wildcard import classify
 from execution import BudgetExceeded
 
@@ -22,11 +23,6 @@ def packet(host=HOST, rrtype='A', status='NOERROR', answer='', authority='exampl
 
 
 class ExplicitDNS(unittest.TestCase):
-    def setUp(self):
-        guard = patch('dns_explicit.digrc_absent', return_value=True)
-        guard.start()
-        self.addCleanup(guard.stop)
-
     def test_explicit_nxdomain_and_nodata(self):
         for status in ('NXDOMAIN', 'NOERROR'):
             self.assertEqual(parse_response(packet(status=status), HOST, 'A'), ())
@@ -88,6 +84,7 @@ class ExplicitDNS(unittest.TestCase):
             budget.consume.assert_called_once_with('dns_queries', 1)
             self.assertEqual(outcomes[0]['resolver'], '8.8.8.8')
             self.assertTrue((Path(directory) / outcomes[0]['raw_artifact']).is_file())
+            self.assertEqual(ctx.runner.run.call_args.kwargs['env_unset'], ('HOME',))
             args = ctx.runner.run.call_args.args[0]
             self.assertNotIn('-r', args)  # Apple dig 9.10 rejects this flag
             self.assertIn('+tries=1', args)
@@ -110,44 +107,40 @@ class ExplicitDNS(unittest.TestCase):
                 ctx = self.context(directory)
                 self.assertEqual(fill_missing(ctx, {HOST}, 'A', {}, 0, 0, {'used': 0, 'reserved': 0}), ([], 0))
 
-    def test_digrc_absence_requires_no_file_or_symlink(self):
-        with tempfile.TemporaryDirectory() as directory, patch('dns_explicit.Path.home', return_value=Path(directory)):
-            path = Path(directory) / '.digrc'
-            self.assertTrue(actual_digrc_absent())
-            path.write_text('+tcp')
-            self.assertFalse(actual_digrc_absent())
-            path.unlink()
-            path.symlink_to(Path(directory) / 'missing')
-            self.assertFalse(actual_digrc_absent())
-            path.unlink()
-            with patch('dns_explicit.Path.lstat', side_effect=PermissionError):
-                self.assertFalse(actual_digrc_absent())
-
-    def test_present_or_unreadable_digrc_blocks_without_spending_budget(self):
-        with tempfile.TemporaryDirectory() as directory, patch('dns_explicit.tool_path', return_value='dig'), patch('dns_explicit.digrc_absent', return_value=False):
-            ctx = self.context(directory, Mock())
-            outcomes, used = fill_missing(ctx, {HOST}, 'A', {}, 0, 0, {'used': 0, 'reserved': 0})
-            self.assertEqual(used, 0)
-            self.assertEqual(outcomes[0]['stop_reason'], 'digrc_not_absent')
-            ctx.budget.consume.assert_not_called()
-            ctx.runner.run.assert_not_called()
+    def test_child_environment_unset_overrides_env_without_mutating_parent(self):
+        from core import AppPaths, Logger, CommandRunner
+        with tempfile.TemporaryDirectory() as directory:
+            runner = CommandRunner(Logger(AppPaths.from_root(Path(directory)), verbose=False))
+            before = dict(os.environ)
+            output = Path(directory) / 'environment.txt'
+            result = runner.run(
+                [sys.executable, '-c', 'import os; print(os.environ.get("RECON_DNS_TEST_CONFIG", "absent"))'],
+                env={'RECON_DNS_TEST_CONFIG': 'must-be-removed'},
+                env_unset=('RECON_DNS_TEST_CONFIG',), output_path=output,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(output.read_text().strip(), 'absent')
+            self.assertEqual(dict(os.environ), before)
 
     def test_real_runner_apple_dig_argument_contract(self):
         from core import AppPaths, Logger, CommandRunner
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / 'apple-dig-contract'
-            executable.write_text('#!' + sys.executable + '\nimport sys\n'
+            executable.write_text('#!' + sys.executable + '\nimport sys, os\n'
                                   'if "-r" in sys.argv: print("Invalid option: -r"); sys.exit(1)\n'
+                                  'assert "HOME" not in os.environ, "implicit digrc configuration still enabled"\n'
                                   'assert sys.argv[1:4] == ["@8.8.8.8", "app.example.test", "A"]\n'
                                   'assert "+tries=1" in sys.argv and "+ignore" in sys.argv\n'
                                   'print(' + repr(packet(status='NXDOMAIN')) + ')\n')
             executable.chmod(0o700)
             ctx = self.context(directory)
+            before = dict(os.environ)
             ctx.runner = CommandRunner(Logger(AppPaths.from_root(Path(directory)), verbose=False))
             with patch('dns_explicit.tool_path', return_value=str(executable)):
                 values = {}
                 outcomes, used = fill_missing(ctx, {HOST}, 'A', values, 0, 0, {'used': 0, 'reserved': 0})
             self.assertEqual(used, 1)
+            self.assertEqual(dict(os.environ), before)
             self.assertEqual(outcomes[0]['exit_code'], 0)
             self.assertEqual(values[HOST], ())
 

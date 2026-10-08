@@ -4,24 +4,12 @@ from __future__ import annotations
 import ipaddress
 import re
 import time
-from pathlib import Path
 
 from core import normalize_host, tool_path, valid_domain
 from execution import BudgetExceeded
 
 RESOLVER = "8.8.8.8"
 MAX_QUERIES = 128
-
-
-def digrc_absent():
-    """Apple dig 9.10 rejects -r; never run with implicit user configuration."""
-    try:
-        (Path.home() / '.digrc').lstat()
-    except FileNotFoundError:
-        return True
-    except OSError:
-        return False
-    return False
 
 
 def parse_response(text: str, host: str, rrtype: str):
@@ -115,11 +103,6 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
         return outcomes, 0
     used = 0
     for host in sorted(expected - values.keys()):
-        if not digrc_absent():
-            outcomes.append({'source': 'dig', 'host': host, 'rrtype': rrtype,
-                             'round': repeat, 'resolver': RESOLVER,
-                             'stop_reason': 'digrc_not_absent', 'observation': None})
-            break
         if state['used'] >= MAX_QUERIES or ctx.next_requested():
             break
         if not ctx.policy.host_in_scope(host):
@@ -144,6 +127,9 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
             [dig, '@' + RESOLVER, host, rrtype, '+tries=1', '+timeout=2',
              '+ignore', '+noall', '+comments', '+question', '+answer', '+authority', '+stats'],
             timeout=min(5, ctx.policy.limits.timeout_seconds), output_path=output,
+            # BIND/Apple dig reads ~/.digrc only when HOME is present. Remove
+            # it in the child environment, without touching the parent or file.
+            env_unset=('HOME',),
             heartbeat=lambda: ctx.db.stage_heartbeat(ctx.run_id, ctx.policy.name, 'dns'),
         )
         observation = None
