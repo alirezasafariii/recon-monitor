@@ -198,7 +198,7 @@ class WildcardIntegrationTests(unittest.TestCase):
         ordinary = self.runner()
         def run(args, **kwargs):
             if args[0] == 'dig':
-                name, rrtype = args[3:5]
+                name, rrtype = args[2:4]
                 status = 'NXDOMAIN' if name.startswith('recon-wc-') else 'NOERROR'
                 answer = f'{name}. 30 IN A 192.0.2.20' if status == 'NOERROR' and rrtype == 'A' else ''
                 Path(kwargs['output_path']).write_text(packet(name, rrtype, status, answer))
