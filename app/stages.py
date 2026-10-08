@@ -992,6 +992,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_deadline_exhausted = False
     katana_budget_exhausted = False
     katana_budget_metric = ""
+    katana_completion_unverified = False
+    katana_nonzero_exit = False
     batch_outcomes: list[dict[str, Any]] = list(previous_outcomes)
     # Keep the prior partial run's raw evidence while rechecking its backlog.
     atomic_write_text(ctx.current / "katana-urls.txt", previous_crawl_lines)
@@ -1145,13 +1147,25 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_origins_attempted += len(batch_origins)
                 katana_observed += int(getattr(result, "lines", 0) or 0)
                 batch_exit = int(result.returncode)
+                katana_nonzero_exit |= batch_exit != 0
                 batch_timed_out = bool(getattr(result, "timed_out", False))
                 if katana_exit_code in {None, 0} or batch_timed_out:
                     katana_exit_code = batch_exit
                 katana_timed_out = katana_timed_out or batch_timed_out
                 operator_next = operator_next or bool(getattr(result, "operator_next", False)) or operator_next_requested()
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
-                batch_complete = batch_exit == 0 and not batch_timed_out and not bool(getattr(result, "operator_next", False))
+                # Zero exit can mean the internal crawl deadline expired. Duration
+                # is only a conservative uncertainty guard, not proof of timeout.
+                batch_completion_unverified = (
+                    not uncapped_katana and batch_exit == 0 and not batch_timed_out
+                    and float(getattr(result, "duration", 0.0) or 0.0) >= batch_crawl_seconds
+                )
+                katana_completion_unverified |= batch_completion_unverified
+                batch_complete = (
+                    batch_exit == 0 and not batch_timed_out
+                    and not batch_completion_unverified
+                    and not bool(getattr(result, "operator_next", False))
+                )
                 batch_outcomes.append({
                     "batch": batch_number,
                     "origins": len(batch_origins),
@@ -1164,15 +1178,18 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "rate_limit": katana_rate_limit,
                     "exit_code": batch_exit,
                     "timed_out": batch_timed_out,
+                    "completion_verified": batch_complete,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),
                     "status": "completed" if batch_complete else (
                         "operator_next" if bool(getattr(result, "operator_next", False)) else
-                        "timeout" if batch_timed_out else "nonzero_exit"
+                        "timeout" if batch_timed_out else
+                        "completion_unverified" if batch_completion_unverified else "nonzero_exit"
                     ),
                     "stop_reason": (
                         "operator_next" if bool(getattr(result, "operator_next", False)) else
                         "timeout" if batch_timed_out else
+                        "crawl_completion_unverified" if batch_completion_unverified else
                         "nonzero_exit" if batch_exit else "completed"
                     ),
                 })
@@ -1219,7 +1236,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             katana_status = (
                 "operator_next" if operator_next else
                 "timeout" if katana_timed_out else
-                "nonzero_exit" if katana_batches_incomplete else
+                "nonzero_exit" if katana_nonzero_exit else
+                "partial" if katana_completion_unverified else
                 "budget_exhausted" if katana_budget_exhausted else
                 "partial" if katana_pending_origins or katana_deadline_exhausted else
                 "completed"
@@ -1227,7 +1245,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             katana_stop_reason = (
                 "operator_next" if operator_next else
                 "batch_timeout" if katana_timed_out else
-                "nonzero_exit" if katana_batches_incomplete else
+                "nonzero_exit" if katana_nonzero_exit else
+                "crawl_completion_unverified" if katana_completion_unverified else
                 "global_deadline" if katana_deadline_exhausted else
                 "runtime_budget" if katana_budget_metric == "runtime_seconds" else
                 "request_budget" if katana_pending_origins else

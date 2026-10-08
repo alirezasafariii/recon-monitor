@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 from javascript_normalization import normalize_javascript
 
-APP_VERSION = "8.8.13"
+APP_VERSION = "8.8.14"
 SCHEMA_VERSION = 18
 UTC = dt.timezone.utc
 

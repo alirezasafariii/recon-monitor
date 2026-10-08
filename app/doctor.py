@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -20,6 +21,7 @@ from core import (
     ReconError,
     TelegramNotifier,
     collect_tool_versions,
+    tool_version,
     parse_int,
     process_alive,
 )
@@ -53,6 +55,10 @@ def _tool_help_has(tool: str, tokens: list[str]) -> tuple[bool, str]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, str(exc)
     missing = [token for token in tokens if token not in proc.stdout]
+    if not missing and tool == "katana":
+        _, version = tool_version(tool)
+        if re.search(r"\bv?1\.6\.1\b", version):
+            return False, "Katana 1.6.1 has a crawl queue cancellation defect; upgrade to verified 1.8.0 or a later validated release. Do not increase Recon timeouts to compensate."
     return not missing, "missing flags: " + ", ".join(missing) if missing else "compatible flags detected"
 
 
