@@ -2,9 +2,9 @@
 
 <!-- recon-monitor-current: app=8.8.14 schema=18 -->
 
-## Current release: Explicit Negative DNS Evidence
+## Current release: Katana Completion Integrity
 
-Recon Monitor 8.8.14 preserves downstream DNS coverage through collector failures and recomputes asset resolution after explicit negative observations. Fresh, preserved and effective host counts are reported separately. New wildcard-positive classification requires explicit evidence and is not inferred from omitted output. Historical DNS damage is not automatically repaired.
+Recon Monitor 8.8.14 conservatively marks bounded Katana zero-exit crawls as completion-unverified when their duration reaches an internal crawl limit. Partial URLs are retained and uncertain origins stay pending; timeouts and request budgets are unchanged. Doctor warns about the Katana 1.6.1 queue cancellation defect. Upgrade the external binary separately; local macOS Katana 1.8.0 tests do not establish full target coverage.
 
 The canonical application version is **8.8.14** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
 
