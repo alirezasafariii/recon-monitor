@@ -1,0 +1,91 @@
+# Experimental Katana queue lifecycle patch
+
+Status: local prototype only. This is not integrated into Recon Monitor, not
+an official ProjectDiscovery release, and must not replace an installed Katana.
+The Recon request budget, rate, deadlines and completion guard are unchanged.
+
+## Pinned producer and build
+
+Apply `katana-v1.8.0-tracked-queue.patch` to ProjectDiscovery Katana tag v1.8.0,
+commit `35267ac5c8ff1db9694a319d0eb466ed97b0969f` in an isolated checkout.
+The comparison used Go 1.26.1 on Linux for BOTH source builds, unchanged go.mod
+and go.sum, and `go build -buildvcs=false`. The prototype executable was kept
+in /tmp, never installed. No remote target scan was performed.
+
+```bash
+git apply --check /path/to/katana-v1.8.0-tracked-queue.patch
+git apply /path/to/katana-v1.8.0-tracked-queue.patch
+go test -race -count=20 ./pkg/utils/queue
+go build -buildvcs=false -o /tmp/katana-queue-prototype ./cmd/katana
+```
+
+From the Recon checkout, run the fixed loopback fixtures against each build:
+
+```bash
+python3 tools/katana_queue_local_acceptance.py --binary /tmp/katana-queue-prototype --scenario fast
+python3 tools/katana_queue_local_acceptance.py --binary /tmp/katana-queue-prototype --scenario slow
+python3 tools/katana_queue_local_acceptance.py --binary /tmp/katana-queue-prototype --scenario short-idle
+python3 tools/katana_queue_local_acceptance.py --binary /tmp/katana-queue-prototype --scenario deadline
+```
+
+
+## Observed problem and change
+
+The old queue waits for Options.Timeout after the last pop even when all work
+is finished. If this idle interval expires while a worker is still reading a
+response, the queue can stop before that worker enqueues its child links.
+
+The prototype adds a separate tracked-pop API. Items are counted as active
+before delivery. A discarded item releases its reservation; a worker releases
+its reservation only after response parsing and child enqueueing. Empty pending
+work with active workers waits on a condition variable. Pending=0 and active=0
+ends immediately. Context cancellation wakes waiting consumers. The legacy API
+remains available; the shared standard crawl loop opts into the tracked API.
+No HTTP timeout or crawl-duration setting is reduced or extended.
+
+## Local acceptance
+
+Each fixture binds only 127.0.0.1. The root links to /slow, whose HTML alone
+links to /proof; /proof has no children. The slow response delays its headers
+by three seconds. The deadline fixture delays by six seconds. Depth=3,
+concurrency=1, input parallelism=1, rate=3, retries=0. Each subprocess has an
+independent 15-second outer deadline. Output URLs and server-side requested
+paths jointly establish whether the delayed link was traversed.
+
+| Build | Delay | -timeout | -ct | Duration | /proof found |
+| --- | --- | --- | --- | --- | --- |
+| Unpatched source | 0s | 30 | 6s | 6.044s | yes |
+| Unpatched source | 3s | 30 | 8s | 8.038s | yes |
+| Unpatched source | 3s | 2 | 8s | 4.044s | no |
+| Prototype | 3s | 2 | 8s | 3.051s | yes |
+| Prototype, deadline | 6s | 30 | 2s | 2.040s | no |
+
+Additional prototype runs with -timeout=30 completed the fast fixture in
+0.049s and the delayed fixture in 3.052s, both preserving all three pages.
+Both queue strategies, active-parent child preservation, cancellation during
+active work, cancellation during blocked delivery and empty queue completion
+passed `go test -race -count=20 ./pkg/utils/queue`.
+
+All binaries returned rc=0, INCLUDING the true deadline case. Request error
+logs were empty in the original lost-child case. Neither rc=0 nor an empty
+error log proves completion. The machine-readable paired results are stored
+in `katana-queue-linux-acceptance.json`.
+
+## Important correction and remaining work
+
+The initial assumption that lowering -timeout necessarily cut the HTTP request
+was too strong. In the paired source test the worker could finish its delayed
+response but its child was lost by premature queue shutdown. Inspection also
+shows retryablehttp DefaultOptionsSingle.Timeout (30 seconds) can overwrite
+the custom HTTP client timeout in this pinned dependency. This prototype does
+not fix or certify that independent HTTP-timeout contract.
+
+This demonstrates queue lifecycle behavior, not production readiness or
+exhaustive page coverage. Before any Recon integration, require a versioned,
+per-origin completion contract reporting context/deadline termination, request
+errors, explicit truncation and quiescent completion; test it against failed
+requests, sibling workers, concurrency and skipped/out-of-scope work. The
+request-error and deadline cases must remain partial. Missing/malformed
+completion evidence must preserve pending state. No duration heuristic should
+be relaxed based on this prototype. macOS acceptance and the full upstream
+Katana suite remain pending. Headless/hybrid modes are not validated here.

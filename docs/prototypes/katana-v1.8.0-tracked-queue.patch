@@ -1,0 +1,240 @@
+diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
+index b6da330..f555932 100644
+--- a/pkg/engine/common/base.go
++++ b/pkg/engine/common/base.go
+@@ -404,13 +404,15 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+ // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
+ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 	wg := sizedwaitgroup.New(s.Options.Options.Concurrency)
+-	for item := range crawlSession.Queue.PopWithContext(crawlSession.Ctx) {
++	for item := range crawlSession.Queue.PopTrackedWithContext(crawlSession.Ctx) {
+ 		if crawlSession.Ctx.Err() != nil {
++			crawlSession.Queue.DoneItem()
+ 			break
+ 		}
+ 
+ 		req, ok := item.(*navigation.Request)
+ 		if !ok {
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+@@ -419,21 +421,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 				s.Options.Options.OnSkipURL(req.URL)
+ 			}
+ 			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+ 		if !s.Options.ValidatePath(req.URL) {
+ 			gologger.Debug().Msgf("`%v` filtered path. skipping", req.URL)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+ 		inScope, scopeErr := s.Options.ValidateScope(req.URL, crawlSession.Hostname)
+ 		if scopeErr != nil {
+ 			gologger.Debug().Msgf("Error validating scope for `%v`: %v. skipping", req.URL, scopeErr)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 		if !req.SkipValidation && !inScope {
+ 			gologger.Debug().Msgf("`%v` not in scope. skipping", req.URL)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+@@ -441,6 +447,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
+ 		go func() {
+ 			defer wg.Done()
++			defer crawlSession.Queue.DoneItem()
+ 
+ 			// Race Take() against the session context so that workers
+ 			// don't block shutdown waiting for the next limiter tick
+diff --git a/pkg/utils/queue/queue.go b/pkg/utils/queue/queue.go
+index cbaebd4..8a326b0 100644
+--- a/pkg/utils/queue/queue.go
++++ b/pkg/utils/queue/queue.go
+@@ -23,6 +23,8 @@ type Queue struct {
+ 	Strategy      Strategy
+ 	stack         *stack
+ 	priorityQueue *priorityQueue
++	active        int
++	changed       *sync.Cond
+ }
+ 
+ // New creates a new queue from the type specified.
+@@ -38,6 +40,7 @@ func New(strategyName string, timeout int) (*Queue, error) {
+ 		stack:         newStack(),
+ 		priorityQueue: newPriorityQueue(),
+ 	}
++	queue.changed = sync.NewCond(&queue.Mutex)
+ 
+ 	return queue, nil
+ }
+@@ -68,6 +71,66 @@ func (q *Queue) Push(x interface{}, priority int) {
+ 	case DepthFirst:
+ 		q.stack.Push(x)
+ 	}
++	q.changed.Broadcast()
++}
++
++// DoneItem releases a tracked item after its children have been enqueued.
++func (q *Queue) DoneItem() {
++	q.Lock()
++	defer q.Unlock()
++	if q.active <= 0 {
++		panic("queue: unbalanced DoneItem")
++	}
++	q.active--
++	q.changed.Broadcast()
++}
++
++// PopTrackedWithContext finishes only when pending and in-flight work are
++// both empty. Every delivered item must be paired with DoneItem.
++func (q *Queue) PopTrackedWithContext(ctx context.Context) chan interface{} {
++	items := make(chan interface{})
++	go func() {
++		defer close(items)
++		stop := context.AfterFunc(ctx, func() {
++			q.Lock()
++			q.changed.Broadcast()
++			q.Unlock()
++		})
++		defer stop()
++		for {
++			q.Lock()
++			var item interface{}
++			for {
++				if ctx.Err() != nil {
++					q.Unlock()
++					return
++				}
++				switch q.Strategy {
++				case BreadthFirst:
++					item = q.priorityQueue.Pop()
++				case DepthFirst:
++					item = q.stack.Pop()
++				}
++				if item != nil {
++					q.active++
++					break
++				}
++				if q.active == 0 {
++					q.Unlock()
++					return
++				}
++				q.changed.Wait()
++			}
++			q.Unlock()
++			select {
++			case items <- item:
++			case <-ctx.Done():
++				q.DoneItem()
++				return
++			}
++		}
++	}()
++	return items
+ }
+ 
+ // Pop pops elements from the queue (backward-compatible, no context).
+diff --git a/pkg/utils/queue/tracked_test.go b/pkg/utils/queue/tracked_test.go
+new file mode 100644
+index 0000000..2143865
+--- /dev/null
++++ b/pkg/utils/queue/tracked_test.go
+@@ -0,0 +1,91 @@
++package queue
++
++import (
++	"context"
++	"testing"
++	"time"
++)
++
++func trackedReceive(t *testing.T, ch <-chan interface{}) interface{} {
++	t.Helper()
++	select {
++	case item, ok := <-ch:
++		if !ok {
++			t.Fatal("queue ended before work completed")
++		}
++		return item
++	case <-time.After(time.Second):
++		t.Fatal("queue failed to deliver work")
++		return nil
++	}
++}
++
++func trackedClosed(t *testing.T, ch <-chan interface{}) {
++	t.Helper()
++	select {
++	case _, ok := <-ch:
++		if ok {
++			t.Fatal("unexpected work")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("queue failed to close")
++	}
++}
++
++func TestTrackedQueueWaitsForActiveParentAndKeepsChildren(t *testing.T) {
++	for _, strategy := range []string{"depth-first", "breadth-first"} {
++		t.Run(strategy, func(t *testing.T) {
++			q, err := New(strategy, 30)
++			if err != nil {
++				t.Fatal(err)
++			}
++			q.Push("parent", 0)
++			items := q.PopTrackedWithContext(context.Background())
++			if trackedReceive(t, items) != "parent" {
++				t.Fatal("wrong parent")
++			}
++			select {
++			case <-items:
++				t.Fatal("empty queue was mistaken for completed crawl")
++			case <-time.After(20 * time.Millisecond):
++			}
++			q.Push("child", 0)
++			q.DoneItem()
++			if trackedReceive(t, items) != "child" {
++				t.Fatal("child lost")
++			}
++			q.DoneItem()
++			trackedClosed(t, items)
++		})
++	}
++}
++
++func TestTrackedQueueCancellationWhileWorkerActive(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	q.Push("parent", 0)
++	ctx, cancel := context.WithCancel(context.Background())
++	items := q.PopTrackedWithContext(ctx)
++	trackedReceive(t, items)
++	cancel()
++	trackedClosed(t, items)
++	q.DoneItem()
++}
++
++func TestTrackedQueueCancellationWhileSendBlocked(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	q.Push("parent", 0)
++	ctx, cancel := context.WithCancel(context.Background())
++	items := q.PopTrackedWithContext(ctx)
++	cancel()
++	trackedClosed(t, items)
++	q.Lock()
++	defer q.Unlock()
++	if q.active != 0 {
++		t.Fatal("discarded item leaked active reservation")
++	}
++}
++
++func TestTrackedEmptyQueueDoesNotWaitForRequestTimeout(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	trackedClosed(t, q.PopTrackedWithContext(context.Background()))
++}
