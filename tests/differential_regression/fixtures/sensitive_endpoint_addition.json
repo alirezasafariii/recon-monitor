@@ -1,0 +1,13 @@
+{
+  "name": "sensitive_endpoint_addition",
+  "before": {
+    "exists": false
+  },
+  "after": {
+    "exists": true,
+    "path": "/api/admin/export"
+  },
+  "expected": {
+    "signals": ["new_sensitive_endpoint"]
+  }
+}

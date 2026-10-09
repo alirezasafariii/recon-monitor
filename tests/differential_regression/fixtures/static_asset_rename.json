@@ -1,0 +1,12 @@
+{
+  "name": "static_asset_rename_noise",
+  "before": {
+    "asset": "static/app-old.js"
+  },
+  "after": {
+    "asset": "static/app-new.js"
+  },
+  "expected": {
+    "signals": []
+  }
+}
