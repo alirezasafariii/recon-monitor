@@ -1,10 +1,36 @@
+diff --git a/cmd/katana/main.go b/cmd/katana/main.go
+index 9b9226b..f3e11e2 100644
+--- a/cmd/katana/main.go
++++ b/cmd/katana/main.go
+@@ -236,6 +236,7 @@ func readFlags() (*goflags.FlagSet, error) {
+ 	// Output group
+ 	flagSet.CreateGroup("output", "Output",
+ 		flagSet.StringVarP(&options.OutputFile, "output", "o", "", "file to write output to"),
++		flagSet.StringVar(&options.ReconCompletionLog, "recon-completion-log", "", "EXPERIMENTAL v1 per-origin standard-engine completion JSONL"),
+ 		flagSet.StringVarP(&options.OutputTemplate, "output-template", "ot", "", "custom output template"),
+ 		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
+ 		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..f555932 100644
+index b6da330..7eff30c 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
-@@ -404,13 +404,15 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +402,28 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+ //
+ // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
- func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+-func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
++func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) (retErr error) {
++	var attempted, failed, limited atomic.Int64
++	defer func() {
++		if path := s.Options.Options.ReconCompletionLog; path != "" {
++			pending, active := crawlSession.Queue.WorkState()
++			if cap := s.Options.Options.MaxDomainPages; cap > 0 && s.DomainCounter(crawlSession.Hostname).Load() >= int64(cap) {
++				limited.Add(1) // Reaching the cap cannot certify frontier exhaustion.
++			}
++			report := newCompletion(crawlSession.URL.String(), crawlSession.Ctx.Err(), attempted.Load(), failed.Load(), limited.Load(), pending, active)
++			if err := writeCompletion(path, report); err != nil { retErr = errkit.Wrap(err, "completion artifact") }
++		}
++	}()
  	wg := sizedwaitgroup.New(s.Options.Options.Concurrency)
 -	for item := range crawlSession.Queue.PopWithContext(crawlSession.Ctx) {
 +	for item := range crawlSession.Queue.PopTrackedWithContext(crawlSession.Ctx) {
@@ -19,7 +45,7 @@ index b6da330..f555932 100644
  			continue
  		}
  
-@@ -419,21 +421,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +432,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -45,7 +71,7 @@ index b6da330..f555932 100644
  			continue
  		}
  
-@@ -441,6 +447,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +458,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -53,8 +79,194 @@ index b6da330..f555932 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
+@@ -483,13 +501,16 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 			if s.Options.Options.MaxDomainPages > 0 {
+ 				counter := s.DomainCounter(crawlSession.Hostname)
+ 				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
++					limited.Add(1)
+ 					return
+ 				}
+ 			}
+ 
++			attempted.Add(1)
+ 			resp, err := doRequest(crawlSession, req)
+ 
+ 			if resp != nil && IsThrottled(resp.StatusCode) {
++				failed.Add(1)
+ 				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
+ 			} else if resp != nil {
+ 				s.RecordSuccess(crawlSession.Hostname)
+@@ -500,6 +521,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 			}
+ 
+ 			if err != nil {
++				failed.Add(1)
+ 				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
+ 				outputError := &output.Error{
+ 					Timestamp: time.Now(),
+@@ -511,6 +533,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 				return
+ 			}
+ 			if resp == nil || resp.Resp == nil || resp.Reader == nil {
++				failed.Add(1)
+ 				return
+ 			}
+ 			if s.Options.Options.DisableRedirects && resp.IsRedirect() {
+diff --git a/pkg/engine/common/recon_completion.go b/pkg/engine/common/recon_completion.go
+new file mode 100644
+index 0000000..6258673
+--- /dev/null
++++ b/pkg/engine/common/recon_completion.go
+@@ -0,0 +1,59 @@
++package common
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"os"
++	"sync"
++)
++
++const completionContract = "recon.katana.standard.completion.v1"
++
++type reconCompletion struct {
++	Contract   string `json:"contract"`
++	Origin     string `json:"origin"`
++	StopReason string `json:"stop_reason"`
++	Attempted  int64  `json:"attempted_requests"`
++	Failed     int64  `json:"failed_requests"`
++	Limited    int64  `json:"limited_requests"`
++	Pending    int    `json:"pending_items"`
++	Active     int    `json:"active_items"`
++}
++
++func newCompletion(origin string, ctxErr error, attempted, failed, limited int64, pending, active int) reconCompletion {
++	reason := "queue_exhausted"
++	switch {
++	case errors.Is(ctxErr, context.DeadlineExceeded):
++		reason = "deadline"
++	case ctxErr != nil:
++		reason = "cancelled"
++	case limited > 0:
++		reason = "page_limit"
++	case failed > 0:
++		reason = "request_errors"
++	case attempted == 0 || pending != 0 || active != 0:
++		reason = "unknown"
++	}
++	return reconCompletion{completionContract, origin, reason, attempted, failed, limited, pending, active}
++}
++
++var completionMu sync.Mutex
++
++func writeCompletion(path string, report reconCompletion) error {
++	completionMu.Lock()
++	defer completionMu.Unlock()
++	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
++	if err != nil {
++		return err
++	}
++	if err := json.NewEncoder(f).Encode(report); err != nil {
++		_ = f.Close()
++		return err
++	}
++	if err := f.Sync(); err != nil {
++		_ = f.Close()
++		return err
++	}
++	return f.Close()
++}
+diff --git a/pkg/engine/common/recon_completion_test.go b/pkg/engine/common/recon_completion_test.go
+new file mode 100644
+index 0000000..057f3ed
+--- /dev/null
++++ b/pkg/engine/common/recon_completion_test.go
+@@ -0,0 +1,69 @@
++package common
++
++import (
++	"context"
++	"encoding/json"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestReconCompletionNeverConfusesStopsWithQuiescence(t *testing.T) {
++	cases := []struct {
++		name                       string
++		err                        error
++		attempted, failed, limited int64
++		pending, active            int
++		want                       string
++	}{
++		{"complete", nil, 3, 0, 0, 0, 0, "queue_exhausted"},
++		{"deadline", context.DeadlineExceeded, 2, 1, 0, 1, 0, "deadline"},
++		{"cancelled", context.Canceled, 2, 0, 0, 0, 0, "cancelled"},
++		{"request error", nil, 3, 1, 0, 0, 0, "request_errors"},
++		{"page limit", nil, 3, 0, 1, 0, 0, "page_limit"},
++		{"no observation", nil, 0, 0, 0, 0, 0, "unknown"},
++		{"pending", nil, 3, 0, 0, 1, 0, "unknown"},
++		{"active", nil, 3, 0, 0, 0, 1, "unknown"},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			r := newCompletion("http://127.0.0.1:1234/", tc.err, tc.attempted, tc.failed, tc.limited, tc.pending, tc.active)
++			if r.StopReason != tc.want {
++				t.Fatalf("got %s want %s", r.StopReason, tc.want)
++			}
++			if r.Contract != completionContract {
++				t.Fatal("missing contract identity")
++			}
++		})
++	}
++}
++
++func TestReconCompletionArtifactIsJSONLAndWriteFailureIsReturned(t *testing.T) {
++	dir := t.TempDir()
++	path := filepath.Join(dir, "completion.jsonl")
++	r := newCompletion("http://127.0.0.1:1234/", nil, 3, 0, 0, 0, 0)
++	if err := writeCompletion(path, r); err != nil {
++		t.Fatal(err)
++	}
++	if err := writeCompletion(path, r); err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.Open(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	d := json.NewDecoder(f)
++	for i := 0; i < 2; i++ {
++		var got reconCompletion
++		if err := d.Decode(&got); err != nil {
++			t.Fatal(err)
++		}
++		if got != r {
++			t.Fatal("artifact changed report")
++		}
++	}
++	if err := writeCompletion(dir, r); err == nil {
++		t.Fatal("write failure hidden")
++	}
++}
+diff --git a/pkg/types/options.go b/pkg/types/options.go
+index e395c2a..15f9d97 100644
+--- a/pkg/types/options.go
++++ b/pkg/types/options.go
+@@ -169,6 +169,8 @@ type Options struct {
+ 	PprofServer bool
+ 	// ErrorLogFile specifies a file to write with the errors of all requests
+ 	ErrorLogFile string
++	// ReconCompletionLog is an experimental standard-engine completion artifact.
++	ReconCompletionLog string
+ 	// Resolvers contains custom resolvers
+ 	Resolvers goflags.StringSlice
+ 	// OutputTemplate enables custom output template
 diff --git a/pkg/utils/queue/queue.go b/pkg/utils/queue/queue.go
-index cbaebd4..8a326b0 100644
+index cbaebd4..4f4012d 100644
 --- a/pkg/utils/queue/queue.go
 +++ b/pkg/utils/queue/queue.go
 @@ -23,6 +23,8 @@ type Queue struct {
@@ -74,7 +286,7 @@ index cbaebd4..8a326b0 100644
  
  	return queue, nil
  }
-@@ -68,6 +71,66 @@ func (q *Queue) Push(x interface{}, priority int) {
+@@ -68,6 +71,77 @@ func (q *Queue) Push(x interface{}, priority int) {
  	case DepthFirst:
  		q.stack.Push(x)
  	}
@@ -90,6 +302,17 @@ index cbaebd4..8a326b0 100644
 +	}
 +	q.active--
 +	q.changed.Broadcast()
++}
++
++// WorkState is a synchronized snapshot of pending and tracked active work.
++func (q *Queue) WorkState() (int, int) {
++	q.Lock()
++	defer q.Unlock()
++	pending := q.stack.Len()
++	if q.Strategy == BreadthFirst {
++		pending = q.priorityQueue.Len()
++	}
++	return pending, q.active
 +}
 +
 +// PopTrackedWithContext finishes only when pending and in-flight work are

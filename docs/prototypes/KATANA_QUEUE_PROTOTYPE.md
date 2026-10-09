@@ -89,3 +89,27 @@ request-error and deadline cases must remain partial. Missing/malformed
 completion evidence must preserve pending state. No duration heuristic should
 be relaxed based on this prototype. macOS acceptance and the full upstream
 Katana suite remain pending. Headless/hybrid modes are not validated here.
+
+## Experimental completion contract (v1)
+
+The patched standard engine accepts `-recon-completion-log PATH`. Each origin
+appends one JSONL event with contract `recon.katana.standard.completion.v1`,
+origin, stop_reason, attempted_requests, failed_requests, limited_requests,
+pending_items and active_items. Queue exhaustion requires at least one request,
+zero failed/limited requests, and zero pending/active work. Reaching a page cap
+is conservatively partial, even if no further link was observed. Deadline,
+cancellation and request errors cannot certify completion despite rc=0.
+
+`tools/katana_completion_contract.py` is an experimental reader, deliberately
+not imported by production stages. It rejects missing, duplicate, unexpected,
+malformed, unsupported or inconsistent events and preserves missing siblings
+as unknown. An empty error log is never completion evidence. Use
+`--completion-contract` with the loopback acceptance script for patched builds.
+
+Linux producer-to-reader acceptance is recorded separately in
+`katana-completion-linux-acceptance.json`. Fast and delayed child traversals
+reported queue_exhausted; the true deadline reported partial. These establish
+bounded standard-engine queue semantics, not exhaustive website coverage.
+Request-error and page-limit fixtures also reported partial despite rc=0.
+Broader concurrency, upstream suite,
+macOS and headless validation remain necessary before production integration.
