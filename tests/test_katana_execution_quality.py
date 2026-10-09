@@ -322,24 +322,50 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertFalse(metrics["katana_timed_out"])
             self.assertEqual(metrics["katana_exit_code"], 0)
 
-    def test_one_request_budget_still_launches_one_bounded_attempt(self) -> None:
+    def test_insufficient_runtime_keeps_origin_pending_without_launch(self):
         with tempfile.TemporaryDirectory() as tmp:
-            def fake_run(_args, **kwargs):
-                self.assertGreater(kwargs["timeout"], 0)
-                self.assertLessEqual(kwargs["timeout"], 1)
-                Path(kwargs["output_path"]).write_text("")
-                return SimpleNamespace(returncode=124, timed_out=True, duration=1.1, lines=0)
-
-            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            runner = MagicMock()
+            ctx = self._context(Path(tmp), runner)
             ctx.budget = MagicMock()
             ctx.budget.snapshot.return_value = {"http_requests": {"used": 99, "limit": 100}}
             with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
                 "stages._probe_live_origins", return_value=(["https://example.test"], []),
             ):
                 metrics = stage_urls(ctx)
-            self.assertEqual(metrics["katana_batches_attempted"], 1)
-            self.assertEqual(metrics["katana_reserved_requests"], 1)
-            ctx.budget.consume.assert_called_once_with("http_requests", 1)
+            runner.run.assert_not_called()
+            ctx.budget.consume.assert_not_called()
+            self.assertEqual(metrics["katana_batches_attempted"], 0)
+            self.assertEqual(metrics["katana_reserved_requests"], 0)
+            self.assertEqual(metrics["katana_pending_origins"], 1)
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_budget_metric"], "katana_batch_runtime")
+
+    def test_sixty_origins_exit_inside_existing_batch_envelope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            seen = []
+            def fake_run(args, **kwargs):
+                hosts = Path(args[args.index("-list") + 1]).read_text().splitlines()
+                seconds = int(args[args.index("-ct") + 1][:-1])
+                duration = len(hosts) * seconds + 0.2
+                self.assertLess(duration, kwargs["timeout"])
+                seen.append((seconds, kwargs["timeout"]))
+                Path(kwargs["output_path"]).write_text(hosts[0] + "/app.js\n")
+                return SimpleNamespace(returncode=0, timed_out=False, duration=duration, lines=1)
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            ctx.budget = MagicMock()
+            ctx.budget.snapshot.return_value = {"http_requests": {"used": 0, "limit": 2700}}
+            live = [f"https://{i}.example.test" for i in range(60)]
+            with patch("stages.tool_path", side_effect=lambda tool: tool == "katana"), patch(
+                "stages._probe_live_origins", return_value=(live, []),
+            ):
+                metrics = stage_urls(ctx)
+            self.assertEqual(len(seen), 12)
+            self.assertEqual(seen[0], (14, 75.0))
+            self.assertFalse(metrics["katana_timed_out"])
+            self.assertEqual(metrics["katana_pending_origins"], 60)
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertLessEqual(metrics["katana_reserved_requests"], 2700)
+            self.assertEqual(ctx.policy.limits.timeout_seconds, 1800)
 
     def test_budget_exhaustion_after_success_keeps_only_unfinished_origins_pending(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

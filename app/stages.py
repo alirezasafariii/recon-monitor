@@ -1090,8 +1090,19 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     )
                     batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
                     batch_reservation = min(batch_allowance, math.ceil(batch_timeout * katana_rate_limit))
+                    # Reserve shutdown/startup time inside the existing wall
+                    # envelope; -p 1 makes crawl durations sequential. Never
+                    # extend the request reservation or the global deadline.
+                    batch_exit_margin = min(5.0, max(0.5, batch_timeout * 0.1))
+                    affordable_crawl_seconds = int(
+                        (batch_timeout - batch_exit_margin) / len(batch_origins)
+                    )
+                    if affordable_crawl_seconds < 1:
+                        katana_budget_exhausted = True
+                        katana_budget_metric = "katana_batch_runtime"
+                        break
                     batch_crawl_seconds = min(
-                        katana_crawl_seconds, max(1, int(batch_timeout / len(batch_origins))),
+                        katana_crawl_seconds, affordable_crawl_seconds,
                     )
                     if ctx.budget:
                         try:
