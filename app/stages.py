@@ -1115,6 +1115,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_number = len(previous_outcomes) + (batch_offset // 5) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
+                batch_errors = ctx.current / f"katana-batch-{batch_number:03d}-errors.jsonl"
+                # Katana's silent mode suppresses useful request diagnostics.
+                # Keep its explicit error log separate from URL evidence and
+                # discard stale content before this invocation.
+                atomic_write_text(batch_errors, "")
+                batch_request_timeout = min(
+                    30, max(5, ctx.policy.limits.timeout_seconds // 10),
+                )
                 atomic_write_text(
                     batch_input,
                     "".join(f"{url}\n" for url in batch_origins),
@@ -1123,6 +1131,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "katana",
                     "-list", str(batch_input),
                     "-silent", "-duc", "-jc",
+                    "-elog", str(batch_errors),
                     "-d", str(ctx.policy.limits.crawl_depth),
                     "-cs", _katana_scope_regex(batch_origins),
                     "-rl", str(katana_rate_limit),
@@ -1130,9 +1139,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "-retry", "0",
                     "-c", str(plan["concurrency"]),
                     "-p", "1",
-                    "-timeout", str(
-                        min(30, max(5, ctx.policy.limits.timeout_seconds // 10))
-                    ),
+                    "-timeout", str(batch_request_timeout),
                 ]
                 # In the explicitly uncapped mode, do not impose an internal
                 # crawl-duration limit or an outer process wall clock. A manual
@@ -1185,6 +1192,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "finished_at": utc_now(),
                     "timeout_seconds": round(batch_timeout, 6) if batch_timeout is not None else None,
                     "crawl_seconds_per_origin": batch_crawl_seconds,
+                    "request_timeout_seconds": batch_request_timeout,
+                    "request_error_artifact": batch_errors.name,
                     "reserved_requests": batch_reservation,
                     "rate_limit": katana_rate_limit,
                     "exit_code": batch_exit,

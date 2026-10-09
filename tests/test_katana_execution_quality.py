@@ -88,6 +88,36 @@ class KatanaExecutionQualityTests(unittest.TestCase):
                 ctx.current / "urls.txt"
             ).read_text(encoding="utf-8"))
 
+    def test_request_errors_are_separate_and_stale_diagnostics_are_cleared(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            error_line = json.dumps({"endpoint": "https://example.test/slow",
+                                     "error": "request deadline exceeded"})
+
+            def fake_run(args, **kwargs):
+                errors = Path(args[args.index("-elog") + 1])
+                self.assertEqual(errors.read_text(), "")
+                self.assertEqual(args[args.index("-timeout") + 1], "30")
+                errors.write_text(error_line + "\n")
+                Path(kwargs["output_path"]).write_text("https://example.test/app.js\n")
+                seconds = int(args[args.index("-ct") + 1][:-1])
+                return SimpleNamespace(returncode=0, timed_out=False,
+                                       duration=seconds, lines=1)
+
+            ctx = self._context(Path(tmp), SimpleNamespace(run=fake_run))
+            errors = ctx.current / "katana-batch-001-errors.jsonl"
+            errors.write_text("stale diagnostic\n")
+            with patch("stages.tool_path", side_effect=lambda t: t == "katana"), patch(
+                "stages._probe_live_origins", return_value=(["https://example.test"], []),
+            ):
+                metrics = stage_urls(ctx)
+            outcome = metrics["katana_batch_outcomes"][0]
+            self.assertEqual(outcome["request_timeout_seconds"], 30)
+            self.assertEqual(outcome["request_error_artifact"], errors.name)
+            self.assertEqual(errors.read_text(), error_line + "\n")
+            self.assertNotIn("request deadline exceeded", (ctx.current / "urls.txt").read_text())
+            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertFalse(outcome["completion_verified"])
+
     def _check_internal_deadline_exit(self, multiplier):
         with tempfile.TemporaryDirectory() as tmp:
             def fake_run(args, **kwargs):
