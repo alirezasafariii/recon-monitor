@@ -1,0 +1,43 @@
+name: Katana frontier prototype
+on:
+  pull_request:
+    paths:
+      - 'app/stages.py'
+      - 'docs/prototypes/katana-v1.8.0-frontier.patch'
+      - 'tools/katana_frontier*'
+      - '.github/workflows/katana-frontier-prototype.yml'
+permissions:
+  contents: read
+jobs:
+  frontier:
+    name: Durable frontier on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: projectdiscovery/katana
+          ref: 35267ac5c8ff1db9694a319d0eb466ed97b0969f
+          path: katana-source
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.5'
+          cache-dependency-path: katana-source/go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Apply pinned producer patch
+        run: |
+          git -C katana-source apply --check ../docs/prototypes/katana-v1.8.0-frontier.patch
+          git -C katana-source apply ../docs/prototypes/katana-v1.8.0-frontier.patch
+      - name: Race, producer and real stage acceptance
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          cd katana-source
+          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue -run 'Test(ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics)'
+          go build -buildvcs=false -o /tmp/katana-frontier ./cmd/katana
+          cd ..
+          python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
+          python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/stage.json

@@ -839,6 +839,19 @@ def _katana_completion_supported(ctx) -> bool:
         return False
 
 
+def _katana_checkpoint_supported(ctx) -> bool:
+    """Require the separately advertised frontier contract from the successful help probe."""
+    try:
+        path = ctx.current / "katana-completion-capability.txt"
+        if path.stat().st_size > 1024 * 1024:
+            return False
+        text = path.read_text(encoding="utf-8")
+        return ("-recon-checkpoint-dir" in text
+                and "EXPERIMENTAL v1 durable standard-engine GET frontier checkpoint" in text)
+    except (OSError, UnicodeError):
+        return False
+
+
 def stage_urls(ctx: StageContext) -> dict[str, Any]:
     def operator_next_requested() -> bool:
         checker = getattr(ctx, "next_requested", None)
@@ -1074,6 +1087,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
 
         if katana_origins:
             completion_supported = _katana_completion_supported(ctx)
+            checkpoint_supported = completion_supported and _katana_checkpoint_supported(ctx)
+            # Per-origin scope remains stable as siblings finish on later resumes.
+            batch_width = 1 if checkpoint_supported else 5
             katana_base_path = ctx.current / "katana-base-urls.txt"
             atomic_write_text(
                 katana_base_path,
@@ -1090,7 +1106,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             requests_per_origin, extra_requests = divmod(
                 katana_request_envelope, len(katana_origins),
             )
-            for batch_offset in range(0, len(katana_origins), 5):
+            for batch_offset in range(0, len(katana_origins), batch_width):
                 if operator_next_requested():
                     operator_next = True
                     break
@@ -1103,7 +1119,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         katana_deadline_exhausted = True
                         break
 
-                batch_origins = katana_origins[batch_offset:batch_offset + 5]
+                batch_origins = katana_origins[batch_offset:batch_offset + batch_width]
                 if uncapped_katana:
                     batch_timeout = None
                     batch_reservation = 0
@@ -1115,6 +1131,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         len(batch_origins), max(0, extra_requests - batch_offset),
                     )
                     batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
+                    if checkpoint_supported:
+                        # One origin needs only its finite crawl duration plus
+                        # shutdown margin, within the original shared envelope.
+                        batch_timeout = min(batch_timeout, katana_crawl_seconds + 5.0)
                     batch_reservation = min(batch_allowance, math.ceil(batch_timeout * katana_rate_limit))
                     # Reserve shutdown/startup time inside the existing wall
                     # envelope; -p 1 makes crawl durations sequential. Never
@@ -1138,7 +1158,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                             katana_budget_metric = exc.metric
                             break
                 katana_reserved_requests += batch_reservation
-                batch_number = len(previous_outcomes) + (batch_offset // 5) + 1
+                batch_number = len(previous_outcomes) + (batch_offset // batch_width) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
                 atomic_write_text(
@@ -1171,6 +1191,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     # Never accept an event left behind by an earlier invocation.
                     atomic_write_text(completion_path, "")
                     args.extend(["-recon-completion-log", str(completion_path)])
+                if checkpoint_supported:
+                    frontier_dir = ctx.current / "katana-frontier"
+                    frontier_dir.mkdir(mode=0o700, exist_ok=True)
+                    # The producer owns validation and durable updates; never
+                    # infer completion from the existence of a checkpoint.
+                    args.extend(["-recon-checkpoint-dir", str(frontier_dir)])
                 # Policy credentials never cross into an external crawler.
                 batch_started_at = utc_now()
                 result = ctx.runner.run(
@@ -1233,6 +1259,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "completion_verified": batch_complete,
                     "completion_contract": "v1" if completion_supported else None,
                     "completion_artifact": completion_path.name if completion_supported else None,
+                    "frontier_checkpoint_enabled": checkpoint_supported,
                     "origin_completion": origin_completion,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),

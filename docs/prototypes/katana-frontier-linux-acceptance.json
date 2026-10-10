@@ -1,0 +1,85 @@
+{
+  "scenario": "durable_frontier_across_short_attempts",
+  "attempts": [
+    {
+      "attempt": 1,
+      "exit_code": 0,
+      "duration": 2.042,
+      "completion": [
+        {
+          "contract": "recon.katana.standard.completion.v1",
+          "origin": "http://127.0.0.1:33703/",
+          "stop_reason": "deadline",
+          "attempted_requests": 6,
+          "failed_requests": 0,
+          "limited_requests": 0,
+          "pending_items": 10,
+          "active_items": 0
+        }
+      ],
+      "stderr": "",
+      "checkpoint_done": 6,
+      "checkpoint_pending": 10
+    },
+    {
+      "attempt": 2,
+      "exit_code": 0,
+      "duration": 2.038,
+      "completion": [
+        {
+          "contract": "recon.katana.standard.completion.v1",
+          "origin": "http://127.0.0.1:33703/",
+          "stop_reason": "deadline",
+          "attempted_requests": 7,
+          "failed_requests": 1,
+          "limited_requests": 0,
+          "pending_items": 4,
+          "active_items": 0
+        }
+      ],
+      "stderr": "",
+      "checkpoint_done": 12,
+      "checkpoint_pending": 4
+    },
+    {
+      "attempt": 3,
+      "exit_code": 0,
+      "duration": 1.042,
+      "completion": [
+        {
+          "contract": "recon.katana.standard.completion.v1",
+          "origin": "http://127.0.0.1:33703/",
+          "stop_reason": "queue_exhausted",
+          "attempted_requests": 4,
+          "failed_requests": 0,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      ],
+      "stderr": "",
+      "checkpoint_done": 16,
+      "checkpoint_pending": 0
+    }
+  ],
+  "requested_paths": [
+    "/",
+    "/page/9",
+    "/page/8",
+    "/page/14",
+    "/page/13",
+    "/page/12",
+    "/page/7",
+    "/page/6",
+    "/page/5",
+    "/page/4",
+    "/page/3",
+    "/page/2",
+    "/page/11",
+    "/page/10",
+    "/page/1",
+    "/page/0"
+  ],
+  "root_requests": 1,
+  "passed": true
+}
