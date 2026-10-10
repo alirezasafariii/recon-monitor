@@ -11,16 +11,17 @@ index 9b9226b..f3e11e2 100644
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..7eff30c 100644
+index b6da330..9b6fe0f 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
-@@ -402,15 +402,28 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +402,30 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
 -func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
 +func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) (retErr error) {
 +	var attempted, failed, limited atomic.Int64
++	var unparsed atomic.Bool
 +	defer func() {
 +		if path := s.Options.Options.ReconCompletionLog; path != "" {
 +			pending, active := crawlSession.Queue.WorkState()
@@ -28,6 +29,7 @@ index b6da330..7eff30c 100644
 +				limited.Add(1) // Reaching the cap cannot certify frontier exhaustion.
 +			}
 +			report := newCompletion(crawlSession.URL.String(), crawlSession.Ctx.Err(), attempted.Load(), failed.Load(), limited.Load(), pending, active)
++			if unparsed.Load() && report.StopReason == "queue_exhausted" { report.StopReason = "unknown" }
 +			if err := writeCompletion(path, report); err != nil { retErr = errkit.Wrap(err, "completion artifact") }
 +		}
 +	}()
@@ -45,7 +47,7 @@ index b6da330..7eff30c 100644
  			continue
  		}
  
-@@ -419,21 +432,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +434,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -71,7 +73,7 @@ index b6da330..7eff30c 100644
  			continue
  		}
  
-@@ -441,6 +458,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +460,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -79,7 +81,7 @@ index b6da330..7eff30c 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +501,16 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +503,18 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -89,26 +91,28 @@ index b6da330..7eff30c 100644
  			}
  
 +			attempted.Add(1)
++			requestFailed := false
++			defer func() { if requestFailed { failed.Add(1) } }()
  			resp, err := doRequest(crawlSession, req)
  
  			if resp != nil && IsThrottled(resp.StatusCode) {
-+				failed.Add(1)
++				requestFailed = true
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +521,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -500,6 +525,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			}
  
  			if err != nil {
-+				failed.Add(1)
++				requestFailed = true
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,6 +533,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,6 +537,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {
-+				failed.Add(1)
++				unparsed.Store(true)
  				return
  			}
  			if s.Options.Options.DisableRedirects && resp.IsRedirect() {
@@ -179,17 +183,20 @@ index 0000000..6258673
 +}
 diff --git a/pkg/engine/common/recon_completion_test.go b/pkg/engine/common/recon_completion_test.go
 new file mode 100644
-index 0000000..057f3ed
+index 0000000..68e1799
 --- /dev/null
 +++ b/pkg/engine/common/recon_completion_test.go
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,111 @@
 +package common
 +
 +import (
++	"bytes"
 +	"context"
 +	"encoding/json"
++	"fmt"
 +	"os"
 +	"path/filepath"
++	"sync"
 +	"testing"
 +)
 +
@@ -250,6 +257,45 @@ index 0000000..057f3ed
 +	}
 +	if err := writeCompletion(dir, r); err == nil {
 +		t.Fatal("write failure hidden")
++	}
++}
++
++func TestReconCompletionConcurrentOriginsWriteWholeEvents(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "completion.jsonl")
++	errors := make(chan error, 24)
++	var workers sync.WaitGroup
++	for i := 0; i < 24; i++ {
++		workers.Add(1)
++		go func(index int) {
++			defer workers.Done()
++			errors <- writeCompletion(path, newCompletion(fmt.Sprintf("http://127.0.0.1:%d", 20000+index), nil, 3, 0, 0, 0, 0))
++		}(i)
++	}
++	workers.Wait()
++	close(errors)
++	for err := range errors {
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := bytes.Split(bytes.TrimSpace(data), []byte("\n"))
++	if len(lines) != 24 {
++		t.Fatalf("lost events: %d", len(lines))
++	}
++	origins := make(map[string]bool)
++	for _, line := range lines {
++		var report reconCompletion
++		if err := json.Unmarshal(line, &report); err != nil {
++			t.Fatal(err)
++		}
++		if origins[report.Origin] || report.StopReason != "queue_exhausted" {
++			t.Fatalf("invalid event: %+v", report)
++		}
++		origins[report.Origin] = true
 +	}
 +}
 diff --git a/pkg/types/options.go b/pkg/types/options.go
@@ -366,14 +412,15 @@ index cbaebd4..4f4012d 100644
  // Pop pops elements from the queue (backward-compatible, no context).
 diff --git a/pkg/utils/queue/tracked_test.go b/pkg/utils/queue/tracked_test.go
 new file mode 100644
-index 0000000..2143865
+index 0000000..3435c42
 --- /dev/null
 +++ b/pkg/utils/queue/tracked_test.go
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,129 @@
 +package queue
 +
 +import (
 +	"context"
++	"sync"
 +	"testing"
 +	"time"
 +)
@@ -460,4 +507,41 @@ index 0000000..2143865
 +func TestTrackedEmptyQueueDoesNotWaitForRequestTimeout(t *testing.T) {
 +	q, _ := New("depth-first", 30)
 +	trackedClosed(t, q.PopTrackedWithContext(context.Background()))
++}
++
++func TestTrackedConcurrentParentsPreserveEveryChild(t *testing.T) {
++	for _, strategy := range []string{"depth-first", "breadth-first"} {
++		t.Run(strategy, func(t *testing.T) {
++			q, _ := New(strategy, 30)
++			for i := 0; i < 12; i++ {
++				q.Push(i, 0)
++			}
++			items := q.PopTrackedWithContext(context.Background())
++			var workers sync.WaitGroup
++			seen := make(map[int]bool)
++			var mu sync.Mutex
++			for item := range items {
++				value := item.(int)
++				workers.Add(1)
++				go func() {
++					defer workers.Done()
++					defer q.DoneItem()
++					if value < 12 {
++						q.Push(value+100, 0)
++					}
++					mu.Lock()
++					seen[value] = true
++					mu.Unlock()
++				}()
++			}
++			workers.Wait()
++			if len(seen) != 24 {
++				t.Fatalf("lost work: %v", seen)
++			}
++			pending, active := q.WorkState()
++			if pending != 0 || active != 0 {
++				t.Fatalf("leaked work: %d %d", pending, active)
++			}
++		})
++	}
 +}

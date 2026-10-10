@@ -113,3 +113,36 @@ bounded standard-engine queue semantics, not exhaustive website coverage.
 Request-error and page-limit fixtures also reported partial despite rc=0.
 Broader concurrency, upstream suite,
 macOS and headless validation remain necessary before production integration.
+
+## Concurrent standard-engine acceptance
+
+`tools/katana_concurrent_local_acceptance.py` starts two independent loopback
+origins with concurrency=3, input parallelism=2, rate=3 and a 20-second outer
+deadline. The four asserting scenarios are recorded in
+`katana-concurrent-linux-acceptance.json`: delayed-parent siblings, one broken
+response alongside a healthy origin, explicit out-of-scope links, and duplicate
+content across origins. Both healthy queues retain their delayed children; an
+origin with a broken response remains partial without contaminating its sibling.
+Scope exclusions never reach the local server.
+
+Inspection and the duplicate-content fixture exposed a subtle producer case:
+Katana can return an empty navigation response after filtering duplicate content.
+The completion producer now reports unknown, rather than a network failure or
+queue_exhausted, when such a response cannot be parsed. Errors are counted once
+per request even if the response was throttled as well. The consumer remains
+fail-closed and unchanged. Duplicate-content results can vary with worker order;
+the assertion requires unknown evidence and never assumes which origin wins.
+
+Queue tests additionally exercise 12 concurrent parents and all their children
+under both strategies. Artifact tests write 24 different origin events in
+parallel and verify complete, non-duplicate JSON records. These tests run with
+the race detector for 20 repetitions. The full upstream test command is
+`go test -timeout=120s ./...`; browser-dependent skips do not establish headless
+or hybrid acceptance. macOS installed-binary acceptance and production
+integration are still pending. No Recon stage imports the experimental reader.
+
+```bash
+python3 tools/katana_concurrent_local_acceptance.py \
+  --binary /tmp/katana-queue-prototype \
+  --output /tmp/katana-concurrent-acceptance.json
+```
