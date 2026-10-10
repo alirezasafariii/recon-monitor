@@ -1,7 +1,7 @@
 # Experimental durable Katana frontier
 
 This proposal extends the pinned standard-engine producer, not the official
-ProjectDiscovery binary. Recon Monitor remains version 8.8.17 on this branch.
+ProjectDiscovery binary. Recon Monitor 8.8.18 includes the capability-gated integration.
 The producer is a source patch against upstream commit
 `35267ac5c8ff1db9694a319d0eb466ed97b0969f` (v1.8.0).
 
@@ -67,8 +67,14 @@ Committed reports describe:
 - Healthy and mixed-error stage scenarios: only the failed page is retried after
   the fixture recovers; a healthy sibling remains completed.
 
-Live macOS acceptance and exact branch CI must still be checked before release.
-No official release or installed Mac acceptance is claimed by these Linux tests.
+Operator-provided Mac loopback acceptance passed on Go 1.26.5 darwin/amd64
+for PR #166 head `5a0109219919f2d06f2836c0b27c148d65bf8cb9`. Producer
+race tests repeated 20 times passed; direct pending work decreased 10 → 4 → 0,
+and real-stage pending work decreased 23 → 0 with reservations of 90 within
+each attempt's envelope of 90. Healthy and mixed-error/resume integration passed.
+This Mac evidence comes from the supplied terminal output, not independently
+read report files. All eight exact-head CI checks passed before merge.
+Live-target frontier acceptance and release publication are separate steps.
 The existing batch-27 counts are not a recoverable frontier: the first invocation
 of this producer must build its own checkpoint. It cannot reconstruct those
 unrecorded 182/113 requests from counts alone.
