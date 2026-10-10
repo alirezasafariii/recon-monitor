@@ -1,0 +1,196 @@
+[
+  {
+    "scenario": "fast",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 0,
+    "timeout_flag": 30,
+    "crawl_seconds": 6,
+    "completion": {
+      "http://127.0.0.1:35001": {
+        "status": "completed",
+        "stop_reason": "queue_exhausted",
+        "counters": {
+          "attempted_requests": 3,
+          "failed_requests": 0,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:35001/\",\"stop_reason\":\"queue_exhausted\",\"attempted_requests\":3,\"failed_requests\":0,\"limited_requests\":0,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": true,
+    "stdout": "http://127.0.0.1:35001/\nhttp://127.0.0.1:35001/slow\nhttp://127.0.0.1:35001/proof\n",
+    "stderr": "",
+    "duration_seconds": 0.054,
+    "requested_paths": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "error_log": ""
+  },
+  {
+    "scenario": "slow",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 3,
+    "timeout_flag": 30,
+    "crawl_seconds": 8,
+    "completion": {
+      "http://127.0.0.1:41483": {
+        "status": "completed",
+        "stop_reason": "queue_exhausted",
+        "counters": {
+          "attempted_requests": 3,
+          "failed_requests": 0,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:41483/\",\"stop_reason\":\"queue_exhausted\",\"attempted_requests\":3,\"failed_requests\":0,\"limited_requests\":0,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": true,
+    "stdout": "http://127.0.0.1:41483/\nhttp://127.0.0.1:41483/slow\nhttp://127.0.0.1:41483/proof\n",
+    "stderr": "",
+    "duration_seconds": 3.043,
+    "requested_paths": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "error_log": ""
+  },
+  {
+    "scenario": "short-idle",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 3,
+    "timeout_flag": 2,
+    "crawl_seconds": 8,
+    "completion": {
+      "http://127.0.0.1:43513": {
+        "status": "completed",
+        "stop_reason": "queue_exhausted",
+        "counters": {
+          "attempted_requests": 3,
+          "failed_requests": 0,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:43513/\",\"stop_reason\":\"queue_exhausted\",\"attempted_requests\":3,\"failed_requests\":0,\"limited_requests\":0,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": true,
+    "stdout": "http://127.0.0.1:43513/\nhttp://127.0.0.1:43513/slow\nhttp://127.0.0.1:43513/proof\n",
+    "stderr": "",
+    "duration_seconds": 3.05,
+    "requested_paths": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "error_log": ""
+  },
+  {
+    "scenario": "deadline",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 6,
+    "timeout_flag": 30,
+    "crawl_seconds": 2,
+    "completion": {
+      "http://127.0.0.1:37483": {
+        "status": "partial",
+        "stop_reason": "deadline",
+        "counters": {
+          "attempted_requests": 2,
+          "failed_requests": 1,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:37483/\",\"stop_reason\":\"deadline\",\"attempted_requests\":2,\"failed_requests\":1,\"limited_requests\":0,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": false,
+    "stdout": "http://127.0.0.1:37483/\nhttp://127.0.0.1:37483/slow\n",
+    "stderr": "",
+    "duration_seconds": 2.039,
+    "requested_paths": [
+      "/",
+      "/slow"
+    ],
+    "error_log": "{\"timestamp\":\"2026-10-09T19:06:09.532754285+02:00\",\"endpoint\":\"http://127.0.0.1:37483/slow\",\"source\":\"http://127.0.0.1:37483/\",\"error\":\"context deadline exceeded\"}\n"
+  },
+  {
+    "scenario": "request-error",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 0,
+    "timeout_flag": 30,
+    "crawl_seconds": 6,
+    "completion": {
+      "http://127.0.0.1:46207": {
+        "status": "partial",
+        "stop_reason": "request_errors",
+        "counters": {
+          "attempted_requests": 2,
+          "failed_requests": 1,
+          "limited_requests": 0,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:46207/\",\"stop_reason\":\"request_errors\",\"attempted_requests\":2,\"failed_requests\":1,\"limited_requests\":0,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": false,
+    "stdout": "http://127.0.0.1:46207/\nhttp://127.0.0.1:46207/slow\n",
+    "stderr": "",
+    "duration_seconds": 0.047,
+    "requested_paths": [
+      "/",
+      "/slow"
+    ],
+    "error_log": "{\"timestamp\":\"2026-10-09T19:07:15.955956167+02:00\",\"endpoint\":\"http://127.0.0.1:46207/slow\",\"source\":\"http://127.0.0.1:46207/\",\"error\":\"GET http://127.0.0.1:46207/slow giving up after 1 attempts: Get \\\"http://127.0.0.1:46207/slow\\\": EOF\"}\n"
+  },
+  {
+    "scenario": "page-limit",
+    "binary": "/tmp/katana-queue-prototype-bin",
+    "delay_seconds": 0,
+    "timeout_flag": 30,
+    "crawl_seconds": 6,
+    "completion": {
+      "http://127.0.0.1:39923": {
+        "status": "partial",
+        "stop_reason": "page_limit",
+        "counters": {
+          "attempted_requests": 1,
+          "failed_requests": 0,
+          "limited_requests": 1,
+          "pending_items": 0,
+          "active_items": 0
+        }
+      }
+    },
+    "completion_raw": "{\"contract\":\"recon.katana.standard.completion.v1\",\"origin\":\"http://127.0.0.1:39923/\",\"stop_reason\":\"page_limit\",\"attempted_requests\":1,\"failed_requests\":0,\"limited_requests\":1,\"pending_items\":0,\"active_items\":0}\n",
+    "exit_code": 0,
+    "outer_timeout": false,
+    "proof_emitted": false,
+    "stdout": "http://127.0.0.1:39923/\n",
+    "stderr": "",
+    "duration_seconds": 0.047,
+    "requested_paths": [
+      "/"
+    ],
+    "error_log": ""
+  }
+]

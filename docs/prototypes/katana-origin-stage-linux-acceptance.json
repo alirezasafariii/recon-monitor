@@ -1,0 +1,162 @@
+[
+  {
+    "scenario": "healthy",
+    "phase": "initial",
+    "pending": [],
+    "completed": [
+      "http://127.0.0.1:33429",
+      "http://127.0.0.1:33987"
+    ],
+    "katana_status": "completed",
+    "last_batch": {
+      "batch": 1,
+      "origins": 2,
+      "origin_urls": [
+        "http://127.0.0.1:33429",
+        "http://127.0.0.1:33987"
+      ],
+      "started_at": "2026-10-10T12:09:04Z",
+      "finished_at": "2026-10-10T12:09:06Z",
+      "timeout_seconds": 32.999994,
+      "crawl_seconds_per_origin": 14,
+      "reserved_requests": 99,
+      "rate_limit": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "completion_verified": true,
+      "completion_contract": "v1",
+      "completion_artifact": "katana-batch-001-completion.jsonl",
+      "origin_completion": {
+        "http://127.0.0.1:33429": {
+          "status": "completed",
+          "stop_reason": "queue_exhausted",
+          "counters": {
+            "attempted_requests": 3,
+            "failed_requests": 0,
+            "limited_requests": 0,
+            "pending_items": 0,
+            "active_items": 0
+          }
+        },
+        "http://127.0.0.1:33987": {
+          "status": "completed",
+          "stop_reason": "queue_exhausted",
+          "counters": {
+            "attempted_requests": 3,
+            "failed_requests": 0,
+            "limited_requests": 0,
+            "pending_items": 0,
+            "active_items": 0
+          }
+        }
+      },
+      "duration_seconds": 2.046,
+      "lines": 6,
+      "status": "completed",
+      "stop_reason": "completed"
+    }
+  },
+  {
+    "scenario": "mixed_error",
+    "phase": "initial",
+    "pending": [
+      "http://127.0.0.1:33987"
+    ],
+    "completed": [
+      "http://127.0.0.1:33429"
+    ],
+    "katana_status": "partial",
+    "last_batch": {
+      "batch": 1,
+      "origins": 2,
+      "origin_urls": [
+        "http://127.0.0.1:33429",
+        "http://127.0.0.1:33987"
+      ],
+      "started_at": "2026-10-10T12:09:06Z",
+      "finished_at": "2026-10-10T12:09:08Z",
+      "timeout_seconds": 32.999995,
+      "crawl_seconds_per_origin": 14,
+      "reserved_requests": 99,
+      "rate_limit": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "completion_verified": false,
+      "completion_contract": "v1",
+      "completion_artifact": "katana-batch-001-completion.jsonl",
+      "origin_completion": {
+        "http://127.0.0.1:33429": {
+          "status": "completed",
+          "stop_reason": "queue_exhausted",
+          "counters": {
+            "attempted_requests": 3,
+            "failed_requests": 0,
+            "limited_requests": 0,
+            "pending_items": 0,
+            "active_items": 0
+          }
+        },
+        "http://127.0.0.1:33987": {
+          "status": "partial",
+          "stop_reason": "request_errors",
+          "counters": {
+            "attempted_requests": 2,
+            "failed_requests": 1,
+            "limited_requests": 0,
+            "pending_items": 0,
+            "active_items": 0
+          }
+        }
+      },
+      "duration_seconds": 2.049,
+      "lines": 5,
+      "status": "completion_unverified",
+      "stop_reason": "crawl_completion_unverified"
+    }
+  },
+  {
+    "scenario": "mixed_error",
+    "phase": "resume",
+    "pending": [],
+    "completed": [
+      "http://127.0.0.1:33429",
+      "http://127.0.0.1:33987"
+    ],
+    "katana_status": "completed",
+    "last_batch": {
+      "batch": 2,
+      "origins": 1,
+      "origin_urls": [
+        "http://127.0.0.1:33987"
+      ],
+      "started_at": "2026-10-10T12:09:08Z",
+      "finished_at": "2026-10-10T12:09:09Z",
+      "timeout_seconds": 32.999996,
+      "crawl_seconds_per_origin": 16,
+      "reserved_requests": 99,
+      "rate_limit": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "completion_verified": true,
+      "completion_contract": "v1",
+      "completion_artifact": "katana-batch-002-completion.jsonl",
+      "origin_completion": {
+        "http://127.0.0.1:33987": {
+          "status": "completed",
+          "stop_reason": "queue_exhausted",
+          "counters": {
+            "attempted_requests": 3,
+            "failed_requests": 0,
+            "limited_requests": 0,
+            "pending_items": 0,
+            "active_items": 0
+          }
+        }
+      },
+      "duration_seconds": 1.043,
+      "lines": 3,
+      "status": "completed",
+      "stop_reason": "completed"
+    }
+  }
+]

@@ -1,0 +1,85 @@
+[
+  {
+    "binary": "source-unpatched",
+    "scenario": "fast",
+    "delay": 0,
+    "timeout_flag": 30,
+    "ct": 6,
+    "duration": 6.044,
+    "exit": 0,
+    "hits": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "proof_emitted": true,
+    "stderr": "",
+    "error_log": ""
+  },
+  {
+    "binary": "source-unpatched",
+    "scenario": "slow",
+    "delay": 3,
+    "timeout_flag": 30,
+    "ct": 8,
+    "duration": 8.038,
+    "exit": 0,
+    "hits": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "proof_emitted": true,
+    "stderr": "",
+    "error_log": ""
+  },
+  {
+    "binary": "source-unpatched",
+    "scenario": "slow-short-idle",
+    "delay": 3,
+    "timeout_flag": 2,
+    "ct": 8,
+    "duration": 4.044,
+    "exit": 0,
+    "hits": [
+      "/",
+      "/slow"
+    ],
+    "proof_emitted": false,
+    "stderr": "",
+    "error_log": ""
+  },
+  {
+    "binary": "prototype",
+    "scenario": "slow-short-idle",
+    "delay": 3,
+    "timeout_flag": 2,
+    "ct": 8,
+    "duration": 3.051,
+    "exit": 0,
+    "hits": [
+      "/",
+      "/slow",
+      "/proof"
+    ],
+    "proof_emitted": true,
+    "stderr": "",
+    "error_log": ""
+  },
+  {
+    "binary": "prototype",
+    "scenario": "deadline",
+    "delay": 6,
+    "timeout_flag": 30,
+    "ct": 2,
+    "duration": 2.04,
+    "exit": 0,
+    "hits": [
+      "/",
+      "/slow"
+    ],
+    "proof_emitted": false,
+    "stderr": "",
+    "error_log": "{\"timestamp\":\"2026-10-09T18:55:10.952344298+02:00\",\"endpoint\":\"http://127.0.0.1:37693/slow\",\"source\":\"http://127.0.0.1:37693/\",\"error\":\"context deadline exceeded\"}\n"
+  }
+]
