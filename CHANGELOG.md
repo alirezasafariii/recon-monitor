@@ -8,6 +8,8 @@ Resume starts a new crawl session. Internal Katana frontiers are not persisted. 
 
 Validation of the runtime fix: 50 Katana tests and the full 1740-test suite passed (one skip); all seven PR #163 CI jobs passed. Regressions cover 600 live origins with one unfinished origin and a late backlog origin with six requests available. The source change is merged as 54f79f928d72eb81fa004c346f3f0d92f3aad8dd. Installed macOS acceptance of 8.8.17 remains pending. Publication is gated on exact-main CI, manifest/archive checks, updater tests and downloaded asset verification.
 
+Legacy installs that omit tools skip only the unavailable experimental reader tests. Source checkouts still run those tests, and present-but-broken tooling still fails. Production completion tests remain enabled. A subprocess regression verifies the omitted-tools layout.
+
 No historical DNS or crawl state is rewritten. Existing pending origins remain pending until new valid completion evidence is collected.
 
 # Recon Monitor 8.8.16 — Optional Katana Per-Origin Completion
