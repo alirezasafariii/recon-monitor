@@ -43,3 +43,13 @@ Offline tests exercise explicit completion despite long duration, unchanged
 stock behavior, mixed and missing sibling events, stale and malformed artifacts,
 process timeout/failure, operator stop, capability discovery, and partial resume.
 No regression test contacts a remote target.
+
+## Manual stage-to-producer acceptance
+
+Run tools/katana_stage_local_acceptance.py with --binary pointing to the isolated
+patched Katana and --output pointing to a disposable report. It uses the actual
+stage_urls, capability probe and CommandRunner with two loopback servers. The
+origin discovery input and database are stubbed; production state is never
+opened. Assertions cover healthy completion, a mixed failed/successful batch,
+and resume of only the failed origin. This is component integration acceptance,
+not a full recon run or remote-target assessment.
