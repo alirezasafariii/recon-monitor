@@ -1,0 +1,75 @@
+{
+  "provenance": "Operator-provided macOS output; not independently executed on the operator's computer",
+  "producer_patch_commit": "8e730f1f023f780f1b50970da4f359e36d920843",
+  "acceptance_harness_commit": "cd3dcd0b19f1b07c4066902a5316c675851bc2c0",
+  "upstream_commit": "35267ac5c8ff1db9694a319d0eb466ed97b0969f",
+  "recon_version": "8.8.16",
+  "platform": "macOS Intel; Go 1.26.5; Python 3.14.6",
+  "race_tests": "PASS, 20 repetitions: parsing context, origin content, queue, completion, diagnostics",
+  "relative_base_fixture": {
+    "status": "PASS",
+    "requested_paths": [
+      "/",
+      "/a/",
+      "/b/",
+      "/a/proof",
+      "/b/proof"
+    ],
+    "attempted_requests": 5,
+    "failed_requests": 0,
+    "stop_reason": "queue_exhausted",
+    "unparsed_counters": 0
+  },
+  "stage_integration": {
+    "status": "PASS",
+    "exit_code": 0,
+    "healthy": "both origins complete",
+    "mixed_error": "only failed origin pending",
+    "resume": "only pending origin retried and completed"
+  },
+  "live_run": {
+    "target": "hollisterco.com",
+    "run_id": "20261010-145741-2087f846",
+    "finished_at": "2026-10-10T17:03:41+03:30",
+    "prior_completed_origins": 78,
+    "completed_origins": 85,
+    "prior_pending_origins": 10,
+    "pending_origins": 3,
+    "canonical_urls": 620,
+    "katana_unknown_origins_latest_attempt": 0,
+    "diagnostic_unparsed_counts_latest_attempt": 0,
+    "overall_status": "partial",
+    "remaining": [
+      {
+        "origin": "http://careers.hollisterco.com",
+        "reason": "request_errors",
+        "attempted": 1,
+        "failed": 1
+      },
+      {
+        "origin": "https://community.hollisterco.com",
+        "reason": "deadline",
+        "attempted": 29,
+        "failed": 0,
+        "pending": 242
+      },
+      {
+        "origin": "https://giftcards.hollisterco.com",
+        "reason": "deadline",
+        "attempted": 30,
+        "failed": 5,
+        "pending": 175
+      }
+    ],
+    "javascript_errors": 92,
+    "javascript_unexpected_content_types": 55
+  },
+  "limitations": [
+    "Completion is bounded queue exhaustion, not exhaustive site coverage",
+    "Deadline/error origins remain partial",
+    "New crawl session does not restore Katana's previous internal frontier",
+    "Browser engines and transport timeout behavior are not certified",
+    "Prototype not installed as system Katana and not released"
+  ]
+}
+
