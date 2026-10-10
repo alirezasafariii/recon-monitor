@@ -34,7 +34,9 @@ success. Ordinary partial-frontier recovery does not repeat the seed.
 - The contract is `recon.katana.standard.frontier.v1`, bound to the seed and
   parsing, scope and transport options. Invocation duration, rate/concurrency,
   output destinations and lifecycle callbacks are excluded from this binding.
-  Every saved request is revalidated against current path/scope and depth.
+  Every saved request is revalidated against scope and depth at load. The bound
+  path filter is applied again by the worker; filtered pending admissions are
+  acknowledged without HTTP, and filtered acknowledged history is retained.
 - GET requests with body, per-request headers/custom fields, credentials,
   automatic forms, known-files crawling, page caps and stateful similarity/query
   filters are unsupported. These fail closed instead of silently dropping work.
@@ -94,3 +96,19 @@ python3 tools/katana_stage_local_acceptance.py --binary /path/to/katana-frontier
 These tools use disposable state and loopback fixtures. They do not replace the
 system binary or modify the production Run. Production installation is a later
 step after the recorded acceptance results have been reviewed.
+
+## Filtered-admission recovery fix
+
+A community origin checkpoint could contain default-filtered image/font URLs
+that Enqueue had durably admitted before Do applied its path filter. Reloading
+that history with ValidatePath rejected the entire checkpoint, including already
+acknowledged records. Restore now retains those in-scope, valid-depth records
+and Do applies the unchanged bound path policy before any HTTP request. Scope,
+depth, metadata, binding, integrity and locking checks remain enforced.
+
+The new regression covers both pending and acknowledged filtered admissions;
+an unfinished allowed page remains resumable and the seed is not repeated.
+Race tests repeated 20 times passed. The loopback CLI acceptance tool
+`tools/katana_filtered_frontier_local_acceptance.py` checks fresh completion
+and that neither PNG nor WOFF2 is fetched during resume. Mac acceptance of
+this updated producer patch remains pending. Existing checkpoints need no edits.
