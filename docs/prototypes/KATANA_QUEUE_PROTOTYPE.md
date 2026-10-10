@@ -146,3 +146,10 @@ python3 tools/katana_concurrent_local_acceptance.py \
   --binary /tmp/katana-queue-prototype \
   --output /tmp/katana-concurrent-acceptance.json
 ```
+
+
+## Origin-scoped exact content deduplication (2026-10-10)
+
+The macOS A/B fixture confirmed that global exact-body dedup could skip relative child links on the second origin. The updated standard engine supplies a fixed-size SHA-256 key containing canonical seed origin and response content to the existing uniqueness filter. HTTP and HTTPS, hosts and nondefault ports are independent; explicit default ports and host case normalize. Same-origin duplicates remain deduplicated. Similarity filtering is unchanged and can still produce unknown. Relative-base differences within one origin and redirected response origins are not certified by this change; the scope follows the crawl seed origin.
+
+The earlier duplicate-content unknown fixture described the previous producer. The current concurrent fixture requires both origins to request /proof and emit queue_exhausted without -duf. Key and same-origin dedup tests pass under race detection for 20 repetitions. Full upstream tests passed with Go 1.26.1 on Linux, as did sibling/error/scope/duplicate loopback scenarios and Recon 8.8.16 healthy/mixed-error/resume component acceptance. Mac acceptance of this updated producer remains pending. Production binaries have not been replaced; this artifact is still experimental.

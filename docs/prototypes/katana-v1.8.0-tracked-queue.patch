@@ -298,6 +298,118 @@ index 0000000..68e1799
 +		origins[report.Origin] = true
 +	}
 +}
+diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
+index 049a3ff..fcd3186 100644
+--- a/pkg/engine/standard/crawl.go
++++ b/pkg/engine/standard/crawl.go
+@@ -3,7 +3,9 @@ package standard
+ import (
+ 	"bytes"
+ 	"context"
++	"crypto/sha256"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"net/http/httputil"
+ 	"net/url"
+@@ -100,7 +102,7 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+ 
+ 	// Skip unique content filtering if disabled
+ 	if !c.Options.Options.DisableUniqueFilter {
+-		if !c.Options.UniqueFilter.UniqueContent(data) {
++		if !c.Options.UniqueFilter.UniqueContent(originContentKey(s.URL, data)) {
+ 			return &navigation.Response{}, nil
+ 		}
+ 	}
+@@ -148,3 +150,24 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+ 
+ 	return response, nil
+ }
++
++// originContentKey keeps exact content deduplication local to the seed origin.
++// A fixed-size key avoids copying potentially large response bodies.
++func originContentKey(seed *url.URL, data []byte) []byte {
++	scheme := strings.ToLower(seed.Scheme)
++	host := strings.ToLower(seed.Hostname())
++	port := seed.Port()
++	if port == "" {
++		if scheme == "https" {
++			port = "443"
++		} else if scheme == "http" {
++			port = "80"
++		}
++	}
++	h := sha256.New()
++	h.Write([]byte("katana.standard.origin-content.v1\x00"))
++	h.Write([]byte(scheme + "://" + net.JoinHostPort(host, port)))
++	h.Write([]byte{0})
++	h.Write(data)
++	return h.Sum(nil)
++}
+diff --git a/pkg/engine/standard/origin_content_test.go b/pkg/engine/standard/origin_content_test.go
+new file mode 100644
+index 0000000..76fe2ed
+--- /dev/null
++++ b/pkg/engine/standard/origin_content_test.go
+@@ -0,0 +1,58 @@
++package standard
++
++import (
++	"bytes"
++	"github.com/projectdiscovery/katana/pkg/utils/filters"
++	"net/url"
++	"testing"
++)
++
++func TestOriginContentKey(t *testing.T) {
++	key := func(raw, body string) []byte {
++		u, err := url.Parse(raw)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return originContentKey(u, []byte(body))
++	}
++	a := key("http://example.test/", "same")
++	for _, raw := range []string{"http://EXAMPLE.test:80/path", "http://example.test/other?x=1"} {
++		if !bytes.Equal(a, key(raw, "same")) {
++			t.Fatalf("same origin differs: %s", raw)
++		}
++	}
++	for _, raw := range []string{"https://example.test/", "http://other.test/", "http://example.test:81/"} {
++		if bytes.Equal(a, key(raw, "same")) {
++			t.Fatalf("different origin collides: %s", raw)
++		}
++	}
++	if bytes.Equal(a, key("http://example.test/", "different")) {
++		t.Fatal("different content collides")
++	}
++	if len(a) != 32 {
++		t.Fatal("key must be fixed size")
++	}
++	if !bytes.Equal(key("http://[::1]/", "same"), key("http://[::1]:80/path", "same")) {
++		t.Fatal("IPv6 default port differs")
++	}
++}
++
++func TestOriginContentDedupRetainedWithinOrigin(t *testing.T) {
++	f, err := filters.NewSimple()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	a, _ := url.Parse("http://a.example.test/")
++	b, _ := url.Parse("http://b.example.test/")
++	body := []byte("same response with relative child")
++	if !f.UniqueContent(originContentKey(a, body)) {
++		t.Fatal("first response rejected")
++	}
++	if f.UniqueContent(originContentKey(a, body)) {
++		t.Fatal("same-origin duplicate accepted")
++	}
++	if !f.UniqueContent(originContentKey(b, body)) {
++		t.Fatal("other-origin response rejected")
++	}
++}
 diff --git a/pkg/types/options.go b/pkg/types/options.go
 index e395c2a..15f9d97 100644
 --- a/pkg/types/options.go

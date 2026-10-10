@@ -78,15 +78,13 @@ def main():
                 for i, origin in enumerate(origins):
                     outcome = outcomes[origin_key(origin)]
                     expected = 'partial' if servers[i].fail else 'completed'
-                    if scenario == 'duplicate_content':
-                        continue
                     assert outcome['status'] == expected, (scenario, outcomes, result.stderr)
                     assert ('/proof' in servers[i].hits) == (not servers[i].fail), servers[i].hits
                     if scenario == 'scope_skip':
                         assert '/excluded' not in servers[i].hits, servers[i].hits
                 if scenario == 'duplicate_content':
-                    assert any(o['stop_reason'] == 'unknown' for o in outcomes.values()), outcomes
-                    assert all(o['stop_reason'] in {'queue_exhausted', 'unknown'} for o in outcomes.values()), outcomes
+                    assert all(o['stop_reason'] == 'queue_exhausted' for o in outcomes.values()), outcomes
+                    assert all('/proof' in server.hits for server in servers), [server.hits for server in servers]
                     assert all(o['counters']['failed_requests'] == 0 for o in outcomes.values()), outcomes
                 row = {'scenario': scenario, 'concurrency': 3, 'parallelism': 2,
                        'duration_seconds': round(time.monotonic()-started, 3),
