@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import test_katana_execution_quality as quality
 from katana_completion import CONTRACT
 from stages import stage_urls, _katana_completion_supported
@@ -14,13 +14,16 @@ class KatanaStageCompletionTests(unittest.TestCase):
     setUp = quality.KatanaExecutionQualityTests.setUp
     _context = quality.KatanaExecutionQualityTests._context
 
-    def exercise(self, mode, *, supported=True, returncode=0, timed_out=False, operator_next=False, resume=False):
+    def exercise(self, mode, *, supported=True, returncode=0, timed_out=False, operator_next=False, resume=False, origin_count=2, resume_remaining=None, failed_index=1):
         with tempfile.TemporaryDirectory() as tmp:
             origins = ['https://a.example.test', 'https://b.example.test']
+            origins += [f'https://h{i}.example.test' for i in range(origin_count - 2)]
+            self.last_crawl_limits = []
             self.last_input_batches = []
             def runner(args, **kwargs):
                 batch_origins = Path(args[args.index('-list')+1]).read_text().splitlines()
                 self.last_input_batches.append(batch_origins)
+                self.last_crawl_limits.append(int(args[args.index("-ct")+1][:-1]))
                 Path(kwargs['output_path']).write_text(origins[0]+'/evidence.js\n')
                 if supported:
                     path = Path(args[args.index('-recon-completion-log')+1])
@@ -29,7 +32,7 @@ class KatanaStageCompletionTests(unittest.TestCase):
                     for i, origin in enumerate(batch_origins):
                         if mode == 'missing' and i == 1:
                             continue
-                        reason = 'request_errors' if mode == 'mixed' and i == 1 else 'queue_exhausted'
+                        reason = 'request_errors' if mode == 'mixed' and origin == origins[failed_index] else 'queue_exhausted'
                         rows.append(dict(contract=CONTRACT, origin=origin, stop_reason=reason,
                                          attempted_requests=3, failed_requests=int(reason=='request_errors'),
                                          limited_requests=0, pending_items=0, active_items=0))
@@ -48,6 +51,11 @@ class KatanaStageCompletionTests(unittest.TestCase):
                 metrics = stage_urls(ctx)
                 if resume:
                     mode = 'complete'
+                    if resume_remaining is not None:
+                        ctx.budget = MagicMock()
+                        ctx.budget.snapshot.return_value = {
+                            'http_requests': {'used': 100-resume_remaining, 'limit': 100}
+                        }
                     metrics = stage_urls(ctx)
             pending = (ctx.current/'katana-pending-origins.txt').read_text().splitlines()
             completed = (ctx.current/'katana-completed-origins.txt').read_text().splitlines()
@@ -111,3 +119,23 @@ class KatanaStageCompletionTests(unittest.TestCase):
         ])
         self.assertEqual(pending, [])
         self.assertEqual(set(completed), {'https://a.example.test', 'https://b.example.test'})
+
+    def test_resume_plans_time_for_backlog_before_allocating_budget(self):
+        metrics, pending, completed = self.exercise('mixed', resume=True, origin_count=600)
+        self.assertEqual(self.last_input_batches[-1], ['https://b.example.test'])
+        self.assertEqual(self.last_crawl_limits[0], 2)
+        self.assertEqual(self.last_crawl_limits[-1], 30)
+        self.assertEqual(metrics['katana_crawl_seconds_per_origin'], 30)
+        self.assertLessEqual(metrics['katana_reserved_requests'], metrics['katana_request_envelope'])
+        self.assertEqual(pending, [])
+        self.assertEqual(len(completed), 600)
+
+    def test_completed_origins_do_not_take_limited_backlog_admission_slots(self):
+        metrics, pending, completed = self.exercise(
+            'mixed', resume=True, origin_count=600, failed_index=-1, resume_remaining=6,
+        )
+        self.assertEqual(self.last_input_batches[-1], ['https://h597.example.test'])
+        self.assertLessEqual(metrics['katana_reserved_requests'], 6)
+        self.assertLessEqual(metrics['katana_request_envelope'], 6)
+        self.assertEqual(pending, [])
+        self.assertEqual(len(completed), 600)

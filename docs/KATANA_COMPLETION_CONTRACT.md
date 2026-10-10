@@ -15,7 +15,10 @@ For a supported producer, only an explicit queue_exhausted event with attempted
 requests, no errors/limits, and zero pending/active items completes that origin.
 Such evidence replaces the duration heuristic. A completed sibling leaves the
 backlog even when another origin fails or omits its event. Partial URL evidence
-is retained. Resume invokes only unfinished origins. Per-origin outcomes and the
+is retained. Resume removes completed origins before allocating crawl time or
+limited request-envelope admission slots. Only unfinished live origins are
+invoked; stored URL evidence remains intact. Internal Katana frontiers are not
+persisted, so an unfinished origin starts a new crawl session. Per-origin outcomes and the
 artifact name are recorded in katana-batches.jsonl.
 
 The scope, rate, workers, request reservations, internal crawl durations, outer
