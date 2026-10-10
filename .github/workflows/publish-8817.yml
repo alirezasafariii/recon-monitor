@@ -1,0 +1,25 @@
+{
+  "name": "Publish verified Recon Monitor 8.8.17",
+  "on": {
+    "push": {
+      "branches": [
+        "publish/v8.8.17-verified"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "jobs": {
+    "release": {
+      "uses": "./.github/workflows/verified-release.yml",
+      "with": {
+        "version": "8.8.17",
+        "release_sha": "e1f0e4f926ceb8ba7a7b848471d25ae10d33ee3e",
+        "release_tree": "30bacb36f6c764157f5f29d36e3432427a4518b7"
+      },
+      "secrets": "inherit"
+    }
+  }
+}
