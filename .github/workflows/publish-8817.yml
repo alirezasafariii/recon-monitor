@@ -1,0 +1,25 @@
+{
+  "name": "Publish verified Recon Monitor 8.8.17 (legacy layout fixed)",
+  "on": {
+    "push": {
+      "branches": [
+        "publish/v8.8.17-verified-retry"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "jobs": {
+    "release": {
+      "uses": "./.github/workflows/verified-release.yml",
+      "with": {
+        "version": "8.8.17",
+        "release_sha": "ef1bb3c6bf4ab805cf4e45556186fcf1d7e7627c",
+        "release_tree": "9376f17356605cb7c6282a99c2c2f60bfa714fe2"
+      },
+      "secrets": "inherit"
+    }
+  }
+}
