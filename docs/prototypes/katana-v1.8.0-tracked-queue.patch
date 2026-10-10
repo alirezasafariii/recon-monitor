@@ -11,10 +11,41 @@ index 9b9226b..f3e11e2 100644
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..9b6fe0f 100644
+index b6da330..4b99247 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
-@@ -402,15 +402,30 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -13,9 +13,9 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	lru "github.com/hashicorp/golang-lru/v2"
+ 	"github.com/PuerkitoBio/goquery"
+ 	"github.com/go-rod/rod"
++	lru "github.com/hashicorp/golang-lru/v2"
+ 	"github.com/projectdiscovery/gologger"
+ 	"github.com/projectdiscovery/katana/pkg/engine/parser/files"
+ 	"github.com/projectdiscovery/katana/pkg/navigation"
+@@ -46,13 +46,13 @@ type hostBackoff struct {
+ const hostBackoffsCacheSize = 10000
+ 
+ type Shared struct {
+-	Headers            map[string]string
+-	KnownFiles         *files.KnownFiles
+-	Options            *types.CrawlerOptions
+-	Jar                *httputil.CookieJar
+-	PathTrie           *utils.PathTrie
++	Headers           map[string]string
++	KnownFiles        *files.KnownFiles
++	Options           *types.CrawlerOptions
++	Jar               *httputil.CookieJar
++	PathTrie          *utils.PathTrie
+ 	DomainPageCounter sync.Map
+-	hostBackoffs *lru.Cache[string, *hostBackoff]
++	hostBackoffs      *lru.Cache[string, *hostBackoff]
+ }
+ 
+ // NewShared creates a new Shared instance with the provided crawler options.
+@@ -402,15 +402,38 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
@@ -22,6 +53,7 @@ index b6da330..9b6fe0f 100644
 +func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) (retErr error) {
 +	var attempted, failed, limited atomic.Int64
 +	var unparsed atomic.Bool
++	var diagnostics reconDiagnostics
 +	defer func() {
 +		if path := s.Options.Options.ReconCompletionLog; path != "" {
 +			pending, active := crawlSession.Queue.WorkState()
@@ -29,8 +61,15 @@ index b6da330..9b6fe0f 100644
 +				limited.Add(1) // Reaching the cap cannot certify frontier exhaustion.
 +			}
 +			report := newCompletion(crawlSession.URL.String(), crawlSession.Ctx.Err(), attempted.Load(), failed.Load(), limited.Load(), pending, active)
-+			if unparsed.Load() && report.StopReason == "queue_exhausted" { report.StopReason = "unknown" }
-+			if err := writeCompletion(path, report); err != nil { retErr = errkit.Wrap(err, "completion artifact") }
++			if unparsed.Load() && report.StopReason == "queue_exhausted" {
++				report.StopReason = "unknown"
++			}
++			if err := writeDiagnostics(path+".diagnostics.jsonl", crawlSession.URL.String(), &diagnostics); err != nil {
++				retErr = errkit.Wrap(err, "diagnostic artifact")
++			}
++			if err := writeCompletion(path, report); err != nil {
++				retErr = errkit.Wrap(err, "completion artifact")
++			}
 +		}
 +	}()
  	wg := sizedwaitgroup.New(s.Options.Options.Concurrency)
@@ -47,7 +86,7 @@ index b6da330..9b6fe0f 100644
  			continue
  		}
  
-@@ -419,21 +434,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +442,25 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -73,7 +112,7 @@ index b6da330..9b6fe0f 100644
  			continue
  		}
  
-@@ -441,6 +460,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +468,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -81,7 +120,7 @@ index b6da330..9b6fe0f 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +503,18 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +511,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -92,7 +131,11 @@ index b6da330..9b6fe0f 100644
  
 +			attempted.Add(1)
 +			requestFailed := false
-+			defer func() { if requestFailed { failed.Add(1) } }()
++			defer func() {
++				if requestFailed {
++					failed.Add(1)
++				}
++			}()
  			resp, err := doRequest(crawlSession, req)
  
  			if resp != nil && IsThrottled(resp.StatusCode) {
@@ -100,7 +143,7 @@ index b6da330..9b6fe0f 100644
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +525,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -500,6 +537,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			}
  
  			if err != nil {
@@ -108,28 +151,31 @@ index b6da330..9b6fe0f 100644
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,6 +537,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,6 +549,8 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {
 +				unparsed.Store(true)
++				diagnostics.observe(resp)
  				return
  			}
  			if s.Options.Options.DisableRedirects && resp.IsRedirect() {
 diff --git a/pkg/engine/common/recon_completion.go b/pkg/engine/common/recon_completion.go
 new file mode 100644
-index 0000000..6258673
+index 0000000..b800340
 --- /dev/null
 +++ b/pkg/engine/common/recon_completion.go
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,99 @@
 +package common
 +
 +import (
 +	"context"
 +	"encoding/json"
 +	"errors"
++	"github.com/projectdiscovery/katana/pkg/navigation"
 +	"os"
 +	"sync"
++	"sync/atomic"
 +)
 +
 +const completionContract = "recon.katana.standard.completion.v1"
@@ -171,6 +217,44 @@ index 0000000..6258673
 +	if err != nil {
 +		return err
 +	}
++	if err := json.NewEncoder(f).Encode(report); err != nil {
++		_ = f.Close()
++		return err
++	}
++	if err := f.Sync(); err != nil {
++		_ = f.Close()
++		return err
++	}
++	return f.Close()
++}
++
++// Fixed-size counters keep diagnostics bounded and separate from contract v1.
++type reconDiagnostics struct{ exact, similarity, missing atomic.Int64 }
++
++func (d *reconDiagnostics) observe(resp *navigation.Response) {
++	switch {
++	case resp != nil && resp.ReconSkipReason == "exact_content_duplicate":
++		d.exact.Add(1)
++	case resp != nil && resp.ReconSkipReason == "similarity_filtered":
++		d.similarity.Add(1)
++	default:
++		d.missing.Add(1)
++	}
++}
++func writeDiagnostics(path, origin string, d *reconDiagnostics) error {
++	completionMu.Lock()
++	defer completionMu.Unlock()
++	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
++	if err != nil {
++		return err
++	}
++	report := struct {
++		Contract string           `json:"contract"`
++		Origin   string           `json:"origin"`
++		Reasons  map[string]int64 `json:"unparsed_reasons"`
++	}{
++		"recon.katana.standard.diagnostics.v1", origin, map[string]int64{
++			"exact_content_duplicate": d.exact.Load(), "similarity_filtered": d.similarity.Load(), "missing_response_reader": d.missing.Load()}}
 +	if err := json.NewEncoder(f).Encode(report); err != nil {
 +		_ = f.Close()
 +		return err
@@ -298,8 +382,65 @@ index 0000000..68e1799
 +		origins[report.Origin] = true
 +	}
 +}
+diff --git a/pkg/engine/common/recon_diagnostics_test.go b/pkg/engine/common/recon_diagnostics_test.go
+new file mode 100644
+index 0000000..963f231
+--- /dev/null
++++ b/pkg/engine/common/recon_diagnostics_test.go
+@@ -0,0 +1,51 @@
++package common
++
++import (
++	"encoding/json"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"os"
++	"path/filepath"
++	"sync"
++	"testing"
++)
++
++func TestReconDiagnosticsConcurrent(t *testing.T) {
++	var d reconDiagnostics
++	var wg sync.WaitGroup
++	for i := 0; i < 30; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			d.observe(&navigation.Response{ReconSkipReason: "exact_content_duplicate"})
++			d.observe(&navigation.Response{ReconSkipReason: "similarity_filtered"})
++			d.observe(nil)
++		}()
++	}
++	wg.Wait()
++	p := filepath.Join(t.TempDir(), "diagnostics.jsonl")
++	if err := writeDiagnostics(p, "https://example.test/", &d); err != nil {
++		t.Fatal(err)
++	}
++	b, err := os.ReadFile(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var row struct {
++		Reasons map[string]int64 `json:"unparsed_reasons"`
++	}
++	if err := json.Unmarshal(b, &row); err != nil {
++		t.Fatal(err)
++	}
++	for _, k := range []string{"exact_content_duplicate", "similarity_filtered", "missing_response_reader"} {
++		if row.Reasons[k] != 30 {
++			t.Fatalf("%s=%d", k, row.Reasons[k])
++		}
++	}
++	report := newCompletion("https://example.test/", nil, 1, 0, 0, 0, 0)
++	if report.StopReason != "queue_exhausted" {
++		t.Fatal("diagnostics changed completion")
++	}
++	if err := writeDiagnostics(filepath.Join(p, "invalid"), "x", &d); err == nil {
++		t.Fatal("write failure ignored")
++	}
++}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
-index 049a3ff..fcd3186 100644
+index 049a3ff..7692aa1 100644
 --- a/pkg/engine/standard/crawl.go
 +++ b/pkg/engine/standard/crawl.go
 @@ -3,7 +3,9 @@ package standard
@@ -312,15 +453,22 @@ index 049a3ff..fcd3186 100644
  	"net/http"
  	"net/http/httputil"
  	"net/url"
-@@ -100,7 +102,7 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+@@ -100,12 +102,12 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
  
  	// Skip unique content filtering if disabled
  	if !c.Options.Options.DisableUniqueFilter {
 -		if !c.Options.UniqueFilter.UniqueContent(data) {
+-			return &navigation.Response{}, nil
 +		if !c.Options.UniqueFilter.UniqueContent(originContentKey(s.URL, data)) {
- 			return &navigation.Response{}, nil
++			return &navigation.Response{ReconSkipReason: "exact_content_duplicate"}, nil
  		}
  	}
+ 	if c.Options.ContentSimilarity != nil && !c.Options.ContentSimilarity.Accept(data) {
+-		return &navigation.Response{}, nil
++		return &navigation.Response{ReconSkipReason: "similarity_filtered"}, nil
+ 	}
+ 
+ 	if c.Options.Wappalyzer != nil {
 @@ -148,3 +150,24 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
  
  	return response, nil
@@ -410,6 +558,18 @@ index 0000000..76fe2ed
 +		t.Fatal("other-origin response rejected")
 +	}
 +}
+diff --git a/pkg/navigation/response.go b/pkg/navigation/response.go
+index 50396bb..7954588 100644
+--- a/pkg/navigation/response.go
++++ b/pkg/navigation/response.go
+@@ -28,6 +28,7 @@ func (h *Headers) MarshalJSON() ([]byte, error) {
+ 
+ // Response is a response generated from crawler navigation
+ type Response struct {
++	ReconSkipReason    string            `json:"-"` // Experimental diagnostic; never completion evidence.
+ 	Resp               *http.Response    `json:"-"`
+ 	Depth              int               `json:"-"`
+ 	Reader             *goquery.Document `json:"-"`
 diff --git a/pkg/types/options.go b/pkg/types/options.go
 index e395c2a..15f9d97 100644
 --- a/pkg/types/options.go
@@ -657,3 +817,4 @@ index 0000000..3435c42
 +		})
 +	}
 +}
+
