@@ -1,14 +1,14 @@
-# Recon Monitor 8.8.15
+# Recon Monitor 8.8.16
 
-<!-- recon-monitor-current: app=8.8.15 schema=18 -->
+<!-- recon-monitor-current: app=8.8.16 schema=18 -->
 
-## Current release: Katana Batch Exit Margin
+## Current release: Optional Katana Per-Origin Completion
 
-Recon Monitor 8.8.15 reserves startup and shutdown time inside the existing Katana batch envelope by shortening internal crawl duration. Unaffordable batches stay pending without request reservations. Timeout, rate and global budget are unchanged; deadline-limited zero exits remain completion-unverified and partial URLs are retained. Live target acceptance of the margin is pending.
+Recon Monitor 8.8.16 accepts explicit completion events from a compatible patched standard-engine Katana producer. Each independently completed origin leaves the backlog; failed or missing siblings remain pending, and resume retries only unfinished origins. Stock Katana 1.8.0 does not emit this contract and retains the existing completion guard. This package does not include or install the experimental crawler. See [completion contract](docs/KATANA_COMPLETION_CONTRACT.md).
 
-The canonical application version is **8.8.15** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
+The canonical application version is **8.8.16** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
 
-See `CHANGELOG.md`, `MIGRATION-v8.8.15.md`, `docs/RELEASE_NOTES_v8.8.15.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
+See `CHANGELOG.md`, `MIGRATION-v8.8.16.md`, `docs/RELEASE_NOTES_v8.8.16.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0
 
@@ -247,4 +247,4 @@ The primary workflow is now `Command center → Review queue → technical drill
 
 See `docs/DASHBOARD_PERFORMANCE.md` for snapshot caching, bounded pagination, and explicit deep-refresh behavior.
 
-8.8.15 wildcard detection work: see [explicit DNS wildcard candidates](docs/DNS_WILDCARD_DETECTION.md) for evidence, scope, budget and limitations.
+8.8.16 wildcard detection work: see [explicit DNS wildcard candidates](docs/DNS_WILDCARD_DETECTION.md) for evidence, scope, budget and limitations.
