@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
+if not TOOLS.is_dir():
+    raise unittest.SkipTest("Optional prototype tooling is absent in the legacy installation layout")
 sys.path.insert(0, str(TOOLS))
 from katana_completion_contract import CONTRACT, read_completion
 

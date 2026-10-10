@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import json
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -69,6 +70,24 @@ class InstalledReviewLayoutTests(unittest.TestCase):
                         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             finally:
                 db.close()
+
+    def test_legacy_layout_skips_uninstalled_optional_prototype_reader(self):
+        # A missing optional tools root is expected on 8.8.3 installs. Do not
+        # hide import failures when tooling is present in a source checkout.
+        with tempfile.TemporaryDirectory(prefix='legacy-prototype-layout-') as temp:
+            installed = Path(temp)
+            (installed / 'tests').mkdir()
+            shutil.copy2(ROOT / 'tests/test_katana_prototype_completion_contract.py',
+                         installed / 'tests/test_katana_prototype_completion_contract.py')
+            code = (
+                "import unittest;"
+                "s=unittest.defaultTestLoader.discover('tests',pattern='test_katana_prototype_completion_contract.py');"
+                "r=unittest.TextTestRunner().run(s);"
+                "assert r.wasSuccessful();assert r.testsRun==1;assert len(r.skipped)==1"
+            )
+            result = subprocess.run([sys.executable, '-I', '-c', code], cwd=installed,
+                                    text=True, capture_output=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_current_updater_tracks_tools_for_install_backup_and_rollback(self):
         self.assertIn('tools', UpdateManager._program_items(ROOT))
