@@ -73,7 +73,7 @@ def main():
                     command += ['-cos', r'/excluded$']
                 env = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
                 started = time.monotonic()
-                result = subprocess.run(command, text=True, capture_output=True, timeout=20, env=env)
+                result = subprocess.run(command, stdin=subprocess.DEVNULL, text=True, capture_output=True, timeout=20, env=env)
                 outcomes = read_completion(completion, origins, returncode=result.returncode, timed_out=False)
                 for i, origin in enumerate(origins):
                     outcome = outcomes[origin_key(origin)]
@@ -103,3 +103,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

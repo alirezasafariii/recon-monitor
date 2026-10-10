@@ -77,7 +77,7 @@ def main():
                 completion = Path(tmp) / "completion.jsonl"
                 if args.completion_contract:
                     command += ["-recon-completion-log", str(completion)]
-                result = subprocess.run(command, capture_output=True, text=True, timeout=15, env=env)
+                result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, env=env)
                 if args.completion_contract:
                     from katana_completion_contract import read_completion
                     report["completion"] = read_completion(completion, [url], returncode=result.returncode, timed_out=False)
@@ -99,3 +99,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

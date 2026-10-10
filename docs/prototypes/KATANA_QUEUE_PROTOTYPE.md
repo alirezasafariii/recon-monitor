@@ -173,3 +173,9 @@ The operator's Mac diagnostic at commit 5b3201d305e48a1be5d056b9ee86b0483ef2a878
 
 Linux validation: 20 repeated race tests for parsing-context discrimination, response metadata, queue, completion and diagnostics passed. A real loopback fixture with identical /a/ and /b/ bodies fetched both /a/proof and /b/proof, completed with five attempts and zero unparsed counters. Real Recon 8.8.16 stage integration passed healthy, mixed-error and pending-only resume scenarios. Clean pinned-upstream patch application and producer build passed. Run tools/katana_relative_base_local_acceptance.py --binary PATH to reproduce the relative-base fixture.
 
+
+
+## Acceptance subprocess stdin isolation
+
+Manual acceptance tools close producer stdin using subprocess.DEVNULL. Katana consumes stdin as additional seed input even when -u/-list is supplied, so inherited bash heredoc input can introduce unintended seeds and consume later shell commands. The relative-base fixture now reads JSONL row by row, prints raw completion/diagnostic artifacts before assertions, and requires exactly one row per fixture. A Linux fixture passed with an unwanted seed piped into the harness stdin; only the intended loopback origin was processed. A Mac run of the preceding harness failed at single-JSON decoding of multiple completion rows; its live step did not run, and it is not a successful acceptance of the context patch.
+
