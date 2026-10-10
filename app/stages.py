@@ -1031,8 +1031,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             if limit_value:
                 remaining_requests = max(0, limit_value - used_value)
 
+        # Completed origins must not consume the backlog's time allocation
+        # or occupy a limited request-envelope admission slot on resume.
+        already_completed = set(katana_origin_successes)
+        unfinished_origins = [
+            origin for origin in base_urls if origin not in already_completed
+        ]
         plan = _katana_crawl_plan(
-            base_urls,
+            unfinished_origins,
             remaining_requests=remaining_requests,
             request_rate=ctx.policy.limits.request_rate,
             timeout_seconds=ctx.policy.limits.timeout_seconds,
@@ -1049,16 +1055,13 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         )
         if uncapped_katana:
             plan.update({
-                "origins": list(dict.fromkeys(base_urls)),
+                "origins": list(dict.fromkeys(unfinished_origins)),
                 "reservation": 0,
                 "rate_limit": ctx.policy.limits.request_rate,
                 "crawl_seconds": 0,
                 "wall_seconds": 0,
             })
-        already_completed = set(katana_origin_successes)
-        katana_origins = [
-            origin for origin in plan["origins"] if origin not in already_completed
-        ]
+        katana_origins = list(plan["origins"])
         katana_request_envelope = int(plan["reservation"] or 0)
         katana_crawl_origins = len(katana_origins)
         katana_rate_limit = int(plan["rate_limit"] or 0)
