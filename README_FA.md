@@ -1,16 +1,16 @@
-# راهنمای Recon Monitor 8.8.17
+# راهنمای Recon Monitor 8.8.18
 
-<!-- recon-monitor-current: app=8.8.17 schema=18 -->
+<!-- recon-monitor-current: app=8.8.18 schema=18 -->
 
 ## نسخهٔ فعلی: اصلاح تخصیص بودجهٔ resume در Katana
 
-در نسخهٔ 8.8.17، مبدأهای completed پیش از محاسبهٔ زمان و ظرفیت درخواست حذف می‌شوند؛ فقط مبدأهای زنده و ناتمام سهم خزش می‌گیرند. شواهد قبلی و سقف‌های scope، نرخ، درخواست و runtime حفظ می‌شوند. resume یک جلسهٔ خزش جدید آغاز می‌کند و صف داخلی Katana را بازیابی نمی‌کند. [قرارداد پایان خزش](docs/KATANA_COMPLETION_CONTRACT.md).
+در نسخهٔ 8.8.18، با producer آزمایشی دارای قابلیت checkpoint، ادامهٔ خزش از صف ذخیره‌شده انجام می‌شود و عمق و منبع URL حفظ می‌شوند. Katana رسمی رفتار قبلی را دارد؛ سقف scope، نرخ، درخواست و runtime حفظ می‌شود. [صف پایدار Katana](docs/prototypes/KATANA_FRONTIER_CHECKPOINT.md).
 
-Recon Monitor 8.8.17 میزبان‌های دارای DNS حفظ‌شده را در ورودی مراحل بعد نگه می‌دارد و وضعیت resolved را پس از مشاهدهٔ منفی معتبر اصلاح می‌کند. تعداد میزبان‌های تازه، حفظ‌شده و مؤثر جدا گزارش می‌شود. wildcard جدید از حذف خطوط خروجی حدس زده نمی‌شود؛ آسیب تاریخی DNS خودکار بازیابی نمی‌شود.
+Recon Monitor 8.8.18 میزبان‌های دارای DNS حفظ‌شده را در ورودی مراحل بعد نگه می‌دارد و وضعیت resolved را پس از مشاهدهٔ منفی معتبر اصلاح می‌کند. تعداد میزبان‌های تازه، حفظ‌شده و مؤثر جدا گزارش می‌شود. wildcard جدید از حذف خطوط خروجی حدس زده نمی‌شود؛ آسیب تاریخی DNS خودکار بازیابی نمی‌شود.
 
-نسخهٔ canonical برنامه **8.8.17** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
+نسخهٔ canonical برنامه **8.8.18** و Core Schema دیتابیس **18** است. Core Schema همچنان backward-compatible باقی می‌ماند و قراردادهای جدید replay، fingerprint، notification و reporting از compatibility metadataهای additive و مستقل استفاده می‌کنند. Snapshotهای قدیمی Analysis که قبل از ثبت immutable `entity_tags` ساخته شده‌اند باید برای replay دوباره تولید شوند. مسیر fingerprint نیز به پشتیبانی `httpx -er` نیاز دارد.
 
-برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.17.md`، `docs/RELEASE_NOTES_v8.8.17.md` و `docs/ARCHITECTURE.md` مراجعه کن.
+برای جزئیات به `CHANGELOG.md`، `MIGRATION-v8.8.18.md`، `docs/RELEASE_NOTES_v8.8.18.md` و `docs/ARCHITECTURE.md` مراجعه کن.
 
 ## Analysis نامرئی و Evidence Dossier قابل Audit در نسخه 8.4.0
 
