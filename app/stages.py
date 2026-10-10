@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from katana_completion import read_completion, origin_key
+
 from core import (
     AppPaths,
     CommandRunner,
@@ -817,6 +819,26 @@ def _probe_live_origins(ctx: StageContext, urls: Iterable[str]) -> tuple[list[st
     return list(dict.fromkeys(live)), results
 
 
+def _katana_completion_supported(ctx) -> bool:
+    """Bounded local help probe; stock Katana remains on the legacy guard."""
+    executable = tool_path("katana")
+    if not isinstance(executable, (str, os.PathLike)):
+        return False
+    path = ctx.current / "katana-completion-capability.txt"
+    try:
+        atomic_write_text(path, "")
+        result = ctx.runner.run([str(executable), "-h"], timeout=5, output_path=path)
+        if result.returncode != 0 or getattr(result, "timed_out", False):
+            return False
+        if path.stat().st_size > 1024 * 1024:
+            return False
+        help_text = path.read_text(encoding="utf-8")
+        return ("-recon-completion-log" in help_text
+                and "EXPERIMENTAL v1 per-origin standard-engine completion JSONL" in help_text)
+    except (OSError, UnicodeError, ValueError):
+        return False
+
+
 def stage_urls(ctx: StageContext) -> dict[str, Any]:
     def operator_next_requested() -> bool:
         checker = getattr(ctx, "next_requested", None)
@@ -1048,6 +1070,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         ))
 
         if katana_origins:
+            completion_supported = _katana_completion_supported(ctx)
             katana_base_path = ctx.current / "katana-base-urls.txt"
             atomic_write_text(
                 katana_base_path,
@@ -1140,6 +1163,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 # is a separate feature and is not implied by this mode.
                 if not uncapped_katana:
                     args.extend(["-ct", f"{batch_crawl_seconds}s"])
+                completion_path = ctx.current / f"katana-batch-{batch_number:03d}-completion.jsonl"
+                if completion_supported:
+                    # Never accept an event left behind by an earlier invocation.
+                    atomic_write_text(completion_path, "")
+                    args.extend(["-recon-completion-log", str(completion_path)])
                 # Policy credentials never cross into an external crawler.
                 batch_started_at = utc_now()
                 result = ctx.runner.run(
@@ -1171,6 +1199,16 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     not uncapped_katana and batch_exit == 0 and not batch_timed_out
                     and float(getattr(result, "duration", 0.0) or 0.0) >= batch_crawl_seconds
                 )
+                origin_completion = {}
+                completed_origins = []
+                if completion_supported:
+                    origin_completion = read_completion(
+                        completion_path, batch_origins, returncode=batch_exit,
+                        timed_out=batch_timed_out or bool(getattr(result, "operator_next", False)) or operator_next,
+                    )
+                    completed_origins = [origin for origin in batch_origins
+                                         if origin_completion[origin_key(origin)]["status"] == "completed"]
+                    batch_completion_unverified = len(completed_origins) != len(batch_origins)
                 katana_completion_unverified |= batch_completion_unverified
                 batch_complete = (
                     batch_exit == 0 and not batch_timed_out
@@ -1190,6 +1228,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "exit_code": batch_exit,
                     "timed_out": batch_timed_out,
                     "completion_verified": batch_complete,
+                    "completion_contract": "v1" if completion_supported else None,
+                    "completion_artifact": completion_path.name if completion_supported else None,
+                    "origin_completion": origin_completion,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),
                     "status": "completed" if batch_complete else (
@@ -1217,7 +1258,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     )
                 else:
                     katana_batches_completed += 1
-                    katana_origin_successes.extend(batch_origins)
+                    katana_origin_successes.extend(batch_origins if not completion_supported else completed_origins)
+
+                if completion_supported and not batch_complete:
+                    # Independently complete siblings can be retired from backlog.
+                    katana_origin_successes.extend(completed_origins)
 
                 # Retain evidence even for a failed batch; do not interpret a
                 # line of output as proof that its origin was fully crawled.

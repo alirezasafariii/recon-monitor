@@ -4,9 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-TOOLS = Path(__file__).resolve().parents[1] / "app"
+TOOLS = Path(__file__).resolve().parents[1] / "tools"
 sys.path.insert(0, str(TOOLS))
-from katana_completion import CONTRACT, read_completion
+from katana_completion_contract import CONTRACT, read_completion
 
 
 class CompletionContractTests(unittest.TestCase):
