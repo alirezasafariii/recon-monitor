@@ -1,0 +1,1679 @@
+diff --git a/cmd/katana/main.go b/cmd/katana/main.go
+index 9b9226b..3cb44dc 100644
+--- a/cmd/katana/main.go
++++ b/cmd/katana/main.go
+@@ -236,6 +236,8 @@ func readFlags() (*goflags.FlagSet, error) {
+ 	// Output group
+ 	flagSet.CreateGroup("output", "Output",
+ 		flagSet.StringVarP(&options.OutputFile, "output", "o", "", "file to write output to"),
++		flagSet.StringVar(&options.ReconCheckpointDir, "recon-checkpoint-dir", "", "EXPERIMENTAL v1 durable standard-engine GET frontier checkpoint"),
++		flagSet.StringVar(&options.ReconCompletionLog, "recon-completion-log", "", "EXPERIMENTAL v1 per-origin standard-engine completion JSONL"),
+ 		flagSet.StringVarP(&options.OutputTemplate, "output-template", "ot", "", "custom output template"),
+ 		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
+ 		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
+diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
+index b6da330..2868165 100644
+--- a/pkg/engine/common/base.go
++++ b/pkg/engine/common/base.go
+@@ -13,9 +13,9 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	lru "github.com/hashicorp/golang-lru/v2"
+ 	"github.com/PuerkitoBio/goquery"
+ 	"github.com/go-rod/rod"
++	lru "github.com/hashicorp/golang-lru/v2"
+ 	"github.com/projectdiscovery/gologger"
+ 	"github.com/projectdiscovery/katana/pkg/engine/parser/files"
+ 	"github.com/projectdiscovery/katana/pkg/navigation"
+@@ -46,13 +46,13 @@ type hostBackoff struct {
+ const hostBackoffsCacheSize = 10000
+ 
+ type Shared struct {
+-	Headers            map[string]string
+-	KnownFiles         *files.KnownFiles
+-	Options            *types.CrawlerOptions
+-	Jar                *httputil.CookieJar
+-	PathTrie           *utils.PathTrie
++	Headers           map[string]string
++	KnownFiles        *files.KnownFiles
++	Options           *types.CrawlerOptions
++	Jar               *httputil.CookieJar
++	PathTrie          *utils.PathTrie
+ 	DomainPageCounter sync.Map
+-	hostBackoffs *lru.Cache[string, *hostBackoff]
++	hostBackoffs      *lru.Cache[string, *hostBackoff]
+ }
+ 
+ // NewShared creates a new Shared instance with the provided crawler options.
+@@ -302,6 +302,7 @@ type CrawlSession struct {
+ 	URL        *url.URL
+ 	Hostname   string
+ 	Queue      *queue.Queue
++	Checkpoint *reconCheckpoint
+ 	HttpClient *retryablehttp.Client
+ 	Browser    *rod.Browser
+ }
+@@ -342,7 +343,67 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+ 		cancel()
+ 		return nil, err
+ 	}
+-	queue.Push(&navigation.Request{Method: http.MethodGet, URL: URL, Depth: 0, SkipValidation: true}, 0)
++	var checkpoint *reconCheckpoint
++	if dir := s.Options.Options.ReconCheckpointDir; dir != "" {
++		binding, err := checkpointBinding(s.Options.Options)
++		if err != nil {
++			cancel()
++			return nil, err
++		}
++		valid := func(raw string) bool {
++			ok, err := s.Options.ValidateScope(raw, hostname)
++			return err == nil && ok && s.Options.ValidatePath(raw)
++		}
++		if !valid(URL) {
++			cancel()
++			return nil, errkit.New("checkpoint seed is outside current scope")
++		}
++		checkpoint, err = openCheckpoint(dir, parsed.URL.String(), binding, s.Options.Options.MaxDepth, valid)
++		if err != nil {
++			cancel()
++			return nil, err
++		}
++		queue.BeforePush = func(x interface{}) error {
++			err := checkpoint.admit(x)
++			if err != nil {
++				cancel()
++			}
++			return err
++		}
++		items := checkpoint.snapshot()
++		unfinished := 0
++		for _, item := range items {
++			if !item.Done {
++				unfinished++
++			}
++		}
++		// If completion publication was lost after the last acknowledgement,
++		// revalidate the seed once rather than issuing zero-request success.
++		if len(items) > 0 && unfinished == 0 {
++			if err := checkpoint.recheckSeed(URL); err != nil {
++				checkpoint.close()
++				cancel()
++				return nil, err
++			}
++			items = checkpoint.snapshot()
++		}
++		for _, item := range items {
++			s.Options.UniqueFilter.UniqueURL(item.URL)
++			if !item.Done {
++				queue.Push(&navigation.Request{Method: http.MethodGet, URL: item.URL, Depth: item.Depth, RootHostname: hostname, Source: item.Source, Tag: item.Tag, Attribute: item.Attribute}, item.Depth)
++			}
++		}
++		if len(items) == 0 {
++			queue.Push(&navigation.Request{Method: http.MethodGet, URL: URL, Depth: 0, RootHostname: hostname}, 0)
++		}
++		if err := queue.AdmissionError(); err != nil {
++			checkpoint.close()
++			cancel()
++			return nil, err
++		}
++	} else {
++		queue.Push(&navigation.Request{Method: http.MethodGet, URL: URL, Depth: 0, SkipValidation: true}, 0)
++	}
+ 
+ 	if s.KnownFiles != nil {
+ 		navigationRequests, err := s.KnownFiles.RequestWithContext(ctx, URL)
+@@ -375,6 +436,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+ 	})
+ 	if err != nil {
+ 		cancel()
++		if checkpoint != nil {
++			checkpoint.close()
++		}
+ 		return nil, errkit.Wrap(err, "could not create http client")
+ 	}
+ 	crawlSession := &CrawlSession{
+@@ -383,6 +447,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+ 		URL:        parsed.URL,
+ 		Hostname:   hostname,
+ 		Queue:      queue,
++		Checkpoint: checkpoint,
+ 		HttpClient: httpclient,
+ 	}
+ 	return crawlSession, nil
+@@ -402,15 +467,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+ //
+ // The method returns when the queue is empty or the session context is cancelled
+ // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
+-func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
++func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) (retErr error) {
++	var attempted, failed, limited atomic.Int64
++	var unparsed atomic.Bool
++	var diagnostics reconDiagnostics
++	acknowledge := func(req *navigation.Request) {
++		if crawlSession.Checkpoint != nil {
++			if err := crawlSession.Checkpoint.acknowledge(req); err != nil {
++				crawlSession.CancelFunc()
++			}
++		}
++	}
++	defer func() {
++		if crawlSession.Checkpoint != nil {
++			defer crawlSession.Checkpoint.close()
++			if err := crawlSession.Checkpoint.err(); err != nil {
++				retErr = err
++				unparsed.Store(true)
++			}
++		}
++		if path := s.Options.Options.ReconCompletionLog; path != "" {
++			pending, active := crawlSession.Queue.WorkState()
++			if crawlSession.Checkpoint != nil {
++				durablePending := 0
++				for _, item := range crawlSession.Checkpoint.snapshot() {
++					if !item.Done {
++						durablePending++
++					}
++				}
++				if durablePending > pending {
++					pending = durablePending
++				}
++			}
++			if cap := s.Options.Options.MaxDomainPages; cap > 0 && s.DomainCounter(crawlSession.Hostname).Load() >= int64(cap) {
++				limited.Add(1) // Reaching the cap cannot certify frontier exhaustion.
++			}
++			report := newCompletion(crawlSession.URL.String(), crawlSession.Ctx.Err(), attempted.Load(), failed.Load(), limited.Load(), pending, active)
++			if unparsed.Load() && report.StopReason == "queue_exhausted" {
++				report.StopReason = "unknown"
++			}
++			if err := writeDiagnostics(path+".diagnostics.jsonl", crawlSession.URL.String(), &diagnostics); err != nil {
++				retErr = errkit.Wrap(err, "diagnostic artifact")
++			}
++			if err := writeCompletion(path, report); err != nil {
++				retErr = errkit.Wrap(err, "completion artifact")
++			}
++		}
++	}()
+ 	wg := sizedwaitgroup.New(s.Options.Options.Concurrency)
+-	for item := range crawlSession.Queue.PopWithContext(crawlSession.Ctx) {
++	for item := range crawlSession.Queue.PopTrackedWithContext(crawlSession.Ctx) {
+ 		if crawlSession.Ctx.Err() != nil {
++			crawlSession.Queue.DoneItem()
+ 			break
+ 		}
+ 
+ 		req, ok := item.(*navigation.Request)
+ 		if !ok {
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+@@ -419,21 +532,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 				s.Options.Options.OnSkipURL(req.URL)
+ 			}
+ 			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+ 		if !s.Options.ValidatePath(req.URL) {
+ 			gologger.Debug().Msgf("`%v` filtered path. skipping", req.URL)
++			acknowledge(req)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+ 		inScope, scopeErr := s.Options.ValidateScope(req.URL, crawlSession.Hostname)
+ 		if scopeErr != nil {
+ 			gologger.Debug().Msgf("Error validating scope for `%v`: %v. skipping", req.URL, scopeErr)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 		if !req.SkipValidation && !inScope {
+ 			gologger.Debug().Msgf("`%v` not in scope. skipping", req.URL)
++			acknowledge(req)
++			crawlSession.Queue.DoneItem()
+ 			continue
+ 		}
+ 
+@@ -441,6 +560,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
+ 		go func() {
+ 			defer wg.Done()
++			defer crawlSession.Queue.DoneItem()
+ 
+ 			// Race Take() against the session context so that workers
+ 			// don't block shutdown waiting for the next limiter tick
+@@ -483,13 +603,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 			if s.Options.Options.MaxDomainPages > 0 {
+ 				counter := s.DomainCounter(crawlSession.Hostname)
+ 				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
++					limited.Add(1)
+ 					return
+ 				}
+ 			}
+ 
++			attempted.Add(1)
++			requestFailed := false
++			defer func() {
++				if requestFailed {
++					failed.Add(1)
++				}
++			}()
+ 			resp, err := doRequest(crawlSession, req)
+ 
+ 			if resp != nil && IsThrottled(resp.StatusCode) {
++				requestFailed = true
+ 				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
+ 			} else if resp != nil {
+ 				s.RecordSuccess(crawlSession.Hostname)
+@@ -500,6 +629,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 			}
+ 
+ 			if err != nil {
++				requestFailed = true
+ 				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
+ 				outputError := &output.Error{
+ 					Timestamp: time.Now(),
+@@ -511,14 +641,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 				return
+ 			}
+ 			if resp == nil || resp.Resp == nil || resp.Reader == nil {
++				unparsed.Store(true)
++				diagnostics.observe(resp)
+ 				return
+ 			}
+ 			if s.Options.Options.DisableRedirects && resp.IsRedirect() {
++				if !requestFailed {
++					acknowledge(req)
++				}
+ 				return
+ 			}
+ 
+ 			navigationRequests := s.Options.Parser.ParseResponse(resp)
+ 			s.Enqueue(crawlSession.Queue, navigationRequests...)
++			if !requestFailed && crawlSession.Queue.AdmissionError() == nil {
++				acknowledge(req)
++			}
+ 		}()
+ 	}
+ 	wg.Wait()
+diff --git a/pkg/engine/common/recon_checkpoint.go b/pkg/engine/common/recon_checkpoint.go
+new file mode 100644
+index 0000000..d72bcdf
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint.go
+@@ -0,0 +1,399 @@
++package common
++
++// Experimental standard-engine checkpoint. Work is admitted durably before
++// dispatch, and acknowledged only after parsing and child admission. A crash
++// can repeat work, but cannot turn an unprocessed request into completed work.
++import (
++	"bytes"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"net/url"
++	"os"
++	"path/filepath"
++	"reflect"
++	"sort"
++	"sync"
++
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"github.com/projectdiscovery/katana/pkg/types"
++)
++
++const checkpointContract = "recon.katana.standard.frontier.v1"
++const checkpointMaxItems = 50000
++const checkpointMaxBytes = 64 << 20
++
++type frontierItem struct {
++	URL       string `json:"url"`
++	Depth     int    `json:"depth"`
++	Done      bool   `json:"done"`
++	Source    string `json:"source,omitempty"`
++	Tag       string `json:"tag,omitempty"`
++	Attribute string `json:"attribute,omitempty"`
++}
++type frontierDocument struct {
++	Contract string         `json:"contract"`
++	Origin   string         `json:"origin"`
++	Binding  string         `json:"binding"`
++	Items    []frontierItem `json:"items"`
++}
++type reconCheckpoint struct {
++	sync.Mutex
++	path, lock string
++	doc        frontierDocument
++	items      map[string]frontierItem
++	fault      error
++}
++
++func frontierKey(u string, depth int) string { return fmt.Sprintf("%d:%s", depth, u) }
++
++// Bind all scalar/slice options, excluding output destinations, seed lists,
++// invocation budgets and lifecycle callbacks. Changing a parsing/scope/transport
++// option invalidates reuse. Filters with process-local state are unsupported.
++func checkpointBinding(o *types.Options) (string, error) {
++	if o.Headless || o.HeadlessHybrid || o.AutomaticFormFill || o.AuthCredentials != "" || o.RecordedFlow != "" || len(o.CustomHeaders) > 0 || o.FilterSimilar || o.IgnoreQueryParams || o.PageContentSimilar || o.SimilarityDeduplication || o.MaxDomainPages > 0 || o.KnownFiles != "" || o.FormConfig != "" || o.FieldConfig != "" {
++		return "", errors.New("checkpoint requires anonymous standard GET crawl without stateful filters, known-files or page caps")
++	}
++	excluded := map[string]bool{}
++	for _, n := range []string{"URLs", "Resume", "Context", "OnResult", "OnSkipURL", "ReconCheckpointDir", "ReconCompletionLog", "ErrorLogFile", "OutputFile", "StoreResponseDir", "StoreFieldDir", "CrawlDuration", "Timeout", "Concurrency", "Parallelism", "RateLimit", "RateLimitMinute", "HostRateLimit", "HostRateLimitMinute", "Delay", "Silent", "Verbose", "Debug", "NoColors", "Version", "HealthCheck", "PprofServer", "DisableUpdateCheck"} {
++		excluded[n] = true
++	}
++	values := map[string]interface{}{}
++	v := reflect.ValueOf(o).Elem()
++	t := v.Type()
++	for i := 0; i < v.NumField(); i++ {
++		n := t.Field(i).Name
++		if !excluded[n] {
++			values[n] = v.Field(i).Interface()
++		}
++	}
++	// Compiled regexp fields must bind their expressions, not empty JSON objects.
++	patterns := []string{}
++	for _, r := range o.FilterRegex {
++		if r == nil {
++			return "", errors.New("nil checkpoint filter")
++		}
++		patterns = append(patterns, r.String())
++	}
++	values["FilterRegex"] = patterns
++	patterns = []string{}
++	for _, r := range o.MatchRegex {
++		if r == nil {
++			return "", errors.New("nil checkpoint filter")
++		}
++		patterns = append(patterns, r.String())
++	}
++	values["MatchRegex"] = patterns
++	b, err := json.Marshal(values)
++	if err != nil {
++		return "", err
++	}
++	h := sha256.Sum256(b)
++	return hex.EncodeToString(h[:]), nil
++}
++
++func validFrontierURL(raw string) bool {
++	u, e := url.Parse(raw)
++	return e == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.User == nil && len(raw) <= 8192
++}
++
++func openCheckpoint(dir, origin, binding string, maxDepth int, valid func(string) bool) (*reconCheckpoint, error) {
++	if !validFrontierURL(origin) {
++		return nil, errors.New("invalid checkpoint origin")
++	}
++	if err := os.MkdirAll(dir, 0700); err != nil {
++		return nil, err
++	}
++	st, err := os.Lstat(dir)
++	if err != nil {
++		return nil, err
++	}
++	if !st.IsDir() || st.Mode()&0077 != 0 {
++		return nil, errors.New("checkpoint directory must be private and not a symlink")
++	}
++	h := sha256.Sum256([]byte(origin))
++	path := filepath.Join(dir, hex.EncodeToString(h[:])+".json")
++	lock := path + ".lock"
++	f, err := os.OpenFile(lock, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
++	if err != nil {
++		return nil, fmt.Errorf("checkpoint is locked: %w", err)
++	}
++	if err = f.Close(); err != nil {
++		os.Remove(lock)
++		return nil, err
++	}
++	c := &reconCheckpoint{path: path, lock: lock, doc: frontierDocument{Contract: checkpointContract, Origin: origin, Binding: binding}, items: map[string]frontierItem{}}
++	success := false
++	defer func() {
++		if !success {
++			c.close()
++		}
++	}()
++	if st, err = os.Lstat(path); err == nil {
++		if !st.Mode().IsRegular() || st.Mode()&0077 != 0 || st.Size() > checkpointMaxBytes {
++			return nil, errors.New("unsafe checkpoint file")
++		}
++		file, e := os.Open(path)
++		if e != nil {
++			return nil, e
++		}
++		actual, e := file.Stat()
++		if e != nil || !os.SameFile(st, actual) {
++			file.Close()
++			return nil, errors.New("checkpoint changed during open")
++		}
++		data, e := io.ReadAll(io.LimitReader(file, checkpointMaxBytes+1))
++		file.Close()
++		if e != nil {
++			return nil, e
++		}
++		if len(data) > checkpointMaxBytes {
++			return nil, errors.New("checkpoint byte limit")
++		}
++		if e = rejectDuplicateKeys(data); e != nil {
++			return nil, e
++		}
++		if e = requireCheckpointFields(data); e != nil {
++			return nil, e
++		}
++		d := json.NewDecoder(bytes.NewReader(data))
++		d.DisallowUnknownFields()
++		if e = d.Decode(&c.doc); e != nil {
++			return nil, e
++		}
++		if e = d.Decode(new(interface{})); e != io.EOF {
++			return nil, errors.New("trailing checkpoint data")
++		}
++		if c.doc.Contract != checkpointContract || c.doc.Origin != origin || c.doc.Binding != binding || len(c.doc.Items) > checkpointMaxItems {
++			return nil, errors.New("checkpoint contract, origin, binding or size mismatch")
++		}
++		for _, item := range c.doc.Items {
++			if !validFrontierURL(item.URL) || item.Depth < 0 || item.Depth > maxDepth || !valid(item.URL) || len(item.Source) > 8192 || len(item.Tag) > 256 || len(item.Attribute) > 256 {
++				return nil, errors.New("checkpoint request violates current scope or depth")
++			}
++			key := frontierKey(item.URL, item.Depth)
++			if _, exists := c.items[key]; exists {
++				return nil, errors.New("duplicate checkpoint request")
++			}
++			c.items[key] = item
++		}
++	} else if !os.IsNotExist(err) {
++		return nil, err
++	}
++	success = true
++	return c, nil
++}
++
++// Reject duplicate JSON object keys before Go's decoder could accept last wins.
++func rejectDuplicateKeys(data []byte) error {
++	d := json.NewDecoder(bytes.NewReader(data))
++	var value func(int) error
++	value = func(depth int) error {
++		if depth > 8 {
++			return errors.New("checkpoint nesting limit")
++		}
++		t, e := d.Token()
++		if e != nil {
++			return e
++		}
++		delim, ok := t.(json.Delim)
++		if !ok {
++			return nil
++		}
++		switch delim {
++		case '{':
++			seen := map[string]bool{}
++			for d.More() {
++				k, e := d.Token()
++				if e != nil {
++					return e
++				}
++				s, ok := k.(string)
++				if !ok || seen[s] {
++					return errors.New("duplicate checkpoint JSON key")
++				}
++				seen[s] = true
++				if len(seen) > 6 {
++					return errors.New("checkpoint field limit")
++				}
++				if e = value(depth + 1); e != nil {
++					return e
++				}
++			}
++		case '[':
++			count := 0
++			for d.More() {
++				count++
++				if count > checkpointMaxItems {
++					return errors.New("checkpoint item limit")
++				}
++				if e = value(depth + 1); e != nil {
++					return e
++				}
++			}
++		default:
++			return errors.New("unexpected checkpoint delimiter")
++		}
++		_, e = d.Token()
++		return e
++	}
++	if e := value(0); e != nil {
++		return e
++	}
++	if _, e := d.Token(); e != io.EOF {
++		return errors.New("trailing checkpoint data")
++	}
++	return nil
++}
++func (c *reconCheckpoint) saveLocked() error {
++	c.doc.Items = c.doc.Items[:0]
++	for _, item := range c.items {
++		c.doc.Items = append(c.doc.Items, item)
++	}
++	sort.Slice(c.doc.Items, func(i, j int) bool {
++		a, b := c.doc.Items[i], c.doc.Items[j]
++		if a.Depth != b.Depth {
++			return a.Depth < b.Depth
++		}
++		return a.URL < b.URL
++	})
++	b, e := json.Marshal(c.doc)
++	if e != nil {
++		return e
++	}
++	if len(b) > checkpointMaxBytes {
++		return errors.New("checkpoint byte limit")
++	}
++	f, e := os.CreateTemp(filepath.Dir(c.path), ".frontier-*")
++	if e != nil {
++		return e
++	}
++	name := f.Name()
++	defer os.Remove(name)
++	if e = f.Chmod(0600); e == nil {
++		_, e = f.Write(b)
++	}
++	if e == nil {
++		e = f.Sync()
++	}
++	ce := f.Close()
++	if e == nil {
++		e = ce
++	}
++	if e != nil {
++		return e
++	}
++	if e = os.Rename(name, c.path); e != nil {
++		return e
++	}
++	df, e := os.Open(filepath.Dir(c.path))
++	if e != nil {
++		return e
++	}
++	e = df.Sync()
++	ce = df.Close()
++	if e == nil {
++		e = ce
++	}
++	return e
++}
++func (c *reconCheckpoint) admit(x interface{}) error {
++	c.Lock()
++	defer c.Unlock()
++	if c.fault != nil {
++		return c.fault
++	}
++	r, ok := x.(*navigation.Request)
++	if !ok || len(r.Source) > 8192 || len(r.Tag) > 256 || len(r.Attribute) > 256 || r.Method != "GET" || r.Body != "" || len(r.Headers) > 0 || len(r.CustomFields) > 0 || !validFrontierURL(r.URL) {
++		c.fault = errors.New("unsupported checkpoint request; frontier not certified")
++		return c.fault
++	}
++	key := frontierKey(r.URL, r.Depth)
++	if _, exists := c.items[key]; exists {
++		return nil
++	}
++	if len(c.items) >= checkpointMaxItems {
++		c.fault = errors.New("checkpoint item limit")
++		return c.fault
++	}
++	c.items[key] = frontierItem{URL: r.URL, Depth: r.Depth, Source: r.Source, Tag: r.Tag, Attribute: r.Attribute}
++	c.fault = c.saveLocked()
++	return c.fault
++}
++func (c *reconCheckpoint) acknowledge(r *navigation.Request) error {
++	c.Lock()
++	defer c.Unlock()
++	if c.fault != nil {
++		return c.fault
++	}
++	key := frontierKey(r.URL, r.Depth)
++	item, ok := c.items[key]
++	if !ok {
++		return errors.New("unadmitted checkpoint work")
++	}
++	item.Done = true
++	c.items[key] = item
++	c.fault = c.saveLocked()
++	return c.fault
++}
++func (c *reconCheckpoint) snapshot() []frontierItem {
++	c.Lock()
++	defer c.Unlock()
++	out := []frontierItem{}
++	for _, i := range c.items {
++		out = append(out, i)
++	}
++	sort.Slice(out, func(i, j int) bool {
++		return frontierKey(out[i].URL, out[i].Depth) < frontierKey(out[j].URL, out[j].Depth)
++	})
++	return out
++}
++func (c *reconCheckpoint) err() error { c.Lock(); defer c.Unlock(); return c.fault }
++func (c *reconCheckpoint) close()     { os.Remove(c.lock) }
++
++// Missing depth must not silently become zero on restore.
++func requireCheckpointFields(data []byte) error {
++	var root map[string]json.RawMessage
++	if err := json.Unmarshal(data, &root); err != nil {
++		return err
++	}
++	if len(root) != 4 {
++		return errors.New("checkpoint fields missing or unknown")
++	}
++	for _, k := range []string{"contract", "origin", "binding", "items"} {
++		if len(root[k]) == 0 || bytes.Equal(root[k], []byte("null")) {
++			return errors.New("checkpoint field absent")
++		}
++	}
++	var items []map[string]json.RawMessage
++	if err := json.Unmarshal(root["items"], &items); err != nil {
++		return err
++	}
++	for _, item := range items {
++		if len(item) < 3 || len(item) > 6 {
++			return errors.New("request fields missing or unknown")
++		}
++		for _, k := range []string{"url", "depth", "done"} {
++			if len(item[k]) == 0 || bytes.Equal(item[k], []byte("null")) {
++				return errors.New("request field absent")
++			}
++		}
++	}
++	return nil
++}
++
++func (c *reconCheckpoint) recheckSeed(origin string) error {
++	c.Lock()
++	defer c.Unlock()
++	key := frontierKey(origin, 0)
++	if _, exists := c.items[key]; !exists && len(c.items) >= checkpointMaxItems {
++		c.fault = errors.New("checkpoint item limit")
++		return c.fault
++	}
++	c.items[key] = frontierItem{URL: origin, Depth: 0}
++	c.fault = c.saveLocked()
++	return c.fault
++}
+diff --git a/pkg/engine/common/recon_checkpoint_test.go b/pkg/engine/common/recon_checkpoint_test.go
+new file mode 100644
+index 0000000..89b26b0
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_test.go
+@@ -0,0 +1,199 @@
++package common
++
++import (
++	"encoding/json"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"github.com/projectdiscovery/katana/pkg/types"
++	"os"
++	"path/filepath"
++	"sync"
++	"testing"
++)
++
++func checkpointOpen(t *testing.T, dir string) *reconCheckpoint {
++	t.Helper()
++	if e := os.Chmod(dir, 0700); e != nil {
++		t.Fatal(e)
++	}
++	c, e := openCheckpoint(dir, "http://example.test/", "binding", 3, func(s string) bool { return validFrontierURL(s) })
++	if e != nil {
++		t.Fatal(e)
++	}
++	return c
++}
++func TestReconCheckpointPersistsDepthDoneAndUnacknowledged(t *testing.T) {
++	dir := t.TempDir()
++	c := checkpointOpen(t, dir)
++	a := &navigation.Request{URL: "http://example.test/a/", Method: "GET", Depth: 1}
++	b := &navigation.Request{URL: "http://example.test/a/proof", Method: "GET", Depth: 2, Source: a.URL, Tag: "a", Attribute: "href"}
++	if e := c.admit(a); e != nil {
++		t.Fatal(e)
++	}
++	if e := c.admit(b); e != nil {
++		t.Fatal(e)
++	}
++	if e := c.acknowledge(a); e != nil {
++		t.Fatal(e)
++	}
++	c.close()
++	c = checkpointOpen(t, dir)
++	defer c.close()
++	s := c.snapshot()
++	if len(s) != 2 {
++		t.Fatal(s)
++	}
++	found := map[string]frontierItem{}
++	for _, i := range s {
++		found[i.URL] = i
++	}
++	if !found[a.URL].Done || found[b.URL].Done || found[b.URL].Depth != 2 || found[b.URL].Source != a.URL || found[b.URL].Tag != "a" || found[b.URL].Attribute != "href" {
++		t.Fatal(s)
++	}
++	st, _ := os.Stat(c.path)
++	if st.Mode().Perm() != 0600 {
++		t.Fatal(st.Mode())
++	}
++}
++func TestReconCheckpointRejectsChangedBindingScopeAndDepth(t *testing.T) {
++	dir := t.TempDir()
++	c := checkpointOpen(t, dir)
++	if e := c.admit(&navigation.Request{URL: "http://example.test/a", Method: "GET", Depth: 2}); e != nil {
++		t.Fatal(e)
++	}
++	c.close()
++	for _, tc := range []struct {
++		binding string
++		depth   int
++		valid   func(string) bool
++	}{
++		{"other", 3, func(string) bool { return true }}, {"binding", 1, func(string) bool { return true }}, {"binding", 3, func(string) bool { return false }},
++	} {
++		if got, e := openCheckpoint(dir, "http://example.test/", tc.binding, tc.depth, tc.valid); e == nil {
++			got.close()
++			t.Fatal("accepted incompatible checkpoint")
++		}
++	}
++}
++func TestReconCheckpointConcurrentAdmissionsAndAcknowledgements(t *testing.T) {
++	c := checkpointOpen(t, t.TempDir())
++	defer c.close()
++	var wg sync.WaitGroup
++	for n := 0; n < 20; n++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			r := &navigation.Request{URL: "http://example.test/", Method: "GET", Depth: 1}
++			if e := c.admit(r); e != nil {
++				t.Error(e)
++			}
++			if e := c.acknowledge(r); e != nil {
++				t.Error(e)
++			}
++		}()
++	}
++	wg.Wait()
++	if len(c.snapshot()) != 1 || !c.snapshot()[0].Done {
++		t.Fatal(c.snapshot())
++	}
++}
++func TestReconCheckpointExclusiveLockAndSymlink(t *testing.T) {
++	dir := t.TempDir()
++	c := checkpointOpen(t, dir)
++	if d, e := openCheckpoint(dir, "http://example.test/", "binding", 3, func(string) bool { return true }); e == nil {
++		d.close()
++		t.Fatal("concurrent writer accepted")
++	}
++	c.close()
++	if e := os.Symlink(filepath.Join(dir, "other"), c.path); e != nil {
++		t.Fatal(e)
++	}
++	if d, e := openCheckpoint(dir, "http://example.test/", "binding", 3, func(string) bool { return true }); e == nil {
++		d.close()
++		t.Fatal("symlink accepted")
++	}
++}
++func TestReconCheckpointUnsupportedRequestAndFailedWriteFailClosed(t *testing.T) {
++	for _, r := range []*navigation.Request{{URL: "http://example.test/", Method: "POST", Body: "secret"}, {URL: "http://example.test/", Method: "GET", Headers: map[string]string{"Cookie": "secret"}}, {URL: "http://u:p@example.test/", Method: "GET"}} {
++		c := checkpointOpen(t, t.TempDir())
++		if e := c.admit(r); e == nil {
++			t.Fatal("unsupported request accepted")
++		}
++		if c.err() == nil {
++			t.Fatal("missing fault")
++		}
++		c.close()
++	}
++	c := checkpointOpen(t, t.TempDir())
++	defer c.close()
++	c.path = filepath.Join(c.path, "not-a-directory", "file")
++	if e := c.admit(&navigation.Request{URL: "http://example.test/", Method: "GET"}); e == nil {
++		t.Fatal("write failure ignored")
++	}
++}
++func TestReconCheckpointRejectsMalformedAndDuplicateJSON(t *testing.T) {
++	for _, raw := range []string{`{"contract":"x","contract":"y"}`, `{} {}`, `[[[[[[[[[[]]]]]]]]]]`, `{"items":[{"url":"x","url":"y"}]}`} {
++		if rejectDuplicateKeys([]byte(raw)) == nil {
++			t.Fatal(raw)
++		}
++	}
++	dir := t.TempDir()
++	c := checkpointOpen(t, dir)
++	path := c.path
++	c.close()
++	doc := frontierDocument{Contract: checkpointContract, Origin: "http://example.test/", Binding: "binding", Items: []frontierItem{{URL: "http://example.test/a", Depth: 1}, {URL: "http://example.test/a", Depth: 1}}}
++	data, _ := json.Marshal(doc)
++	os.WriteFile(path, data, 0600)
++	if d, e := openCheckpoint(dir, doc.Origin, doc.Binding, 3, func(string) bool { return true }); e == nil {
++		d.close()
++		t.Fatal("duplicate request accepted")
++	}
++}
++func TestReconCheckpointBindingChangesParsingButAllowsNewBudget(t *testing.T) {
++	a := &types.Options{MaxDepth: 2, Strategy: "depth-first", ScrapeJSResponses: true}
++	x, e := checkpointBinding(a)
++	if e != nil {
++		t.Fatal(e)
++	}
++	a.CrawlDuration = 99
++	a.RateLimit = 4
++	a.Timeout = 5
++	y, _ := checkpointBinding(a)
++	if x != y {
++		t.Fatal("budget changed binding")
++	}
++	a.MaxDepth = 3
++	y, _ = checkpointBinding(a)
++	if x == y {
++		t.Fatal("depth did not change binding")
++	}
++	a.AutomaticFormFill = true
++	if _, e = checkpointBinding(a); e == nil {
++		t.Fatal("form crawl accepted")
++	}
++}
++
++func TestReconCheckpointRequiredFields(t *testing.T) {
++	for _, raw := range []string{`{"contract":"x","origin":"http://example.test/","binding":"x","items":[{"url":"http://example.test/a","done":true}]}`, `{"contract":"x","origin":"http://example.test/","binding":"x","items":null}`} {
++		if requireCheckpointFields([]byte(raw)) == nil {
++			t.Fatal("missing fields accepted")
++		}
++	}
++}
++
++func TestReconCheckpointCompletedStateNeedsFreshSeedEvidence(t *testing.T) {
++	c := checkpointOpen(t, t.TempDir())
++	defer c.close()
++	r := &navigation.Request{URL: "http://example.test/", Method: "GET"}
++	if e := c.admit(r); e != nil {
++		t.Fatal(e)
++	}
++	if e := c.acknowledge(r); e != nil {
++		t.Fatal(e)
++	}
++	if e := c.recheckSeed(r.URL); e != nil {
++		t.Fatal(e)
++	}
++	if c.snapshot()[0].Done {
++		t.Fatal("historical state became fresh zero-request completion")
++	}
++}
+diff --git a/pkg/engine/common/recon_completion.go b/pkg/engine/common/recon_completion.go
+new file mode 100644
+index 0000000..b800340
+--- /dev/null
++++ b/pkg/engine/common/recon_completion.go
+@@ -0,0 +1,99 @@
++package common
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"os"
++	"sync"
++	"sync/atomic"
++)
++
++const completionContract = "recon.katana.standard.completion.v1"
++
++type reconCompletion struct {
++	Contract   string `json:"contract"`
++	Origin     string `json:"origin"`
++	StopReason string `json:"stop_reason"`
++	Attempted  int64  `json:"attempted_requests"`
++	Failed     int64  `json:"failed_requests"`
++	Limited    int64  `json:"limited_requests"`
++	Pending    int    `json:"pending_items"`
++	Active     int    `json:"active_items"`
++}
++
++func newCompletion(origin string, ctxErr error, attempted, failed, limited int64, pending, active int) reconCompletion {
++	reason := "queue_exhausted"
++	switch {
++	case errors.Is(ctxErr, context.DeadlineExceeded):
++		reason = "deadline"
++	case ctxErr != nil:
++		reason = "cancelled"
++	case limited > 0:
++		reason = "page_limit"
++	case failed > 0:
++		reason = "request_errors"
++	case attempted == 0 || pending != 0 || active != 0:
++		reason = "unknown"
++	}
++	return reconCompletion{completionContract, origin, reason, attempted, failed, limited, pending, active}
++}
++
++var completionMu sync.Mutex
++
++func writeCompletion(path string, report reconCompletion) error {
++	completionMu.Lock()
++	defer completionMu.Unlock()
++	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
++	if err != nil {
++		return err
++	}
++	if err := json.NewEncoder(f).Encode(report); err != nil {
++		_ = f.Close()
++		return err
++	}
++	if err := f.Sync(); err != nil {
++		_ = f.Close()
++		return err
++	}
++	return f.Close()
++}
++
++// Fixed-size counters keep diagnostics bounded and separate from contract v1.
++type reconDiagnostics struct{ exact, similarity, missing atomic.Int64 }
++
++func (d *reconDiagnostics) observe(resp *navigation.Response) {
++	switch {
++	case resp != nil && resp.ReconSkipReason == "exact_content_duplicate":
++		d.exact.Add(1)
++	case resp != nil && resp.ReconSkipReason == "similarity_filtered":
++		d.similarity.Add(1)
++	default:
++		d.missing.Add(1)
++	}
++}
++func writeDiagnostics(path, origin string, d *reconDiagnostics) error {
++	completionMu.Lock()
++	defer completionMu.Unlock()
++	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
++	if err != nil {
++		return err
++	}
++	report := struct {
++		Contract string           `json:"contract"`
++		Origin   string           `json:"origin"`
++		Reasons  map[string]int64 `json:"unparsed_reasons"`
++	}{
++		"recon.katana.standard.diagnostics.v1", origin, map[string]int64{
++			"exact_content_duplicate": d.exact.Load(), "similarity_filtered": d.similarity.Load(), "missing_response_reader": d.missing.Load()}}
++	if err := json.NewEncoder(f).Encode(report); err != nil {
++		_ = f.Close()
++		return err
++	}
++	if err := f.Sync(); err != nil {
++		_ = f.Close()
++		return err
++	}
++	return f.Close()
++}
+diff --git a/pkg/engine/common/recon_completion_test.go b/pkg/engine/common/recon_completion_test.go
+new file mode 100644
+index 0000000..68e1799
+--- /dev/null
++++ b/pkg/engine/common/recon_completion_test.go
+@@ -0,0 +1,111 @@
++package common
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"fmt"
++	"os"
++	"path/filepath"
++	"sync"
++	"testing"
++)
++
++func TestReconCompletionNeverConfusesStopsWithQuiescence(t *testing.T) {
++	cases := []struct {
++		name                       string
++		err                        error
++		attempted, failed, limited int64
++		pending, active            int
++		want                       string
++	}{
++		{"complete", nil, 3, 0, 0, 0, 0, "queue_exhausted"},
++		{"deadline", context.DeadlineExceeded, 2, 1, 0, 1, 0, "deadline"},
++		{"cancelled", context.Canceled, 2, 0, 0, 0, 0, "cancelled"},
++		{"request error", nil, 3, 1, 0, 0, 0, "request_errors"},
++		{"page limit", nil, 3, 0, 1, 0, 0, "page_limit"},
++		{"no observation", nil, 0, 0, 0, 0, 0, "unknown"},
++		{"pending", nil, 3, 0, 0, 1, 0, "unknown"},
++		{"active", nil, 3, 0, 0, 0, 1, "unknown"},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			r := newCompletion("http://127.0.0.1:1234/", tc.err, tc.attempted, tc.failed, tc.limited, tc.pending, tc.active)
++			if r.StopReason != tc.want {
++				t.Fatalf("got %s want %s", r.StopReason, tc.want)
++			}
++			if r.Contract != completionContract {
++				t.Fatal("missing contract identity")
++			}
++		})
++	}
++}
++
++func TestReconCompletionArtifactIsJSONLAndWriteFailureIsReturned(t *testing.T) {
++	dir := t.TempDir()
++	path := filepath.Join(dir, "completion.jsonl")
++	r := newCompletion("http://127.0.0.1:1234/", nil, 3, 0, 0, 0, 0)
++	if err := writeCompletion(path, r); err != nil {
++		t.Fatal(err)
++	}
++	if err := writeCompletion(path, r); err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.Open(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	d := json.NewDecoder(f)
++	for i := 0; i < 2; i++ {
++		var got reconCompletion
++		if err := d.Decode(&got); err != nil {
++			t.Fatal(err)
++		}
++		if got != r {
++			t.Fatal("artifact changed report")
++		}
++	}
++	if err := writeCompletion(dir, r); err == nil {
++		t.Fatal("write failure hidden")
++	}
++}
++
++func TestReconCompletionConcurrentOriginsWriteWholeEvents(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "completion.jsonl")
++	errors := make(chan error, 24)
++	var workers sync.WaitGroup
++	for i := 0; i < 24; i++ {
++		workers.Add(1)
++		go func(index int) {
++			defer workers.Done()
++			errors <- writeCompletion(path, newCompletion(fmt.Sprintf("http://127.0.0.1:%d", 20000+index), nil, 3, 0, 0, 0, 0))
++		}(i)
++	}
++	workers.Wait()
++	close(errors)
++	for err := range errors {
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := bytes.Split(bytes.TrimSpace(data), []byte("\n"))
++	if len(lines) != 24 {
++		t.Fatalf("lost events: %d", len(lines))
++	}
++	origins := make(map[string]bool)
++	for _, line := range lines {
++		var report reconCompletion
++		if err := json.Unmarshal(line, &report); err != nil {
++			t.Fatal(err)
++		}
++		if origins[report.Origin] || report.StopReason != "queue_exhausted" {
++			t.Fatalf("invalid event: %+v", report)
++		}
++		origins[report.Origin] = true
++	}
++}
+diff --git a/pkg/engine/common/recon_diagnostics_test.go b/pkg/engine/common/recon_diagnostics_test.go
+new file mode 100644
+index 0000000..963f231
+--- /dev/null
++++ b/pkg/engine/common/recon_diagnostics_test.go
+@@ -0,0 +1,51 @@
++package common
++
++import (
++	"encoding/json"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"os"
++	"path/filepath"
++	"sync"
++	"testing"
++)
++
++func TestReconDiagnosticsConcurrent(t *testing.T) {
++	var d reconDiagnostics
++	var wg sync.WaitGroup
++	for i := 0; i < 30; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			d.observe(&navigation.Response{ReconSkipReason: "exact_content_duplicate"})
++			d.observe(&navigation.Response{ReconSkipReason: "similarity_filtered"})
++			d.observe(nil)
++		}()
++	}
++	wg.Wait()
++	p := filepath.Join(t.TempDir(), "diagnostics.jsonl")
++	if err := writeDiagnostics(p, "https://example.test/", &d); err != nil {
++		t.Fatal(err)
++	}
++	b, err := os.ReadFile(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var row struct {
++		Reasons map[string]int64 `json:"unparsed_reasons"`
++	}
++	if err := json.Unmarshal(b, &row); err != nil {
++		t.Fatal(err)
++	}
++	for _, k := range []string{"exact_content_duplicate", "similarity_filtered", "missing_response_reader"} {
++		if row.Reasons[k] != 30 {
++			t.Fatalf("%s=%d", k, row.Reasons[k])
++		}
++	}
++	report := newCompletion("https://example.test/", nil, 1, 0, 0, 0, 0)
++	if report.StopReason != "queue_exhausted" {
++		t.Fatal("diagnostics changed completion")
++	}
++	if err := writeDiagnostics(filepath.Join(p, "invalid"), "x", &d); err == nil {
++		t.Fatal("write failure ignored")
++	}
++}
+diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
+index 049a3ff..fd39013 100644
+--- a/pkg/engine/standard/crawl.go
++++ b/pkg/engine/standard/crawl.go
+@@ -3,7 +3,10 @@ package standard
+ import (
+ 	"bytes"
+ 	"context"
++	"crypto/sha256"
++	"encoding/json"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"net/http/httputil"
+ 	"net/url"
+@@ -100,12 +103,12 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+ 
+ 	// Skip unique content filtering if disabled
+ 	if !c.Options.Options.DisableUniqueFilter {
+-		if !c.Options.UniqueFilter.UniqueContent(data) {
+-			return &navigation.Response{}, nil
++		if !c.Options.UniqueFilter.UniqueContent(parsingContentKey(s.URL, request, resp, data)) {
++			return &navigation.Response{ReconSkipReason: "exact_content_duplicate"}, nil
+ 		}
+ 	}
+ 	if c.Options.ContentSimilarity != nil && !c.Options.ContentSimilarity.Accept(data) {
+-		return &navigation.Response{}, nil
++		return &navigation.Response{ReconSkipReason: "similarity_filtered"}, nil
+ 	}
+ 
+ 	if c.Options.Wappalyzer != nil {
+@@ -148,3 +151,46 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+ 
+ 	return response, nil
+ }
++
++// originContentKey keeps exact content deduplication local to the seed origin.
++// A fixed-size key avoids copying potentially large response bodies.
++func originContentKey(seed *url.URL, data []byte) []byte {
++	scheme := strings.ToLower(seed.Scheme)
++	host := strings.ToLower(seed.Hostname())
++	port := seed.Port()
++	if port == "" {
++		if scheme == "https" {
++			port = "443"
++		} else if scheme == "http" {
++			port = "80"
++		}
++	}
++	h := sha256.New()
++	h.Write([]byte("katana.standard.origin-content.v1\x00"))
++	h.Write([]byte(scheme + "://" + net.JoinHostPort(host, port)))
++	h.Write([]byte{0})
++	h.Write(data)
++	return h.Sum(nil)
++}
++
++// parsingContentKey conservatively preserves every distinct parser context.
++// The parser uses both the requested document URL and final response URL.
++func parsingContentKey(seed *url.URL, request *navigation.Request, response *http.Response, data []byte) []byte {
++	finalURL := ""
++	if response.Request != nil && response.Request.URL != nil {
++		finalURL = response.Request.URL.String()
++	}
++	context, _ := json.Marshal(struct {
++		DocumentURL string
++		FinalURL    string
++		Depth       int
++		Method      string
++		Status      int
++		Headers     http.Header
++	}{request.URL, finalURL, request.Depth, request.Method, response.StatusCode, response.Header})
++	h := sha256.New()
++	h.Write([]byte("katana.standard.parsing-content.v1\x00"))
++	h.Write(originContentKey(seed, data))
++	h.Write(context)
++	return h.Sum(nil)
++}
+diff --git a/pkg/engine/standard/origin_content_test.go b/pkg/engine/standard/origin_content_test.go
+new file mode 100644
+index 0000000..76fe2ed
+--- /dev/null
++++ b/pkg/engine/standard/origin_content_test.go
+@@ -0,0 +1,58 @@
++package standard
++
++import (
++	"bytes"
++	"github.com/projectdiscovery/katana/pkg/utils/filters"
++	"net/url"
++	"testing"
++)
++
++func TestOriginContentKey(t *testing.T) {
++	key := func(raw, body string) []byte {
++		u, err := url.Parse(raw)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return originContentKey(u, []byte(body))
++	}
++	a := key("http://example.test/", "same")
++	for _, raw := range []string{"http://EXAMPLE.test:80/path", "http://example.test/other?x=1"} {
++		if !bytes.Equal(a, key(raw, "same")) {
++			t.Fatalf("same origin differs: %s", raw)
++		}
++	}
++	for _, raw := range []string{"https://example.test/", "http://other.test/", "http://example.test:81/"} {
++		if bytes.Equal(a, key(raw, "same")) {
++			t.Fatalf("different origin collides: %s", raw)
++		}
++	}
++	if bytes.Equal(a, key("http://example.test/", "different")) {
++		t.Fatal("different content collides")
++	}
++	if len(a) != 32 {
++		t.Fatal("key must be fixed size")
++	}
++	if !bytes.Equal(key("http://[::1]/", "same"), key("http://[::1]:80/path", "same")) {
++		t.Fatal("IPv6 default port differs")
++	}
++}
++
++func TestOriginContentDedupRetainedWithinOrigin(t *testing.T) {
++	f, err := filters.NewSimple()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	a, _ := url.Parse("http://a.example.test/")
++	b, _ := url.Parse("http://b.example.test/")
++	body := []byte("same response with relative child")
++	if !f.UniqueContent(originContentKey(a, body)) {
++		t.Fatal("first response rejected")
++	}
++	if f.UniqueContent(originContentKey(a, body)) {
++		t.Fatal("same-origin duplicate accepted")
++	}
++	if !f.UniqueContent(originContentKey(b, body)) {
++		t.Fatal("other-origin response rejected")
++	}
++}
+diff --git a/pkg/engine/standard/parsing_content_test.go b/pkg/engine/standard/parsing_content_test.go
+new file mode 100644
+index 0000000..ace14d7
+--- /dev/null
++++ b/pkg/engine/standard/parsing_content_test.go
+@@ -0,0 +1,59 @@
++package standard
++
++import (
++	"bytes"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"github.com/projectdiscovery/katana/pkg/utils/filters"
++	"net/http"
++	"net/url"
++	"testing"
++)
++
++func TestParsingContentContext(t *testing.T) {
++	seed, _ := url.Parse("http://example.test/")
++	key := func(document, final string, depth int) []byte {
++		u, _ := url.Parse(final)
++		return parsingContentKey(seed, &navigation.Request{URL: document, Method: "GET", Depth: depth}, &http.Response{StatusCode: 200, Request: &http.Request{URL: u}}, []byte(`<a href="proof">proof</a>`))
++	}
++	a := key("http://example.test/a/", "http://example.test/a/", 1)
++	if !bytes.Equal(a, key("http://example.test/a/", "http://example.test/a/", 1)) {
++		t.Fatal("identical context differs")
++	}
++	for _, b := range [][]byte{
++		key("http://example.test/b/", "http://example.test/a/", 1),
++		key("http://example.test/a/", "http://example.test/b/", 1),
++		key("http://example.test/a/", "http://example.test/a/", 0),
++		key("http://example.test/a/?x=1", "http://example.test/a/", 1),
++	} {
++		if bytes.Equal(a, b) {
++			t.Fatal("distinct parsing context discarded")
++		}
++	}
++	f, err := filters.NewSimple()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	if !f.UniqueContent(a) || f.UniqueContent(a) {
++		t.Fatal("identical context dedup changed")
++	}
++	if !f.UniqueContent(key("http://example.test/b/", "http://example.test/b/", 1)) {
++		t.Fatal("relative-base context rejected")
++	}
++}
++
++func TestParsingContentResponseMetadata(t *testing.T) {
++	seed, _ := url.Parse("https://example.test/")
++	req := &navigation.Request{URL: seed.String(), Method: "GET", Depth: 1}
++	resp := &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"text/html"}}, Request: &http.Request{URL: seed}}
++	key := parsingContentKey(seed, req, resp, []byte("same"))
++	resp.StatusCode = 302
++	if bytes.Equal(key, parsingContentKey(seed, req, resp, []byte("same"))) {
++		t.Fatal("status ignored")
++	}
++	resp.StatusCode = 200
++	resp.Header.Set("Content-Type", "application/javascript")
++	if bytes.Equal(key, parsingContentKey(seed, req, resp, []byte("same"))) {
++		t.Fatal("headers ignored")
++	}
++}
+diff --git a/pkg/navigation/response.go b/pkg/navigation/response.go
+index 50396bb..7954588 100644
+--- a/pkg/navigation/response.go
++++ b/pkg/navigation/response.go
+@@ -28,6 +28,7 @@ func (h *Headers) MarshalJSON() ([]byte, error) {
+ 
+ // Response is a response generated from crawler navigation
+ type Response struct {
++	ReconSkipReason    string            `json:"-"` // Experimental diagnostic; never completion evidence.
+ 	Resp               *http.Response    `json:"-"`
+ 	Depth              int               `json:"-"`
+ 	Reader             *goquery.Document `json:"-"`
+diff --git a/pkg/types/options.go b/pkg/types/options.go
+index e395c2a..fb0734f 100644
+--- a/pkg/types/options.go
++++ b/pkg/types/options.go
+@@ -169,6 +169,10 @@ type Options struct {
+ 	PprofServer bool
+ 	// ErrorLogFile specifies a file to write with the errors of all requests
+ 	ErrorLogFile string
++	// ReconCompletionLog is an experimental standard-engine completion artifact.
++	ReconCompletionLog string
++	// ReconCheckpointDir enables experimental durable GET frontier continuation.
++	ReconCheckpointDir string
+ 	// Resolvers contains custom resolvers
+ 	Resolvers goflags.StringSlice
+ 	// OutputTemplate enables custom output template
+diff --git a/pkg/utils/queue/queue.go b/pkg/utils/queue/queue.go
+index cbaebd4..b930977 100644
+--- a/pkg/utils/queue/queue.go
++++ b/pkg/utils/queue/queue.go
+@@ -23,6 +23,11 @@ type Queue struct {
+ 	Strategy      Strategy
+ 	stack         *stack
+ 	priorityQueue *priorityQueue
++	active        int
++	// BeforePush durably admits work before it becomes visible to workers.
++	BeforePush func(interface{}) error
++	pushError  error
++	changed    *sync.Cond
+ }
+ 
+ // New creates a new queue from the type specified.
+@@ -38,6 +43,7 @@ func New(strategyName string, timeout int) (*Queue, error) {
+ 		stack:         newStack(),
+ 		priorityQueue: newPriorityQueue(),
+ 	}
++	queue.changed = sync.NewCond(&queue.Mutex)
+ 
+ 	return queue, nil
+ }
+@@ -61,6 +67,12 @@ func (q *Queue) Len() int {
+ func (q *Queue) Push(x interface{}, priority int) {
+ 	q.Lock()
+ 	defer q.Unlock()
++	if q.BeforePush != nil {
++		if err := q.BeforePush(x); err != nil {
++			q.pushError = err
++			return
++		}
++	}
+ 
+ 	switch q.Strategy {
+ 	case BreadthFirst:
+@@ -68,6 +80,77 @@ func (q *Queue) Push(x interface{}, priority int) {
+ 	case DepthFirst:
+ 		q.stack.Push(x)
+ 	}
++	q.changed.Broadcast()
++}
++
++// DoneItem releases a tracked item after its children have been enqueued.
++func (q *Queue) DoneItem() {
++	q.Lock()
++	defer q.Unlock()
++	if q.active <= 0 {
++		panic("queue: unbalanced DoneItem")
++	}
++	q.active--
++	q.changed.Broadcast()
++}
++
++// WorkState is a synchronized snapshot of pending and tracked active work.
++func (q *Queue) WorkState() (int, int) {
++	q.Lock()
++	defer q.Unlock()
++	pending := q.stack.Len()
++	if q.Strategy == BreadthFirst {
++		pending = q.priorityQueue.Len()
++	}
++	return pending, q.active
++}
++
++// PopTrackedWithContext finishes only when pending and in-flight work are
++// both empty. Every delivered item must be paired with DoneItem.
++func (q *Queue) PopTrackedWithContext(ctx context.Context) chan interface{} {
++	items := make(chan interface{})
++	go func() {
++		defer close(items)
++		stop := context.AfterFunc(ctx, func() {
++			q.Lock()
++			q.changed.Broadcast()
++			q.Unlock()
++		})
++		defer stop()
++		for {
++			q.Lock()
++			var item interface{}
++			for {
++				if ctx.Err() != nil {
++					q.Unlock()
++					return
++				}
++				switch q.Strategy {
++				case BreadthFirst:
++					item = q.priorityQueue.Pop()
++				case DepthFirst:
++					item = q.stack.Pop()
++				}
++				if item != nil {
++					q.active++
++					break
++				}
++				if q.active == 0 {
++					q.Unlock()
++					return
++				}
++				q.changed.Wait()
++			}
++			q.Unlock()
++			select {
++			case items <- item:
++			case <-ctx.Done():
++				q.DoneItem()
++				return
++			}
++		}
++	}()
++	return items
+ }
+ 
+ // Pop pops elements from the queue (backward-compatible, no context).
+@@ -129,3 +212,6 @@ func (q *Queue) PopWithContext(ctx context.Context) chan interface{} {
+ 
+ 	return items
+ }
++
++// AdmissionError is read after workers have stopped.
++func (q *Queue) AdmissionError() error { q.Lock(); defer q.Unlock(); return q.pushError }
+diff --git a/pkg/utils/queue/tracked_test.go b/pkg/utils/queue/tracked_test.go
+new file mode 100644
+index 0000000..3435c42
+--- /dev/null
++++ b/pkg/utils/queue/tracked_test.go
+@@ -0,0 +1,129 @@
++package queue
++
++import (
++	"context"
++	"sync"
++	"testing"
++	"time"
++)
++
++func trackedReceive(t *testing.T, ch <-chan interface{}) interface{} {
++	t.Helper()
++	select {
++	case item, ok := <-ch:
++		if !ok {
++			t.Fatal("queue ended before work completed")
++		}
++		return item
++	case <-time.After(time.Second):
++		t.Fatal("queue failed to deliver work")
++		return nil
++	}
++}
++
++func trackedClosed(t *testing.T, ch <-chan interface{}) {
++	t.Helper()
++	select {
++	case _, ok := <-ch:
++		if ok {
++			t.Fatal("unexpected work")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("queue failed to close")
++	}
++}
++
++func TestTrackedQueueWaitsForActiveParentAndKeepsChildren(t *testing.T) {
++	for _, strategy := range []string{"depth-first", "breadth-first"} {
++		t.Run(strategy, func(t *testing.T) {
++			q, err := New(strategy, 30)
++			if err != nil {
++				t.Fatal(err)
++			}
++			q.Push("parent", 0)
++			items := q.PopTrackedWithContext(context.Background())
++			if trackedReceive(t, items) != "parent" {
++				t.Fatal("wrong parent")
++			}
++			select {
++			case <-items:
++				t.Fatal("empty queue was mistaken for completed crawl")
++			case <-time.After(20 * time.Millisecond):
++			}
++			q.Push("child", 0)
++			q.DoneItem()
++			if trackedReceive(t, items) != "child" {
++				t.Fatal("child lost")
++			}
++			q.DoneItem()
++			trackedClosed(t, items)
++		})
++	}
++}
++
++func TestTrackedQueueCancellationWhileWorkerActive(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	q.Push("parent", 0)
++	ctx, cancel := context.WithCancel(context.Background())
++	items := q.PopTrackedWithContext(ctx)
++	trackedReceive(t, items)
++	cancel()
++	trackedClosed(t, items)
++	q.DoneItem()
++}
++
++func TestTrackedQueueCancellationWhileSendBlocked(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	q.Push("parent", 0)
++	ctx, cancel := context.WithCancel(context.Background())
++	items := q.PopTrackedWithContext(ctx)
++	cancel()
++	trackedClosed(t, items)
++	q.Lock()
++	defer q.Unlock()
++	if q.active != 0 {
++		t.Fatal("discarded item leaked active reservation")
++	}
++}
++
++func TestTrackedEmptyQueueDoesNotWaitForRequestTimeout(t *testing.T) {
++	q, _ := New("depth-first", 30)
++	trackedClosed(t, q.PopTrackedWithContext(context.Background()))
++}
++
++func TestTrackedConcurrentParentsPreserveEveryChild(t *testing.T) {
++	for _, strategy := range []string{"depth-first", "breadth-first"} {
++		t.Run(strategy, func(t *testing.T) {
++			q, _ := New(strategy, 30)
++			for i := 0; i < 12; i++ {
++				q.Push(i, 0)
++			}
++			items := q.PopTrackedWithContext(context.Background())
++			var workers sync.WaitGroup
++			seen := make(map[int]bool)
++			var mu sync.Mutex
++			for item := range items {
++				value := item.(int)
++				workers.Add(1)
++				go func() {
++					defer workers.Done()
++					defer q.DoneItem()
++					if value < 12 {
++						q.Push(value+100, 0)
++					}
++					mu.Lock()
++					seen[value] = true
++					mu.Unlock()
++				}()
++			}
++			workers.Wait()
++			if len(seen) != 24 {
++				t.Fatalf("lost work: %v", seen)
++			}
++			pending, active := q.WorkState()
++			if pending != 0 || active != 0 {
++				t.Fatalf("leaked work: %d %d", pending, active)
++			}
++		})
++	}
++}

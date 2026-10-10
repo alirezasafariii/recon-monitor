@@ -7,22 +7,34 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 import test_katana_execution_quality as quality
 from katana_completion import CONTRACT
-from stages import stage_urls, _katana_completion_supported
+from stages import stage_urls, _katana_completion_supported, _katana_checkpoint_supported
 
 
 class KatanaStageCompletionTests(unittest.TestCase):
     setUp = quality.KatanaExecutionQualityTests.setUp
     _context = quality.KatanaExecutionQualityTests._context
 
-    def exercise(self, mode, *, supported=True, returncode=0, timed_out=False, operator_next=False, resume=False, origin_count=2, resume_remaining=None, failed_index=1):
+    def exercise(self, mode, *, supported=True, returncode=0, timed_out=False, operator_next=False, resume=False, origin_count=2, resume_remaining=None, failed_index=1, checkpoint=False):
         with tempfile.TemporaryDirectory() as tmp:
             origins = ['https://a.example.test', 'https://b.example.test']
             origins += [f'https://h{i}.example.test' for i in range(origin_count - 2)]
             self.last_crawl_limits = []
             self.last_input_batches = []
+            self.checkpoint_paths = []
             def runner(args, **kwargs):
                 batch_origins = Path(args[args.index('-list')+1]).read_text().splitlines()
                 self.last_input_batches.append(batch_origins)
+                if checkpoint:
+                    self.assertEqual(len(batch_origins), 1)
+                    frontier = Path(args[args.index('-recon-checkpoint-dir')+1])
+                    self.checkpoint_paths.append(str(frontier))
+                    self.assertEqual(frontier.stat().st_mode & 0o777, 0o700)
+                    sentinel = frontier / 'sentinel'
+                    if sentinel.exists():
+                        self.assertEqual(sentinel.read_text(), 'prior frontier preserved')
+                    sentinel.write_text('prior frontier preserved')
+                else:
+                    self.assertNotIn('-recon-checkpoint-dir', args)
                 self.last_crawl_limits.append(int(args[args.index("-ct")+1][:-1]))
                 Path(kwargs['output_path']).write_text(origins[0]+'/evidence.js\n')
                 if supported:
@@ -47,7 +59,8 @@ class KatanaStageCompletionTests(unittest.TestCase):
             (ctx.current/'katana-batch-001-completion.jsonl').write_text('stale successful evidence')
             with patch('stages.tool_path', side_effect=lambda t: t=='katana'), patch(
                     'stages._probe_live_origins', return_value=(origins, [])), patch(
-                    'stages._katana_completion_supported', return_value=supported):
+                    'stages._katana_completion_supported', return_value=supported), patch(
+                    'stages._katana_checkpoint_supported', return_value=checkpoint):
                 metrics = stage_urls(ctx)
                 if resume:
                     mode = 'complete'
@@ -139,3 +152,24 @@ class KatanaStageCompletionTests(unittest.TestCase):
         self.assertLessEqual(metrics['katana_request_envelope'], 6)
         self.assertEqual(pending, [])
         self.assertEqual(len(completed), 600)
+
+    def test_frontier_continuation_keeps_scope_stable_and_old_files(self):
+        metrics, pending, completed = self.exercise('mixed', checkpoint=True, resume=True)
+        self.assertEqual(pending, [])
+        self.assertEqual(len(completed), 2)
+        self.assertEqual(self.last_input_batches, [['https://a.example.test'], ['https://b.example.test'], ['https://b.example.test']])
+        self.assertEqual(len(set(self.checkpoint_paths)), 1)
+        self.assertTrue(all(row['frontier_checkpoint_enabled'] for row in metrics['katana_batch_outcomes']))
+        self.assertLessEqual(metrics['katana_reserved_requests'], metrics['katana_request_envelope'])
+
+    def test_frontier_capability_requires_separate_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = SimpleNamespace(current=Path(tmp))
+            path = ctx.current / 'katana-completion-capability.txt'
+            self.assertFalse(_katana_checkpoint_supported(ctx))
+            path.write_text('-recon-checkpoint-dir')
+            self.assertFalse(_katana_checkpoint_supported(ctx))
+            path.write_text('-recon-checkpoint-dir EXPERIMENTAL v1 durable standard-engine GET frontier checkpoint')
+            self.assertTrue(_katana_checkpoint_supported(ctx))
+            path.write_bytes(b'\xff')
+            self.assertFalse(_katana_checkpoint_supported(ctx))
