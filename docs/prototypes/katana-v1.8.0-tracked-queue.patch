@@ -440,26 +440,27 @@ index 0000000..963f231
 +	}
 +}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
-index 049a3ff..7692aa1 100644
+index 049a3ff..fd39013 100644
 --- a/pkg/engine/standard/crawl.go
 +++ b/pkg/engine/standard/crawl.go
-@@ -3,7 +3,9 @@ package standard
+@@ -3,7 +3,10 @@ package standard
  import (
  	"bytes"
  	"context"
 +	"crypto/sha256"
++	"encoding/json"
  	"io"
 +	"net"
  	"net/http"
  	"net/http/httputil"
  	"net/url"
-@@ -100,12 +102,12 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+@@ -100,12 +103,12 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
  
  	// Skip unique content filtering if disabled
  	if !c.Options.Options.DisableUniqueFilter {
 -		if !c.Options.UniqueFilter.UniqueContent(data) {
 -			return &navigation.Response{}, nil
-+		if !c.Options.UniqueFilter.UniqueContent(originContentKey(s.URL, data)) {
++		if !c.Options.UniqueFilter.UniqueContent(parsingContentKey(s.URL, request, resp, data)) {
 +			return &navigation.Response{ReconSkipReason: "exact_content_duplicate"}, nil
  		}
  	}
@@ -469,7 +470,7 @@ index 049a3ff..7692aa1 100644
  	}
  
  	if c.Options.Wappalyzer != nil {
-@@ -148,3 +150,24 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
+@@ -148,3 +151,46 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
  
  	return response, nil
  }
@@ -492,6 +493,28 @@ index 049a3ff..7692aa1 100644
 +	h.Write([]byte(scheme + "://" + net.JoinHostPort(host, port)))
 +	h.Write([]byte{0})
 +	h.Write(data)
++	return h.Sum(nil)
++}
++
++// parsingContentKey conservatively preserves every distinct parser context.
++// The parser uses both the requested document URL and final response URL.
++func parsingContentKey(seed *url.URL, request *navigation.Request, response *http.Response, data []byte) []byte {
++	finalURL := ""
++	if response.Request != nil && response.Request.URL != nil {
++		finalURL = response.Request.URL.String()
++	}
++	context, _ := json.Marshal(struct {
++		DocumentURL string
++		FinalURL    string
++		Depth       int
++		Method      string
++		Status      int
++		Headers     http.Header
++	}{request.URL, finalURL, request.Depth, request.Method, response.StatusCode, response.Header})
++	h := sha256.New()
++	h.Write([]byte("katana.standard.parsing-content.v1\x00"))
++	h.Write(originContentKey(seed, data))
++	h.Write(context)
 +	return h.Sum(nil)
 +}
 diff --git a/pkg/engine/standard/origin_content_test.go b/pkg/engine/standard/origin_content_test.go
@@ -556,6 +579,71 @@ index 0000000..76fe2ed
 +	}
 +	if !f.UniqueContent(originContentKey(b, body)) {
 +		t.Fatal("other-origin response rejected")
++	}
++}
+diff --git a/pkg/engine/standard/parsing_content_test.go b/pkg/engine/standard/parsing_content_test.go
+new file mode 100644
+index 0000000..ace14d7
+--- /dev/null
++++ b/pkg/engine/standard/parsing_content_test.go
+@@ -0,0 +1,59 @@
++package standard
++
++import (
++	"bytes"
++	"github.com/projectdiscovery/katana/pkg/navigation"
++	"github.com/projectdiscovery/katana/pkg/utils/filters"
++	"net/http"
++	"net/url"
++	"testing"
++)
++
++func TestParsingContentContext(t *testing.T) {
++	seed, _ := url.Parse("http://example.test/")
++	key := func(document, final string, depth int) []byte {
++		u, _ := url.Parse(final)
++		return parsingContentKey(seed, &navigation.Request{URL: document, Method: "GET", Depth: depth}, &http.Response{StatusCode: 200, Request: &http.Request{URL: u}}, []byte(`<a href="proof">proof</a>`))
++	}
++	a := key("http://example.test/a/", "http://example.test/a/", 1)
++	if !bytes.Equal(a, key("http://example.test/a/", "http://example.test/a/", 1)) {
++		t.Fatal("identical context differs")
++	}
++	for _, b := range [][]byte{
++		key("http://example.test/b/", "http://example.test/a/", 1),
++		key("http://example.test/a/", "http://example.test/b/", 1),
++		key("http://example.test/a/", "http://example.test/a/", 0),
++		key("http://example.test/a/?x=1", "http://example.test/a/", 1),
++	} {
++		if bytes.Equal(a, b) {
++			t.Fatal("distinct parsing context discarded")
++		}
++	}
++	f, err := filters.NewSimple()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	if !f.UniqueContent(a) || f.UniqueContent(a) {
++		t.Fatal("identical context dedup changed")
++	}
++	if !f.UniqueContent(key("http://example.test/b/", "http://example.test/b/", 1)) {
++		t.Fatal("relative-base context rejected")
++	}
++}
++
++func TestParsingContentResponseMetadata(t *testing.T) {
++	seed, _ := url.Parse("https://example.test/")
++	req := &navigation.Request{URL: seed.String(), Method: "GET", Depth: 1}
++	resp := &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"text/html"}}, Request: &http.Request{URL: seed}}
++	key := parsingContentKey(seed, req, resp, []byte("same"))
++	resp.StatusCode = 302
++	if bytes.Equal(key, parsingContentKey(seed, req, resp, []byte("same"))) {
++		t.Fatal("status ignored")
++	}
++	resp.StatusCode = 200
++	resp.Header.Set("Content-Type", "application/javascript")
++	if bytes.Equal(key, parsingContentKey(seed, req, resp, []byte("same"))) {
++		t.Fatal("headers ignored")
 +	}
 +}
 diff --git a/pkg/navigation/response.go b/pkg/navigation/response.go
@@ -817,4 +905,3 @@ index 0000000..3435c42
 +		})
 +	}
 +}
-

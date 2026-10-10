@@ -1,0 +1,30 @@
+{
+  "scenario": "same_body_distinct_relative_bases",
+  "requested_paths": [
+    "/",
+    "/b/",
+    "/a/",
+    "/b/proof",
+    "/a/proof"
+  ],
+  "completion": {
+    "contract": "recon.katana.standard.completion.v1",
+    "origin": "http://127.0.0.1:36535/",
+    "stop_reason": "queue_exhausted",
+    "attempted_requests": 5,
+    "failed_requests": 0,
+    "limited_requests": 0,
+    "pending_items": 0,
+    "active_items": 0
+  },
+  "diagnostics": {
+    "contract": "recon.katana.standard.diagnostics.v1",
+    "origin": "http://127.0.0.1:36535/",
+    "unparsed_reasons": {
+      "exact_content_duplicate": 0,
+      "missing_response_reader": 0,
+      "similarity_filtered": 0
+    }
+  },
+  "exit_code": 0
+}

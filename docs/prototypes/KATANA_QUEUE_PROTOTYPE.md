@@ -163,3 +163,13 @@ Operator-provided Mac acceptance for commit b6d174cf477836f4b86ee1df755141b50b91
 
 Linux validation for the diagnostic patch: race tests repeated 20 times for queue, completion, origin dedup and diagnostic counters passed; producer build passed; a loopback same-origin duplicate fixture recorded exactly one exact-content duplicate and retained unknown completion. Full clean-upstream patch application checked.
 
+
+
+## Parsing-context exact dedup (supersedes origin-only limitation)
+
+Exact-content keys now include the seed origin and response bytes plus the requested document URL, final response URL, request depth and method, response status and response headers. The standard parser uses both document and final-response URLs, so equal bytes alone do not certify equal relative-link destinations. Identical complete contexts remain deduplicated; distinct contexts are parsed independently. This conservative key may accept more responses, including when headers vary. Existing depth, rate, page and runtime bounds still apply; optional similarity filtering is unchanged. Contract v1 and unknown semantics are unchanged.
+
+The operator's Mac diagnostic at commit 5b3201d305e48a1be5d056b9ee86b0483ef2a878 observed helpsurvey unknown with 12 attempts, zero failures, empty frontier, and seven exact_content_duplicate skips. This identifies the current-run skip reason, not the safety of skipping those responses. The newer context patch still requires Mac acceptance.
+
+Linux validation: 20 repeated race tests for parsing-context discrimination, response metadata, queue, completion and diagnostics passed. A real loopback fixture with identical /a/ and /b/ bodies fetched both /a/proof and /b/proof, completed with five attempts and zero unparsed counters. Real Recon 8.8.16 stage integration passed healthy, mixed-error and pending-only resume scenarios. Clean pinned-upstream patch application and producer build passed. Run tools/katana_relative_base_local_acceptance.py --binary PATH to reproduce the relative-base fixture.
+
