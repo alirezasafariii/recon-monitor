@@ -1,0 +1,25 @@
+{
+  "name": "Publish verified 8.8.18",
+  "on": {
+    "push": {
+      "branches": [
+        "publish/v8.8.18-verified"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "jobs": {
+    "release": {
+      "uses": "alirezasafariii/recon-monitor/.github/workflows/verified-release.yml@dd48351bbec209c3a030fc74e10b8e4295a2da54",
+      "with": {
+        "version": "8.8.18",
+        "release_sha": "dd48351bbec209c3a030fc74e10b8e4295a2da54",
+        "release_tree": "94ece8a0cb836e7ba1d345ef7f7ec758ede54f5a"
+      },
+      "secrets": "inherit"
+    }
+  }
+}
