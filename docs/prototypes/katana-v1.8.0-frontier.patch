@@ -11,6 +11,48 @@ index 9b9226b..3cb44dc 100644
  		flagSet.StringVarP(&options.OutputTemplate, "output-template", "ot", "", "custom output template"),
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
+diff --git a/go.mod b/go.mod
+index 3ffb169..1498d3e 100644
+--- a/go.mod
++++ b/go.mod
+@@ -3,6 +3,7 @@ module github.com/projectdiscovery/katana
+ go 1.26.0
+ 
+ require (
++	github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c
+ 	github.com/Mzack9999/jsluice v0.0.0-20260306161058-30114a312f98
+ 	github.com/PuerkitoBio/goquery v1.12.0
+ 	github.com/adrianbrad/queue v1.3.0
+@@ -85,6 +86,7 @@ require (
+ 	github.com/felixge/fgprof v0.9.5 // indirect
+ 	github.com/flier/gohs v1.2.2 // indirect
+ 	github.com/gaissmai/bart v0.30.0 // indirect
++	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+ 	github.com/google/go-github/v57 v57.0.0 // indirect
+ 	github.com/google/go-github/v92 v92.0.0 // indirect
+ 	github.com/google/go-querystring v1.2.0 // indirect
+diff --git a/go.sum b/go.sum
+index e981f5c..69fce9d 100644
+--- a/go.sum
++++ b/go.sum
+@@ -132,6 +132,8 @@ github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4
+ github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
+ github.com/dominikbraun/graph v0.23.0 h1:TdZB4pPqCLFxYhdyMFb1TBdFxp8XLcJfTTBQucVPgCo=
+ github.com/dominikbraun/graph v0.23.0/go.mod h1:yOjYyogZLY1LSG9E33JWZJiq5k83Qy2C6POAuiViluc=
++github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c h1:hIlkLbQ+tYoUqlG42LnxwGcohL5jaGqD8mGeJWavm8A=
++github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+ github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 h1:2tV76y6Q9BB+NEBasnqvs7e49aEBFI8ejC89PSnWH+4=
+ github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707/go.mod h1:qssHWj60/X5sZFNxpG4HBPDHVqxNm4DfnCKgrbZOT+s=
+ github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
+@@ -156,6 +158,8 @@ github.com/go-ole/go-ole v1.2.6 h1:/Fpf6oFPoeFik9ty7siob0G6Ke8QvQEuVcuChpwXzpY=
+ github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
+ github.com/go-rod/rod v0.116.2 h1:A5t2Ky2A+5eD/ZJQr1EfsQSe5rms5Xof/qj296e+ZqA=
+ github.com/go-rod/rod v0.116.2/go.mod h1:H+CMO9SCNc2TJ2WfrG+pKhITz57uGNYU43qYHh438Mg=
++github.com/go-sourcemap/sourcemap v2.1.3+incompatible h1:W1iEw64niKVGogNgBN3ePyLFfuisuzeidWPMPWmECqU=
++github.com/go-sourcemap/sourcemap v2.1.3+incompatible/go.mod h1:F8jJfvm2KbVjc5NqelyYJmf/v5J0dwNLS2mL4sNA1Jg=
+ github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
+ github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
+ github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
 index b6da330..1e5ec78 100644
 --- a/pkg/engine/common/base.go
@@ -1439,7 +1481,7 @@ index 0000000..6b5bd54
 +	}
 +}
 diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
-index e057fcb..1b30839 100644
+index e057fcb..ee13914 100644
 --- a/pkg/engine/parser/parser.go
 +++ b/pkg/engine/parser/parser.go
 @@ -1,6 +1,7 @@
@@ -1455,7 +1497,7 @@ index e057fcb..1b30839 100644
  		}
  
 -		endpoints := utils.ExtractRelativeEndpoints(text)
-+		endpoints := utils.ExtractScriptEndpoints(text)
++		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(text))
 +		endpoints = append(endpoints, utils.ExtractLiteralScriptSources(text)...)
  		for _, item := range endpoints {
  			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
@@ -1465,7 +1507,7 @@ index e057fcb..1b30839 100644
  	}
  
 -	endpointsItems := utils.ExtractRelativeEndpoints(string(resp.Body))
-+	endpointsItems := utils.ExtractScriptEndpoints(string(resp.Body))
++	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(string(resp.Body)))
 +	endpointsItems = append(endpointsItems, utils.ExtractLiteralScriptSources(string(resp.Body))...)
 +	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
 +		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
@@ -1473,7 +1515,7 @@ index e057fcb..1b30839 100644
  	for _, item := range endpointsItems {
  		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "js", "regex", resp))
  	}
-@@ -770,7 +776,13 @@ func bodyScrapeEndpointsParser(resp *navigation.Response) (navigationRequests []
+@@ -770,7 +776,16 @@ func bodyScrapeEndpointsParser(resp *navigation.Response) (navigationRequests []
  		return
  	}
  
@@ -1484,11 +1526,14 @@ index e057fcb..1b30839 100644
 +			body = withoutExecutableScripts(body)
 +		}
 +	}
++	if strings.Contains(resp.Resp.Header.Get("Content-Type"), "javascript") || strings.HasSuffix(resp.Resp.Request.URL.Path, ".js") {
++		body = utils.MaskBundledModuleReferences(body)
++	}
 +	endpoints := utils.ExtractBodyEndpoints(body)
  	for _, item := range endpoints {
  		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "html", "regex", resp))
  	}
-@@ -821,3 +833,42 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
+@@ -821,3 +836,42 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
  	}
  	return
  }
@@ -1532,7 +1577,7 @@ index e057fcb..1b30839 100644
 +	}
 +}
 diff --git a/pkg/engine/parser/parser_test.go b/pkg/engine/parser/parser_test.go
-index b72b486..f2e1ea7 100644
+index b72b486..ad563a0 100644
 --- a/pkg/engine/parser/parser_test.go
 +++ b/pkg/engine/parser/parser_test.go
 @@ -9,6 +9,7 @@ import (
@@ -1543,7 +1588,7 @@ index b72b486..f2e1ea7 100644
  	urlutil "github.com/projectdiscovery/utils/url"
  	"github.com/stretchr/testify/require"
  )
-@@ -764,3 +765,26 @@ func TestBodyScrapeEndpointsParser_ContentTypeGate(t *testing.T) {
+@@ -764,3 +765,44 @@ func TestBodyScrapeEndpointsParser_ContentTypeGate(t *testing.T) {
  		require.Empty(t, bodyScrapeEndpointsParser(resp), "a +json parameter on octet-stream must not force scraping")
  	})
  }
@@ -1569,6 +1614,24 @@ index b72b486..f2e1ea7 100644
 +	require.Contains(t, urls, "https://example.com/Edge/js-agent.newrelic.com/direct.min.js")
 +	require.Contains(t, urls, "https://example.com/proof")
 +	require.Contains(t, urls, "https://example.com/data/proof.js")
++}
++
++func TestScriptBundleBodyReferences(t *testing.T) {
++	if !utils.StructuredScriptSources {
++		t.Skip("structured parsing unavailable")
++	}
++	body := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){require("./internal.js");require("./unresolved.js");fetch("./real.js");},{"./internal.js":1,"./unresolved.js":99}]});`
++	parsed, _ := urlutil.Parse("https://example.com/dist/bundle.js")
++	resp := &navigation.Response{Resp: &http.Response{Request: &http.Request{URL: parsed.URL}, Header: http.Header{"Content-Type": []string{"application/javascript"}}}, Body: body}
++	var urls []string
++	for _, fn := range []ResponseParserFunc{scriptJSFileRegexParser, bodyScrapeEndpointsParser} {
++		for _, r := range fn(resp) {
++			urls = append(urls, r.URL)
++		}
++	}
++	require.NotContains(t, urls, "https://example.com/dist/internal.js")
++	require.Contains(t, urls, "https://example.com/dist/unresolved.js")
++	require.Contains(t, urls, "https://example.com/dist/real.js")
 +}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
 index 049a3ff..fd39013 100644
@@ -1824,6 +1887,338 @@ index e395c2a..fb0734f 100644
  	// Resolvers contains custom resolvers
  	Resolvers goflags.StringSlice
  	// OutputTemplate enables custom output template
+diff --git a/pkg/utils/bundle_references.go b/pkg/utils/bundle_references.go
+new file mode 100644
+index 0000000..34d79ae
+--- /dev/null
++++ b/pkg/utils/bundle_references.go
+@@ -0,0 +1,249 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"reflect"
++	"strings"
++
++	"github.com/dop251/goja/ast"
++	"github.com/dop251/goja/parser"
++	"github.com/dop251/goja/token"
++)
++
++// MaskBundledModuleReferences removes only dependency keys and require literals
++// resolved to existing numeric modules in a Browserify-shaped module table.
++// Parsing never executes JavaScript. Offsets and unrelated URL uses are preserved.
++func MaskBundledModuleReferences(data string) string {
++	if len(data) > 2*1024*1024 || !strings.Contains(data, "require") {
++		return data
++	}
++	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	if err != nil {
++		return data
++	}
++	masked := []byte(data)
++	mask := func(n ast.Node) {
++		start, end := int(n.Idx0())-1, int(n.Idx1())-1
++		if start < 0 || end > len(masked) || end < start {
++			return
++		}
++		for i := start; i < end; i++ {
++			if masked[i] != '\n' && masked[i] != '\r' {
++				masked[i] = ' '
++			}
++		}
++	}
++	numeric := func(e ast.Expression) string {
++		n, ok := e.(*ast.NumberLiteral)
++		if !ok || n.Literal == "" {
++			return ""
++		}
++		for _, c := range n.Literal {
++			if c < '0' || c > '9' {
++				return ""
++			}
++		}
++		return n.Literal
++	}
++	ident := func(e ast.Expression, name string) bool {
++		n, ok := e.(*ast.Identifier)
++		return ok && n.Name.String() == name
++	}
++	visitBundleAST(program, func(node ast.Node) bool {
++		call, ok := node.(*ast.CallExpression)
++		if !ok {
++			return true
++		}
++		for _, argument := range call.ArgumentList {
++			table, ok := argument.(*ast.ObjectLiteral)
++			if !ok {
++				continue
++			}
++			modules := map[string]*ast.ArrayLiteral{}
++			seen := map[string]bool{}
++			ambiguous := false
++			for _, property := range table.Value {
++				p, ok := property.(*ast.PropertyKeyed)
++				if !ok || p.Computed || p.Kind != ast.PropertyKindValue {
++					ambiguous = true
++					break
++				}
++				id := numeric(p.Key)
++				if id == "" {
++					ambiguous = true
++					break
++				}
++				if seen[id] {
++					ambiguous = true
++					break
++				}
++				seen[id] = true
++				a, ok := p.Value.(*ast.ArrayLiteral)
++				if !ok || len(a.Value) != 2 {
++					continue
++				}
++				_, fn := a.Value[0].(*ast.FunctionLiteral)
++				_, deps := a.Value[1].(*ast.ObjectLiteral)
++				if fn && deps {
++					modules[id] = a
++				}
++			}
++			if ambiguous {
++				continue
++			}
++			for _, module := range modules {
++				fn := module.Value[0].(*ast.FunctionLiteral)
++				deps := module.Value[1].(*ast.ObjectLiteral)
++				if fn.ParameterList == nil || len(fn.ParameterList.List) == 0 || !ident(fn.ParameterList.List[0].Target, "require") || fn.ParameterList.List[0].Initializer != nil {
++					continue
++				}
++				ambiguousParams := fn.ParameterList.Rest != nil
++				for _, binding := range fn.ParameterList.List[1:] {
++					if bundleBindingContains(binding.Target, "require") {
++						ambiguousParams = true
++					}
++				}
++				if ambiguousParams {
++					continue
++				}
++				resolved := map[string]*ast.StringLiteral{}
++				seenKeys := map[string]bool{}
++				ambiguousKeys := false
++				for _, property := range deps.Value {
++					p, ok := property.(*ast.PropertyKeyed)
++					if !ok || p.Computed || p.Kind != ast.PropertyKindValue {
++						ambiguousKeys = true
++						break
++					}
++					key, ok := p.Key.(*ast.StringLiteral)
++					if !ok {
++						ambiguousKeys = true
++						break
++					}
++					name := key.Value.String()
++					if seenKeys[name] {
++						ambiguousKeys = true
++						break
++					}
++					seenKeys[name] = true
++					if modules[numeric(p.Value)] != nil {
++						resolved[name] = key
++					}
++				}
++				if ambiguousKeys || len(resolved) == 0 {
++					continue
++				}
++				shadowed := false
++				var args []*ast.StringLiteral
++				// Nested closures may inherit require, as Babel-generated Browserify modules
++				// do. Any local shadow, reassignment, eval or with makes the module ambiguous.
++				visitBundleAST(fn.Body, func(n ast.Node) bool {
++					switch b := n.(type) {
++					case *ast.Binding:
++						if bundleBindingContains(b.Target, "require") {
++							shadowed = true
++						}
++					case *ast.FunctionLiteral:
++						if b.Name != nil && b.Name.Name.String() == "require" {
++							shadowed = true
++						}
++					case *ast.CatchStatement:
++						if bundleBindingContains(b.Parameter, "require") {
++							shadowed = true
++						}
++					case *ast.AssignExpression:
++						if ident(b.Left, "require") {
++							shadowed = true
++						}
++					case *ast.UnaryExpression:
++						if (b.Operator == token.INCREMENT || b.Operator == token.DECREMENT) && ident(b.Operand, "require") {
++							shadowed = true
++						}
++					case *ast.WithStatement:
++						shadowed = true
++					case *ast.CallExpression:
++						if ident(b.Callee, "eval") {
++							shadowed = true
++						}
++						if ident(b.Callee, "require") && len(b.ArgumentList) == 1 {
++							if arg, ok := b.ArgumentList[0].(*ast.StringLiteral); ok && resolved[arg.Value.String()] != nil {
++								args = append(args, arg)
++							}
++						}
++					}
++					return !shadowed
++				})
++				if !shadowed {
++					for _, a := range args {
++						mask(a)
++					}
++					for _, key := range resolved {
++						mask(key)
++					}
++				}
++			}
++		}
++		return true
++	})
++	return string(masked)
++}
++
++// Only AST-owned fields are traversed; File, Source and DeclarationList contain
++// metadata or duplicate nodes. The dependency is pinned because its AST can evolve.
++func visitBundleAST(root ast.Node, visit func(ast.Node) bool) {
++	var walk func(reflect.Value)
++	walk = func(v reflect.Value) {
++		if !v.IsValid() {
++			return
++		}
++		if v.Kind() == reflect.Interface {
++			if v.IsNil() {
++				return
++			}
++			walk(v.Elem())
++			return
++		}
++		if v.Kind() == reflect.Pointer {
++			if v.IsNil() {
++				return
++			}
++			if v.CanInterface() {
++				if n, ok := v.Interface().(ast.Node); ok {
++					if !visit(n) {
++						return
++					}
++				}
++			}
++			walk(v.Elem())
++			return
++		}
++		switch v.Kind() {
++		case reflect.Struct:
++			if v.Type().PkgPath() != "github.com/dop251/goja/ast" {
++				return
++			}
++			for i := 0; i < v.NumField(); i++ {
++				name := v.Type().Field(i).Name
++				if name != "File" && name != "Source" && name != "DeclarationList" {
++					walk(v.Field(i))
++				}
++			}
++		case reflect.Slice:
++			for i := 0; i < v.Len(); i++ {
++				walk(v.Index(i))
++			}
++		}
++	}
++	walk(reflect.ValueOf(root))
++}
++func bundleBindingContains(root ast.Node, name string) bool {
++	found := false
++	visitBundleAST(root, func(n ast.Node) bool {
++		if i, ok := n.(*ast.Identifier); ok && i.Name.String() == name {
++			found = true
++		}
++		return !found
++	})
++	return found
++}
+diff --git a/pkg/utils/bundle_references_test.go b/pkg/utils/bundle_references_test.go
+new file mode 100644
+index 0000000..b0d2c21
+--- /dev/null
++++ b/pkg/utils/bundle_references_test.go
+@@ -0,0 +1,71 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestScriptBundleResolvedDependencies(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){var a=require("./address-suggestions.js");var b=require("./missing.js");fetch("./address-suggestions.js");},{"./address-suggestions.js":1,"./missing.js":99}]});`
++	got := MaskBundledModuleReferences(s)
++	if strings.Contains(got, `require("./address-suggestions.js")`) {
++		t.Fatal(got)
++	}
++	for _, want := range []string{`fetch("./address-suggestions.js")`, `require("./missing.js")`, `"./missing.js":99`} {
++		if !strings.Contains(got, want) {
++			t.Fatal(got)
++		}
++	}
++	if len(got) != len(s) {
++		t.Fatal("offsets changed")
++	}
++}
++func TestScriptBundlePreservesUnknownReferences(t *testing.T) {
++	for _, s := range []string{
++		`require("./address-suggestions.js");`,
++		`boot({1:[function(require,module,exports){require("./address-suggestions.js")},{"./address-suggestions.js":1,"./address-suggestions.js":99}]});`,
++		`boot({1:[function(require,module,exports){require("./address-suggestions.js")},{"./address-suggestions.js":1}],1:[]});`,
++		`boot({1:[function(require,module,exports){function require(){};require("./address-suggestions.js")},{"./address-suggestions.js":1}]});`,
++
++		`boot({1:[function(require,module,exports){require=custom;require("./address-suggestions.js")},{"./address-suggestions.js":1}]});`,
++		`boot({1:[function(require,module,exports){function inner(require){require("./address-suggestions.js")};},{"./address-suggestions.js":1}]});`,
++	} {
++		got := MaskBundledModuleReferences(s)
++		if !strings.Contains(got, `require("./address-suggestions.js")`) {
++			t.Fatal(got)
++		}
++	}
++}
++
++func TestScriptBundleNestedClosure(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){(function(){var a=require("./address-suggestions.js");fetch("./address-suggestions.js")})();},{"./address-suggestions.js":1}]});`
++	got := MaskBundledModuleReferences(s)
++	if strings.Contains(got, `require("./address-suggestions.js")`) || strings.Contains(got, `"./address-suggestions.js":1`) {
++		t.Fatal(got)
++	}
++	if !strings.Contains(got, `fetch("./address-suggestions.js")`) {
++		t.Fatal("real URL use lost")
++	}
++}
++func TestScriptBundleRejectsInvalidSource(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){require("./x.js")},{"./x.js":1}]});broken(`
++	if MaskBundledModuleReferences(s) != s {
++		t.Fatal("invalid source was masked")
++	}
++}
++func TestScriptBundleRejectsNestedShadows(t *testing.T) {
++	for _, body := range []string{
++		`function nested(require){require("./x.js")}`,
++		`function nested(){var require;require("./x.js")}`,
++		`try{}catch(require){require("./x.js")}`,
++		`function nested(){eval("require=custom");require("./x.js")}`,
++		`function nested(){require++;require("./x.js")}`,
++	} {
++		s := `boot({1:[function(require,module,exports){` + body + `},{"./x.js":1}]});`
++		if MaskBundledModuleReferences(s) != s {
++			t.Fatal(body)
++		}
++	}
++}
 diff --git a/pkg/utils/queue/queue.go b/pkg/utils/queue/queue.go
 index cbaebd4..b930977 100644
 --- a/pkg/utils/queue/queue.go
@@ -2252,10 +2647,10 @@ index 0000000..7bb1ccf
 +}
 diff --git a/pkg/utils/script_sources_nojs.go b/pkg/utils/script_sources_nojs.go
 new file mode 100644
-index 0000000..73f2845
+index 0000000..58947ab
 --- /dev/null
 +++ b/pkg/utils/script_sources_nojs.go
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,9 @@
 +//go:build 386 || windows
 +
 +package utils
@@ -2263,3 +2658,5 @@ index 0000000..73f2845
 +const StructuredScriptSources = false
 +
 +func ExtractLiteralScriptSources(data string) []string { return nil }
++
++func MaskBundledModuleReferences(data string) string { return data }
