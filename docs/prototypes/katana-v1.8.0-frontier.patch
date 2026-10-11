@@ -1481,7 +1481,7 @@ index 0000000..6b5bd54
 +	}
 +}
 diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
-index e057fcb..ee13914 100644
+index e057fcb..d666c17 100644
 --- a/pkg/engine/parser/parser.go
 +++ b/pkg/engine/parser/parser.go
 @@ -1,6 +1,7 @@
@@ -1497,7 +1497,7 @@ index e057fcb..ee13914 100644
  		}
  
 -		endpoints := utils.ExtractRelativeEndpoints(text)
-+		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(text))
++		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(text)))
 +		endpoints = append(endpoints, utils.ExtractLiteralScriptSources(text)...)
  		for _, item := range endpoints {
  			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
@@ -1507,7 +1507,7 @@ index e057fcb..ee13914 100644
  	}
  
 -	endpointsItems := utils.ExtractRelativeEndpoints(string(resp.Body))
-+	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(string(resp.Body)))
++	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(string(resp.Body))))
 +	endpointsItems = append(endpointsItems, utils.ExtractLiteralScriptSources(string(resp.Body))...)
 +	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
 +		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
@@ -1527,7 +1527,7 @@ index e057fcb..ee13914 100644
 +		}
 +	}
 +	if strings.Contains(resp.Resp.Header.Get("Content-Type"), "javascript") || strings.HasSuffix(resp.Resp.Request.URL.Path, ".js") {
-+		body = utils.MaskBundledModuleReferences(body)
++		body = utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(body))
 +	}
 +	endpoints := utils.ExtractBodyEndpoints(body)
  	for _, item := range endpoints {
@@ -2586,6 +2586,90 @@ index 0000000..3435c42
 +		})
 +	}
 +}
+diff --git a/pkg/utils/regex_literals.go b/pkg/utils/regex_literals.go
+new file mode 100644
+index 0000000..94e39ec
+--- /dev/null
++++ b/pkg/utils/regex_literals.go
+@@ -0,0 +1,38 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"github.com/dop251/goja/ast"
++	"github.com/dop251/goja/parser"
++	"strings"
++)
++
++// MaskJavaScriptRegexLiterals excludes regex syntax from URL heuristics without
++// executing code or altering string literals. A numeric placeholder preserves
++// valid expression syntax for subsequent bundle analysis and byte offsets.
++func MaskJavaScriptRegexLiterals(data string) string {
++	if len(data) > 2*1024*1024 || !strings.Contains(data, "/") {
++		return data
++	}
++	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	if err != nil {
++		return data
++	}
++	masked := []byte(data)
++	visitBundleAST(program, func(n ast.Node) bool {
++		if _, ok := n.(*ast.RegExpLiteral); ok {
++			start, end := int(n.Idx0())-1, int(n.Idx1())-1
++			if start >= 0 && end <= len(masked) && end > start {
++				for i := start; i < end; i++ {
++					if masked[i] != '\n' && masked[i] != '\r' {
++						masked[i] = ' '
++					}
++				}
++				masked[start] = '0'
++			}
++		}
++		return true
++	})
++	return string(masked)
++}
+diff --git a/pkg/utils/regex_literals_test.go b/pkg/utils/regex_literals_test.go
+new file mode 100644
+index 0000000..a7a7d45
+--- /dev/null
++++ b/pkg/utils/regex_literals_test.go
+@@ -0,0 +1,34 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestScriptRegexLiteralIsolation(t *testing.T) {
++	input := `var a=/./.exec.apply(this,arguments), b=/./.test; var real="./.test"; var other="./.exec.apply"; var ratio=x/y;`
++	masked := MaskJavaScriptRegexLiterals(input)
++	if len(masked) != len(input) {
++		t.Fatal("offsets changed")
++	}
++	if strings.Contains(masked, "/./") {
++		t.Fatal(masked)
++	}
++	for _, keep := range []string{`"./.test"`, `"./.exec.apply"`, `x/y`} {
++		if !strings.Contains(masked, keep) {
++			t.Fatal("lost", keep)
++		}
++	}
++	if got := MaskJavaScriptRegexLiterals(`function( /./.exec`); got != `function( /./.exec` {
++		t.Fatal("invalid input changed")
++	}
++	noise := MaskJavaScriptRegexLiterals(`var a=/./.exec.apply(this,arguments), b=/./.test;`)
++	if got := ExtractBodyEndpoints(noise); len(got) != 0 {
++		t.Fatal(got)
++	}
++	if got := ExtractBodyEndpoints(masked); len(got) != 2 {
++		t.Fatal(got)
++	}
++}
 diff --git a/pkg/utils/script_endpoints.go b/pkg/utils/script_endpoints.go
 new file mode 100644
 index 0000000..dd13d95
@@ -2757,10 +2841,10 @@ index 0000000..7bb1ccf
 +}
 diff --git a/pkg/utils/script_sources_nojs.go b/pkg/utils/script_sources_nojs.go
 new file mode 100644
-index 0000000..58947ab
+index 0000000..e16ea1e
 --- /dev/null
 +++ b/pkg/utils/script_sources_nojs.go
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,11 @@
 +//go:build 386 || windows
 +
 +package utils
@@ -2770,3 +2854,5 @@ index 0000000..58947ab
 +func ExtractLiteralScriptSources(data string) []string { return nil }
 +
 +func MaskBundledModuleReferences(data string) string { return data }
++
++func MaskJavaScriptRegexLiterals(data string) string { return data }
