@@ -145,5 +145,27 @@ dynamic concatenation and other metadata fields remain heuristic candidates.
 
 The loopback acceptance fixture serves GTM metadata under `/metadata/` and a
 real relative reference under `/real/`. It must fetch only the valid script and
-retain the external GTM discovery without making an external request. macOS
-acceptance of this updated producer is pending.
+retain the external GTM discovery without making an external request. The event metadata fix passed macOS acceptance.
+
+
+## Executable inline script isolation
+
+On supported structured-parser platforms (macOS and non-386 Linux), the HTML
+body regex no longer scans executable inline script text. Dedicated script regex
+parsers still scan that text; a bounded AST pass additionally recovers literal
+DOM `.src` and `.href` assignments, including dotted filenames and relative
+folders that look like domains. The AST pass is limited to 512 KiB per script.
+HTML attributes and non-executable JSON script blocks retain body extraction.
+Standalone JavaScript responses and CSS retain their existing body behavior.
+Windows and 386 retain the legacy path because their build excludes jsluice.
+
+This prevents the New Relic `agent:"js-agent.newrelic.com/nr-spa-1208.min.js"`
+configuration from becoming a local `/Edge/` path through the HTML body regex.
+It does not infer aliases, evaluate `"https://"+t.agent`, or manufacture an
+external URL. Candidates found only by the broad HTML regex inside executable
+script text can disappear; literal DOM assignments and existing dedicated
+script-regex candidates remain. Existing saved artifacts are not rewritten.
+
+Linux parser/utils race tests (20 repetitions), New Relic loopback crawl,
+GTM event acceptance, provenance, filtered checkpoint recovery and stage resume
+passed. macOS acceptance of this isolation change is pending. See issue #171.

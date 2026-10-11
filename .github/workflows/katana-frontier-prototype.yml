@@ -36,11 +36,12 @@ jobs:
           GOTOOLCHAIN: local
         run: |
           cd katana-source
-          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils -run 'Test(ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
+          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils ./pkg/engine/parser -run 'Test(ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
           go build -buildvcs=false -o /tmp/katana-frontier ./cmd/katana
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
           python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_script_body_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/script-body.json
           python tools/katana_gtm_event_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/gtm-event.json
           python tools/katana_provenance_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/provenance.json
           python tools/katana_filtered_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/filtered-frontier.json
