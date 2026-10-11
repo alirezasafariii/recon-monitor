@@ -243,3 +243,28 @@ mark network failures complete. Existing checkpoints keep their semantic binding
 
 A two-server loopback acceptance fixture asserts zero requests to the external
 server, successful in-scope redirection, and durable frontier exhaustion.
+
+
+### Stop throttled origins and retain request-error evidence
+
+The standard engine cancels the origin session after HTTP 429 or 503 and records
+the status in the request-error log. It does not parse that response for crawl
+links or acknowledge the throttled request. Already in-flight requests can finish;
+queued work remains durable. The v1 completion reason is cancelled with nonzero
+failed_requests; no completion-contract schema or checkpoint binding changes.
+A later operator resume can complete when the server recovers. This does not
+implement cross-run Retry-After scheduling or bypass server restrictions.
+
+The URL stage records a fresh per-batch -elog artifact and references its filename
+in katana-batches.jsonl for completion-capable binaries. Unsupported binaries
+retain their existing invocation. Previous runs and diagnostic copies are not
+imported or rewritten.
+
+Validation: Linux race checks repeated 20 times for common, standard and queue;
+throttle/recovery, redirect scope, frontier/stage resume loopback acceptance;
+38 Python completion, execution-quality and lifecycle tests. The checked local
+installer backs up stages.py and its manifest and refuses a changed baseline.
+macOS validation of this change remains pending. The preceding redirect change
+was installed and tested on macOS, and the Giftcards diagnostic completed all
+280 items with zero pending or failures. Real HTTP 429 and connection failures
+remain incomplete observations rather than success.

@@ -54,10 +54,18 @@ index e981f5c..69fce9d 100644
  github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
  github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..711dd4f 100644
+index b6da330..a4efed0 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
-@@ -13,9 +13,9 @@ import (
+@@ -3,6 +3,7 @@ package common
+ import (
+ 	"bytes"
+ 	"context"
++	"fmt"
+ 	"io"
+ 	"math"
+ 	"math/rand/v2"
+@@ -13,9 +14,9 @@ import (
  	"sync/atomic"
  	"time"
  
@@ -68,7 +76,7 @@ index b6da330..711dd4f 100644
  	"github.com/projectdiscovery/gologger"
  	"github.com/projectdiscovery/katana/pkg/engine/parser/files"
  	"github.com/projectdiscovery/katana/pkg/navigation"
-@@ -46,13 +46,13 @@ type hostBackoff struct {
+@@ -46,13 +47,13 @@ type hostBackoff struct {
  const hostBackoffsCacheSize = 10000
  
  type Shared struct {
@@ -88,7 +96,7 @@ index b6da330..711dd4f 100644
  }
  
  // NewShared creates a new Shared instance with the provided crawler options.
-@@ -113,6 +113,12 @@ func (s *Shared) Enqueue(queue *queue.Queue, navigationRequests ...*navigation.R
+@@ -113,6 +114,12 @@ func (s *Shared) Enqueue(queue *queue.Queue, navigationRequests ...*navigation.R
  			continue
  		}
  
@@ -101,7 +109,7 @@ index b6da330..711dd4f 100644
  		reqUrl := nr.RequestURL()
  		if s.Options.Options.IgnoreQueryParams {
  			reqUrl = utils.ReplaceAllQueryParam(reqUrl, "")
-@@ -302,6 +308,7 @@ type CrawlSession struct {
+@@ -302,6 +309,7 @@ type CrawlSession struct {
  	URL        *url.URL
  	Hostname   string
  	Queue      *queue.Queue
@@ -109,7 +117,7 @@ index b6da330..711dd4f 100644
  	HttpClient *retryablehttp.Client
  	Browser    *rod.Browser
  }
-@@ -342,7 +349,70 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -342,7 +350,70 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		cancel()
  		return nil, err
  	}
@@ -181,7 +189,7 @@ index b6da330..711dd4f 100644
  
  	if s.KnownFiles != nil {
  		navigationRequests, err := s.KnownFiles.RequestWithContext(ctx, URL)
-@@ -372,9 +442,15 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -372,9 +443,15 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		}
  		navigationRequests := s.Options.Parser.ParseResponse(navigationResponse)
  		s.Enqueue(queue, navigationRequests...)
@@ -197,7 +205,7 @@ index b6da330..711dd4f 100644
  		return nil, errkit.Wrap(err, "could not create http client")
  	}
  	crawlSession := &CrawlSession{
-@@ -383,6 +459,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -383,6 +460,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		URL:        parsed.URL,
  		Hostname:   hostname,
  		Queue:      queue,
@@ -205,7 +213,7 @@ index b6da330..711dd4f 100644
  		HttpClient: httpclient,
  	}
  	return crawlSession, nil
-@@ -402,15 +479,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +480,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
@@ -271,7 +279,7 @@ index b6da330..711dd4f 100644
  			continue
  		}
  
-@@ -419,21 +544,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +545,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -299,7 +307,7 @@ index b6da330..711dd4f 100644
  			continue
  		}
  
-@@ -441,6 +572,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +573,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -307,7 +315,7 @@ index b6da330..711dd4f 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +615,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +616,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -330,15 +338,28 @@ index b6da330..711dd4f 100644
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +641,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -499,7 +641,20 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+ 				s.Output(req, resp, err)
  			}
  
++			if resp != nil && IsThrottled(resp.StatusCode) {
++				// Stop this origin before parsing a throttle/error document as
++				// crawl input. Durable work stays pending for a later operator resume.
++				crawlSession.CancelFunc()
++				message := fmt.Sprintf("HTTP %d; origin crawl stopped for throttling", resp.StatusCode)
++				gologger.Warning().Msg(message)
++				_ = s.Options.OutputWriter.WriteErr(&output.Error{
++					Timestamp: time.Now(), Endpoint: req.RequestURL(),
++					Source: req.Source, Error: message,
++				})
++				return
++			}
  			if err != nil {
 +				requestFailed = true
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,14 +653,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,14 +666,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {

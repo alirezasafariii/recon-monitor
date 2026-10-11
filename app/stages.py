@@ -1186,6 +1186,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 # is a separate feature and is not implied by this mode.
                 if not uncapped_katana:
                     args.extend(["-ct", f"{batch_crawl_seconds}s"])
+                request_errors_path = ctx.current / f"katana-batch-{batch_number:03d}-request-errors.jsonl"
+                if completion_supported:
+                    atomic_write_text(request_errors_path, "")
+                    args.extend(["-elog", str(request_errors_path)])
                 completion_path = ctx.current / f"katana-batch-{batch_number:03d}-completion.jsonl"
                 if completion_supported:
                     # Never accept an event left behind by an earlier invocation.
@@ -1259,6 +1263,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "completion_verified": batch_complete,
                     "completion_contract": "v1" if completion_supported else None,
                     "completion_artifact": completion_path.name if completion_supported else None,
+                    "request_errors_artifact": request_errors_path.name if completion_supported else None,
                     "frontier_checkpoint_enabled": checkpoint_supported,
                     "origin_completion": origin_completion,
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),

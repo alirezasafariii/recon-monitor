@@ -21,6 +21,7 @@ class KatanaStageCompletionTests(unittest.TestCase):
             self.last_crawl_limits = []
             self.last_input_batches = []
             self.checkpoint_paths = []
+            self.last_error_artifacts = []
             def runner(args, **kwargs):
                 batch_origins = Path(args[args.index('-list')+1]).read_text().splitlines()
                 self.last_input_batches.append(batch_origins)
@@ -38,6 +39,10 @@ class KatanaStageCompletionTests(unittest.TestCase):
                 self.last_crawl_limits.append(int(args[args.index("-ct")+1][:-1]))
                 Path(kwargs['output_path']).write_text(origins[0]+'/evidence.js\n')
                 if supported:
+                    errors_path = Path(args[args.index('-elog')+1])
+                    self.assertEqual(errors_path.read_text(), '')
+                    errors_path.write_text('{"error":"HTTP 429; origin crawl stopped for throttling"}\n')
+                    self.last_error_artifacts.append(errors_path.name)
                     path = Path(args[args.index('-recon-completion-log')+1])
                     self.assertEqual(path.read_text(), '')
                     rows = []
@@ -52,11 +57,13 @@ class KatanaStageCompletionTests(unittest.TestCase):
                         path.write_text('bad JSON' if mode=='malformed' else '\n'.join(json.dumps(r) for r in rows))
                 else:
                     self.assertNotIn('-recon-completion-log', args)
+                    self.assertNotIn('-elog', args)
                 return SimpleNamespace(returncode=returncode, timed_out=timed_out,
                                        operator_next=operator_next, duration=100, lines=1)
             ctx = self._context(Path(tmp), SimpleNamespace(run=runner))
             # A stale successful artifact must not survive an invocation that writes nothing.
             (ctx.current/'katana-batch-001-completion.jsonl').write_text('stale successful evidence')
+            (ctx.current/'katana-batch-001-request-errors.jsonl').write_text('stale request error')
             with patch('stages.tool_path', side_effect=lambda t: t=='katana'), patch(
                     'stages._probe_live_origins', return_value=(origins, [])), patch(
                     'stages._katana_completion_supported', return_value=supported), patch(
@@ -74,6 +81,14 @@ class KatanaStageCompletionTests(unittest.TestCase):
             completed = (ctx.current/'katana-completed-origins.txt').read_text().splitlines()
             self.assertIn(origins[0]+'/evidence.js', (ctx.current/'katana-urls.txt').read_text())
             return metrics, pending, completed
+
+    def test_request_errors_have_fresh_referenced_batch_artifacts(self):
+        metrics, _, _ = self.exercise('complete')
+        self.assertEqual(
+            [row['request_errors_artifact'] for row in metrics['katana_batch_outcomes']],
+            self.last_error_artifacts,
+        )
+        self.assertTrue(self.last_error_artifacts)
 
     def test_explicit_completion_overrides_duration_guard_only_for_supported_producer(self):
         metrics, pending, completed = self.exercise('complete')
