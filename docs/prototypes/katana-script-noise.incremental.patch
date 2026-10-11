@@ -1,0 +1,140 @@
+diff --git a/pkg/utils/script_noise.go b/pkg/utils/script_noise.go
+new file mode 100644
+--- /dev/null
++++ b/pkg/utils/script_noise.go
+@@ -0,0 +1,64 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"github.com/dop251/goja/ast"
++	"github.com/dop251/goja/parser"
++	"github.com/dop251/goja/token"
++	"strings"
++)
++
++// MaskScriptNonReferences excludes diagnostic messages and relative suffixes
++// of expressions anchored to an absolute URL. It never executes JavaScript.
++func MaskScriptNonReferences(data string) string {
++	if len(data) > 2*1024*1024 {
++		return data
++	}
++	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	if err != nil {
++		return data
++	}
++	masked := []byte(data)
++	mask := func(n ast.Node) {
++		start, end := int(n.Idx0())-1, int(n.Idx1())-1
++		if start < 0 || end > len(masked) || end <= start {
++			return
++		}
++		quote := masked[start]
++		for i := start; i < end; i++ {
++			if masked[i] != '\n' && masked[i] != '\r' {
++				masked[i] = ' '
++			}
++		}
++		masked[start], masked[end-1] = quote, quote
++	}
++	var anchored func(ast.Expression) bool
++	anchored = func(e ast.Expression) bool {
++		if s, ok := e.(*ast.StringLiteral); ok {
++			return strings.HasPrefix(s.Value.String(), "https://") || strings.HasPrefix(s.Value.String(), "http://")
++		}
++		if b, ok := e.(*ast.BinaryExpression); ok && b.Operator == token.PLUS {
++			return anchored(b.Left)
++		}
++		return false
++	}
++	visitBundleAST(program, func(n ast.Node) bool {
++		if e, ok := n.(*ast.NewExpression); ok {
++			if name, ok := e.Callee.(*ast.Identifier); ok && name.Name.String() == "Error" {
++				for _, arg := range e.ArgumentList {
++					if s, ok := arg.(*ast.StringLiteral); ok && strings.ContainsAny(s.Value.String(), " \t\n\r") {
++						mask(s)
++					}
++				}
++			}
++		}
++		if b, ok := n.(*ast.BinaryExpression); ok && b.Operator == token.PLUS && anchored(b.Left) {
++			if s, ok := b.Right.(*ast.StringLiteral); ok && !anchored(s) {
++				mask(s)
++			}
++		}
++		return true
++	})
++	return string(masked)
++}
+diff --git a/pkg/utils/script_noise_test.go b/pkg/utils/script_noise_test.go
+new file mode 100644
+--- /dev/null
++++ b/pkg/utils/script_noise_test.go
+@@ -0,0 +1,27 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestScriptNonReferences(t *testing.T) {
++	source := `throw new Error("Zone.js failed; load zone.js first"); y.src='https://cdn.pendo.io/agent/static/'+publicAppId+'/pendo.js'; var real='/real.js'; var standalone='zone.js';`
++	got := MaskScriptNonReferences(source)
++	for _, bad := range []string{"Zone.js failed", "load zone.js", "/pendo.js"} {
++		if strings.Contains(got, bad) {
++			t.Fatal(got)
++		}
++	}
++	for _, good := range []string{"/real.js", "'zone.js'", "https://cdn.pendo.io"} {
++		if !strings.Contains(got, good) {
++			t.Fatal(got)
++		}
++	}
++	broken := `function( 'zone.js'`
++	if MaskScriptNonReferences(broken) != broken {
++		t.Fatal("modified invalid source")
++	}
++}
+diff --git a/pkg/utils/script_sources_nojs.go b/pkg/utils/script_sources_nojs.go
+--- a/pkg/utils/script_sources_nojs.go
++++ b/pkg/utils/script_sources_nojs.go
+@@ -9,3 +9,5 @@
+ func MaskBundledModuleReferences(data string) string { return data }
+ 
+ func MaskJavaScriptRegexLiterals(data string) string { return data }
++
++func MaskScriptNonReferences(data string) string { return data }
+diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
+--- a/pkg/engine/parser/parser.go
++++ b/pkg/engine/parser/parser.go
+@@ -675,7 +675,7 @@
+ 			return
+ 		}
+ 
+-		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(text)))
++		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskScriptNonReferences(utils.MaskJavaScriptRegexLiterals(text))))
+ 		endpoints = append(endpoints, utils.ExtractLiteralScriptSources(text)...)
+ 		for _, item := range endpoints {
+ 			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
+@@ -693,7 +693,7 @@
+ 		return
+ 	}
+ 
+-	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(string(resp.Body))))
++	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(utils.MaskScriptNonReferences(utils.MaskJavaScriptRegexLiterals(string(resp.Body)))))
+ 	endpointsItems = append(endpointsItems, utils.ExtractLiteralScriptSources(string(resp.Body))...)
+ 	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
+ 		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
+@@ -783,7 +783,7 @@
+ 		}
+ 	}
+ 	if strings.Contains(resp.Resp.Header.Get("Content-Type"), "javascript") || strings.HasSuffix(resp.Resp.Request.URL.Path, ".js") {
+-		body = utils.MaskBundledModuleReferences(utils.MaskJavaScriptRegexLiterals(body))
++		body = utils.MaskBundledModuleReferences(utils.MaskScriptNonReferences(utils.MaskJavaScriptRegexLiterals(body)))
+ 	}
+ 	endpoints := utils.ExtractBodyEndpoints(body)
+ 	for _, item := range endpoints {
