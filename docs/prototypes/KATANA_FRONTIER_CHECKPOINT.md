@@ -112,3 +112,21 @@ Race tests repeated 20 times passed. The loopback CLI acceptance tool
 `tools/katana_filtered_frontier_local_acceptance.py` checks fresh completion
 and that neither PNG nor WOFF2 is fetched during resume. Mac acceptance of
 this updated producer patch remains pending. Existing checkpoints need no edits.
+
+
+## Discovery provenance
+
+When a completion-log path is configured, parser discoveries with raw reference
+metadata are appended to `<completion-log>.provenance.jsonl`. Records contain
+`raw_reference`, `source`, resolved `url`, `tag`, `attribute`, and `depth` under
+contract `recon.katana.discovery.provenance.v1`. Recording precedes scope and
+uniqueness filtering, so an external reference can be inspected without fetching
+it. This is discovery evidence, never completion or HTTP success evidence.
+Headers and response bodies are excluded. Records larger than 16 KiB and data
+beyond 8 MiB per log are omitted; the log is not a complete crawl inventory.
+References restored from older checkpoints may lack raw metadata. Historical
+plain-text URL files cannot recover the original reference retroactively.
+
+`tools/katana_provenance_local_acceptance.py` tests relative, root-relative, and
+external scheme-relative script references on loopback. Updated macOS acceptance
+is pending; the installed filtered-checkpoint binary is unchanged.
