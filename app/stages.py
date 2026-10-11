@@ -414,6 +414,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             # errors/conflicts remain unknown and retain previous records.
             if not warnings:
                 from dns_explicit import fill_missing
+                # The helper cap applies per record type. A shared counter
+                # starved later CNAME queries after empty AAAA observations.
+                # Four fixed types bound this stage to 4 * 128 supplements;
+                # reserved/rate/global budget remain shared across types.
+                explicit_state["used"] = 0
                 explicit_values: dict[str, tuple[str, ...]] = {}
                 extra, _ = fill_missing(
                     ctx, expected_hosts - reported, rrtype, explicit_values,
@@ -549,6 +554,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "failed_rrtypes": sorted(failed_rrtypes),
         "dns_query_outcomes": query_outcomes,
         "dns_explicit_outcomes": explicit_outcomes,
+        "dns_explicit_queries": len(explicit_outcomes),
+        "dns_explicit_cap_scope": "per_rrtype",
         "dns_wildcard_outcomes": wildcard_outcomes,
         "wildcard_probe_queries": wildcard_probe_queries,
         "wildcard_unknown_hosts": sum(row["state"] == "unknown" for row in wildcard_reports),
