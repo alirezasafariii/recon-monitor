@@ -128,6 +128,21 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["removed_records"], 4)
         self.assertEqual(metrics["failed_rrtypes"], [])
 
+    def test_omitted_rows_use_explicit_negative_evidence(self):
+        self._seed()
+        calls = []
+        def supplement(ctx, expected, rrtype, values, index, repeat, state):
+            calls.append((set(expected), rrtype))
+            for host in expected:
+                values[host] = ()
+            return [{"source": "dig", "rrtype": rrtype, "stop_reason": "completed"}], len(expected)
+        with patch("dns_explicit.fill_missing", side_effect=supplement):
+            metrics = self._dnsx_stage()
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(metrics["collection_status"], "completed")
+        self.assertEqual(metrics["removed_records"], 4)
+        self.assertEqual(len(metrics["dns_explicit_outcomes"]), 4)
+
     def test_explicit_empty_rrtypes_preserve_previous_records(self) -> None:
         for rrtypes in ([], set(), iter(())):
             with self.subTest(rrtypes=type(rrtypes).__name__):
