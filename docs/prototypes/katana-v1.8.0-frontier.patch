@@ -54,7 +54,7 @@ index e981f5c..69fce9d 100644
  github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
  github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..1e5ec78 100644
+index b6da330..711dd4f 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
 @@ -13,9 +13,9 @@ import (
@@ -181,7 +181,13 @@ index b6da330..1e5ec78 100644
  
  	if s.KnownFiles != nil {
  		navigationRequests, err := s.KnownFiles.RequestWithContext(ctx, URL)
-@@ -375,6 +445,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -372,9 +442,15 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+ 		}
+ 		navigationRequests := s.Options.Parser.ParseResponse(navigationResponse)
+ 		s.Enqueue(queue, navigationRequests...)
++	}, func(raw string) bool {
++		ok, err := s.Options.ValidateScope(raw, hostname)
++		return err == nil && ok && s.Options.ValidatePath(raw)
  	})
  	if err != nil {
  		cancel()
@@ -191,7 +197,7 @@ index b6da330..1e5ec78 100644
  		return nil, errkit.Wrap(err, "could not create http client")
  	}
  	crawlSession := &CrawlSession{
-@@ -383,6 +456,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -383,6 +459,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		URL:        parsed.URL,
  		Hostname:   hostname,
  		Queue:      queue,
@@ -199,7 +205,7 @@ index b6da330..1e5ec78 100644
  		HttpClient: httpclient,
  	}
  	return crawlSession, nil
-@@ -402,15 +476,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +479,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
@@ -265,7 +271,7 @@ index b6da330..1e5ec78 100644
  			continue
  		}
  
-@@ -419,21 +541,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +544,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -293,7 +299,7 @@ index b6da330..1e5ec78 100644
  			continue
  		}
  
-@@ -441,6 +569,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +572,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -301,7 +307,7 @@ index b6da330..1e5ec78 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +612,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +615,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -324,7 +330,7 @@ index b6da330..1e5ec78 100644
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +638,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -500,6 +641,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			}
  
  			if err != nil {
@@ -332,7 +338,7 @@ index b6da330..1e5ec78 100644
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,14 +650,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,14 +653,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {
@@ -355,6 +361,29 @@ index b6da330..1e5ec78 100644
  		}()
  	}
  	wg.Wait()
+diff --git a/pkg/engine/common/http.go b/pkg/engine/common/http.go
+index d7d4916..0618918 100644
+--- a/pkg/engine/common/http.go
++++ b/pkg/engine/common/http.go
+@@ -20,7 +20,7 @@ import (
+ type RedirectCallback func(resp *http.Response, depth int)
+ 
+ // BuildHttpClient builds a http client based on a profile
+-func BuildHttpClient(dialer *fastdialer.Dialer, options *types.Options, redirectCallback RedirectCallback) (*retryablehttp.Client, *fastdialer.Dialer, error) {
++func BuildHttpClient(dialer *fastdialer.Dialer, options *types.Options, redirectCallback RedirectCallback, redirectAllowed ...func(string) bool) (*retryablehttp.Client, *fastdialer.Dialer, error) {
+ 	// Single Host
+ 	retryablehttpOptions := retryablehttp.DefaultOptionsSingle
+ 	retryablehttpOptions.RetryMax = options.Retries
+@@ -54,6 +54,9 @@ func BuildHttpClient(dialer *fastdialer.Dialer, options *types.Options, redirect
+ 		Transport: transport,
+ 		Timeout:   time.Duration(options.Timeout) * time.Second,
+ 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
++			if len(redirectAllowed) > 0 && !redirectAllowed[0](req.URL.String()) {
++				return http.ErrUseLastResponse
++			}
+ 			if options.DisableRedirects {
+ 				return http.ErrUseLastResponse
+ 			}
 diff --git a/pkg/engine/common/recon_checkpoint.go b/pkg/engine/common/recon_checkpoint.go
 new file mode 100644
 index 0000000..d72bcdf
@@ -1479,6 +1508,59 @@ index 0000000..6b5bd54
 +	if info.Size() != 8*1024*1024 {
 +		t.Fatal("log grew beyond cap")
 +	}
++}
+diff --git a/pkg/engine/common/recon_redirect_scope_test.go b/pkg/engine/common/recon_redirect_scope_test.go
+new file mode 100644
+index 0000000..f0e49da
+--- /dev/null
++++ b/pkg/engine/common/recon_redirect_scope_test.go
+@@ -0,0 +1,47 @@
++package common
++
++import (
++	"github.com/projectdiscovery/fastdialer/fastdialer"
++	"github.com/projectdiscovery/katana/pkg/types"
++	"github.com/projectdiscovery/retryablehttp-go"
++	"github.com/stretchr/testify/require"
++	"net/http"
++	"net/http/httptest"
++	"sync/atomic"
++	"testing"
++)
++
++func TestReconRedirectScope(t *testing.T) {
++	var hits atomic.Int64
++	outside := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1); w.WriteHeader(200) }))
++	defer outside.Close()
++	inside := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path == "/same" {
++			http.Redirect(w, r, "/final", 302)
++			return
++		}
++		if r.URL.Path == "/final" {
++			w.WriteHeader(200)
++			return
++		}
++		http.Redirect(w, r, outside.URL+"/login", 302)
++	}))
++	defer inside.Close()
++	d, err := fastdialer.NewDialer(fastdialer.DefaultOptions)
++	require.NoError(t, err)
++	defer d.Close()
++	client, _, err := BuildHttpClient(d, &types.Options{Timeout: 2}, nil, func(raw string) bool { return raw == inside.URL+"/same" || raw == inside.URL+"/final" })
++	require.NoError(t, err)
++	for _, tc := range []struct {
++		path   string
++		status int
++	}{{"/same", 200}, {"/external", 302}} {
++		req, err := retryablehttp.NewRequest("GET", inside.URL+tc.path, nil)
++		require.NoError(t, err)
++		resp, err := client.Do(req)
++		require.NoError(t, err)
++		require.Equal(t, tc.status, resp.StatusCode)
++		resp.Body.Close()
++	}
++	require.Zero(t, hits.Load(), "outside redirect must never reach destination")
 +}
 diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
 index e057fcb..d666c17 100644
