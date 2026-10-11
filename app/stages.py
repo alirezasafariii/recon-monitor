@@ -328,6 +328,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     collection_reasons: set[str] = set()
     query_outcomes: list[dict[str, Any]] = []
     wildcard_outcomes: list[dict[str, Any]] = []
+    explicit_outcomes: list[dict[str, Any]] = []
+    explicit_state = {"used": 0, "reserved": max(1, len(hosts) * 4)}
     fallback_failures: list[dict[str, Any]] = []
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
@@ -368,6 +370,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 ctx.logger.warn("dnsx query failed; previous records of this type will not be retired", target=ctx.policy.name, rrtype=rrtype, exit=result.returncode, stop_reason=outcome["stop_reason"])
                 continue
             expected_hosts = set(ctx.policy.roots if rrtype == "NS" else hosts)
+            reported: set[str] = set()
             observed: set[str] = set()
             unknown: set[str] = set()
             positive: set[tuple[str, str, str]] = set()
@@ -386,6 +389,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 host, values = _dns_values(row, rrtype)
                 if host not in expected_hosts or not ctx.policy.host_in_scope(host):
                     continue
+                reported.add(host)
                 valid_json_rows += 1
                 try:
                     if rrtype in {"A", "AAAA"}:
@@ -406,6 +410,19 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                     positive.update((host, rrtype, value) for value in values)
                 else:
                     unknown.add(host)
+            # Supplement only absent rows from a clean invocation. Explicit
+            # errors/conflicts remain unknown and retain previous records.
+            if not warnings:
+                from dns_explicit import fill_missing
+                explicit_values: dict[str, tuple[str, ...]] = {}
+                extra, _ = fill_missing(
+                    ctx, expected_hosts - reported, rrtype, explicit_values,
+                    "ordinary", 0, explicit_state,
+                )
+                explicit_outcomes.extend(extra)
+                for host, values in explicit_values.items():
+                    observed.add(host)
+                    positive.update((host, rrtype, value) for value in values)
             observed -= unknown
             observed_pairs.update((host, rrtype) for host in observed)
             missing = expected_hosts - observed
@@ -531,6 +548,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "successful_rrtypes": sorted(successful_rrtypes),
         "failed_rrtypes": sorted(failed_rrtypes),
         "dns_query_outcomes": query_outcomes,
+        "dns_explicit_outcomes": explicit_outcomes,
         "dns_wildcard_outcomes": wildcard_outcomes,
         "wildcard_probe_queries": wildcard_probe_queries,
         "wildcard_unknown_hosts": sum(row["state"] == "unknown" for row in wildcard_reports),
