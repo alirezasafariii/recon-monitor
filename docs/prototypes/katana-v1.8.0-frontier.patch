@@ -12,7 +12,7 @@ index 9b9226b..3cb44dc 100644
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..079be14 100644
+index b6da330..1e5ec78 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
 @@ -13,9 +13,9 @@ import (
@@ -46,7 +46,20 @@ index b6da330..079be14 100644
  }
  
  // NewShared creates a new Shared instance with the provided crawler options.
-@@ -302,6 +302,7 @@ type CrawlSession struct {
+@@ -113,6 +113,12 @@ func (s *Shared) Enqueue(queue *queue.Queue, navigationRequests ...*navigation.R
+ 			continue
+ 		}
+ 
++		if path := s.Options.Options.ReconCompletionLog; path != "" && nr.RawReference != "" {
++			if err := writeProvenance(path+".provenance.jsonl", nr); err != nil {
++				gologger.Warning().Msgf("Could not write URL provenance: %v", err)
++			}
++		}
++
+ 		reqUrl := nr.RequestURL()
+ 		if s.Options.Options.IgnoreQueryParams {
+ 			reqUrl = utils.ReplaceAllQueryParam(reqUrl, "")
+@@ -302,6 +308,7 @@ type CrawlSession struct {
  	URL        *url.URL
  	Hostname   string
  	Queue      *queue.Queue
@@ -54,7 +67,7 @@ index b6da330..079be14 100644
  	HttpClient *retryablehttp.Client
  	Browser    *rod.Browser
  }
-@@ -342,7 +343,70 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -342,7 +349,70 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		cancel()
  		return nil, err
  	}
@@ -126,7 +139,7 @@ index b6da330..079be14 100644
  
  	if s.KnownFiles != nil {
  		navigationRequests, err := s.KnownFiles.RequestWithContext(ctx, URL)
-@@ -375,6 +439,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -375,6 +445,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  	})
  	if err != nil {
  		cancel()
@@ -136,7 +149,7 @@ index b6da330..079be14 100644
  		return nil, errkit.Wrap(err, "could not create http client")
  	}
  	crawlSession := &CrawlSession{
-@@ -383,6 +450,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -383,6 +456,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		URL:        parsed.URL,
  		Hostname:   hostname,
  		Queue:      queue,
@@ -144,7 +157,7 @@ index b6da330..079be14 100644
  		HttpClient: httpclient,
  	}
  	return crawlSession, nil
-@@ -402,15 +470,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +476,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
@@ -210,7 +223,7 @@ index b6da330..079be14 100644
  			continue
  		}
  
-@@ -419,21 +535,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +541,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -238,7 +251,7 @@ index b6da330..079be14 100644
  			continue
  		}
  
-@@ -441,6 +563,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +569,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -246,7 +259,7 @@ index b6da330..079be14 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +606,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +612,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -269,7 +282,7 @@ index b6da330..079be14 100644
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +632,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -500,6 +638,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			}
  
  			if err != nil {
@@ -277,7 +290,7 @@ index b6da330..079be14 100644
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,14 +644,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,14 +650,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {
@@ -1272,6 +1285,159 @@ index 0000000..963f231
 +		t.Fatal("write failure ignored")
 +	}
 +}
+diff --git a/pkg/engine/common/recon_provenance.go b/pkg/engine/common/recon_provenance.go
+new file mode 100644
+index 0000000..c8744e7
+--- /dev/null
++++ b/pkg/engine/common/recon_provenance.go
+@@ -0,0 +1,47 @@
++package common
++
++import (
++	"encoding/json"
++	"os"
++
++	"github.com/projectdiscovery/katana/pkg/navigation"
++)
++
++// Provenance is diagnostic discovery evidence, never proof that a URL was fetched.
++// Each invocation uses the caller's unique completion-log name. Bound disk usage
++// independently of crawl budgets and never serialize headers or response bodies.
++func writeProvenance(path string, request *navigation.Request) error {
++	record := struct {
++		Contract     string `json:"contract"`
++		RawReference string `json:"raw_reference"`
++		Source       string `json:"source"`
++		URL          string `json:"url"`
++		Tag          string `json:"tag,omitempty"`
++		Attribute    string `json:"attribute,omitempty"`
++		Depth        int    `json:"depth"`
++	}{"recon.katana.discovery.provenance.v1", request.RawReference,
++		request.Source, request.URL, request.Tag, request.Attribute, request.Depth}
++	data, err := json.Marshal(record)
++	if err != nil {
++		return err
++	}
++	if len(data) > 16384 {
++		return nil
++	}
++	completionMu.Lock()
++	defer completionMu.Unlock()
++	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
++	if err != nil {
++		return err
++	}
++	defer file.Close()
++	info, err := file.Stat()
++	if err != nil {
++		return err
++	}
++	if info.Size()+int64(len(data)+1) > 8*1024*1024 {
++		return nil
++	}
++	_, err = file.Write(append(data, '\n'))
++	return err
++}
+diff --git a/pkg/engine/common/recon_provenance_test.go b/pkg/engine/common/recon_provenance_test.go
+new file mode 100644
+index 0000000..6b5bd54
+--- /dev/null
++++ b/pkg/engine/common/recon_provenance_test.go
+@@ -0,0 +1,94 @@
++package common
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/url"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync"
++	"testing"
++
++	"github.com/projectdiscovery/katana/pkg/navigation"
++)
++
++func TestReconProvenancePreservesResolutionInputs(t *testing.T) {
++	base, _ := url.Parse("https://example.test/a/index.html")
++	response := &navigation.Response{Resp: &http.Response{Request: &http.Request{URL: base}}, Depth: 1}
++	for _, tc := range []struct{ raw, expected string }{
++		{"proof.js", "https://example.test/a/proof.js"},
++		{"/proof.js", "https://example.test/proof.js"},
++		{"//cdn.example.test/proof.js", "https://cdn.example.test/proof.js"},
++		{"https://cdn.example.test/proof.js", "https://cdn.example.test/proof.js"},
++	} {
++		t.Run(tc.raw, func(t *testing.T) {
++			req := navigation.NewNavigationRequestURLFromResponse(tc.raw, base.String(), "script", "src", response)
++			path := filepath.Join(t.TempDir(), "provenance.jsonl")
++			if err := writeProvenance(path, req); err != nil {
++				t.Fatal(err)
++			}
++			data, err := os.ReadFile(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			var record map[string]interface{}
++			if err := json.Unmarshal(data, &record); err != nil {
++				t.Fatal(err)
++			}
++			if record["raw_reference"] != tc.raw || record["url"] != tc.expected || record["source"] != base.String() {
++				t.Fatalf("lost resolution evidence: %s", data)
++			}
++			if _, ok := record["headers"]; ok {
++				t.Fatal("unexpected headers")
++			}
++		})
++	}
++}
++
++func TestReconProvenanceConcurrentAndBounded(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "records.jsonl")
++	request := &navigation.Request{RawReference: "/proof", URL: "https://example.test/proof", Source: "https://example.test/", Headers: map[string]string{"Authorization": "must-not-serialize"}, Body: "must-not-serialize"}
++	var wg sync.WaitGroup
++	for i := 0; i < 32; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			if err := writeProvenance(path, request); err != nil {
++				t.Error(err)
++			}
++		}()
++	}
++	wg.Wait()
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
++	if len(lines) != 32 {
++		t.Fatalf("lost concurrent records: %d", len(lines))
++	}
++	for _, line := range lines {
++		if !json.Valid([]byte(line)) {
++			t.Fatal("interleaved JSON")
++		}
++		if strings.Contains(line, "must-not-serialize") {
++			t.Fatal("serialized HTTP credentials or body")
++		}
++	}
++	file, err := os.OpenFile(path, os.O_WRONLY, 0600)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err = file.Truncate(8 * 1024 * 1024); err != nil {
++		t.Fatal(err)
++	}
++	file.Close()
++	if err = writeProvenance(path, request); err != nil {
++		t.Fatal(err)
++	}
++	info, _ := os.Stat(path)
++	if info.Size() != 8*1024*1024 {
++		t.Fatal("log grew beyond cap")
++	}
++}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
 index 049a3ff..fd39013 100644
 --- a/pkg/engine/standard/crawl.go
@@ -1479,6 +1645,26 @@ index 0000000..ace14d7
 +		t.Fatal("headers ignored")
 +	}
 +}
+diff --git a/pkg/navigation/request.go b/pkg/navigation/request.go
+index 665d93e..b57ac36 100644
+--- a/pkg/navigation/request.go
++++ b/pkg/navigation/request.go
+@@ -10,6 +10,7 @@ type Depth struct{}
+ 
+ // Request is a navigation request for the crawler
+ type Request struct {
++	RawReference   string              `json:"raw_reference,omitempty"` // Parser input before URL resolution; not an HTTP request.
+ 	Method         string              `json:"method,omitempty"`
+ 	URL            string              `json:"endpoint,omitempty"`
+ 	Body           string              `json:"body,omitempty"`
+@@ -44,6 +45,7 @@ func (n *Request) RequestURL() string {
+ func NewNavigationRequestURLFromResponse(path, source, tag, attribute string, resp *Response) *Request {
+ 	requestURL := resp.AbsoluteURL(path)
+ 	request := &Request{
++		RawReference: path,
+ 		Method:       http.MethodGet,
+ 		URL:          requestURL,
+ 		RootHostname: resp.RootHostname,
 diff --git a/pkg/navigation/response.go b/pkg/navigation/response.go
 index 50396bb..7954588 100644
 --- a/pkg/navigation/response.go
