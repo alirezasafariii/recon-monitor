@@ -41,6 +41,7 @@ jobs:
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
           python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_bundle_modules_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/bundle-modules.json
           python tools/katana_script_body_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/script-body.json
           python tools/katana_gtm_event_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/gtm-event.json
           python tools/katana_provenance_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/provenance.json

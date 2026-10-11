@@ -1439,7 +1439,7 @@ index 0000000..6b5bd54
 +	}
 +}
 diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
-index e057fcb..1b30839 100644
+index e057fcb..ee13914 100644
 --- a/pkg/engine/parser/parser.go
 +++ b/pkg/engine/parser/parser.go
 @@ -1,6 +1,7 @@
@@ -1455,7 +1455,7 @@ index e057fcb..1b30839 100644
  		}
  
 -		endpoints := utils.ExtractRelativeEndpoints(text)
-+		endpoints := utils.ExtractScriptEndpoints(text)
++		endpoints := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(text))
 +		endpoints = append(endpoints, utils.ExtractLiteralScriptSources(text)...)
  		for _, item := range endpoints {
  			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
@@ -1465,7 +1465,7 @@ index e057fcb..1b30839 100644
  	}
  
 -	endpointsItems := utils.ExtractRelativeEndpoints(string(resp.Body))
-+	endpointsItems := utils.ExtractScriptEndpoints(string(resp.Body))
++	endpointsItems := utils.ExtractScriptEndpoints(utils.MaskBundledModuleReferences(string(resp.Body)))
 +	endpointsItems = append(endpointsItems, utils.ExtractLiteralScriptSources(string(resp.Body))...)
 +	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
 +		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
@@ -1473,7 +1473,7 @@ index e057fcb..1b30839 100644
  	for _, item := range endpointsItems {
  		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "js", "regex", resp))
  	}
-@@ -770,7 +776,13 @@ func bodyScrapeEndpointsParser(resp *navigation.Response) (navigationRequests []
+@@ -770,7 +776,16 @@ func bodyScrapeEndpointsParser(resp *navigation.Response) (navigationRequests []
  		return
  	}
  
@@ -1484,11 +1484,14 @@ index e057fcb..1b30839 100644
 +			body = withoutExecutableScripts(body)
 +		}
 +	}
++	if strings.Contains(resp.Resp.Header.Get("Content-Type"), "javascript") || strings.HasSuffix(resp.Resp.Request.URL.Path, ".js") {
++		body = utils.MaskBundledModuleReferences(body)
++	}
 +	endpoints := utils.ExtractBodyEndpoints(body)
  	for _, item := range endpoints {
  		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "html", "regex", resp))
  	}
-@@ -821,3 +833,42 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
+@@ -821,3 +836,42 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
  	}
  	return
  }
@@ -1532,7 +1535,7 @@ index e057fcb..1b30839 100644
 +	}
 +}
 diff --git a/pkg/engine/parser/parser_test.go b/pkg/engine/parser/parser_test.go
-index b72b486..f2e1ea7 100644
+index b72b486..ad563a0 100644
 --- a/pkg/engine/parser/parser_test.go
 +++ b/pkg/engine/parser/parser_test.go
 @@ -9,6 +9,7 @@ import (
@@ -1543,7 +1546,7 @@ index b72b486..f2e1ea7 100644
  	urlutil "github.com/projectdiscovery/utils/url"
  	"github.com/stretchr/testify/require"
  )
-@@ -764,3 +765,26 @@ func TestBodyScrapeEndpointsParser_ContentTypeGate(t *testing.T) {
+@@ -764,3 +765,44 @@ func TestBodyScrapeEndpointsParser_ContentTypeGate(t *testing.T) {
  		require.Empty(t, bodyScrapeEndpointsParser(resp), "a +json parameter on octet-stream must not force scraping")
  	})
  }
@@ -1569,6 +1572,24 @@ index b72b486..f2e1ea7 100644
 +	require.Contains(t, urls, "https://example.com/Edge/js-agent.newrelic.com/direct.min.js")
 +	require.Contains(t, urls, "https://example.com/proof")
 +	require.Contains(t, urls, "https://example.com/data/proof.js")
++}
++
++func TestScriptBundleBodyReferences(t *testing.T) {
++	if !utils.StructuredScriptSources {
++		t.Skip("structured parsing unavailable")
++	}
++	body := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){require("./internal.js");require("./unresolved.js");fetch("./real.js");},{"./internal.js":1,"./unresolved.js":99}]});`
++	parsed, _ := urlutil.Parse("https://example.com/dist/bundle.js")
++	resp := &navigation.Response{Resp: &http.Response{Request: &http.Request{URL: parsed.URL}, Header: http.Header{"Content-Type": []string{"application/javascript"}}}, Body: body}
++	var urls []string
++	for _, fn := range []ResponseParserFunc{scriptJSFileRegexParser, bodyScrapeEndpointsParser} {
++		for _, r := range fn(resp) {
++			urls = append(urls, r.URL)
++		}
++	}
++	require.NotContains(t, urls, "https://example.com/dist/internal.js")
++	require.Contains(t, urls, "https://example.com/dist/unresolved.js")
++	require.Contains(t, urls, "https://example.com/dist/real.js")
 +}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
 index 049a3ff..fd39013 100644
@@ -1824,6 +1845,236 @@ index e395c2a..fb0734f 100644
  	// Resolvers contains custom resolvers
  	Resolvers goflags.StringSlice
  	// OutputTemplate enables custom output template
+diff --git a/pkg/utils/bundle_references.go b/pkg/utils/bundle_references.go
+new file mode 100644
+index 0000000..37da9e3
+--- /dev/null
++++ b/pkg/utils/bundle_references.go
+@@ -0,0 +1,178 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"github.com/Mzack9999/jsluice"
++	sitter "github.com/odvcencio/gotreesitter"
++	"github.com/odvcencio/gotreesitter/grammars"
++	"strings"
++)
++
++// MaskBundledModuleReferences removes only dependency keys and require literals
++// resolved to existing numeric modules in a Browserify-shaped module table.
++// Offsets are preserved; unrelated URL uses are not removed.
++func MaskBundledModuleReferences(data string) string {
++	if len(data) > 2*1024*1024 || !strings.Contains(data, "require") {
++		return data
++	}
++	lang := grammars.JavascriptLanguage()
++	tree, err := sitter.NewParser(lang).Parse([]byte(data))
++	if err != nil || tree == nil {
++		return data
++	}
++	defer tree.Release()
++	if tree.RootNode().HasError() {
++		return data
++	}
++	raw := []byte(data)
++	masked := []byte(data)
++	field := func(n *sitter.Node, k string) *sitter.Node {
++		if n == nil {
++			return nil
++		}
++		return n.ChildByFieldName(k, lang)
++	}
++	typ := func(n *sitter.Node) string {
++		if n == nil {
++			return ""
++		}
++		return n.Type(lang)
++	}
++	text := func(n *sitter.Node) string {
++		if n == nil {
++			return ""
++		}
++		return n.Text(raw)
++	}
++	numeric := func(n *sitter.Node) string {
++		if typ(n) != "number" {
++			return ""
++		}
++		v := text(n)
++		for _, c := range v {
++			if c < '0' || c > '9' {
++				return ""
++			}
++		}
++		return v
++	}
++	mask := func(n *sitter.Node) {
++		for i := n.StartByte(); i < n.EndByte(); i++ {
++			masked[i] = ' '
++		}
++	}
++	var visit func(*sitter.Node)
++	visit = func(n *sitter.Node) {
++		if n == nil {
++			return
++		}
++		if typ(n) == "object" && n.Parent() != nil && typ(n.Parent()) == "arguments" {
++			modules := map[string]*sitter.Node{}
++			seenIDs := map[string]bool{}
++			ambiguousTable := false
++			for i := 0; i < n.NamedChildCount(); i++ {
++				p := n.NamedChild(i)
++				id := numeric(field(p, "key"))
++				if id != "" {
++					if seenIDs[id] {
++						ambiguousTable = true
++					}
++					seenIDs[id] = true
++				}
++				v := field(p, "value")
++				if id != "" && typ(v) == "array" && v.NamedChildCount() == 2 && typ(v.NamedChild(0)) == "function_expression" && typ(v.NamedChild(1)) == "object" {
++					modules[id] = v
++				}
++			}
++			if ambiguousTable {
++				return
++			}
++			for _, v := range modules {
++				fn, dependencies := v.NamedChild(0), v.NamedChild(1)
++				params := field(fn, "parameters")
++				if params == nil || params.NamedChildCount() == 0 || typ(params.NamedChild(0)) != "identifier" {
++					continue
++				}
++				binding := text(params.NamedChild(0))
++				if binding != "require" {
++					continue
++				}
++				resolved := map[string]*sitter.Node{}
++				seenKeys := map[string]bool{}
++				ambiguousKeys := false
++				for i := 0; i < dependencies.NamedChildCount(); i++ {
++					p := dependencies.NamedChild(i)
++					key := field(p, "key")
++					id := numeric(field(p, "value"))
++					if typ(key) == "string" {
++						k := jsluice.DecodeString(text(key))
++						if seenKeys[k] {
++							ambiguousKeys = true
++						}
++						seenKeys[k] = true
++					}
++					if typ(key) == "string" && modules[id] != nil {
++						resolved[jsluice.DecodeString(text(key))] = key
++					}
++				}
++				if ambiguousKeys {
++					continue
++				}
++				var walk func(*sitter.Node)
++				shadowed := false
++				var args []*sitter.Node
++				walk = func(b *sitter.Node) {
++					if b == nil {
++						return
++					}
++					kind := typ(b)
++					if kind == "function_declaration" && text(field(b, "name")) == binding {
++						shadowed = true
++					}
++					if kind == "augmented_assignment_expression" && text(field(b, "left")) == binding {
++						shadowed = true
++					}
++					if kind == "update_expression" && text(field(b, "argument")) == binding {
++						shadowed = true
++					}
++					if kind == "call_expression" && text(field(b, "function")) == "eval" {
++						shadowed = true
++					}
++					if kind == "function_expression" || kind == "arrow_function" || kind == "function_declaration" {
++						return
++					}
++					if (kind == "assignment_expression" && text(field(b, "left")) == binding) || (kind == "variable_declarator" && text(field(b, "name")) == binding) {
++						shadowed = true
++					}
++					if kind == "call_expression" && typ(field(b, "function")) == "identifier" && text(field(b, "function")) == binding {
++						a := field(b, "arguments")
++						if a != nil && a.NamedChildCount() == 1 && typ(a.NamedChild(0)) == "string" {
++							s := a.NamedChild(0)
++							if resolved[jsluice.DecodeString(text(s))] != nil {
++								args = append(args, s)
++							}
++						}
++					}
++					for i := 0; i < b.NamedChildCount(); i++ {
++						walk(b.NamedChild(i))
++					}
++				}
++				walk(field(fn, "body"))
++				if !shadowed {
++					for _, a := range args {
++						mask(a)
++					}
++					for _, key := range resolved {
++						mask(key)
++					}
++				}
++			}
++		}
++		for i := 0; i < n.NamedChildCount(); i++ {
++			visit(n.NamedChild(i))
++		}
++	}
++	visit(tree.RootNode())
++	return string(masked)
++}
+diff --git a/pkg/utils/bundle_references_test.go b/pkg/utils/bundle_references_test.go
+new file mode 100644
+index 0000000..76d606b
+--- /dev/null
++++ b/pkg/utils/bundle_references_test.go
+@@ -0,0 +1,40 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestScriptBundleResolvedDependencies(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){var a=require("./address-suggestions.js");var b=require("./missing.js");fetch("./address-suggestions.js");},{"./address-suggestions.js":1,"./missing.js":99}]});`
++	got := MaskBundledModuleReferences(s)
++	if strings.Contains(got, `require("./address-suggestions.js")`) {
++		t.Fatal(got)
++	}
++	for _, want := range []string{`fetch("./address-suggestions.js")`, `require("./missing.js")`, `"./missing.js":99`} {
++		if !strings.Contains(got, want) {
++			t.Fatal(got)
++		}
++	}
++	if len(got) != len(s) {
++		t.Fatal("offsets changed")
++	}
++}
++func TestScriptBundlePreservesUnknownReferences(t *testing.T) {
++	for _, s := range []string{
++		`require("./address-suggestions.js");`,
++		`boot({1:[function(require,module,exports){require("./address-suggestions.js")},{"./address-suggestions.js":1,"./address-suggestions.js":99}]});`,
++		`boot({1:[function(require,module,exports){require("./address-suggestions.js")},{"./address-suggestions.js":1}],1:[]});`,
++		`boot({1:[function(require,module,exports){function require(){};require("./address-suggestions.js")},{"./address-suggestions.js":1}]});`,
++
++		`boot({1:[function(require,module,exports){require=custom;require("./address-suggestions.js")},{"./address-suggestions.js":1}]});`,
++		`boot({1:[function(require,module,exports){function inner(require){require("./address-suggestions.js")};},{"./address-suggestions.js":1}]});`,
++	} {
++		got := MaskBundledModuleReferences(s)
++		if !strings.Contains(got, `require("./address-suggestions.js")`) {
++			t.Fatal(got)
++		}
++	}
++}
 diff --git a/pkg/utils/queue/queue.go b/pkg/utils/queue/queue.go
 index cbaebd4..b930977 100644
 --- a/pkg/utils/queue/queue.go
@@ -2252,10 +2503,10 @@ index 0000000..7bb1ccf
 +}
 diff --git a/pkg/utils/script_sources_nojs.go b/pkg/utils/script_sources_nojs.go
 new file mode 100644
-index 0000000..73f2845
+index 0000000..58947ab
 --- /dev/null
 +++ b/pkg/utils/script_sources_nojs.go
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,9 @@
 +//go:build 386 || windows
 +
 +package utils
@@ -2263,3 +2514,5 @@ index 0000000..73f2845
 +const StructuredScriptSources = false
 +
 +func ExtractLiteralScriptSources(data string) []string { return nil }
++
++func MaskBundledModuleReferences(data string) string { return data }

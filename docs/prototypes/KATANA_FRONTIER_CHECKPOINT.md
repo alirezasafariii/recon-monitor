@@ -168,4 +168,28 @@ script-regex candidates remain. Existing saved artifacts are not rewritten.
 
 Linux parser/utils race tests (20 repetitions), New Relic loopback crawl,
 GTM event acceptance, provenance, filtered checkpoint recovery and stage resume
-passed. macOS acceptance of this isolation change is pending. See issue #171.
+passed. macOS acceptance and installed-binary comparison for the isolation change passed. See issue #171.
+
+
+## Browserify-shaped resolved dependencies
+
+For JavaScript up to 2 MiB on structured-parser platforms, an AST pass masks
+literal `require` arguments and dependency-map keys only when the corresponding
+numeric module exists in the same object table. Entries must have the standard
+`[function(require,...), dependencyMap]` shape. Unknown targets, arbitrary require
+calls, nested functions, replaced require bindings, duplicate keys and malformed
+syntax are preserved rather than assumed internal. Source offsets are unchanged.
+Actual src/fetch references elsewhere to the same path are preserved. The mask
+is applied to dedicated script regex extraction and standalone JS body scraping;
+CSS and legacy Windows/386 paths are unchanged. This is not evaluation of bundle
+bootstrap code, and nonstandard bundlers or require aliases are unsupported.
+The AST bound is explicit: larger files keep legacy extraction.
+
+The observed signup bundle maps `./address-suggestions.js` to internal module 1.
+This proves that occurrence is a bundle dependency, not a standalone-file URL;
+it does not explain every HTTP 400 or establish the origin of es.array.at.
+Linux parser/utils and producer race regressions (20 repetitions), bundle
+loopback crawl, script isolation, GTM, provenance, filtered frontier and stage
+resume passed. macOS and offline saved-bundle validation are pending.
+`tools/katana_bundle_saved_probe.go` reads a SHA-verified local bundle without
+network requests or database mutations and reports targeted before/after candidates.
