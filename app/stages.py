@@ -349,6 +349,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             result = ctx.runner.run(
                 [
                     "dnsx", "-l", str(rr_input), "-silent", "-json", "-omit-raw", flag, "-resp", "-duc",
+                    "-rcode", "noerror,nxdomain",
                     "-t", str(min(200, ctx.policy.limits.dns_rate)),
                     "-rl", str(ctx.policy.limits.dns_rate),
                 ],

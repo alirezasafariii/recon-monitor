@@ -109,6 +109,25 @@ class DNSCollectionQualityTests(unittest.TestCase):
         with patch("stages.tool_path", return_value="dnsx"):
             return stage_dns(self._context(self._tool(**kwargs)))
 
+    def test_collector_requests_explicit_negative_responses(self):
+        self._seed()
+        def run(args, **kwargs):
+            self.assertIn("-rcode", args)
+            self.assertEqual(args[args.index("-rcode") + 1], "noerror,nxdomain")
+            hosts = Path(args[args.index("-l") + 1]).read_text().splitlines()
+            Path(kwargs["output_path"]).write_text("".join(
+                json.dumps({"host": host, "status_code": "NXDOMAIN"}) + "\n"
+                for host in hosts
+            ))
+            return SimpleNamespace(returncode=0, timed_out=False, operator_next=False,
+                                   duration=0.1, lines=len(hosts))
+        with patch("stages.tool_path", return_value="dnsx"):
+            metrics = stage_dns(self._context(run))
+        self.assertEqual(metrics["collection_status"], "completed")
+        self.assertEqual(metrics["unobserved_hosts"], 0)
+        self.assertEqual(metrics["removed_records"], 4)
+        self.assertEqual(metrics["failed_rrtypes"], [])
+
     def test_explicit_empty_rrtypes_preserve_previous_records(self) -> None:
         for rrtypes in ([], set(), iter(())):
             with self.subTest(rrtypes=type(rrtypes).__name__):
