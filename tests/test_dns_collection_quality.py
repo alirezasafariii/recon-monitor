@@ -132,6 +132,8 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self._seed()
         calls = []
         def supplement(ctx, expected, rrtype, values, index, repeat, state):
+            self.assertEqual(state["used"], 0)
+            state["used"] = 128
             calls.append((set(expected), rrtype))
             for host in expected:
                 values[host] = ()
