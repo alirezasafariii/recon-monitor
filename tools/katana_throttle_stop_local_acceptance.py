@@ -54,8 +54,16 @@ try:
             checkpoint = json.loads(next((tmp/'checkpoint').glob('*.json')).read_text())
             assert not any('/must-not-parse' in i['url'] for i in checkpoint['items']), checkpoint
             if attempt == 0:
-                assert hits == ['/', '/throttle'], hits
-                assert completion['failed_requests'] == 1 and completion['pending_items'] == 2, completion
+                # Sibling discovery order is not guaranteed across platforms.
+                # Work completed before the 429 is valid; no request may start
+                # after the throttled response in this single-worker fixture.
+                assert hits[0] == '/' and hits[-1] == '/throttle', hits
+                assert set(hits) <= {'/', '/remaining', '/throttle'}, hits
+                assert hits.count('/throttle') == 1, hits
+                pending = [i for i in checkpoint['items'] if not i['done']]
+                assert any(i['url'] == origin + '/throttle' for i in pending), pending
+                assert completion['failed_requests'] == 1, completion
+                assert completion['pending_items'] == len(pending) >= 1, completion
                 assert completion['stop_reason'] == 'cancelled', completion
                 errors = [json.loads(line) for line in error_log.read_text().splitlines()]
                 assert any('HTTP 429' in row.get('error','') for row in errors), errors
