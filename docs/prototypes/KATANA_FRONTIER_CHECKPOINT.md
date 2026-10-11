@@ -230,3 +230,16 @@ Malformed and over-2-MiB scripts retain the existing fallback. Windows/386 retai
 the existing legacy behavior. Linux race tests repeated 20 times for utilities
 and parser, plus local regex literal crawl acceptance passed. macOS and the real
 account-analytics saved bundle remain to be validated. Existing checkpoints are unchanged.
+
+
+### Redirect scope enforcement
+
+The standard crawl HTTP client now validates each redirect destination against
+the session crawl scope and path policy before making the next request. Blocked
+redirects return the original HTTP response without requesting the destination.
+In-scope redirects continue to work. Discovery of an external URL in output is
+not evidence that it was requested. This change does not rewrite checkpoints or
+mark network failures complete. Existing checkpoints keep their semantic binding.
+
+A two-server loopback acceptance fixture asserts zero requests to the external
+server, successful in-scope redirection, and durable frontier exhaustion.
