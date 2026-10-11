@@ -203,7 +203,20 @@ now returns source_masked=true and empty targeted after_body/after_script arrays
 on Linux. A loopback crawl serving that exact bundle also completes without
 requesting address-suggestions.js or core-js/modules paths. Other legacy regex
 candidates remain; this is not a claim that every JavaScript error is fixed.
-New nested-closure and shadowing regressions pass. macOS validation
-of this revision remains pending; earlier macOS passes do not validate it.
+New nested-closure and shadowing regressions pass. The operator validated this revision on macOS and installed the matching binary.
 `tools/katana_bundle_saved_probe.go` reads a SHA-verified local bundle without
 network requests or database mutations and reports targeted before/after candidates.
+
+### HTML document base resolution
+
+Relative HTML references now resolve against the first base element with an href,
+resolved against the final response URL. Missing, malformed, or non-HTTP(S) bases
+fall back to the response URL. Header references and base elements themselves
+retain response URL resolution; provenance keeps the original source and raw reference.
+Existing crawl scope checks still decide whether an external resolved URL may be requested.
+
+Linux validation: race tests repeated 20 times, existing parser tests, pinned patch
+apply check, and loopback HTML base plus distinct-page-relative-base acceptance passed.
+The /Edge/ fixture with base href / requests /main.js and /polyfills.js, never
+/Edge/main.js or /Edge/polyfills.js. macOS validation remains pending for this change.
+This does not resolve remote 429 responses or retroactively change stored run artifacts.
