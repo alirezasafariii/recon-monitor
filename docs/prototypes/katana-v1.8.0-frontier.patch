@@ -1438,6 +1438,31 @@ index 0000000..6b5bd54
 +		t.Fatal("log grew beyond cap")
 +	}
 +}
+diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
+index e057fcb..d14b145 100644
+--- a/pkg/engine/parser/parser.go
++++ b/pkg/engine/parser/parser.go
+@@ -674,7 +674,7 @@ func scriptContentRegexParser(resp *navigation.Response) (navigationRequests []*
+ 			return
+ 		}
+ 
+-		endpoints := utils.ExtractRelativeEndpoints(text)
++		endpoints := utils.ExtractScriptEndpoints(text)
+ 		for _, item := range endpoints {
+ 			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
+ 		}
+@@ -691,7 +691,10 @@ func scriptJSFileRegexParser(resp *navigation.Response) (navigationRequests []*n
+ 		return
+ 	}
+ 
+-	endpointsItems := utils.ExtractRelativeEndpoints(string(resp.Body))
++	endpointsItems := utils.ExtractScriptEndpoints(string(resp.Body))
++	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
++		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
++	}
+ 	for _, item := range endpointsItems {
+ 		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "js", "regex", resp))
+ 	}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
 index 049a3ff..fd39013 100644
 --- a/pkg/engine/standard/crawl.go
@@ -1947,5 +1972,137 @@ index 0000000..3435c42
 +				t.Fatalf("leaked work: %d %d", pending, active)
 +			}
 +		})
++	}
++}
+diff --git a/pkg/utils/script_endpoints.go b/pkg/utils/script_endpoints.go
+new file mode 100644
+index 0000000..dd13d95
+--- /dev/null
++++ b/pkg/utils/script_endpoints.go
+@@ -0,0 +1,76 @@
++package utils
++
++// ExtractScriptEndpoints keeps the existing endpoint heuristic but excludes
++// literal event names in object properties. This is not JavaScript evaluation:
++// unknown expressions remain candidates and must still pass normal scope checks.
++func ExtractScriptEndpoints(data string) []string {
++	masked := []byte(data)
++	previous, beforePrevious, beforeKey := "", "", ""
++	for i := 0; i < len(data); {
++		start := i
++		c := data[i]
++		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
++			i++
++			continue
++		}
++		if c == '/' && i+1 < len(data) && data[i+1] == '/' {
++			for i < len(data) && data[i] != '\n' {
++				i++
++			}
++			continue
++		}
++		if c == '/' && i+1 < len(data) && data[i+1] == '*' {
++			i += 2
++			for i+1 < len(data) && !(data[i] == '*' && data[i+1] == '/') {
++				i++
++			}
++			if i+1 < len(data) {
++				i += 2
++			} else {
++				i = len(data)
++			}
++			continue
++		}
++		token := ""
++		if c == '\'' || c == '"' || c == '`' {
++			i++
++			for i < len(data) {
++				if data[i] == '\\' {
++					i += 2
++					continue
++				}
++				if data[i] == c {
++					i++
++					break
++				}
++				i++
++			}
++			if i > len(data) {
++				i = len(data)
++			}
++			if c != '`' && i >= start+2 && data[i-1] == c {
++				token = data[start+1 : i-1]
++				if previous == ":" && beforePrevious == "event" && (beforeKey == "{" || beforeKey == ",") {
++					for j := start; j < i; j++ {
++						masked[j] = ' '
++					}
++				}
++			}
++		} else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' {
++			i++
++			for i < len(data) {
++				b := data[i]
++				if !((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '$') {
++					break
++				}
++				i++
++			}
++			token = data[start:i]
++		} else {
++			token = data[i : i+1]
++			i++
++		}
++		beforeKey, beforePrevious, previous = beforePrevious, previous, token
++	}
++	return ExtractRelativeEndpoints(string(masked))
++}
+diff --git a/pkg/utils/script_endpoints_test.go b/pkg/utils/script_endpoints_test.go
+new file mode 100644
+index 0000000..f2a4586
+--- /dev/null
++++ b/pkg/utils/script_endpoints_test.go
+@@ -0,0 +1,44 @@
++package utils
++
++import "testing"
++
++func TestScriptEventNamesAreNotEndpoints(t *testing.T) {
++	for _, script := range []string{
++		`w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' }); j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl`,
++		`push({"event": "gtm.js"}); script.src='https://www.googletagmanager.com/gtm.js?id='`,
++		`push({event /* comment */ : /* comment */ 'gtm.js'}); script.src='https://www.googletagmanager.com/gtm.js?id='`,
++	} {
++		matches := ExtractScriptEndpoints(script)
++		foundExternal := false
++		for _, value := range matches {
++			if value == "gtm.js" {
++				t.Fatalf("event became a local URL: %q", matches)
++			}
++			if value == "https://www.googletagmanager.com/gtm.js?id=" {
++				foundExternal = true
++			}
++		}
++		if !foundExternal {
++			t.Fatalf("external reference lost: %q", matches)
++		}
++	}
++}
++
++func TestScriptRealReferencesRemainCandidates(t *testing.T) {
++	for _, script := range []string{
++		`script.src='gtm.js'`, `fetch('gtm.js')`, `load({url:'gtm.js'})`,
++		`push({event:'gtm.js'}); script.src='gtm.js'`,
++		`/* event:'gtm.js' */ script.src='gtm.js'`,
++		"const template = `event: 'gtm.js'`; script.src='gtm.js'",
++	} {
++		found := false
++		for _, value := range ExtractScriptEndpoints(script) {
++			if value == "gtm.js" {
++				found = true
++			}
++		}
++		if !found {
++			t.Fatalf("real reference lost: %s", script)
++		}
 +	}
 +}

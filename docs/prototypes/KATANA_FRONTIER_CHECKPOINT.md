@@ -130,3 +130,20 @@ plain-text URL files cannot recover the original reference retroactively.
 `tools/katana_provenance_local_acceptance.py` tests relative, root-relative, and
 external scheme-relative script references on loopback. Updated macOS acceptance
 is pending; the installed filtered-checkpoint binary is unchanged.
+
+
+## Event metadata extraction
+
+The regex JavaScript parser now masks literal values of object properties named
+`event` before endpoint extraction. The observed GTM snippet uses
+`event: 'gtm.js'` as metadata, while `j.src` specifies the external script URL.
+Quoted property names and comments between tokens are supported. Real relative
+references in `src`, `fetch`, or other URL fields remain candidates, including
+the same filename elsewhere in the same script. CSS keeps the original extractor.
+This is a narrow lexical correction, not evaluation of arbitrary JavaScript;
+dynamic concatenation and other metadata fields remain heuristic candidates.
+
+The loopback acceptance fixture serves GTM metadata under `/metadata/` and a
+real relative reference under `/real/`. It must fetch only the valid script and
+retain the external GTM discovery without making an external request. macOS
+acceptance of this updated producer is pending.
