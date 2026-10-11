@@ -220,3 +220,13 @@ apply check, and loopback HTML base plus distinct-page-relative-base acceptance 
 The /Edge/ fixture with base href / requests /main.js and /polyfills.js, never
 /Edge/main.js or /Edge/polyfills.js. macOS validation remains pending for this change.
 This does not resolve remote 429 responses or retroactively change stored run artifacts.
+
+### JavaScript regex literal isolation
+
+Bounded Goja AST analysis replaces regex literals with numeric placeholders before
+URL heuristics and bundle analysis. Byte offsets and line breaks remain intact,
+string paths remain intact, and parsing does not execute code or load source maps.
+Malformed and over-2-MiB scripts retain the existing fallback. Windows/386 retain
+the existing legacy behavior. Linux race tests repeated 20 times for utilities
+and parser, plus local regex literal crawl acceptance passed. macOS and the real
+account-analytics saved bundle remain to be validated. Existing checkpoints are unchanged.
