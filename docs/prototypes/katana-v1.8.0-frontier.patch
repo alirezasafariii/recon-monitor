@@ -1439,30 +1439,137 @@ index 0000000..6b5bd54
 +	}
 +}
 diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
-index e057fcb..d14b145 100644
+index e057fcb..1b30839 100644
 --- a/pkg/engine/parser/parser.go
 +++ b/pkg/engine/parser/parser.go
-@@ -674,7 +674,7 @@ func scriptContentRegexParser(resp *navigation.Response) (navigationRequests []*
+@@ -1,6 +1,7 @@
+ package parser
+ 
+ import (
++	"io"
+ 	"mime"
+ 	"mime/multipart"
+ 	"net/http"
+@@ -674,7 +675,8 @@ func scriptContentRegexParser(resp *navigation.Response) (navigationRequests []*
  			return
  		}
  
 -		endpoints := utils.ExtractRelativeEndpoints(text)
 +		endpoints := utils.ExtractScriptEndpoints(text)
++		endpoints = append(endpoints, utils.ExtractLiteralScriptSources(text)...)
  		for _, item := range endpoints {
  			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "script", "text", resp))
  		}
-@@ -691,7 +691,10 @@ func scriptJSFileRegexParser(resp *navigation.Response) (navigationRequests []*n
+@@ -691,7 +693,11 @@ func scriptJSFileRegexParser(resp *navigation.Response) (navigationRequests []*n
  		return
  	}
  
 -	endpointsItems := utils.ExtractRelativeEndpoints(string(resp.Body))
 +	endpointsItems := utils.ExtractScriptEndpoints(string(resp.Body))
++	endpointsItems = append(endpointsItems, utils.ExtractLiteralScriptSources(string(resp.Body))...)
 +	if strings.HasSuffix(resp.Resp.Request.URL.Path, ".css") {
 +		endpointsItems = utils.ExtractRelativeEndpoints(string(resp.Body))
 +	}
  	for _, item := range endpointsItems {
  		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "js", "regex", resp))
  	}
+@@ -770,7 +776,13 @@ func bodyScrapeEndpointsParser(resp *navigation.Response) (navigationRequests []
+ 		return
+ 	}
+ 
+-	endpoints := utils.ExtractBodyEndpoints(string(resp.Body))
++	body := string(resp.Body)
++	if utils.StructuredScriptSources {
++		if resp.Reader != nil && resp.Reader.Find("script").Length() > 0 {
++			body = withoutExecutableScripts(body)
++		}
++	}
++	endpoints := utils.ExtractBodyEndpoints(body)
+ 	for _, item := range endpoints {
+ 		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "html", "regex", resp))
+ 	}
+@@ -821,3 +833,42 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
+ 	}
+ 	return
+ }
++
++// withoutExecutableScripts keeps HTML attributes and non-JavaScript data blocks.
++// Inline JavaScript is handled by its dedicated parsers, not the body regex.
++func withoutExecutableScripts(body string) string {
++	z := html.NewTokenizer(strings.NewReader(body))
++	var out strings.Builder
++	skip := false
++	for {
++		kind := z.Next()
++		if kind == html.ErrorToken {
++			if z.Err() != io.EOF {
++				return body
++			}
++			return out.String()
++		}
++		raw := string(z.Raw())
++		if kind == html.StartTagToken {
++			token := z.Token()
++			if token.Data == "script" {
++				media := ""
++				for _, a := range token.Attr {
++					if a.Key == "type" {
++						media = strings.ToLower(strings.TrimSpace(a.Val))
++					}
++				}
++				skip = media == "" || media == "module" || strings.Contains(media, "javascript") || strings.Contains(media, "ecmascript")
++			}
++		}
++		if kind == html.EndTagToken {
++			token := z.Token()
++			if token.Data == "script" {
++				skip = false
++			}
++		}
++		if kind != html.TextToken || !skip {
++			out.WriteString(raw)
++		}
++	}
++}
+diff --git a/pkg/engine/parser/parser_test.go b/pkg/engine/parser/parser_test.go
+index b72b486..f2e1ea7 100644
+--- a/pkg/engine/parser/parser_test.go
++++ b/pkg/engine/parser/parser_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"github.com/PuerkitoBio/goquery"
+ 	"github.com/projectdiscovery/katana/pkg/navigation"
+ 	"github.com/projectdiscovery/katana/pkg/output"
++	"github.com/projectdiscovery/katana/pkg/utils"
+ 	urlutil "github.com/projectdiscovery/utils/url"
+ 	"github.com/stretchr/testify/require"
+ )
+@@ -764,3 +765,26 @@ func TestBodyScrapeEndpointsParser_ContentTypeGate(t *testing.T) {
+ 		require.Empty(t, bodyScrapeEndpointsParser(resp), "a +json parameter on octet-stream must not force scraping")
+ 	})
+ }
++
++func TestScriptMetadataBodyIsolation(t *testing.T) {
++	if !utils.StructuredScriptSources {
++		t.Skip("structured script parsing unavailable")
++	}
++	body := `<script>var y={agent:"js-agent.newrelic.com/nr-spa-1208.min.js"}; r.src="https://"+t.agent; j.src="./js-agent.newrelic.com/real.min.js"; k.src="main.220215ce8a8bcc63.js"; q.src="js-agent.newrelic.com/direct.min.js";</script><a href="/proof">proof</a><script type="application/json">{"path":"/data/proof.js"}</script>`
++	parsed, _ := urlutil.Parse("https://example.com/Edge/")
++	reader, err := goquery.NewDocumentFromReader(strings.NewReader(body))
++	require.NoError(t, err)
++	resp := &navigation.Response{Resp: &http.Response{Request: &http.Request{URL: parsed.URL}, Header: http.Header{"Content-Type": []string{"text/html"}}}, Reader: reader, Body: body}
++	parser := NewResponseParser()
++	parser.InitWithOptions(&Options{ScrapeJSResponses: true})
++	var urls []string
++	for _, r := range parser.ParseResponse(resp) {
++		urls = append(urls, r.URL)
++	}
++	require.NotContains(t, urls, "https://example.com/Edge/js-agent.newrelic.com/nr-spa-1208.min.js")
++	require.Contains(t, urls, "https://example.com/Edge/js-agent.newrelic.com/real.min.js")
++	require.Contains(t, urls, "https://example.com/Edge/main.220215ce8a8bcc63.js")
++	require.Contains(t, urls, "https://example.com/Edge/js-agent.newrelic.com/direct.min.js")
++	require.Contains(t, urls, "https://example.com/proof")
++	require.Contains(t, urls, "https://example.com/data/proof.js")
++}
 diff --git a/pkg/engine/standard/crawl.go b/pkg/engine/standard/crawl.go
 index 049a3ff..fd39013 100644
 --- a/pkg/engine/standard/crawl.go
@@ -2106,3 +2213,53 @@ index 0000000..f2a4586
 +		}
 +	}
 +}
+diff --git a/pkg/utils/script_sources.go b/pkg/utils/script_sources.go
+new file mode 100644
+index 0000000..7bb1ccf
+--- /dev/null
++++ b/pkg/utils/script_sources.go
+@@ -0,0 +1,31 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"github.com/Mzack9999/jsluice"
++	"strings"
++)
++
++const StructuredScriptSources = true
++
++// ExtractLiteralScriptSources supplements the regex with literal DOM src/href
++// assignments. It does not evaluate concatenation or infer configuration aliases.
++func ExtractLiteralScriptSources(data string) []string {
++	if len(data) > 512*1024 || (!strings.Contains(data, "src") && !strings.Contains(data, "href")) {
++		return nil
++	}
++	var result []string
++	jsluice.NewAnalyzer([]byte(data)).Query("(assignment_expression) @assignment", func(n *jsluice.Node) {
++		left, right := n.ChildByFieldName("left"), n.ChildByFieldName("right")
++		if left == nil || right == nil || left.Type() != "member_expression" || right.Type() != "string" {
++			return
++		}
++		property := left.ChildByFieldName("property")
++		if property == nil || (property.Content() != "src" && property.Content() != "href") {
++			return
++		}
++		result = append(result, jsluice.DecodeString(right.Content()))
++	})
++	return result
++}
+diff --git a/pkg/utils/script_sources_nojs.go b/pkg/utils/script_sources_nojs.go
+new file mode 100644
+index 0000000..73f2845
+--- /dev/null
++++ b/pkg/utils/script_sources_nojs.go
+@@ -0,0 +1,7 @@
++//go:build 386 || windows
++
++package utils
++
++const StructuredScriptSources = false
++
++func ExtractLiteralScriptSources(data string) []string { return nil }
