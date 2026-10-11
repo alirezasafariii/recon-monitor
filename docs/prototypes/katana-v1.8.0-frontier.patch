@@ -12,7 +12,7 @@ index 9b9226b..3cb44dc 100644
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
-index b6da330..2868165 100644
+index b6da330..079be14 100644
 --- a/pkg/engine/common/base.go
 +++ b/pkg/engine/common/base.go
 @@ -13,9 +13,9 @@ import (
@@ -54,7 +54,7 @@ index b6da330..2868165 100644
  	HttpClient *retryablehttp.Client
  	Browser    *rod.Browser
  }
-@@ -342,7 +343,67 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -342,7 +343,70 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		cancel()
  		return nil, err
  	}
@@ -68,9 +68,12 @@ index b6da330..2868165 100644
 +		}
 +		valid := func(raw string) bool {
 +			ok, err := s.Options.ValidateScope(raw, hostname)
-+			return err == nil && ok && s.Options.ValidatePath(raw)
++			// Enqueue persists in-scope work before Do applies path filters.
++			// Both pending and acknowledged filtered admissions must reload;
++			// Do rechecks the bound path policy and acknowledges skips without HTTP.
++			return err == nil && ok
 +		}
-+		if !valid(URL) {
++		if !valid(URL) || !s.Options.ValidatePath(URL) {
 +			cancel()
 +			return nil, errkit.New("checkpoint seed is outside current scope")
 +		}
@@ -123,7 +126,7 @@ index b6da330..2868165 100644
  
  	if s.KnownFiles != nil {
  		navigationRequests, err := s.KnownFiles.RequestWithContext(ctx, URL)
-@@ -375,6 +436,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -375,6 +439,9 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  	})
  	if err != nil {
  		cancel()
@@ -133,7 +136,7 @@ index b6da330..2868165 100644
  		return nil, errkit.Wrap(err, "could not create http client")
  	}
  	crawlSession := &CrawlSession{
-@@ -383,6 +447,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
+@@ -383,6 +450,7 @@ func (s *Shared) NewCrawlSessionWithURL(URL string) (*CrawlSession, error) {
  		URL:        parsed.URL,
  		Hostname:   hostname,
  		Queue:      queue,
@@ -141,7 +144,7 @@ index b6da330..2868165 100644
  		HttpClient: httpclient,
  	}
  	return crawlSession, nil
-@@ -402,15 +467,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
+@@ -402,15 +470,63 @@ type DoRequestFunc func(crawlSession *CrawlSession, req *navigation.Request) (*n
  //
  // The method returns when the queue is empty or the session context is cancelled
  // (due to timeout or manual cancellation). Returns an error if the context is cancelled.
@@ -207,7 +210,7 @@ index b6da330..2868165 100644
  			continue
  		}
  
-@@ -419,21 +532,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -419,21 +535,27 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				s.Options.Options.OnSkipURL(req.URL)
  			}
  			gologger.Debug().Msgf("`%v` not a url. skipping", req.URL)
@@ -235,7 +238,7 @@ index b6da330..2868165 100644
  			continue
  		}
  
-@@ -441,6 +560,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -441,6 +563,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  		// gologger.Debug().Msgf("Visiting: %v", req.URL) // not sure if this is needed
  		go func() {
  			defer wg.Done()
@@ -243,7 +246,7 @@ index b6da330..2868165 100644
  
  			// Race Take() against the session context so that workers
  			// don't block shutdown waiting for the next limiter tick
-@@ -483,13 +603,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -483,13 +606,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			if s.Options.Options.MaxDomainPages > 0 {
  				counter := s.DomainCounter(crawlSession.Hostname)
  				if counter.Add(1) > int64(s.Options.Options.MaxDomainPages) {
@@ -266,7 +269,7 @@ index b6da330..2868165 100644
  				s.RecordThrottle(crawlSession.Hostname, resp.StatusCode)
  			} else if resp != nil {
  				s.RecordSuccess(crawlSession.Hostname)
-@@ -500,6 +629,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -500,6 +632,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  			}
  
  			if err != nil {
@@ -274,7 +277,7 @@ index b6da330..2868165 100644
  				gologger.Warning().Msgf("Could not request seed URL %s: %s\n", req.URL, err)
  				outputError := &output.Error{
  					Timestamp: time.Now(),
-@@ -511,14 +641,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
+@@ -511,14 +644,22 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
  				return
  			}
  			if resp == nil || resp.Resp == nil || resp.Reader == nil {
@@ -704,16 +707,20 @@ index 0000000..d72bcdf
 +}
 diff --git a/pkg/engine/common/recon_checkpoint_test.go b/pkg/engine/common/recon_checkpoint_test.go
 new file mode 100644
-index 0000000..89b26b0
+index 0000000..a4b1bfb
 --- /dev/null
 +++ b/pkg/engine/common/recon_checkpoint_test.go
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,282 @@
 +package common
 +
 +import (
 +	"encoding/json"
++	"errors"
++	"fmt"
++	"github.com/projectdiscovery/fastdialer/fastdialer"
 +	"github.com/projectdiscovery/katana/pkg/navigation"
 +	"github.com/projectdiscovery/katana/pkg/types"
++	"github.com/projectdiscovery/katana/pkg/utils/extensions"
 +	"os"
 +	"path/filepath"
 +	"sync"
@@ -905,6 +912,85 @@ index 0000000..89b26b0
 +	}
 +	if c.snapshot()[0].Done {
 +		t.Fatal("historical state became fresh zero-request completion")
++	}
++}
++
++func TestReconCheckpointResumeRetainsFilteredAdmissionsWithoutFetching(t *testing.T) {
++	for _, done := range []bool{false, true} {
++		t.Run(fmt.Sprintf("filtered_done_%v", done), func(t *testing.T) {
++			shared, _ := newTestShared(2, func(o *types.Options) {
++				o.ReconCheckpointDir = t.TempDir()
++				o.Timeout = 5
++				o.Concurrency = 1
++			})
++			shared.Options.ExtensionsValidator = extensions.NewValidator(nil, nil, false)
++			dialer, e := fastdialer.NewDialer(fastdialer.DefaultOptions)
++			if e != nil {
++				t.Fatal(e)
++			}
++			defer dialer.Close()
++			shared.Options.Dialer = dialer
++			configured, e := NewShared(shared.Options)
++			if e != nil {
++				t.Fatal(e)
++			}
++			shared = configured
++			if err := os.Chmod(shared.Options.Options.ReconCheckpointDir, 0700); err != nil {
++				t.Fatal(err)
++			}
++			seed := "http://example.test/"
++			binding, err := checkpointBinding(shared.Options.Options)
++			if err != nil {
++				t.Fatal(err)
++			}
++			c, err := openCheckpoint(shared.Options.Options.ReconCheckpointDir, seed, binding, 2, func(string) bool { return true })
++			if err != nil {
++				t.Fatal(err)
++			}
++			root := &navigation.Request{URL: seed, Method: "GET"}
++			image := &navigation.Request{URL: seed + "logo.png", Method: "GET", Depth: 1}
++			proof := &navigation.Request{URL: seed + "proof", Method: "GET", Depth: 1}
++			for _, r := range []*navigation.Request{root, image, proof} {
++				if err = c.admit(r); err != nil {
++					t.Fatal(err)
++				}
++			}
++			if err = c.acknowledge(root); err != nil {
++				t.Fatal(err)
++			}
++			if done {
++				if err = c.acknowledge(image); err != nil {
++					t.Fatal(err)
++				}
++			}
++			c.close()
++			session, err := shared.NewCrawlSessionWithURL(seed)
++			if err != nil {
++				t.Fatalf("valid checkpoint rejected because of filtered admission: %v", err)
++			}
++			defer session.CancelFunc()
++			calls := []string{}
++			err = shared.Do(session, func(_ *CrawlSession, r *navigation.Request) (*navigation.Response, error) {
++				calls = append(calls, r.URL)
++				return nil, errors.New("fixture retains unfinished allowed request")
++			})
++			if len(calls) != 1 || calls[0] != proof.URL {
++				t.Fatalf("filtered/root request fetched: %v", calls)
++			}
++			restored, err := openCheckpoint(shared.Options.Options.ReconCheckpointDir, seed, binding, 2, func(string) bool { return true })
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer restored.close()
++			for _, item := range restored.snapshot() {
++				if item.URL == image.URL && !item.Done {
++					t.Fatal("filtered request left pending")
++				}
++				if item.URL == proof.URL && item.Done {
++					t.Fatal("failed allowed request acknowledged")
++				}
++			}
++		})
 +	}
 +}
 diff --git a/pkg/engine/common/recon_completion.go b/pkg/engine/common/recon_completion.go

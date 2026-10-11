@@ -5,6 +5,7 @@ on:
       - 'app/stages.py'
       - 'docs/prototypes/katana-v1.8.0-frontier.patch'
       - 'tools/katana_frontier*'
+      - 'tools/katana_filtered_frontier*'
       - '.github/workflows/katana-frontier-prototype.yml'
 permissions:
   contents: read
@@ -40,4 +41,5 @@ jobs:
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
           python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_filtered_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/filtered-frontier.json
           python tools/katana_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/stage.json
