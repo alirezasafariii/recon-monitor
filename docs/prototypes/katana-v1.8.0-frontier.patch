@@ -1840,8 +1840,58 @@ index 0000000..ace14d7
 +		t.Fatal("headers ignored")
 +	}
 +}
+diff --git a/pkg/navigation/recon_base_test.go b/pkg/navigation/recon_base_test.go
+new file mode 100644
+index 0000000..6cdebc5
+--- /dev/null
++++ b/pkg/navigation/recon_base_test.go
+@@ -0,0 +1,44 @@
++package navigation
++
++import (
++	"github.com/PuerkitoBio/goquery"
++	"net/http"
++	"net/url"
++	"strings"
++	"testing"
++)
++
++func TestReconHTMLBase(t *testing.T) {
++	for _, tc := range []struct{ name, html, want string }{
++		{"root", `<base href="/"><script src="main.js"></script>`, "https://example.com/main.js"},
++		{"relative", `<base href="../assets/">`, "https://example.com/assets/main.js"},
++		{"first", `<base href="/one/"><base href="/two/">`, "https://example.com/one/main.js"},
++		{"empty-first", `<base href=""><base href="/two/">`, "https://example.com/Edge/main.js"},
++		{"invalid-first", `<base href="http://%"><base href="/two/">`, "https://example.com/Edge/main.js"},
++		{"unsafe", `<base href="javascript:alert(1)">`, "https://example.com/Edge/main.js"},
++		{"external", `<base href="https://outside.invalid/assets/">`, "https://outside.invalid/assets/main.js"},
++		{"none", `<script src="main.js"></script>`, "https://example.com/Edge/main.js"},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			u, _ := url.Parse("https://example.com/Edge/")
++			doc, err := goquery.NewDocumentFromReader(strings.NewReader(tc.html))
++			if err != nil {
++				t.Fatal(err)
++			}
++			resp := &Response{Resp: &http.Response{Request: &http.Request{URL: u}}, Reader: doc}
++			req := NewNavigationRequestURLFromResponse("main.js", u.String(), "script", "src", resp)
++			if req.URL != tc.want {
++				t.Fatalf("got %s want %s", req.URL, tc.want)
++			}
++			if req.Source != u.String() || req.RawReference != "main.js" {
++				t.Fatal("provenance changed")
++			}
++			if got := NewNavigationRequestURLFromResponse("next", u.String(), "header", "location", resp).URL; got != "https://example.com/Edge/next" {
++				t.Fatal(got)
++			}
++			if got := NewNavigationRequestURLFromResponse("../assets/", u.String(), "base", "href", resp).URL; got != "https://example.com/assets/" {
++				t.Fatal(got)
++			}
++		})
++	}
++}
 diff --git a/pkg/navigation/request.go b/pkg/navigation/request.go
-index 665d93e..b57ac36 100644
+index 665d93e..13f8b5b 100644
 --- a/pkg/navigation/request.go
 +++ b/pkg/navigation/request.go
 @@ -10,6 +10,7 @@ type Depth struct{}
@@ -1852,19 +1902,31 @@ index 665d93e..b57ac36 100644
  	Method         string              `json:"method,omitempty"`
  	URL            string              `json:"endpoint,omitempty"`
  	Body           string              `json:"body,omitempty"`
-@@ -44,6 +45,7 @@ func (n *Request) RequestURL() string {
+@@ -43,7 +44,11 @@ func (n *Request) RequestURL() string {
+ // newNavigationRequestURL generates a navigation request from a relative URL
  func NewNavigationRequestURLFromResponse(path, source, tag, attribute string, resp *Response) *Request {
  	requestURL := resp.AbsoluteURL(path)
++	if tag == "header" || tag == "base" {
++		requestURL = resp.ResponseURL(path)
++	}
  	request := &Request{
 +		RawReference: path,
  		Method:       http.MethodGet,
  		URL:          requestURL,
  		RootHostname: resp.RootHostname,
 diff --git a/pkg/navigation/response.go b/pkg/navigation/response.go
-index 50396bb..7954588 100644
+index 50396bb..8c16316 100644
 --- a/pkg/navigation/response.go
 +++ b/pkg/navigation/response.go
-@@ -28,6 +28,7 @@ func (h *Headers) MarshalJSON() ([]byte, error) {
+@@ -2,6 +2,7 @@ package navigation
+ 
+ import (
+ 	"net/http"
++	"net/url"
+ 	"strings"
+ 
+ 	"github.com/PuerkitoBio/goquery"
+@@ -28,6 +29,7 @@ func (h *Headers) MarshalJSON() ([]byte, error) {
  
  // Response is a response generated from crawler navigation
  type Response struct {
@@ -1872,6 +1934,54 @@ index 50396bb..7954588 100644
  	Resp               *http.Response    `json:"-"`
  	Depth              int               `json:"-"`
  	Reader             *goquery.Document `json:"-"`
+@@ -48,21 +50,40 @@ type Response struct {
+ 	Extra map[string]any `json:"extra,omitempty"`
+ }
+ 
++// AbsoluteURL resolves document references using the first HTML base href.
+ func (n Response) AbsoluteURL(path string) string {
+-	if strings.HasPrefix(path, "#") {
++	if n.Resp == nil || n.Resp.Request == nil || n.Resp.Request.URL == nil {
+ 		return ""
+ 	}
++	base := n.Resp.Request.URL
++	if n.Reader != nil {
++		if href, ok := n.Reader.Find("base[href]").First().Attr("href"); ok {
++			if candidate, err := base.Parse(strings.TrimSpace(href)); err == nil && (candidate.Scheme == "http" || candidate.Scheme == "https") {
++				base = candidate
++			}
++		}
++	}
++	return resolveReference(base, path)
++}
+ 
+-	absURL, err := n.Resp.Request.URL.Parse(path)
++// ResponseURL resolves HTTP header references and the base element itself.
++func (n Response) ResponseURL(path string) string {
++	if n.Resp == nil || n.Resp.Request == nil {
++		return ""
++	}
++	return resolveReference(n.Resp.Request.URL, path)
++}
++
++func resolveReference(base *url.URL, path string) string {
++	if base == nil || strings.HasPrefix(path, "#") {
++		return ""
++	}
++	absURL, err := base.Parse(path)
+ 	if err != nil {
+ 		return ""
+ 	}
+ 	absURL.Fragment = ""
+-	if absURL.Scheme == "//" {
+-		absURL.Scheme = n.Resp.Request.URL.Scheme
+-	}
+-	final := absURL.String()
+-	return final
++	return absURL.String()
+ }
+ 
+ func (n Response) IsRedirect() bool {
 diff --git a/pkg/types/options.go b/pkg/types/options.go
 index e395c2a..fb0734f 100644
 --- a/pkg/types/options.go
