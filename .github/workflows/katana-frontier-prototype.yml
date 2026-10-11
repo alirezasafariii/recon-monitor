@@ -41,6 +41,7 @@ jobs:
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
           python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_throttle_stop_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/throttle-stop.json
           python tools/katana_redirect_scope_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/redirect-scope.json
           python tools/katana_regex_literal_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/regex-literal.json
           python tools/katana_html_base_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/html-base.json
