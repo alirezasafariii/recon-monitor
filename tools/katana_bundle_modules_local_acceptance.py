@@ -20,7 +20,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/':
             body = b'<script src="/bundle.js"></script>'
         elif self.path == '/bundle.js':
-            body = b'''boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){require("./internal.js");require("core-js/modules/es.array.at.js");require("./missing.js");node.src="./real.123.min.js";},{"./internal.js":1,"core-js/modules/es.array.at.js":1,"./missing.js":99}]});require("./standalone.js");'''
+            body = b'''boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){(function(){require("./internal.js");require("core-js/modules/es.array.at.js");require("./missing.js");node.src="./real.123.min.js";})();},{"./internal.js":1,"core-js/modules/es.array.at.js":1,"./missing.js":99}]});require("./standalone.js");'''
         else:
             body = b'console.log(1);'
         self.send_response(200)

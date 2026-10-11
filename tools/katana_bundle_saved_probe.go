@@ -16,6 +16,7 @@ func main() {
 	file := flag.String("file", "", "Saved bundle path")
 	expected := flag.String("sha256", "", "Expected SHA256")
 	reference := flag.String("reference", "./address-suggestions.js", "Reference to inspect")
+	requireMasked := flag.Bool("require-masked", false, "Fail unless the inspected internal reference is removed")
 	flag.Parse()
 	info, err := os.Stat(*file)
 	if err != nil || info.Size() > 5_000_000 {
@@ -43,4 +44,7 @@ func main() {
 	report := map[string]any{"sha256": actual, "bytes": len(data), "source_masked": masked != string(data), "before_body": selectRefs(utils.ExtractBodyEndpoints(string(data))), "after_body": selectRefs(utils.ExtractBodyEndpoints(masked)), "before_script": selectRefs(utils.ExtractScriptEndpoints(string(data))), "after_script": selectRefs(utils.ExtractScriptEndpoints(masked))}
 	out, _ := json.Marshal(report)
 	fmt.Println(string(out))
+	if *requireMasked && (len(selectRefs(utils.ExtractBodyEndpoints(string(data)))) == 0 || len(selectRefs(utils.ExtractScriptEndpoints(string(data)))) == 0 || masked == string(data) || len(selectRefs(utils.ExtractBodyEndpoints(masked))) != 0 || len(selectRefs(utils.ExtractScriptEndpoints(masked))) != 0) {
+		os.Exit(1)
+	}
 }

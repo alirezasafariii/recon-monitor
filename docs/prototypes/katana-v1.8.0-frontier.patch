@@ -11,6 +11,48 @@ index 9b9226b..3cb44dc 100644
  		flagSet.StringVarP(&options.OutputTemplate, "output-template", "ot", "", "custom output template"),
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
+diff --git a/go.mod b/go.mod
+index 3ffb169..1498d3e 100644
+--- a/go.mod
++++ b/go.mod
+@@ -3,6 +3,7 @@ module github.com/projectdiscovery/katana
+ go 1.26.0
+ 
+ require (
++	github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c
+ 	github.com/Mzack9999/jsluice v0.0.0-20260306161058-30114a312f98
+ 	github.com/PuerkitoBio/goquery v1.12.0
+ 	github.com/adrianbrad/queue v1.3.0
+@@ -85,6 +86,7 @@ require (
+ 	github.com/felixge/fgprof v0.9.5 // indirect
+ 	github.com/flier/gohs v1.2.2 // indirect
+ 	github.com/gaissmai/bart v0.30.0 // indirect
++	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+ 	github.com/google/go-github/v57 v57.0.0 // indirect
+ 	github.com/google/go-github/v92 v92.0.0 // indirect
+ 	github.com/google/go-querystring v1.2.0 // indirect
+diff --git a/go.sum b/go.sum
+index e981f5c..69fce9d 100644
+--- a/go.sum
++++ b/go.sum
+@@ -132,6 +132,8 @@ github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4
+ github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
+ github.com/dominikbraun/graph v0.23.0 h1:TdZB4pPqCLFxYhdyMFb1TBdFxp8XLcJfTTBQucVPgCo=
+ github.com/dominikbraun/graph v0.23.0/go.mod h1:yOjYyogZLY1LSG9E33JWZJiq5k83Qy2C6POAuiViluc=
++github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c h1:hIlkLbQ+tYoUqlG42LnxwGcohL5jaGqD8mGeJWavm8A=
++github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+ github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 h1:2tV76y6Q9BB+NEBasnqvs7e49aEBFI8ejC89PSnWH+4=
+ github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707/go.mod h1:qssHWj60/X5sZFNxpG4HBPDHVqxNm4DfnCKgrbZOT+s=
+ github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
+@@ -156,6 +158,8 @@ github.com/go-ole/go-ole v1.2.6 h1:/Fpf6oFPoeFik9ty7siob0G6Ke8QvQEuVcuChpwXzpY=
+ github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
+ github.com/go-rod/rod v0.116.2 h1:A5t2Ky2A+5eD/ZJQr1EfsQSe5rms5Xof/qj296e+ZqA=
+ github.com/go-rod/rod v0.116.2/go.mod h1:H+CMO9SCNc2TJ2WfrG+pKhITz57uGNYU43qYHh438Mg=
++github.com/go-sourcemap/sourcemap v2.1.3+incompatible h1:W1iEw64niKVGogNgBN3ePyLFfuisuzeidWPMPWmECqU=
++github.com/go-sourcemap/sourcemap v2.1.3+incompatible/go.mod h1:F8jJfvm2KbVjc5NqelyYJmf/v5J0dwNLS2mL4sNA1Jg=
+ github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
+ github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
+ github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
 index b6da330..1e5ec78 100644
 --- a/pkg/engine/common/base.go
@@ -1847,171 +1889,186 @@ index e395c2a..fb0734f 100644
  	// OutputTemplate enables custom output template
 diff --git a/pkg/utils/bundle_references.go b/pkg/utils/bundle_references.go
 new file mode 100644
-index 0000000..37da9e3
+index 0000000..34d79ae
 --- /dev/null
 +++ b/pkg/utils/bundle_references.go
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,249 @@
 +//go:build !(386 || windows)
 +
 +package utils
 +
 +import (
-+	"github.com/Mzack9999/jsluice"
-+	sitter "github.com/odvcencio/gotreesitter"
-+	"github.com/odvcencio/gotreesitter/grammars"
++	"reflect"
 +	"strings"
++
++	"github.com/dop251/goja/ast"
++	"github.com/dop251/goja/parser"
++	"github.com/dop251/goja/token"
 +)
 +
 +// MaskBundledModuleReferences removes only dependency keys and require literals
 +// resolved to existing numeric modules in a Browserify-shaped module table.
-+// Offsets are preserved; unrelated URL uses are not removed.
++// Parsing never executes JavaScript. Offsets and unrelated URL uses are preserved.
 +func MaskBundledModuleReferences(data string) string {
 +	if len(data) > 2*1024*1024 || !strings.Contains(data, "require") {
 +		return data
 +	}
-+	lang := grammars.JavascriptLanguage()
-+	tree, err := sitter.NewParser(lang).Parse([]byte(data))
-+	if err != nil || tree == nil {
++	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	if err != nil {
 +		return data
 +	}
-+	defer tree.Release()
-+	if tree.RootNode().HasError() {
-+		return data
-+	}
-+	raw := []byte(data)
 +	masked := []byte(data)
-+	field := func(n *sitter.Node, k string) *sitter.Node {
-+		if n == nil {
-+			return nil
++	mask := func(n ast.Node) {
++		start, end := int(n.Idx0())-1, int(n.Idx1())-1
++		if start < 0 || end > len(masked) || end < start {
++			return
 +		}
-+		return n.ChildByFieldName(k, lang)
++		for i := start; i < end; i++ {
++			if masked[i] != '\n' && masked[i] != '\r' {
++				masked[i] = ' '
++			}
++		}
 +	}
-+	typ := func(n *sitter.Node) string {
-+		if n == nil {
++	numeric := func(e ast.Expression) string {
++		n, ok := e.(*ast.NumberLiteral)
++		if !ok || n.Literal == "" {
 +			return ""
 +		}
-+		return n.Type(lang)
-+	}
-+	text := func(n *sitter.Node) string {
-+		if n == nil {
-+			return ""
-+		}
-+		return n.Text(raw)
-+	}
-+	numeric := func(n *sitter.Node) string {
-+		if typ(n) != "number" {
-+			return ""
-+		}
-+		v := text(n)
-+		for _, c := range v {
++		for _, c := range n.Literal {
 +			if c < '0' || c > '9' {
 +				return ""
 +			}
 +		}
-+		return v
++		return n.Literal
 +	}
-+	mask := func(n *sitter.Node) {
-+		for i := n.StartByte(); i < n.EndByte(); i++ {
-+			masked[i] = ' '
-+		}
++	ident := func(e ast.Expression, name string) bool {
++		n, ok := e.(*ast.Identifier)
++		return ok && n.Name.String() == name
 +	}
-+	var visit func(*sitter.Node)
-+	visit = func(n *sitter.Node) {
-+		if n == nil {
-+			return
++	visitBundleAST(program, func(node ast.Node) bool {
++		call, ok := node.(*ast.CallExpression)
++		if !ok {
++			return true
 +		}
-+		if typ(n) == "object" && n.Parent() != nil && typ(n.Parent()) == "arguments" {
-+			modules := map[string]*sitter.Node{}
-+			seenIDs := map[string]bool{}
-+			ambiguousTable := false
-+			for i := 0; i < n.NamedChildCount(); i++ {
-+				p := n.NamedChild(i)
-+				id := numeric(field(p, "key"))
-+				if id != "" {
-+					if seenIDs[id] {
-+						ambiguousTable = true
++		for _, argument := range call.ArgumentList {
++			table, ok := argument.(*ast.ObjectLiteral)
++			if !ok {
++				continue
++			}
++			modules := map[string]*ast.ArrayLiteral{}
++			seen := map[string]bool{}
++			ambiguous := false
++			for _, property := range table.Value {
++				p, ok := property.(*ast.PropertyKeyed)
++				if !ok || p.Computed || p.Kind != ast.PropertyKindValue {
++					ambiguous = true
++					break
++				}
++				id := numeric(p.Key)
++				if id == "" {
++					ambiguous = true
++					break
++				}
++				if seen[id] {
++					ambiguous = true
++					break
++				}
++				seen[id] = true
++				a, ok := p.Value.(*ast.ArrayLiteral)
++				if !ok || len(a.Value) != 2 {
++					continue
++				}
++				_, fn := a.Value[0].(*ast.FunctionLiteral)
++				_, deps := a.Value[1].(*ast.ObjectLiteral)
++				if fn && deps {
++					modules[id] = a
++				}
++			}
++			if ambiguous {
++				continue
++			}
++			for _, module := range modules {
++				fn := module.Value[0].(*ast.FunctionLiteral)
++				deps := module.Value[1].(*ast.ObjectLiteral)
++				if fn.ParameterList == nil || len(fn.ParameterList.List) == 0 || !ident(fn.ParameterList.List[0].Target, "require") || fn.ParameterList.List[0].Initializer != nil {
++					continue
++				}
++				ambiguousParams := fn.ParameterList.Rest != nil
++				for _, binding := range fn.ParameterList.List[1:] {
++					if bundleBindingContains(binding.Target, "require") {
++						ambiguousParams = true
 +					}
-+					seenIDs[id] = true
 +				}
-+				v := field(p, "value")
-+				if id != "" && typ(v) == "array" && v.NamedChildCount() == 2 && typ(v.NamedChild(0)) == "function_expression" && typ(v.NamedChild(1)) == "object" {
-+					modules[id] = v
-+				}
-+			}
-+			if ambiguousTable {
-+				return
-+			}
-+			for _, v := range modules {
-+				fn, dependencies := v.NamedChild(0), v.NamedChild(1)
-+				params := field(fn, "parameters")
-+				if params == nil || params.NamedChildCount() == 0 || typ(params.NamedChild(0)) != "identifier" {
++				if ambiguousParams {
 +					continue
 +				}
-+				binding := text(params.NamedChild(0))
-+				if binding != "require" {
-+					continue
-+				}
-+				resolved := map[string]*sitter.Node{}
++				resolved := map[string]*ast.StringLiteral{}
 +				seenKeys := map[string]bool{}
 +				ambiguousKeys := false
-+				for i := 0; i < dependencies.NamedChildCount(); i++ {
-+					p := dependencies.NamedChild(i)
-+					key := field(p, "key")
-+					id := numeric(field(p, "value"))
-+					if typ(key) == "string" {
-+						k := jsluice.DecodeString(text(key))
-+						if seenKeys[k] {
-+							ambiguousKeys = true
-+						}
-+						seenKeys[k] = true
++				for _, property := range deps.Value {
++					p, ok := property.(*ast.PropertyKeyed)
++					if !ok || p.Computed || p.Kind != ast.PropertyKindValue {
++						ambiguousKeys = true
++						break
 +					}
-+					if typ(key) == "string" && modules[id] != nil {
-+						resolved[jsluice.DecodeString(text(key))] = key
++					key, ok := p.Key.(*ast.StringLiteral)
++					if !ok {
++						ambiguousKeys = true
++						break
++					}
++					name := key.Value.String()
++					if seenKeys[name] {
++						ambiguousKeys = true
++						break
++					}
++					seenKeys[name] = true
++					if modules[numeric(p.Value)] != nil {
++						resolved[name] = key
 +					}
 +				}
-+				if ambiguousKeys {
++				if ambiguousKeys || len(resolved) == 0 {
 +					continue
 +				}
-+				var walk func(*sitter.Node)
 +				shadowed := false
-+				var args []*sitter.Node
-+				walk = func(b *sitter.Node) {
-+					if b == nil {
-+						return
-+					}
-+					kind := typ(b)
-+					if kind == "function_declaration" && text(field(b, "name")) == binding {
++				var args []*ast.StringLiteral
++				// Nested closures may inherit require, as Babel-generated Browserify modules
++				// do. Any local shadow, reassignment, eval or with makes the module ambiguous.
++				visitBundleAST(fn.Body, func(n ast.Node) bool {
++					switch b := n.(type) {
++					case *ast.Binding:
++						if bundleBindingContains(b.Target, "require") {
++							shadowed = true
++						}
++					case *ast.FunctionLiteral:
++						if b.Name != nil && b.Name.Name.String() == "require" {
++							shadowed = true
++						}
++					case *ast.CatchStatement:
++						if bundleBindingContains(b.Parameter, "require") {
++							shadowed = true
++						}
++					case *ast.AssignExpression:
++						if ident(b.Left, "require") {
++							shadowed = true
++						}
++					case *ast.UnaryExpression:
++						if (b.Operator == token.INCREMENT || b.Operator == token.DECREMENT) && ident(b.Operand, "require") {
++							shadowed = true
++						}
++					case *ast.WithStatement:
 +						shadowed = true
-+					}
-+					if kind == "augmented_assignment_expression" && text(field(b, "left")) == binding {
-+						shadowed = true
-+					}
-+					if kind == "update_expression" && text(field(b, "argument")) == binding {
-+						shadowed = true
-+					}
-+					if kind == "call_expression" && text(field(b, "function")) == "eval" {
-+						shadowed = true
-+					}
-+					if kind == "function_expression" || kind == "arrow_function" || kind == "function_declaration" {
-+						return
-+					}
-+					if (kind == "assignment_expression" && text(field(b, "left")) == binding) || (kind == "variable_declarator" && text(field(b, "name")) == binding) {
-+						shadowed = true
-+					}
-+					if kind == "call_expression" && typ(field(b, "function")) == "identifier" && text(field(b, "function")) == binding {
-+						a := field(b, "arguments")
-+						if a != nil && a.NamedChildCount() == 1 && typ(a.NamedChild(0)) == "string" {
-+							s := a.NamedChild(0)
-+							if resolved[jsluice.DecodeString(text(s))] != nil {
-+								args = append(args, s)
++					case *ast.CallExpression:
++						if ident(b.Callee, "eval") {
++							shadowed = true
++						}
++						if ident(b.Callee, "require") && len(b.ArgumentList) == 1 {
++							if arg, ok := b.ArgumentList[0].(*ast.StringLiteral); ok && resolved[arg.Value.String()] != nil {
++								args = append(args, arg)
 +							}
 +						}
 +					}
-+					for i := 0; i < b.NamedChildCount(); i++ {
-+						walk(b.NamedChild(i))
-+					}
-+				}
-+				walk(field(fn, "body"))
++					return !shadowed
++				})
 +				if !shadowed {
 +					for _, a := range args {
 +						mask(a)
@@ -2022,19 +2079,75 @@ index 0000000..37da9e3
 +				}
 +			}
 +		}
-+		for i := 0; i < n.NamedChildCount(); i++ {
-+			visit(n.NamedChild(i))
++		return true
++	})
++	return string(masked)
++}
++
++// Only AST-owned fields are traversed; File, Source and DeclarationList contain
++// metadata or duplicate nodes. The dependency is pinned because its AST can evolve.
++func visitBundleAST(root ast.Node, visit func(ast.Node) bool) {
++	var walk func(reflect.Value)
++	walk = func(v reflect.Value) {
++		if !v.IsValid() {
++			return
++		}
++		if v.Kind() == reflect.Interface {
++			if v.IsNil() {
++				return
++			}
++			walk(v.Elem())
++			return
++		}
++		if v.Kind() == reflect.Pointer {
++			if v.IsNil() {
++				return
++			}
++			if v.CanInterface() {
++				if n, ok := v.Interface().(ast.Node); ok {
++					if !visit(n) {
++						return
++					}
++				}
++			}
++			walk(v.Elem())
++			return
++		}
++		switch v.Kind() {
++		case reflect.Struct:
++			if v.Type().PkgPath() != "github.com/dop251/goja/ast" {
++				return
++			}
++			for i := 0; i < v.NumField(); i++ {
++				name := v.Type().Field(i).Name
++				if name != "File" && name != "Source" && name != "DeclarationList" {
++					walk(v.Field(i))
++				}
++			}
++		case reflect.Slice:
++			for i := 0; i < v.Len(); i++ {
++				walk(v.Index(i))
++			}
 +		}
 +	}
-+	visit(tree.RootNode())
-+	return string(masked)
++	walk(reflect.ValueOf(root))
++}
++func bundleBindingContains(root ast.Node, name string) bool {
++	found := false
++	visitBundleAST(root, func(n ast.Node) bool {
++		if i, ok := n.(*ast.Identifier); ok && i.Name.String() == name {
++			found = true
++		}
++		return !found
++	})
++	return found
 +}
 diff --git a/pkg/utils/bundle_references_test.go b/pkg/utils/bundle_references_test.go
 new file mode 100644
-index 0000000..76d606b
+index 0000000..b0d2c21
 --- /dev/null
 +++ b/pkg/utils/bundle_references_test.go
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,71 @@
 +//go:build !(386 || windows)
 +
 +package utils
@@ -2072,6 +2185,37 @@ index 0000000..76d606b
 +		got := MaskBundledModuleReferences(s)
 +		if !strings.Contains(got, `require("./address-suggestions.js")`) {
 +			t.Fatal(got)
++		}
++	}
++}
++
++func TestScriptBundleNestedClosure(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){module.exports=1},{}],2:[function(require,module,exports){(function(){var a=require("./address-suggestions.js");fetch("./address-suggestions.js")})();},{"./address-suggestions.js":1}]});`
++	got := MaskBundledModuleReferences(s)
++	if strings.Contains(got, `require("./address-suggestions.js")`) || strings.Contains(got, `"./address-suggestions.js":1`) {
++		t.Fatal(got)
++	}
++	if !strings.Contains(got, `fetch("./address-suggestions.js")`) {
++		t.Fatal("real URL use lost")
++	}
++}
++func TestScriptBundleRejectsInvalidSource(t *testing.T) {
++	s := `boot({1:[function(require,module,exports){require("./x.js")},{"./x.js":1}]});broken(`
++	if MaskBundledModuleReferences(s) != s {
++		t.Fatal("invalid source was masked")
++	}
++}
++func TestScriptBundleRejectsNestedShadows(t *testing.T) {
++	for _, body := range []string{
++		`function nested(require){require("./x.js")}`,
++		`function nested(){var require;require("./x.js")}`,
++		`try{}catch(require){require("./x.js")}`,
++		`function nested(){eval("require=custom");require("./x.js")}`,
++		`function nested(){require++;require("./x.js")}`,
++	} {
++		s := `boot({1:[function(require,module,exports){` + body + `},{"./x.js":1}]});`
++		if MaskBundledModuleReferences(s) != s {
++			t.Fatal(body)
 +		}
 +	}
 +}

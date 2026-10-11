@@ -177,7 +177,7 @@ For JavaScript up to 2 MiB on structured-parser platforms, an AST pass masks
 literal `require` arguments and dependency-map keys only when the corresponding
 numeric module exists in the same object table. Entries must have the standard
 `[function(require,...), dependencyMap]` shape. Unknown targets, arbitrary require
-calls, nested functions, replaced require bindings, duplicate keys and malformed
+calls, shadowed/replaced require bindings, duplicate keys and malformed
 syntax are preserved rather than assumed internal. Source offsets are unchanged.
 Actual src/fetch references elsewhere to the same path are preserved. The mask
 is applied to dedicated script regex extraction and standalone JS body scraping;
@@ -190,6 +190,20 @@ This proves that occurrence is a bundle dependency, not a standalone-file URL;
 it does not explain every HTTP 400 or establish the origin of es.array.at.
 Linux parser/utils and producer race regressions (20 repetitions), bundle
 loopback crawl, script isolation, GTM, provenance, filtered frontier and stage
-resume passed. macOS and offline saved-bundle validation are pending.
+resume passed. The first Tree-sitter implementation passed macOS loopback tests
+but FAILED on the SHA-verified, 227673-byte saved signup bundle: parsing stopped
+at byte 161325 with no_stacks_alive, and increasing GLR retention did not help.
+The revised pass uses Goja's parser pinned at 913bd86fb70c, with source-map
+loading disabled. It does not execute JavaScript or load external files. Inherited
+require calls inside nested closures are handled; any nested require shadow,
+reassignment, eval, or with conservatively preserves the module.
+The exact uploaded saved bundle (SHA256
+4250d60f5761e6397b677844fda9028f708b0ed17066a1930c9698b50d6e0c80)
+now returns source_masked=true and empty targeted after_body/after_script arrays
+on Linux. A loopback crawl serving that exact bundle also completes without
+requesting address-suggestions.js or core-js/modules paths. Other legacy regex
+candidates remain; this is not a claim that every JavaScript error is fixed.
+New nested-closure and shadowing regressions pass. macOS validation
+of this revision remains pending; earlier macOS passes do not validate it.
 `tools/katana_bundle_saved_probe.go` reads a SHA-verified local bundle without
 network requests or database mutations and reports targeted before/after candidates.
