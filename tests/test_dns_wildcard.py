@@ -65,6 +65,22 @@ class WildcardDecisionTests(unittest.TestCase):
         del r[0]['AAAA']['b.test']
         self.assertEqual(classify('real.test', c, r)[0], 'unknown')
 
+    def test_named_cname_negative_controls_tolerate_missing_a(self):
+        c = ['a.test', 'b.test', 'c.test']; r = evidence(c, 'real.test', a=())
+        for row in r:
+            row['CNAME']['real.test'] = ('cdn.test',)
+            row['A']['real.test'] = ('192.0.2.1',)
+        del r[0]['A']['b.test']
+        self.assertEqual(classify('real.test', c, r)[0], 'non_wildcard')
+        del r[1]['CNAME']['b.test']
+        self.assertEqual(classify('real.test', c, r)[0], 'unknown')
+
+    def test_named_cname_does_not_clear_positive_control_addresses(self):
+        c = ['a.test', 'b.test', 'c.test']; r = evidence(c, 'real.test')
+        for row in r:
+            row['CNAME']['real.test'] = ('cdn.test',)
+        self.assertEqual(classify('real.test', c, r)[0], 'unknown')
+
     def test_no_candidate_observation_never_clears_flag(self):
         c = ['a.test', 'b.test', 'c.test']; r = evidence(c, 'real.test', a=())
         self.assertEqual(classify('real.test', c, r)[0], 'unknown')
