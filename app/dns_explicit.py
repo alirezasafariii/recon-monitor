@@ -102,7 +102,11 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
     if not dig:
         return outcomes, 0
     used = 0
-    for host in sorted(expected - values.keys()):
+    pending = sorted(expected - values.keys())
+    retried = set()
+    # Defer one transport retry until all initially missing hosts had a turn.
+    # It shares the existing query cap, policy budget, rate and stop controls.
+    for host in pending:
         if state['used'] >= MAX_QUERIES or ctx.next_requested():
             break
         if not ctx.policy.host_in_scope(host):
@@ -138,6 +142,12 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
             observation = parse_response(output.read_text(errors='replace'), host, rrtype)
         if observation is not None:
             values[host] = observation
+        if (result.returncode == 9 and not getattr(result, 'timed_out', False)
+                and host not in retried and output.is_file()
+                and output.stat().st_size <= 65536
+                and 'no servers could be reached' in output.read_text(errors='replace')):
+            retried.add(host)
+            pending.append(host)
         outcomes.append({'source': 'dig', 'host': host, 'rrtype': rrtype,
                          'round': repeat, 'resolver': RESOLVER, 'raw_artifact': output.name,
                          'exit_code': result.returncode,
