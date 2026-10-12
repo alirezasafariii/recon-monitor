@@ -107,6 +107,45 @@ class ExplicitDNS(unittest.TestCase):
                 ctx = self.context(directory)
                 self.assertEqual(fill_missing(ctx, {HOST}, 'A', {}, 0, 0, {'used': 0, 'reserved': 0}), ([], 0))
 
+    def test_transport_retry_is_deferred_audited_and_bounded(self):
+        with tempfile.TemporaryDirectory() as directory, patch('dns_explicit.tool_path', return_value='dig'):
+            ctx = self.context(directory, Mock())
+            other = 'second.example.test'
+            ctx.policy.host_in_scope = lambda h: True
+            hits = []
+            def run(args, **kwargs):
+                host = args[2]
+                hits.append(host)
+                failed = len(hits) == 1
+                Path(kwargs['output_path']).write_text(
+                    ';; connection timed out; no servers could be reached\n'
+                    if failed else packet(host, status='NXDOMAIN'))
+                return SimpleNamespace(returncode=9 if failed else 0, timed_out=False)
+            ctx.runner.run.side_effect = run
+            values = {}
+            outcomes, used = fill_missing(ctx, {HOST, other}, 'A', values, 0, 0, {'used': 0, 'reserved': 0})
+            self.assertEqual(hits, [HOST, other, HOST])
+            self.assertEqual(used, 3)
+            self.assertEqual(values, {HOST: (), other: ()})
+            self.assertEqual([r['stop_reason'] for r in outcomes], ['unknown', 'completed', 'completed'])
+            self.assertEqual(len({r['raw_artifact'] for r in outcomes}), 3)
+            self.assertEqual(ctx.budget.consume.call_count, 3)
+
+    def test_repeated_transport_failure_stays_unknown_and_obeys_cap(self):
+        for initial_used, calls in ((0, 2), (127, 1)):
+            with tempfile.TemporaryDirectory() as directory, patch('dns_explicit.tool_path', return_value='dig'):
+                ctx = self.context(directory)
+                def run(args, **kwargs):
+                    Path(kwargs['output_path']).write_text(';; connection timed out; no servers could be reached\n')
+                    return SimpleNamespace(returncode=9, timed_out=False)
+                ctx.runner.run.side_effect = run
+                values = {}
+                outcomes, used = fill_missing(ctx, {HOST}, 'A', values, 0, 0, {'used': initial_used, 'reserved': 0})
+                self.assertEqual(used, calls)
+                self.assertEqual(ctx.runner.run.call_count, calls)
+                self.assertEqual(values, {})
+                self.assertTrue(all(r['observation'] is None for r in outcomes))
+
     def test_child_environment_unset_overrides_env_without_mutating_parent(self):
         from core import AppPaths, Logger, CommandRunner
         with tempfile.TemporaryDirectory() as directory:
