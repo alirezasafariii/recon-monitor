@@ -178,19 +178,20 @@ def detect(ctx, hosts):
                 )
                 stop = "completed" if result.returncode == 0 and not getattr(result, "timed_out", False) and output.is_file() else "collector_failure"
                 values, warnings = observations(output, expected, rrtype) if stop == "completed" else ({}, 0)
-                # Retry only omissions from an otherwise clean collector invocation.
-                # Warning/timeout/failure remains unknown rather than being concealed.
-                if stop == 'completed' and not warnings and not ctx.next_requested():
+                # Never trust the rows of a warned invocation. Independently
+                # revalidate its names with strict dig evidence instead. A
+                # clean invocation supplements omissions only; explicit errors
+                # in its reported rows remain unknown.
+                if stop == 'completed' and not ctx.next_requested():
                     reported = set()
-                    for line in output.read_text(errors='replace').splitlines():
-                        try:
-                            row = json.loads(line)
-                            if isinstance(row, dict):
-                                reported.add(normalize_host(str(row.get('host') or row.get('input') or '')))
-                        except ValueError:
-                            pass
-                    # Explicit error/conflict/malformed rows must stay unknown.
-                    # A fallback is only for names omitted entirely by dnsx.
+                    if not warnings:
+                        for line in output.read_text(errors='replace').splitlines():
+                            try:
+                                row = json.loads(line)
+                                if isinstance(row, dict):
+                                    reported.add(normalize_host(str(row.get('host') or row.get('input') or '')))
+                            except ValueError:
+                                pass
                     # Each parent/round/type has an independent bounded
                     # supplement. Keep reservations and rate/budget state
                     # shared; otherwise early AAAA omissions starve all later
