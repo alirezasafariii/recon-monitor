@@ -1,0 +1,182 @@
+diff --git a/pkg/utils/bundle_references.go b/pkg/utils/bundle_references.go
+index 34d79ae..c8b3327 100644
+--- a/pkg/utils/bundle_references.go
++++ b/pkg/utils/bundle_references.go
+@@ -7,7 +7,6 @@ import (
+ 	"strings"
+ 
+ 	"github.com/dop251/goja/ast"
+-	"github.com/dop251/goja/parser"
+ 	"github.com/dop251/goja/token"
+ )
+ 
+@@ -18,7 +17,7 @@ func MaskBundledModuleReferences(data string) string {
+ 	if len(data) > 2*1024*1024 || !strings.Contains(data, "require") {
+ 		return data
+ 	}
+-	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	program, err := parseScriptAST(data)
+ 	if err != nil {
+ 		return data
+ 	}
+diff --git a/pkg/utils/regex_literals.go b/pkg/utils/regex_literals.go
+index 94e39ec..95d3f52 100644
+--- a/pkg/utils/regex_literals.go
++++ b/pkg/utils/regex_literals.go
+@@ -4,7 +4,6 @@ package utils
+ 
+ import (
+ 	"github.com/dop251/goja/ast"
+-	"github.com/dop251/goja/parser"
+ 	"strings"
+ )
+ 
+@@ -15,7 +14,7 @@ func MaskJavaScriptRegexLiterals(data string) string {
+ 	if len(data) > 2*1024*1024 || !strings.Contains(data, "/") {
+ 		return data
+ 	}
+-	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	program, err := parseScriptAST(data)
+ 	if err != nil {
+ 		return data
+ 	}
+diff --git a/pkg/utils/script_ast.go b/pkg/utils/script_ast.go
+new file mode 100644
+index 0000000..2410d15
+--- /dev/null
++++ b/pkg/utils/script_ast.go
+@@ -0,0 +1,64 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"unicode"
++	"unicode/utf8"
++
++	"github.com/dop251/goja/ast"
++	"github.com/dop251/goja/file"
++	"github.com/dop251/goja/parser"
++)
++
++// parseScriptAST supports import.meta in otherwise valid scripts for static
++// inspection only. Goja does not support this module expression. Replace only
++// exact tokens identified by its reserved-word errors, retaining byte offsets.
++// Original source is never executed or rewritten by this adapter.
++func parseScriptAST(data string) (*ast.Program, error) {
++	source := data
++	positions := file.NewFile("", data, 1)
++	for attempt := 0; ; attempt++ {
++		program, err := parser.ParseFile(nil, "", source, 0, parser.WithDisableSourceMaps)
++		if err == nil || attempt >= 8 || len(data) > 2*1024*1024 {
++			return program, err
++		}
++		errors, ok := err.(parser.ErrorList)
++		if !ok {
++			return program, err
++		}
++		replacements := 0
++		masked := []byte(source)
++		for start := 0; start < len(source); {
++			found := strings.Index(source[start:], "import.meta")
++			if found < 0 {
++				break
++			}
++			offset := start + found
++			end := offset + len("import.meta")
++			start = end
++			if end < len(source) {
++				r, _ := utf8.DecodeRuneInString(source[end:])
++				if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '$' {
++					continue
++				}
++			}
++			pos := positions.Position(offset)
++			for _, issue := range errors {
++				if issue.Message == "Unexpected reserved word" && issue.Position.Line == pos.Line && issue.Position.Column == pos.Column {
++					copy(masked[offset:end], "__reconMeta")
++					replacements++
++					break
++				}
++			}
++			if replacements >= 64 {
++				break
++			}
++		}
++		if replacements == 0 {
++			return program, err
++		}
++		source = string(masked)
++	}
++}
+diff --git a/pkg/utils/script_ast_test.go b/pkg/utils/script_ast_test.go
+new file mode 100644
+index 0000000..11f6dc2
+--- /dev/null
++++ b/pkg/utils/script_ast_test.go
+@@ -0,0 +1,43 @@
++//go:build !(386 || windows)
++
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestScriptImportMetaInspection(t *testing.T) {
++	for _, prefix := range []string{"", "// import.meta is documentation\n", "var label='سلام';\r\n"} {
++		source := prefix + `var base=import.meta.url; throw new Error("Zone.js failed; load zone.js first"); node.src='/real.js'; var standalone='zone.js'; var pattern=/./.test;`
++		masked := MaskScriptNonReferences(MaskJavaScriptRegexLiterals(source))
++		if len(masked) != len(source) {
++			t.Fatal("offsets changed")
++		}
++		if strings.Contains(masked, "Zone.js failed") || strings.Contains(masked, "load zone.js") || strings.Contains(masked, "/./") {
++			t.Fatal(masked)
++		}
++		for _, keep := range []string{"import.meta.url", "'/real.js'", "'zone.js'"} {
++			if !strings.Contains(masked, keep) {
++				t.Fatal("lost", keep)
++			}
++		}
++	}
++}
++
++func TestScriptImportMetaInvalidSourceStaysUnchanged(t *testing.T) {
++	for _, source := range []string{
++		`var x=import.metafoo; throw new Error("Zone.js failed");`,
++		`var x=import.meta.url; function( "Zone.js failed"`,
++		`var x=import.meta.url; var broken=; throw new Error("Zone.js failed");`,
++	} {
++		if got := MaskScriptNonReferences(source); got != source {
++			t.Fatal(got)
++		}
++	}
++	source := `var text="import.meta /zone.js"; /* import.meta */ var pattern=/import.meta/;`
++	got := MaskScriptNonReferences(source)
++	if got != source {
++		t.Fatal("changed literal import.meta", got)
++	}
++}
+diff --git a/pkg/utils/script_noise.go b/pkg/utils/script_noise.go
+index dd0c1bd..3652c5a 100644
+--- a/pkg/utils/script_noise.go
++++ b/pkg/utils/script_noise.go
+@@ -4,7 +4,6 @@ package utils
+ 
+ import (
+ 	"github.com/dop251/goja/ast"
+-	"github.com/dop251/goja/parser"
+ 	"github.com/dop251/goja/token"
+ 	"strings"
+ )
+@@ -15,7 +14,7 @@ func MaskScriptNonReferences(data string) string {
+ 	if len(data) > 2*1024*1024 {
+ 		return data
+ 	}
+-	program, err := parser.ParseFile(nil, "", data, 0, parser.WithDisableSourceMaps)
++	program, err := parseScriptAST(data)
+ 	if err != nil {
+ 		return data
+ 	}
