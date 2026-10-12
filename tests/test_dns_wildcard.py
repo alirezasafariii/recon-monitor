@@ -235,6 +235,25 @@ class WildcardIntegrationTests(unittest.TestCase):
         self.assertEqual(metrics['wildcard_probe_queries'], 46)  # 24 dnsx + 22 explicit omissions
         self.assertEqual(self.db.one('SELECT COUNT(*) FROM assets')[0], 1)
 
+    def test_supplement_capacity_is_independent_per_probe_query(self):
+        calls = []
+        def run(args, **kwargs):
+            Path(kwargs['output_path']).write_text('')
+            return SimpleNamespace(returncode=0, timed_out=False, duration=.1)
+        def fill(ctx, expected, rrtype, values, index, repeat, state):
+            self.assertEqual(state['used'], 0)
+            calls.append((index, repeat, rrtype, state['reserved']))
+            state['used'] = 128
+            for host in expected:
+                values[host] = ('192.0.2.20',) if rrtype == 'A' and not host.startswith('recon-wc-') else ()
+            return [], 0
+        with patch('dns_wildcard.fill_missing', side_effect=fill):
+            rows, outcomes, reserved = detect(self._context(run), ['app.'+self.TARGET])
+        self.assertEqual(len(calls), 6)
+        self.assertEqual(reserved, 24)
+        self.assertEqual(rows[0]['state'], 'non_wildcard')
+        self.assertTrue(all(c[-1] >= 28 for c in calls))
+
     def test_real_budget_reservation_and_runtime_failure(self):
         from execution import BudgetExceeded
         ctx = self._context(self.runner())
