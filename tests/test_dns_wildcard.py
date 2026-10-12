@@ -254,6 +254,28 @@ class WildcardIntegrationTests(unittest.TestCase):
         self.assertEqual(rows[0]['state'], 'non_wildcard')
         self.assertTrue(all(c[-1] >= 28 for c in calls))
 
+    def test_warned_batch_uses_independent_explicit_observations(self):
+        host = 'app.' + self.TARGET
+        calls = []
+        def run(args, **kwargs):
+            Path(kwargs['output_path']).write_text(
+                json.dumps({'host': host, 'a': ['192.0.2.99'], 'status_code': 'NOERROR'}) +
+                '\n[WRN] 1 domains failed to resolve\n')
+            return SimpleNamespace(returncode=0, timed_out=False, duration=.1)
+        def fill(ctx, expected, rrtype, values, index, repeat, state):
+            self.assertEqual(values, {})
+            self.assertIn(host, expected)
+            calls.append((repeat, rrtype))
+            for name in expected:
+                values[name] = ('192.0.2.20',) if name == host and rrtype == 'A' else ()
+            return [], len(expected)
+        with patch('dns_wildcard.fill_missing', side_effect=fill):
+            rows, outcomes, reserved = detect(self._context(run), [host])
+        self.assertEqual(len(calls), 6)
+        self.assertEqual(rows[0]['state'], 'non_wildcard')
+        self.assertEqual(rows[0]['observations'][0]['A'][host], ('192.0.2.20',))
+        self.assertTrue(all(r['collector_warnings'] for r in outcomes))
+
     def test_real_budget_reservation_and_runtime_failure(self):
         from execution import BudgetExceeded
         ctx = self._context(self.runner())
