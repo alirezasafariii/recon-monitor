@@ -80,6 +80,14 @@ def classify(host: str, controls: list[str], rounds: list[dict]):
         baseline[t] = values[0] if None not in values and len(set(values)) == 1 else None
     if all(baseline[t] == () for t, _ in TYPES) and any(candidate[t] for t, _ in TYPES):
         return "non_wildcard", "explicit_negative_controls"
+    # A stable named CNAME with explicit negative CNAME/AAAA controls is
+    # distinct from synthesized control responses. Missing A observations
+    # alone must not discard that evidence; any positive control A prevents
+    # this rule from clearing a shared-address wildcard flag.
+    if (candidate["CNAME"] and baseline["CNAME"] == ()
+            and baseline["AAAA"] == () and len(controls) >= 3
+            and all(not r.get("A", {}).get(c) for r in rounds for c in controls)):
+        return "non_wildcard", "explicit_negative_cname_controls"
     # A known distinct CNAME prevents an address-only match on shared CDN IPs.
     if (candidate["CNAME"] is not None and baseline["CNAME"] is not None
             and candidate["CNAME"] != baseline["CNAME"]):
