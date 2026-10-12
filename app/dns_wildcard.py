@@ -191,6 +191,11 @@ def detect(ctx, hosts):
                             pass
                     # Explicit error/conflict/malformed rows must stay unknown.
                     # A fallback is only for names omitted entirely by dnsx.
+                    # Each parent/round/type has an independent bounded
+                    # supplement. Keep reservations and rate/budget state
+                    # shared; otherwise early AAAA omissions starve all later
+                    # evidence. MAX_HOSTS/MAX_PARENTS/ROUNDS bound total work.
+                    fallback_state['used'] = 0
                     extra, cost_used = fill_missing(ctx, expected - reported, rrtype, values,
                                                     index, repeat, fallback_state)
                     outcomes.extend(extra)
