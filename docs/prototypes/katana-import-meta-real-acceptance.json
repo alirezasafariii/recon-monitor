@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "scenario": "real_import_meta_sources",
+  "source_hashes": {
+    "polyfills-91891880ac99.js": "91891880ac99e7d27c27d760f1433b9577be70d78b34ec0ec2282b31e2810e64",
+    "polyfills-92564ba55628.js": "92564ba55628ae71c3c8325f65d2163d5b27b7e3b9b77fde712d4811e1d85094",
+    "edge-source.html": "df781458e001454bd940ace4562fbc87c95585040c70278b272172a57923facf"
+  },
+  "requested_paths": [
+    "/Edge/",
+    "/polyfills-92564ba55628.js",
+    "/polyfills-91891880ac99.js",
+    "/real.js",
+    "/Edge/",
+    "/Trident/",
+    "/"
+  ],
+  "completion": [
+    {
+      "contract": "recon.katana.standard.completion.v1",
+      "origin": "http://127.0.0.1:46699/Edge/",
+      "stop_reason": "queue_exhausted",
+      "attempted_requests": 7,
+      "failed_requests": 0,
+      "limited_requests": 0,
+      "pending_items": 0,
+      "active_items": 0
+    }
+  ]
+}
