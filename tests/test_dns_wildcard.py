@@ -83,6 +83,8 @@ class WildcardDecisionTests(unittest.TestCase):
 
     def test_no_candidate_observation_never_clears_flag(self):
         c = ['a.test', 'b.test', 'c.test']; r = evidence(c, 'real.test', a=())
+        self.assertEqual(classify('real.test', c, r), ('not_applicable', 'explicit_negative_supported_rrsets'))
+        del r[0]['A']['real.test']
         self.assertEqual(classify('real.test', c, r)[0], 'unknown')
 
     def test_invalid_warning_error_and_duplicate_conflict_are_unknown(self):
@@ -154,6 +156,25 @@ class WildcardIntegrationTests(unittest.TestCase):
         self.assertTrue(metrics['wildcard_classification_complete'])
         self.assertEqual(self.db.one('SELECT wildcard FROM assets WHERE host=?', (host,))[0], 0)
         self.assertEqual(metrics['wildcard_candidates'], 0)
+
+    def test_complete_negative_rrsets_preserve_previous_wildcard_flag(self):
+        host = 'app.' + self.TARGET
+        (self.current / 'subdomains.txt').write_text(host + '\n')
+        self.db.upsert_asset(self.TARGET, host, ['fixture'], 'previous', wildcard=True)
+        def run(args, **kwargs):
+            names = Path(args[args.index('-l') + 1]).read_text().splitlines()
+            Path(kwargs['output_path']).write_text(''.join(
+                json.dumps({'host': name, 'status_code': 'NOERROR'}) + '\n'
+                for name in names))
+            return SimpleNamespace(returncode=0, timed_out=False, duration=.1, lines=len(names))
+        with patch('stages.tool_path', return_value='dnsx'), patch('stages.detect_dns_wildcards', side_effect=detect):
+            metrics = stage_dns(self._context(run))
+        self.assertTrue(metrics['wildcard_classification_complete'])
+        self.assertEqual(metrics['wildcard_unknown_hosts'], 0)
+        self.assertEqual(self.db.one('SELECT wildcard FROM assets WHERE host=?', (host,))[0], 1)
+        row = json.loads((self.current/'dns-wildcard-evidence.jsonl').read_text())
+        self.assertEqual(row['state'], 'not_applicable')
+        self.assertEqual(row['reason'], 'explicit_negative_supported_rrsets')
 
     def test_warnings_and_timeout_preserve_flags_and_dns(self):
         for mode in ('warning', 'timeout'):

@@ -78,6 +78,12 @@ def classify(host: str, controls: list[str], rounds: list[dict]):
     for t, _ in TYPES:
         values = [stable(c, t) for c in controls]
         baseline[t] = values[0] if None not in values and len(set(values)) == 1 else None
+    # Complete negative observations are valid coverage, but there is no
+    # positive supported RRset to compare for wildcard synthesis. Do not label
+    # the name non-wildcard or infer NXDOMAIN from empty RRsets alone.
+    if (len(controls) >= CONTROL_COUNT
+            and all(baseline[t] == () and candidate[t] == () for t, _ in TYPES)):
+        return "not_applicable", "explicit_negative_supported_rrsets"
     if all(baseline[t] == () for t, _ in TYPES) and any(candidate[t] for t, _ in TYPES):
         return "non_wildcard", "explicit_negative_controls"
     # A stable named CNAME with explicit negative CNAME/AAAA controls is
