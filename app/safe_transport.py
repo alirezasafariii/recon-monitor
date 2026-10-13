@@ -179,12 +179,13 @@ def perform_pinned_request(
     port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
     public, addresses = resolve_public_addresses(host, port)
     if not public:
-        blocked = observation(method, url, 0, {}, b"", "non_public_resolution_blocked")
+        reason = "non_public_resolution_blocked" if addresses else "dns_resolution_failed"
+        blocked = observation(method, url, 0, {}, b"", reason)
         blocked["resolved_addresses"] = addresses
         blocked["dns_rebinding_protection"] = "blocked_before_connect"
         blocked["environment_proxy_used"] = False
         blocked["safe_transport_version"] = SAFE_TRANSPORT_VERSION
-        return blocked, "stopped_for_safety"
+        return blocked, "stopped_for_safety" if addresses else "error"
 
     pinned_ip = addresses[0]
     headers = {
@@ -380,7 +381,7 @@ def perform_pinned_download(
                     "resolved_addresses": addresses,
                     "pinned_address": "",
                     "status_code": 0,
-                    "result": "non_public_resolution_blocked",
+                    "result": "non_public_resolution_blocked" if addresses else "dns_resolution_failed",
                 }
             )
             return _transport_result(
@@ -388,8 +389,8 @@ def perform_pinned_download(
                 final_url=current_url,
                 status_code=0,
                 headers={},
-                error="non_public_resolution_blocked",
-                transport_status="stopped_for_safety",
+                error="non_public_resolution_blocked" if addresses else "dns_resolution_failed",
+                transport_status="stopped_for_safety" if addresses else "error",
                 resolved_addresses=addresses,
                 transport_hops=hop_log,
             )
@@ -655,7 +656,7 @@ def fetch_pinned_tls_peer(
     if not public:
         return {
             "certificate": {},
-            "error": "non_public_resolution_blocked",
+            "error": "non_public_resolution_blocked" if addresses else "dns_resolution_failed",
             "resolved_addresses": addresses,
             "pinned_address": "",
             "dns_rebinding_protection": "blocked_before_connect",
