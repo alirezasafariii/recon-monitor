@@ -1,0 +1,124 @@
+diff --git a/pkg/engine/parser/parser.go b/pkg/engine/parser/parser.go
+--- a/pkg/engine/parser/parser.go
++++ b/pkg/engine/parser/parser.go
+@@ -785,6 +785,10 @@
+ 	if strings.Contains(resp.Resp.Header.Get("Content-Type"), "javascript") || strings.HasSuffix(resp.Resp.Request.URL.Path, ".js") {
+ 		body = utils.MaskBundledModuleReferences(utils.MaskScriptNonReferences(utils.MaskJavaScriptRegexLiterals(body)))
+ 	}
++	mediaType, _, _ := mime.ParseMediaType(resp.Resp.Header.Get("Content-Type"))
++	if mediaType == "text/css" || (mediaType == "" && strings.HasSuffix(strings.ToLower(resp.Resp.Request.URL.Path), ".css")) {
++		body = utils.MaskCSSComments(body)
++	}
+ 	endpoints := utils.ExtractBodyEndpoints(body)
+ 	for _, item := range endpoints {
+ 		navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(item, resp.Resp.Request.URL.String(), "html", "regex", resp))
+diff --git a/pkg/engine/parser/parser_test.go b/pkg/engine/parser/parser_test.go
+--- a/pkg/engine/parser/parser_test.go
++++ b/pkg/engine/parser/parser_test.go
+@@ -806,3 +806,16 @@
+ 	require.Contains(t, urls, "https://example.com/dist/unresolved.js")
+ 	require.Contains(t, urls, "https://example.com/dist/real.js")
+ }
++
++func TestReconCSSCommentIsolation(t *testing.T) {
++	parsed, _ := urlutil.Parse("https://example.com/assets/account.css")
++	resp := &navigation.Response{
++		Resp: &http.Response{Request: &http.Request{URL: parsed.URL}, Header: http.Header{"Content-Type": []string{"text/css; charset=utf-8"}}},
++		Body: `/*! github.com/necolas/normalize.css */ a { background: url("./real.css") }`,
++	}
++	requests := bodyScrapeEndpointsParser(resp)
++	require.NotEmpty(t, requests)
++	for _, request := range requests {
++		require.NotContains(t, request.URL, "github.com/necolas")
++	}
++}
+diff --git a/pkg/utils/css_comments.go b/pkg/utils/css_comments.go
+new file mode 100644
+--- /dev/null
++++ b/pkg/utils/css_comments.go
+@@ -0,0 +1,50 @@
++package utils
++
++// MaskCSSComments excludes comments from endpoint discovery without changing
++// byte offsets. Quoted content and escaped delimiters remain intact.
++func MaskCSSComments(source string) string {
++	b := []byte(source)
++	var quote byte
++	for i := 0; i < len(b); {
++		if quote != 0 {
++			if b[i] == '\\' {
++				i += 2
++				continue
++			}
++			if b[i] == quote {
++				quote = 0
++			}
++			i++
++			continue
++		}
++		if b[i] == '\\' {
++			i += 2
++			continue
++		}
++		if b[i] == '\'' || b[i] == '"' {
++			quote = b[i]
++			i++
++			continue
++		}
++		if b[i] == '/' && i+1 < len(b) && b[i+1] == '*' {
++			end := i + 2
++			for end+1 < len(b) && !(b[end] == '*' && b[end+1] == '/') {
++				end++
++			}
++			if end+1 < len(b) {
++				end += 2
++			} else {
++				end = len(b)
++			}
++			for j := i; j < end; j++ {
++				if b[j] != '\n' && b[j] != '\r' {
++					b[j] = ' '
++				}
++			}
++			i = end
++			continue
++		}
++		i++
++	}
++	return string(b)
++}
+diff --git a/pkg/utils/css_comments_test.go b/pkg/utils/css_comments_test.go
+new file mode 100644
+--- /dev/null
++++ b/pkg/utils/css_comments_test.go
+@@ -0,0 +1,30 @@
++package utils
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestMaskCSSComments(t *testing.T) {
++	source := `/*! normalize.css github.com/necolas/normalize.css */
++@import "real.css";
++a { background: url("/real.png"); content: "/* /quoted.css */"; }
++/* /hidden.css */`
++	masked := MaskCSSComments(source)
++	if len(masked) != len(source) || strings.Count(masked, "\n") != strings.Count(source, "\n") {
++		t.Fatal("layout changed")
++	}
++	for _, hidden := range []string{"github.com/necolas/normalize.css", "/hidden.css"} {
++		if strings.Contains(masked, hidden) {
++			t.Fatalf("comment retained: %s", hidden)
++		}
++	}
++	for _, real := range []string{"real.css", "/real.png", "/* /quoted.css */"} {
++		if !strings.Contains(masked, real) {
++			t.Fatalf("content lost: %s", real)
++		}
++	}
++	if got := MaskCSSComments("a{}/* unfinished /hidden.css"); got != "a{}"+strings.Repeat(" ", len("/* unfinished /hidden.css")) {
++		t.Fatal("unterminated comment not masked", got)
++	}
++}
