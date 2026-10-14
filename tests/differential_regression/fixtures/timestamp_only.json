@@ -1,0 +1,12 @@
+{
+  "name": "timestamp_only_change",
+  "before": {
+    "generated": "2026-01-01T00:00:00Z"
+  },
+  "after": {
+    "generated": "2026-01-02T00:00:00Z"
+  },
+  "expected": {
+    "signals": []
+  }
+}

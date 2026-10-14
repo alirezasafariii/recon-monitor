@@ -1,0 +1,12 @@
+{
+  "name": "normal_response_extension",
+  "before": {
+    "response_keys": ["status", "message"]
+  },
+  "after": {
+    "response_keys": ["status", "message", "request_id"]
+  },
+  "expected": {
+    "signals": []
+  }
+}
