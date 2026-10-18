@@ -18,7 +18,8 @@ collection can never establish or refresh the canonical comparison baseline.
 
 from typing import Any, Iterable, Mapping
 
-from core import utc_now
+from core import safe_json_loads, utc_now
+from collector_status import collection_incomplete
 
 
 LIFECYCLE_STATE_VERSION = "1.0.0"
@@ -155,9 +156,13 @@ def begin_target_lifecycle(db: Any, run_id: str, target: str) -> None:
 
 def _stage_statuses(db: Any, run_id: str, target: str) -> dict[str, str]:
     return {
-        str(row["stage"]): str(row["status"])
+        str(row["stage"]): (
+            "partial" if str(row["status"]) == "success" and collection_incomplete(
+                str(row["stage"]), safe_json_loads(row["metrics_json"], {}, expected_type=dict)
+            ) else str(row["status"])
+        )
         for row in db.all(
-            "SELECT stage,status FROM stage_runs WHERE run_id=? AND target=?",
+            "SELECT stage,status,metrics_json FROM stage_runs WHERE run_id=? AND target=?",
             (run_id, target),
         )
     }

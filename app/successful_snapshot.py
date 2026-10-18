@@ -37,6 +37,7 @@ from recon_snapshot_artifacts import (
     seed_committed_availability,
 )
 from storage import cas_transaction
+from collector_status import collection_incomplete, normalize_collection_metrics
 from finding_notifications import (
     ensure_finding_notification_schema,
     install_finding_notification_pipeline,
@@ -75,6 +76,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         self._migrate_successful_snapshot_schema()
         ensure_lifecycle_schema(self)
         ensure_stable_confirmation_schema(self)
+        self._repair_unavailable_collector_baselines()
         self._migrate_comparison_coverage()
         ensure_finding_notification_schema(self)
 
@@ -206,6 +208,12 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         )
         if failed_stage is not None:
             return False
+        for row in self.all(
+            "SELECT stage,metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage<>'report'",
+            (run_id, target),
+        ):
+            if collection_incomplete(str(row["stage"]), safe_json_loads(row["metrics_json"], {}, expected_type=dict)):
+                return False
         report_status = self.stage_status(run_id, target, "report")
         if report_status is None:
             return allow_missing_report
@@ -216,6 +224,54 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         # aggregate run_targets status. The baseline registry is initialized
         # from previously trusted successful_recon_commits during migration.
         return has_established_baseline(self, target)
+
+    def _discard_comparison_snapshot_no_tx(self, target: str) -> None:
+        for table in (
+            "successful_recon_state", "successful_recon_commits",
+            "successful_recon_derived_sets", "successful_recon_derived_state",
+            "target_baselines", "stable_change_state", "stable_change_run_state",
+        ):
+            self.execute(f"DELETE FROM {table} WHERE target=?", (target,))
+        discard_artifact_snapshot(self, target)
+
+    def _repair_unavailable_collector_baselines(self) -> None:
+        """Rebaseline only committed runs with explicit legacy collection gaps."""
+        for commit in self.all("SELECT target,run_id FROM successful_recon_commits"):
+            target, run_id = str(commit["target"]), str(commit["run_id"])
+            incomplete = []
+            for row in self.all(
+                "SELECT stage,metrics_json FROM stage_runs WHERE run_id=? AND target=? "
+                "AND status='success' AND stage<>'report'", (run_id, target),
+            ):
+                stage = str(row["stage"])
+                metrics = safe_json_loads(row["metrics_json"], {}, expected_type=dict)
+                if collection_incomplete(stage, metrics):
+                    incomplete.append((stage, normalize_collection_metrics(stage, metrics)))
+            if not incomplete:
+                continue
+            with cas_transaction(self):
+                for stage, metrics in incomplete:
+                    self.execute(
+                        "UPDATE stage_runs SET status='partial',metrics_json=? WHERE run_id=? AND target=? AND stage=?",
+                        (json_dumps(metrics), run_id, target, stage),
+                    )
+                reason = "collector_incomplete:" + ",".join(stage for stage, _ in incomplete)
+                self.execute(
+                    "UPDATE target_run_lifecycle SET collection_status='partial',baseline_eligible=0,"
+                    "baseline_state='blocked',baseline_reason=?,overall_status='partial',updated_at=? "
+                    "WHERE run_id=? AND target=?", (reason, utc_now(), run_id, target),
+                )
+                self.execute(
+                    "UPDATE run_targets SET status='partial' WHERE run_id=? AND target=? AND status='success'",
+                    (run_id, target),
+                )
+                self.execute("UPDATE runs SET status='partial' WHERE id=? AND status='success'", (run_id,))
+                self._discard_comparison_snapshot_no_tx(target)
+                self.audit(
+                    "unavailable_collector_baseline_invalidated", target=target,
+                    details={"previous_run_id": run_id, "stages": [stage for stage, _ in incomplete],
+                             "action": "rebaseline_required"},
+                )
 
     def _migrate_comparison_coverage(self) -> None:
         """Upgrade v1/v2 only from an untouched trusted comparison view.
@@ -246,13 +302,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                     seed_committed_availability(self, target, run_id)
                     self._replace_successful_snapshot_no_tx(target, run_id, bootstrap=True)
                 else:
-                    for table in (
-                        "successful_recon_state", "successful_recon_commits",
-                        "successful_recon_derived_sets", "successful_recon_derived_state",
-                        "target_baselines", "stable_change_state", "stable_change_run_state",
-                    ):
-                        self.execute(f"DELETE FROM {table} WHERE target=?", (target,))
-                    discard_artifact_snapshot(self, target)
+                    self._discard_comparison_snapshot_no_tx(target)
                 self.audit(
                     "recon_snapshot_coverage_migrated", target=target,
                     details={"schema_version": SNAPSHOT_SCHEMA_VERSION, "previous_run_id": run_id,

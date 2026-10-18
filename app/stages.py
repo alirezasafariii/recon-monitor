@@ -175,12 +175,16 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
     discoveries: dict[str, set[str]] = {}
     tool_outcomes: list[dict[str, Any]] = []
     collection_reasons: set[str] = set()
+    available_tools = {tool for tool in ("subfinder", "assetfinder") if tool_path(tool)}
+    if not available_tools:
+        collection_reasons.add("subdomain_tools_missing")
+        ctx.logger.warn("No subdomain discovery tools available; preserving roots as partial input", target=ctx.policy.name)
     raw_dir = ctx.current / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     for root_index, root in enumerate(ctx.policy.roots, 1):
         discoveries.setdefault(root, set()).add("root")
-        if tool_path("subfinder"):
+        if "subfinder" in available_tools:
             out = raw_dir / f"subfinder-{safe_filename(root)}.jsonl"
             args = [
                 "subfinder", "-d", root, "-silent", "-oJ", "-cs", "-duc",
@@ -204,7 +208,7 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
                 if host and ctx.policy.host_in_scope(host):
                     discoveries.setdefault(host, set()).update(sources)
 
-        if tool_path("assetfinder"):
+        if "assetfinder" in available_tools:
             out = raw_dir / f"assetfinder-{safe_filename(root)}.txt"
             result = ctx.runner.run(
                 ["assetfinder", "--subs-only", root],
@@ -251,6 +255,8 @@ def stage_subdomains(ctx: StageContext) -> dict[str, Any]:
         "collection_status": "partial" if collection_reasons else "completed",
         "collection_reasons": sorted(collection_reasons),
         "subdomain_tool_outcomes": tool_outcomes,
+        "available_tools": sorted(available_tools),
+        "missing_tools": sorted({"subfinder", "assetfinder"} - available_tools),
         "discovered": len(rows),
         "new": new_count,
         "sources": len({s for values in discoveries.values() for s in values}),
@@ -3359,13 +3365,20 @@ def _httpx_record(row: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
 
 def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     base_path = ctx.current / "base-urls.txt"
+    empty = {"probed": 0, "live": 0, "new": 0, "changed": 0}
     if not base_path.exists():
-        return {"probed": 0, "live": 0, "new": 0, "changed": 0}
-    if not tool_path("httpx"):
-        ctx.logger.warn("ProjectDiscovery httpx missing; fingerprint stage skipped", target=ctx.policy.name)
-        return {"probed": 0, "live": 0, "new": 0, "changed": 0, "skipped": "httpx missing"}
-
+        return {**empty, "collection_status": "partial", "stop_reason": "input_missing",
+                "collection_reasons": ["fingerprint_input_missing"]}
     base_count = sum(1 for line in base_path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip())
+    if base_count == 0:
+        atomic_write_text(ctx.changes / "new-live-http.txt", "")
+        atomic_write_text(ctx.changes / "changed-fingerprints.txt", "")
+        return {**empty, "collection_status": "no_input", "collection_reasons": ["no_live_origins"]}
+    if not tool_path("httpx"):
+        ctx.logger.warn("ProjectDiscovery httpx missing; fingerprint collection incomplete", target=ctx.policy.name)
+        return {**empty, "skipped": "httpx missing", "collection_status": "partial",
+                "collection_reasons": ["httpx_missing"], "stop_reason": "tool_missing", "missing_tools": ["httpx"]}
+
     if ctx.budget:
         ctx.budget.consume("http_requests", base_count)
     out = ctx.current / "httpx.jsonl"
@@ -3459,7 +3472,8 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
 
     atomic_write_text(ctx.changes / "new-live-http.txt", "".join(f"{x}\n" for x in new_live))
     atomic_write_text(ctx.changes / "changed-fingerprints.txt", "".join(f"{x}\n" for x in changed))
-    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots"))}
+    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots")),
+            "collection_status": "completed", "collection_reasons": []}
 
 
 _HTTP_WEB_PORTS = {80, 3000, 5000, 8000, 8008, 8080, 8888}
@@ -3482,14 +3496,18 @@ def _web_origin_for_port(host: str, port: int) -> str:
 
 def stage_ports(ctx: StageContext) -> dict[str, Any]:
     if not ctx.policy.modules.get("ports"):
-        return {"skipped": "disabled"}
+        return {"skipped": "disabled", "collection_status": "disabled"}
     if not ctx.policy.active_allowed(ctx.config, ctx.allow_active):
-        return {"skipped": "active authorization gate not satisfied"}
-    if not tool_path("naabu"):
-        return {"skipped": "naabu missing"}
+        return {"skipped": "active authorization gate not satisfied", "collection_status": "skipped"}
     hosts_path = ctx.current / "resolved-hosts.txt"
-    if not hosts_path.exists() or not hosts_path.read_text(encoding="utf-8", errors="replace").strip():
-        return {"skipped": "no resolved hosts"}
+    if not hosts_path.exists():
+        return {"collection_status": "partial", "collection_reasons": ["ports_input_missing"], "stop_reason": "input_missing"}
+    if not hosts_path.read_text(encoding="utf-8", errors="replace").strip():
+        atomic_write_text(ctx.current / "port-web-origins.txt", "")
+        return {"skipped": "no resolved hosts", "collection_status": "no_input"}
+    if not tool_path("naabu"):
+        return {"skipped": "naabu missing", "collection_status": "partial",
+                "collection_reasons": ["naabu_missing"], "stop_reason": "tool_missing", "missing_tools": ["naabu"]}
     ports = str(ctx.policy.active.get("naabu_ports", "80,443,8080,8443"))
     out = ctx.current / "naabu.jsonl"
     args = [
@@ -3527,19 +3545,18 @@ def stage_ports(ctx: StageContext) -> dict[str, Any]:
             emit_event(ctx, "new_port", f"{host}:{port}/{protocol}", "New open port", {"host": host, "ip": ip, "port": port, "protocol": protocol})
     ctx.db.finalize_ports_current(ctx.policy.name, ctx.run_id)
     atomic_write_text(ctx.current / "port-web-origins.txt", "".join(f"{url}\n" for url in sorted(web_origins)))
-    return {"open_ports": total, "new": new_ports, "ports": ports, "web_origins": len(web_origins)}
+    return {"open_ports": total, "new": new_ports, "ports": ports, "web_origins": len(web_origins),
+            "collection_status": "completed", "collection_reasons": []}
 
 
 def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
     if not ctx.policy.modules.get("nuclei"):
-        return {"skipped": "disabled"}
+        return {"skipped": "disabled", "collection_status": "disabled"}
     if not ctx.policy.active_allowed(ctx.config, ctx.allow_active):
-        return {"skipped": "active authorization gate not satisfied"}
-    if not tool_path("nuclei"):
-        return {"skipped": "nuclei missing"}
+        return {"skipped": "active authorization gate not satisfied", "collection_status": "skipped"}
     template_ids = [str(x) for x in ctx.policy.active.get("nuclei_template_ids", []) if str(x).strip()]
     if not template_ids:
-        return {"skipped": "no template allowlist configured"}
+        return {"skipped": "no template allowlist configured", "collection_status": "skipped"}
     candidates: set[str] = set()
     for filename in ("new-live-http.txt", "changed-fingerprints.txt"):
         path = ctx.changes / filename
@@ -3547,7 +3564,10 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
             candidates.update(line.strip() for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip())
     candidates = {url for url in candidates if ctx.policy.url_in_scope(url)}
     if not candidates:
-        return {"skipped": "no new or changed live URLs"}
+        return {"skipped": "no new or changed live URLs", "collection_status": "no_input"}
+    if not tool_path("nuclei"):
+        return {"skipped": "nuclei missing", "collection_status": "partial",
+                "collection_reasons": ["nuclei_missing"], "stop_reason": "tool_missing", "missing_tools": ["nuclei"]}
     input_path = ctx.current / "nuclei-input.txt"
     atomic_write_text(input_path, "".join(f"{url}\n" for url in sorted(candidates)))
     out = ctx.current / "nuclei.jsonl"
@@ -3581,7 +3601,8 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         if ctx.db.upsert_finding(ctx.policy.name, dedup, record, ctx.run_id):
             new_findings += 1
             emit_event(ctx, "nuclei_finding", f"{template_id}@{matched_at}", f"Nuclei finding: {name}", record)
-    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings}
+    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings,
+            "collection_status": "completed", "collection_reasons": []}
 
 
 STAGE_FUNCTIONS: dict[str, Callable[[StageContext], dict[str, Any]]] = {
