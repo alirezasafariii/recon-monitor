@@ -157,7 +157,7 @@ jobs:
           cd "$RUNNER_TEMP/dns-tools"
           curl --fail --location --silent --show-error https://github.com/projectdiscovery/dnsx/releases/download/v1.3.1/dnsx_1.3.1_linux_amd64.zip --output dnsx_1.3.1_linux_amd64.zip
           curl --fail --location --silent --show-error https://github.com/projectdiscovery/dnsx/releases/download/v1.3.1/dnsx_1.3.1_checksums.txt --output checksums.txt
-          rg ' dnsx_1.3.1_linux_amd64.zip$' checksums.txt | sha256sum --check
+          sha256sum --check --ignore-missing checksums.txt
           unzip -j dnsx_1.3.1_linux_amd64.zip dnsx
           chmod +x dnsx
       - name: Real DNS negative response and bounded resume
